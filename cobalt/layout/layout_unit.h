@@ -43,7 +43,7 @@ class LayoutUnit {
   explicit LayoutUnit(int value) : value_(value * kFixedPointRatio) {}
   explicit LayoutUnit(float value)
       : value_(static_cast<int32_t>(
-            roundf(value * static_cast<float>(kFixedPointRatio)))) {}
+            floorf(value * static_cast<float>(kFixedPointRatio)))) {}
 
   float toFloat() const {
     return static_cast<float>(value_) / kFixedPointRatio;
@@ -127,7 +127,7 @@ inline LayoutUnit operator/(LayoutUnit a, int b) { return a /= b; }
 
 // NOLINTNEXTLINE(runtime/references)
 inline LayoutUnit& operator*=(LayoutUnit& a, float b) {
-  a.value_ = static_cast<int32_t>(roundf(static_cast<float>(a.value_) * b));
+  a.value_ = static_cast<int32_t>(floorf(static_cast<float>(a.value_) * b));
   return a;
 }
 
@@ -137,13 +137,13 @@ inline LayoutUnit operator*(float a, LayoutUnit b) { return b *= a; }
 
 // NOLINTNEXTLINE(runtime/references)
 inline LayoutUnit& operator/=(LayoutUnit& a, float b) {
-  a.value_ = static_cast<int32_t>(roundf(static_cast<float>(a.value_) / b));
+  a.value_ = static_cast<int32_t>(floorf(static_cast<float>(a.value_) / b));
   return a;
 }
 
 inline LayoutUnit operator/(LayoutUnit a, float b) { return a /= b; }
 
-inline std::ostream& operator<<(std::ostream& out, LayoutUnit& x) {
+inline std::ostream& operator<<(std::ostream& out, const LayoutUnit& x) {
   return out << x.toFloat();
 }
 

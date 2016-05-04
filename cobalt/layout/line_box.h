@@ -23,6 +23,7 @@
 #include "base/optional.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/layout/layout_unit.h"
 #include "cobalt/render_tree/font.h"
 
 namespace cobalt {
@@ -50,7 +51,7 @@ namespace layout {
 // been called for every child box.
 class LineBox {
  public:
-  LineBox(float top, bool position_children_relative_to_baseline,
+  LineBox(LayoutUnit top, bool position_children_relative_to_baseline,
           const scoped_refptr<cssom::PropertyValue>& line_height,
           const render_tree::FontMetrics& font_metrics,
           bool should_collapse_leading_white_space,
@@ -59,9 +60,9 @@ class LineBox {
           const scoped_refptr<cssom::PropertyValue>& text_align,
           const scoped_refptr<cssom::PropertyValue>& white_space,
           const scoped_refptr<cssom::PropertyValue>& font_size,
-          float indent_offset, float ellipsis_width);
+          LayoutUnit indent_offset, LayoutUnit ellipsis_width);
 
-  float top() const { return top_; }
+  LayoutUnit top() const { return top_; }
 
   // Attempts to calculate the position and size of the given child box
   // if the box or a part of it fits on the line. Some parts of the calculation
@@ -109,16 +110,18 @@ class LineBox {
   bool line_exists() const { return line_exists_; }
 
   // Used to calculate the width of an inline container box.
-  float shrink_to_fit_width() const { return shrink_to_fit_width_; }
+  LayoutUnit shrink_to_fit_width() const { return shrink_to_fit_width_; }
 
   // Used to calculate the "auto" height of the box that establishes this
   // formatting context.
-  float height() const { return height_; }
+  LayoutUnit height() const { return height_; }
 
   // Returns the vertical offset of the baseline from the top of the line box.
   // May return non-zero values even for empty line boxes, because of the strut.
   //   https://www.w3.org/TR/CSS21/visudet.html#strut
-  float baseline_offset_from_top() const { return baseline_offset_from_top_; }
+  LayoutUnit baseline_offset_from_top() const {
+    return baseline_offset_from_top_;
+  }
 
  private:
   enum HorizontalAlignment {
@@ -127,7 +130,7 @@ class LineBox {
     kRightHorizontalAlignment,
   };
 
-  float GetAvailableWidth() const;
+  LayoutUnit GetAvailableWidth() const;
   void UpdateSizePreservingTrailingWhiteSpace(Box* child_box);
   bool ShouldCollapseLeadingWhiteSpaceInNextChildBox() const;
   void CollapseTrailingWhiteSpace();
@@ -142,10 +145,10 @@ class LineBox {
   void UpdateChildBoxTopPositions();
   void MaybePlaceEllipsis();
 
-  float GetHeightAboveMiddleAlignmentPoint(Box* child_box);
+  LayoutUnit GetHeightAboveMiddleAlignmentPoint(Box* child_box);
   HorizontalAlignment ComputeHorizontalAlignment() const;
 
-  const float top_;
+  const LayoutUnit top_;
   const bool position_children_relative_to_baseline_;
   const scoped_refptr<cssom::PropertyValue> line_height_;
   const render_tree::FontMetrics font_metrics_;
@@ -156,8 +159,8 @@ class LineBox {
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const scoped_refptr<cssom::PropertyValue> font_size_;
   const bool is_text_wrapping_disabled_;
-  const float indent_offset_;
-  const float ellipsis_width_;
+  const LayoutUnit indent_offset_;
+  const LayoutUnit ellipsis_width_;
 
   bool at_end_;
   bool line_exists_;
@@ -172,12 +175,12 @@ class LineBox {
   base::optional<size_t> first_non_collapsed_child_box_index_;
   base::optional<size_t> last_non_collapsed_child_box_index_;
 
-  float shrink_to_fit_width_;
-  float height_;
-  float baseline_offset_from_top_;
+  LayoutUnit shrink_to_fit_width_;
+  LayoutUnit height_;
+  LayoutUnit baseline_offset_from_top_;
 
   bool is_ellipsis_placed_;
-  float placed_ellipsis_offset_;
+  LayoutUnit placed_ellipsis_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(LineBox);
 };

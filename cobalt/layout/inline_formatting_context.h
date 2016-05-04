@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
+#include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
@@ -59,7 +60,7 @@ class InlineFormattingContext : public FormattingContext {
       const scoped_refptr<cssom::PropertyValue>& text_align,
       const scoped_refptr<cssom::PropertyValue>& white_space,
       const scoped_refptr<cssom::PropertyValue>& font_size,
-      float text_indent_offset, float ellipsis_width);
+      LayoutUnit text_indent_offset, LayoutUnit ellipsis_width);
   ~InlineFormattingContext() OVERRIDE;
 
   // Asynchronously calculates the position and size of the given child box and
@@ -99,8 +100,8 @@ class InlineFormattingContext : public FormattingContext {
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const scoped_refptr<cssom::PropertyValue> white_space_;
   const scoped_refptr<cssom::PropertyValue> font_size_;
-  const float text_indent_offset_;
-  const float ellipsis_width_;
+  const LayoutUnit text_indent_offset_;
+  const LayoutUnit ellipsis_width_;
 
   // The inline formatting context only keeps the last line box, which may be
   // NULL if no child boxes were seen.
@@ -110,7 +111,7 @@ class InlineFormattingContext : public FormattingContext {
   int line_count_;
 
   // A width of the block container box when all possible line breaks are made.
-  float preferred_min_width_;
+  LayoutUnit preferred_min_width_;
 
   std::vector<math::Vector2dF> ellipses_coordinates_;
 

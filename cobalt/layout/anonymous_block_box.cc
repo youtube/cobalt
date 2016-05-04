@@ -153,7 +153,8 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
           child_layout_params, GetBaseDirection(),
           computed_style()->text_align(), computed_style()->white_space(),
           computed_style()->font_size(),
-          GetUsedLength(computed_style()->text_indent()), ellipsis_width));
+          GetUsedLength(computed_style()->text_indent()),
+          LayoutUnit(ellipsis_width)));
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {

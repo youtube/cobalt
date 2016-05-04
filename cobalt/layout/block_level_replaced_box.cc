@@ -26,8 +26,8 @@ BlockLevelReplacedBox::BlockLevelReplacedBox(
         css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    const base::optional<float>& maybe_intrinsic_width,
-    const base::optional<float>& maybe_intrinsic_height,
+    const base::optional<LayoutUnit>& maybe_intrinsic_width,
+    const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb, paragraph,
@@ -37,9 +37,9 @@ BlockLevelReplacedBox::BlockLevelReplacedBox(
 Box::Level BlockLevelReplacedBox::GetLevel() const { return kBlockLevel; }
 
 void BlockLevelReplacedBox::UpdateHorizontalMargins(
-    float containing_block_width, float border_box_width,
-    const base::optional<float>& maybe_margin_left,
-    const base::optional<float>& maybe_margin_right) {
+    LayoutUnit containing_block_width, LayoutUnit border_box_width,
+    const base::optional<LayoutUnit>& maybe_margin_left,
+    const base::optional<LayoutUnit>& maybe_margin_right) {
   // Calculate the horizonal margins for block-level, replaced elements in
   // normal flow.
   //   https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width

@@ -26,8 +26,8 @@ InlineLevelReplacedBox::InlineLevelReplacedBox(
         css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    const base::optional<float>& maybe_intrinsic_width,
-    const base::optional<float>& maybe_intrinsic_height,
+    const base::optional<LayoutUnit>& maybe_intrinsic_width,
+    const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb, paragraph,
@@ -51,17 +51,17 @@ bool InlineLevelReplacedBox::IsHiddenByEllipsis() const {
 }
 
 void InlineLevelReplacedBox::UpdateHorizontalMargins(
-    float containing_block_width, float border_box_width,
-    const base::optional<float>& maybe_margin_left,
-    const base::optional<float>& maybe_margin_right) {
+    LayoutUnit containing_block_width, LayoutUnit border_box_width,
+    const base::optional<LayoutUnit>& maybe_margin_left,
+    const base::optional<LayoutUnit>& maybe_margin_right) {
   UNREFERENCED_PARAMETER(containing_block_width);
   UNREFERENCED_PARAMETER(border_box_width);
 
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-  set_margin_left(maybe_margin_left.value_or(0.0f));
-  set_margin_right(maybe_margin_right.value_or(0.0f));
+  set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
+  set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
@@ -73,8 +73,9 @@ void InlineLevelReplacedBox::DumpClassName(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    BaseDirection base_direction, float /*desired_offset*/,
-    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
+    BaseDirection base_direction, LayoutUnit /*desired_offset*/,
+    bool* is_placement_requirement_met, bool* is_placed,
+    LayoutUnit* placed_offset) {
   // If the ellipsis is already placed, then simply mark the box as hidden by
   // the ellipsis: "Implementations must hide characters and atomic inline-level
   // elements at the applicable edge(s) of the line as necessary to fit the

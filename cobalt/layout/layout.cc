@@ -113,8 +113,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
   // Layout.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateUsedSizes);
-    (*initial_containing_block)->set_left(0);
-    (*initial_containing_block)->set_top(0);
+    (*initial_containing_block)->set_left(LayoutUnit());
+    (*initial_containing_block)->set_top(LayoutUnit());
     (*initial_containing_block)->UpdateSize(LayoutParams());
   }
 }

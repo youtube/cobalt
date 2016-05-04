@@ -33,7 +33,7 @@ InlineFormattingContext::InlineFormattingContext(
     const scoped_refptr<cssom::PropertyValue>& text_align,
     const scoped_refptr<cssom::PropertyValue>& white_space,
     const scoped_refptr<cssom::PropertyValue>& font_size,
-    float text_indent_offset, float ellipsis_width)
+    LayoutUnit text_indent_offset, LayoutUnit ellipsis_width)
     : line_height_(line_height),
       font_metrics_(font_metrics),
       layout_params_(layout_params),
@@ -43,8 +43,7 @@ InlineFormattingContext::InlineFormattingContext(
       font_size_(font_size),
       text_indent_offset_(text_indent_offset),
       ellipsis_width_(ellipsis_width),
-      line_count_(0),
-      preferred_min_width_(0) {
+      line_count_(0) {
   CreateLineBox();
 }
 
@@ -98,8 +97,9 @@ void InlineFormattingContext::EndUpdates() {
   //   - "preferred minimum" and "preferred" widths are equal when an inline
   //     formatting context has only one line.
   set_shrink_to_fit_width(std::max(
-      preferred_min_width_,
-      line_count_ > 1 ? layout_params_.containing_block_size.width() : 0));
+      preferred_min_width_, line_count_ > 1
+                                ? layout_params_.containing_block_size.width()
+                                : LayoutUnit()));
 }
 
 const std::vector<math::Vector2dF>&
@@ -127,7 +127,8 @@ void InlineFormattingContext::CreateLineBox() {
   // "'Text-indent' only affects a line if it is the first formatted line of an
   // element."
   //   https://www.w3.org/TR/CSS21/text.html#propdef-text-indent
-  float line_indent_offset = line_count_ == 0 ? text_indent_offset_ : 0;
+  LayoutUnit line_indent_offset =
+      line_count_ == 0 ? text_indent_offset_ : LayoutUnit();
 
   // Line boxes are stacked with no vertical separation and they never
   // overlap.

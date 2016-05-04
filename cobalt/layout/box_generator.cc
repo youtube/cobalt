@@ -154,8 +154,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
                        const ReplacedBox::ReplaceImageCB& replace_image_cb,
                        const scoped_refptr<Paragraph>& paragraph,
                        int32 text_position,
-                       const base::optional<float>& maybe_intrinsic_width,
-                       const base::optional<float>& maybe_intrinsic_height,
+                       const base::optional<LayoutUnit>& maybe_intrinsic_width,
+                       const base::optional<LayoutUnit>& maybe_intrinsic_height,
                        const base::optional<float>& maybe_intrinsic_ratio,
                        UsedStyleProvider* used_style_provider)
       : css_computed_style_declaration_(css_computed_style_declaration),
@@ -177,8 +177,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const ReplacedBox::ReplaceImageCB replace_image_cb_;
   const scoped_refptr<Paragraph> paragraph_;
   const int32 text_position_;
-  const base::optional<float> maybe_intrinsic_width_;
-  const base::optional<float> maybe_intrinsic_height_;
+  const base::optional<LayoutUnit> maybe_intrinsic_width_;
+  const base::optional<LayoutUnit> maybe_intrinsic_height_;
   const base::optional<float> maybe_intrinsic_ratio_;
   UsedStyleProvider* const used_style_provider_;
 

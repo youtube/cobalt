@@ -19,9 +19,9 @@
 #include <algorithm>
 #include <limits>
 
+#include "cobalt/base/math.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/shadow_value.h"
-#include "cobalt/layout/math.h"
 #include "cobalt/layout/render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
@@ -55,8 +55,6 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
       should_collapse_trailing_white_space_(false),
       has_trailing_line_break_(has_trailing_line_break),
       update_size_results_valid_(false),
-      line_height_(0),
-      inline_top_margin_(0),
       ascent_(0) {
   DCHECK(text_start_position_ <= text_end_position_);
 
@@ -77,20 +75,26 @@ bool TextBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
-float TextBox::GetInlineLevelBoxHeight() const { return line_height_; }
+LayoutUnit TextBox::GetInlineLevelBoxHeight() const { return line_height_; }
 
-float TextBox::GetInlineLevelTopMargin() const { return inline_top_margin_; }
+LayoutUnit TextBox::GetInlineLevelTopMargin() const {
+  return inline_top_margin_;
+}
 
 void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   // Anonymous boxes do not have margins.
-  DCHECK_EQ(0.0f, GetUsedMarginLeftIfNotAuto(
-                      computed_style(), layout_params.containing_block_size));
-  DCHECK_EQ(0.0f, GetUsedMarginTopIfNotAuto(
-                      computed_style(), layout_params.containing_block_size));
-  DCHECK_EQ(0.0f, GetUsedMarginRightIfNotAuto(
-                      computed_style(), layout_params.containing_block_size));
-  DCHECK_EQ(0.0f, GetUsedMarginBottomIfNotAuto(
-                      computed_style(), layout_params.containing_block_size));
+  DCHECK_EQ(LayoutUnit(),
+            GetUsedMarginLeftIfNotAuto(computed_style(),
+                                       layout_params.containing_block_size));
+  DCHECK_EQ(LayoutUnit(),
+            GetUsedMarginTopIfNotAuto(computed_style(),
+                                      layout_params.containing_block_size));
+  DCHECK_EQ(LayoutUnit(),
+            GetUsedMarginRightIfNotAuto(computed_style(),
+                                        layout_params.containing_block_size));
+  DCHECK_EQ(LayoutUnit(),
+            GetUsedMarginBottomIfNotAuto(computed_style(),
+                                         layout_params.containing_block_size));
 
   // The non-collapsible content size only needs to be calculated if
   // |non_collapsible_text_width_| is unset. This indicates that either the
@@ -113,12 +117,12 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
     int32 text_start_position = GetNonCollapsibleTextStartPosition();
     non_collapsible_text_width_ =
         HasNonCollapsibleText()
-            ? RoundToFixedPointPrecision(used_font_->GetTextWidth(
+            ? LayoutUnit(used_font_->GetTextWidth(
                   paragraph_->GetTextBuffer() + text_start_position,
                   GetNonCollapsibleTextLength(),
                   paragraph_->IsRTL(text_start_position),
                   use_text_fonts_to_generate_font_metrics ? &text_fonts : NULL))
-            : 0;
+            : LayoutUnit();
 
     // The line height values are only calculated when one of two conditions are
     // met:
@@ -129,10 +133,10 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
     //     this is the case, the line height value is not constant and a split
     //     in the text box can result in the line height values changing.
     if (!baseline_offset_from_top_ || use_text_fonts_to_generate_font_metrics) {
-      set_margin_left(0);
-      set_margin_top(0);
-      set_margin_right(0);
-      set_margin_bottom(0);
+      set_margin_left(LayoutUnit());
+      set_margin_top(LayoutUnit());
+      set_margin_right(LayoutUnit());
+      set_margin_bottom(LayoutUnit());
 
       render_tree::FontMetrics font_metrics =
           used_font_->GetFontMetrics(text_fonts);
@@ -140,7 +144,7 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
       UsedLineHeightProvider used_line_height_provider(
           font_metrics, computed_style()->font_size());
       line_height->Accept(&used_line_height_provider);
-      set_height(font_metrics.em_box_height());
+      set_height(LayoutUnit(font_metrics.em_box_height()));
       baseline_offset_from_top_ =
           used_line_height_provider.baseline_offset_from_top();
       line_height_ = used_line_height_provider.used_line_height();
@@ -154,7 +158,7 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
 }
 
 scoped_refptr<Box> TextBox::TrySplitAt(
-    float available_width, bool should_collapse_trailing_white_space,
+    LayoutUnit available_width, bool should_collapse_trailing_white_space,
     bool allow_overflow) {
   if (!WhiteSpaceStyleAllowsWrapping()) {
     return scoped_refptr<Box>();
@@ -167,7 +171,7 @@ scoped_refptr<Box> TextBox::TrySplitAt(
   available_width -= GetLeadingWhiteSpaceWidth();
   int32 start_position = GetNonCollapsibleTextStartPosition();
   int32 split_position;
-  float split_width;
+  LayoutUnit split_width;
 
   Paragraph::BreakPolicy break_policy;
   if (computed_style()->overflow_wrap() ==
@@ -264,7 +268,7 @@ bool TextBox::AffectsBaselineInBlockFormattingContext() const {
   return true;
 }
 
-float TextBox::GetBaselineOffsetFromTopMarginEdge() const {
+LayoutUnit TextBox::GetBaselineOffsetFromTopMarginEdge() const {
   DCHECK(baseline_offset_from_top_);
   return *baseline_offset_from_top_;
 }
@@ -298,8 +302,8 @@ void AddTextShadows(render_tree::TextNode::Builder* builder,
     // the blur radius.
     float shadow_blur_sigma =
         shadow_value->blur_radius()
-            ? GetUsedLength(shadow_value->blur_radius()) / 3.0f
-            : 0;
+            ? GetUsedLength(shadow_value->blur_radius()).toFloat() / 3.0f
+            : 0.0f;
 
     render_tree::ColorRGBA shadow_color = GetUsedColor(shadow_value->color());
 
@@ -320,8 +324,8 @@ void TextBox::RenderAndAnimateContent(
     return;
   }
 
-  DCHECK_EQ(0, border_left_width() + padding_left());
-  DCHECK_EQ(0, border_top_width() + padding_top());
+  DCHECK_EQ(LayoutUnit(), border_left_width() + padding_left());
+  DCHECK_EQ(LayoutUnit(), border_top_width() + padding_top());
 
   // Only add the text node to the render tree if it actually has visible
   // content that isn't simply collapsible whitespace and a font isn't loading.
@@ -414,8 +418,9 @@ void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    BaseDirection base_direction, float desired_offset,
-    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
+    BaseDirection base_direction, LayoutUnit desired_offset,
+    bool* is_placement_requirement_met, bool* is_placed,
+    LayoutUnit* placed_offset) {
   // If the ellipsis has already been placed, then the text is fully truncated
   // by the ellipsis.
   if (*is_placed) {
@@ -426,13 +431,13 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // Otherwise, the ellipsis is being placed somewhere within this text box.
   *is_placed = true;
 
-  float content_box_start_offset =
+  LayoutUnit content_box_start_offset =
       GetContentBoxStartEdgeOffsetFromContainingBlock(base_direction);
 
   // Determine the available width in the content before to the desired offset.
   // This is the distance from the start edge of the content box to the desired
   // offset.
-  float desired_content_offset =
+  LayoutUnit desired_content_offset =
       base_direction == kRightToLeftBaseDirection
           ? content_box_start_offset - desired_offset
           : desired_offset - content_box_start_offset;
@@ -440,7 +445,7 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   int32 start_position = GetNonCollapsedTextStartPosition();
   int32 end_position = GetNonCollapsedTextEndPosition();
   int32 found_position;
-  float found_offset;
+  LayoutUnit found_offset;
 
   // Attempt to find a break position allowing breaks anywhere within the text,
   // and not simply at soft wrap locations. If the placement requirement has
@@ -458,7 +463,8 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     if (base_direction == kRightToLeftBaseDirection) {
       *placed_offset = content_box_start_offset - found_offset;
       truncated_text_offset_from_left_ =
-          *placed_offset - GetContentBoxLeftEdgeOffsetFromContainingBlock();
+          (*placed_offset - GetContentBoxLeftEdgeOffsetFromContainingBlock())
+              .toFloat();
     } else {
       *placed_offset = content_box_start_offset + found_offset;
     }
@@ -551,16 +557,15 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   return box_after_split;
 }
 
-float TextBox::GetLeadingWhiteSpaceWidth() const {
-  return HasLeadingWhiteSpace()
-             ? RoundToFixedPointPrecision(used_font_->GetSpaceWidth())
-             : 0;
+LayoutUnit TextBox::GetLeadingWhiteSpaceWidth() const {
+  return HasLeadingWhiteSpace() ? LayoutUnit(used_font_->GetSpaceWidth())
+                                : LayoutUnit();
 }
 
-float TextBox::GetTrailingWhiteSpaceWidth() const {
+LayoutUnit TextBox::GetTrailingWhiteSpaceWidth() const {
   return HasTrailingWhiteSpace() && HasNonCollapsibleText()
-             ? RoundToFixedPointPrecision(used_font_->GetSpaceWidth())
-             : 0;
+             ? LayoutUnit(used_font_->GetSpaceWidth())
+             : LayoutUnit();
 }
 
 int32 TextBox::GetNonCollapsedTextStartPosition() const {

@@ -30,6 +30,7 @@
 #include "cobalt/dom/serializer.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/render_tree_animations.h"
+#include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/border.h"
@@ -67,23 +68,15 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
   DCHECK(used_style_provider_);
 
 #ifdef _DEBUG
-  margin_box_offset_from_containing_block_.SetVector(
-      std::numeric_limits<float>::quiet_NaN(),
-      std::numeric_limits<float>::quiet_NaN());
-  margin_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
-                           std::numeric_limits<float>::quiet_NaN(),
-                           std::numeric_limits<float>::quiet_NaN(),
-                           std::numeric_limits<float>::quiet_NaN());
-  border_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
-                           std::numeric_limits<float>::quiet_NaN(),
-                           std::numeric_limits<float>::quiet_NaN(),
-                           std::numeric_limits<float>::quiet_NaN());
-  padding_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
-                            std::numeric_limits<float>::quiet_NaN(),
-                            std::numeric_limits<float>::quiet_NaN(),
-                            std::numeric_limits<float>::quiet_NaN());
-  content_size_.SetSize(std::numeric_limits<float>::quiet_NaN(),
-                        std::numeric_limits<float>::quiet_NaN());
+  margin_box_offset_from_containing_block_.SetVector(LayoutUnit(),
+                                                     LayoutUnit());
+  margin_insets_.SetInsets(LayoutUnit(), LayoutUnit(), LayoutUnit(),
+                           LayoutUnit());
+  border_insets_.SetInsets(LayoutUnit(), LayoutUnit(), LayoutUnit(),
+                           LayoutUnit());
+  padding_insets_.SetInsets(LayoutUnit(), LayoutUnit(), LayoutUnit(),
+                            LayoutUnit());
+  content_size_.SetSize(LayoutUnit(), LayoutUnit());
 #endif  // _DEBUG
 }
 
@@ -125,147 +118,148 @@ void Box::InvalidateUpdateSizeInputsOfBoxAndDescendants() {
   last_update_size_params_ = base::nullopt;
 }
 
-float Box::GetMarginBoxWidth() const {
+LayoutUnit Box::GetMarginBoxWidth() const {
   return margin_left() + GetBorderBoxWidth() + margin_right();
 }
 
-float Box::GetMarginBoxHeight() const {
+LayoutUnit Box::GetMarginBoxHeight() const {
   return margin_top() + GetBorderBoxHeight() + margin_bottom();
 }
 
-float Box::GetMarginBoxLeftEdge() const {
-  float left_from_containing_block =
-      parent_ ? GetContainingBlock()->GetContentBoxLeftEdge() : 0.0f;
+LayoutUnit Box::GetMarginBoxLeftEdge() const {
+  LayoutUnit left_from_containing_block =
+      parent_ ? GetContainingBlock()->GetContentBoxLeftEdge() : LayoutUnit();
   return left() + left_from_containing_block;
 }
 
-float Box::GetMarginBoxTopEdge() const {
-  float top_from_containing_block =
-      parent_ ? GetContainingBlock()->GetContentBoxTopEdge() : 0.0f;
+LayoutUnit Box::GetMarginBoxTopEdge() const {
+  LayoutUnit top_from_containing_block =
+      parent_ ? GetContainingBlock()->GetContentBoxTopEdge() : LayoutUnit();
   return top() + top_from_containing_block;
 }
 
-float Box::GetMarginBoxRightEdgeOffsetFromContainingBlock() const {
+LayoutUnit Box::GetMarginBoxRightEdgeOffsetFromContainingBlock() const {
   return left() + GetMarginBoxWidth();
 }
 
-float Box::GetMarginBoxBottomEdgeOffsetFromContainingBlock() const {
+LayoutUnit Box::GetMarginBoxBottomEdgeOffsetFromContainingBlock() const {
   return top() + GetMarginBoxHeight();
 }
 
-float Box::GetMarginBoxStartEdgeOffsetFromContainingBlock(
+LayoutUnit Box::GetMarginBoxStartEdgeOffsetFromContainingBlock(
     BaseDirection base_direction) const {
   return base_direction == kRightToLeftBaseDirection
              ? GetMarginBoxRightEdgeOffsetFromContainingBlock()
              : left();
 }
 
-float Box::GetMarginBoxEndEdgeOffsetFromContainingBlock(
+LayoutUnit Box::GetMarginBoxEndEdgeOffsetFromContainingBlock(
     BaseDirection base_direction) const {
   return base_direction == kRightToLeftBaseDirection
              ? left()
              : GetMarginBoxRightEdgeOffsetFromContainingBlock();
 }
 
-float Box::GetBorderBoxWidth() const {
+LayoutUnit Box::GetBorderBoxWidth() const {
   return border_left_width() + GetPaddingBoxWidth() + border_right_width();
 }
 
-float Box::GetBorderBoxHeight() const {
+LayoutUnit Box::GetBorderBoxHeight() const {
   return border_top_width() + GetPaddingBoxHeight() + border_bottom_width();
 }
 
-math::RectF Box::GetBorderBox() const {
-  return math::RectF(GetBorderBoxLeftEdge(), GetBorderBoxTopEdge(),
-                     GetBorderBoxWidth(), GetBorderBoxHeight());
+RectLayoutUnit Box::GetBorderBox() const {
+  return RectLayoutUnit(GetBorderBoxLeftEdge(), GetBorderBoxTopEdge(),
+                        GetBorderBoxWidth(), GetBorderBoxHeight());
 }
 
-math::SizeF Box::GetBorderBoxSize() const {
-  return math::SizeF(GetBorderBoxWidth(), GetBorderBoxHeight());
+SizeLayoutUnit Box::GetBorderBoxSize() const {
+  return SizeLayoutUnit(GetBorderBoxWidth(), GetBorderBoxHeight());
 }
 
-float Box::GetBorderBoxLeftEdge() const {
+LayoutUnit Box::GetBorderBoxLeftEdge() const {
   return GetMarginBoxLeftEdge() + margin_left();
 }
 
-float Box::GetBorderBoxTopEdge() const {
+LayoutUnit Box::GetBorderBoxTopEdge() const {
   return GetMarginBoxTopEdge() + margin_top();
 }
 
-float Box::GetPaddingBoxWidth() const {
+LayoutUnit Box::GetPaddingBoxWidth() const {
   return padding_left() + width() + padding_right();
 }
 
-float Box::GetPaddingBoxHeight() const {
+LayoutUnit Box::GetPaddingBoxHeight() const {
   return padding_top() + height() + padding_bottom();
 }
 
-math::SizeF Box::GetPaddingBoxSize() const {
-  return math::SizeF(GetPaddingBoxWidth(), GetPaddingBoxHeight());
+SizeLayoutUnit Box::GetPaddingBoxSize() const {
+  return SizeLayoutUnit(GetPaddingBoxWidth(), GetPaddingBoxHeight());
 }
 
-float Box::GetPaddingBoxLeftEdge() const {
+LayoutUnit Box::GetPaddingBoxLeftEdge() const {
   return GetBorderBoxLeftEdge() + border_left_width();
 }
 
-float Box::GetPaddingBoxTopEdge() const {
+LayoutUnit Box::GetPaddingBoxTopEdge() const {
   return GetBorderBoxTopEdge() + border_top_width();
 }
 
-math::Vector2dF Box::GetContentBoxOffsetFromMarginBox() const {
-  return math::Vector2dF(GetContentBoxLeftEdgeOffsetFromMarginBox(),
-                         GetContentBoxTopEdgeOffsetFromMarginBox());
+Vector2dLayoutUnit Box::GetContentBoxOffsetFromMarginBox() const {
+  return Vector2dLayoutUnit(GetContentBoxLeftEdgeOffsetFromMarginBox(),
+                            GetContentBoxTopEdgeOffsetFromMarginBox());
 }
 
-float Box::GetContentBoxLeftEdgeOffsetFromMarginBox() const {
+LayoutUnit Box::GetContentBoxLeftEdgeOffsetFromMarginBox() const {
   return margin_left() + border_left_width() + padding_left();
 }
 
-float Box::GetContentBoxTopEdgeOffsetFromMarginBox() const {
+LayoutUnit Box::GetContentBoxTopEdgeOffsetFromMarginBox() const {
   return margin_top() + border_top_width() + padding_top();
 }
 
-float Box::GetContentBoxLeftEdgeOffsetFromContainingBlock() const {
+LayoutUnit Box::GetContentBoxLeftEdgeOffsetFromContainingBlock() const {
   return left() + GetContentBoxLeftEdgeOffsetFromMarginBox();
 }
 
-float Box::GetContentBoxTopEdgeOffsetFromContainingBlock() const {
+LayoutUnit Box::GetContentBoxTopEdgeOffsetFromContainingBlock() const {
   return top() + GetContentBoxTopEdgeOffsetFromMarginBox();
 }
 
-float Box::GetContentBoxStartEdgeOffsetFromContainingBlock(
+LayoutUnit Box::GetContentBoxStartEdgeOffsetFromContainingBlock(
     BaseDirection base_direction) const {
   return base_direction == kRightToLeftBaseDirection
              ? GetContentBoxLeftEdgeOffsetFromContainingBlock() + width()
              : GetContentBoxLeftEdgeOffsetFromContainingBlock();
 }
 
-float Box::GetContentBoxEndEdgeOffsetFromContainingBlock(
+LayoutUnit Box::GetContentBoxEndEdgeOffsetFromContainingBlock(
     BaseDirection base_direction) const {
   return base_direction == kRightToLeftBaseDirection
              ? GetContentBoxLeftEdgeOffsetFromContainingBlock()
              : GetContentBoxLeftEdgeOffsetFromContainingBlock() + width();
 }
 
-math::Vector2dF Box::GetContentBoxOffsetFromPaddingBox() const {
-  return math::Vector2dF(padding_left(), padding_top());
+Vector2dLayoutUnit Box::GetContentBoxOffsetFromPaddingBox() const {
+  return Vector2dLayoutUnit(padding_left(), padding_top());
 }
 
-float Box::GetContentBoxLeftEdge() const {
+LayoutUnit Box::GetContentBoxLeftEdge() const {
   return GetPaddingBoxLeftEdge() + padding_left();
 }
 
-float Box::GetContentBoxTopEdge() const {
+LayoutUnit Box::GetContentBoxTopEdge() const {
   return GetPaddingBoxTopEdge() + padding_top();
 }
 
-float Box::GetInlineLevelBoxHeight() const { return GetMarginBoxHeight(); }
+LayoutUnit Box::GetInlineLevelBoxHeight() const { return GetMarginBoxHeight(); }
 
-float Box::GetInlineLevelTopMargin() const { return 0.0f; }
+LayoutUnit Box::GetInlineLevelTopMargin() const { return LayoutUnit(); }
 
 void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
-    BaseDirection base_direction, float desired_offset,
-    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
+    BaseDirection base_direction, LayoutUnit desired_offset,
+    bool* is_placement_requirement_met, bool* is_placed,
+    LayoutUnit* placed_offset) {
   // Ellipsis placement should only occur in inline level boxes.
   DCHECK(GetLevel() == kInlineLevel);
 
@@ -288,7 +282,7 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
   if (*is_placed) {
     should_place_ellipsis_or_process_placed_ellipsis = true;
   } else if (box_meets_placement_requirement) {
-    float end_offset =
+    LayoutUnit end_offset =
         GetMarginBoxEndEdgeOffsetFromContainingBlock(base_direction);
     should_place_ellipsis_or_process_placed_ellipsis =
         base_direction == kRightToLeftBaseDirection
@@ -340,8 +334,8 @@ void Box::RenderAndAnimate(
     return;
   }
 
-  math::Vector2dF border_box_offset(left() + margin_left(),
-                                    top() + margin_top());
+  math::Vector2dF border_box_offset(left().toFloat() + margin_left().toFloat(),
+                                    top().toFloat() + margin_top().toFloat());
   border_box_offset += offset_from_parent_node;
   render_tree::CompositionNode::Builder border_node_builder(border_box_offset);
 
@@ -354,7 +348,10 @@ void Box::RenderAndAnimate(
   base::optional<RoundedCorners> padding_rounded_corners_if_different;
   if (border_radius_provider.rounded_corners() && !border_insets_.zero()) {
     padding_rounded_corners_if_different =
-        border_radius_provider.rounded_corners()->Inset(border_insets_);
+        border_radius_provider.rounded_corners()->Inset(math::InsetsF(
+            border_insets_.left().toFloat(), border_insets_.top().toFloat(),
+            border_insets_.right().toFloat(),
+            border_insets_.bottom().toFloat()));
   }
   const base::optional<RoundedCorners>& padding_rounded_corners =
       padding_rounded_corners_if_different
@@ -505,22 +502,22 @@ render_tree::BorderStyle GetRenderTreeBorderStyle(
 Border CreateBorderFromStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>& style) {
   render_tree::BorderSide left(
-      GetUsedLength(style->border_left_width()),
+      GetUsedLength(style->border_left_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_left_style()),
       GetUsedColor(style->border_left_color()));
 
   render_tree::BorderSide right(
-      GetUsedLength(style->border_right_width()),
+      GetUsedLength(style->border_right_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_right_style()),
       GetUsedColor(style->border_right_color()));
 
   render_tree::BorderSide top(
-      GetUsedLength(style->border_top_width()),
+      GetUsedLength(style->border_top_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_top_style()),
       GetUsedColor(style->border_top_color()));
 
   render_tree::BorderSide bottom(
-      GetUsedLength(style->border_bottom_width()),
+      GetUsedLength(style->border_bottom_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_bottom_style()),
       GetUsedColor(style->border_bottom_color()));
 
@@ -677,27 +674,24 @@ void Box::UpdateBorders() {
       IsBorderStyleNoneOrHidden(computed_style()->border_top_style()) &&
       IsBorderStyleNoneOrHidden(computed_style()->border_right_style()) &&
       IsBorderStyleNoneOrHidden(computed_style()->border_bottom_style())) {
-    border_insets_ = math::InsetsF();
+    border_insets_ = InsetsLayoutUnit();
     return;
   }
 
-  border_insets_.SetInsets(
-      RoundToFixedPointPrecision(GetUsedBorderLeft(computed_style())),
-      RoundToFixedPointPrecision(GetUsedBorderTop(computed_style())),
-      RoundToFixedPointPrecision(GetUsedBorderRight(computed_style())),
-      RoundToFixedPointPrecision(GetUsedBorderBottom(computed_style())));
+  border_insets_.SetInsets(GetUsedBorderLeft(computed_style()),
+                           GetUsedBorderTop(computed_style()),
+                           GetUsedBorderRight(computed_style()),
+                           GetUsedBorderBottom(computed_style()));
 }
 
 void Box::UpdatePaddings(const LayoutParams& layout_params) {
   padding_insets_.SetInsets(
-      RoundToFixedPointPrecision(GetUsedPaddingLeft(
-          computed_style(), layout_params.containing_block_size)),
-      RoundToFixedPointPrecision(GetUsedPaddingTop(
-          computed_style(), layout_params.containing_block_size)),
-      RoundToFixedPointPrecision(GetUsedPaddingRight(
-          computed_style(), layout_params.containing_block_size)),
-      RoundToFixedPointPrecision(GetUsedPaddingBottom(
-          computed_style(), layout_params.containing_block_size)));
+      GetUsedPaddingLeft(computed_style(), layout_params.containing_block_size),
+      GetUsedPaddingTop(computed_style(), layout_params.containing_block_size),
+      GetUsedPaddingRight(computed_style(),
+                          layout_params.containing_block_size),
+      GetUsedPaddingBottom(computed_style(),
+                           layout_params.containing_block_size));
 }
 
 void Box::SetupAsPositionedChild() {
@@ -820,18 +814,19 @@ void Box::RenderAndAnimateBoxShadow(
       // radius.
       float shadow_blur_sigma =
           shadow_value->blur_radius()
-              ? GetUsedLength(shadow_value->blur_radius()) / 3.0f
+              ? GetUsedLength(shadow_value->blur_radius()).toFloat() / 3.0f
               : 0;
 
       // Setup the spread radius, defaulting it to 0 if it was never specified.
-      float spread_radius = shadow_value->spread_radius()
-                                ? GetUsedLength(shadow_value->spread_radius())
-                                : 0;
+      float spread_radius =
+          shadow_value->spread_radius()
+              ? GetUsedLength(shadow_value->spread_radius()).toFloat()
+              : 0;
 
       // Setup our shadow parameters.
       render_tree::Shadow shadow(
-          math::Vector2dF(GetUsedLength(shadow_value->offset_x()),
-                          GetUsedLength(shadow_value->offset_y())),
+          math::Vector2dF(GetUsedLength(shadow_value->offset_x()).toFloat(),
+                          GetUsedLength(shadow_value->offset_y()).toFloat()),
           shadow_blur_sigma, GetUsedColor(shadow_value->color()));
 
       math::SizeF shadow_rect_size =
@@ -840,7 +835,8 @@ void Box::RenderAndAnimateBoxShadow(
       // Inset nodes apply within the border, starting at the padding box.
       math::PointF rect_offset =
           shadow_value->has_inset()
-              ? math::PointF(border_left_width(), border_top_width())
+              ? math::PointF(border_left_width().toFloat(),
+                             border_top_width().toFloat())
               : math::PointF();
 
       render_tree::RectShadowNode::Builder shadow_builder(
@@ -897,7 +893,8 @@ void Box::RenderAndAnimateBackgroundColor(
       animations()->IsPropertyAnimated(cssom::kBackgroundColorProperty);
   if (!background_color_transparent || background_color_animated) {
     RectNode::Builder rect_node_builder(
-        math::RectF(math::PointF(border_left_width(), border_top_width()),
+        math::RectF(math::PointF(border_left_width().toFloat(),
+                                 border_top_width().toFloat()),
                     GetPaddingBoxSize()),
         scoped_ptr<Brush>());
     SetupBackgroundNodeFromStyle(rounded_corners, computed_style(),
@@ -925,8 +922,9 @@ void Box::RenderAndAnimateBackgroundImage(
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
 
-  math::RectF image_frame(math::PointF(border_left_width(), border_top_width()),
-                          GetPaddingBoxSize());
+  math::RectF image_frame(
+      math::PointF(border_left_width().toFloat(), border_top_width().toFloat()),
+      GetPaddingBoxSize());
 
   cssom::PropertyListValue* property_list =
       base::polymorphic_downcast<cssom::PropertyListValue*>(
@@ -1008,10 +1006,10 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
   //   https://www.w3.org/TR/CSS21/visufx.html#overflow
   math::SizeF padding_size = GetPaddingBoxSize();
   FilterNode::Builder filter_node_builder(content_node);
-  filter_node_builder.viewport_filter =
-      ViewportFilter(math::RectF(border_node_offset.x() + border_left_width(),
-                                 border_node_offset.y() + border_top_width(),
-                                 padding_size.width(), padding_size.height()));
+  filter_node_builder.viewport_filter = ViewportFilter(
+      math::RectF(border_node_offset.x() + border_left_width().toFloat(),
+                  border_node_offset.y() + border_top_width().toFloat(),
+                  padding_size.width(), padding_size.height()));
   if (rounded_corners) {
     filter_node_builder.viewport_filter->set_rounded_corners(*rounded_corners);
   }
@@ -1061,12 +1059,12 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.
 void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
-    float containing_block_width, float border_box_width,
-    const base::optional<float>& possibly_overconstrained_margin_left,
-    const base::optional<float>& possibly_overconstrained_margin_right) {
-  base::optional<float> maybe_margin_left =
+    LayoutUnit containing_block_width, LayoutUnit border_box_width,
+    const base::optional<LayoutUnit>& possibly_overconstrained_margin_left,
+    const base::optional<LayoutUnit>& possibly_overconstrained_margin_right) {
+  base::optional<LayoutUnit> maybe_margin_left =
       possibly_overconstrained_margin_left;
-  base::optional<float> maybe_margin_right =
+  base::optional<LayoutUnit> maybe_margin_right =
       possibly_overconstrained_margin_right;
 
   // If "border-left-width" + "padding-left" + "width" + "padding-right" +
@@ -1074,11 +1072,11 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
   // not "auto") is larger than the width of the containing block, then any
   // "auto" values for "margin-left" or "margin-right" are, for the following
   // rules, treated as zero.
-  if (maybe_margin_left.value_or(0.0f) + border_box_width +
-          maybe_margin_right.value_or(0.0f) >
+  if (maybe_margin_left.value_or(LayoutUnit()) + border_box_width +
+          maybe_margin_right.value_or(LayoutUnit()) >
       containing_block_width) {
-    maybe_margin_left = maybe_margin_left.value_or(0.0f);
-    maybe_margin_right = maybe_margin_right.value_or(0.0f);
+    maybe_margin_left = maybe_margin_left.value_or(LayoutUnit());
+    maybe_margin_right = maybe_margin_right.value_or(LayoutUnit());
   }
 
   if (maybe_margin_left) {
@@ -1101,7 +1099,8 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
   } else {
     // If both "margin-left" and "margin-right" are "auto", their used values
     // are equal.
-    float horizontal_margin = (containing_block_width - border_box_width) / 2;
+    LayoutUnit horizontal_margin =
+        (containing_block_width - border_box_width) / 2;
     set_margin_left(horizontal_margin);
     set_margin_right(horizontal_margin);
   }

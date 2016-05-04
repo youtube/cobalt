@@ -488,16 +488,17 @@ render_tree::ColorRGBA GetUsedColor(
   return render_tree::ColorRGBA(color->value());
 }
 
-float GetUsedLength(const scoped_refptr<cssom::PropertyValue>& length_refptr) {
+LayoutUnit GetUsedLength(
+    const scoped_refptr<cssom::PropertyValue>& length_refptr) {
   cssom::LengthValue* length =
       base::polymorphic_downcast<cssom::LengthValue*>(length_refptr.get());
   DCHECK_EQ(length->unit(), cssom::kPixelsUnit);
-  return length->value();
+  return LayoutUnit(length->value());
 }
 
 class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  explicit UsedLengthValueProvider(float percentage_base,
+  explicit UsedLengthValueProvider(LayoutUnit percentage_base,
                                    bool calc_permitted = false)
       : percentage_base_(percentage_base), calc_permitted_(calc_permitted) {}
 
@@ -505,7 +506,7 @@ class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
     depends_on_containing_block_ = false;
 
     DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-    used_length_ = length->value();
+    used_length_ = LayoutUnit(length->value());
   }
 
   void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE {
@@ -518,33 +519,36 @@ class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
       NOTREACHED();
     }
     depends_on_containing_block_ = true;
-    used_length_ = calc->length_value()->value() +
+    used_length_ = LayoutUnit(calc->length_value()->value()) +
                    calc->percentage_value()->value() * percentage_base_;
   }
 
   bool depends_on_containing_block() const {
     return depends_on_containing_block_;
   }
-  const base::optional<float>& used_length() const { return used_length_; }
+  const base::optional<LayoutUnit>& used_length() const { return used_length_; }
 
  protected:
   bool depends_on_containing_block_;
 
  private:
-  const float percentage_base_;
+  const LayoutUnit percentage_base_;
   const bool calc_permitted_;
 
-  base::optional<float> used_length_;
+  base::optional<LayoutUnit> used_length_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
 };
 
+namespace {
 float GetUsedLengthPercentageOrCalcValue(cssom::PropertyValue* property_value,
                                          float percentage_base) {
-  UsedLengthValueProvider used_length_value_provider(percentage_base, true);
+  UsedLengthValueProvider used_length_value_provider(
+      LayoutUnit(percentage_base), true);
   property_value->Accept(&used_length_value_provider);
-  return *used_length_value_provider.used_length();
+  return used_length_value_provider.used_length()->toFloat();
 }
+}  // namespace
 
 UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
     const math::RectF& frame,
@@ -1203,13 +1207,13 @@ UsedLineHeightProvider::UsedLineHeightProvider(
 
 void UsedLineHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   DCHECK_EQ(cssom::KeywordValue::kNormal, keyword->value());
-  used_line_height_ = font_metrics_.em_box_height();
+  used_line_height_ = LayoutUnit(font_metrics_.em_box_height());
   UpdateHalfLeading();
 }
 
 void UsedLineHeightProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  used_line_height_ = length->value();
+  used_line_height_ = LayoutUnit(length->value());
   UpdateHalfLeading();
 }
 
@@ -1218,7 +1222,7 @@ void UsedLineHeightProvider::VisitNumber(cssom::NumberValue* length) {
   // The used value of the property is this number multiplied by the element's
   // font size.
   //   https://www.w3.org/TR/CSS21/visudet.html#line-height
-  used_line_height_ = length->value() * font_size;
+  used_line_height_ = LayoutUnit(length->value() * font_size);
   UpdateHalfLeading();
 }
 
@@ -1226,9 +1230,9 @@ void UsedLineHeightProvider::UpdateHalfLeading() {
   // Determine the leading L, where L = "line-height" - AD,
   // AD = A (ascent) + D (descent).
   //   https://www.w3.org/TR/CSS21/visudet.html#leading
-  half_leading_ =
-      (used_line_height_ - (font_metrics_.ascent() + font_metrics_.descent())) /
-      2;
+  half_leading_ = (used_line_height_ - LayoutUnit(font_metrics_.ascent() +
+                                                  font_metrics_.descent())) /
+                  2;
 }
 
 // A percentage for the horizontal offset is relative to the width of the
@@ -1278,7 +1282,7 @@ namespace {
 
 class UsedLengthProvider : public UsedLengthValueProvider {
  public:
-  explicit UsedLengthProvider(float percentage_base)
+  explicit UsedLengthProvider(LayoutUnit percentage_base)
       : UsedLengthValueProvider(percentage_base) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
@@ -1347,7 +1351,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
 
 class UsedMaxLengthProvider : public UsedLengthValueProvider {
  public:
-  explicit UsedMaxLengthProvider(float percentage_base)
+  explicit UsedMaxLengthProvider(LayoutUnit percentage_base)
       : UsedLengthValueProvider(percentage_base) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
@@ -1416,9 +1420,9 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
 
 }  // namespace
 
-base::optional<float> GetUsedLeftIfNotAuto(
+base::optional<LayoutUnit> GetUsedLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1426,9 +1430,9 @@ base::optional<float> GetUsedLeftIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedTopIfNotAuto(
+base::optional<LayoutUnit> GetUsedTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
   UsedLengthProvider used_length_provider(containing_block_size.height());
@@ -1436,9 +1440,9 @@ base::optional<float> GetUsedTopIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedRightIfNotAuto(
+base::optional<LayoutUnit> GetUsedRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1446,9 +1450,9 @@ base::optional<float> GetUsedRightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedBottomIfNotAuto(
+base::optional<LayoutUnit> GetUsedBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
   UsedLengthProvider used_length_provider(containing_block_size.height());
@@ -1456,9 +1460,9 @@ base::optional<float> GetUsedBottomIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedWidthIfNotAuto(
+base::optional<LayoutUnit> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#the-width-property
@@ -1471,9 +1475,9 @@ base::optional<float> GetUsedWidthIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedMaxHeightIfNotNone(
+base::optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* height_depends_on_containing_block) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
@@ -1486,9 +1490,9 @@ base::optional<float> GetUsedMaxHeightIfNotNone(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedMaxWidthIfNotNone(
+base::optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-max-width
@@ -1501,9 +1505,9 @@ base::optional<float> GetUsedMaxWidthIfNotNone(
   return used_length_provider.used_length();
 }
 
-float GetUsedMinHeight(
+LayoutUnit GetUsedMinHeight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* height_depends_on_containing_block) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
@@ -1516,9 +1520,9 @@ float GetUsedMinHeight(
   return *used_length_provider.used_length();
 }
 
-float GetUsedMinWidth(
+LayoutUnit GetUsedMinWidth(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-min-width
@@ -1531,9 +1535,9 @@ float GetUsedMinWidth(
   return *used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedHeightIfNotAuto(
+base::optional<LayoutUnit> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // The percentage is calculated with respect to the height of the generated
   // box's containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
@@ -1542,9 +1546,9 @@ base::optional<float> GetUsedHeightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedMarginLeftIfNotAuto(
+base::optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1552,9 +1556,9 @@ base::optional<float> GetUsedMarginLeftIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedMarginTopIfNotAuto(
+base::optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1562,9 +1566,9 @@ base::optional<float> GetUsedMarginTopIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedMarginRightIfNotAuto(
+base::optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1572,9 +1576,9 @@ base::optional<float> GetUsedMarginRightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<float> GetUsedMarginBottomIfNotAuto(
+base::optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1582,37 +1586,37 @@ base::optional<float> GetUsedMarginBottomIfNotAuto(
   return used_length_provider.used_length();
 }
 
-float GetUsedBorderLeft(
+LayoutUnit GetUsedBorderLeft(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return base::polymorphic_downcast<const cssom::LengthValue*>(
-             computed_style->border_left_width().get())
-      ->value();
+  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
+                        computed_style->border_left_width().get())
+                        ->value());
 }
 
-float GetUsedBorderTop(
+LayoutUnit GetUsedBorderTop(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return base::polymorphic_downcast<const cssom::LengthValue*>(
-             computed_style->border_top_width().get())
-      ->value();
+  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
+                        computed_style->border_top_width().get())
+                        ->value());
 }
 
-float GetUsedBorderRight(
+LayoutUnit GetUsedBorderRight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return base::polymorphic_downcast<const cssom::LengthValue*>(
-             computed_style->border_right_width().get())
-      ->value();
+  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
+                        computed_style->border_right_width().get())
+                        ->value());
 }
 
-float GetUsedBorderBottom(
+LayoutUnit GetUsedBorderBottom(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return base::polymorphic_downcast<const cssom::LengthValue*>(
-             computed_style->border_bottom_width().get())
-      ->value();
+  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
+                        computed_style->border_bottom_width().get())
+                        ->value());
 }
 
-float GetUsedPaddingLeft(
+LayoutUnit GetUsedPaddingLeft(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1620,9 +1624,9 @@ float GetUsedPaddingLeft(
   return *used_length_provider.used_length();
 }
 
-float GetUsedPaddingTop(
+LayoutUnit GetUsedPaddingTop(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1630,9 +1634,9 @@ float GetUsedPaddingTop(
   return *used_length_provider.used_length();
 }
 
-float GetUsedPaddingRight(
+LayoutUnit GetUsedPaddingRight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());
@@ -1640,9 +1644,9 @@ float GetUsedPaddingRight(
   return *used_length_provider.used_length();
 }
 
-float GetUsedPaddingBottom(
+LayoutUnit GetUsedPaddingBottom(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties
   UsedLengthProvider used_length_provider(containing_block_size.width());

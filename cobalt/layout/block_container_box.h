@@ -20,6 +20,7 @@
 #include "base/optional.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/container_box.h"
+#include "cobalt/layout/size_layout_unit.h"
 
 namespace cobalt {
 namespace layout {
@@ -48,7 +49,7 @@ class BlockContainerBox : public ContainerBox {
 
   // From |Box|.
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_refptr<Box> TrySplitAt(float available_width,
+  scoped_refptr<Box> TrySplitAt(LayoutUnit available_width,
                                 bool should_collapse_trailing_white_space,
                                 bool allow_overflow) OVERRIDE;
 
@@ -65,7 +66,7 @@ class BlockContainerBox : public ContainerBox {
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
+  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
   // From |ContainerBox|.
   scoped_refptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
@@ -88,60 +89,65 @@ class BlockContainerBox : public ContainerBox {
 
  private:
   void UpdateContentWidthAndMargins(
-      float containing_block_width, bool shrink_to_fit_width_forced,
+      LayoutUnit containing_block_width, bool shrink_to_fit_width_forced,
       bool width_depends_on_containing_block,
-      const base::optional<float>& maybe_left,
-      const base::optional<float>& maybe_right,
-      const base::optional<float>& maybe_margin_left,
-      const base::optional<float>& maybe_margin_right,
-      const base::optional<float>& maybe_width,
-      const base::optional<float>& maybe_height);
+      const base::optional<LayoutUnit>& maybe_left,
+      const base::optional<LayoutUnit>& maybe_right,
+      const base::optional<LayoutUnit>& maybe_margin_left,
+      const base::optional<LayoutUnit>& maybe_margin_right,
+      const base::optional<LayoutUnit>& maybe_width,
+      const base::optional<LayoutUnit>& maybe_height);
   void UpdateContentHeightAndMargins(
-      const math::SizeF& containing_block_size,
-      const base::optional<float>& maybe_top,
-      const base::optional<float>& maybe_bottom,
-      const base::optional<float>& maybe_margin_top,
-      const base::optional<float>& maybe_margin_bottom,
-      const base::optional<float>& maybe_height);
+      const SizeLayoutUnit& containing_block_size,
+      const base::optional<LayoutUnit>& maybe_top,
+      const base::optional<LayoutUnit>& maybe_bottom,
+      const base::optional<LayoutUnit>& maybe_margin_top,
+      const base::optional<LayoutUnit>& maybe_margin_bottom,
+      const base::optional<LayoutUnit>& maybe_height);
 
   void UpdateWidthAssumingAbsolutelyPositionedBox(
-      float containing_block_width, const base::optional<float>& maybe_left,
-      const base::optional<float>& maybe_right,
-      const base::optional<float>& maybe_width,
-      const base::optional<float>& maybe_margin_left,
-      const base::optional<float>& maybe_margin_right,
-      const base::optional<float>& maybe_height);
+      LayoutUnit containing_block_width,
+      const base::optional<LayoutUnit>& maybe_left,
+      const base::optional<LayoutUnit>& maybe_right,
+      const base::optional<LayoutUnit>& maybe_width,
+      const base::optional<LayoutUnit>& maybe_margin_left,
+      const base::optional<LayoutUnit>& maybe_margin_right,
+      const base::optional<LayoutUnit>& maybe_height);
   void UpdateHeightAssumingAbsolutelyPositionedBox(
-      float containing_block_height, const base::optional<float>& maybe_top,
-      const base::optional<float>& maybe_bottom,
-      const base::optional<float>& maybe_height,
-      const base::optional<float>& maybe_margin_top,
-      const base::optional<float>& maybe_margin_bottom,
+      LayoutUnit containing_block_height,
+      const base::optional<LayoutUnit>& maybe_top,
+      const base::optional<LayoutUnit>& maybe_bottom,
+      const base::optional<LayoutUnit>& maybe_height,
+      const base::optional<LayoutUnit>& maybe_margin_top,
+      const base::optional<LayoutUnit>& maybe_margin_bottom,
       const FormattingContext& formatting_context);
 
   void UpdateWidthAssumingBlockLevelInFlowBox(
-      float containing_block_width, const base::optional<float>& maybe_width,
-      const base::optional<float>& maybe_margin_left,
-      const base::optional<float>& maybe_margin_right);
+      LayoutUnit containing_block_width,
+      const base::optional<LayoutUnit>& maybe_width,
+      const base::optional<LayoutUnit>& maybe_margin_left,
+      const base::optional<LayoutUnit>& maybe_margin_right);
   void UpdateWidthAssumingInlineLevelInFlowBox(
-      float containing_block_width, const base::optional<float>& maybe_width,
-      const base::optional<float>& maybe_margin_left,
-      const base::optional<float>& maybe_margin_right,
-      const base::optional<float>& maybe_height);
+      LayoutUnit containing_block_width,
+      const base::optional<LayoutUnit>& maybe_width,
+      const base::optional<LayoutUnit>& maybe_margin_left,
+      const base::optional<LayoutUnit>& maybe_margin_right,
+      const base::optional<LayoutUnit>& maybe_height);
 
   void UpdateHeightAssumingInFlowBox(
-      const base::optional<float>& maybe_height,
-      const base::optional<float>& maybe_margin_top,
-      const base::optional<float>& maybe_margin_bottom,
+      const base::optional<LayoutUnit>& maybe_height,
+      const base::optional<LayoutUnit>& maybe_margin_top,
+      const base::optional<LayoutUnit>& maybe_margin_bottom,
       const FormattingContext& formatting_context);
 
-  float GetShrinkToFitWidth(float containing_block_width,
-                            const base::optional<float>& maybe_height);
+  LayoutUnit GetShrinkToFitWidth(
+      LayoutUnit containing_block_width,
+      const base::optional<LayoutUnit>& maybe_height);
 
   // A vertical offset of the baseline of the last child box that has one,
   // relatively to the origin of the block container box. Disengaged, if none
   // of the child boxes have a baseline.
-  base::optional<float> maybe_baseline_offset_from_top_margin_edge_;
+  base::optional<LayoutUnit> maybe_baseline_offset_from_top_margin_edge_;
 
   // The primary direction in which inline content is ordered on a line and the
   // sides on which the "start" and "end" of a line are.

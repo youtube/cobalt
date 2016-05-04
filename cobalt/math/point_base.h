@@ -50,7 +50,7 @@ class PointBase {
     y_ = y_ >= other.y_ ? y_ : other.y_;
   }
 
-  bool IsOrigin() const { return x_ == 0 && y_ == 0; }
+  bool IsOrigin() const { return x_ == Type(0) && y_ == Type(0); }
 
   VectorClass OffsetFromOrigin() const { return VectorClass(x_, y_); }
 
@@ -65,6 +65,7 @@ class PointBase {
   }
 
  protected:
+  PointBase() {}
   PointBase(Type x, Type y) : x_(x), y_(y) {}
   // Destructor is intentionally made non virtual and protected.
   // Do not make this public.

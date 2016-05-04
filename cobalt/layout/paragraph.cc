@@ -129,18 +129,19 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
 
 bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                                   int32 start_position, int32 end_position,
-                                  float available_width,
+                                  LayoutUnit available_width,
                                   bool should_collapse_trailing_white_space,
                                   bool allow_overflow, BreakPolicy break_policy,
-                                  int32* break_position, float* break_width) {
+                                  int32* break_position,
+                                  LayoutUnit* break_width) {
   DCHECK(is_closed_);
 
   *break_position = start_position;
-  *break_width = 0;
+  *break_width = LayoutUnit();
 
   // If overflow isn't allowed and there is no available width, then there is
   // nothing to do. No break position can be found.
-  if (!allow_overflow && available_width <= 0) {
+  if (!allow_overflow && available_width <= LayoutUnit()) {
     return false;
   }
 
@@ -287,9 +288,9 @@ bool Paragraph::IsClosed() const { return is_closed_; }
 void Paragraph::FindIteratorBreakPosition(
     const scoped_refptr<dom::FontList>& used_font,
     icu::BreakIterator* const break_iterator, int32 start_position,
-    int32 end_position, float available_width,
+    int32 end_position, LayoutUnit available_width,
     bool should_collapse_trailing_white_space, bool allow_overflow,
-    int32* break_position, float* break_width) {
+    int32* break_position, LayoutUnit* break_width) {
   // Iterate through soft wrap locations, beginning from the passed in start
   // position. Continue until TryIncludeSegmentWithinAvailableWidth() returns
   // false, indicating that no more segments can be included.
@@ -308,26 +309,26 @@ void Paragraph::FindIteratorBreakPosition(
 
 bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
     const scoped_refptr<dom::FontList>& used_font, int32 segment_start,
-    int32 segment_end, float available_width,
+    int32 segment_end, LayoutUnit available_width,
     bool should_collapse_trailing_white_space, bool* allow_overflow,
-    int32* break_position, float* break_width) {
+    int32* break_position, LayoutUnit* break_width) {
   // Add the width of the segment encountered to the total, until reaching one
   // that causes the available width to be exceeded. The previous break position
   // is the last usable one. However, if overflow is allowed and no segment has
   // been found, then the first overflowing segment is accepted.
-  float segment_width = used_font->GetTextWidth(
+  LayoutUnit segment_width = LayoutUnit(used_font->GetTextWidth(
       unicode_text_.getBuffer() + segment_start, segment_end - segment_start,
-      IsRTL(segment_start), NULL);
+      IsRTL(segment_start), NULL));
 
   // If trailing white space is being collapsed, then it will not be included
   // when determining if the segment can fit within the available width.
   // However, it is still added to |break_width|, as it will impact the
   // width available to additional segments.
-  float collapsible_trailing_white_space_width =
-      should_collapse_trailing_white_space &&
-              IsCollapsibleWhiteSpace(segment_end - 1)
-          ? used_font->GetSpaceWidth()
-          : 0;
+  LayoutUnit collapsible_trailing_white_space_width =
+      LayoutUnit(should_collapse_trailing_white_space &&
+                         IsCollapsibleWhiteSpace(segment_end - 1)
+                     ? used_font->GetSpaceWidth()
+                     : 0);
 
   if (!*allow_overflow &&
       *break_width + segment_width - collapsible_trailing_white_space_width >
