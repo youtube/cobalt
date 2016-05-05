@@ -91,14 +91,11 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   // them.
   const int kDummyTextureWidth = 1;
   const int kDummyTextureHeight = 2;
-  uint32_t dummy_data[2];
-  dummy_data[0] = 0x00000000;
-  dummy_data[1] = 0xFFFFFFFF;
 
   // Create our texture.
   GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kDummyTextureWidth,
                        kDummyTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                       dummy_data));
+                       NULL));
   GL_CALL(glFinish());
 
   // Now read back the texture data using glReadPixels().
@@ -108,6 +105,15 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
 
   GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                  GL_TEXTURE_2D, test_texture, 0));
+  GL_CALL(glDisable(GL_BLEND));
+  GL_CALL(glEnable(GL_SCISSOR_TEST));
+  GL_CALL(glScissor(0, 0, 1, 2));
+  GL_CALL(glClearColor(1.0f, 1.0f, 1.0f, 1.0f));
+  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+  GL_CALL(glScissor(0, 0, 1, 1));
+  GL_CALL(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+  GL_CALL(glFinish());
 
   uint32_t out_data[2];
   GL_CALL(glReadPixels(0, 0, kDummyTextureWidth, kDummyTextureHeight, GL_RGBA,
@@ -119,7 +125,10 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   GL_CALL(glDeleteTextures(1, &test_texture));
 
   // Finally check if the data we read back was flipped or not.
-  return out_data[0] == 0xFFFFFFFF;
+  DCHECK((out_data[0] == 0x00000000 && out_data[1] == 0xFFFFFFFF) ||
+         (out_data[0] == 0xFFFFFFFF && out_data[1] == 0x00000000));
+
+  return out_data[1] == 0x00000000;
 }
 
 void GraphicsContextEGL::SetupBlitToRenderTargetObjects() {
