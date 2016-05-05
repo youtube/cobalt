@@ -85,7 +85,7 @@ SbAtomic32 SbAtomicAcquire_Load(volatile const SbAtomic32* ptr);
 SbAtomic32 SbAtomicRelease_Load(volatile const SbAtomic32* ptr);
 
 // 64-bit atomic operations (only available on 64-bit processors).
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_ATOMICS)
 typedef int64_t SbAtomic64;
 
 SbAtomic64 SbAtomicNoBarrier_CompareAndSwap64(volatile SbAtomic64* ptr,
@@ -109,7 +109,7 @@ void SbAtomicRelease_Store64(volatile SbAtomic64* ptr, SbAtomic64 value);
 SbAtomic64 SbAtomicNoBarrier_Load64(volatile const SbAtomic64* ptr);
 SbAtomic64 SbAtomicAcquire_Load64(volatile const SbAtomic64* ptr);
 SbAtomic64 SbAtomicRelease_Load64(volatile const SbAtomic64* ptr);
-#endif  // SB_IS(64_BIT)
+#endif  // SB_HAS(64_BIT_ATOMICS)
 
 // Pointer-sized atomic operations. Forwards to either 32-bit or 64-bit
 // functions as appropriate.
@@ -300,7 +300,7 @@ inline SbAtomic32 Release_Load(volatile const SbAtomic32* ptr) {
   return SbAtomicRelease_Load(ptr);
 }
 
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_ATOMICS)
 inline SbAtomic64 NoBarrier_CompareAndSwap(volatile SbAtomic64* ptr,
                                            SbAtomic64 old_value,
                                            SbAtomic64 new_value) {
@@ -357,7 +357,7 @@ inline SbAtomic64 Acquire_Load(volatile const SbAtomic64* ptr) {
 inline SbAtomic64 Release_Load(volatile const SbAtomic64* ptr) {
   return SbAtomicRelease_Load64(ptr);
 }
-#endif  // SB_IS(64_BIT)
+#endif  // SB_HAS(64_BIT_ATOMICS)
 
 }  // namespace atomic
 }  // namespace starboard

@@ -33,7 +33,11 @@ class SbAtomicTest : public testing::Test {
   virtual ~SbAtomicTest() {}
 };
 
+#if SB_HAS(64_BIT_ATOMICS)
 typedef testing::Types<SbAtomic32, SbAtomic64, SbAtomicPtr> SbAtomicTestTypes;
+#else
+typedef testing::Types<SbAtomic32, SbAtomicPtr> SbAtomicTestTypes;
+#endif
 TYPED_TEST_CASE(SbAtomicTest, SbAtomicTestTypes);
 
 TYPED_TEST(SbAtomicTest, IncrementSingleThread) {
