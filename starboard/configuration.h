@@ -343,4 +343,11 @@ struct CompileAssert {};
 #define SB_IS_LITTLE_ENDIAN 1
 #endif
 
+// Whether the current platform has 64-bit atomic operations.
+#if SB_IS(64_BIT)
+#define SB_HAS_64_BIT_ATOMICS 1
+#else
+#define SB_HAS_64_BIT_ATOMICS 0
+#endif
+
 #endif  // STARBOARD_CONFIGURATION_H_
