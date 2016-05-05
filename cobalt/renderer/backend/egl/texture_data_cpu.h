@@ -17,6 +17,7 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_TEXTURE_DATA_CPU_H_
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_DATA_CPU_H_
 
+#include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 
 namespace cobalt {
@@ -66,7 +67,7 @@ class RawTextureMemoryCPU : public RawTextureMemoryEGL {
  private:
   size_t size_in_bytes_;
 
-  scoped_ptr_malloc<uint8_t> memory_;
+  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> memory_;
 };
 
 }  // namespace backend

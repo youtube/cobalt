@@ -71,7 +71,8 @@ bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr) {
   }
 
   int64_t bytes_read = record_->Read(reinterpret_cast<char*>(&bytes[0]), size);
-  bytes.resize(static_cast<size_t>(std::max(0L, bytes_read)));
+  bytes.resize(
+      static_cast<size_t>(std::max(static_cast<int64_t>(0), bytes_read)));
   return bytes_read == size;
 }
 
