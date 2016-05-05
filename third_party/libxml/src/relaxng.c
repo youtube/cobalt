@@ -3236,7 +3236,7 @@ xmlRelaxNGCompile(xmlRelaxNGParserCtxtPtr ctxt, xmlRelaxNGDefinePtr def)
             fprintf(stderr, "RNG internal error trying to compile %s\n",
                     xmlRelaxNGDefName(def));
 #else
-            SbLogFormat("RNG internal error trying to compile %s\n",
+            SbLogFormatF("RNG internal error trying to compile %s\n",
                     xmlRelaxNGDefName(def));
 #endif
             break;
@@ -7945,7 +7945,7 @@ xmlRelaxNGValidateCompiledCallback(xmlRegExecCtxtPtr exec ATTRIBUTE_UNUSED,
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s missing context\n", token);
 #else
-        SbLogFormat("callback on %s missing context\n", token);
+        SbLogFormatF("callback on %s missing context\n", token);
 #endif
         return;
     }
@@ -7955,7 +7955,7 @@ xmlRelaxNGValidateCompiledCallback(xmlRegExecCtxtPtr exec ATTRIBUTE_UNUSED,
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s missing define\n", token);
 #else
-        SbLogFormat("callback on %s missing define\n", token);
+        SbLogFormatF("callback on %s missing define\n", token);
 #endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
@@ -7965,7 +7965,7 @@ xmlRelaxNGValidateCompiledCallback(xmlRegExecCtxtPtr exec ATTRIBUTE_UNUSED,
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s missing info\n", token);
 #else
-        SbLogFormat("callback on %s missing info\n", token);
+        SbLogFormatF("callback on %s missing info\n", token);
 #endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
@@ -7974,7 +7974,7 @@ xmlRelaxNGValidateCompiledCallback(xmlRegExecCtxtPtr exec ATTRIBUTE_UNUSED,
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s define is not element\n", token);
 #else
-        SbLogFormat("callback on %s define is not element\n", token);
+        SbLogFormatF("callback on %s define is not element\n", token);
 #endif
         if (ctxt->errNo == XML_RELAXNG_OK)
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
@@ -8176,7 +8176,7 @@ xmlRelaxNGValidateProgressiveCallback(xmlRegExecCtxtPtr exec
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s missing context\n", token);
 #else
-        SbLogFormat("callback on %s missing context\n", token);
+        SbLogFormatF("callback on %s missing context\n", token);
 #endif
         return;
     }
@@ -8188,7 +8188,7 @@ xmlRelaxNGValidateProgressiveCallback(xmlRegExecCtxtPtr exec
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s missing define\n", token);
 #else
-        SbLogFormat("callback on %s missing define\n", token);
+        SbLogFormatF("callback on %s missing define\n", token);
 #endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
@@ -8199,7 +8199,7 @@ xmlRelaxNGValidateProgressiveCallback(xmlRegExecCtxtPtr exec
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s missing info\n", token);
 #else
-        SbLogFormat("callback on %s missing info\n", token);
+        SbLogFormatF("callback on %s missing info\n", token);
 #endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
@@ -8209,7 +8209,7 @@ xmlRelaxNGValidateProgressiveCallback(xmlRegExecCtxtPtr exec
 #ifndef STARBOARD
         fprintf(stderr, "callback on %s define is not element\n", token);
 #else
-        SbLogFormat("callback on %s define is not element\n", token);
+        SbLogFormatF("callback on %s define is not element\n", token);
 #endif
         if (ctxt->errNo == XML_RELAXNG_OK)
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
