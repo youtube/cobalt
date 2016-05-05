@@ -249,20 +249,9 @@ inline SbAtomic32 NoBarrier_CompareAndSwap(volatile SbAtomic32* ptr,
   return SbAtomicNoBarrier_CompareAndSwap(ptr, old_value, new_value);
 }
 
-inline SbAtomic64 NoBarrier_CompareAndSwap(volatile SbAtomic64* ptr,
-                                           SbAtomic64 old_value,
-                                           SbAtomic64 new_value) {
-  return SbAtomicNoBarrier_CompareAndSwap64(ptr, old_value, new_value);
-}
-
 inline SbAtomic32 NoBarrier_Exchange(volatile SbAtomic32* ptr,
                                      SbAtomic32 new_value) {
   return SbAtomicNoBarrier_Exchange(ptr, new_value);
-}
-
-inline SbAtomic64 NoBarrier_Exchange(volatile SbAtomic64* ptr,
-                                     SbAtomic64 new_value) {
-  return SbAtomicNoBarrier_Exchange64(ptr, new_value);
 }
 
 inline SbAtomic32 NoBarrier_Increment(volatile SbAtomic32* ptr,
@@ -270,19 +259,9 @@ inline SbAtomic32 NoBarrier_Increment(volatile SbAtomic32* ptr,
   return SbAtomicNoBarrier_Increment(ptr, increment);
 }
 
-inline SbAtomic64 NoBarrier_Increment(volatile SbAtomic64* ptr,
-                                      SbAtomic64 increment) {
-  return SbAtomicNoBarrier_Increment64(ptr, increment);
-}
-
 inline SbAtomic32 Barrier_Increment(volatile SbAtomic32* ptr,
                                     SbAtomic32 increment) {
   return SbAtomicBarrier_Increment(ptr, increment);
-}
-
-inline SbAtomic64 Barrier_Increment(volatile SbAtomic64* ptr,
-                                    SbAtomic64 increment) {
-  return SbAtomicBarrier_Increment64(ptr, increment);
 }
 
 inline SbAtomic32 Acquire_CompareAndSwap(volatile SbAtomic32* ptr,
@@ -291,16 +270,62 @@ inline SbAtomic32 Acquire_CompareAndSwap(volatile SbAtomic32* ptr,
   return SbAtomicAcquire_CompareAndSwap(ptr, old_value, new_value);
 }
 
-inline SbAtomic64 Acquire_CompareAndSwap(volatile SbAtomic64* ptr,
-                                         SbAtomic64 old_value,
-                                         SbAtomic64 new_value) {
-  return SbAtomicAcquire_CompareAndSwap64(ptr, old_value, new_value);
-}
-
 inline SbAtomic32 Release_CompareAndSwap(volatile SbAtomic32* ptr,
                                          SbAtomic32 old_value,
                                          SbAtomic32 new_value) {
   return SbAtomicRelease_CompareAndSwap(ptr, old_value, new_value);
+}
+
+inline void NoBarrier_Store(volatile SbAtomic32* ptr, SbAtomic32 value) {
+  SbAtomicNoBarrier_Store(ptr, value);
+}
+
+inline void Acquire_Store(volatile SbAtomic32* ptr, SbAtomic32 value) {
+  SbAtomicAcquire_Store(ptr, value);
+}
+
+inline void Release_Store(volatile SbAtomic32* ptr, SbAtomic32 value) {
+  SbAtomicRelease_Store(ptr, value);
+}
+
+inline SbAtomic32 NoBarrier_Load(volatile const SbAtomic32* ptr) {
+  return SbAtomicNoBarrier_Load(ptr);
+}
+
+inline SbAtomic32 Acquire_Load(volatile const SbAtomic32* ptr) {
+  return SbAtomicAcquire_Load(ptr);
+}
+
+inline SbAtomic32 Release_Load(volatile const SbAtomic32* ptr) {
+  return SbAtomicRelease_Load(ptr);
+}
+
+#if SB_IS(64_BIT)
+inline SbAtomic64 NoBarrier_CompareAndSwap(volatile SbAtomic64* ptr,
+                                           SbAtomic64 old_value,
+                                           SbAtomic64 new_value) {
+  return SbAtomicNoBarrier_CompareAndSwap64(ptr, old_value, new_value);
+}
+
+inline SbAtomic64 NoBarrier_Exchange(volatile SbAtomic64* ptr,
+                                     SbAtomic64 new_value) {
+  return SbAtomicNoBarrier_Exchange64(ptr, new_value);
+}
+
+inline SbAtomic64 NoBarrier_Increment(volatile SbAtomic64* ptr,
+                                      SbAtomic64 increment) {
+  return SbAtomicNoBarrier_Increment64(ptr, increment);
+}
+
+inline SbAtomic64 Barrier_Increment(volatile SbAtomic64* ptr,
+                                    SbAtomic64 increment) {
+  return SbAtomicBarrier_Increment64(ptr, increment);
+}
+
+inline SbAtomic64 Acquire_CompareAndSwap(volatile SbAtomic64* ptr,
+                                         SbAtomic64 old_value,
+                                         SbAtomic64 new_value) {
+  return SbAtomicAcquire_CompareAndSwap64(ptr, old_value, new_value);
 }
 
 inline SbAtomic64 Release_CompareAndSwap(volatile SbAtomic64* ptr,
@@ -309,53 +334,30 @@ inline SbAtomic64 Release_CompareAndSwap(volatile SbAtomic64* ptr,
   return SbAtomicRelease_CompareAndSwap64(ptr, old_value, new_value);
 }
 
-inline void NoBarrier_Store(volatile SbAtomic32* ptr, SbAtomic32 value) {
-  SbAtomicNoBarrier_Store(ptr, value);
-}
-
 inline void NoBarrier_Store(volatile SbAtomic64* ptr, SbAtomic64 value) {
   SbAtomicNoBarrier_Store64(ptr, value);
-}
-
-inline void Acquire_Store(volatile SbAtomic32* ptr, SbAtomic32 value) {
-  SbAtomicAcquire_Store(ptr, value);
 }
 
 inline void Acquire_Store(volatile SbAtomic64* ptr, SbAtomic64 value) {
   SbAtomicAcquire_Store64(ptr, value);
 }
 
-inline void Release_Store(volatile SbAtomic32* ptr, SbAtomic32 value) {
-  SbAtomicRelease_Store(ptr, value);
-}
-
 inline void Release_Store(volatile SbAtomic64* ptr, SbAtomic64 value) {
   SbAtomicRelease_Store64(ptr, value);
-}
-
-inline SbAtomic32 NoBarrier_Load(volatile const SbAtomic32* ptr) {
-  return SbAtomicNoBarrier_Load(ptr);
 }
 
 inline SbAtomic64 NoBarrier_Load(volatile const SbAtomic64* ptr) {
   return SbAtomicNoBarrier_Load64(ptr);
 }
 
-inline SbAtomic32 Acquire_Load(volatile const SbAtomic32* ptr) {
-  return SbAtomicAcquire_Load(ptr);
-}
-
 inline SbAtomic64 Acquire_Load(volatile const SbAtomic64* ptr) {
   return SbAtomicAcquire_Load64(ptr);
-}
-
-inline SbAtomic32 Release_Load(volatile const SbAtomic32* ptr) {
-  return SbAtomicRelease_Load(ptr);
 }
 
 inline SbAtomic64 Release_Load(volatile const SbAtomic64* ptr) {
   return SbAtomicRelease_Load64(ptr);
 }
+#endif  // SB_IS(64_BIT)
 
 }  // namespace atomic
 }  // namespace starboard
