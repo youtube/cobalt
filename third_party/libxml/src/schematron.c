@@ -1282,7 +1282,7 @@ xmlSchematronReportOutput(xmlSchematronValidCtxtPtr ctxt ATTRIBUTE_UNUSED,
 #ifndef STARBOARD
     fprintf(stderr, "%s", msg);
 #else
-    SbLogFormat("%s", msg);
+    SbLogFormatF("%s", msg);
 #endif
 }
 
