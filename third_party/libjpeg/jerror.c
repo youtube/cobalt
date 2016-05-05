@@ -32,7 +32,7 @@
 #include "starboard/log.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
-#define sprintf SbStringFormatF
+#define sprintf SbStringFormatUnsafeF
 // Applications should not leave the standard error handler registered.
 #define exit(x) SbSystemBreakIntoDebugger
 #endif
