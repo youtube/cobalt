@@ -32,17 +32,27 @@
     'compiler_flags': [
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
-      '--sysroot=<(sysroot)',
+
+      # Suppress some warnings that will be hard to fix.
       '-Wno-unused-local-typedefs',
       '-Wno-unused-result',
       '-Wno-deprecated-declarations',
+
+      # Specify the sysroot with all your include dependencies.
+      '--sysroot=<(sysroot)',
+
+      # This is a quirk of Raspbian, these are required to include any
+      # GL-related headers.
       '-I<(sysroot)/opt/vc/include',
-      '-I<(sysroot)/usr/include/interface/vcos/pthreads',
-      '-I<(sysroot)/usr/include/interface/vmcs_host/linux',
+      '-I<(sysroot)/opt/vc/include/interface/vcos/pthreads',
+      '-I<(sysroot)/opt/vc/include/interface/vmcs_host/linux',
     ],
     'linker_flags': [
       '--sysroot=<(sysroot)',
+      # This is a quirk of Raspbian, these are required to link any GL-related
+      # libraries.
       '-L<(sysroot)/opt/vc/lib',
+      '-Wl,-rpath=<(sysroot)/opt/vc/lib',
 
       # We don't wrap these symbols, but this ensures that they aren't
       # linked in. We do have to allow them to linked in when using ASAN, as
