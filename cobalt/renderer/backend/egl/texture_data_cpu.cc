@@ -18,8 +18,8 @@
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
-#include <malloc.h>
 
+#include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 
@@ -76,8 +76,8 @@ GLuint TextureDataCPU::ConvertToTexture(GraphicsContextEGL* graphics_context,
 
 RawTextureMemoryCPU::RawTextureMemoryCPU(size_t size_in_bytes, size_t alignment)
     : size_in_bytes_(size_in_bytes) {
-  memory_ = scoped_ptr_malloc<uint8_t>(
-      static_cast<uint8_t*>(memalign(alignment, size_in_bytes)));
+  memory_ = scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree>(
+      static_cast<uint8_t*>(base::AlignedAlloc(size_in_bytes, alignment)));
 }
 
 GLuint RawTextureMemoryCPU::CreateTexture(GraphicsContextEGL* graphics_context,
