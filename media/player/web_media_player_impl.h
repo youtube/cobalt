@@ -67,15 +67,28 @@
 #include "media/player/web_media_player_delegate.h"
 #include "ui/gfx/size.h"
 
+#if defined(OS_STARBOARD)
+#if SB_HAS(PLAYER)
+#define COBALT_USE_SBPLAYER_PIPELINE
+#define COBALT_USE_PUNCHOUT
+#define COBALT_SKIP_SEEK_REQUEST_NEAR_END
+#endif  // SB_HAS(PLAYER)
+#endif  // defined(OS_STARBOARD)
+
 #if (defined(__LB_XB1__) && !defined(COBALT_WIN)) || defined(__LB_XB360__)
-#define LB_USE_SHELL_PIPELINE
-#define LB_SKIP_SEEK_REQUEST_NEAR_END
+#define COBALT_USE_SHELL_PIPELINE
+#define COBALT_USE_PUNCHOUT
+#define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 #endif  // (defined(__LB_XB1__) && !defined(COBALT_WIN)) ||
         // defined(__LB_XB360__)
 
-#if defined(LB_USE_SHELL_PIPELINE)
+#if defined(COBALT_USE_SBPLAYER_PIPELINE)
+#include "media/base/sbplayer_pipeline.h"
+#endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
+
+#if defined(COBALT_USE_SHELL_PIPELINE)
 #include "chromium/media/base/shell_pipeline.h"
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+#endif  // defined(COBALT_USE_SHELL_PIPELINE)
 
 namespace media {
 
@@ -88,6 +101,12 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                            public MessageLoop::DestructionObserver,
                            public base::SupportsWeakPtr<WebMediaPlayerImpl> {
  public:
+#if defined(COBALT_USE_SBPLAYER_PIPELINE)
+  typedef SbPlayerPipeline Pipeline;
+#elif defined(COBALT_USE_SHELL_PIPELINE)
+  typedef ShellPipeline Pipeline;
+#endif
+
   // Construct a WebMediaPlayerImpl with reference to the client, and media
   // filter collection. By providing the filter collection the implementor can
   // provide more specific media filters that does resource loading and
@@ -217,11 +236,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);
   void OnPipelineError(PipelineStatus error);
-#if defined(LB_USE_SHELL_PIPELINE)
-  void OnPipelineBufferingState(ShellPipeline::BufferingState buffering_state);
-#else   // defined(LB_USE_SHELL_PIPELINE)
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
-#endif  // defined(LB_USE_SHELL_PIPELINE)
   void OnDemuxerOpened();
   void OnKeyAdded(const std::string& key_system, const std::string& session_id);
   void OnKeyError(const std::string& key_system,
@@ -286,12 +301,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   MessageLoop* main_loop_;
 
   scoped_ptr<FilterCollection> filter_collection_;
-#if defined(LB_USE_SHELL_PIPELINE)
-  scoped_refptr<ShellPipeline> pipeline_;
-  scoped_refptr<VideoFrame> punch_out_video_frame_;
-#else   // defined(LB_USE_SHELL_PIPELINE)
   scoped_refptr<Pipeline> pipeline_;
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+
+#if defined(COBALT_USE_PUNCHOUT)
+  scoped_refptr<VideoFrame> punch_out_video_frame_;
+#endif  // defined(COBALT_USE_PUNCHOUT)
 
   // The currently selected key system. Empty string means that no key system
   // has been selected.
@@ -356,7 +370,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   // The decryptor that manages decryption keys and decrypts encrypted frames.
   scoped_ptr<ProxyDecryptor> decryptor_;
-
 
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;
 
