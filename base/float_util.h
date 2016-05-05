@@ -12,6 +12,7 @@
 #else
 #include <float.h>
 #include <math.h>
+#include <cmath>
 #endif
 
 namespace base {
@@ -19,6 +20,13 @@ namespace base {
 inline bool IsFinite(const double& number) {
 #if defined(OS_STARBOARD)
   return SbDoubleIsFinite(number);
+#elif defined(__LB_SHELL__) && defined(__LB_LINUX__)
+  // On Linux, math.h defines fpclassify() as a macro which is undefined in
+  // cmath.  However, as math.h has guard to avoid being included again, the
+  // fpclassify() macro is no longer available if cmath is included after
+  // math.h, even if math.h is included again.  So we have to use
+  // std::fpclassify() on Linux.
+  return std::fpclassify(number) != FP_INFINITE;
 #elif defined(__LB_SHELL__)
   return fpclassify(number) != FP_INFINITE;
 #elif defined(OS_ANDROID)
