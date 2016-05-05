@@ -1,7 +1,6 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "media/player/web_media_player_impl.h"
 
 #include <math.h>
@@ -13,6 +12,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"
+#include "base/float_util.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
@@ -33,16 +33,6 @@
 #include "media/player/web_media_player_proxy.h"
 
 namespace {
-
-// Amount of extra memory used by each player instance reported to V8.
-// It is not exact number -- first, it differs on different platforms,
-// and second, it is very hard to calculate. Instead, use some arbitrary
-// value that will cause garbage collection from time to time. We don't want
-// it to happen on every allocation, but don't want 5k players to sit in memory
-// either. Looks that chosen constant achieves both goals, at least for audio
-// objects. (Do not worry about video objects yet, JS programs do not create
-// thousands of them...)
-const int kPlayerExtraMemory = 1024 * 1024;
 
 // Limits the range of playback rate.
 //
@@ -66,7 +56,7 @@ const float kMaxRate = 16.0f;
 // Prefix for histograms related to Encrypted Media Extensions.
 const char* kMediaEme = "Media.EME.";
 
-#if defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
+#if defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
 // On XB1 and XB360 the MediaEngine can hang if we keep seeking to a position
 // that is near the end of the video. So we ignore any seeks near the end of
 // stream position when the current playback position is also near the end of
@@ -76,8 +66,8 @@ const double kEndOfStreamEpsilonInSeconds = 2.;
 
 bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
                           double position) {
-  float duration = wmpi->Duration();
-  if (_finite(duration)) {
+  float duration = wmpi->GetDuration();
+  if (base::IsFinite(duration)) {
     // If video is very short, we always treat a position as near the end.
     if (duration <= kEndOfStreamEpsilonInSeconds)
       return true;
@@ -86,7 +76,7 @@ bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
   }
   return false;
 }
-#endif  // defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
+#endif  // defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
 
 base::TimeDelta ConvertSecondsToTimestamp(float seconds) {
   float microseconds = seconds * base::Time::kMicrosecondsPerSecond;
@@ -155,11 +145,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
       message_loop_factory_->GetMessageLoop(MessageLoopFactory::kPipeline);
-#if defined(LB_USE_SHELL_PIPELINE)
-  pipeline_ = new ShellPipeline(pipeline_message_loop, media_log_);
-#else   // defined(LB_USE_SHELL_PIPELINE)
   pipeline_ = new Pipeline(pipeline_message_loop, media_log_);
-#endif  // defined(LB_USE_SHELL_PIPELINE)
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
@@ -178,17 +164,17 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   filter_collection_->AddVideoRenderer(video_renderer);
   proxy_->set_frame_provider(video_renderer);
 
-#if defined(LB_USE_SHELL_PIPELINE)
+#if defined(COBALT_USE_PUNCHOUT)
   // The size passed to CreatePunchOutFrame is used to pass the natural size
   // of the video to the pipeline. On XB1 the pipeline gets the natural size of
   // the video from the MediaEngine so we set this to gfx::Size() to avoid
   // propagating the frame size through the media stack.
   punch_out_video_frame_ = VideoFrame::CreatePunchOutFrame(gfx::Size());
-#else   // !defined(LB_USE_SHELL_PIPELINE)
+#else   // defined(COBALT_USE_PUNCHOUT)
   DCHECK(audio_renderer_sink);
   filter_collection_->AddAudioRenderer(ShellAudioRenderer::Create(
       audio_renderer_sink, set_decryptor_ready_cb, pipeline_message_loop));
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+#endif  // defined(COBALT_USE_PUNCHOUT)
 
   if (delegate_) {
     delegate_->RegisterPlayer(this);
@@ -359,7 +345,7 @@ bool WebMediaPlayerImpl::SupportsSave() const {
 void WebMediaPlayerImpl::Seek(float seconds) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-#if defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
+#if defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
   // Ignore any seek request that is near the end of the stream when the
   // current playback position is also near the end of the stream to avoid
   // a hang in the MediaEngine.
@@ -367,7 +353,7 @@ void WebMediaPlayerImpl::Seek(float seconds) {
       IsNearTheEndOfStream(this, seconds)) {
     return;
   }
-#endif  // defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
+#endif  // defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
 
   if (state_.starting || state_.seeking) {
     state_.pending_seek = true;
@@ -603,25 +589,25 @@ scoped_refptr<VideoFrame> WebMediaPlayerImpl::GetCurrentFrame() {
   if (frame_provider) {
     return frame_provider->GetCurrentFrame();
   }
-#if defined(LB_USE_SHELL_PIPELINE)
+#if defined(COBALT_USE_PUNCHOUT)
   // We want to give proxy_ a chance to produce a valid frame before returning
   // the punch out frame
   return punch_out_video_frame_;
-#else   // defined(LB_USE_SHELL_PIPELINE)
+#else   // defined(COBALT_USE_PUNCHOUT)
   return NULL;
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+#endif  // defined(COBALT_USE_PUNCHOUT)
 }
 
 void WebMediaPlayerImpl::PutCurrentFrame(
     const scoped_refptr<VideoFrame>& video_frame) {
-#if defined(LB_USE_SHELL_PIPELINE)
+#if defined(COBALT_USE_PUNCHOUT)
   if (video_frame == punch_out_video_frame_) {
     // This happens when proxy_ returns NULL in getCurrentFrame() so we make
     // sure that it gets a NULL back as well
     proxy_->PutCurrentFrame(NULL);
     return;
   }
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+#endif  // defined(COBALT_USE_PUNCHOUT)
   if (video_frame) {
     proxy_->PutCurrentFrame(video_frame);
   } else {
@@ -972,11 +958,7 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
 }
 
 void WebMediaPlayerImpl::OnPipelineBufferingState(
-#if defined(LB_USE_SHELL_PIPELINE)
-    ShellPipeline::BufferingState buffering_state) {
-#else   // defined(LB_USE_SHELL_PIPELINE)
     Pipeline::BufferingState buffering_state) {
-#endif  // defined(LB_USE_SHELL_PIPELINE)
   DVLOG(1) << "OnPipelineBufferingState(" << buffering_state << ")";
 
   switch (buffering_state) {
@@ -1092,19 +1074,19 @@ void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
 void WebMediaPlayerImpl::StartPipeline() {
   state_.starting = true;
 
-#if defined(LB_USE_SHELL_PIPELINE)
+#if defined(COBALT_USE_SHELL_PIPELINE)
   SetDecryptorReadyCB set_decryptor_ready_cb;
   if (decryptor_) {
     set_decryptor_ready_cb = base::Bind(&ProxyDecryptor::SetDecryptorReadyCB,
                                         base::Unretained(decryptor_.get()));
   }
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+#endif  // defined(COBALT_USE_SHELL_PIPELINE)
 
   pipeline_->Start(
       filter_collection_.Pass(),
-#if defined(LB_USE_SHELL_PIPELINE)
+#if defined(COBALT_USE_SHELL_PIPELINE)
       set_decryptor_ready_cb,
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+#endif  // defined(COBALT_USE_SHELL_PIPELINE)
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),

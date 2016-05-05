@@ -695,6 +695,10 @@
           ],
           'sources': [
             'audio/shell_audio_streamer_starboard.cc',
+            'base/sbplayer_pipeline.cc',
+            'base/sbplayer_pipeline.h',
+            'base/shell_cached_decoder_buffer.cc',
+            'base/shell_cached_decoder_buffer.h',
           ],
         }],  # OS == "starboard"
         ['OS == "ios"', {
