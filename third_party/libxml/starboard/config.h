@@ -364,7 +364,7 @@
 #define XML_SNPRINTF SbStringFormatF
 
 /* sscanf() wrapping */
-#define XML_SSCANF SbStringScan
+#define XML_SSCANF SbStringScanF
 
 /* strlen() wrapping */
 #define XML_STRLEN SbStringGetLength

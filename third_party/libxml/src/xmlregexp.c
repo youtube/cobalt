@@ -7916,7 +7916,7 @@ xmlExpParseOr(xmlExpCtxtPtr ctxt) {
 #ifndef STARBOARD
         fprintf(stderr, "epsilon transition left at runtime\n");
 #else
-        SbLogFormat("unbalanced '(' : %s\n", base);
+        SbLogFormatF("unbalanced '(' : %s\n", base);
 #endif
 
 	    xmlExpFree(ctxt, ret);
