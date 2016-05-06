@@ -21,19 +21,29 @@
     # any other source file in a Starboard-based project.
     'STARBOARD',
 
-    # There doesn't appear to be any way to use the C preprocessor to do string
-    # concatenation with the / character. This prevents us from using the
-    # preprocessor to assemble an include file path, so we have to do the
-    # concatenation here in GYP.
-    # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
-    'STARBOARD_ATOMIC_INCLUDE="starboard/<(target_arch)/atomic_public.h"',
-    'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(target_arch)/configuration_public.h"',
-    'STARBOARD_THREAD_TYPES_INCLUDE="starboard/<(target_arch)/thread_types_public.h"',
   ],
   'conditions': [
     ['abort_on_allocation_failure==1', {
       'defines': [
         'SB_ABORT_ON_ALLOCATION_FAILURE',
+      ],
+    }],
+    ['starboard_path == ""', {
+      'defines': [
+        # There doesn't appear to be any way to use the C preprocessor to do
+        # string concatenation with the / character. This prevents us from using
+        # the preprocessor to assemble an include file path, so we have to do
+        # the concatenation here in GYP.
+        # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
+        'STARBOARD_ATOMIC_INCLUDE="starboard/<(target_arch)/atomic_public.h"',
+        'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(target_arch)/configuration_public.h"',
+        'STARBOARD_THREAD_TYPES_INCLUDE="starboard/<(target_arch)/thread_types_public.h"',
+      ],
+    }, {
+      'defines': [
+        'STARBOARD_ATOMIC_INCLUDE="<(starboard_path)/atomic_public.h"',
+        'STARBOARD_CONFIGURATION_INCLUDE="<(starboard_path)/configuration_public.h"',
+        'STARBOARD_THREAD_TYPES_INCLUDE="<(starboard_path)/thread_types_public.h"',
       ],
     }],
   ],
