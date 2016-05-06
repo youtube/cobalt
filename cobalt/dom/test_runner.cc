@@ -29,6 +29,9 @@ void TestRunner::NotifyDone() {
   if (!trigger_layout_callback_.is_null()) {
     trigger_layout_callback_.Run();
   }
+  // Reset |should_wait_| to prevent a second layout if the document onLoad
+  // event occurs after the layout trigger.
+  should_wait_ = true;
 }
 
 void TestRunner::WaitUntilDone() { should_wait_ = true; }

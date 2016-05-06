@@ -20,10 +20,6 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 
-#ifndef SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT
-#define SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT (10 * 1024 * 1024)
-#endif
-
 SkFontMgr* SkFontMgr::Factory() {
   FilePath font_directory;
   CHECK(PathService::Get(base::DIR_EXE, &font_directory));
@@ -32,7 +28,5 @@ SkFontMgr* SkFontMgr::Factory() {
   SkTArray<SkString, true> default_fonts;
   default_fonts.push_back(SkString("sans-serif"));
 
-  return new SkFontMgr_Cobalt(
-      font_directory.value().c_str(), default_fonts,
-      SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT);
+  return new SkFontMgr_Cobalt(font_directory.value().c_str(), default_fonts);
 }

@@ -168,8 +168,9 @@ DebugConsole::DebugConsole(
   web_module_options.name = "DebugConsoleWebModule";
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
   // javascript.
-  dom::CspDelegateFactory::ScopedAllowInsecure allow_insecure;
   web_module_options.csp_enforcement_mode = dom::kCspEnforcementDisable;
+  web_module_options.csp_insecure_allowed_token =
+      dom::CspDelegateFactory::GetInsecureAllowedToken();
 
   // Attach a DebugHub object to the "debugHub" Window attribute for this
   // web module so that JavaScript within this WebModule has access to DebugHub

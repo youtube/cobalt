@@ -66,7 +66,7 @@ class JSCEngineStats {
   base::Lock lock_;
   base::CVal<size_t> js_memory_;
   base::CVal<size_t> js_engine_count_;
-  scoped_ptr<base::Poller> poller_;
+  scoped_ptr<base::PollerWithThread> poller_;
 };
 
 JSCEngineStats::JSCEngineStats()
@@ -74,13 +74,9 @@ JSCEngineStats::JSCEngineStats()
                  "Total memory occupied by the JSC page allocator."),
       js_engine_count_("JS.EngineCount", 0,
                        "Total JavaScript engine registered.") {
-  // Register to get polled if there is a message loop. Otherwise, do nothing.
-  // (Some unit tests won't have a message loop).
-  if (MessageLoop::current()) {
-    poller_.reset(new base::Poller(
-        base::Bind(&JSCEngineStats::Update, base::Unretained(this)),
-        base::TimeDelta::FromMilliseconds(20)));
-  }
+  poller_.reset(new base::PollerWithThread(
+      base::Bind(&JSCEngineStats::Update, base::Unretained(this)),
+      base::TimeDelta::FromMilliseconds(20)));
 }
 
 }  // namespace
@@ -122,11 +118,18 @@ void JSCEngine::ReportExtraMemoryCost(size_t bytes) {
 }  // namespace javascriptcore
 
 scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine() {
-  // This must be called once on any thread that will run JavaScriptCore. There
-  // must be at most one JSGlobalData instance created per thread.
+  // Documentation in InitializeThreading.h states this function should be
+  // called from the main thread. However, calling it here from the thread each
+  // engine is created on appears to show no difference in practice.
   JSC::initializeThreading();
-  scoped_ptr<JavaScriptEngine> engine(new javascriptcore::JSCEngine());
-  return engine.Pass();
+
+  // There must be at most one JSGlobalData instance created per thread.
+  scoped_ptr<javascriptcore::JSCEngine> engine(new javascriptcore::JSCEngine());
+
+  // Global data should be of Default type - one per thread.
+  DCHECK(!engine->global_data()->usingAPI());
+
+  return engine.PassAs<JavaScriptEngine>();
 }
 
 }  // namespace script

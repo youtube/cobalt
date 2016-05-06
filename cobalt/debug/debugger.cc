@@ -31,13 +31,23 @@ Debugger::Debugger(const GetDebugServerCallback& get_debug_server_callback)
 Debugger::~Debugger() {}
 
 void Debugger::Attach(const AttachCallbackArg& callback) {
+  last_error_ = base::nullopt;
   DebugServer* debug_server = get_debug_server_callback_.Run();
-  debug_client_.reset(new DebugClient(debug_server, this));
+
+  // |debug_server| may be NULL if the WebModule is not available at this time.
+  if (debug_server) {
+    debug_client_.reset(new DebugClient(debug_server, this));
+  } else {
+    DLOG(WARNING) << "Debug server unavailable.";
+    last_error_ = "Debug server unavailable.";
+  }
+
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
 }
 
 void Debugger::Detach(const AttachCallbackArg& callback) {
+  last_error_ = base::nullopt;
   debug_client_.reset(NULL);
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
@@ -45,7 +55,8 @@ void Debugger::Detach(const AttachCallbackArg& callback) {
 
 void Debugger::SendCommand(const std::string& method,
                            const std::string& json_params,
-                           const CommandCallbackArg& callback) const {
+                           const CommandCallbackArg& callback) {
+  last_error_ = base::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
     scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
     response->SetString("error.message",
