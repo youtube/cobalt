@@ -37,9 +37,20 @@
       '-Wno-unused-local-typedefs',
       '-Wno-unused-result',
       '-Wno-deprecated-declarations',
+      '-Wno-missing-field-initializers',
+      '-Wno-comment',  # Talk to my lawyer.
+      '-Wno-narrowing',
+      '-Wno-unknown-pragmas',
+      '-Wno-type-limits',  # TODO: We should actually look into these.
 
       # Specify the sysroot with all your include dependencies.
       '--sysroot=<(sysroot)',
+
+      # Optimize for Raspberry Pi 1 chips.
+      '-march=armv6zk',
+      '-mcpu=arm1176jzf-s',
+      '-mfloat-abi=hard',
+      '-mfpu=vfp',
 
       # This is a quirk of Raspbian, these are required to include any
       # GL-related headers.
@@ -55,9 +66,7 @@
       '-Wl,-rpath=<(sysroot)/opt/vc/lib',
 
       # We don't wrap these symbols, but this ensures that they aren't
-      # linked in. We do have to allow them to linked in when using ASAN, as
-      # it needs to use its own version of these allocators in the Starboard
-      # implementation.
+      # linked in.
       '-Wl,--wrap=malloc',
       '-Wl,--wrap=calloc',
       '-Wl,--wrap=realloc',
@@ -70,22 +79,28 @@
       '-Wl,--wrap=__cxa_demangle',
     ],
     'compiler_flags_debug': [
-      '-frtti',
       '-O0',
     ],
-    'compiler_flags_devel': [
+    'compiler_flags_cc_debug': [
       '-frtti',
+    ],
+    'compiler_flags_devel': [
       '-O2',
+    ],
+    'compiler_flags_cc_devel': [
+      '-frtti',
     ],
     'compiler_flags_qa': [
-      '-fno-rtti',
       '-O2',
-      '-gline-tables-only',
+    ],
+    'compiler_flags_cc_qa': [
+      '-fno-rtti',
     ],
     'compiler_flags_gold': [
-      '-fno-rtti',
       '-O2',
-      '-gline-tables-only',
+    ],
+    'compiler_flags_cc_gold': [
+      '-fno-rtti',
     ],
     'platform_libraries': [
       '-lavcodec',
@@ -108,10 +123,8 @@
           '-g',
         ],
         'compiler_flags_qa': [
-          '-gline-tables-only',
         ],
         'compiler_flags_gold': [
-          '-gline-tables-only',
         ],
       }],
     ],
