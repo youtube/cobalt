@@ -26,6 +26,7 @@
   void detach(AttachCallback cb);
   void sendCommand(DOMString method, DOMString jsonParams, CommandCallback cb);
 
+  readonly attribute DOMString? lastError;
   readonly attribute DebuggerEventTarget onEvent;
 };
 

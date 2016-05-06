@@ -26,10 +26,13 @@ class {{binding_class}}::Prototype : public PrototypeBase {
   static JSC::JSValue GetConstructor(JSC::ExecState* exec_state,
       JSC::JSValue slot_base,
       JSC::PropertyName property_name);
-
 {% endif %}
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
+
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable>
+      thread_local_property_table;
 };
 
 const JSC::HashTableValue {{binding_class}}::Prototype::property_table_values[] = {
@@ -74,7 +77,13 @@ const JSC::HashTableValue {{binding_class}}::Prototype::property_table_values[] 
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // {{binding_class}}::Prototype::property_table_values
 
-JSC::HashTable {{binding_class}}::Prototype::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    {{binding_class}}::Prototype::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable {{binding_class}}::Prototype::property_table_prototype = {
 {% set num_prototype_properties = constants|length %}
 {% if not is_global_interface %}
 {% set num_prototype_properties = num_prototype_properties + operations|length %}
@@ -89,13 +98,20 @@ JSC::HashTable {{binding_class}}::Prototype::property_table = {
     {{ calculate_jsc_lookup_size_mask(num_prototype_properties) }},  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // {{binding_class}}::Prototype::property_table
+};  // {{binding_class}}::Prototype::property_table_prototype
+
+// static
+const JSC::HashTable* {{binding_class}}::Prototype::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo {{binding_class}}::Prototype::s_info = {
     "{{interface_name}}Prototype",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE({{binding_class}}::Prototype)
 };  // {{binding_class}}::Prototype::s_info
 
@@ -106,7 +122,7 @@ bool {{binding_class}}::Prototype::getOwnPropertySlot(JSC::JSCell* cell,
   Prototype* this_object = JSC::jsCast<Prototype*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   return JSC::getStaticPropertySlot<Prototype, JSC::JSObject>(
-      exec, &property_table, this_object, property_name, slot);
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
 }
 
 // static

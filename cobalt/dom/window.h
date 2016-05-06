@@ -100,7 +100,8 @@ class Window : public EventTarget {
          const network_bridge::PostSender& post_sender,
          const std::string& default_security_policy,
          dom::CspEnforcementType csp_enforcement_mode,
-         const base::Closure& csp_policy_changed_callback);
+         const base::Closure& csp_policy_changed_callback,
+         int csp_insecure_allowed_token = 0);
 
   // Web API: Window
   //

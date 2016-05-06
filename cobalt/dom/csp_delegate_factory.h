@@ -46,11 +46,12 @@ class CspDelegateFactory {
       CspEnforcementType type,
       scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
       const std::string& location_policy,
-      const base::Closure& policy_changed_callback);
+      const base::Closure& policy_changed_callback,
+      int insecure_allowed_token = 0);
 
   typedef CspDelegate* (*CspDelegateCreator)(
       scoped_ptr<CspViolationReporter> violation_reporter, const GURL&,
-      const std::string&, const base::Closure&);
+      const std::string&, const base::Closure&, int);
 
 #if !defined(COBALT_FORCE_CSP)
   // Allow tests to have the factory create a different delegate type.
@@ -60,20 +61,9 @@ class CspDelegateFactory {
  private:
 #if !defined(COBALT_FORCE_CSP)
   // By default it's not possible to create an insecure CspDelegate. To allow
-  // this, instantiate a ScopedAllowInsecure before calling
+  // this, get a token using |GetInsecureAllowedToken| and pass into
   // CspDelegateFactory::Create().
-  class ScopedAllowInsecure {
-   public:
-    ScopedAllowInsecure() { previous_value_ = SetInsecureAllowed(true); }
-    ~ScopedAllowInsecure() { SetInsecureAllowed(previous_value_); }
-
-   private:
-    // Whether Insecure CSP delegates were allowed, when the
-    // ScopedAllowInsecure was constructed.
-    bool previous_value_;
-
-    DISALLOW_COPY_AND_ASSIGN(ScopedAllowInsecure);
-  };
+  static int GetInsecureAllowedToken();
 
   // Only these classes may create insecure Csp delegates. Be careful
   // before adding new ones.

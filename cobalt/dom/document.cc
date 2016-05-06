@@ -90,7 +90,8 @@ Document::Document(HTMLElementContext* html_element_context,
       CspDelegateFactory::GetInstance()
           ->Create(options.csp_enforcement_mode, violation_reporter.Pass(),
                    options.url, options.location_policy,
-                   options.csp_policy_changed_callback)
+                   options.csp_policy_changed_callback,
+                   options.csp_insecure_allowed_token)
           .Pass();
 
   location_ = new Location(

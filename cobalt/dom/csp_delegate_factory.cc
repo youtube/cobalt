@@ -27,17 +27,20 @@ namespace dom {
 
 namespace {
 #if !defined(COBALT_FORCE_CSP)
-// ThreadLocalBoolean defaults to |false|
-base::LazyInstance<base::ThreadLocalBoolean>::Leaky s_insecure_allowed =
-    LAZY_INSTANCE_INITIALIZER;
+// 32-bit random number.
+// Not exactly cryptographically secure, but hopefully enough to stop us
+// mistakenly allowing insecure access.
+const int kInsecureAllowedToken = 0x5b38b65b;
 
-bool InsecureAllowed() {
-  if (s_insecure_allowed.Get().Get()) {
+// static
+bool InsecureAllowed(int token) {
+  if (token == kInsecureAllowedToken) {
     return true;
   } else {
-    LOG(FATAL) << "This thread is not permitted to create insecure CSP "
-                  "delegates. To allow this, create a "
-                  "CspDelegateFactory::ScopedAllowInsecure on the stack.";
+    LOG(FATAL) << "Not permitted to create insecure CSP delegates. "
+                  "To allow this, get a token from a call to "
+                  "GetInsecureAllowedToken and pass as the last argument to "
+                  "the CspDelegateFactory::Create function.";
     return false;
   }
 }
@@ -45,23 +48,31 @@ bool InsecureAllowed() {
 CspDelegate* CreateInsecureDelegate(
     scoped_ptr<CspViolationReporter> /*violation_reporter*/,
     const GURL& /*url*/, const std::string& /*location_policy*/,
-    const base::Closure& /*policy_changed_callback*/) {
-  if (InsecureAllowed()) {
+    const base::Closure& /*policy_changed_callback*/,
+    int insecure_allowed_token) {
+  if (InsecureAllowed(insecure_allowed_token)) {
     return new CspDelegateInsecure();
   } else {
     return NULL;
   }
 }
-#endif
+#endif  // !defined(COBALT_FORCE_CSP)
 
 CspDelegate* CreateSecureDelegate(
     scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
     const std::string& location_policy,
-    const base::Closure& policy_changed_callback) {
+    const base::Closure& policy_changed_callback,
+    int /*insecure_allowed_token*/) {
   return new CspDelegateSecure(violation_reporter.Pass(), url, location_policy,
                                policy_changed_callback);
 }
 }  // namespace
+
+#if !defined(COBALT_FORCE_CSP)
+int CspDelegateFactory::GetInsecureAllowedToken() {
+  return kInsecureAllowedToken;
+}
+#endif  // !defined(COBALT_FORCE_CSP)
 
 CspDelegateFactory* CspDelegateFactory::GetInstance() {
   return Singleton<CspDelegateFactory>::get();
@@ -71,27 +82,21 @@ CspDelegateFactory::CspDelegateFactory() {
   method_[kCspEnforcementEnable] = CreateSecureDelegate;
 #if !defined(COBALT_FORCE_CSP)
   method_[kCspEnforcementDisable] = CreateInsecureDelegate;
-#endif
+#endif  // !defined(COBALT_FORCE_CSP)
 }
 
 scoped_ptr<CspDelegate> CspDelegateFactory::Create(
     CspEnforcementType type,
     scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
     const std::string& location_policy,
-    const base::Closure& policy_changed_callback) {
-  scoped_ptr<CspDelegate> delegate(method_[type](violation_reporter.Pass(), url,
-                                                 location_policy,
-                                                 policy_changed_callback));
+    const base::Closure& policy_changed_callback, int insecure_allowed_token) {
+  scoped_ptr<CspDelegate> delegate(
+      method_[type](violation_reporter.Pass(), url, location_policy,
+                    policy_changed_callback, insecure_allowed_token));
   return delegate.Pass();
 }
 
 #if !defined(COBALT_FORCE_CSP)
-// static
-bool CspDelegateFactory::SetInsecureAllowed(bool allowed) {
-  bool previous_allowed = s_insecure_allowed.Get().Get();
-  s_insecure_allowed.Get().Set(allowed);
-  return previous_allowed;
-}
 
 // For use by tests.
 void CspDelegateFactory::OverrideCreator(CspEnforcementType type,

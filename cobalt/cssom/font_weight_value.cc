@@ -39,8 +39,6 @@ struct FontWeightValue::NonTrivialStaticFields {
             new FontWeightValue(FontWeightValue::kExtraBoldAka800)),
         black_aka_900(new FontWeightValue(FontWeightValue::kBlackAka900)) {}
 
-  base::ThreadChecker thread_checker;
-
   const scoped_refptr<FontWeightValue> thin_aka_100;
   const scoped_refptr<FontWeightValue> extra_light_aka_200;
   const scoped_refptr<FontWeightValue> light_aka_300;
@@ -60,47 +58,38 @@ base::LazyInstance<FontWeightValue::NonTrivialStaticFields>
 }  // namespace
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetThinAka100() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().thin_aka_100;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetExtraLightAka200() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().extra_light_aka_200;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetLightAka300() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().light_aka_300;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetNormalAka400() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().normal_aka_400;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetMediumAka500() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().medium_aka_500;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetSemiBoldAka600() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().semi_bold_aka_600;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetBoldAka700() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().bold_aka_700;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetExtraBoldAka800() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().extra_bold_aka_800;
 }
 
 const scoped_refptr<FontWeightValue>& FontWeightValue::GetBlackAka900() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().black_aka_900;
 }
 

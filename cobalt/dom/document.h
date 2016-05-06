@@ -99,7 +99,8 @@ class Document : public Node, public cssom::MutationObserver {
             const network_bridge::PostSender& post_sender,
             const std::string& location_policy,
             CspEnforcementType csp_enforcement_mode,
-            const base::Closure& csp_policy_changed_callback)
+            const base::Closure& csp_policy_changed_callback,
+            int csp_insecure_allowed_token = 0)
         : url(url_value),
           hashchange_callback(hashchange_callback),
           navigation_start_clock(navigation_start_clock_value),
@@ -110,7 +111,8 @@ class Document : public Node, public cssom::MutationObserver {
           post_sender(post_sender),
           location_policy(location_policy),
           csp_enforcement_mode(csp_enforcement_mode),
-          csp_policy_changed_callback(csp_policy_changed_callback) {}
+          csp_policy_changed_callback(csp_policy_changed_callback),
+          csp_insecure_allowed_token(csp_insecure_allowed_token) {}
 
     GURL url;
     base::Closure hashchange_callback;
@@ -123,6 +125,7 @@ class Document : public Node, public cssom::MutationObserver {
     std::string location_policy;
     CspEnforcementType csp_enforcement_mode;
     base::Closure csp_policy_changed_callback;
+    int csp_insecure_allowed_token;
   };
 
   Document(HTMLElementContext* html_element_context,
