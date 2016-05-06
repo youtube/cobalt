@@ -40,11 +40,24 @@
         'time_zone.h',
         'types.h',
       ],
-      'dependencies': [
-        '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
-      ],
-      'export_dependent_settings': [
-        '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
+      'conditions': [
+        ['starboard_path == ""', {
+          # TODO: Make starboard_path required. This legacy condition is only
+          # here to support starboard_linux while it still exists.
+          'dependencies': [
+            '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
+          ],
+          'export_dependent_settings': [
+            '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
+          ],
+          'export_dependent_settings': [
+            '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
+          ],
+        }],
       ],
     },
   ],
