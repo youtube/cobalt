@@ -19,7 +19,8 @@ class {{binding_class}}::{{interface_object_class_name}} : public ConstructorBas
     // Same process as JSC::getStaticPropertySlot<>, which is defined in Lookup.h
     // Since JSFunction::getOwnPropertySlot is protected, we can't call it from
     // the helper function.
-    const JSC::HashEntry* entry = property_table.entry(exec, property_name);
+    const JSC::HashEntry* entry =
+        GetPropertyTable(exec)->entry(exec, property_name);
 
     if (!entry) // not found, forward to parent
       return Base::getOwnPropertySlot(this_object, exec, property_name, slot);
@@ -38,7 +39,8 @@ class {{binding_class}}::{{interface_object_class_name}} : public ConstructorBas
     {{interface_object_class_name}}* this_object = JSC::jsCast<{{interface_object_class_name}}*>(cell);
     ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
     bool found_property = JSC::lookupPut<{{interface_object_class_name}}>(
-        exec_state, property_name, value, &property_table, this_object, slot.isStrictMode());
+        exec_state, property_name, value, GetPropertyTable(exec_state),
+        this_object, slot.isStrictMode());
     DLOG_IF(INFO, !found_property) << "Did not find property named " <<
         WTF::String(property_name.publicName()).utf8().data() <<
         " to set on interface object for {{binding_class}}";
@@ -77,8 +79,11 @@ class {{binding_class}}::{{interface_object_class_name}} : public ConstructorBas
                       JSC::NativeExecutable* native_executable, int length,
                       const String& name);
 
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
+
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue {{binding_class}}::{{interface_object_class_name}}::property_table_values[] = {
@@ -126,20 +131,35 @@ const JSC::HashTableValue {{binding_class}}::{{interface_object_class_name}}::pr
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // {{binding_class}}::{{interface_object_class_name}}::property_table_values
 
-JSC::HashTable {{binding_class}}::{{interface_object_class_name}}::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    {{binding_class}}::{{interface_object_class_name}}::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable
+{{binding_class}}::{{interface_object_class_name}}::property_table_prototype = {
 {% set num_properties = constants|length + static_attributes|length + static_operations|length %}
     // Sizes will be calculated based on the number of static functions as well.
     {{ calculate_jsc_lookup_size(num_properties) }},  // compactSize
     {{ calculate_jsc_lookup_size_mask(num_properties) }},  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // {{binding_class}}::{{interface_object_class_name}}::property_table
+};  // {{binding_class}}::{{interface_object_class_name}}::property_table_prototype
+
+// static
+const JSC::HashTable*
+{{binding_class}}::{{interface_object_class_name}}::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo {{binding_class}}::{{interface_object_class_name}}::s_info = {
     "{{interface_name}}Constructor",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE({{binding_class}}::{{interface_object_class_name}})
 };  // {{binding_class}}::{{interface_object_class_name}}::s_info
 

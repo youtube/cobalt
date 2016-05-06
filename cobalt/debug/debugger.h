@@ -78,7 +78,8 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   void Attach(const AttachCallbackArg& callback);
   void Detach(const AttachCallbackArg& callback);
   void SendCommand(const std::string& method, const std::string& json_params,
-                   const CommandCallbackArg& callback) const;
+                   const CommandCallbackArg& callback);
+  const base::optional<std::string>& last_error() const { return last_error_; }
   const scoped_refptr<DebuggerEventTarget>& on_event() const {
     return on_event_;
   }
@@ -112,6 +113,13 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
 
   // Debug client that connects to the server.
   scoped_ptr<DebugClient> debug_client_;
+
+  // This will be defined if there was an error since the last operation.
+  // TODO(***REMOVED***): Chrome implements similar functionality throughout the
+  // app using the chrome.runtime.lastError object. When we add support for
+  // Cobalt's equivalent to the runtime extension API, we may wish to consider
+  // using that and removing this attribute.
+  base::optional<std::string> last_error_;
 
   // Handler for debugger events.
   scoped_refptr<DebuggerEventTarget> on_event_;

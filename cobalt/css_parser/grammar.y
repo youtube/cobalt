@@ -6109,8 +6109,7 @@ maybe_declaration:
 #ifdef __LB_SHELL__FORCE_LOGGING__
     // Do not warn about non-standard or non-WebKit properties.
     if (property_name[0] != '-') {
-      DCHECK(non_trivial_static_fields.Get().
-          thread_checker.CalledOnValidThread());
+      base::AutoLock lock(non_trivial_static_fields.Get().lock);
       base::hash_set<std::string>& properties_warned_about =
           non_trivial_static_fields.Get().properties_warned_about;
 
