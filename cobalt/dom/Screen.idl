@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-// Screen is part of extensions to the Window Interface defined in the
-// CSSOM View Web API.
-//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
+// https://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
 
-// As its name suggests, the Screen interface represents information about the
-// screen of the output device.
-//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
 interface Screen {
   readonly attribute double availWidth;
   readonly attribute double availHeight;

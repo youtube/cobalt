@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/2014/WD-dom-20140710/#interface-element
+// https://www.w3.org/TR/dom/#element
 
 interface Element : Node {
   readonly attribute DOMString tagName;

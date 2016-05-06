@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// The completion of a CSS Transition generates a corresponding DOM Event.
-//   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
+// https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
+
 interface TransitionEvent : Event {
   readonly attribute DOMString propertyName;
   readonly attribute float elapsedTime;

@@ -15,5 +15,6 @@
  */
 
 // https://www.w3.org/TR/FileAPI/#dfn-Blob
+
 // Stub implementation of Blob so we can call "instanceof Blob".
 interface Blob {};

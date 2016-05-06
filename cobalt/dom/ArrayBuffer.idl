@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.khronos.org/registry/typedarray/specs/latest/
+// https://www.khronos.org/registry/typedarray/specs/latest/#5
 
 [
   Constructor(unsigned long length),

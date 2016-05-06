@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-// https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-navigation-timing-interface
+// https://www.w3.org/TR/navigation-timing/#sec-navigation-timing-interface
+
 interface PerformanceTiming {
   readonly attribute unsigned long long navigationStart;
 };

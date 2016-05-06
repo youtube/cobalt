@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/html5/browsers.html#the-history-interface
+
 // The joint session history of a top-level browsing context is the union of
 // all the session histories of all browsing contexts of all the fully active
 // Document objects that share that top-level browsing context, with all the
@@ -21,7 +23,6 @@
 // removed except for the current entry of the joint session history.
 // ***REMOVED*** does not use the History interface, just a stubbed implementation is
 // required. However, more support may be needed in the future for other clients.
-// https://www.w3.org/TR/html5/browsers.html#the-history-interface
 interface History {
   readonly attribute long length;
 };

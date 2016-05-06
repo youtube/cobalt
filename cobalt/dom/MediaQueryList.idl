@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// A MediaQueryList object has an associated media query list set on creation.
-//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#mediaquerylist
+// https://www.w3.org/TR/2013/WD-cssom-view-20131217/#mediaquerylist
+
 interface MediaQueryList {
   readonly attribute DOMString media;
   readonly attribute boolean matches;

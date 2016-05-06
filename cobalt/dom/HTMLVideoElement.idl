@@ -15,6 +15,7 @@
  */
 
 // https://www.w3.org/TR/html5/embedded-content-0.html#the-video-element
+
 interface HTMLVideoElement : HTMLMediaElement {
   attribute unsigned long width;
   attribute unsigned long height;
