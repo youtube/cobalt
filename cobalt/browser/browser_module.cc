@@ -134,9 +134,11 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommand,
           base::Bind(&OnScreenshotMessage, base::Unretained(this)),
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
-      screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_SCREENSHOT)
+      screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
+#endif  // defined(ENABLE_SCREENSHOT)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           h5vcc_url_handler_(this, system_window, account_manager)),
       web_module_options_(options.web_module_options),
@@ -152,15 +154,12 @@ BrowserModule::BrowserModule(const GURL& url,
   web_module_options_.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-
-#if defined(ENABLE_DEBUG_CONSOLE)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
     OnFuzzerToggle(std::string());
   }
-#endif
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_CONSOLE && ENABLE_COMMAND_LINE_SWITCHES
 
   input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
       base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
@@ -200,6 +199,7 @@ void BrowserModule::Navigate(const GURL& url) {
 }
 
 void BrowserModule::Reload() {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
       "location.reload();",
@@ -233,6 +233,11 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       kLayoutMaxRefreshFrequencyInHz));
 
   // Create new WebModule.
+#if !defined(COBALT_FORCE_CSP)
+  web_module_options_.csp_enforcement_mode = dom::kCspEnforcementDisable;
+  web_module_options_.csp_insecure_allowed_token =
+      dom::CspDelegateFactory::GetInsecureAllowedToken();
+#endif
   WebModule::Options options(web_module_options_);
   options.navigation_callback =
       base::Bind(&BrowserModule::Navigate, base::Unretained(this));
@@ -243,9 +248,6 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       array_buffer_allocator_.get();
   options.dom_settings_options.array_buffer_cache = array_buffer_cache_.get();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-#if !defined(COBALT_FORCE_CSP)
-  dom::CspDelegateFactory::ScopedAllowInsecure allow_insecure;
-#endif
   web_module_.reset(new WebModule(
       url,
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
@@ -400,6 +402,7 @@ void BrowserModule::InjectKeyEventToMainWebModule(
     return;
   }
 
+  DCHECK(web_module_);
   web_module_->InjectKeyboardEvent(event);
 }
 
@@ -489,7 +492,61 @@ scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
       base::Bind(&BrowserModule::CreateWindowDriver, base::Unretained(this)),
       base::Bind(&BrowserModule::WaitForLoad, base::Unretained(this))));
 }
-#endif
+
+scoped_ptr<webdriver::WindowDriver> BrowserModule::CreateWindowDriver(
+    const webdriver::protocol::WindowId& window_id) {
+  // Repost to our message loop to ensure synchronous access to |web_module_|.
+  scoped_ptr<webdriver::WindowDriver> window_driver;
+  self_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&BrowserModule::CreateWindowDriverInternal,
+                            base::Unretained(this), window_id,
+                            base::Unretained(&window_driver)));
+
+  // Wait for the result and return it.
+  base::WaitableEvent got_window_driver(true, false);
+  self_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
+                            base::Unretained(&got_window_driver)));
+  got_window_driver.Wait();
+  DCHECK(window_driver);
+  return window_driver.Pass();
+}
+
+void BrowserModule::CreateWindowDriverInternal(
+    const webdriver::protocol::WindowId& window_id,
+    scoped_ptr<webdriver::WindowDriver>* out_window_driver) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK(web_module_);
+  *out_window_driver = web_module_->CreateWindowDriver(window_id);
+}
+#endif  // defined(ENABLE_WEBDRIVER)
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+debug::DebugServer* BrowserModule::GetDebugServer() {
+  // Repost to our message loop to ensure synchronous access to |web_module_|.
+  debug::DebugServer* debug_server = NULL;
+  self_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&BrowserModule::GetDebugServerInternal, base::Unretained(this),
+                 base::Unretained(&debug_server)));
+
+  // Wait for the result and return it.
+  base::WaitableEvent got_debug_server(true, false);
+  self_message_loop_->PostTask(FROM_HERE,
+                               base::Bind(&base::WaitableEvent::Signal,
+                                          base::Unretained(&got_debug_server)));
+  got_debug_server.Wait();
+  DCHECK(debug_server);
+  return debug_server;
+}
+
+void BrowserModule::GetDebugServerInternal(
+    debug::DebugServer** out_debug_server) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK(web_module_);
+  *out_debug_server = web_module_->GetDebugServer();
+}
+#endif  // ENABLE_DEBUG_CONSOLE
 
 void BrowserModule::SetProxy(const std::string& proxy_rules) {
   // NetworkModule will ensure this happens on the correct thread.

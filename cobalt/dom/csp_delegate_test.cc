@@ -161,11 +161,11 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
 
 TEST(CspDelegateFactoryTest, InsecureAllowed) {
   // This only compiles because this test is a friend of CspDelegateFactory,
-  // otherwise ScopedAllowInsecure is private.
-  CspDelegateFactory::ScopedAllowInsecure allow_insecure;
+  // otherwise GetInsecureAllowedToken is private.
+  int token = CspDelegateFactory::GetInstance()->GetInsecureAllowedToken();
   scoped_ptr<CspDelegate> delegate = CspDelegateFactory::GetInstance()->Create(
       kCspEnforcementDisable, scoped_ptr<CspViolationReporter>(), GURL(),
-      std::string(), base::Closure());
+      std::string(), base::Closure(), token);
   EXPECT_TRUE(delegate != NULL);
 }
 

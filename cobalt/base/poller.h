@@ -20,6 +20,7 @@
 #include "base/callback.h"
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 #include "base/timer.h"
 
 namespace base {
@@ -74,6 +75,20 @@ class Poller {
   DISALLOW_COPY_AND_ASSIGN(Poller);
 };
 
+class PollerWithThread {
+ public:
+  PollerWithThread(const Closure& user_task, TimeDelta period)
+      : thread_("PollerThread") {
+    // Start the dedicated thread and run the Poller on that thread's
+    // message loop.
+    thread_.Start();
+    poller_.reset(new Poller(thread_.message_loop(), user_task, period));
+  }
+
+ private:
+  base::Thread thread_;
+  scoped_ptr<Poller> poller_;
+};
 }  // namespace base
 
 #endif  // COBALT_BASE_POLLER_H_

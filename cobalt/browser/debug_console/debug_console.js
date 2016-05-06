@@ -12,6 +12,8 @@ var debug = null;
 var d = null;
 // Handles communication with the debugger.
 var debuggerClient = null;
+// Number of animation frame samples since the last update.
+var animationFrameSamples = 0;
 
 function createMessageLog() {
   var messageContainer = document.getElementById('messageContainer');
@@ -85,12 +87,16 @@ function updateMode() {
 
 // Animation callback: updates state and animated nodes.
 function animate(time) {
-  updateMode();
-  updateHud(time);
-  if (isConsoleVisible()) {
-    commandInput.animateBlink();
-    // This will do nothing if debugger is already attached.
-    debuggerClient.attach();
+  var subsample = 8;
+  animationFrameSamples = (animationFrameSamples + 1) % subsample;
+  if (animationFrameSamples == 0) {
+    updateMode();
+    updateHud(time);
+    if (isConsoleVisible()) {
+      commandInput.animateBlink();
+      // This will do nothing if debugger is already attached.
+      debuggerClient.attach();
+    }
   }
   window.requestAnimationFrame(animate);
 }

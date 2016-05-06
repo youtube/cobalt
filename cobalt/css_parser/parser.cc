@@ -29,6 +29,7 @@
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "cobalt/css_parser/grammar.h"
@@ -227,7 +228,7 @@ namespace {
 struct NonTrivialStaticFields {
   base::hash_set<std::string> properties_warned_about;
   base::hash_set<std::string> pseudo_classes_warned_about;
-  base::ThreadChecker thread_checker;
+  base::Lock lock;
 };
 
 base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =

@@ -114,7 +114,8 @@ class BrowserModule {
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::DebugServer* GetDebugServer() { return web_module_->GetDebugServer(); }
+  debug::DebugServer* GetDebugServer();
+  void GetDebugServerInternal(debug::DebugServer** out_debug_server);
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Change the network proxy settings while the application is running.
@@ -187,9 +188,11 @@ class BrowserModule {
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
-      const webdriver::protocol::WindowId& window_id) {
-    return web_module_->CreateWindowDriver(window_id);
-  }
+      const webdriver::protocol::WindowId& window_id);
+
+  void CreateWindowDriverInternal(
+      const webdriver::protocol::WindowId& window_id,
+      scoped_ptr<webdriver::WindowDriver>* out_window_driver);
 #endif
 
   // TODO(b/28051376):
@@ -271,11 +274,13 @@ class BrowserModule {
 #if defined(ENABLE_SCREENSHOT)
   // Command handler object for screenshot command from the debug console.
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
+#endif  // defined(ENABLE_SCREENSHOT)
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
+#if defined(ENABLE_SCREENSHOT)
   // Helper object to create screen shots of the last layout tree.
   scoped_ptr<ScreenShotWriter> screen_shot_writer_;
 #endif  // defined(ENABLE_SCREENSHOT)
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Handler object for h5vcc URLs.
   H5vccURLHandler h5vcc_url_handler_;

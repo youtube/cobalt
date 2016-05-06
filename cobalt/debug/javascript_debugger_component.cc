@@ -224,7 +224,6 @@ JSONObject JavaScriptDebuggerComponent::StepOver(const JSONObject& params) {
 void JavaScriptDebuggerComponent::OnScriptDebuggerDetach(
     const std::string& reason) {
   DLOG(INFO) << "JavaScript debugger detached: " << reason;
-  NOTIMPLEMENTED();
 }
 
 void JavaScriptDebuggerComponent::OnScriptDebuggerPause(

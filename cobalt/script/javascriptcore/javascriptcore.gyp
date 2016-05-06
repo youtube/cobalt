@@ -46,6 +46,8 @@
         'jsc_source_provider.h',
         'script_object_registry.cc',
         'script_object_registry.h',
+        'thread_local_hash_table.cc',
+        'thread_local_hash_table.h',
         'util/binding_helpers.cc',
         'util/binding_helpers.h',
         'util/exception_helpers.cc',
