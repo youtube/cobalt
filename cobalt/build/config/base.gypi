@@ -88,18 +88,28 @@
     'linker_flags%': [],
 
     'compiler_flags_debug%': [],
+    'compiler_flags_c_debug%': [],
+    'compiler_flags_cc_debug%': [],
     'linker_flags_debug%': [],
 
     'compiler_flags_devel%': [],
+    'compiler_flags_c_devel%': [],
+    'compiler_flags_cc_devel%': [],
     'linker_flags_devel%': [],
 
     'compiler_flags_qa%': [],
+    'compiler_flags_c_qa%': [],
+    'compiler_flags_cc_qa%': [],
     'linker_flags_qa%': [],
 
     'compiler_flags_gold%': [],
+    'compiler_flags_c_gold%': [],
+    'compiler_flags_cc_gold%': [],
     'linker_flags_gold%': [],
 
     'compiler_flags_host%': [],
+    'compiler_flags_c_host%': [],
+    'compiler_flags_cc_host%': [],
     'linker_flags_host%': [],
 
     'platform_libraries%': [],
@@ -141,6 +151,12 @@
     'cflags_host': [
       '<@(compiler_flags_host)',
       '-D__LB_HOST__'
+    ],
+    'cflags_c_host': [
+      '<@(compiler_flags_c_host)',
+    ],
+    'cflags_cc_host': [
+      '<@(compiler_flags_cc_host)',
     ],
     'ldflags_host': [ '<@(linker_flags_host)' ],
 
@@ -212,6 +228,8 @@
         'abstract': 1,
         # no optimization, include symbols:
         'cflags': [ '<@(compiler_flags_debug)' ],
+        'cflags_c': [ '<@(compiler_flags_c_debug)' ],
+        'cflags_cc': [ '<@(compiler_flags_cc_debug)' ],
         'ldflags': [ '<@(linker_flags_debug)' ],
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
@@ -233,6 +251,8 @@
         'abstract': 1,
         # optimize, include symbols:
         'cflags': [ '<@(compiler_flags_devel)' ],
+        'cflags_c': [ '<@(compiler_flags_c_devel)' ],
+        'cflags_cc': [ '<@(compiler_flags_cc_devel)' ],
         'ldflags': [ '<@(linker_flags_devel)' ],
         'defines': [
           '_DEBUG',
@@ -253,6 +273,8 @@
         'abstract': 1,
         # optimize:
         'cflags': [ '<@(compiler_flags_qa)' ],
+        'cflags_c': [ '<@(compiler_flags_c_qa)' ],
+        'cflags_cc': [ '<@(compiler_flags_cc_qa)' ],
         'ldflags': [ '<@(linker_flags_qa)' ],
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
@@ -272,6 +294,8 @@
         'abstract': 1,
         # optimize:
         'cflags': [ '<@(compiler_flags_gold)' ],
+        'cflags_c': [ '<@(compiler_flags_c_gold)' ],
+        'cflags_cc': [ '<@(compiler_flags_cc_gold)' ],
         'ldflags': [ '<@(linker_flags_gold)' ],
         'defines': [
           'COBALT_BUILD_TYPE_GOLD',
