@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/dom/#eventtarget
+
 interface EventTarget {
   void addEventListener(DOMString type, EventListener listener,
                         optional boolean useCapture = false);

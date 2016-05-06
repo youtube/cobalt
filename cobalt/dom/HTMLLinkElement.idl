@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/html5/document-metadata.html#the-link-element
+
 interface HTMLLinkElement : HTMLElement {
   attribute DOMString href;
   attribute DOMString rel;

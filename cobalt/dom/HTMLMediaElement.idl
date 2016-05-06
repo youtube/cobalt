@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/html5/embedded-content-0.html#media-elements
+
 interface HTMLMediaElement : HTMLElement {
   // error state
   readonly attribute MediaError? error;

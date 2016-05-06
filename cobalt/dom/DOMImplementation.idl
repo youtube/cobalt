@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/2015/WD-dom-20150618/#interface-domimplementation
+// https://www.w3.org/TR/dom/#domimplementation
 
 interface DOMImplementation {
   [NewObject] XMLDocument createDocument(DOMString? namespaceName, [TreatNullAs=EmptyString] DOMString qualifiedName, optional DocumentType? doctype = null);

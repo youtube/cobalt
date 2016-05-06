@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-// NOTE: It is not a W3C Standard nor is it on the W3C Standard Track.
-//   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-section
+// https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-section
 
 interface SpeechRecognitionResultList {
   readonly attribute unsigned long length;

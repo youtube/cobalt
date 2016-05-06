@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-url
+
 interface URL {
   [CallWith=EnvironmentSettings] static DOMString
       createObjectURL(MediaSource mediaSource);

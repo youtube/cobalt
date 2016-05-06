@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/2015/CR-webstorage-20150609/
+// https://www.w3.org/TR/webstorage/#windowsessionstorage
 
 [NoInterfaceObject]
 interface WindowSessionStorage {

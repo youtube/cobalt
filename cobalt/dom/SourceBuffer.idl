@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/media-source/#idl-def-SourceBuffer
+
 interface SourceBuffer {
   [RaisesException] readonly attribute TimeRanges buffered;
   [RaisesException] attribute double timestampOffset;

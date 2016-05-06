@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-// From the spec HTML5
-//   https://www.w3.org/TR/html5/dom.html#the-document-object
+// https://www.w3.org/TR/html5/dom.html#the-document-object
 
 [OverrideBuiltins]
 partial /*sealed*/ interface Document {

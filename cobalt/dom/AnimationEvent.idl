@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// The completion of a CSS Animation generates a corresponding DOM Event.
-//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-events
+// https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animationevent
+
 interface AnimationEvent : Event {
   readonly attribute DOMString animationName;
   readonly attribute float elapsedTime;
