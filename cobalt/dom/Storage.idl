@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/2015/CR-webstorage-20150609/
+// https://www.w3.org/TR/webstorage/#storage-0
+
 interface Storage {
   readonly attribute unsigned long length;
   DOMString? key(unsigned long index);

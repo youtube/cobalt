@@ -14,18 +14,12 @@
  * limitations under the License.
  */
 
-// From CSSOM View Module.
-//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
+// https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
 
 partial interface HTMLElement {
-  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
   readonly attribute Element? offsetParent;
-  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
   readonly attribute double offsetTop;
-  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
   readonly attribute double offsetLeft;
-  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
   readonly attribute double offsetWidth;
-  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
   readonly attribute double offsetHeight;
 };

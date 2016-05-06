@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/cssom/#the-linkstyle-interface
+// https://www.w3.org/TR/2013/WD-cssom-20131205/#the-linkstyle-interface
 
 [NoInterfaceObject]
 interface LinkStyle {

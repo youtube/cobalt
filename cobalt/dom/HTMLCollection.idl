@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/dom/#htmlcollection
+
 interface HTMLCollection {
   readonly attribute unsigned long length;
   getter Element? item(unsigned long index);

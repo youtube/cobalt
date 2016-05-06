@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// The console object provides access to the browser's debugging console.
-//   https://developer.mozilla.org/en-US/docs/Web/API/Console
+// Custom interface to communicate with layout tests.
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/Console
 
 interface Console {
   void log(DOMString text);

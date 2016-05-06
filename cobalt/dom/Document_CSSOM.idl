@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-// From the spec CSS Object Model (CSSOM)
-//   https://www.w3.org/TR/2013/WD-cssom-20131205/#extensions-to-the-document-interface
+// https://www.w3.org/TR/2013/WD-cssom-20131205/#extensions-to-the-document-interface
 
 partial interface Document {
   [SameObject] readonly attribute StyleSheetList styleSheets;

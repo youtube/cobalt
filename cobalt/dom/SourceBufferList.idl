@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/media-source/#idl-def-SourceBuffer
+
 interface SourceBufferList : EventTarget {
   readonly attribute unsigned long length;
   getter SourceBuffer? item(unsigned long index);
