@@ -102,62 +102,30 @@ With subdirectories:
 
   * `shared/` - For code shared between architectures within a product family.
   * `<binary-variant>/` - For any code that is specific to a specific binary
-    variant. Each one of these will likely at least have a
-    `configuration_public.h` file and a `starboard_platform.gypi` file.
+    variant. Each one of these must at least have `configuration_public.h`,
+    `atomic_public.h`, `thread_types_public.h`, `gyp_configuration.py`,
+    `gyp_configuration.gypi`, and `starboard_platform.gyp` files.
 
 In the BobCo's BobBox example, we would see something like:
 
   * `src/third_party/starboard/bobbox/`
       * `shared/`
       * `mipseb/`
+          * `atomic_public.h`
           * `configuration_public.h`
-          * `starboard_platform.gypi`
+          * `gyp_configuration.gypi`
+          * `gyp_configuration.py`
+          * `starboard_platform.gyp`
+          * `thread_types_public.h`
       * `mipsel/`
+          * `atomic_public.h`
           * `configuration_public.h`
-          * `starboard_platform.gypi`
+          * `gyp_configuration.gypi`
+          * `gyp_configuration.py`
+          * `starboard_platform.gyp`
+          * `thread_types_public.h`
 
 And so on.
-
-
-#### Forward Your GYP
-
-Starboard looks in a particular place for the GYP file that builds an
-implementation, and for some header files. But you should just forward these
-files to the location that your Starboard implementation will live.
-
-You need to add `src/starboard/<platform-configuration>/starboard_platform.gyp`
-for every platform configuration you need, but it should just include the
-associated
-`src/third_party/starboard/<family-name>/<binary-variant>/starboard_platform.gypi`
-file like this:
-
-```python
-{
-  'includes': [
-    '../../third_party/starboard/bobbox/mipseb/starboard_platform.gypi',
-  ],
-}
-```
-
-Note there is no trailing comma on the outer dict, GYP will complain with a very
-strange error if you include it.
-
-
-#### Forward Your Includes
-
-You should also add `configuration_public.h`, `atomic_public.h`, and
-`thread_types_public.h`, files to the `src/starboard/<platform-configuration>/`
-configuration. These can just contain a single line that includes the real files
-in `third_party`, for an example with BobBox and configuration_public.h:
-
-```c++
-#include "third_party/starboard/bobbox/mipseb/configuration_public.h"
-```
-
-You might further want to forward these public platform includes to the
-`shared/` directory, if they are common to all binary variants. Thread types
-will probably be common, Atomics may be, and some portion of your configuration
-will almost certainly be specific to the target architecture.
 
 
 ### III. Base Your Port on a Reference Port
@@ -167,12 +135,14 @@ files from `src/starboard/linux/...` to your port's location.
 
 Rename the `x86/` directory to `<binary-variant>` (e.g. `mipseb`).
 
-Modify `x86/configuration_public.h` and `shared/configuration_public.h` as
-appropriate (you will probably be coming back to these files a lot).
+Modify the files in `<binary-variant>/` as appropriate (you will probably be
+coming back to these files a lot).
 
-Update `<binary-variant>/starboard_platform.gypi` to point at all the source
-files that you want to build as your new Starboard implementation. `'<(DEPTH)'`
-expands to enough `../` to take you to the `src/` directory of your source tree.
+Update `<binary-variant>/starboard_platform.gyp` to point at all the source
+files that you want to build as your new Starboard implementation. The
+`'<(DEPTH)'` expression in GYP expands to enough `../`s to take you to the
+`src/` directory of your source tree. Otherwise, files are assumed to be
+relative to the directory the `.gyp` or `.gypi` file is in.
 
 
 ### IV. Add Your Platform Configurations to cobalt_gyp
