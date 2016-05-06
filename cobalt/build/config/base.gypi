@@ -62,6 +62,11 @@
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
 
+    # The relative path from src/ to the directory containing the
+    # starboard_platform.gyp file, or the empty string if not an autodiscovered
+    # platform.
+    'starboard_path%': '',
+
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
     #   'system_gles3' - Use the system implementation of EGL + GLES3. The

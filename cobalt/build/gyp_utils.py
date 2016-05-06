@@ -43,8 +43,15 @@ _PORT_SEARCH_PATH = [
 _PORT_FILES = [
     'gyp_configuration.gypi',
     'gyp_configuration.py',
-    'starboard_platform.gypi',
+    'starboard_platform.gyp',
+    'configuration_public.h',
+    'atomic_public.h',
+    'thread_types_public.h',
 ]
+
+# Whether to emit warnings if it finds a directory that almost has a port.
+# TODO: Enable when tree is clean.
+_WARN_ON_ALMOST_PORTS = False
 
 
 # The path to the build.id file that preserves a build ID.
@@ -223,10 +230,16 @@ def GetStackSizeConstant(platform, constant_name):
   return 0
 
 
-def _IsValidPortFilenameList(filenames):
+def _IsValidPortFilenameList(directory, filenames):
   """Determines if |filenames| contains the required files for a valid port."""
 
-  return (set(_PORT_FILES) & set(filenames)) == set(_PORT_FILES)
+  missing = set(_PORT_FILES) - set(filenames)
+  if missing:
+    if len(missing) < (len(_PORT_FILES) / 2) and _WARN_ON_ALMOST_PORTS:
+      logging.warning('Directory %s contains several files needed for a port, '
+                      'but not all of them. In particular, it is missing: %s',
+                      directory, ', '.join(missing))
+  return not missing
 
 
 def _GetPortName(root, directory):
@@ -244,7 +257,7 @@ def _GetPortName(root, directory):
 def _FindValidPorts(root, result):
   """Adds name->path for all ports under |directory| to |result|."""
   for current_path, directories, filenames in os.walk(root):
-    if _IsValidPortFilenameList(filenames):
+    if _IsValidPortFilenameList(current_path, filenames):
       if current_path == root:
         logging.warning('Found port at search path root: %s', current_path)
       port_name = _GetPortName(root, current_path)
