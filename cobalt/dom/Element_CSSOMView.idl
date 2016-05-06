@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-// From CSSOM View Module.
-//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+// https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
 
 partial interface Element {
   DOMRectList getClientRects();

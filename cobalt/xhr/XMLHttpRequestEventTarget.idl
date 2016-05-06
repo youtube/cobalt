@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#xmlhttprequesteventtarget
+
 interface XMLHttpRequestEventTarget : EventTarget {
     attribute EventListener? onabort;
     attribute EventListener? onerror;

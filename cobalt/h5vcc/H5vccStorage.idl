@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 interface H5vccStorage {
   void clearCookies();
   // We don't support synchronous flush, this is legacy.

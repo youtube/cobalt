@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/2014/REC-progress-events-20140211/
+// https://www.w3.org/TR/progress-events/#interface-progressevent
+
 interface ProgressEvent : Event {
   readonly attribute boolean lengthComputable;
   readonly attribute unsigned long long loaded;

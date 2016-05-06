@@ -14,4 +14,6 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/html5/document-metadata.html#the-head-element
+
 interface HTMLHeadElement : HTMLElement {};

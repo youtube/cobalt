@@ -15,7 +15,6 @@
  */
 
 // https://www.khronos.org/registry/typedarray/specs/latest/#7
-// Only the subset required by Cobalt is implemented.
 
 [
   Constructor(unsigned long length),

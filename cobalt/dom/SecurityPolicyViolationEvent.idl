@@ -22,7 +22,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// http://w3c.github.io/webappsec/specs/content-security-policy/#securitypolicyviolationevent-interface
+// https://www.w3.org/TR/2016/WD-CSP3-20160425/#violation-events
 
 interface SecurityPolicyViolationEvent : Event {
     readonly attribute DOMString documentURI;

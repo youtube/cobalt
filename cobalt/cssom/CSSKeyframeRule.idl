@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// The CSSKeyframeRule interface represents the style rule for a single key.
-//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
+// https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
+
 interface CSSKeyframeRule : CSSRule {
   // TODO(***REMOVED***): keyText is not supposed to be read-only.  Remove this
   //               modifier and implement a setter for keyText.

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/html5/webappapis.html#windowtimers
+
 [NoInterfaceObject]
 interface WindowTimers {
   // TODO(***REMOVED***, b/21560766, b/21560873): Change the following methods back to

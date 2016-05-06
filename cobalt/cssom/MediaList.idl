@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-// An object that implements the MediaList interface has an associated
-// collection of media queries.
-//   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-medialist-interface
+// https://www.w3.org/TR/2013/WD-cssom-20131205/#medialist
+
 [ArrayClass]
 interface MediaList {
   attribute DOMString mediaText;

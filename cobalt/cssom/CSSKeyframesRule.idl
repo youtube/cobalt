@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-// The CSSKeyframesRule interface represents a complete set of keyframes for a
-// single animation.
-//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
+// https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
+
 interface CSSKeyframesRule : CSSRule {
   // TODO(***REMOVED***): name is not supposed to be read-only.  Remove this
   //               modifier and implement a setter for name.
