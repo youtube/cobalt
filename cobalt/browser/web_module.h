@@ -25,6 +25,7 @@
 #include "base/hash_tables.h"
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
@@ -63,13 +64,14 @@ namespace browser {
 // (e.g. keyboards and gamepads), and handling render tree output from WebModule
 // when it calls the on_render_tree_produced_ callback (provided upon
 // construction).
-// It is expected that all components internal to WebModule will operate on
-// the same thread.  While it is not currently the case, it is expected that in
-// the future, each WebModule will create and host its own private thread upon
-// which all subcomponents will run.  Therefore all public methods must be
-// thread-safe and callable from any thread.  This necessarily implies that
-// details contained within WebModule, such as the DOM, are intentionally kept
-// private, since these structures expect to be accessed from only one thread.
+// At creation, the WebModule starts a dedicated thread, on which a private
+// implementation object is construted that manages all internal components.
+// All methods of the WebModule post tasks to the implementation object on that
+// thread, so all internal functions are executed synchronously with respect to
+// each other.
+// This necessarily implies that details contained within WebModule, such as the
+// DOM, are intentionally kept private, since these structures expect to be
+// accessed from only one thread.
 class WebModule {
  public:
   // TODO(***REMOVED***): These numbers should be adjusted according to the size of
@@ -90,7 +92,8 @@ class WebModule {
         : name("WebModule"),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           image_cache_capacity(kImageCacheCapacity),
-          csp_enforcement_mode(dom::kCspEnforcementEnable) {}
+          csp_enforcement_mode(dom::kCspEnforcementEnable),
+          csp_insecure_allowed_token(0) {}
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -133,16 +136,19 @@ class WebModule {
 
     // Content Security Policy enforcement mode for this web module.
     dom::CspEnforcementType csp_enforcement_mode;
+
+    // Token obtained from CSP to allow creation of insecure delegates.
+    int csp_insecure_allowed_token;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
   typedef base::Callback<void(const LayoutResults&)>
       OnRenderTreeProducedCallback;
+  typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
 
   WebModule(const GURL& initial_url,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
-            const base::Callback<void(const GURL&, const std::string&)>&
-                error_callback,
+            const OnErrorCallback& error_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
@@ -174,121 +180,70 @@ class WebModule {
 #endif  // ENABLE_DEBUG_CONSOLE
 
  private:
-  class DocumentLoadedObserver;
+  // Data required to construct a WebModule, initialized in the constructor and
+  // passed to |Initialize|.
+  struct ConstructionData {
+    ConstructionData(
+        const GURL& initial_url,
+        const OnRenderTreeProducedCallback& render_tree_produced_callback,
+        const OnErrorCallback& error_callback, media::MediaModule* media_module,
+        network::NetworkModule* network_module,
+        const math::Size& window_dimensions,
+        render_tree::ResourceProvider* resource_provider,
+        float layout_refresh_rate, const Options& options)
+        : initial_url(initial_url),
+          render_tree_produced_callback(render_tree_produced_callback),
+          error_callback(error_callback),
+          media_module(media_module),
+          network_module(network_module),
+          window_dimensions(window_dimensions),
+          resource_provider(resource_provider),
+          layout_refresh_rate(layout_refresh_rate),
+          options(options) {}
 
-  // Injects a list of custom window attributes into the WebModule's window
-  // object.
-  void InjectCustomWindowAttributes(
-      const Options::InjectedWindowAttributes& attributes);
+    GURL initial_url;
+    OnRenderTreeProducedCallback render_tree_produced_callback;
+    OnErrorCallback error_callback;
+    media::MediaModule* media_module;
+    network::NetworkModule* network_module;
+    math::Size window_dimensions;
+    render_tree::ResourceProvider* resource_provider;
+    float layout_refresh_rate;
+    Options options;
+  };
 
-  // Called by ExecuteJavascript, if that method is called from a different
-  // message loop to the one this WebModule is running on. Sets the result
-  // output parameter and signals got_result.
-  void ExecuteJavascriptInternal(const std::string& script_utf8,
-                                 const base::SourceLocation& script_location,
-                                 base::WaitableEvent* got_result,
-                                 std::string* result);
+  // Forward declaration of the private implementation class.
+  class Impl;
 
-  // Called by |layout_mananger_| when it produces a render tree. May modify
-  // the render tree (e.g. to add a debug overlay), then runs the callback
-  // specified in the constructor, |render_tree_produced_callback_|.
-  void OnRenderTreeProduced(const LayoutResults& layout_results);
+  // Destruction observer used to safely tear down this WebModule after the
+  // thread has been stopped.
+  class DestructionObserver : public MessageLoop::DestructionObserver {
+   public:
+    explicit DestructionObserver(WebModule* web_module);
+    void WillDestroyCurrentMessageLoop() OVERRIDE;
+
+   private:
+    WebModule* web_module_;
+  };
+
+  // Called by the constructor to create the private implementation object and
+  // perform any other initialization required on the dedicated thread.
+  void Initialize(const ConstructionData& data);
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   void OnPartialLayoutConsoleCommandReceived(const std::string& message);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-  void OnCspPolicyChanged();
+  // The message loop this object is running on.
+  MessageLoop* message_loop() const { return thread_.message_loop(); }
 
-  scoped_refptr<script::GlobalObjectProxy> global_object_proxy() {
-    DCHECK(thread_checker_.CalledOnValidThread());
-    return global_object_proxy_;
-  }
+  // Private implementation object.
+  scoped_ptr<Impl> impl_;
 
-  void OnError(const std::string& error) {
-    error_callback_.Run(window_->location()->url(), error);
-  }
-
-  std::string name_;
-
-  // Thread checker ensures all calls to the WebModule are made from the same
-  // thread that it is created in.
-  base::ThreadChecker thread_checker_;
-
-  // The message loop that this WebModule is running on. If a class method
-  // is called from a different message loop, repost it to this one.
-  MessageLoop* const self_message_loop_;
-
-  // The error callback passed in from constructor.
-  base::Callback<void(const GURL&, const std::string&)> error_callback_;
-
-  // CSS parser.
-  scoped_ptr<css_parser::Parser> css_parser_;
-
-  // DOM (HTML / XML) parser.
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-
-  // FetcherFactory that is used to create a fetcher according to URL.
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-
-  // ImageCache that is used to manage image cache logic.
-  scoped_ptr<loader::image::ImageCache> image_cache_;
-
-  // RemoteTypefaceCache that is used to manage loading and caching typefaces
-  // from URLs.
-  scoped_ptr<loader::font::RemoteTypefaceCache> remote_typeface_cache_;
-
-  // Interface between LocalStorage and the Storage Manager.
-  dom::LocalStorageDatabase local_storage_database_;
-
-  // JavaScript engine for the browser.
-  scoped_ptr<script::JavaScriptEngine> javascript_engine_;
-
-  // JavaScript Global Object for the browser. There should be one per window,
-  // but since there is only one window, we can have one per browser.
-  scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
-
-  // Used by |Console| to obtain a JavaScript stack trace.
-  scoped_ptr<script::ExecutionState> execution_state_;
-
-  // Interface for the document to execute JavaScript code.
-  scoped_ptr<script::ScriptRunner> script_runner_;
-
-  // Object to register and retrieve MediaSource object with a string key.
-  dom::MediaSource::Registry media_source_registry_;
-
-  // The Window object wraps all DOM-related components.
-  scoped_refptr<dom::Window> window_;
-
-  // Cache a WeakPtr in the WebModule that is bound to the Window's message loop
-  // so we can ensure that all subsequently created WeakPtr's are also bound to
-  // the same loop.
-  // See the documentation in base/memory/weak_ptr.h for details.
-  base::WeakPtr<dom::Window> window_weak_;
-
-  // Environment Settings object
-  scoped_ptr<dom::DOMSettings> environment_settings_;
-
-  // Called by |OnRenderTreeProduced|.
-  OnRenderTreeProducedCallback render_tree_produced_callback_;
-
-  // Triggers layout whenever the document changes.
-  layout::LayoutManager layout_manager_;
-
-#if defined(ENABLE_DEBUG_CONSOLE)
-  // Allows the debugger to add render components to the web module.
-  // Used for DOM node highlighting and overlay messages.
-  debug::RenderOverlay debug_overlay_;
-  render_tree::ResourceProvider* resource_provider_;
-
-  // The core of the debugging system, described here:
-  // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y
-  // Created lazily when accessed via |GetDebugServer|.
-  scoped_ptr<debug::DebugServer> debug_server_;
-#endif  // ENABLE_DEBUG_CONSOLE
-
-  // DocumentObserver that observes the loading document.
-  scoped_ptr<DocumentLoadedObserver> document_load_observer_;
+  // The thread created and owned by this WebModule.
+  // All sub-objects of this object are created on this thread, and all public
+  // member functions are re-posted to this thread if necessary.
+  base::Thread thread_;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   // Handles the 'partial_layout' command.

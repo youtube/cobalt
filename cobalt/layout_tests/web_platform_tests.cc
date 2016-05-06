@@ -57,7 +57,9 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
   static CspDelegate* Create(
       scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
       const std::string& location_policy,
-      const base::Closure& policy_changed_callback) {
+      const base::Closure& policy_changed_callback,
+      int insecure_allowed_token) {
+    UNREFERENCED_PARAMETER(insecure_allowed_token);
     return new CspDelegatePermissive(violation_reporter.Pass(), url,
                                      location_policy, policy_changed_callback);
   }
@@ -108,23 +110,28 @@ const char* kLogSuppressions[] = {
     "synchronous XHR is not supported",
 };
 
+void Quit(base::RunLoop* run_loop) {
+  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
+}
+
 // Called when layout completes and results have been produced.  We use this
 // signal to stop the WebModule's message loop since our work is done after a
 // layout has been performed.
 void WebModuleOnRenderTreeProducedCallback(
     base::optional<browser::WebModule::LayoutResults>* out_results,
-    base::RunLoop* run_loop, const browser::WebModule::LayoutResults& results) {
+    base::RunLoop* run_loop, MessageLoop* message_loop,
+    const browser::WebModule::LayoutResults& results) {
   out_results->emplace(results.render_tree, results.animations,
                        results.layout_time);
-  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
+  message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
 // This callback, when called, quits a message loop, outputs the error message
 // and sets the success flag to false.
-void WebModuleErrorCallback(base::RunLoop* run_loop, const GURL& url,
-                            const std::string& error) {
+void WebModuleErrorCallback(base::RunLoop* run_loop, MessageLoop* message_loop,
+                            const GURL& url, const std::string& error) {
   LOG(FATAL) << "Error loading document: " << error << ". URL: " << url;
-  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
+  message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
 std::string RunWebPlatformTest(const GURL& url) {
@@ -164,11 +171,11 @@ std::string RunWebPlatformTest(const GURL& url) {
 
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module(
-      url,
-      base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop),
-      base::Bind(&WebModuleErrorCallback, &run_loop), media_module.get(),
-      &network_module, kDefaultViewportSize, &resource_provider, 60.0f,
-      web_module_options);
+      url, base::Bind(&WebModuleOnRenderTreeProducedCallback, &results,
+                      &run_loop, MessageLoop::current()),
+      base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
+      media_module.get(), &network_module, kDefaultViewportSize,
+      &resource_provider, 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";

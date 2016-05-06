@@ -30,8 +30,6 @@ struct FontStyleValue::NonTrivialStaticFields {
         normal(new FontStyleValue(FontStyleValue::kNormal)),
         oblique(new FontStyleValue(FontStyleValue::kOblique)) {}
 
-  base::ThreadChecker thread_checker;
-
   const scoped_refptr<FontStyleValue> italic;
   const scoped_refptr<FontStyleValue> normal;
   const scoped_refptr<FontStyleValue> oblique;
@@ -45,17 +43,14 @@ base::LazyInstance<FontStyleValue::NonTrivialStaticFields>
 }  // namespace
 
 const scoped_refptr<FontStyleValue>& FontStyleValue::GetItalic() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().italic;
 }
 
 const scoped_refptr<FontStyleValue>& FontStyleValue::GetNormal() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().normal;
 }
 
 const scoped_refptr<FontStyleValue>& FontStyleValue::GetOblique() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().oblique;
 }
 

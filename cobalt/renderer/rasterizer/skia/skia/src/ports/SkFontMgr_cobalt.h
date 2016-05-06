@@ -23,8 +23,8 @@
 #include <utility>
 
 #include "base/hash_tables.h"
-#include "base/timer.h"
 #include "cobalt/base/console_values.h"
+#include "cobalt/base/poller.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "SkFontHost.h"
 #include "SkFontHost_FreeType_common.h"
@@ -128,8 +128,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 class SkFontMgr_Cobalt : public SkFontMgr {
  public:
   SkFontMgr_Cobalt(const char* directory,
-                   const SkTArray<SkString, true>& default_fonts,
-                   int32_t system_stream_cache_limit);
+                   const SkTArray<SkString, true>& default_fonts);
 
  protected:
   // From SkFontMgr
@@ -235,11 +234,6 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // NOTE: mutable is required on all variables potentially modified via calls
   // from SkFontStyleSet_Cobalt::onOpenStream(), which is const.
 
-  // Tracking of the cache limit and current cache size. These are stored as
-  // base::CVal, so that we can easily monitor the system font memory usage.
-  const base::CVal<int32_t> system_typeface_open_stream_cache_limit_in_bytes_;
-  mutable base::CVal<int32_t> system_typeface_open_stream_cache_size_in_bytes_;
-
   // Tracking of active and inactive open streams among the system typefaces.
   // The streams are initially active and are moved to the inactive list when
   // the stream's underlying SkData no longer has any external references.
@@ -248,11 +242,6 @@ class SkFontMgr_Cobalt : public SkFontMgr {
       system_typefaces_with_active_open_streams_;
   mutable SkTArray<TimedSystemTypeface>
       system_typefaces_with_inactive_open_streams_;
-
-  // The timer used to trigger periodic processing of open streams, which
-  // handles moving open streams from the active to the inactive list and
-  // releasing inactive open streams.
-  base::Timer process_system_typefaces_with_open_streams_timer_;
 
   // This mutex is used when accessing/modifying both the system typeface stream
   // data itself and the variables used with tracking that data.
