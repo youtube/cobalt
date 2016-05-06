@@ -6159,19 +6159,57 @@ typedef struct HeapWalker {
   int file_buf_len;
 } HeapWalker;
 
+#if defined(STARBOARD)
+#define snprintf SbStringFormatF
+#define MEMORY_LOG_PATH SB_MEMORY_LOG_PATH
+
+static bool heap_walker_is_valid_file(SbFile fd) {
+  return SbFileIsValid(fd);
+}
+
+static SbFile heap_walker_open_file(const char* file) {
+  return SbFileOpen(file, kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+}
+
+static void heap_walker_write_file(SbFile fd, const char *data, int data_size) {
+  SbFileWrite(fd, data, data_size);
+}
+
+static SbFile heap_walker_close_file(SbFile fd) {
+  SbFileClose(fd);
+  return kSbFileInvalid;
+}
+#else
+#if defined(_MSC_VER)
+#define bool int
+#else
+#include <stdbool.h>
+#endif
+
+static bool heap_walker_is_valid_file(int fd) {
+  return fd >= 0;
+}
+
+static int heap_walker_open_file(const char* file) {
+  return open(file, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+}
+
+static void heap_walker_write_file(int fd, const char *data, int data_size) {
+  write(fd, data, data_size);
+}
+
+static int heap_walker_close_file(int fd) {
+  close(fd);
+  return -1;
+}
+#endif
+
 static void heap_walker_init(HeapWalker* hw, const char* file) {
   memset(hw, 0, sizeof(HeapWalker));
   char path[256];
-#if defined(STARBOARD)
-  SbDirectoryCreate(SB_MEMORY_LOG_PATH);
-  SbStringFormatF(path, sizeof(path), "%s/%s", SB_MEMORY_LOG_PATH, file);
-  hw->file_descriptor = SbFileOpen(path, kSbFileCreateAlways | kSbFileWrite,
-                                   NULL, NULL);
-#else
   snprintf(path, sizeof(path), "%s/%s", MEMORY_LOG_PATH, file);
-  hw->file_descriptor = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-#endif
-  if (hw->file_descriptor >= 0) {
+  hw->file_descriptor = heap_walker_open_file(path);
+  if (heap_walker_is_valid_file(hw->file_descriptor)) {
     oom_fprintf(1, "Writing allocations to %s\n", path);
   } else {
     oom_fprintf(1, "Could not open file %s\n", path);
@@ -6179,8 +6217,8 @@ static void heap_walker_init(HeapWalker* hw, const char* file) {
 }
 
 static void heap_walker_flush(HeapWalker* hw) {
-  if (hw->file_descriptor >= 0) {
-    write(hw->file_descriptor, hw->file_buf, hw->file_buf_len);
+  if (heap_walker_is_valid_file(hw->file_descriptor)) {
+    heap_walker_write_file(hw->file_descriptor, hw->file_buf, hw->file_buf_len);
   }
   hw->file_buf_len = 0;
 }
@@ -6213,7 +6251,7 @@ static void heap_walker_end_range(HeapWalker* hw) {
     hw->largest_free_block_bytes = hw->cur_range_size;
   }
 
-  if (hw->file_descriptor >= 0) {
+  if (heap_walker_is_valid_file(hw->file_descriptor)) {
     char buf[128];
     int len = snprintf(buf, sizeof(buf),
         "%s\t[0x%" PRIxPTR " - 0x%" PRIxPTR "]\t%d\t%d\n",
@@ -6255,9 +6293,8 @@ static void heap_walker_terminate(HeapWalker* hw) {
   heap_walker_end_range(hw);
   heap_walker_flush(hw);
 
-  if (hw->file_descriptor >= 0) {
-    close(hw->file_descriptor);
-    hw->file_descriptor = -1;
+  if (heap_walker_is_valid_file(hw->file_descriptor)) {
+    hw->file_descriptor = heap_walker_close_file(hw->file_descriptor);
   }
 }
 
