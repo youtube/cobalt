@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// The CSSMediaRule interface represents a ‘@media’ rule.
-//   https://www.w3.org/TR/css3-conditional/#cssmediarule
+// https://www.w3.org/TR/css3-conditional/#cssmediarule
+
 interface CSSMediaRule : CSSConditionRule {
   [SameObject] readonly attribute MediaList media;
 };

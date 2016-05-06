@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/dom/#interface-domtokenlist
+// https://www.w3.org/TR/dom/#domtokenlist
 
 [AddOpaqueRoots=(element)]
 interface DOMTokenList {

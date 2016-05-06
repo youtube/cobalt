@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//https://www.w3.org/TR/XMLHttpRequest/#xmlhttprequestupload
+
+// https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#xmlhttprequestupload
+
 interface XMLHttpRequestUpload : XMLHttpRequestEventTarget {
 };

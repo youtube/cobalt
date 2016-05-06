@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/
+// https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#xmlhttprequest
+
 [
     Constructor,
     ConstructorCallWith=EnvironmentSettings,

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-//    https://www.w3.org/TR/DOM-Level-3-Events/#interface-KeyboardEvent
+// https://www.w3.org/TR/2015/WD-uievents-20151215/#interface-KeyboardEvent
+
 interface KeyboardEvent : UIEvent {
   // enum KeyLocationCode
   const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;

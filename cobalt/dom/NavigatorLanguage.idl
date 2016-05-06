@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/html/wg/drafts/html/master/webappapis.html#dom-navigator-language
+// https://www.w3.org/TR/html5/webappapis.html#navigatorlanguage
+
 [NoInterfaceObject]
 interface NavigatorLanguage {
   readonly attribute DOMString language;

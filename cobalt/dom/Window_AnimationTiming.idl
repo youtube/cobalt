@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/animation-timing/#Window-interface-extensions
+// https://www.w3.org/TR/2015/NOTE-animation-timing-20150922/#Window-interface-extensions
+
 partial interface Window {
   long requestAnimationFrame(FrameRequestCallback callback);
   void cancelAnimationFrame(long handle);

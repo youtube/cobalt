@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/hr-time/#sec-extenstions-performance-interface
+// https://www.w3.org/TR/2016/WD-hr-time-2-20160225/#the-performance-interface
 
 partial interface Performance {
   DOMHighResTimeStamp now();

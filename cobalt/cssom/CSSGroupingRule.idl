@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-// The CSSGroupingRule interface represents an at-rule that contains other rules
-// nested inside itself.
-//   https://www.w3.org/TR/cssom/#the-cssgroupingrule-interface
-//   https://www.w3.org/TR/css3-conditional/#cssgroupingrule
+// https://www.w3.org/TR/css3-conditional/#cssgroupingrule
+
 interface CSSGroupingRule : CSSRule {
   readonly attribute CSSRuleList cssRules;
   unsigned long insertRule(DOMString rule, unsigned long index);
