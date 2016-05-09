@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#include "starboard/window.h"
 
-#include "starboard/atomic.h"
+#include "starboard/raspi/shared/window_internal.h"
+#include "starboard/log.h"
 
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
+bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
+  if (!SbWindowIsValid(window)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid context.";
+    return false;
+  }
 
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+  size->width = window->window.width;
+  size->height = window->window.height;
+  return true;
+}
