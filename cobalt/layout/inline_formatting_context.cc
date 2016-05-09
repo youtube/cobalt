@@ -31,7 +31,6 @@ InlineFormattingContext::InlineFormattingContext(
     const render_tree::FontMetrics& font_metrics,
     const LayoutParams& layout_params, BaseDirection base_direction,
     const scoped_refptr<cssom::PropertyValue>& text_align,
-    const scoped_refptr<cssom::PropertyValue>& white_space,
     const scoped_refptr<cssom::PropertyValue>& font_size,
     LayoutUnit text_indent_offset, LayoutUnit ellipsis_width)
     : line_height_(line_height),
@@ -39,7 +38,6 @@ InlineFormattingContext::InlineFormattingContext(
       layout_params_(layout_params),
       base_direction_(base_direction),
       text_align_(text_align),
-      white_space_(white_space),
       font_size_(font_size),
       text_indent_offset_(text_indent_offset),
       ellipsis_width_(ellipsis_width),
@@ -49,28 +47,22 @@ InlineFormattingContext::InlineFormattingContext(
 
 InlineFormattingContext::~InlineFormattingContext() {}
 
-scoped_refptr<Box> InlineFormattingContext::BeginUpdateRectAndMaybeSplit(
-    Box* child_box) {
-  DCHECK(child_box->GetLevel() == Box::kInlineLevel ||
-         child_box->IsAbsolutelyPositioned());
+Box* InlineFormattingContext::TryAddChildAndMaybeWrap(Box* child_box) {
+  DCHECK(child_box->GetLevel() == Box::kInlineLevel);
 
   // When an inline box exceeds the width of a line box, it is split into
   // several boxes and these boxes are distributed across several line boxes.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   //
-  // We tackle this problem one split (and one line) at the time.
-  scoped_refptr<Box> child_box_after_split;
-  if (!TryBeginUpdateRectAndMaybeCreateLineBox(child_box,
-                                               &child_box_after_split)) {
-    DCHECK(!child_box_after_split) << "A split should only occur when a child "
-                                      "before the split is accepted by a line "
-                                      "box.";
-    bool child_box_update_began = TryBeginUpdateRectAndMaybeCreateLineBox(
-        child_box, &child_box_after_split);
-    DCHECK(child_box_update_began)
-        << "A line box should never reject the first child.";
+  // We tackle this problem one line at a time.
+
+  Box* child_box_before_wrap = line_box_->TryAddChildAndMaybeWrap(child_box);
+  // If |child_box_before_wrap| is non-NULL, then a line wrap has occurred and a
+  // new line box must be created.
+  if (child_box_before_wrap) {
+    CreateLineBox();
   }
-  return child_box_after_split;
+  return child_box_before_wrap;
 }
 
 void InlineFormattingContext::BeginEstimateStaticPosition(Box* child_box) {
@@ -107,18 +99,6 @@ InlineFormattingContext::GetEllipsesCoordinates() const {
   return ellipses_coordinates_;
 }
 
-bool InlineFormattingContext::TryBeginUpdateRectAndMaybeCreateLineBox(
-    Box* child_box, scoped_refptr<Box>* child_box_after_split) {
-  bool child_box_update_began = line_box_->TryBeginUpdateRectAndMaybeSplit(
-      child_box, child_box_after_split);
-  DCHECK(child_box_update_began || *child_box_after_split == NULL);
-
-  if (!child_box_update_began) {
-    CreateLineBox();
-  }
-  return child_box_update_began;
-}
-
 void InlineFormattingContext::CreateLineBox() {
   if (line_box_) {
     DestroyLineBox();
@@ -135,8 +115,8 @@ void InlineFormattingContext::CreateLineBox() {
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   line_box_ = make_scoped_ptr(
       new LineBox(auto_height(), false, line_height_, font_metrics_, true, true,
-                  layout_params_, base_direction_, text_align_, white_space_,
-                  font_size_, line_indent_offset, ellipsis_width_));
+                  layout_params_, base_direction_, text_align_, font_size_,
+                  line_indent_offset, ellipsis_width_));
 }
 
 void InlineFormattingContext::DestroyLineBox() {
@@ -145,7 +125,7 @@ void InlineFormattingContext::DestroyLineBox() {
   // The baseline of an "inline-block" is the baseline of its last line box
   // in the normal flow, unless it has no in-flow line boxes.
   //   https://www.w3.org/TR/CSS21/visudet.html#line-height
-  if (line_box_->line_exists()) {
+  if (line_box_->LineExists()) {
     ++line_count_;
 
     preferred_min_width_ =

@@ -73,7 +73,6 @@ TextShaper::TextShaper()
 scoped_refptr<SkiaGlyphBuffer> TextShaper::CreateGlyphBuffer(
     const char16* text_buffer, size_t text_length, const std::string& language,
     bool is_rtl, render_tree::FontProvider* font_provider) {
-  base::AutoLock lock(shaping_mutex_);
   math::RectF bounds;
   SkTextBlobBuilder builder;
   ShapeText(text_buffer, text_length, language, is_rtl, font_provider, &builder,
@@ -97,7 +96,6 @@ float TextShaper::GetTextWidth(const char16* text_buffer, size_t text_length,
                                const std::string& language, bool is_rtl,
                                render_tree::FontProvider* font_provider,
                                render_tree::FontVector* maybe_used_fonts) {
-  base::AutoLock lock(shaping_mutex_);
   return ShapeText(text_buffer, text_length, language, is_rtl, font_provider,
                    NULL, NULL, maybe_used_fonts);
 }
@@ -108,6 +106,7 @@ float TextShaper::ShapeText(const char16* text_buffer, size_t text_length,
                             SkTextBlobBuilder* maybe_builder,
                             math::RectF* maybe_bounds,
                             render_tree::FontVector* maybe_used_fonts) {
+  base::AutoLock lock(shaping_mutex_);
   float total_width = 0;
 
   // Check for if the text contains a complex script, meaning that it requires

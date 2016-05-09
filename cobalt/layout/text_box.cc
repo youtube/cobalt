@@ -24,6 +24,7 @@
 #include "cobalt/cssom/shadow_value.h"
 #include "cobalt/layout/render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
+#include "cobalt/layout/white_space_processing.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/glyph_buffer.h"
@@ -157,38 +158,57 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
             GetTrailingWhiteSpaceWidth());
 }
 
-scoped_refptr<Box> TextBox::TrySplitAt(
-    LayoutUnit available_width, bool should_collapse_trailing_white_space,
-    bool allow_overflow) {
-  if (!WhiteSpaceStyleAllowsWrapping()) {
-    return scoped_refptr<Box>();
+WrapResult TextBox::TryWrapAt(WrapAtPolicy wrap_at_policy,
+                              WrapOpportunityPolicy wrap_opportunity_policy,
+                              bool is_line_existence_justified,
+                              LayoutUnit available_width,
+                              bool should_collapse_trailing_white_space) {
+  bool style_allows_break_word =
+      computed_style()->overflow_wrap() == cssom::KeywordValue::GetBreakWord();
+
+  if (!ShouldProcessWrapOpportunityPolicy(wrap_opportunity_policy,
+                                          style_allows_break_word)) {
+    return kWrapResultNoWrap;
   }
 
-  // Start from the text position when searching for the split position. We do
-  // not want to split on leading whitespace. Additionally, as a result of
-  // skipping over it, the width of the leading whitespace will need to be
-  // removed from the available width.
-  available_width -= GetLeadingWhiteSpaceWidth();
-  int32 start_position = GetNonCollapsibleTextStartPosition();
-  int32 split_position;
-  LayoutUnit split_width;
+  // Even when the text box's style prevents wrapping, wrapping can still occur
+  // before the box if the line's existence has already been justified and
+  // whitespace precedes the box.
+  if (!DoesAllowTextWrapping(computed_style()->white_space())) {
+    if (is_line_existence_justified && text_start_position_ > 0 &&
+        paragraph_->IsCollapsibleWhiteSpace(text_start_position_ - 1)) {
+      return kWrapResultWrapBefore;
+    } else {
+      return kWrapResultNoWrap;
+    }
+  }
 
-  Paragraph::BreakPolicy break_policy;
-  if (computed_style()->overflow_wrap() ==
-      cssom::KeywordValue::GetBreakWord()) {
-    break_policy = Paragraph::kSoftWrapWithBreakWordOnOverflow;
+  // If the line existence is already justified, then leading whitespace can be
+  // included in the wrap search, as it provides a wrappable point. If it isn't,
+  // then the leading whitespace is skipped, because the line cannot wrap before
+  // it is justified.
+  int32 start_position = is_line_existence_justified
+                             ? text_start_position_
+                             : GetNonCollapsibleTextStartPosition();
+
+  int32 wrap_position = GetWrapPosition(
+      wrap_at_policy, wrap_opportunity_policy, is_line_existence_justified,
+      available_width, should_collapse_trailing_white_space,
+      style_allows_break_word, start_position);
+
+  WrapResult wrap_result;
+  // Wrapping at the text start position is only allowed when the line's
+  // existence is already justified.
+  if (wrap_position == text_start_position_ && is_line_existence_justified) {
+    wrap_result = kWrapResultWrapBefore;
+  } else if (wrap_position > start_position &&
+             wrap_position < text_end_position_) {
+    SplitAtPosition(wrap_position);
+    wrap_result = kWrapResultSplitWrap;
   } else {
-    break_policy = Paragraph::kSoftWrap;
+    wrap_result = kWrapResultNoWrap;
   }
-
-  if (paragraph_->FindBreakPosition(
-          used_font_, start_position, text_end_position_, available_width,
-          should_collapse_trailing_white_space, allow_overflow, break_policy,
-          &split_position, &split_width)) {
-    return SplitAtPosition(split_position);
-  }
-
-  return scoped_refptr<Box>();
+  return wrap_result;
 }
 
 Box* TextBox::GetSplitSibling() const { return split_sibling_; }
@@ -207,13 +227,14 @@ void TextBox::ResetEllipses() {
 
 void TextBox::SplitBidiLevelRuns() {}
 
-scoped_refptr<Box> TextBox::TrySplitAtSecondBidiLevelRun() {
+bool TextBox::TrySplitAtSecondBidiLevelRun() {
   int32 split_position;
   if (paragraph_->GetNextRunPosition(text_start_position_, &split_position) &&
       split_position < text_end_position_) {
-    return SplitAtPosition(split_position);
+    SplitAtPosition(split_position);
+    return true;
   } else {
-    return scoped_refptr<Box>();
+    return false;
   }
 }
 
@@ -454,8 +475,8 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow).
   if (paragraph_->FindBreakPosition(
           used_font_, start_position, end_position, desired_content_offset,
-          false, !(*is_placement_requirement_met), Paragraph::kBreakWord,
-          &found_position, &found_offset)) {
+          false, !(*is_placement_requirement_met),
+          Paragraph::kBreakPolicyBreakWord, &found_position, &found_offset)) {
     // A usable break position was found. Calculate the placed offset using the
     // the break position's distance from the content box's start edge. In the
     // case where the base direction is right-to-left, the truncated text must
@@ -486,50 +507,111 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   }
 }
 
-bool TextBox::WhiteSpaceStyleAllowsCollapsing() {
-  // "white-space" property values "normal", "nowrap", and "pre-line" allow
-  // collapsing of whitespace.
-  // https://www.w3.org/TR/css-text-3/#white-space
-  const scoped_refptr<cssom::PropertyValue>& white_space_property =
-      computed_style()->white_space();
-  return white_space_property == cssom::KeywordValue::GetNormal() ||
-         white_space_property == cssom::KeywordValue::GetNoWrap() ||
-         white_space_property == cssom::KeywordValue::GetPreLine();
-}
-
-bool TextBox::WhiteSpaceStyleAllowsWrapping() {
-  // "white-space" property values "normal", "pre-line", and "pre-wrap" allow
-  // text wrapping.
-  // https://www.w3.org/TR/css-text-3/#white-space
-  const scoped_refptr<cssom::PropertyValue>& white_space_property =
-      computed_style()->white_space();
-  return white_space_property == cssom::KeywordValue::GetNormal() ||
-         white_space_property == cssom::KeywordValue::GetPreLine() ||
-         white_space_property == cssom::KeywordValue::GetPreWrap();
-}
-
 void TextBox::UpdateTextHasLeadingWhiteSpace() {
   text_has_leading_white_space_ =
       text_start_position_ != text_end_position_ &&
       paragraph_->IsCollapsibleWhiteSpace(text_start_position_) &&
-      WhiteSpaceStyleAllowsCollapsing();
+      DoesCollapseWhiteSpace(computed_style()->white_space());
 }
 
 void TextBox::UpdateTextHasTrailingWhiteSpace() {
   text_has_trailing_white_space_ =
       !has_trailing_line_break_ && text_start_position_ != text_end_position_ &&
       paragraph_->IsCollapsibleWhiteSpace(text_end_position_ - 1) &&
-      WhiteSpaceStyleAllowsCollapsing();
+      DoesCollapseWhiteSpace(computed_style()->white_space());
 }
 
-scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
+int32 TextBox::GetWrapPosition(WrapAtPolicy wrap_at_policy,
+                               WrapOpportunityPolicy wrap_opportunity_policy,
+                               bool is_line_existence_justified,
+                               LayoutUnit available_width,
+                               bool should_collapse_trailing_white_space,
+                               bool style_allows_break_word,
+                               int32 start_position) {
+  Paragraph::BreakPolicy break_policy =
+      Paragraph::GetBreakPolicyFromWrapOpportunityPolicy(
+          wrap_opportunity_policy, style_allows_break_word);
+
+  int32 wrap_position;
+  switch (wrap_at_policy) {
+    case kWrapAtPolicyBefore:
+      // Wrapping before the box is only permitted when the line's existence is
+      // justified.
+      if (is_line_existence_justified &&
+          paragraph_->IsBreakPosition(text_start_position_, break_policy)) {
+        wrap_position = text_start_position_;
+      } else {
+        wrap_position = -1;
+      }
+      break;
+    case kWrapAtPolicyLastOpportunityWithinWidth: {
+      if (is_line_existence_justified) {
+        // If the line existence is already justified, then the line can
+        // potentially wrap after the box's leading whitespace. However, if that
+        // whitespace has been collapsed, then we need to add its width to the
+        // available width, because it'll be counted against the available width
+        // while searching for the break position, but it won't impact the
+        // length of the line.
+        if (start_position != GetNonCollapsedTextStartPosition()) {
+          available_width += LayoutUnit(used_font_->GetSpaceWidth());
+        }
+        // If the line's existence isn't already justified, then the line cannot
+        // wrap on leading whitespace. Subtract the width of non-collapsed
+        // whitespace from the available width, as the search is starting after
+        // it.
+      } else {
+        available_width -= GetLeadingWhiteSpaceWidth();
+      }
+
+      // Attempt to find the last break position after the start position that
+      // fits within the available width. Overflow is never allowed.
+      LayoutUnit wrap_width;
+      if (!paragraph_->FindBreakPosition(
+              used_font_, start_position, text_end_position_, available_width,
+              should_collapse_trailing_white_space, false, break_policy,
+              &wrap_position, &wrap_width)) {
+        // If no break position is found, but the line existence is already
+        // justified, then check for text start position being a break position.
+        // Wrapping before the box is permitted when the line's existence is
+        // justified.
+        if (is_line_existence_justified &&
+            paragraph_->IsBreakPosition(text_start_position_, break_policy)) {
+          wrap_position = text_start_position_;
+        } else {
+          wrap_position = -1;
+        }
+      }
+      break;
+    }
+    case kWrapAtPolicyLastOpportunity:
+      wrap_position = paragraph_->GetPreviousBreakPosition(text_end_position_,
+                                                           break_policy);
+      break;
+    case kWrapAtPolicyFirstOpportunity: {
+      // If the line is already justified, the wrap can occur at the start
+      // position. Otherwise, the wrap cannot occur until after non-collapsible
+      // text is included.
+      int32 search_start_position =
+          is_line_existence_justified ? start_position - 1 : start_position;
+      wrap_position =
+          paragraph_->GetNextBreakPosition(search_start_position, break_policy);
+      break;
+    }
+    default:
+      NOTREACHED();
+      wrap_position = -1;
+  }
+  return wrap_position;
+}
+
+void TextBox::SplitAtPosition(int32 split_start_position) {
   int32 split_end_position = text_end_position_;
   DCHECK_LT(split_start_position, split_end_position);
 
   text_end_position_ = split_start_position;
+  truncated_text_end_position_ = text_end_position_;
 
-  // The width is no longer valid for this box now that it has been split in
-  // two.
+  // The width is no longer valid for this box now that it has been split.
   non_collapsible_text_width_ = base::nullopt;
   update_size_results_valid_ = false;
 
@@ -545,7 +627,7 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   //               |text_width_ - pre_split_width| to save a call
   //               to Skia/HarfBuzz.
 
-  // Pass the line break trigger on to the sibling that retains the trailing
+  // Pass the trailing line break on to the sibling that retains the trailing
   // portion of the text and reset the value for this text box.
   has_trailing_line_break_ = false;
 
@@ -553,8 +635,6 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   // a new end position. The start position white space does not need to be
   // updated as it has not changed.
   UpdateTextHasTrailingWhiteSpace();
-
-  return box_after_split;
 }
 
 LayoutUnit TextBox::GetLeadingWhiteSpaceWidth() const {

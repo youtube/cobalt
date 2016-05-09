@@ -323,6 +323,10 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
       new TextBox(br_element->css_computed_style_declaration(), *paragraph_,
                   text_position, text_position, true, used_style_provider_);
 
+  // Add a line feed code point to the paragraph to signify the new line for
+  // the line breaking and bidirectional algorithms.
+  (*paragraph_)->AppendCodePoint(Paragraph::kLineFeedCodePoint);
+
 #ifdef COBALT_BOX_DUMP_ENABLED
   br_text_box->SetGeneratingNode(br_element);
 #endif  // COBALT_BOX_DUMP_ENABLED
@@ -440,6 +444,23 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       } else if (directionality_ == dom::kRightToLeftDirectionality) {
         has_scoped_directional_embedding_ = true;
         (*paragraph_)->AppendCodePoint(Paragraph::kRightToLeftEmbedCodePoint);
+      }
+
+      // If the paragraph has not started yet, then add a no-break space to it,
+      // thereby starting the paragraph without providing a wrappable location,
+      // as the line should never wrap at the start of text.
+      // http://unicode.org/reports/tr14/#BreakingRules
+      //
+      // Starting the paragraph ensures that subsequent text nodes create text
+      // boxes, even when they consist of only collapsible white-space. This is
+      // necessary because empty inline container boxes can justify a line's
+      // existence if they have a non-zero margin, border or padding, which
+      // means that the collapsible white-space is potentially wrappable
+      // regardless of whether any intervening text is added to the paragraph.
+      // Not creating the collapsible text box in this case would incorrectly
+      // eliminate a wrappable location from the line.
+      if ((*paragraph_)->GetTextEndPosition() == 0) {
+        (*paragraph_)->AppendCodePoint(Paragraph::kNoBreakSpaceCodePoint);
       }
 
       container_box_ = make_scoped_refptr(new InlineContainerBox(
@@ -847,23 +868,16 @@ void BoxGenerator::Visit(dom::Text* text) {
   DCHECK(css_computed_style_declaration->data());
 
   const std::string& original_text = text->text();
+  DCHECK_GT(original_text.size(), size_t(0));
 
   const scoped_refptr<cssom::PropertyValue>& white_space_property =
       css_computed_style_declaration->data()->white_space();
-  // "white-space" property values "pre", "pre-line", and "pre-wrap" preserve
-  // segment breaks
-  // https://www.w3.org/TR/css-text-3/#white-space
   bool should_preserve_segment_breaks =
-      white_space_property == cssom::KeywordValue::GetPre() ||
-      white_space_property == cssom::KeywordValue::GetPreLine() ||
-      white_space_property == cssom::KeywordValue::GetPreWrap();
-  // "white-space" property values "normal", "nowrap", and "pre-line" collapse
-  // whitespace.
-  // https://www.w3.org/TR/css-text-3/#white-space
+      !DoesCollapseSegmentBreaks(white_space_property);
   bool should_collapse_white_space =
-      white_space_property == cssom::KeywordValue::GetNormal() ||
-      white_space_property == cssom::KeywordValue::GetNoWrap() ||
-      white_space_property == cssom::KeywordValue::GetPreLine();
+      DoesCollapseWhiteSpace(white_space_property);
+  bool should_prevent_text_wrapping =
+      !DoesAllowTextWrapping(white_space_property);
 
   // Loop until the entire text is consumed. If the white-space property does
   // not have a value of "pre" or "pre-wrap" then the entire text will be
@@ -926,6 +940,23 @@ void BoxGenerator::Visit(dom::Text* text) {
     }
 
     start_index = end_index + newline_sequence_length;
+  }
+
+  // If the white-space style prevents text wrapping and the text ends in a
+  // space, then add a no-break space to the paragraph, so that the last space
+  // will be treated as a no-break space when determining if wrapping can occur
+  // before the subsequent box.
+  //
+  // While CSS3 gives little direction to the user agent as to what should occur
+  // in this case, this is guidance given by CSS2, which states that "any
+  // sequence of spaces (U+0020) unbroken by an element boundary is treated as a
+  // sequence of non-breaking spaces." Furthermore, this matches the behavior of
+  // WebKit, Firefox, and IE.
+  // https://www.w3.org/TR/css-text-3/#white-space-phase-1
+  // https://www.w3.org/TR/CSS2/text.html#white-space-model
+  if (should_prevent_text_wrapping &&
+      original_text[original_text.size() - 1] == ' ') {
+    (*paragraph_)->AppendCodePoint(Paragraph::kNoBreakSpaceCodePoint);
   }
 }
 

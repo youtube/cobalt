@@ -21,8 +21,10 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/layout/container_box.h"
 #include "cobalt/layout/letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
+#include "cobalt/layout/white_space_processing.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/brush.h"
@@ -73,17 +75,61 @@ ReplacedBox::ReplacedBox(
   DCHECK(!replace_image_cb_.is_null());
 }
 
-scoped_refptr<Box> ReplacedBox::TrySplitAt(
-    LayoutUnit /*available_width*/,
-    bool /*should_collapse_trailing_white_space*/, bool /*allow_overflow*/) {
-  return scoped_refptr<Box>();
+WrapResult ReplacedBox::TryWrapAt(
+    WrapAtPolicy /*wrap_at_policy*/,
+    WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit /*available_width*/,
+    bool /*should_collapse_trailing_white_space*/) {
+  // NOTE: This logic must stay in sync with
+  // InlineLevelBlockContainerBox::TryWrapAt().
+
+  // Wrapping is not allowed until the line's existence is justified, meaning
+  // that wrapping cannot occur before the box. Given that this box cannot be
+  // split, no wrappable point is available.
+  if (!is_line_existence_justified) {
+    return kWrapResultNoWrap;
+  }
+
+  // Atomic inline elements participate in the inline formatting context as a
+  // single opaque box. Therefore, the parent's style should be used, as the
+  // internals of the atomic inline element have no impact on the formatting of
+  // the line.
+  // https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+  if (!parent()) {
+    return kWrapResultNoWrap;
+  }
+
+  bool style_allows_break_word = parent()->computed_style()->overflow_wrap() ==
+                                 cssom::KeywordValue::GetBreakWord();
+
+  if (!ShouldProcessWrapOpportunityPolicy(wrap_opportunity_policy,
+                                          style_allows_break_word)) {
+    return kWrapResultNoWrap;
+  }
+
+  // Even when the style prevents wrapping, wrapping can still occur before the
+  // box if the line's existence has already been justified and whitespace
+  // precedes it.
+  if (!DoesAllowTextWrapping(parent()->computed_style()->white_space())) {
+    if (text_position_ > 0 &&
+        paragraph_->IsCollapsibleWhiteSpace(text_position_ - 1)) {
+      return kWrapResultWrapBefore;
+    } else {
+      return kWrapResultNoWrap;
+    }
+  }
+
+  Paragraph::BreakPolicy break_policy =
+      Paragraph::GetBreakPolicyFromWrapOpportunityPolicy(
+          wrap_opportunity_policy, style_allows_break_word);
+  return paragraph_->IsBreakPosition(text_position_, break_policy)
+             ? kWrapResultWrapBefore
+             : kWrapResultNoWrap;
 }
 
 void ReplacedBox::SplitBidiLevelRuns() {}
 
-scoped_refptr<Box> ReplacedBox::TrySplitAtSecondBidiLevelRun() {
-  return scoped_refptr<Box>();
-}
+bool ReplacedBox::TrySplitAtSecondBidiLevelRun() { return false; }
 
 base::optional<int> ReplacedBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);

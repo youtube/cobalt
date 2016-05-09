@@ -44,13 +44,12 @@ class LineBox;
 // An inline formatting context is a short-lived object that is constructed
 // and destroyed during the layout. The inline formatting context does not own
 // child boxes nor triggers their layout - it is a responsibility of the box
-// that establishes this formatting context. This class merely knows how
-// to update the position of the subsequent children passed to it.
+// that establishes this formatting context. This class merely knows how to
+// update the position of children passed to it.
 //
-// Due to the vertical alignment, used values of "left" and "top" are calculated
-// at different times. To ensure that the inline formatting context has
-// completed all calculations, |UpdateUsedTops| must be called after
-// |UpdateUsedLeftAndMaybeSplit| has been called for every child box.
+// To ensure that the inline formatting context has completed all calculations,
+// |EndUpdates| must be called after all of the child boxes have been
+// successfully added.
 class InlineFormattingContext : public FormattingContext {
  public:
   InlineFormattingContext(
@@ -58,21 +57,28 @@ class InlineFormattingContext : public FormattingContext {
       const render_tree::FontMetrics& font_metrics,
       const LayoutParams& layout_params, BaseDirection base_direction,
       const scoped_refptr<cssom::PropertyValue>& text_align,
-      const scoped_refptr<cssom::PropertyValue>& white_space,
       const scoped_refptr<cssom::PropertyValue>& font_size,
       LayoutUnit text_indent_offset, LayoutUnit ellipsis_width);
   ~InlineFormattingContext() OVERRIDE;
 
-  // Asynchronously calculates the position and size of the given child box and
-  // updates the internal state in the preparation for the next child. The used
-  // values will be undefined until |EndUpdates| is called.
+  // Attempt to add the child box to the line, which may cause a line wrap to
+  // occur if the box overflows the line and a usable wrap location is available
+  // among the child boxes. When this occurs, a box is returned. This signifies
+  // the last child box included on the line before the wrap and can be the
+  // current child box or any previously added one. All boxes that were
+  // previously added after the returned box must be re-inserted, as they were
+  // not successfully placed on the line.
   //
-  // If the child box had to be split in order to fit on the line,
-  // the part of the box after the split is returned. The box that establishes
-  // this formatting context must re-insert the returned part right after
-  // the original child box and pass this part in the next call to
-  // |BeginUpdateRectAndMaybeSplit|, so that it can be split again if needed.
-  scoped_refptr<Box> BeginUpdateRectAndMaybeSplit(Box* child_box);
+  // The returned box can potentially be split as a result of the line wrap, in
+  // which case, the portion after the split will be accessible via the child
+  // box's |GetSplitSibling| call. This split sibling should be the first box
+  // added the next time |TryAddChildAndMaybeWrap| is called, followed by any
+  // additional child boxes that were not already placed on the line.
+  //
+  // This call asynchronously calculates the positions and sizes of the added
+  // child boxes. The used values will be undefined until |EndUpdates| is
+  // called.
+  Box* TryAddChildAndMaybeWrap(Box* child_box);
   // Asynchronously estimates the static position of the given child box.
   // In CSS 2.1 the static position is only defined for absolutely positioned
   // boxes. The position is undefined until |EndUpdates| is called.
@@ -87,9 +93,6 @@ class InlineFormattingContext : public FormattingContext {
   //          after |EndUpdates|.
 
  private:
-  bool TryBeginUpdateRectAndMaybeCreateLineBox(
-      Box* child_box, scoped_refptr<Box>* child_box_after_split);
-
   void CreateLineBox();
   void DestroyLineBox();
 
@@ -98,7 +101,6 @@ class InlineFormattingContext : public FormattingContext {
   const LayoutParams layout_params_;
   const BaseDirection base_direction_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
-  const scoped_refptr<cssom::PropertyValue> white_space_;
   const scoped_refptr<cssom::PropertyValue> font_size_;
   const LayoutUnit text_indent_offset_;
   const LayoutUnit ellipsis_width_;

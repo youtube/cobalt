@@ -62,6 +62,8 @@
         'layout_manager.h',
         'line_box.cc',
         'line_box.h',
+        'line_wrapping.cc',
+        'line_wrapping.h',
         'paragraph.cc',
         'paragraph.h',
         'point_layout_unit.cc',
