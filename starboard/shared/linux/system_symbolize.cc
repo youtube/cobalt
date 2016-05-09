@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+// TODO(***REMOVED***): Figure out how to gracefully use symbolize given where it has
+// been placed in the source tree. What follows is an ungraceful use.
 
-#include "starboard/atomic.h"
+#include "starboard/system.h"
 
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
+#include "base/third_party/symbolize/symbolize.h"
 
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
+  // I believe this casting-away const in the implementation is better than the
+  // alternative of removing const-ness from the address parameter.
+  return google::Symbolize(const_cast<void*>(address), out_buffer, buffer_size);
+}
