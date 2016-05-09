@@ -85,9 +85,10 @@ class Application {
     bool canceled;
   };
 
-  // Destructor func for TimedEvents.
-  static void TimedEventDestructor(void* timed_event) {
-    delete reinterpret_cast<TimedEvent*>(timed_event);
+  // Destructor function that deletes the value as the parameterized type.
+  template <typename T>
+  static void DeleteDestructor(void* value) {
+    delete static_cast<T*>(value);
   }
 
   // A Starboard event and its destructor. Takes ownership of the event, thus
@@ -103,7 +104,7 @@ class Application {
     }
     explicit Event(TimedEvent* data)
         : event(new SbEvent()),
-          destructor(&TimedEventDestructor),
+          destructor(&DeleteDestructor<TimedEvent>),
           error_level(0) {
       event->type = kSbEventTypeScheduled;
       event->data = data;
