@@ -239,15 +239,16 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   }
 }
 
-scoped_refptr<Box> BlockContainerBox::TrySplitAt(
-    LayoutUnit /*available_width*/,
-    bool /*should_collapse_trailing_white_space*/, bool /*allow_overflow*/) {
-  return scoped_refptr<Box>();
+WrapResult BlockContainerBox::TryWrapAt(
+    WrapAtPolicy /*wrap_at_policy*/,
+    WrapOpportunityPolicy /*wrap_opportunity_policy*/,
+    bool /*is_line_existence_justified*/, LayoutUnit /*available_width*/,
+    bool /*should_collapse_trailing_white_space*/) {
+  DCHECK_EQ(kInlineLevel, GetLevel());
+  return kWrapResultNoWrap;
 }
 
-scoped_refptr<Box> BlockContainerBox::TrySplitAtSecondBidiLevelRun() {
-  return scoped_refptr<Box>();
-}
+bool BlockContainerBox::TrySplitAtSecondBidiLevelRun() { return false; }
 
 base::optional<int> BlockContainerBox::GetBidiLevel() const {
   return base::optional<int>();

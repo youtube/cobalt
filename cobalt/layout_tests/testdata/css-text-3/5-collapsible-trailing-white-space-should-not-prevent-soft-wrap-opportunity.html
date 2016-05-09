@@ -4,10 +4,11 @@
  | opportunity. In most writing systems, in the absence of hyphenation a soft
  | wrap opportunity occurs only at word boundaries.
  |   https://www.w3.org/TR/css3-text/#soft-wrap-opportunity
+ |   https://www.w3.org/TR/css-text-3/#line-break-details
  |
- | When a soft wrap segment is being checked, trailing white space that will
- | collapsed should not be included in the width when determining whether the
- | segment can fit on the line.
+ | When a soft wrap segment is being checked, trailing white space that will be
+ | collapsed should not be included when determining if the segment can fit
+ | within the available space on the line.
  -->
 <html>
 <head>
@@ -18,7 +19,7 @@
       font-size: 20px;
     }
     div {
-      overflow-wrap: break-word;
+      overflow-wrap: normal;
     }
     .containing-block {
       background-color: #03a9f4;
@@ -32,6 +33,8 @@
     <div>abc<span>defg hijklmnopqrst </span></div>
     <div><span>abc</span>defg hijklmnopqrst uvwxyz</div>
     <div><span>abc</span>defg hijklmnopqrst </div>
+    <div><span><span>abc</span>defg hijklmnopqrst uvwxyz</span></div>
+    <div><span><span>abc</span>defg hijklmnopqrst </span></div>
   </div>
 </body>
 </html>

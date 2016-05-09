@@ -21,9 +21,16 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace layout {
+
+//   https://www.w3.org/TR/css-text-3/#white-space-property
+bool DoesCollapseSegmentBreaks(
+    const scoped_refptr<cssom::PropertyValue>& value);
+bool DoesCollapseWhiteSpace(const scoped_refptr<cssom::PropertyValue>& value);
+bool DoesAllowTextWrapping(const scoped_refptr<cssom::PropertyValue>& value);
 
 // Performs white space collapsing and transformation that correspond to
 // the phase I of the white space processing.
