@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#include "starboard/thread.h"
 
-#include "starboard/atomic.h"
+#include <pthread.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
+void SbThreadSetName(const char* name) {
+  // We don't want to rename the main thread.
+  if (SbThreadGetId() == getpid()) {
+    return;
+  }
 
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+  pthread_setname_np(pthread_self(), name);
+}

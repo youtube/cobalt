@@ -12,15 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#include "starboard/window.h"
 
-#include "starboard/atomic.h"
+#include "starboard/memory.h"
 
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
-
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+void SbWindowSetDefaultOptions(SbWindowOptions* options) {
+  SbMemorySet(options, 0, sizeof(*options));
+}

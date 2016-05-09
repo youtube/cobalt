@@ -12,11 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_RASPI_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_RASPI_SHARED_ATOMIC_PUBLIC_H_
+#ifndef STARBOARD_RASPI_SHARED_WINDOW_INTERNAL_H_
+#define STARBOARD_RASPI_SHARED_WINDOW_INTERNAL_H_
 
-#include "starboard/atomic.h"
+#include <bcm_host.h>
+#include <EGL/egl.h>
 
-#include "starboard/linux/shared/atomic_public.h"
+#include "starboard/shared/internal_only.h"
+#include "starboard/window.h"
 
-#endif  // STARBOARD_RASPI_SHARED_ATOMIC_PUBLIC_H_
+struct SbWindowPrivate {
+  SbWindowPrivate(DISPMANX_DISPLAY_HANDLE_T display,
+                  const SbWindowOptions* options);
+  ~SbWindowPrivate();
+
+  DISPMANX_DISPLAY_HANDLE_T display;
+  DISPMANX_ELEMENT_HANDLE_T element;
+  EGL_DISPMANX_WINDOW_T window;
+};
+
+#endif  // STARBOARD_RASPI_SHARED_WINDOW_INTERNAL_H_

@@ -12,15 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#include "starboard/system.h"
 
-#include "starboard/atomic.h"
+#include <execinfo.h>
 
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
+#include <algorithm>
 
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+int SbSystemGetStack(void** out_stack, int stack_size) {
+  int count = std::max(backtrace(out_stack, stack_size), 0);
+
+  if (count < 1) {
+    // No stack, for some reason.
+    return count;
+  }
+
+  // We have an extra stack frame (for this very function), so let's remove it.
+  for (int i = 1; i < count; ++i) {
+    out_stack[i - 1] = out_stack[i];
+  }
+
+  return count - 1;
+}

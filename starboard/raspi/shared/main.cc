@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#include "starboard/configuration.h"
+#include "starboard/raspi/shared/application_dispmanx.h"
+#include "starboard/shared/signal/crash_signals.h"
 
-#include "starboard/atomic.h"
-
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
-
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+int main(int argc, char** argv) {
+  starboard::shared::signal::InstallCrashSignalHandlers();
+  starboard::raspi::shared::ApplicationDispmanx application;
+  int result = application.Run(argc, argv);
+  return result;
+}

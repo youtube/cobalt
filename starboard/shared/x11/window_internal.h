@@ -12,15 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#ifndef STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
+#define STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
 
-#include "starboard/atomic.h"
+#include <X11/Xlib.h>
 
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
+#include "starboard/shared/internal_only.h"
+#include "starboard/window.h"
 
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+struct SbWindowPrivate {
+  SbWindowPrivate(Display* display, const SbWindowOptions* options);
+  ~SbWindowPrivate();
+
+  Window window;
+  Display* display;
+
+  int width;
+  int height;
+};
+
+#endif  // STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
