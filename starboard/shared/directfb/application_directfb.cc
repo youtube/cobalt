@@ -426,13 +426,6 @@ void ApplicationDirectFB::WakeSystemEventWait() {
   window_->event_buffer->WakeUp(window_->event_buffer);
 }
 
-namespace {
-template <typename T>
-void DeleteEventDestructor(void* value) {
-  delete static_cast<T*>(value);
-}
-}  // namespace
-
 shared::starboard::Application::Event* ApplicationDirectFB::DFBEventToEvent(
     const DFBInputEvent& event) {
   const int kKeyboardDeviceId = 1;
@@ -450,8 +443,7 @@ shared::starboard::Application::Event* ApplicationDirectFB::DFBEventToEvent(
     data->device_id = kKeyboardDeviceId;
     data->key = DFBKeyEventToSbKey(event);
     data->key_location = DFBKeyEventToSbKeyLocation(event);
-    return new Event(kSbEventTypeInput, data,
-                     &DeleteEventDestructor<SbInputData>);
+    return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
   }
 
   return NULL;

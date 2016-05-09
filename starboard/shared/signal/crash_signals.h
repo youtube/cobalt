@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#ifndef STARBOARD_SHARED_SIGNAL_CRASH_SIGNALS_H_
+#define STARBOARD_SHARED_SIGNAL_CRASH_SIGNALS_H_
 
-#include "starboard/atomic.h"
+#include "starboard/shared/internal_only.h"
 
-#if SB_IS(COMPILER_GCC)
-#include "starboard/shared/gcc/atomic_gcc_public.h"
-#else
-#error "Unknown Linux compiler."
-#endif
+namespace starboard {
+namespace shared {
+namespace signal {
 
-#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+void InstallCrashSignalHandlers();
+void UninstallCrashSignalHandlers();
+
+}  // namespace signal
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_SIGNAL_CRASH_SIGNALS_H_

@@ -112,7 +112,10 @@
       '-lpthread',
       '-lpulse',
       '-lrt',
-      '-lX11',
+      '-lopenmaxil',
+      '-lbcm_host',
+      '-lvcos',
+      '-lvchiq_arm',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
