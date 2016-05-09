@@ -104,6 +104,13 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
+
+  WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
+                       WrapOpportunityPolicy wrap_opportunity_policy,
+                       bool is_line_existence_justified,
+                       LayoutUnit available_width,
+                       bool should_collapse_trailing_white_space) OVERRIDE;
+
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;

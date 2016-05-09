@@ -30,6 +30,7 @@
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/insets_layout_unit.h"
 #include "cobalt/layout/layout_unit.h"
+#include "cobalt/layout/line_wrapping.h"
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/layout/vector2d_layout_unit.h"
@@ -245,24 +246,29 @@ class Box : public base::RefCounted<Box> {
   virtual LayoutUnit GetInlineLevelBoxHeight() const;
   virtual LayoutUnit GetInlineLevelTopMargin() const;
 
-  // Attempts to split the box, so that the part before the split would fit
-  // the available width.
-  // If |should_collapse_trailing_white_space| is true, then the trailing white
-  // space within the part before the split is not included when determining if
-  // it will fit within the available width.
-  // If |allow_overflow| is true, then the split is permitted to overflow the
-  // available width if no smaller split is available.
+  // Attempts to wrap the box based upon the provided wrap policies.
+  // If |is_line_existence_justified| is true, then the line does not require
+  // additional content before wrapping is possible. Otherwise, content
+  // justifying the line must be encountered first.
+  // |available_width| indicates the amount of width remaining on the line
+  // before the boxes overflow it.
+  // If |should_collapse_trailing_white_space| is true, the trailing whitespace
+  // of the box will be collapsed and should not be included in width
+  // calculations.
   //
-  // Returns the part after the split if the split succeeded.
+  // Returns the result of the wrap attempt. If the result is
+  // |kWrapResultSplitWrap|, then the box has been split, and the portion of the
+  // box split from the initial box is available via GetSplitSibling().
   //
-  // Note that only inline boxes are splittable.
-  virtual scoped_refptr<Box> TrySplitAt(
-      LayoutUnit available_width, bool should_collapse_trailing_white_space,
-      bool allow_overflow) = 0;
+  // Note that only inline boxes are wrappable.
+  virtual WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
+                               WrapOpportunityPolicy wrap_opportunity_policy,
+                               bool is_line_existence_justified,
+                               LayoutUnit available_width,
+                               bool should_collapse_trailing_white_space) = 0;
 
   // Returns the next box in a linked list of sibling boxes produced from
-  // splits of the original box. This enables HTMLElement to retain access to
-  // all of its layout boxes after they are split.
+  // splits of the original box.
   //
   // Note that only inline boxes are splittable. All other box types will return
   // NULL.
@@ -298,7 +304,13 @@ class Box : public base::RefCounted<Box> {
   virtual void SplitBidiLevelRuns() = 0;
 
   // Attempt to split the box at the second level run within it.
-  virtual scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() = 0;
+  // Returns true if a split occurs. The second box produced by the split is
+  // retrievable by calling GetSplitSibling().
+  // NOTE: The splits that occur at the intersection of bidi level runs is
+  // unrelated to line-wrapping and does not introduce wrappable locations.
+  // It is used to facilitate bidi level reordering of the boxes within a
+  // line.
+  virtual bool TrySplitAtSecondBidiLevelRun() = 0;
 
   // Retrieve the bidi level for the box, if it has one.
   virtual base::optional<int> GetBidiLevel() const = 0;

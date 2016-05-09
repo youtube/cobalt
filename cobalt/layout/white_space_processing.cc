@@ -17,6 +17,7 @@
 #include "cobalt/layout/white_space_processing.h"
 
 #include "cobalt/cssom/character_classification.h"
+#include "cobalt/cssom/keyword_value.h"
 
 namespace cobalt {
 namespace layout {
@@ -62,6 +63,32 @@ bool CopyNonWhiteSpaceAndAdvance(
 }
 
 }  // namespace
+
+// "white-space" property values "pre", "pre-line", and "pre-wrap" preserve
+// segment breaks, while other values collapse it.
+// https://www.w3.org/TR/css-text-3/#white-space
+bool DoesCollapseSegmentBreaks(
+    const scoped_refptr<cssom::PropertyValue>& value) {
+  return value != cssom::KeywordValue::GetPre() &&
+         value != cssom::KeywordValue::GetPreLine() &&
+         value != cssom::KeywordValue::GetPreWrap();
+}
+
+// "white-space" property values "pre", and "pre-wrap" preserve whitespace,
+// while other values collapse it.
+// https://www.w3.org/TR/css-text-3/#white-space
+bool DoesCollapseWhiteSpace(const scoped_refptr<cssom::PropertyValue>& value) {
+  return value != cssom::KeywordValue::GetPre() &&
+         value != cssom::KeywordValue::GetPreWrap();
+}
+
+// "white-space" property values "pre", and "nowrap" prevent wrapping, while
+// other values allow it.
+// https://www.w3.org/TR/css-text-3/#white-space
+bool DoesAllowTextWrapping(const scoped_refptr<cssom::PropertyValue>& value) {
+  return value != cssom::KeywordValue::GetPre() &&
+         value != cssom::KeywordValue::GetNoWrap();
+}
 
 void CollapseWhiteSpace(std::string* text) {
   std::string::const_iterator input_iterator = text->begin();

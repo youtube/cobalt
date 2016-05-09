@@ -50,11 +50,10 @@ void AnonymousBlockBox::SplitBidiLevelRuns() {
     Box* child_box = *child_box_iterator;
     ++child_box_iterator;
 
-    scoped_refptr<Box> child_box_after_split =
-        child_box->TrySplitAtSecondBidiLevelRun();
-    if (child_box_after_split) {
+    if (child_box->TrySplitAtSecondBidiLevelRun()) {
+      DCHECK(child_box->GetSplitSibling());
       child_box_iterator =
-          InsertDirectChild(child_box_iterator, child_box_after_split);
+          InsertDirectChild(child_box_iterator, child_box->GetSplitSibling());
     }
   }
 }
@@ -151,32 +150,58 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
       new InlineFormattingContext(
           computed_style()->line_height(), used_font_->GetFontMetrics(),
           child_layout_params, GetBaseDirection(),
-          computed_style()->text_align(), computed_style()->white_space(),
-          computed_style()->font_size(),
+          computed_style()->text_align(), computed_style()->font_size(),
           GetUsedLength(computed_style()->text_indent()),
           LayoutUnit(ellipsis_width)));
 
-  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
-       child_box_iterator != child_boxes().end();) {
+  Boxes::const_iterator child_box_iterator = child_boxes().begin();
+  while (child_box_iterator != child_boxes().end()) {
     Box* child_box = *child_box_iterator;
-    ++child_box_iterator;
 
     if (child_box->IsAbsolutelyPositioned()) {
       inline_formatting_context->BeginEstimateStaticPosition(child_box);
     } else {
-      scoped_refptr<Box> child_box_after_split =
-          inline_formatting_context->BeginUpdateRectAndMaybeSplit(child_box);
-      if (child_box_after_split) {
-        // Re-insert the rest of the child box and attempt to lay it out in
+      // Attempt to add the child box to the inline formatting context.
+      Box* child_box_before_wrap =
+          inline_formatting_context->TryAddChildAndMaybeWrap(child_box);
+      // If |child_box_before_wrap| is non-NULL, then trying to add the child
+      // box caused a line wrap to occur, and |child_box_before_wrap| is set to
+      // the last box that was successfully placed on the line. This can
+      // potentially be any of the child boxes previously added. Any boxes
+      // following the returned box, including ones that were previously
+      // added, still need to be added to the inline formatting context.
+      if (child_box_before_wrap) {
+        // Iterate backwards until the last box added to the line is found, and
+        // then increment the iterator, so that it is pointing at the location
+        // of the first box to add the next time through the loop.
+        while (*child_box_iterator != child_box_before_wrap) {
+          --child_box_iterator;
+        }
+        ++child_box_iterator;
+
+        // If |child_box_before_wrap| has a split sibling, then this potentially
+        // means that a split occurred during the wrap, and a new box needs to
+        // be added to the container (this will also need to be the first box
+        // added to the inline formatting context).
+        //
+        // If the split sibling is from a previous split, then it would have
+        // already been added to the line and |child_box_iterator| should
+        // be currently pointing at it. If this is not the case, then we know
+        // that this is a new box produced during the wrap, and it must be
+        // added to the container. This will be the first box added during
         // the next iteration of the loop.
-        // TODO(***REMOVED***): If every child box is split, this becomes an O(N^2)
-        //               operation where N is the number of child boxes.
-        //               Consider using a new vector instead and swap its
-        //               contents after the layout is done.
-        child_box_iterator =
-            InsertDirectChild(child_box_iterator, child_box_after_split);
+        Box* split_child_after_wrap = child_box_before_wrap->GetSplitSibling();
+        if (split_child_after_wrap &&
+            (child_box_iterator == child_boxes().end() ||
+             *child_box_iterator != split_child_after_wrap)) {
+          child_box_iterator =
+              InsertDirectChild(child_box_iterator, split_child_after_wrap);
+        }
+        continue;
       }
     }
+
+    ++child_box_iterator;
   }
   inline_formatting_context->EndUpdates();
   ellipses_coordinates_ = inline_formatting_context->GetEllipsesCoordinates();

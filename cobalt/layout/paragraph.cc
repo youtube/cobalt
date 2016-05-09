@@ -105,6 +105,9 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
       case kLineFeedCodePoint:
         unicode_text_ += base::unicode::kNewlineCharacter;
         break;
+      case kNoBreakSpaceCodePoint:
+        unicode_text_ += base::unicode::kNoBreakSpaceCharacter;
+        break;
       case kObjectReplacementCharacterCodePoint:
         unicode_text_ += base::unicode::kObjectReplacementCharacter;
         break;
@@ -131,7 +134,8 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                                   int32 start_position, int32 end_position,
                                   LayoutUnit available_width,
                                   bool should_collapse_trailing_white_space,
-                                  bool allow_overflow, BreakPolicy break_policy,
+                                  bool allow_overflow,
+                                  Paragraph::BreakPolicy break_policy,
                                   int32* break_position,
                                   LayoutUnit* break_width) {
   DCHECK(is_closed_);
@@ -145,35 +149,45 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
     return false;
   }
 
-  // If the break policy allows for soft wrapping, then always initially attempt
-  // a soft wrap break. However, only allow soft wrap overflow if the policy is
-  // |kSoftWrap|; otherwise, overflowing via soft wrap would be too greedy in
-  // what it included and overflow wrapping will be attempted via word breaking.
-  bool allow_soft_wrap_overflow = allow_overflow && break_policy == kSoftWrap;
+  // Normal overflow is not allowed when the break policy is break-word, so
+  // only attempt to find normal break positions if the break policy is normal
+  // or there is width still available.
+  // https://www.w3.org/TR/css-text-3/#overflow-wrap
+  // NOTE: Normal break positions are still found when the break policy is
+  // break-word and overflow has not yet occurred because width calculations are
+  // more accurate between word intervals, as these properly take into complex
+  // shaping. Due to this, calculating the width using word intervals until
+  // reaching the final word that must be broken between grapheme clusters
+  // results in less accumulated width calculation error.
+  if (break_policy == kBreakPolicyNormal || available_width > LayoutUnit()) {
+    // Only allow normal overflow if the policy is |kBreakPolicyNormal|;
+    // otherwise, overflowing via normal breaking would be too greedy in what it
+    // included and overflow wrapping will be attempted via word breaking.
+    bool allow_normal_overflow =
+        allow_overflow && break_policy == kBreakPolicyNormal;
 
-  // Find the last available soft wrap break position. |break_position| and
-  // |break_width| will be updated with the position of the last available break
-  // position.
-  FindIteratorBreakPosition(
-      used_font, line_break_iterator_, start_position, end_position,
-      available_width, should_collapse_trailing_white_space,
-      allow_soft_wrap_overflow, break_position, break_width);
+    // Find the last available normal break position. |break_position| and
+    // |break_width| will be updated with the position of the last available
+    // break position.
+    FindIteratorBreakPosition(
+        used_font, line_break_iterator_, start_position, end_position,
+        available_width, should_collapse_trailing_white_space,
+        allow_normal_overflow, break_position, break_width);
+  }
 
-  // Only continue allowing overflow if the break position has not moved from
-  // start, meaning that no break position has been found yet.
-  allow_overflow = allow_overflow && (*break_position == start_position);
+  // If break word is the break policy, attempt to break unbreakable "words" at
+  // an arbitrary point, while still maintaining grapheme clusters as
+  // indivisible units.
+  // https://www.w3.org/TR/css3-text/#overflow-wrap
+  if (break_policy == kBreakPolicyBreakWord) {
+    // Only continue allowing overflow if the break position has not moved from
+    // start, meaning that no normal break positions were found.
+    allow_overflow = allow_overflow && (*break_position == start_position);
 
-  // If break word is allowed by the break policy, attempt to break unbreakable
-  // "words" at an arbitrary point, while still maintaining grapheme clusters
-  // as indivisible units. The search begins at the location of the last soft
-  // wrap break position that fit within the available width.
-  //
-  // NOTE: In the case where the policy is |kSoftWrapWithBreakWordOnOverflow|,
-  // this is only permitted when overflow is allowed, meaning that no
-  // otherwise-acceptable break points have been found in the line
-  // (https://www.w3.org/TR/css3-text/#overflow-wrap).
-  if ((break_policy == kBreakWord) ||
-      (break_policy == kSoftWrapWithBreakWordOnOverflow && allow_overflow)) {
+    // Find the last available break-word break position. |break_position| and
+    // |break_width| will be updated with the position of the last available
+    // break position. The search begins at the location of the last normal
+    // break position that fit within the available width.
     FindIteratorBreakPosition(
         used_font, character_break_iterator_, *break_position, end_position,
         available_width, false, allow_overflow, break_position, break_width);
@@ -182,6 +196,26 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
   // No usable break position was found if the break position has not moved
   // from the start position.
   return *break_position > start_position;
+}
+
+int32 Paragraph::GetNextBreakPosition(int32 position,
+                                      BreakPolicy break_policy) {
+  icu::BreakIterator* break_iterator = GetBreakIterator(break_policy);
+  break_iterator->setText(unicode_text_);
+  return break_iterator->following(position);
+}
+
+int32 Paragraph::GetPreviousBreakPosition(int32 position,
+                                          BreakPolicy break_policy) {
+  icu::BreakIterator* break_iterator = GetBreakIterator(break_policy);
+  break_iterator->setText(unicode_text_);
+  return break_iterator->preceding(position);
+}
+
+bool Paragraph::IsBreakPosition(int32 position, BreakPolicy break_policy) {
+  icu::BreakIterator* break_iterator = GetBreakIterator(break_policy);
+  break_iterator->setText(unicode_text_);
+  return break_iterator->isBoundary(position) == TRUE;
 }
 
 std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
@@ -285,13 +319,40 @@ void Paragraph::Close() {
 
 bool Paragraph::IsClosed() const { return is_closed_; }
 
+Paragraph::BreakPolicy Paragraph::GetBreakPolicyFromWrapOpportunityPolicy(
+    WrapOpportunityPolicy wrap_opportunity_policy,
+    bool does_style_allow_break_word) {
+  BreakPolicy break_policy;
+  switch (wrap_opportunity_policy) {
+    case kWrapOpportunityPolicyNormal:
+      break_policy = kBreakPolicyNormal;
+      break;
+    case kWrapOpportunityPolicyBreakWord:
+      break_policy = kBreakPolicyBreakWord;
+      break;
+    case kWrapOpportunityPolicyBreakWordOrNormal:
+      break_policy = does_style_allow_break_word ? kBreakPolicyBreakWord
+                                                 : kBreakPolicyNormal;
+      break;
+    default:
+      NOTREACHED();
+      break_policy = kBreakPolicyNormal;
+  }
+  return break_policy;
+}
+
+icu::BreakIterator* Paragraph::GetBreakIterator(BreakPolicy break_policy) {
+  return break_policy == kBreakPolicyNormal ? line_break_iterator_
+                                            : character_break_iterator_;
+}
+
 void Paragraph::FindIteratorBreakPosition(
     const scoped_refptr<dom::FontList>& used_font,
     icu::BreakIterator* const break_iterator, int32 start_position,
     int32 end_position, LayoutUnit available_width,
     bool should_collapse_trailing_white_space, bool allow_overflow,
     int32* break_position, LayoutUnit* break_width) {
-  // Iterate through soft wrap locations, beginning from the passed in start
+  // Iterate through break segments, beginning from the passed in start
   // position. Continue until TryIncludeSegmentWithinAvailableWidth() returns
   // false, indicating that no more segments can be included.
   break_iterator->setText(unicode_text_);

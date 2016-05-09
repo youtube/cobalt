@@ -32,8 +32,8 @@ namespace layout {
 
 // Although the CSS 2.1 specification assumes that the text is simply a part of
 // an inline box, it is impractical to implement it that way. Instead, we define
-// a text box as an anonymous replaced inline-level box that is breakable
-// at soft wrap opportunities.
+// a text box as an anonymous replaced inline-level box that is breakable at
+// soft wrap opportunities.
 class TextBox : public Box {
  public:
   TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
@@ -46,16 +46,20 @@ class TextBox : public Box {
   Level GetLevel() const OVERRIDE;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_refptr<Box> TrySplitAt(LayoutUnit available_width,
-                                bool should_collapse_trailing_white_space,
-                                bool allow_overflow) OVERRIDE;
+
+  WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
+                       WrapOpportunityPolicy wrap_opportunity_policy,
+                       bool is_line_existence_justified,
+                       LayoutUnit available_width,
+                       bool should_collapse_trailing_white_space) OVERRIDE;
+
   Box* GetSplitSibling() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
   void ResetEllipses() OVERRIDE;
 
   void SplitBidiLevelRuns() OVERRIDE;
-  scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   void SetShouldCollapseLeadingWhiteSpace(
@@ -96,18 +100,20 @@ class TextBox : public Box {
       bool* is_placement_requirement_met, bool* is_placed,
       LayoutUnit* placed_offset) OVERRIDE;
 
-  bool WhiteSpaceStyleAllowsCollapsing();
-  bool WhiteSpaceStyleAllowsWrapping();
-
   void UpdateTextHasLeadingWhiteSpace();
   void UpdateTextHasTrailingWhiteSpace();
+
+  int32 GetWrapPosition(WrapAtPolicy wrap_at_policy,
+                        WrapOpportunityPolicy wrap_opportunity_policy,
+                        bool is_line_existence_justified,
+                        LayoutUnit available_width,
+                        bool should_collapse_trailing_white_space,
+                        bool style_allows_break_word, int32 start_position);
 
   // Split the text box into two.
   // |split_start_position| indicates the position within the paragraph where
   // the split occurs and the second box begins
-  // |pre_split_width| indicates the width of the text that is remaining part
-  // of the first box
-  scoped_refptr<Box> SplitAtPosition(int32 split_start_position);
+  void SplitAtPosition(int32 split_start_position);
 
   // Width of a space character in the used font, if the box has leading white
   // space.
