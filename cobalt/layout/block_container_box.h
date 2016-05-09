@@ -49,11 +49,13 @@ class BlockContainerBox : public ContainerBox {
 
   // From |Box|.
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_refptr<Box> TrySplitAt(LayoutUnit available_width,
-                                bool should_collapse_trailing_white_space,
-                                bool allow_overflow) OVERRIDE;
+  WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
+                       WrapOpportunityPolicy wrap_opportunity_policy,
+                       bool is_line_existence_justified,
+                       LayoutUnit available_width,
+                       bool should_collapse_trailing_white_space) OVERRIDE;
 
-  scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   void SetShouldCollapseLeadingWhiteSpace(

@@ -36,6 +36,7 @@ InlineContainerBox::InlineContainerBox(
       has_trailing_white_space_(false),
       is_collapsed_(false),
       justifies_line_existence_(false),
+      first_box_justifying_line_existence_index_(0),
       used_font_(used_style_provider->GetUsedFontList(
           css_computed_style_declaration->data()->font_family(),
           css_computed_style_declaration->data()->font_size(),
@@ -101,7 +102,6 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
                    font_metrics, should_collapse_leading_white_space_,
                    should_collapse_trailing_white_space_, layout_params,
                    kLeftToRightBaseDirection, cssom::KeywordValue::GetLeft(),
-                   cssom::KeywordValue::GetNormal(),
                    computed_style()->font_size(), LayoutUnit(), LayoutUnit());
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
@@ -110,7 +110,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
     if (child_box->IsAbsolutelyPositioned()) {
       line_box.BeginEstimateStaticPosition(child_box);
     } else {
-      line_box.BeginUpdateRectAndMaybeOverflow(child_box);
+      line_box.BeginAddChildAndMaybeOverflow(child_box);
     }
   }
   line_box.EndUpdates();
@@ -168,81 +168,40 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   has_trailing_white_space_ = line_box.HasTrailingWhiteSpace();
   is_collapsed_ = line_box.IsCollapsed();
   justifies_line_existence_ =
-      line_box.line_exists() || HasNonZeroMarginOrBorderOrPadding();
+      line_box.LineExists() || HasNonZeroMarginOrBorderOrPadding();
+  first_box_justifying_line_existence_index_ =
+      line_box.GetFirstBoxJustifyingLineExistenceIndex();
   baseline_offset_from_margin_box_top_ = line_box.baseline_offset_from_top();
 }
 
-scoped_refptr<Box> InlineContainerBox::TrySplitAt(
-    LayoutUnit available_width, bool should_collapse_trailing_white_space,
-    bool allow_overflow) {
-  DCHECK_GT(GetMarginBoxWidth(), available_width);
+WrapResult InlineContainerBox::TryWrapAt(
+    WrapAtPolicy wrap_at_policy, WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit available_width,
+    bool should_collapse_trailing_white_space) {
+  DCHECK(is_line_existence_justified || justifies_line_existence_);
 
-  available_width -= GetContentBoxLeftEdgeOffsetFromMarginBox();
-  if (!allow_overflow && available_width < LayoutUnit()) {
-    return scoped_refptr<Box>();
+  switch (wrap_at_policy) {
+    case kWrapAtPolicyBefore:
+      return TryWrapAtBefore(wrap_opportunity_policy,
+                             is_line_existence_justified, available_width,
+                             should_collapse_trailing_white_space);
+    case kWrapAtPolicyLastOpportunityWithinWidth:
+      return TryWrapAtLastOpportunityWithinWidth(
+          wrap_opportunity_policy, is_line_existence_justified, available_width,
+          should_collapse_trailing_white_space);
+    case kWrapAtPolicyLastOpportunity:
+      return TryWrapAtLastOpportunityBeforeIndex(
+          child_boxes().size(), wrap_opportunity_policy,
+          is_line_existence_justified, available_width,
+          should_collapse_trailing_white_space);
+    case kWrapAtPolicyFirstOpportunity:
+      return TryWrapAtFirstOpportunity(
+          wrap_opportunity_policy, is_line_existence_justified, available_width,
+          should_collapse_trailing_white_space);
+    default:
+      NOTREACHED();
+      return kWrapResultNoWrap;
   }
-
-  // Leave first N children that fit completely in the available width in this
-  // box. The first child that does not fit within the width may also be split
-  // and partially left in this box. Additionally, if |allow_overflow| is true,
-  // then overflows past the available width are allowed until a child with a
-  // used width greater than 0 has been added.
-  Boxes::const_iterator child_box_iterator;
-  for (child_box_iterator = child_boxes().begin();
-       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-
-    LayoutUnit margin_box_width_of_child_box = child_box->GetMarginBoxWidth();
-
-    // Split the first child that overflows the available width.
-    // Leave its part before the split in this box.
-    if (available_width < margin_box_width_of_child_box) {
-      scoped_refptr<Box> child_box_after_split = child_box->TrySplitAt(
-          available_width, should_collapse_trailing_white_space,
-          allow_overflow);
-      if (child_box_after_split) {
-        ++child_box_iterator;
-        child_box_iterator =
-            InsertDirectChild(child_box_iterator, child_box_after_split);
-      } else if (allow_overflow) {
-        // Unable to split the child, but overflow is allowed, so increment
-        // |child_box_iterator| because the whole first child box is being left
-        // in this box.
-        ++child_box_iterator;
-      }
-
-      break;
-    }
-
-    available_width -= margin_box_width_of_child_box;
-
-    // Only continue allowing overflow if the box that was added
-    // does not contribute to the line box.
-    allow_overflow = allow_overflow && !child_box->JustifiesLineExistence();
-  }
-
-  // The first child cannot be split, so this box cannot be split either.
-  if (child_box_iterator == child_boxes().begin()) {
-    return scoped_refptr<Box>();
-  }
-  // Either:
-  //   - All children fit but the right edge overflows.
-  //   - The last child overflows, and happens to be the first one that
-  //     justifies line existence and the overflow is allowed.
-  // Anyway, this box cannot be split.
-  //
-  // TODO(***REMOVED***): If all children fit but the right edge overflows,
-  //               go backwards and try splitting children just before their
-  //               right edge.
-  if (child_box_iterator == child_boxes().end()) {
-    DCHECK(padding_right() + border_right_width() + margin_right() >
-               available_width ||
-           (allow_overflow &&
-            child_boxes().back()->GetMarginBoxWidth() > available_width));
-    return scoped_refptr<Box>();
-  }
-
-  return SplitAtIterator(child_box_iterator);
 }
 
 Box* InlineContainerBox::GetSplitSibling() const { return split_sibling_; }
@@ -266,15 +225,13 @@ void InlineContainerBox::ResetEllipses() {
   }
 }
 
-scoped_refptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
+bool InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
   const int kInvalidLevel = -1;
   int last_level = kInvalidLevel;
 
-  Boxes::const_iterator child_box_iterator;
-  for (child_box_iterator = child_boxes().begin();
-       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
+  Boxes::const_iterator child_box_iterator = child_boxes().begin();
+  while (child_box_iterator != child_boxes().end()) {
     Box* child_box = *child_box_iterator;
-
     int current_level = child_box->GetBidiLevel().value_or(last_level);
 
     // If the last level isn't equal to the current level, then check on whether
@@ -289,23 +246,24 @@ scoped_refptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
       }
     }
 
+    ++child_box_iterator;
+
     // Try to split the child box's internals.
-    scoped_refptr<Box> child_box_after_split =
-        child_box->TrySplitAtSecondBidiLevelRun();
-    if (child_box_after_split) {
-      ++child_box_iterator;
+    if (child_box->TrySplitAtSecondBidiLevelRun()) {
+      DCHECK(child_box->GetSplitSibling());
       child_box_iterator =
-          InsertDirectChild(child_box_iterator, child_box_after_split);
+          InsertDirectChild(child_box_iterator, child_box->GetSplitSibling());
       break;
     }
   }
 
   // If the iterator reached the end, then no split was found.
   if (child_box_iterator == child_boxes().end()) {
-    return scoped_refptr<Box>();
+    return false;
   }
 
-  return SplitAtIterator(child_box_iterator);
+  SplitAtIterator(child_box_iterator);
+  return true;
 }
 
 base::optional<int> InlineContainerBox::GetBidiLevel() const {
@@ -472,7 +430,182 @@ void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   }
 }
 
-scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
+WrapResult InlineContainerBox::TryWrapAtBefore(
+    WrapOpportunityPolicy wrap_opportunity_policy, bool is_line_requirement_met,
+    LayoutUnit available_width, bool should_collapse_trailing_white_space) {
+  // If there are no boxes within the inline container box, then there is no
+  // first box to try to wrap before. This box does not provide a wrappable
+  // point on its own. Additionally, if the line requirement has not been met
+  // before this box, then no wrap is available.
+  if (child_boxes().size() == 0 || !is_line_requirement_met) {
+    return kWrapResultNoWrap;
+  } else {
+    // Otherwise, attempt to wrap before the first child box.
+    return TryWrapAtIndex(0, kWrapAtPolicyBefore, wrap_opportunity_policy,
+                          is_line_requirement_met, available_width,
+                          should_collapse_trailing_white_space);
+  }
+}
+
+WrapResult InlineContainerBox::TryWrapAtLastOpportunityWithinWidth(
+    WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit available_width,
+    bool should_collapse_trailing_white_space) {
+  DCHECK_GT(GetMarginBoxWidth(), available_width);
+
+  // Calculate the available width where the content begins. If the content
+  // does not begin within the available width, then the wrap can only occur
+  // before the inline container box.
+  available_width -= GetContentBoxLeftEdgeOffsetFromMarginBox();
+  if (available_width < LayoutUnit()) {
+    return TryWrapAtBefore(wrap_opportunity_policy, is_line_existence_justified,
+                           available_width,
+                           should_collapse_trailing_white_space);
+  }
+
+  // Determine the child box where the overflow occurs. If the overflow does not
+  // occur until after the end of the content, then the overflow index will be
+  // set to the number of child boxes.
+  size_t overflow_index = 0;
+  while (overflow_index < child_boxes().size()) {
+    LayoutUnit child_width = child_boxes()[overflow_index]->GetMarginBoxWidth();
+    if (child_width > available_width) {
+      break;
+    }
+    available_width -= child_width;
+    ++overflow_index;
+  }
+
+  // If the overflow occurs before the line is justified, then no wrap is
+  // available.
+  if (!is_line_existence_justified &&
+      overflow_index < first_box_justifying_line_existence_index_) {
+    return kWrapResultNoWrap;
+  }
+
+  // If the overflow occurred within the content and not after, then attempt to
+  // wrap within the box that overflowed and return the result if the wrap is
+  // successful.
+  if (overflow_index < child_boxes().size()) {
+    WrapResult wrap_result =
+        TryWrapAtIndex(overflow_index, kWrapAtPolicyLastOpportunityWithinWidth,
+                       wrap_opportunity_policy, is_line_existence_justified,
+                       available_width, should_collapse_trailing_white_space);
+    if (wrap_result != kWrapResultNoWrap) {
+      return wrap_result;
+    }
+  }
+
+  // If no wrap was found within the box that overflowed, then attempt to wrap
+  // within an earlier child box.
+  return TryWrapAtLastOpportunityBeforeIndex(
+      overflow_index, wrap_opportunity_policy, is_line_existence_justified,
+      available_width, should_collapse_trailing_white_space);
+}
+
+WrapResult InlineContainerBox::TryWrapAtLastOpportunityBeforeIndex(
+    size_t index, WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit available_width,
+    bool should_collapse_trailing_white_space) {
+  WrapResult wrap_result = kWrapResultNoWrap;
+
+  // If the line is already justified, then any child before the index is
+  // potentially wrappable. Otherwise, children preceding the first box that
+  // justifies the line's existence do not need to be checked, as they can
+  // never be wrappable.
+  size_t first_wrappable_index =
+      is_line_existence_justified ? 0
+                                  : first_box_justifying_line_existence_index_;
+
+  // Iterate backwards through the children attempting to wrap until a wrap is
+  // successful or the first wrappable index is reached.
+  while (wrap_result == kWrapResultNoWrap && index > first_wrappable_index) {
+    --index;
+    wrap_result =
+        TryWrapAtIndex(index, kWrapAtPolicyLastOpportunity,
+                       wrap_opportunity_policy, is_line_existence_justified,
+                       available_width, should_collapse_trailing_white_space);
+  }
+
+  return wrap_result;
+}
+
+WrapResult InlineContainerBox::TryWrapAtFirstOpportunity(
+    WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit available_width,
+    bool should_collapse_trailing_white_space) {
+  WrapResult wrap_result = kWrapResultNoWrap;
+
+  // If the line is already justified, then any child is potentially wrappable.
+  // Otherwise, children preceding the first box that justifies the line's
+  // existence do not need to be checked, as they can never be wrappable.
+  size_t check_index = is_line_existence_justified
+                           ? 0
+                           : first_box_justifying_line_existence_index_;
+
+  // Iterate forward through the children attempting to wrap until a wrap is
+  // successful or all of the children have been attempted.
+  for (; wrap_result == kWrapResultNoWrap && check_index < child_boxes().size();
+       ++check_index) {
+    wrap_result =
+        TryWrapAtIndex(check_index, kWrapAtPolicyFirstOpportunity,
+                       wrap_opportunity_policy, is_line_existence_justified,
+                       available_width, should_collapse_trailing_white_space);
+  }
+
+  return wrap_result;
+}
+
+WrapResult InlineContainerBox::TryWrapAtIndex(
+    size_t wrap_index, WrapAtPolicy wrap_at_policy,
+    WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit available_width,
+    bool should_collapse_trailing_white_space) {
+  Box* child_box = child_boxes()[wrap_index];
+
+  // Check for whether the line is justified before this child. If it is not,
+  // then verify that the line is justified within this child. This function
+  // should not be called for unjustified indices.
+  bool is_line_existence_justified_before_index =
+      is_line_existence_justified ||
+      wrap_index > first_box_justifying_line_existence_index_;
+  DCHECK(is_line_existence_justified_before_index ||
+         wrap_index == first_box_justifying_line_existence_index_);
+
+  WrapResult wrap_result = child_box->TryWrapAt(
+      wrap_at_policy, wrap_opportunity_policy,
+      is_line_existence_justified_before_index, available_width,
+      should_collapse_trailing_white_space);
+  // If the no wrap was found, then simply return out. There's nothing to do.
+  if (wrap_result == kWrapResultNoWrap) {
+    return kWrapResultNoWrap;
+    // Otherwise, if the wrap is before the first child, then the wrap is
+    // happening before the full inline container box and no split is
+    // occurring.
+    // When breaks happen before the first or the last character of a box,
+    // the break occurs immediately before/after the box (at its margin edge)
+    // rather than breaking the box between its content edge and the content.
+    //   https://www.w3.org/TR/css-text-3/#line-breaking
+  } else if (wrap_result == kWrapResultWrapBefore && wrap_index == 0) {
+    return kWrapResultWrapBefore;
+    // In all other cases, the inline container box is being split as a result
+    // of the wrap.
+  } else {
+    Boxes::const_iterator wrap_iterator =
+        child_boxes().begin() + static_cast<int>(wrap_index);
+    // If the child was split during its wrap, then the split sibling that was
+    // produced by the split needs to be added to the container's children.
+    if (wrap_result == kWrapResultSplitWrap) {
+      wrap_iterator =
+          InsertDirectChild(++wrap_iterator, child_box->GetSplitSibling());
+    }
+
+    SplitAtIterator(wrap_iterator);
+    return kWrapResultSplitWrap;
+  }
+}
+
+void InlineContainerBox::SplitAtIterator(
     Boxes::const_iterator child_split_iterator) {
   // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
   //              have no visual effect where the split occurs.
@@ -501,8 +634,6 @@ scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
   set_margin_right(LayoutUnit());
   set_margin_bottom(LayoutUnit());
 #endif  // _DEBUG
-
-  return box_after_split;
 }
 
 }  // namespace layout

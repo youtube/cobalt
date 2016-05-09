@@ -39,16 +39,16 @@ namespace layout {
 // to block and inline formatting contexts than to a box.
 //
 // A line box is a short-lived object that is constructed and destroyed during
-// the layout. It does not own child boxes nor trigger their layout, which it is
-// a responsibility of the box that establishes this formatting context. This
-// class merely knows how to update the position of the subsequent children
-// passed to it.
+// the layout. It does not own child boxes nor trigger their layout, which is a
+// responsibility of the box that establishes this formatting context. This
+// class merely knows how to determine which children to include on the line,
+// where to wrap those children, and how to calculate the positions of those
+// children.
 //
-// Due to the horizontal and vertical alignment, used values of "left" and "top"
-// can only be calculated when the line ends. To ensure that the line box has
-// completed all calculations, |UpdateUsedTops| must be called after
-// |TryUpdateUsedLeftAndMaybeSplit| or |UpdateUsedLeftAndMaybeOverflow| have
-// been called for every child box.
+// Due to bidirectional reordering and the horizontal and vertical alignment,
+// used values of "left" and "top" can only be calculated when the line ends. To
+// ensure that the line box has completed all calculations, |EndUpdates| must be
+// called.
 class LineBox {
  public:
   LineBox(LayoutUnit top, bool position_children_relative_to_baseline,
@@ -58,29 +58,32 @@ class LineBox {
           bool should_collapse_trailing_white_space,
           const LayoutParams& layout_params, BaseDirection base_direction,
           const scoped_refptr<cssom::PropertyValue>& text_align,
-          const scoped_refptr<cssom::PropertyValue>& white_space,
           const scoped_refptr<cssom::PropertyValue>& font_size,
           LayoutUnit indent_offset, LayoutUnit ellipsis_width);
 
   LayoutUnit top() const { return top_; }
 
-  // Attempts to calculate the position and size of the given child box
-  // if the box or a part of it fits on the line. Some parts of the calculation
-  // are asynchronous, so the used values will be undefined until |EndUpdates|
-  // is called.
+  // Attempt to add the child box to the line, which may cause a line wrap to
+  // occur if the box overflows the line and a usable wrap location is available
+  // among the child boxes. When this occurs, a box is returned. This signifies
+  // the last child box included on the line before the wrap and can be the
+  // current child box or any previously added one. All boxes that were
+  // previously added after the returned box must be re-inserted, as they were
+  // not successfully placed on the line.
   //
-  // Returns false if the box does not fit on the line, even when split.
+  // The returned box can potentially be split as a result of the line wrap, in
+  // which case, the portion after the split will be accessible via the child
+  // box's |GetSplitSibling| call. This split sibling should be the first box
+  // added the next time |TryAddChildAndMaybeWrap| is called, followed by any
+  // additional child boxes that were not placed on the line.
   //
-  // If the child box had to be split in order to fit on the line, the part
-  // of the box after the split is stored in |child_box_after_split|. The box
-  // that establishes this formatting context must re-insert the returned part
-  // right after the original child box.
-  bool TryBeginUpdateRectAndMaybeSplit(
-      Box* child_box, scoped_refptr<Box>* child_box_after_split);
-  // Asynchronously calculates the position and size of the given child box,
-  // ignoring the possible overflow. The used values will be undefined until
-  // |EndUpdates| is called.
-  void BeginUpdateRectAndMaybeOverflow(Box* child_box);
+  // This call asynchronously calculates the positions and sizes of the added
+  // child boxes. The used values will be undefined until |EndUpdates| is
+  // called.
+  Box* TryAddChildAndMaybeWrap(Box* child_box);
+  // Asynchronously adds the given child box to the line, ignoring any possible
+  // overflow. The used values will be undefined until |EndUpdates| is called.
+  void BeginAddChildAndMaybeOverflow(Box* child_box);
   // Asynchronously estimates the static position of the given child box.
   // In CSS 2.1 the static position is only defined for absolutely positioned
   // boxes. The used values will be undefined until |EndUpdates| is called.
@@ -98,16 +101,17 @@ class LineBox {
   // Whether all boxes on the line are collapsed.
   bool IsCollapsed() const;
 
-  bool IsEllipsisPlaced() const;
-  math::Vector2dF GetEllipsisCoordinates() const;
-
   // Line boxes that contain no text, no preserved white space, no inline
   // elements with non-zero margins, padding, or borders, and no other in-flow
   // content must be treated as zero-height line boxes for the purposes
   // of determining the positions of any elements inside of them, and must be
   // treated as not existing for any other purpose.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  bool line_exists() const { return line_exists_; }
+  bool LineExists() const;
+  size_t GetFirstBoxJustifyingLineExistenceIndex() const;
+
+  bool IsEllipsisPlaced() const;
+  math::Vector2dF GetEllipsisCoordinates() const;
 
   // Used to calculate the width of an inline container box.
   LayoutUnit shrink_to_fit_width() const { return shrink_to_fit_width_; }
@@ -134,8 +138,16 @@ class LineBox {
   void UpdateSizePreservingTrailingWhiteSpace(Box* child_box);
   bool ShouldCollapseLeadingWhiteSpaceInNextChildBox() const;
   void CollapseTrailingWhiteSpace();
+  void RestoreTrailingWhiteSpace();
 
-  void BeginUpdatePosition(Box* child_box);
+  bool TryAddChildWithinAvailableWidth(Box* child_box);
+  bool TryWrapOverflowingBoxAndMaybeAddSplitChild(
+      WrapAtPolicy wrap_at_policy,
+      WrapOpportunityPolicy wrap_opportunity_policy, Box* child_box);
+  bool TryWrapChildrenAtLastOpportunity(
+      WrapOpportunityPolicy wrap_opportunity_policy);
+
+  void BeginAddChildInternal(Box* child_box);
 
   void ReverseChildBoxesByBidiLevels();
   void ReverseChildBoxesMeetingBidiLevelThreshold(int level);
@@ -158,12 +170,11 @@ class LineBox {
   const BaseDirection base_direction_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const scoped_refptr<cssom::PropertyValue> font_size_;
-  const bool is_text_wrapping_disabled_;
   const LayoutUnit indent_offset_;
   const LayoutUnit ellipsis_width_;
 
+  bool has_overflowed_;
   bool at_end_;
-  bool line_exists_;
 
   // Non-owned list of child boxes.
   //
@@ -172,6 +183,7 @@ class LineBox {
   typedef std::vector<Box*> ChildBoxes;
   ChildBoxes child_boxes_;
 
+  base::optional<size_t> first_box_justifying_line_existence_index_;
   base::optional<size_t> first_non_collapsed_child_box_index_;
   base::optional<size_t> last_non_collapsed_child_box_index_;
 
