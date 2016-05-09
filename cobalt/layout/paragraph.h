@@ -24,6 +24,7 @@
 #include "cobalt/dom/font_list.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/layout_unit.h"
+#include "cobalt/layout/line_wrapping.h"
 #include "cobalt/render_tree/font.h"
 
 #include "third_party/icu/public/common/unicode/brkiter.h"
@@ -54,15 +55,19 @@ namespace layout {
 // which can result in text boxes being split.
 class Paragraph : public base::RefCounted<Paragraph> {
  public:
+  // 'normal': Lines may break only at allowed break points.
+  // 'break-word': An unbreakable 'word' may be broken at an an arbitrary
+  // point...
+  //   https://www.w3.org/TR/css-text-3/#overflow-wrap
   enum BreakPolicy {
-    kSoftWrap,
-    kBreakWord,
-    kSoftWrapWithBreakWordOnOverflow,
+    kBreakPolicyNormal,
+    kBreakPolicyBreakWord,
   };
 
   enum CodePoint {
     kLeftToRightEmbedCodePoint,
     kLineFeedCodePoint,
+    kNoBreakSpaceCodePoint,
     kObjectReplacementCharacterCodePoint,
     kPopDirectionalFormattingCharacterCodePoint,
     kRightToLeftEmbedCodePoint,
@@ -112,6 +117,9 @@ class Paragraph : public base::RefCounted<Paragraph> {
                          bool should_collapse_trailing_white_space,
                          bool allow_overflow, BreakPolicy break_policy,
                          int32* break_position, LayoutUnit* break_width);
+  int32 GetNextBreakPosition(int32 position, BreakPolicy break_policy);
+  int32 GetPreviousBreakPosition(int32 position, BreakPolicy break_policy);
+  bool IsBreakPosition(int32 position, BreakPolicy break_policy);
 
   std::string RetrieveUtf8SubString(int32 start_position,
                                     int32 end_position) const;
@@ -142,6 +150,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
   void Close();
   bool IsClosed() const;
 
+  static BreakPolicy GetBreakPolicyFromWrapOpportunityPolicy(
+      WrapOpportunityPolicy wrap_opportunity_policy,
+      bool does_style_allow_break_word);
+
  private:
   struct BidiLevelRun {
     BidiLevelRun(int32 start_position, int level)
@@ -152,6 +164,8 @@ class Paragraph : public base::RefCounted<Paragraph> {
   };
 
   typedef std::vector<BidiLevelRun> BidiLevelRuns;
+
+  icu::BreakIterator* GetBreakIterator(BreakPolicy break_policy);
 
   // Iterate over text segments as determined by the break iterator's strategy
   // from the starting position, adding the width of each segment and

@@ -47,15 +47,19 @@ class InlineContainerBox : public ContainerBox {
   Level GetLevel() const OVERRIDE;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_refptr<Box> TrySplitAt(
-      LayoutUnit available_width, bool allow_overflow,
-      bool should_collapse_trailing_white_space) OVERRIDE;
+
+  WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
+                       WrapOpportunityPolicy wrap_opportunity_policy,
+                       bool is_line_existence_justified,
+                       LayoutUnit available_width,
+                       bool should_collapse_trailing_white_space) OVERRIDE;
+
   Box* GetSplitSibling() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
   void ResetEllipses() OVERRIDE;
 
-  scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   void SetShouldCollapseLeadingWhiteSpace(
@@ -93,8 +97,29 @@ class InlineContainerBox : public ContainerBox {
       bool* is_placement_requirement_met, bool* is_placed,
       LayoutUnit* placed_offset) OVERRIDE;
 
-  scoped_refptr<Box> SplitAtIterator(
-      Boxes::const_iterator child_split_iterator);
+  WrapResult TryWrapAtBefore(WrapOpportunityPolicy wrap_opportunity_policy,
+                             bool is_line_requirement_met,
+                             LayoutUnit available_width,
+                             bool should_collapse_trailing_white_space);
+  WrapResult TryWrapAtLastOpportunityWithinWidth(
+      WrapOpportunityPolicy wrap_opportunity_policy,
+      bool is_line_requirement_met, LayoutUnit available_width,
+      bool should_collapse_trailing_white_space);
+  WrapResult TryWrapAtLastOpportunityBeforeIndex(
+      size_t index, WrapOpportunityPolicy wrap_opportunity_policy,
+      bool is_line_requirement_met, LayoutUnit available_width,
+      bool should_collapse_trailing_white_space);
+  WrapResult TryWrapAtFirstOpportunity(
+      WrapOpportunityPolicy wrap_opportunity_policy,
+      bool is_line_requirement_met, LayoutUnit available_width,
+      bool should_collapse_trailing_white_space);
+  WrapResult TryWrapAtIndex(size_t wrap_index, WrapAtPolicy wrap_at_policy,
+                            WrapOpportunityPolicy wrap_opportunity_policy,
+                            bool is_line_requirement_met,
+                            LayoutUnit available_width,
+                            bool should_collapse_trailing_white_space);
+
+  void SplitAtIterator(Boxes::const_iterator child_split_iterator);
 
   bool should_collapse_leading_white_space_;
   bool should_collapse_trailing_white_space_;
@@ -103,6 +128,7 @@ class InlineContainerBox : public ContainerBox {
   bool is_collapsed_;
 
   bool justifies_line_existence_;
+  size_t first_box_justifying_line_existence_index_;
   LayoutUnit baseline_offset_from_margin_box_top_;
   LayoutUnit line_height_;
   LayoutUnit inline_top_margin_;

@@ -37,7 +37,6 @@ LineBox::LineBox(LayoutUnit top, bool position_children_relative_to_baseline,
                  const LayoutParams& layout_params,
                  BaseDirection base_direction,
                  const scoped_refptr<cssom::PropertyValue>& text_align,
-                 const scoped_refptr<cssom::PropertyValue>& white_space,
                  const scoped_refptr<cssom::PropertyValue>& font_size,
                  LayoutUnit indent_offset, LayoutUnit ellipsis_width)
     : top_(top),
@@ -52,118 +51,90 @@ LineBox::LineBox(LayoutUnit top, bool position_children_relative_to_baseline,
       base_direction_(base_direction),
       text_align_(text_align),
       font_size_(font_size),
-      is_text_wrapping_disabled_(white_space ==
-                                     cssom::KeywordValue::GetNoWrap() ||
-                                 white_space == cssom::KeywordValue::GetPre()),
       indent_offset_(indent_offset),
       ellipsis_width_(ellipsis_width),
+      has_overflowed_(false),
       at_end_(false),
-      line_exists_(false),
       shrink_to_fit_width_(indent_offset_),
       height_(0),
       baseline_offset_from_top_(0),
       is_ellipsis_placed_(false),
       placed_ellipsis_offset_(0) {}
 
-bool LineBox::TryBeginUpdateRectAndMaybeSplit(
-    Box* child_box, scoped_refptr<Box>* child_box_after_split) {
-  DCHECK(!*child_box_after_split);
+Box* LineBox::TryAddChildAndMaybeWrap(Box* child_box) {
   DCHECK(!child_box->IsAbsolutelyPositioned());
-
-  if (at_end_) {
-    return false;
-  }
-
-  // If the white-space style of the line box disables text wrapping then always
-  // allow overflow.
-  // NOTE: While this works properly for typical use cases, it does not allow
-  // child boxes to enable or disable wrapping, so this is not a robust
-  // long-term solution. However, it handles ***REMOVED***'s current needs.
-  // TODO(***REMOVED***): Implement the full line breaking algorithm (tracked as
-  // b/25504189).
-  if (is_text_wrapping_disabled_) {
-    BeginUpdateRectAndMaybeOverflow(child_box);
-    return true;
-  }
+  DCHECK(!at_end_);
 
   UpdateSizePreservingTrailingWhiteSpace(child_box);
 
-  LayoutUnit available_width = GetAvailableWidth();
-
-  // Horizontal margins, borders, and padding are respected between boxes.
-  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  if (child_box->GetMarginBoxWidth() <= available_width) {
-    BeginUpdatePosition(child_box);
-    return true;
-  }
-
-  // We must have reached the end of the line.
-  at_end_ = true;
-
-  if (should_collapse_trailing_white_space_) {
-    child_box->SetShouldCollapseTrailingWhiteSpace(true);
-    child_box->UpdateSize(layout_params_);
-
-    // A sequence of collapsible spaces at the end of a line is removed.
-    //   https://www.w3.org/TR/css3-text/#white-space-phase-2
-    if (child_box->IsCollapsed()) {
-      CollapseTrailingWhiteSpace();
+  // If the line box hasn't already overflowed the line, then attempt to add it
+  // within the available width.
+  if (!has_overflowed_ && !TryAddChildWithinAvailableWidth(child_box)) {
+    // If the attempt failed, then adding the full box would overflow the line.
+    // Attempt to find a wrap location within the available width, which will
+    // prevent overflow from occurring. The priority is as follows:
+    // 1. Attempt to find the last normal wrap opportunity in the current child
+    //    within the available width.
+    // 2. Attempt to find the last normal wrap opportunity within the previously
+    //    added children.
+    // 3. Attempt to find the last break-word wrap opportunity position in the
+    //    current child within the available width. This will only be attempted
+    //    when the overflow-wrap style of the box is break-word.
+    // 4. Attempt to find the last break-word wrap opportunity within the
+    //    previously added children. This will only be attempted when the
+    //    overflow-wrap style of the box is break-word.
+    // https://www.w3.org/TR/css-text-3/#line-breaking
+    // https://www.w3.org/TR/css-text-3/#overflow-wrap
+    if (TryWrapOverflowingBoxAndMaybeAddSplitChild(
+            kWrapAtPolicyLastOpportunityWithinWidth,
+            kWrapOpportunityPolicyNormal, child_box) ||
+        TryWrapChildrenAtLastOpportunity(kWrapOpportunityPolicyNormal) ||
+        TryWrapOverflowingBoxAndMaybeAddSplitChild(
+            kWrapAtPolicyLastOpportunityWithinWidth,
+            kWrapOpportunityPolicyBreakWord, child_box) ||
+        TryWrapChildrenAtLastOpportunity(kWrapOpportunityPolicyBreakWord)) {
+      // A wrap position was successfully found within the width. The line is
+      // wrapping and at its end.
+      at_end_ = true;
+    } else {
+      // If an inline box cannot be split (e.g., if the inline box contains
+      // a single character, or language specific word breaking rules disallow
+      // a break within the inline box), then the inline box overflows the line
+      // box.
+      //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+      has_overflowed_ = true;
     }
+  }
 
-    // Try to place the child again, as the white space collapsing may have
-    // freed up some space.
-    available_width = GetAvailableWidth();
-    if (child_box->GetMarginBoxWidth() <= available_width) {
-      BeginUpdatePosition(child_box);
-      return true;
+  if (has_overflowed_) {
+    // If the line has overflowed, then the first wrap opportunity within the
+    // child box is preferred, thereby minimizing the size of the overflow. This
+    // can be either a break-word or normal wrap, depending on the overflow-wrap
+    // style of the box.
+    // https://www.w3.org/TR/css-text-3/#overflow-wrap
+    if (TryWrapOverflowingBoxAndMaybeAddSplitChild(
+            kWrapAtPolicyFirstOpportunity,
+            kWrapOpportunityPolicyBreakWordOrNormal, child_box)) {
+      // A wrap position was successfully found. The line is wrapping and at its
+      // end.
+      at_end_ = true;
+    } else {
+      // No wrap position was found within the child box. The box is allowed to
+      // overflow the line and additional boxes can be added until a wrappable
+      // box is found.
+      BeginAddChildInternal(child_box);
     }
   }
 
-  // If an inline box cannot be split (e.g., if the inline box contains
-  // a single character, or language specific word breaking rules disallow
-  // a break within the inline box), then the inline box overflows the line
-  // box.
-  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  //
-  // Allow the overflow if the line box has no children that justify line
-  // existence. This prevents perpetual rejection of child boxes that cannot
-  // be broken in a way that makes them fit the line.
-  bool allow_overflow = !line_exists_;
-
-  // When an inline box exceeds the width of a line box, it is split.
-  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  *child_box_after_split = child_box->TrySplitAt(
-      available_width, should_collapse_trailing_white_space_, allow_overflow);
-
-  // A split occurred, need to re-measure the child box.
-  if (*child_box_after_split != NULL) {
-    BeginUpdateRectAndMaybeOverflow(child_box);
-
-    // If trailing white space is being collapsed, then the child box can exceed
-    // the available width prior to white space being collapsed. So the DCHECK
-    // is only valid if the box's whitespace is collapsed prior to it.
-    // if (should_collapse_trailing_white_space_) {
-    //  CollapseTrailingWhiteSpace();
-    //}
-    // TODO(***REMOVED***): Re-enable the DCHECK() below after implementing b/27134223.
-    // DCHECK(child_box->GetMarginBoxWidth() <= available_width ||
-    //        allow_overflow);
-    return true;
-  }
-
-  if (allow_overflow) {
-    BeginUpdatePosition(child_box);
-    return true;
-  }
-
-  return false;
+  DCHECK(!child_boxes_.empty());
+  return at_end_ ? child_boxes_[child_boxes_.size() - 1] : NULL;
 }
 
-void LineBox::BeginUpdateRectAndMaybeOverflow(Box* child_box) {
+void LineBox::BeginAddChildAndMaybeOverflow(Box* child_box) {
   DCHECK(!child_box->IsAbsolutelyPositioned());
 
   UpdateSizePreservingTrailingWhiteSpace(child_box);
-  BeginUpdatePosition(child_box);
+  BeginAddChildInternal(child_box);
 }
 
 void LineBox::BeginEstimateStaticPosition(Box* child_box) {
@@ -237,6 +208,15 @@ bool LineBox::IsCollapsed() const {
   return !first_non_collapsed_child_box_index_;
 }
 
+bool LineBox::LineExists() const {
+  return !!first_box_justifying_line_existence_index_;
+}
+
+size_t LineBox::GetFirstBoxJustifyingLineExistenceIndex() const {
+  return first_box_justifying_line_existence_index_.value_or(
+      child_boxes_.size());
+}
+
 bool LineBox::IsEllipsisPlaced() const { return is_ellipsis_placed_; }
 
 math::Vector2dF LineBox::GetEllipsisCoordinates() const {
@@ -271,22 +251,15 @@ bool LineBox::ShouldCollapseLeadingWhiteSpaceInNextChildBox() const {
 }
 
 void LineBox::CollapseTrailingWhiteSpace() {
-  DCHECK(at_end_);
-
   if (!HasTrailingWhiteSpace()) {
     return;
   }
 
   // A white space between child boxes is already collapsed as a result
-  // of calling |UpdateSizePreservingTrailingWhiteSpace|. Now that we know that
-  // the end of the line is reached, we are ready to collapse the trailing white
-  // space in the last non-collapsed child box (all fully collapsed child boxes
-  // at the end of the line are treated as non-existent for the purposes
-  // of collapsing).
-  //
-  // TODO(***REMOVED***): This should be a loop that goes backward. This is because
-  //               the trailing white space collapsing may turn the last
-  //               non-collapsed child into a fully collapsed child.
+  // of calling |UpdateSizePreservingTrailingWhiteSpace|. Collapse the
+  // trailing white space in the last non-collapsed child box (all fully
+  // collapsed child boxes at the end of the line are treated as
+  // non-existent for the purposes of collapsing).
   Box* last_non_collapsed_child_box =
       child_boxes_[*last_non_collapsed_child_box_index_];
   LayoutUnit child_box_pre_collapse_width =
@@ -300,7 +273,204 @@ void LineBox::CollapseTrailingWhiteSpace() {
   shrink_to_fit_width_ -= collapsed_white_space_width;
 }
 
-void LineBox::BeginUpdatePosition(Box* child_box) {
+void LineBox::RestoreTrailingWhiteSpace() {
+  Box* last_non_collapsed_child_box =
+      child_boxes_[*last_non_collapsed_child_box_index_];
+  LayoutUnit child_box_pre_restore_width =
+      last_non_collapsed_child_box->width();
+  last_non_collapsed_child_box->SetShouldCollapseTrailingWhiteSpace(false);
+  last_non_collapsed_child_box->UpdateSize(layout_params_);
+  LayoutUnit restored_white_space_width =
+      last_non_collapsed_child_box->width() - child_box_pre_restore_width;
+  DCHECK_GT(restored_white_space_width, LayoutUnit());
+
+  shrink_to_fit_width_ += restored_white_space_width;
+}
+
+bool LineBox::TryAddChildWithinAvailableWidth(Box* child_box) {
+  // Horizontal margins, borders, and padding are respected between boxes.
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  // If the box fits within the available width, simply add it. Nothing more
+  // needs to be done.
+  if (child_box->GetMarginBoxWidth() <= GetAvailableWidth()) {
+    BeginAddChildInternal(child_box);
+    return true;
+  }
+
+  // Otherwise, the box currently does not fit, but if there is trailing
+  // whitespace that can be collapsed, then one more attempt must be made to fit
+  // the box within the available width.
+  if (should_collapse_trailing_white_space_ &&
+      (child_box->HasTrailingWhiteSpace() ||
+       (child_box->IsCollapsed() && HasTrailingWhiteSpace()))) {
+    bool child_has_trailing_white_space = child_box->HasTrailingWhiteSpace();
+    bool child_fits_after_collapsing_trailing_whitespace = false;
+
+    // A sequence of collapsible spaces at the end of a line is removed.
+    //   https://www.w3.org/TR/css3-text/#white-space-phase-2
+    if (child_has_trailing_white_space) {
+      child_box->SetShouldCollapseTrailingWhiteSpace(true);
+      child_box->UpdateSize(layout_params_);
+    } else {
+      CollapseTrailingWhiteSpace();
+    }
+
+    // Check to see if the box now fits, as the white space collapsing may have
+    // freed up enough space for it.
+    if (child_box->GetMarginBoxWidth() <= GetAvailableWidth()) {
+      child_fits_after_collapsing_trailing_whitespace = true;
+    }
+
+    // Restore the collapsed trailing whitespace now that the space check is
+    // complete.
+    if (child_has_trailing_white_space) {
+      child_box->SetShouldCollapseTrailingWhiteSpace(false);
+      child_box->UpdateSize(layout_params_);
+    } else {
+      RestoreTrailingWhiteSpace();
+    }
+
+    // If there is enough space to add the child without overflowing the line,
+    // add it now. This does not end the line, as more boxes may be able to fit
+    // as well.
+    if (child_fits_after_collapsing_trailing_whitespace) {
+      BeginAddChildInternal(child_box);
+      return true;
+    }
+  }
+
+  // The child did not fit within the available width.
+  return false;
+}
+
+bool LineBox::TryWrapOverflowingBoxAndMaybeAddSplitChild(
+    WrapAtPolicy wrap_at_policy, WrapOpportunityPolicy wrap_opportunity_policy,
+    Box* child_box) {
+  // Attempt to wrap the child based upon the passed in wrap policy.
+  WrapResult wrap_result = child_box->TryWrapAt(
+      wrap_at_policy, wrap_opportunity_policy, LineExists(),
+      GetAvailableWidth(), should_collapse_trailing_white_space_);
+  // If the wrap is occurring before the box, then simply return that a wrap
+  // occurred. This box is not being included within this line and does not need
+  // to be added. The line ends with the box before this one.
+  if (wrap_result == kWrapResultWrapBefore) {
+    return true;
+    // Otherwise, if a split wrap occurred, then the wrap location was found
+    // within the box and the box was split. The first part of the box needs to
+    // be added to the line. It is the last box included on this line. The
+    // second part of the box will be the first box included on the next line.
+  } else if (wrap_result == kWrapResultSplitWrap) {
+    // The portion of the child box being added needs to be re-measured prior to
+    // being added because the split invalidated its size.
+    UpdateSizePreservingTrailingWhiteSpace(child_box);
+    BeginAddChildInternal(child_box);
+
+    // TODO(***REMOVED***): Enable this logic after implementing b/27134223.
+    // if (wrap_opportunity_policy == kWrapAtPolicyLastOpportunityWithinWidth) {
+    // If trailing white space is being collapsed, then the child box can
+    // exceed the available width prior to white space being collapsed. So the
+    // DCHECK is only valid if the box's whitespace is collapsed prior to it.
+    //   if (should_collapse_trailing_white_space_) {
+    //     CollapseTrailingWhiteSpace();
+    //   }
+    //   DCHECK(child_box->GetMarginBoxWidth() <= available_width);
+    // }
+
+    return true;
+    // Otherwise, no wrap location was found within the box.
+  } else {
+    return false;
+  }
+}
+
+bool LineBox::TryWrapChildrenAtLastOpportunity(
+    WrapOpportunityPolicy wrap_opportunity_policy) {
+  // If none of the children justify the line's existence, then wrapping is
+  // unavailable. The wrap can't happen before the first child justifying the
+  // line.
+  if (!first_box_justifying_line_existence_index_) {
+    return false;
+  }
+
+  LayoutUnit total_wrap_width;
+
+  // Walk the children in reverse order, since the last available wrap is
+  // preferred over earlier ones. However, do not attempt any children preceding
+  // the line justification index, as they are guaranteed to not be wrappable.
+  size_t wrap_index = child_boxes_.size();
+  size_t line_justification_index = *first_box_justifying_line_existence_index_;
+  while (wrap_index > line_justification_index) {
+    --wrap_index;
+    Box* child_box = child_boxes_[wrap_index];
+
+    total_wrap_width += child_box->GetMarginBoxWidth();
+
+    // Check to see if the line existence is already justified prior to this
+    // box. This will be the case if this isn't first box justifying the
+    // line's existence. If this is the first box justifying the line's
+    // existence, then justification occurs somewhere within this box.
+    bool is_line_existence_already_justified =
+        wrap_index != line_justification_index;
+
+    // Attempt to wrap within the child. Width is not taken into account, as
+    // the last wrappable location is always preferred, regardless of width.
+    WrapResult wrap_result = child_box->TryWrapAt(
+        kWrapAtPolicyLastOpportunity, wrap_opportunity_policy,
+        is_line_existence_already_justified, LayoutUnit(), false);
+    if (wrap_result != kWrapResultNoWrap) {
+      // If a wrap was successfully found, then the line needs to be updated to
+      // reflect that some of the previously added children are no longer being
+      // fully included on the line.
+
+      // Remove the wrap box and all subsequent boxes from the children, and
+      // subtract their width from the line. In the case where this is a split
+      // wrap, the portion of the split box being retained on the line will be
+      // re-added after its width is recalculated below.
+      child_boxes_.resize(wrap_index);
+      shrink_to_fit_width_ -= total_wrap_width;
+
+      // Update the non-collapsed indices to account for the boxes removed from
+      // the line.
+      if (first_non_collapsed_child_box_index_) {
+        if (*first_non_collapsed_child_box_index_ >= wrap_index) {
+          first_non_collapsed_child_box_index_ = base::nullopt;
+          last_non_collapsed_child_box_index_ = base::nullopt;
+        } else if (*last_non_collapsed_child_box_index_ >= wrap_index) {
+          last_non_collapsed_child_box_index_ =
+              first_non_collapsed_child_box_index_;
+          size_t check_index = wrap_index;
+          size_t last_check_index = *last_non_collapsed_child_box_index_ + 1;
+          while (check_index > last_check_index) {
+            --check_index;
+            if (!child_boxes_[check_index]->IsCollapsed()) {
+              last_non_collapsed_child_box_index_ = check_index;
+              break;
+            }
+          }
+        }
+      }
+
+      if (wrap_result == kWrapResultSplitWrap) {
+        // If a split occurs, then the portion of the child box being added
+        // needs to be re-measured prior to being added, as the split
+        // invalidated the box's size.
+        UpdateSizePreservingTrailingWhiteSpace(child_box);
+        BeginAddChildInternal(child_box);
+      }
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void LineBox::BeginAddChildInternal(Box* child_box) {
+  if (!first_box_justifying_line_existence_index_ &&
+      child_box->JustifiesLineExistence()) {
+    first_box_justifying_line_existence_index_ = child_boxes_.size();
+  }
+
   if (!child_box->IsCollapsed()) {
     if (!first_non_collapsed_child_box_index_) {
       first_non_collapsed_child_box_index_ = child_boxes_.size();
@@ -317,8 +487,6 @@ void LineBox::BeginUpdatePosition(Box* child_box) {
   // Horizontal margins, borders, and padding are respected between boxes.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   shrink_to_fit_width_ += child_box->GetMarginBoxWidth();
-
-  line_exists_ = line_exists_ || child_box->JustifiesLineExistence();
 
   child_boxes_.push_back(child_box);
 }
