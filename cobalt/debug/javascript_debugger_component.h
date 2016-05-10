@@ -57,6 +57,7 @@ class JavaScriptDebuggerComponent : public DebugServer::Component,
   // Code execution control commands.
   JSONObject Pause(const JSONObject& params);
   JSONObject Resume(const JSONObject& params);
+  JSONObject SetPauseOnExceptions(const JSONObject& params);
   JSONObject StepInto(const JSONObject& params);
   JSONObject StepOut(const JSONObject& params);
   JSONObject StepOver(const JSONObject& params);
