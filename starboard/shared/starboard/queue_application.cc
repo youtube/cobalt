@@ -186,7 +186,9 @@ Application::Event* QueueApplication::PollNextInjectedEvent() {
 
 Application::Event* QueueApplication::GetNextInjectedEvent() {
   for (;;) {
-    Event* event = event_queue_.GetTimed(GetNextTimedEventTargetTime());
+    SbTimeMonotonic delay =
+        GetNextTimedEventTargetTime() - SbTimeGetMonotonicNow();
+    Event* event = event_queue_.GetTimed(delay);
     if (event != NULL) {
       return event;
     }
