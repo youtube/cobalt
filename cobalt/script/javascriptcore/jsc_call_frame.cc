@@ -111,9 +111,10 @@ std::string JSCCallFrame::GetFunctionName() {
 }
 
 int JSCCallFrame::GetLineNumber() {
-  // Devtools appears to want 0-based line numbers, hence the -1.
+  // Line number is absolute - will need to be adjusted for the start line in
+  // inline scripts.
   DCHECK_GT(line_number_, 0);
-  return line_number_ - 1;
+  return line_number_;
 }
 
 base::optional<int> JSCCallFrame::GetColumnNumber() { return column_number_; }

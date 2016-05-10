@@ -90,15 +90,11 @@ base::optional<std::string> JSCSourceProvider::GetSourceMapUrl() {
 }
 
 base::optional<int> JSCSourceProvider::GetStartColumn() {
-  // TODO(***REMOVED***): Work out how to get this from a JSC::SourceProvider.
-  // Should be provided for inline scripts.
-  return base::nullopt;
+  return source_provider_->startPosition().m_column.oneBasedInt();
 }
 
 base::optional<int> JSCSourceProvider::GetStartLine() {
-  // TODO(***REMOVED***): Work out how to get this from a JSC::SourceProvider.
-  // Should be provided for inline scripts.
-  return base::nullopt;
+  return source_provider_->startPosition().m_line.oneBasedInt();
 }
 
 std::string JSCSourceProvider::GetUrl() {
