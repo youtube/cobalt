@@ -59,6 +59,7 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
   // Implementation of ScriptDebugger.
   void Pause() OVERRIDE;
   void Resume() OVERRIDE;
+  void SetPauseOnExceptions(PauseOnExceptionsState state) OVERRIDE;
   void StepInto() OVERRIDE;
   void StepOut() OVERRIDE;
   void StepOver() OVERRIDE;
@@ -135,6 +136,9 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
 
   // Lifetime managed by the caller of this object's constructor.
   Delegate* delegate_;
+
+  // Whether script execution pauses on exceptions.
+  PauseOnExceptionsState pause_on_exceptions_;
 
   // Code execution control flags. Script execution can pause on the next
   // statement, or on a specific call frame.

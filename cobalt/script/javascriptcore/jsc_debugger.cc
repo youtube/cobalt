@@ -99,6 +99,7 @@ JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
                          Delegate* delegate)
     : global_object_proxy_(global_object_proxy),
       delegate_(delegate),
+      pause_on_exceptions_(kNone),
       pause_on_next_statement_(false),
       pause_on_call_frame_(NULL),
       current_call_frame_(NULL),
@@ -119,6 +120,10 @@ void JSCDebugger::Pause() {
 void JSCDebugger::Resume() {
   pause_on_next_statement_ = false;
   pause_on_call_frame_ = NULL;
+}
+
+void JSCDebugger::SetPauseOnExceptions(PauseOnExceptionsState state) {
+  pause_on_exceptions_ = state;
 }
 
 void JSCDebugger::StepInto() {
@@ -187,6 +192,12 @@ void JSCDebugger::sourceParsed(JSC::ExecState* exec_state,
 void JSCDebugger::exception(const JSC::DebuggerCallFrame& call_frame,
                             intptr_t source_id, int line_number,
                             int column_number, bool has_handler) {
+  if (pause_on_exceptions_ == kAll ||
+      (pause_on_exceptions_ == kUncaught && !has_handler)) {
+    pause_on_next_statement_ = true;
+    pause_on_call_frame_ = NULL;
+  }
+
   UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
@@ -223,6 +234,8 @@ void JSCDebugger::didExecuteProgram(const JSC::DebuggerCallFrame& call_frame,
 void JSCDebugger::didReachBreakpoint(const JSC::DebuggerCallFrame& call_frame,
                                      intptr_t source_id, int line_number,
                                      int column_number) {
+  pause_on_next_statement_ = true;
+  pause_on_call_frame_ = NULL;
   UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
