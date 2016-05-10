@@ -24,20 +24,6 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 
-Application::Event* QueueApplication::PollNextEvent() {
-  Event* event = event_queue_.Poll();
-  if (event != NULL) {
-    return event;
-  }
-
-  TimedEvent* timed_event = GetNextDueTimedEvent();
-  if (timed_event != NULL) {
-    return new Event(timed_event);
-  }
-
-  return NULL;
-}
-
 void QueueApplication::Wake() {
   if (IsCurrentThread()) {
     return;
@@ -68,7 +54,7 @@ Application::Event* QueueApplication::GetNextEvent() {
     }
 
     // Then poll the generic queue.
-    event = PollNextEvent();
+    event = PollNextInjectedEvent();
     if (event) {
       continue;
     }
@@ -182,6 +168,20 @@ bool QueueApplication::TimedEventQueue::IsLess(const TimedEvent* lhs,
   // If the time differences are the same, ensure there is a strict and stable
   // ordering.
   return reinterpret_cast<uintptr_t>(lhs) < reinterpret_cast<uintptr_t>(rhs);
+}
+
+Application::Event* QueueApplication::PollNextInjectedEvent() {
+  Event* event = event_queue_.Poll();
+  if (event != NULL) {
+    return event;
+  }
+
+  TimedEvent* timed_event = GetNextDueTimedEvent();
+  if (timed_event != NULL) {
+    return new Event(timed_event);
+  }
+
+  return NULL;
 }
 
 Application::Event* QueueApplication::GetNextInjectedEvent() {

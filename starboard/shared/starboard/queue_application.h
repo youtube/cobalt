@@ -39,10 +39,6 @@ class QueueApplication : public Application {
   ~QueueApplication() SB_OVERRIDE {}
 
  protected:
-  // Polls the queue for the next event, returning NULL if there is nothing to
-  // execute.
-  Event* PollNextEvent();
-
   // Wakes up GetNextEvent, and ensures it recalculates the wait duration.
   void Wake();
 
@@ -91,6 +87,10 @@ class QueueApplication : public Application {
     typedef std::set<TimedEvent*, TimedEventComparator> TimedEventSet;
     TimedEventSet set_;
   };
+
+  // Polls the queue for the next event, returning NULL if there is nothing to
+  // execute.
+  Event* PollNextInjectedEvent();
 
   // Returns the next non-system event, waiting for it if none are currently
   // available.  Called from within GetNextEvent().
