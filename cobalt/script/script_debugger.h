@@ -55,6 +55,9 @@ class ScriptDebugger {
     virtual void OnScriptParsed(scoped_ptr<SourceProvider> source_provider) = 0;
   };
 
+  // Possible pause on exception states.
+  enum PauseOnExceptionsState { kAll, kNone, kUncaught };
+
   // Factory method to create an engine-specific instance. Implementation to be
   // provided by derived class.
   static scoped_ptr<ScriptDebugger> CreateDebugger(
@@ -65,6 +68,7 @@ class ScriptDebugger {
   // actual blocking of the thread in an engine-independent way.
   virtual void Pause() = 0;
   virtual void Resume() = 0;
+  virtual void SetPauseOnExceptions(PauseOnExceptionsState state) = 0;
   virtual void StepInto() = 0;
   virtual void StepOut() = 0;
   virtual void StepOver() = 0;

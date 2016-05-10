@@ -33,6 +33,7 @@ const char kEnable[] = "Debugger.enable";
 const char kGetScriptSource[] = "Debugger.getScriptSource";
 const char kPause[] = "Debugger.pause";
 const char kResume[] = "Debugger.resume";
+const char kSetPauseOnExceptions[] = "Debugger.setPauseOnExceptions";
 const char kStepInto[] = "Debugger.stepInto";
 const char kStepOut[] = "Debugger.stepOut";
 const char kStepOver[] = "Debugger.stepOver";
@@ -52,6 +53,7 @@ const char kScopeChain[] = "scopeChain";
 const char kScriptId[] = "scriptId";
 const char kStartColumn[] = "startColumn";
 const char kStartLine[] = "startLine";
+const char kState[] = "state";
 const char kThis[] = "this";
 const char kType[] = "type";
 const char kUrl[] = "url";
@@ -88,6 +90,9 @@ JavaScriptDebuggerComponent::JavaScriptDebuggerComponent(
                                  base::Unretained(this)));
   AddCommand(kStepInto, base::Bind(&JavaScriptDebuggerComponent::StepInto,
                                    base::Unretained(this)));
+  AddCommand(kSetPauseOnExceptions,
+             base::Bind(&JavaScriptDebuggerComponent::SetPauseOnExceptions,
+                        base::Unretained(this)));
   AddCommand(kStepOut, base::Bind(&JavaScriptDebuggerComponent::StepOut,
                                   base::Unretained(this)));
   AddCommand(kStepOver, base::Bind(&JavaScriptDebuggerComponent::StepOver,
@@ -160,6 +165,26 @@ JSONObject JavaScriptDebuggerComponent::Resume(const JSONObject& params) {
 
   script_debugger_->Resume();
   server()->SetPaused(false);
+  return JSONObject(new base::DictionaryValue());
+}
+
+JSONObject JavaScriptDebuggerComponent::SetPauseOnExceptions(
+    const JSONObject& params) {
+  if (!(script_debugger_ && server())) {
+    return ErrorResponse("JavaScript debugger is not enabled.");
+  }
+
+  std::string state;
+  DCHECK(params->GetString(kState, &state));
+  if (state == "all") {
+    script_debugger_->SetPauseOnExceptions(script::ScriptDebugger::kAll);
+  } else if (state == "none") {
+    script_debugger_->SetPauseOnExceptions(script::ScriptDebugger::kNone);
+  } else if (state == "uncaught") {
+    script_debugger_->SetPauseOnExceptions(script::ScriptDebugger::kUncaught);
+  } else {
+    NOTREACHED();
+  }
   return JSONObject(new base::DictionaryValue());
 }
 
