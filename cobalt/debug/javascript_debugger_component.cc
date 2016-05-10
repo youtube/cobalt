@@ -50,6 +50,8 @@ const char kObject[] = "object";
 const char kReason[] = "reason";
 const char kScopeChain[] = "scopeChain";
 const char kScriptId[] = "scriptId";
+const char kStartColumn[] = "startColumn";
+const char kStartLine[] = "startLine";
 const char kThis[] = "this";
 const char kType[] = "type";
 const char kUrl[] = "url";
@@ -235,9 +237,16 @@ JSONObject JavaScriptDebuggerComponent::CreateCallFrameData(
   call_frame_data->SetString(kCallFrameId, call_frame->GetCallFrameId());
   call_frame_data->SetString(kFunctionName, call_frame->GetFunctionName());
 
+  // Offset the line number according to the start line of the source.
+  const std::string script_id = call_frame->GetScriptId();
+  int line_number = call_frame->GetLineNumber();
+  DCHECK(source_providers_[script_id]);
+  base::optional<int> start_line = source_providers_[script_id]->GetStartLine();
+  line_number -= start_line.value_or(1);
+
   // Add the location data.
-  call_frame_data->SetString(kLocationScriptId, call_frame->GetScriptId());
-  call_frame_data->SetInteger(kLocationLineNumber, call_frame->GetLineNumber());
+  call_frame_data->SetString(kLocationScriptId, script_id);
+  call_frame_data->SetInteger(kLocationLineNumber, line_number);
   base::optional<int> column_number = call_frame->GetColumnNumber();
   if (column_number) {
     call_frame_data->SetInteger(kLocationColumnNumber, column_number.value());
@@ -318,6 +327,16 @@ void JavaScriptDebuggerComponent::HandleScriptEvent(
   if (error_message) {
     DCHECK_EQ(method, kScriptFailedToParse);
     params->SetString(kErrorMessage, error_message.value());
+  }
+  base::optional<int> start_line = source_provider->GetStartLine();
+  if (start_line) {
+    DCHECK_GE(start_line.value(), 1);
+    params->SetInteger(kStartLine, start_line.value());
+  }
+  base::optional<int> start_column = source_provider->GetStartColumn();
+  if (start_column) {
+    DCHECK_GE(start_column.value(), 1);
+    params->SetInteger(kStartColumn, start_column.value());
   }
   SendEvent(method, params.Pass());
 

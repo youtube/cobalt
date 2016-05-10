@@ -36,16 +36,22 @@ namespace {
 class UTF8StringSourceProvider : public JSC::SourceProvider {
  public:
   static WTF::PassRefPtr<UTF8StringSourceProvider> Create(
-      const std::string& source_utf8, const std::string& source_url) {
-    return WTF::adoptRef(new UTF8StringSourceProvider(source_utf8, source_url));
+      const std::string& source_utf8, const std::string& source_url,
+      int line_number, int column_number) {
+    return WTF::adoptRef(new UTF8StringSourceProvider(
+        source_utf8, source_url, line_number, column_number));
   }
   const WTF::String& source() const OVERRIDE { return source_; }
 
  private:
   explicit UTF8StringSourceProvider(const std::string& source_utf8,
-                                    const std::string& source_url)
-      : SourceProvider(ToWTFString(source_url),
-                       WTF::TextPosition::minimumPosition()) {
+                                    const std::string& source_url,
+                                    int line_number, int column_number)
+      : SourceProvider(
+            ToWTFString(source_url),
+            WTF::TextPosition(
+                WTF::OrdinalNumber::fromOneBasedInt(line_number),
+                WTF::OrdinalNumber::fromOneBasedInt(column_number))) {
     source_ = ToWTFString(source_utf8);
   }
   WTF::String source_;
@@ -56,7 +62,9 @@ class UTF8StringSourceProvider : public JSC::SourceProvider {
 JSCSourceCode::JSCSourceCode(const std::string& source_utf8,
                              const base::SourceLocation& source_location) {
   RefPtr<UTF8StringSourceProvider> source_provider =
-      UTF8StringSourceProvider::Create(source_utf8, source_location.file_path);
+      UTF8StringSourceProvider::Create(source_utf8, source_location.file_path,
+                                       source_location.line_number,
+                                       source_location.column_number);
   source_ = JSC::SourceCode(source_provider, source_location.line_number);
 }
 
