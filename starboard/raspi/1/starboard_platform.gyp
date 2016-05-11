@@ -87,6 +87,7 @@
         '<(DEPTH)/starboard/shared/libevent/socket_waiter_wait_timed.cc',
         '<(DEPTH)/starboard/shared/libevent/socket_waiter_wake_up.cc',
         '<(DEPTH)/starboard/shared/linux/byte_swap.cc',
+        '<(DEPTH)/starboard/shared/linux/dev_input/dev_input.cc',
         '<(DEPTH)/starboard/shared/linux/get_home_directory.cc',
         '<(DEPTH)/starboard/shared/linux/memory_get_stack_bounds.cc',
         '<(DEPTH)/starboard/shared/linux/page_internal.cc',
