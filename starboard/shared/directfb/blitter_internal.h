@@ -107,4 +107,14 @@ struct SbBlitterDeviceRegistry {
 
 SbBlitterDeviceRegistry* GetBlitterDeviceRegistry();
 
+// DirectFB stores context state information within its surfaces.  The surface's
+// state is active whenever it is set as a render target.  This method sets
+// up a surface's state based on the current context state.
+bool SetupDFBSurfaceBlitStateFromBlitterContextState(SbBlitterContext context,
+                                                     SbBlitterSurface source,
+                                                     IDirectFBSurface* surface);
+
+bool SetupDFBSurfaceDrawStateFromBlitterContextState(SbBlitterContext context,
+                                                     IDirectFBSurface* surface);
+
 #endif  // STARBOARD_SHARED_DIRECTFB_BLITTER_INTERNAL_H_
