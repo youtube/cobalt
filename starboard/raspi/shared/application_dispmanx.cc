@@ -25,12 +25,15 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/raspi/shared/window_internal.h"
+#include "starboard/shared/linux/dev_input/dev_input.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/time.h"
 
 namespace starboard {
 namespace raspi {
 namespace shared {
+
+using ::starboard::shared::dev_input::DevInput;
 
 SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
   if (SbWindowIsValid(window_)) {
@@ -41,6 +44,7 @@ SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
 
   SB_DCHECK(IsDispmanxInitialized());
   window_ = new SbWindowPrivate(display_, options);
+  input_ = DevInput::Create(window_);
   return window_;
 }
 
@@ -50,6 +54,11 @@ bool ApplicationDispmanx::DestroyWindow(SbWindow window) {
   }
 
   SB_DCHECK(IsDispmanxInitialized());
+
+  SB_DCHECK(input_);
+  delete input_;
+  input_ = NULL;
+
   SB_DCHECK(window_ == window);
   delete window;
   window_ = kSbWindowInvalid;
@@ -64,24 +73,21 @@ void ApplicationDispmanx::Teardown() {
 }
 
 bool ApplicationDispmanx::MayHaveSystemEvents() {
-  SB_NOTIMPLEMENTED();
-  return false;
+  return input_ != NULL;
 }
 
 ::starboard::shared::starboard::Application::Event*
 ApplicationDispmanx::PollNextSystemEvent() {
-  SB_NOTIMPLEMENTED();
-  return NULL;
+  return input_->PollNextSystemEvent();
 }
 
 ::starboard::shared::starboard::Application::Event*
-ApplicationDispmanx::WaitForSystemEventWithTimeout(SbTime time) {
-  SB_NOTIMPLEMENTED();
-  return NULL;
+ApplicationDispmanx::WaitForSystemEventWithTimeout(SbTime duration) {
+  Event* event = input_->WaitForSystemEventWithTimeout(duration);
 }
 
 void ApplicationDispmanx::WakeSystemEventWait() {
-  SB_NOTIMPLEMENTED();
+  input_->WakeSystemEventWait();
 }
 
 void ApplicationDispmanx::InitializeDispmanx() {
