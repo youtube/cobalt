@@ -71,39 +71,10 @@ bool SbBlitterBlitRectToRect(SbBlitterContext context,
   dest_rect.w = dst_rect.width;
   dest_rect.h = dst_rect.height;
 
-  // Setup the DirectFB blending state on the surface as it is specified in
-  // the Blitter API context.
-  DFBSurfaceDrawingFlags drawing_flags =
-      context->blending_enabled ? DSDRAW_BLEND : DSDRAW_NOFX;
-  if (surface->SetDrawingFlags(surface, DSDRAW_BLEND) != DFB_OK) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetDrawingFlags().";
+  if (!SetupDFBSurfaceBlitStateFromBlitterContextState(context, source_surface,
+                                                       surface)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error setting DFB Surface state.";
     return false;
-  }
-
-  if (context->modulate_blits_with_color) {
-    uint32_t flags =
-        DSBLIT_BLEND_ALPHACHANNEL | DSBLIT_BLEND_COLORALPHA | DSBLIT_COLORIZE;
-    if (surface->SetColor(surface, SbBlitterRFromColor(context->current_color),
-                          SbBlitterGFromColor(context->current_color),
-                          SbBlitterBFromColor(context->current_color),
-                          SbBlitterAFromColor(context->current_color)) !=
-        DFB_OK) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
-      return false;
-    }
-
-    if (surface->SetBlittingFlags(
-            surface, static_cast<DFBSurfaceBlittingFlags>(flags)) != DFB_OK) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetBlittingFlags().";
-      return false;
-    }
-  } else {
-    // Setup our DirectFB state to not modulate with color.
-    if (surface->SetBlittingFlags(surface, DSBLIT_BLEND_ALPHACHANNEL) !=
-        DFB_OK) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetBlittingFlags().";
-      return false;
-    }
   }
 
   // Issue the DirectFB draw call to perform the blit.

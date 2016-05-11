@@ -82,16 +82,19 @@ void FillGradientImageData(int width,
 
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
-      // Setup a horizontal gradient in the green color channel.
-      uint8_t green =
-          static_cast<uint8_t>((static_cast<float>(x) / width) * 255);
       // Setup a vertical gradient in the alpha color channel.
-      uint8_t alpha =
-          static_cast<uint8_t>((static_cast<float>(y) / height) * 255);
+      float alpha = static_cast<float>(y) / height;
+      uint8_t alpha_byte = static_cast<uint8_t>(alpha) * 255;
+
+      // Setup a horizontal gradient in the green color channel.
+      uint8_t green_byte =
+          static_cast<uint8_t>((alpha * static_cast<float>(x) / width) * 255);
 
       // Assuming BGRA color format.
-      pixels[x * 4 + 1] = green;
-      pixels[x * 4 + 3] = alpha;
+      pixels[x * 4 + 0] = 0;
+      pixels[x * 4 + 1] = green_byte;
+      pixels[x * 4 + 0] = 0;
+      pixels[x * 4 + 3] = alpha_byte;
     }
 
     pixels += pitch_in_bytes;
@@ -144,7 +147,7 @@ Application::Application() {
   // the device for reference within blit calls.
   SbBlitterPixelData image_data = SbBlitterCreatePixelData(
       device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatBGRA8,
-      kSbBlitterAlphaFormatUnpremultiplied);
+      kSbBlitterAlphaFormatPremultiplied);
 
   // Once our pixel data object is created, we can extract from it the image
   // data pitch as well as a CPU-accessible pointer to the pixel data.  We
@@ -162,7 +165,7 @@ Application::Application() {
   // Now setup our alpha-only image.
   SbBlitterPixelData alpha_image_data = SbBlitterCreatePixelData(
       device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatA8,
-      kSbBlitterAlphaFormatUnpremultiplied);
+      kSbBlitterAlphaFormatPremultiplied);
   int alpha_image_data_pitch =
       SbBlitterGetPixelDataPitchInBytes(alpha_image_data);
   FillAlphaCheckerImageData(kImageHeight, kImageHeight, alpha_image_data_pitch,
@@ -241,6 +244,7 @@ void Application::RenderScene() {
 
   // Render our surface to the offscreen surface as well, stretched
   // horizontally, in two different locations.
+  SbBlitterSetBlending(context_, true);
   SbBlitterSetModulateBlitsWithColor(context_, false);
   SbBlitterBlitRectToRect(context_, rgba_image_surface_,
                           SbBlitterMakeRect(0, 0, kImageWidth, kImageHeight),
