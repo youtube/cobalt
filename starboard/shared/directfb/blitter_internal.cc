@@ -14,6 +14,7 @@
 
 #include "starboard/shared/directfb/blitter_internal.h"
 
+#include "starboard/log.h"
 #include "starboard/once.h"
 
 namespace {
@@ -32,4 +33,79 @@ SbBlitterDeviceRegistry* GetBlitterDeviceRegistry() {
   SbOnce(&s_device_registry_once_control, &EnsureDeviceRegistryInitialized);
 
   return s_device_registry;
+}
+
+bool SetupDFBSurfaceBlitStateFromBlitterContextState(
+    SbBlitterContext context,
+    SbBlitterSurface source,
+    IDirectFBSurface* surface) {
+  // Setup the DirectFB blending state on the surface as it is specified in
+  // the Blitter API context.
+  int blitting_flags = DSBLIT_NOFX;
+  if (source->info.format == kSbBlitterSurfaceFormatA8) {
+    // DirectFB A8 surfaces blit to (R, G, B, A) as (255, 255, 255, A), so in
+    // order to maintain a premultiplied alpha environment, we must indicate
+    // that the source color should be premultiplied as it is drawn.
+    blitting_flags |= DSBLIT_SRC_PREMULTIPLY;
+  }
+
+  if (context->blending_enabled) {
+    blitting_flags |= DSBLIT_BLEND_ALPHACHANNEL;
+    surface->SetPorterDuff(surface, DSPD_SRC_OVER);
+  } else {
+    surface->SetPorterDuff(surface, DSPD_SRC);
+  }
+
+  if (context->modulate_blits_with_color) {
+    blitting_flags |= DSBLIT_COLORIZE;
+    if (context->blending_enabled) {
+      blitting_flags |= DSBLIT_BLEND_COLORALPHA;
+    }
+
+    if (surface->SetColor(surface, SbBlitterRFromColor(context->current_color),
+                          SbBlitterGFromColor(context->current_color),
+                          SbBlitterBFromColor(context->current_color),
+                          SbBlitterAFromColor(context->current_color)) !=
+        DFB_OK) {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
+      return false;
+    }
+  }
+
+  // Finally commit our DFB blitting flags to the surface.
+  if (surface->SetBlittingFlags(surface, static_cast<DFBSurfaceBlittingFlags>(
+                                             blitting_flags)) != DFB_OK) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetBlittingFlags().";
+    return false;
+  }
+
+  return true;
+}
+
+bool SetupDFBSurfaceDrawStateFromBlitterContextState(
+    SbBlitterContext context,
+    IDirectFBSurface* surface) {
+  // Depending on the context blend state, set the DirectFB blend state flags
+  // on the current render target surface.
+  if (context->blending_enabled) {
+    surface->SetDrawingFlags(
+        surface, static_cast<DFBSurfaceDrawingFlags>(DSDRAW_SRC_PREMULTIPLY |
+                                                     DSDRAW_BLEND));
+    surface->SetPorterDuff(surface, DSPD_SRC_OVER);
+  } else {
+    surface->SetDrawingFlags(surface, DSDRAW_NOFX);
+    surface->SetPorterDuff(surface, DSPD_SRC);
+  }
+
+  // Setup the rectangle fill color value as specified.
+  if (surface->SetColor(surface, SbBlitterRFromColor(context->current_color),
+                        SbBlitterGFromColor(context->current_color),
+                        SbBlitterBFromColor(context->current_color),
+                        SbBlitterAFromColor(context->current_color)) !=
+      DFB_OK) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
+    return false;
+  }
+
+  return true;
 }

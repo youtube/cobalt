@@ -18,6 +18,7 @@
 #include <string>
 
 #include "starboard/blitter.h"
+#include "starboard/file.h"
 
 #if SB_HAS(BLITTER)
 
@@ -41,6 +42,10 @@ class Image {
   explicit Image(const std::string& png_path);
   ~Image();
 
+  // Tests to see if a file can be opened, in the same way that the constructor
+  // that reads from a PNG file will open that PNG file.
+  static bool CanOpenFile(const std::string& path);
+
   // Performs a diff of two images.  |pixel_test_value_fuzz| gives the distance
   // that a pixel color component must differ before being considered a
   // different value.  Setting |pixel_test_value_fuzz| to 0 will make the diff
@@ -59,6 +64,8 @@ class Image {
   void WriteToPNG(const std::string& png_path) const;
 
  private:
+  static SbFile OpenFileForReading(const std::string& path);
+
   // Pixel data stored as 32-bit RGBA (byte-order).
   uint8_t* pixel_data_;
   int width_;

@@ -551,7 +551,8 @@ SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
     bool modulate_blits_with_color);
 
 // Issues a draw call on |context| that fills a rectangle |rect| with a color
-// specified by |color|.
+// specified by |color|.  The color specified is in unpremultiplied alpha
+// format
 // This function is not thread safe.
 // Returns whether the draw call succeeded.
 SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect);

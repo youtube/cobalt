@@ -27,14 +27,14 @@ bool SbBlitterIsPixelFormatSupportedByPixelData(
     return false;
   }
 
-  // DirectFB supports ARGB but not RGBA.  This implementation currently only
-  // supports incoming pixel data in unpremultiplied alpha format.
-  if (alpha_format != kSbBlitterAlphaFormatUnpremultiplied) {
-    return false;
-  }
-
   if (pixel_format == kSbBlitterPixelDataFormatA8) {
     return true;
+  }
+
+  // DirectFB supports ARGB but not RGBA.  This implementation currently only
+  // supports incoming pixel data in unpremultiplied alpha format.
+  if (alpha_format != kSbBlitterAlphaFormatPremultiplied) {
+    return false;
   }
 
 // Since DirectFB specifies its color formats in word-order, we must swap

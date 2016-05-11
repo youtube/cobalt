@@ -66,12 +66,12 @@ TEST_F(SbBlitterPixelTest, SolidFillRedBoxOnWhiteBackground) {
                                       GetWidth() / 2, GetHeight() / 2));
 }
 
-SbBlitterSurface CreateCheckerImage(SbBlitterDevice device,
-                                    SbBlitterContext context,
-                                    SbBlitterColor color_a,
-                                    SbBlitterColor color_b,
-                                    int width,
-                                    int height) {
+SbBlitterSurface CreateCheckerImageWithBlits(SbBlitterDevice device,
+                                             SbBlitterContext context,
+                                             SbBlitterColor color_a,
+                                             SbBlitterColor color_b,
+                                             int width,
+                                             int height) {
   SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
       device, width, height, kSbBlitterSurfaceFormatRGBA8);
 
@@ -91,7 +91,7 @@ SbBlitterSurface CreateCheckerImage(SbBlitterDevice device,
 }
 
 TEST_F(SbBlitterPixelTest, SimpleNonStretchBlitRectToRect) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
 
@@ -103,7 +103,7 @@ TEST_F(SbBlitterPixelTest, SimpleNonStretchBlitRectToRect) {
 
 TEST_F(SbBlitterPixelTest, MagnifyBlitRectToRect) {
   // Create an image with a height and width of 2x2.
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), 2, 2);
 
@@ -115,7 +115,7 @@ TEST_F(SbBlitterPixelTest, MagnifyBlitRectToRect) {
 }
 
 TEST_F(SbBlitterPixelTest, MinifyBlitRectToRect) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
 
@@ -127,7 +127,7 @@ TEST_F(SbBlitterPixelTest, MinifyBlitRectToRect) {
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectPartialSourceRect) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
 
@@ -140,7 +140,7 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectPartialSourceRect) {
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiled) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), 8, 8);
 
@@ -152,7 +152,7 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiled) {
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiledWithNoTiling) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
 
@@ -164,7 +164,7 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiledWithNoTiling) {
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiledNegativeOffset) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), 8, 8);
 
@@ -177,7 +177,7 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiledNegativeOffset) {
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiledOffCenter) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
       SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth() / 2, GetHeight() / 2);
 
@@ -191,7 +191,7 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiledOffCenter) {
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectsToRects) {
-  SbBlitterSurface checker_image = CreateCheckerImage(
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 0, 0, 255),
       SbBlitterColorFromRGBA(0, 0, 255, 255), GetWidth(), GetHeight());
 
@@ -215,6 +215,229 @@ TEST_F(SbBlitterPixelTest, BlitRectsToRects) {
   }
   SbBlitterBlitRectsToRects(context_, checker_image, src_rects, dst_rects,
                             kNumRects);
+}
+
+SbBlitterSurface CreateCheckerImageWithPixelData(SbBlitterDevice device,
+                                                 SbBlitterColor color_a,
+                                                 SbBlitterColor color_b,
+                                                 int width,
+                                                 int height) {
+  SbBlitterPixelDataFormat pixel_data_format;
+  SbBlitterAlphaFormat alpha_format = kSbBlitterAlphaFormatPremultiplied;
+
+#if SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
+  pixel_data_format = kSbBlitterPixelDataFormatRGBA8;
+#elif SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
+  pixel_data_format = kSbBlitterPixelDataFormatBGRA8;
+#elif SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
+  pixel_data_format = kSbBlitterPixelDataFormatARGB8;
+#else
+#error "Platform's preferred RGBA byte order is not yet supported."
+#endif
+
+  // RGBA byte-offsets into each pixel.
+  int r, g, b, a;
+  switch (pixel_data_format) {
+    case kSbBlitterPixelDataFormatRGBA8: {
+      r = 0;
+      g = 1;
+      b = 2;
+      a = 3;
+    } break;
+    case kSbBlitterPixelDataFormatBGRA8: {
+      b = 0;
+      g = 1;
+      r = 2;
+      a = 3;
+    } break;
+    case kSbBlitterPixelDataFormatARGB8: {
+      a = 0;
+      r = 1;
+      g = 2;
+      b = 3;
+    } break;
+    default: { SB_NOTREACHED(); }
+  }
+
+  SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
+      device, width, height, pixel_data_format, alpha_format);
+  SB_CHECK(SbBlitterIsPixelDataValid(pixel_data));
+
+  int pitch = SbBlitterGetPixelDataPitchInBytes(pixel_data);
+  uint8_t* current_byte =
+      static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      bool use_color_a = (x < width / 2) ^ (y < height / 2);
+      SbBlitterColor color = use_color_a ? color_a : color_b;
+      float a_float = SbBlitterAFromColor(color) / 255.0f;
+      current_byte[g] = SbBlitterGFromColor(color) * a_float;
+      current_byte[r] = SbBlitterRFromColor(color) * a_float;
+      current_byte[b] = SbBlitterBFromColor(color) * a_float;
+      current_byte[a] = SbBlitterAFromColor(color);
+
+      current_byte += 4;
+    }
+    current_byte += pitch - width * 4;
+  }
+
+  SbBlitterSurface surface =
+      SbBlitterCreateSurfaceFromPixelData(device, pixel_data);
+  SB_CHECK(SbBlitterIsSurfaceValid(surface));
+
+  return surface;
+}
+
+SbBlitterSurface CreateAlphaCheckerImageWithPixelData(SbBlitterDevice device,
+                                                      uint8_t color_a,
+                                                      uint8_t color_b,
+                                                      int width,
+                                                      int height) {
+  SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
+      device, width, height, kSbBlitterPixelDataFormatA8,
+      kSbBlitterAlphaFormatPremultiplied);
+  SB_CHECK(SbBlitterIsPixelDataValid(pixel_data));
+
+  int pitch = SbBlitterGetPixelDataPitchInBytes(pixel_data);
+  uint8_t* current_byte =
+      static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      bool use_color_a = (x < width / 2) ^ (y < height / 2);
+      *current_byte = use_color_a ? color_a : color_b;
+      ++current_byte;
+    }
+    current_byte += pitch - width;
+  }
+
+  SbBlitterSurface surface =
+      SbBlitterCreateSurfaceFromPixelData(device, pixel_data);
+  SB_CHECK(SbBlitterIsSurfaceValid(surface));
+
+  return surface;
+}
+
+TEST_F(SbBlitterPixelTest, BlitRectToRectFromPixelData) {
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
+
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlitRedGreenRectToRectFromPixelData) {
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 0, 0, 255),
+      SbBlitterColorFromRGBA(0, 255, 0, 255), GetWidth(), GetHeight());
+
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlitHalfTransparentRectToRectFromPixelData) {
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(255, 255, 255, 128), GetWidth(), GetHeight());
+
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlitCanPunchThrough) {
+  // This test ensures that when blending is disabled, rendering with alpha
+  // can punch through the red and opaque background.
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(255, 255, 255, 128), GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, false);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlitCanBlend) {
+  // This test ensures that when blending is enabled, rendering with alpha
+  // will blend with a red and opaque background.
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(255, 255, 255, 128), GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, SimpleAlphaBlitWithNoColorModulation) {
+  // Tests that alpha-only surfaces blit to white with no color modulation
+  // and disabled blending.
+  SbBlitterSurface checker_image = CreateAlphaCheckerImageWithPixelData(
+      device_, 128, 255, GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, false);
+  SbBlitterSetModulateBlitsWithColor(context_, false);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithNoColorModulationOnRed) {
+  SbBlitterSurface checker_image = CreateAlphaCheckerImageWithPixelData(
+      device_, 128, 255, GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+  SbBlitterSetModulateBlitsWithColor(context_, false);
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, AlphaBlitWithBlueColorModulation) {
+  SbBlitterSurface checker_image = CreateAlphaCheckerImageWithPixelData(
+      device_, 128, 255, GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, false);
+  SbBlitterSetModulateBlitsWithColor(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 255, 255));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithBlueColorModulationOnRed) {
+  SbBlitterSurface checker_image = CreateAlphaCheckerImageWithPixelData(
+      device_, 128, 255, GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+  SbBlitterSetModulateBlitsWithColor(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 255, 255));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, FillRectColorIsNotPremultiplied) {
+  // This test checks that the color blending works fine assuming that fill rect
+  // colors are specified in unpremultiplied alpha.
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+  SbBlitterSetBlending(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 255, 128));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
 }
 
 }  // namespace
