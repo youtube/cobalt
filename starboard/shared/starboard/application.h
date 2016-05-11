@@ -35,36 +35,6 @@ namespace starboard {
 // dispatching events to the Starboard event handler, SbEventHandle.
 class Application {
  public:
-  Application();
-  virtual ~Application();
-
-  // Gets the current instance of the Application. DCHECKS if called before the
-  // application has been constructed.
-  static inline Application* Get() {
-    Application* instance = reinterpret_cast<Application*>(
-        SbAtomicAcquire_LoadPtr(reinterpret_cast<SbAtomicPtr*>(&g_instance)));
-    SB_DCHECK(instance);
-    return instance;
-  }
-
-  // Runs the application with the current thread as the Main Starboard Thread,
-  // blocking until application exit. This method will dispatch all appropriate
-  // initialization and teardown events. Returns the resulting error level.
-  int Run(int argc, char** argv);
-
-  // Signals that the application should gracefully terminate as soon as
-  // possible. May be called from any thread.
-  void Stop(int error_level);
-
-  // Schedules an event into the event queue.
-  SbEventId Schedule(SbEventCallback callback,
-                     void* context,
-                     SbTimeMonotonic delay);
-
-  // Cancels an event that was previously scheduled.
-  void Cancel(SbEventId id);
-
- protected:
   // Structure to keep track of scheduled events, also used as the data argument
   // for kSbEventTypeScheduled Events.
   struct TimedEvent {
@@ -123,6 +93,36 @@ class Application {
     int error_level;
   };
 
+  Application();
+  virtual ~Application();
+
+  // Gets the current instance of the Application. DCHECKS if called before the
+  // application has been constructed.
+  static inline Application* Get() {
+    Application* instance = reinterpret_cast<Application*>(
+        SbAtomicAcquire_LoadPtr(reinterpret_cast<SbAtomicPtr*>(&g_instance)));
+    SB_DCHECK(instance);
+    return instance;
+  }
+
+  // Runs the application with the current thread as the Main Starboard Thread,
+  // blocking until application exit. This method will dispatch all appropriate
+  // initialization and teardown events. Returns the resulting error level.
+  int Run(int argc, char** argv);
+
+  // Signals that the application should gracefully terminate as soon as
+  // possible. May be called from any thread.
+  void Stop(int error_level);
+
+  // Schedules an event into the event queue.
+  SbEventId Schedule(SbEventCallback callback,
+                     void* context,
+                     SbTimeMonotonic delay);
+
+  // Cancels an event that was previously scheduled.
+  void Cancel(SbEventId id);
+
+ protected:
   // Initializes any systems that need initialization before application
   // start. Subclasses may override this method to run initialization code that
   // must be run before application start event is handled.
