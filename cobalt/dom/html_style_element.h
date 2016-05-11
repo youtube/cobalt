@@ -42,14 +42,11 @@ class HTMLStyleElement : public HTMLElement {
   std::string type() const { return GetAttribute("type").value_or(""); }
   void set_type(const std::string& value) { SetAttribute("type", value); }
 
-  std::string nonce() const { return GetAttribute("nonce").value_or(""); }
-  void set_nonce(const std::string& value) { SetAttribute("nonce", value); }
-
   // Web API: LinkStyle (implements)
   // The sheet attribute must return the associated CSS style sheet for the node
   // or null if there is no associated CSS style sheet.
   //   https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
-  const scoped_refptr<cssom::StyleSheet> &sheet() const { return style_sheet_; }
+  const scoped_refptr<cssom::StyleSheet>& sheet() const { return style_sheet_; }
 
   // Custom, not in any spec.
   //
