@@ -58,8 +58,8 @@ void HTMLStyleElement::Process() {
   Document* document = node_document();
   CspDelegate* csp_delegate = document->csp_delegate();
   // If the style element has a valid nonce, we always permit it.
-  const bool bypass_csp =
-      csp_delegate->IsValidNonce(CspDelegate::kStyle, nonce());
+  const bool bypass_csp = csp_delegate->IsValidNonce(
+      CspDelegate::kStyle, GetAttribute("nonce").value_or(""));
 
   base::optional<std::string> content = text_content();
   const std::string& text = content.value_or(EmptyString());
