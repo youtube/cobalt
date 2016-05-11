@@ -65,7 +65,6 @@ namespace base {
     MacroOpWithNameOnly(sourceclose)                          \
     MacroOpWithNameOnly(sourceended)                          \
     MacroOpWithNameOnly(sourceopen)                           \
-    MacroOpWithNameOnly(speech)                               \
     MacroOpWithNameOnly(storage)                              \
     MacroOpWithNameOnly(stalled)                              \
     MacroOpWithNameOnly(suspend)                              \
