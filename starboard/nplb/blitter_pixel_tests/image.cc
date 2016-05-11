@@ -67,8 +67,7 @@ void PNGReadPlatformFile(png_structp png,
 Image::Image(const std::string& png_path) {
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
-  SbFile in_file =
-      SbFileOpen(png_path.c_str(), kSbFileRead | kSbFileOpenOnly, NULL, NULL);
+  SbFile in_file = OpenFileForReading(png_path);
   if (!SbFileIsValid(in_file)) {
     SB_DLOG(ERROR) << "Error opening file for reading: " << png_path;
     SB_NOTREACHED();
@@ -174,6 +173,15 @@ Image::Image(const std::string& png_path) {
 
 Image::~Image() {
   delete[] pixel_data_;
+}
+
+bool Image::CanOpenFile(const std::string& path) {
+  SbFile in_file = OpenFileForReading(path);
+  if (!SbFileIsValid(in_file)) {
+    return false;
+  }
+  SB_CHECK(SbFileClose(in_file));
+  return true;
 }
 
 Image Image::Diff(const Image& other,
@@ -399,6 +407,10 @@ void Image::WriteToPNG(const std::string& png_path) const {
   }
 
   SB_CHECK(SbFileClose(out_file));
+}
+
+SbFile Image::OpenFileForReading(const std::string& path) {
+  return SbFileOpen(path.c_str(), kSbFileRead | kSbFileOpenOnly, NULL, NULL);
 }
 
 }  // namespace blitter_pixel_tests
