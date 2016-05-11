@@ -25,6 +25,8 @@
         'speech_recognition.h',
         'speech_recognition_alternative.cc',
         'speech_recognition_alternative.h',
+        'speech_recognition_error.cc',
+        'speech_recognition_error.h',
         'speech_recognition_event.cc',
         'speech_recognition_event.h',
         'speech_recognition_result.cc',

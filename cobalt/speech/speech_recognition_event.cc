@@ -21,10 +21,25 @@
 namespace cobalt {
 namespace speech {
 
+namespace {
+base::Token TypeEnumToToken(SpeechRecognitionEvent::Type type) {
+  switch (type) {
+    case SpeechRecognitionEvent::kResult:
+      return base::Tokens::result();
+    case SpeechRecognitionEvent::kNoMatch:
+      return base::Tokens::nomatch();
+    default:
+      NOTREACHED() << "Invalid SpeechRecognitionEvent::Type";
+      return base::Tokens::nomatch();
+  }
+}
+}  // namespace
+
 SpeechRecognitionEvent::SpeechRecognitionEvent(
-    uint32 result_index, const scoped_refptr<SpeechRecognitionResultList>&
-                             speech_recognition_result_list)
-    : dom::Event(base::Tokens::speech()),
+    Type type, uint32 result_index,
+    const scoped_refptr<SpeechRecognitionResultList>&
+        speech_recognition_result_list)
+    : dom::Event(TypeEnumToToken(type)),
       result_index_(result_index),
       speech_recognition_result_list_(speech_recognition_result_list) {}
 

@@ -30,7 +30,11 @@ namespace speech {
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-event
 class SpeechRecognitionEvent : public dom::Event {
  public:
-  SpeechRecognitionEvent(uint32 result_index,
+  // Result event and nomatch event MUST use the SpeechRecognitionEvent
+  // interface.
+  enum Type { kResult, kNoMatch };
+
+  SpeechRecognitionEvent(Type type, uint32 result_index,
                          const scoped_refptr<SpeechRecognitionResultList>&
                              speech_recognition_result_list);
 
