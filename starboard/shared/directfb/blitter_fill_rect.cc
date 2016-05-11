@@ -37,24 +37,10 @@ bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
 
   IDirectFBSurface* surface = context->current_render_target->surface;
 
-  // Depending on the context blend state, set the DirectFB blend state flags
-  // on the current render target surface.
-  if (context->blending_enabled) {
-    surface->SetDrawingFlags(surface, DSDRAW_BLEND);
-  } else {
-    surface->SetDrawingFlags(surface, DSDRAW_NOFX);
-  }
-
-  // Setup the rectangle fill color value as specified.
-  if (surface->SetColor(surface, SbBlitterRFromColor(context->current_color),
-                        SbBlitterGFromColor(context->current_color),
-                        SbBlitterBFromColor(context->current_color),
-                        SbBlitterAFromColor(context->current_color)) !=
-      DFB_OK) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
+  if (!SetupDFBSurfaceDrawStateFromBlitterContextState(context, surface)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error setting DFB Surface state.";
     return false;
   }
-
   // Issued the DirectFB draw call to fill a rectangle with a color.
   if (surface->FillRectangle(surface, rect.x, rect.y, rect.width,
                              rect.height) != DFB_OK) {

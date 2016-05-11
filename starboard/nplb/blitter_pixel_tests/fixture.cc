@@ -43,7 +43,7 @@ const int kTargetHeight = 128;
 const char kRebaselineSwitch[] = "--rebaseline";
 
 // Similar to "--rebaseline", but only rebaselines tests that fail.
-const char kRebaselineOnFailSwitch[] = "--rebaseline-on-fail";
+const char kRebaselineFailedTestsSwitch[] = "--rebaseline-failed-tests";
 
 // For each test that fails, 3 files will be output:
 //   1. The actual results produced by the test.
@@ -186,8 +186,15 @@ void SbBlitterPixelTest::CheckSurfacePixels() {
     // If we're rebaselining, we don't actually need to perform any tests, we
     // just write out the resulting file.
     actual_image.WriteToPNG(GetRebaselinePath());
-  } else {
-    // Load the expected results image.
+  }
+
+  // Flag indicating whether the actual image matches with the expected image.
+  // This is checked at the end of this function and determines whether the
+  // test passes or not.
+  bool is_match = false;
+
+  // Load the expected results image.
+  if (Image::CanOpenFile(GetExpectedResultsPath())) {
     Image expected_image(GetExpectedResultsPath());
 
     // Adjusting the following values affect how much of a fudge factor the
@@ -206,23 +213,29 @@ void SbBlitterPixelTest::CheckSurfacePixels() {
     Image expected_blurred_image = expected_image.GaussianBlur(kBlurSigma);
 
     // Perform the image diff on the blurred images.
-    bool is_match;
     Image diff_image = actual_blurred_image.Diff(
         expected_blurred_image, kPixelTestValueFuzz, &is_match);
-    EXPECT_TRUE(is_match);
 
     // If the images do not match, depending on what command line options were
     // specified, we may write out resulting image PNG files.
     if (!is_match) {
-      if (CommandLineContains(kRebaselineOnFailSwitch)) {
-        actual_image.WriteToPNG(GetRebaselinePath());
-      } else if (CommandLineContains(kOutputFailedTestDetailsSwitch)) {
+      if (!CommandLineContains(kRebaselineSwitch) &&
+          !CommandLineContains(kRebaselineFailedTestsSwitch) &&
+          CommandLineContains(kOutputFailedTestDetailsSwitch)) {
         actual_image.WriteToPNG(GetOutputDetailsActualResultsPath());
         expected_image.WriteToPNG(GetOutputDetailsExpectedResultsPath());
         diff_image.WriteToPNG(GetOutputDetailsDiffPath());
       }
     }
   }
+
+  if (!is_match && !CommandLineContains(kRebaselineSwitch) &&
+      CommandLineContains(kRebaselineFailedTestsSwitch)) {
+    SB_LOG(INFO) << "Rebasing to " << GetRebaselinePath();
+    actual_image.WriteToPNG(GetRebaselinePath());
+  }
+
+  EXPECT_TRUE(is_match);
 }
 
 }  // namespace blitter_pixel_tests
