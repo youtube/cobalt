@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'target_arch': 'raspi_1',
+    'target_arch': 'arm',
     'target_os': 'linux',
 
     'enable_webdriver': '1',
@@ -22,7 +22,10 @@
     'sysroot%': '/',
     'gl_type': 'system_gles2',
 
-    'arm_neon': 0,  # Only RasPi 2 has neon.
+    # RasPi 1 is ARMv6
+    'arm_version': 6,
+    'armv7': 0,
+    'arm_neon': 0,
 
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.
