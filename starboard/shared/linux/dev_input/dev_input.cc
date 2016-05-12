@@ -57,7 +57,7 @@ class DevInputImpl : public DevInput {
 
  private:
   // Converts an input_event into a kSbEventInput Application::Event. The caller
-  // is responsible for deleting the returnede event.
+  // is responsible for deleting the returned event.
   Event* InputToApplicationEvent(const struct input_event& event);
 
   // The window to attribute /dev/input events to.

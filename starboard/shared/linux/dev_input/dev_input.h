@@ -24,7 +24,7 @@ namespace starboard {
 namespace shared {
 namespace dev_input {
 
-// A class that wraps /dev/input, provding enough functionality to be used in a
+// A class that wraps /dev/input, providing enough functionality to be used in a
 // Starboard Application implementation.
 class DevInput {
  public:
@@ -32,11 +32,13 @@ class DevInput {
 
   virtual ~DevInput() {}
 
-  // Returns an event if one exists, otherwise returns NULL.
+  // Returns an event if one exists, otherwise returns NULL. The caller is
+  // responsible for deleting the returned event.
   virtual Event* PollNextSystemEvent() = 0;
 
-  // Waits for an event until the timeout |time| runs out.  If an event occurs
-  // in this time, it is returned, otherwise NULL is returned.
+  // Waits for an event until the timeout |time| runs out. If an event occurs in
+  // this time, it is returned, otherwise NULL is returned. The caller is
+  // responsible for deleting the returned event.
   virtual Event* WaitForSystemEventWithTimeout(SbTime duration) = 0;
 
   // Wakes up any thread waiting within a call to

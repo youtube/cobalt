@@ -36,7 +36,7 @@ class ApplicationDispmanx
     : public ::starboard::shared::starboard::QueueApplication {
  public:
   ApplicationDispmanx()
-      : display_(DISPMANX_NO_HANDLE), window_(kSbWindowInvalid) {}
+      : display_(DISPMANX_NO_HANDLE), window_(kSbWindowInvalid), input_(NULL) {}
   ~ApplicationDispmanx() SB_OVERRIDE {}
 
   static ApplicationDispmanx* Get() {

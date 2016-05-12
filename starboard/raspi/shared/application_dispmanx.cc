@@ -78,15 +78,18 @@ bool ApplicationDispmanx::MayHaveSystemEvents() {
 
 ::starboard::shared::starboard::Application::Event*
 ApplicationDispmanx::PollNextSystemEvent() {
+  SB_DCHECK(input_);
   return input_->PollNextSystemEvent();
 }
 
 ::starboard::shared::starboard::Application::Event*
 ApplicationDispmanx::WaitForSystemEventWithTimeout(SbTime duration) {
+  SB_DCHECK(input_);
   Event* event = input_->WaitForSystemEventWithTimeout(duration);
 }
 
 void ApplicationDispmanx::WakeSystemEventWait() {
+  SB_DCHECK(input_);
   input_->WakeSystemEventWait();
 }
 
