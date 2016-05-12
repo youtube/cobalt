@@ -25,6 +25,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 
 namespace cobalt {
 namespace renderer {
@@ -81,21 +82,45 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
 }
 
 bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
-  // Manually create a dummy 1x2 texture and then read it back to check if its
-  // pixels are flipped or not.
-  GLuint test_texture;
-  GL_CALL(glGenTextures(1, &test_texture));
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, test_texture));
-
   // Create a 1x2 texture with distinct values vertically so that we can test
-  // them.
+  // them.  We will blit the texture to an offscreen render target, and then
+  // read back the value of the render target's pixels to check if they are
+  // flipped or not.  It is found that the results of this test can differ
+  // between at least Angle and Mesa GL, so if the results of this test are not
+  // taken into account, one of those platforms will read pixels out upside
+  // down.
   const int kDummyTextureWidth = 1;
   const int kDummyTextureHeight = 2;
 
-  // Create our texture.
-  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kDummyTextureWidth,
-                       kDummyTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                       NULL));
+  scoped_refptr<RenderTarget> render_target = CreateOffscreenRenderTarget(
+      math::Size(kDummyTextureWidth, kDummyTextureHeight));
+  {
+    scoped_ptr<GraphicsContext::Frame> frame = StartFrame(render_target);
+
+    scoped_ptr<TextureData> texture_data = system()->AllocateTextureData(
+        SurfaceInfo(math::Size(kDummyTextureWidth, kDummyTextureHeight),
+                    SurfaceInfo::kFormatRGBA8));
+    int pitch = texture_data->GetPitchInBytes();
+    uint8_t* pixels = texture_data->GetMemory();
+    pixels[0] = 0;
+    pixels[1] = 0;
+    pixels[2] = 0;
+    pixels[3] = 0;
+    pixels[0 + pitch] = 255;
+    pixels[1 + pitch] = 255;
+    pixels[2 + pitch] = 255;
+    pixels[3 + pitch] = 255;
+    scoped_ptr<Texture> texture = CreateTexture(texture_data.Pass());
+
+    frame->BlitToRenderTarget(*texture);
+  }
+
+  scoped_ptr<Texture> rt_texture =
+      CreateTextureFromOffscreenRenderTarget(render_target);
+
+  TextureEGL* texture_egl =
+      base::polymorphic_downcast<TextureEGL*>(rt_texture.get());
+
   GL_CALL(glFinish());
 
   // Now read back the texture data using glReadPixels().
@@ -104,16 +129,7 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, texture_framebuffer));
 
   GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_2D, test_texture, 0));
-  GL_CALL(glDisable(GL_BLEND));
-  GL_CALL(glEnable(GL_SCISSOR_TEST));
-  GL_CALL(glScissor(0, 0, 1, 2));
-  GL_CALL(glClearColor(1.0f, 1.0f, 1.0f, 1.0f));
-  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
-  GL_CALL(glScissor(0, 0, 1, 1));
-  GL_CALL(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
-  GL_CALL(glFinish());
+                                 GL_TEXTURE_2D, texture_egl->gl_handle(), 0));
 
   uint32_t out_data[2];
   GL_CALL(glReadPixels(0, 0, kDummyTextureWidth, kDummyTextureHeight, GL_RGBA,
@@ -122,12 +138,11 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
   GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
 
-  GL_CALL(glDeleteTextures(1, &test_texture));
-
-  // Finally check if the data we read back was flipped or not.
+  // Ensure the data is in one of two possible states, flipped or not flipped.
   DCHECK((out_data[0] == 0x00000000 && out_data[1] == 0xFFFFFFFF) ||
          (out_data[0] == 0xFFFFFFFF && out_data[1] == 0x00000000));
 
+  // Finally check if the data we read back was flipped or not.
   return out_data[1] == 0x00000000;
 }
 
@@ -384,6 +399,8 @@ void GraphicsContextEGL::Frame::BlitToRenderTarget(const Texture& texture) {
 
   GL_CALL(glActiveTexture(GL_TEXTURE0));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, texture_egl->gl_handle()));
+
+  GL_CALL(glDisable(GL_BLEND));
 
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
 
