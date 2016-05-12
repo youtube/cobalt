@@ -25,9 +25,15 @@ class InsetsLayoutUnit : public math::InsetsBase<InsetsLayoutUnit, LayoutUnit> {
   std::string ToString() const;
 };
 
-extern template class math::InsetsBase<InsetsLayoutUnit, LayoutUnit>;
-
 }  // namespace layout
+}  // namespace cobalt
+
+namespace cobalt {
+namespace math {
+
+extern template class InsetsBase<layout::InsetsLayoutUnit, layout::LayoutUnit>;
+
+}  // namespace math
 }  // namespace cobalt
 
 #endif  // COBALT_LAYOUT_INSETS_LAYOUT_UNIT_H_

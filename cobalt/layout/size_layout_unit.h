@@ -57,9 +57,14 @@ inline std::ostream& operator<<(std::ostream& stream,
   return stream;
 }
 
-extern template class math::SizeBase<SizeLayoutUnit, LayoutUnit>;
-
 }  // namespace layout
 }  // namespace cobalt
 
+namespace cobalt {
+namespace math {
+
+extern template class SizeBase<layout::SizeLayoutUnit, layout::LayoutUnit>;
+
+}  // namespace math
+}  // namespace cobalt
 #endif  // COBALT_LAYOUT_SIZE_LAYOUT_UNIT_H_

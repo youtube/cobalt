@@ -9,8 +9,6 @@
 namespace cobalt {
 namespace layout {
 
-template class math::SizeBase<SizeLayoutUnit, LayoutUnit>;
-
 std::string SizeLayoutUnit::ToString() const {
   return base::StringPrintf("%fx%f", width().toFloat(), height().toFloat());
 }
@@ -23,4 +21,12 @@ SizeLayoutUnit ScaleSize(const SizeLayoutUnit& s, float x_scale,
 }
 
 }  // namespace layout
+}  // namespace cobalt
+
+namespace cobalt {
+namespace math {
+
+template class SizeBase<layout::SizeLayoutUnit, layout::LayoutUnit>;
+
+}  // namespace math
 }  // namespace cobalt

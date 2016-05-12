@@ -75,10 +75,15 @@ inline PointLayoutUnit ScalePoint(const PointLayoutUnit& p, float scale) {
   return ScalePoint(p, scale, scale);
 }
 
-extern template class math::PointBase<PointLayoutUnit, LayoutUnit,
-                                      Vector2dLayoutUnit>;
-
 }  // namespace layout
 }  // namespace cobalt
 
+namespace cobalt {
+namespace math {
+
+extern template class PointBase<layout::PointLayoutUnit, layout::LayoutUnit,
+                                layout::Vector2dLayoutUnit>;
+
+}  // namespace math
+}  // namespace cobalt
 #endif  // COBALT_LAYOUT_POINT_LAYOUT_UNIT_H_
