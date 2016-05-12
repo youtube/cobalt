@@ -16,7 +16,10 @@
 
 // https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-section
 
-[Constructor]
+[
+  Constructor,
+  ConstructorCallWith=EnvironmentSettings,
+]
 interface SpeechRecognition : EventTarget {
   // recognition parameters
   attribute DOMString lang;

@@ -20,6 +20,9 @@
 #include <string>
 
 #include "cobalt/dom/event_target.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/speech/speech_recognition_config.h"
+#include "cobalt/speech/speech_recognition_manager.h"
 
 namespace cobalt {
 namespace speech {
@@ -29,7 +32,7 @@ namespace speech {
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-section
 class SpeechRecognition : public dom::EventTarget {
  public:
-  SpeechRecognition();
+  explicit SpeechRecognition(script::EnvironmentSettings* settings);
 
   // When the start method is called, it represents the moment in time the web
   // application wishes to begin recognition.
@@ -42,20 +45,20 @@ class SpeechRecognition : public dom::EventTarget {
   // recognizing. It does not return any information.
   void Abort();
 
-  const std::string& lang() const { return lang_; }
-  void set_lang(const std::string& lang) { lang_ = lang; }
+  const std::string& lang() const { return config_.lang; }
+  void set_lang(const std::string& lang) { config_.lang = lang; }
 
-  bool continuous() const { return continuous_; }
-  void set_continuous(bool continuous) { continuous_ = continuous; }
+  bool continuous() const { return config_.continuous; }
+  void set_continuous(bool continuous) { config_.continuous = continuous; }
 
-  bool interim_results() const { return interim_results_; }
+  bool interim_results() const { return config_.interim_results; }
   void set_interim_results(bool interim_results) {
-    interim_results_ = interim_results;
+    config_.interim_results = interim_results;
   }
 
-  uint32 max_alternatives() const { return max_alternatives_; }
+  uint32 max_alternatives() const { return config_.max_alternatives; }
   void set_max_alternatives(uint32 max_alternatives) {
-    max_alternatives_ = max_alternatives;
+    config_.max_alternatives = max_alternatives;
   }
 
   // Fired when some sound, possibly speech, has been detected.
@@ -104,20 +107,11 @@ class SpeechRecognition : public dom::EventTarget {
  private:
   ~SpeechRecognition() OVERRIDE {}
 
-  // This attribute will set the language of the recognition for the request.
-  std::string lang_;
-  // When the continuous attribute is set to false, the user agent MUST return
-  // no more than one final result in response to starting recognition. When
-  // the continuous attribute is set to true, the user agent MUST return zero
-  // or more final results representing multiple consecutive recognitions in
-  // response to starting recognition. The default value MUST be false.
-  bool continuous_;
-  // Controls whether interim results are returned. The default value MUST be
-  // false.
-  bool interim_results_;
-  // This attribute will set the maximum number of SpeechRecognitionAlternatives
-  // per result. The default value is 1.
-  uint32 max_alternatives_;
+  // Handles main operations of speech recognition including audio encoding,
+  // mic audio retrieving and audio data recognizing.
+  SpeechRecognitionManager manager_;
+  // Store the speech recognition configurations.
+  SpeechRecognitionConfig config_;
 
   DISALLOW_COPY_AND_ASSIGN(SpeechRecognition);
 };
