@@ -21,22 +21,40 @@
       'target_name': 'speech',
       'type': 'static_library',
       'sources': [
+        'mic.h',
         'speech_recognition.cc',
         'speech_recognition.h',
         'speech_recognition_alternative.cc',
         'speech_recognition_alternative.h',
+        'speech_recognition_config.h',
         'speech_recognition_error.cc',
         'speech_recognition_error.h',
         'speech_recognition_event.cc',
         'speech_recognition_event.h',
+        'speech_recognition_manager.cc',
+        'speech_recognition_manager.h',
         'speech_recognition_result.cc',
         'speech_recognition_result.h',
         'speech_recognition_result_list.cc',
         'speech_recognition_result_list.h',
+        'speech_recognizer.cc',
+        'speech_recognizer.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+      ],
+      'conditions': [
+        ['OS=="starboard"', {
+          'sources': [
+            'mic_starboard.cc',
+          ],
+        }],
+        ['OS!="starboard" and actual_target_arch in ["linux", "ps3", "win"]', {
+          'sources': [
+            'mic_<(actual_target_arch).cc',
+          ],
+        }],
       ],
     },
   ],
