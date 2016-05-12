@@ -9,8 +9,6 @@
 namespace cobalt {
 namespace layout {
 
-template class math::PointBase<PointLayoutUnit, LayoutUnit, Vector2dLayoutUnit>;
-
 std::string PointLayoutUnit::ToString() const {
   return base::StringPrintf("%f,%f", x().toFloat(), y().toFloat());
 }
@@ -23,4 +21,13 @@ PointLayoutUnit ScalePoint(const PointLayoutUnit& p, float x_scale,
 }
 
 }  // namespace layout
+}  // namespace cobalt
+
+namespace cobalt {
+namespace math {
+
+template class PointBase<layout::PointLayoutUnit, layout::LayoutUnit,
+                         layout::Vector2dLayoutUnit>;
+
+}  // namespace math
 }  // namespace cobalt

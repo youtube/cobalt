@@ -19,9 +19,6 @@
 namespace cobalt {
 namespace layout {
 
-template class math::RectBase<RectLayoutUnit, PointLayoutUnit, SizeLayoutUnit,
-                              InsetsLayoutUnit, Vector2dLayoutUnit, LayoutUnit>;
-
 typedef class math::RectBase<RectLayoutUnit, PointLayoutUnit, SizeLayoutUnit,
                              InsetsLayoutUnit, Vector2dLayoutUnit,
                              LayoutUnit> RectBaseT;
@@ -69,4 +66,14 @@ RectLayoutUnit BoundingRect(const PointLayoutUnit& p1,
 }
 
 }  // namespace layout
+}  // namespace cobalt
+
+namespace cobalt {
+namespace math {
+
+template class math::RectBase<layout::RectLayoutUnit, layout::PointLayoutUnit,
+                              layout::SizeLayoutUnit, layout::InsetsLayoutUnit,
+                              layout::Vector2dLayoutUnit, layout::LayoutUnit>;
+
+}  // namespace math
 }  // namespace cobalt

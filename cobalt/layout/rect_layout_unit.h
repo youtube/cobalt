@@ -120,11 +120,16 @@ inline RectLayoutUnit ScaleRect(const RectLayoutUnit& r, float scale) {
 RectLayoutUnit BoundingRect(const PointLayoutUnit& p1,
                             const PointLayoutUnit& p2);
 
-extern template class math::RectBase<RectLayoutUnit, PointLayoutUnit,
-                                     SizeLayoutUnit, InsetsLayoutUnit,
-                                     Vector2dLayoutUnit, LayoutUnit>;
-
 }  // namespace layout
 }  // namespace cobalt
 
+namespace cobalt {
+namespace math {
+
+extern template class RectBase<layout::RectLayoutUnit, layout::PointLayoutUnit,
+                               layout::SizeLayoutUnit, layout::InsetsLayoutUnit,
+                               layout::Vector2dLayoutUnit, layout::LayoutUnit>;
+
+}  // namespace math
+}  // namespace cobalt
 #endif  // COBALT_LAYOUT_RECT_LAYOUT_UNIT_H_
