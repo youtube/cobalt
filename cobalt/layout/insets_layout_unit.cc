@@ -9,8 +9,6 @@
 namespace cobalt {
 namespace layout {
 
-template class math::InsetsBase<InsetsLayoutUnit, LayoutUnit>;
-
 InsetsLayoutUnit::InsetsLayoutUnit(LayoutUnit left, LayoutUnit top,
                                    LayoutUnit right, LayoutUnit bottom)
     : math::InsetsBase<InsetsLayoutUnit, LayoutUnit>(left, top, right, bottom) {
@@ -30,4 +28,12 @@ std::string InsetsLayoutUnit::ToString() const {
 }
 
 }  // namespace layout
+}  // namespace cobalt
+
+namespace cobalt {
+namespace math {
+
+template class InsetsBase<layout::InsetsLayoutUnit, layout::LayoutUnit>;
+
+}  // namespace math
 }  // namespace cobalt
