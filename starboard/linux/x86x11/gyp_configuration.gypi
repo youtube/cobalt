@@ -13,10 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'target_arch': 'linux_x86x11',
-  },
-
   'target_defaults': {
     'default_configuration': 'SbLinuxX11_Debug',
     'configurations': {
