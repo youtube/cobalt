@@ -150,9 +150,6 @@
     'cflags_cc': [
       '-std=gnu++11',
       '-Wno-literal-suffix',
-
-      # Work around a gcc complaint for LayoutUnit.
-      '-fpermissive',
     ],
     'default_configuration': 'RasPi1_Debug',
     'configurations': {
