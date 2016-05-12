@@ -199,6 +199,11 @@
 // API. The basic requirement is a scaled, clipped, alpha-blended blit.
 #define SB_HAS_BLITTER 0
 
+// Specifies the preferred byte order of color channels in a pixel. Refer to
+// starboard/configuration.h for the possible values. EGL/GLES platforms should
+// generally prefer a byte order of RGBA, regardless of endianness.
+#define SB_PREFERRED_RGBA_BYTE_ORDER SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
+
 // --- Media Configuration ---------------------------------------------------
 
 // Specifies whether this platform has support for direct access to a decoder
