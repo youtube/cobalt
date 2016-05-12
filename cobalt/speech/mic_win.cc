@@ -14,29 +14,28 @@
  * limitations under the License.
  */
 
-#include "cobalt/speech/speech_recognition.h"
-
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/speech/mic.h"
 
 namespace cobalt {
 namespace speech {
 
-// Default values
-// continuous: false.
-// interim results: false.
-// max alternatives: 1.
-SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
-          manager_(base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                       ->fetcher_factory())),
-      config_("" /*lang*/, false /*continuous*/, false /*interim_results*/,
-              1 /*max alternatives*/) {}
+class MicWin : public Mic {
+ public:
+  MicWin(int sample_rate, const DataReceivedCallback& data_received,
+         const CompletionCallback& completion)
+      : Mic(sample_rate, data_received, completion) {}
 
-void SpeechRecognition::Start() { manager_.Start(config_); }
+  void Start() OVERRIDE { NOTIMPLEMENTED(); }
+  void Stop() OVERRIDE { NOTIMPLEMENTED(); }
+};
 
-void SpeechRecognition::Stop() { manager_.Stop(); }
-
-void SpeechRecognition::Abort() { NOTIMPLEMENTED(); }
+// static
+scoped_ptr<Mic> Mic::Create(int sample_rate,
+                            const DataReceivedCallback& data_received,
+                            const CompletionCallback& completion) {
+  return make_scoped_ptr<Mic>(
+      new MicWin(sample_rate, data_received, completion));
+}
 
 }  // namespace speech
 }  // namespace cobalt
