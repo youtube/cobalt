@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iomanip>
+
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/log.h"
@@ -32,8 +34,9 @@ void SbEventHandle(const SbEvent* event) {
                     << ", window=" << data->window
                     << ", device_type=" << data->device_type
                     << ", device_id=" << data->device_id
-                    << ", key=" << data->key
-                    << ", key_location=" << data->key_location;
+                    << ", key=" << data->key << ", modifiers=0x" << std::hex
+                    << data->key_modifiers << ", location=" << std::dec
+                    << data->key_location;
       break;
     }
     default:
