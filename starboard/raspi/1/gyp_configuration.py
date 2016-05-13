@@ -22,7 +22,7 @@ import config.starboard
 
 def CreatePlatformConfig():
   try:
-    return _PlatformConfig('raspi_1', 'RasPi1')
+    return _PlatformConfig('raspi-1')
   except RuntimeError as e:
     logging.critical(e)
     return None
@@ -31,9 +31,8 @@ def CreatePlatformConfig():
 class _PlatformConfig(config.starboard.PlatformConfigStarboard):
   """Starboard Raspberry Pi 1 platform configuration."""
 
-  def __init__(self, platform, platform_full_name):
+  def __init__(self, platform):
     super(_PlatformConfig, self).__init__(platform)
-    self.platform_full_name = platform_full_name
 
   def _GetRasPiHome(self):
     try:
@@ -44,9 +43,6 @@ class _PlatformConfig(config.starboard.PlatformConfigStarboard):
       sys.exit(1)
     return raspi_home
 
-  def GetPlatformFullName(self):
-    return self.platform_full_name
-
   def GetVariables(self, configuration):
     raspi_home = self._GetRasPiHome()
     sysroot = os.path.realpath(os.path.join(raspi_home, 'sysroot'))
@@ -55,25 +51,20 @@ class _PlatformConfig(config.starboard.PlatformConfigStarboard):
                        'to be a valid directory.')
       sys.exit(1)
     variables = super(_PlatformConfig, self).GetVariables(configuration)
-    variables.update({
-        'clang': 0,
-        'sysroot': sysroot,
-    })
+    variables.update({'clang': 0, 'sysroot': sysroot,})
 
     return variables
 
   def GetEnvironmentVariables(self):
     raspi_home = self._GetRasPiHome()
 
-    toolchain = os.path.realpath(
-        os.path.join(
-            raspi_home,
-            'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
+    toolchain = os.path.realpath(os.path.join(
+        raspi_home,
+        'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
     toolchain_bin_dir = os.path.join(toolchain, 'bin')
     env_variables = {
         'CC': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-g++'),
-
         'CC_host': 'clang',
         'CXX_host': 'clang++',
         'LD_host': 'clang++',

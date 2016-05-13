@@ -45,7 +45,7 @@ Follow the Cobalt instructions, except when invoking gyp:
 
 and when invoking ninja:
 
-    $ ninja -C out/SbLinux_Debug cobalt
+    $ ninja -C out/linux-x64x11_debug cobalt
 
 
 ## Quick Guide to Starting a Port
@@ -197,8 +197,6 @@ the port name `bobbox_mipseb`.)
          different for someone else.
       1. Update the global defines in `'target_defaults'.'defines'`, if
          necessary.
-      1. Replace "SbLinux" with the PlatformFullName, or default, you chose
-         above.
 
 
 You should now be able to run gyp with your new port. From your `src/` directory:

@@ -43,7 +43,7 @@
       'conditions': [
         ['starboard_path == ""', {
           # TODO: Make starboard_path required. This legacy condition is only
-          # here to support starboard_linux while it still exists.
+          # here to support starboard-linux while it still exists.
           'dependencies': [
             '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
           ],
