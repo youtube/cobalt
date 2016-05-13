@@ -144,6 +144,9 @@ typedef struct SbInputData {
   // instances of the button on the keyboard. The "shift" key, for example.
   SbKeyLocation key_location;
 
+  // Key modifiers (e.g. Ctrl, Chift) held down during this input event.
+  unsigned int key_modifiers;
+
   // The (x, y) coordinates of the persistent cursor controlled by this
   // device. Will be 0 if not applicable.
   SbInputVector position;
