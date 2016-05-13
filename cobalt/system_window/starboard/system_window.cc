@@ -31,10 +31,7 @@ SystemWindowStarboard::SystemWindowStarboard(
     base::EventDispatcher* event_dispatcher, const math::Size& window_size)
     : SystemWindow(event_dispatcher, window_size),
       window_(kSbWindowInvalid),
-      alt_count_(0),
-      control_count_(0),
-      meta_count_(0),
-      shift_count_(0) {
+      key_down_(false) {
   SbWindowOptions options;
   SbWindowSetDefaultOptions(&options);
   options.size.width = window_size.width();
@@ -66,62 +63,19 @@ void SystemWindowStarboard::HandleInputEvent(const SbInputData& data) {
     // Starboard handily uses the Microsoft key mapping, which is also what
     // Cobalt uses.
     int key_code = static_cast<int>(data.key);
-    UpdateModifiers(data.key, true /* press */);
     scoped_ptr<KeyboardEvent> keyboard_event(
-        new KeyboardEvent(KeyboardEvent::kKeyDown, key_code, GetModifiers(),
-                          true /* is_repeat */));
+        new KeyboardEvent(KeyboardEvent::kKeyDown, key_code, data.key_modifiers,
+                          key_down_ /* is_repeat */));
+    key_down_ = true;
     event_dispatcher()->DispatchEvent(keyboard_event.PassAs<base::Event>());
   } else if (data.type == kSbInputEventTypeUnpress) {
+    key_down_ = false;
     int key_code = static_cast<int>(data.key);
     scoped_ptr<KeyboardEvent> keyboard_event(
-        new KeyboardEvent(KeyboardEvent::kKeyUp, key_code, GetModifiers(),
+        new KeyboardEvent(KeyboardEvent::kKeyUp, key_code, data.key_modifiers,
                           false /* is_repeat */));
-    UpdateModifiers(data.key, false /* press */);
     event_dispatcher()->DispatchEvent(keyboard_event.PassAs<base::Event>());
   }
-}
-
-void SystemWindowStarboard::UpdateModifiers(SbKey key, bool pressed) {
-  int adjustment = pressed ? 1 : -1;
-  switch (key) {
-    case kSbKeyControl:
-      control_count_ += adjustment;
-      DCHECK_LE(0, control_count_);
-      break;
-    case kSbKeyShift:
-    case kSbKeyLshift:
-    case kSbKeyRshift:
-      shift_count_ += adjustment;
-      DCHECK_LE(0, shift_count_);
-      break;
-    case kSbKeyMenu:
-      alt_count_ += adjustment;
-      DCHECK_LE(0, alt_count_);
-      break;
-    default:
-      break;
-  }
-}
-
-KeyboardEvent::Modifiers SystemWindowStarboard::GetModifiers() {
-  int modifiers = KeyboardEvent::kNoModifier;
-  if (alt_count_) {
-    modifiers |= KeyboardEvent::kAltKey;
-  }
-
-  if (control_count_) {
-    modifiers |= KeyboardEvent::kCtrlKey;
-  }
-
-  if (meta_count_) {
-    modifiers |= KeyboardEvent::kMetaKey;
-  }
-
-  if (shift_count_) {
-    modifiers |= KeyboardEvent::kShiftKey;
-  }
-
-  return static_cast<KeyboardEvent::Modifiers>(modifiers);
 }
 
 scoped_ptr<SystemWindow> CreateSystemWindow(

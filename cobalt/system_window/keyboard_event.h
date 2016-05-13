@@ -29,7 +29,8 @@ class KeyboardEvent : public base::Event {
     kKeyUp,
   };
 
-  // Bit-mask of key modifiers.
+  // Bit-mask of key modifiers. These correspond to the |SbKeyModifiers| values
+  // defined in Starboard.
   enum Modifiers {
     kNoModifier = 0,
     kAltKey = 1 << 0,
