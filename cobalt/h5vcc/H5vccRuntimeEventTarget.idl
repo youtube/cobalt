@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,12 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc.h"
+// Custom interface to dispatch events from h5vcc.runtime.
+// Modeled after Chrome's runtime onSuspend target (and similar):
+// https://developer.chrome.com/apps/runtime#event-onSuspend
 
-namespace cobalt {
-namespace h5vcc {
+interface H5vccRuntimeEventTarget {
+  void addListener(H5vccRuntimeEventCallback callback);
+};
 
-H5vcc::H5vcc(const Settings& settings) {
-  account_info_ = new H5vccAccountInfo(settings.account_manager);
-  audio_config_array_ = new H5vccAudioConfigArray();
-  runtime_ = new H5vccRuntime(settings.event_dispatcher);
-  settings_ = new H5vccSettings(settings.media_module);
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
-}
-
-}  // namespace h5vcc
-}  // namespace cobalt
+callback H5vccRuntimeEventCallback = void();
