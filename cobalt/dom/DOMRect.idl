@@ -23,8 +23,7 @@
   Constructor(unrestricted double x, unrestricted double y,
               unrestricted double width),
   Constructor(unrestricted double x, unrestricted double y,
-              unrestricted double width, unrestricted double height),
-  Exposed=(Window)
+              unrestricted double width, unrestricted double height)
 ]
 interface DOMRect : DOMRectReadOnly {
   inherit attribute unrestricted double x;
