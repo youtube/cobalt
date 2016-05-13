@@ -12,14 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/sbplayer_pipeline.h"
+#include <map>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
+#include "base/synchronization/lock.h"
+#include "base/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/channel_layout.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/filter_collection.h"
+#include "media/base/media_export.h"
+#include "media/base/media_log.h"
+#include "media/base/pipeline.h"
+#include "media/base/pipeline_status.h"
+#include "media/base/ranges.h"
+#include "starboard/player.h"
+#include "ui/gfx/size.h"
 
 namespace media {
 
@@ -38,7 +52,160 @@ SbMediaTime TimeDeltaToSbMediaTime(TimeDelta timedelta) {
          Time::kMicrosecondsPerSecond;
 }
 
-}  // namespace
+// SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
+// interface internally.
+class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
+ public:
+  // Constructs a media pipeline that will execute on |message_loop|.
+  SbPlayerPipeline(const scoped_refptr<base::MessageLoopProxy>& message_loop,
+                   MediaLog* media_log);
+  ~SbPlayerPipeline() OVERRIDE;
+
+  void Start(scoped_ptr<FilterCollection> filter_collection,
+             const PipelineStatusCB& ended_cb,
+             const PipelineStatusCB& error_cb,
+             const PipelineStatusCB& seek_cb,
+             const BufferingStateCB& buffering_state_cb,
+             const base::Closure& duration_change_cb) OVERRIDE;
+
+  void Stop(const base::Closure& stop_cb) OVERRIDE;
+  void Seek(TimeDelta time, const PipelineStatusCB& seek_cb);
+  bool HasAudio() const OVERRIDE;
+  bool HasVideo() const OVERRIDE;
+
+  float GetPlaybackRate() const OVERRIDE;
+  void SetPlaybackRate(float playback_rate) OVERRIDE;
+  float GetVolume() const OVERRIDE;
+  void SetVolume(float volume) OVERRIDE;
+
+  TimeDelta GetMediaTime() const OVERRIDE;
+  Ranges<TimeDelta> GetBufferedTimeRanges() OVERRIDE;
+  TimeDelta GetMediaDuration() const OVERRIDE;
+  int64 GetTotalBytes() const OVERRIDE;
+  void GetNaturalVideoSize(gfx::Size* out_size) const OVERRIDE;
+
+  bool DidLoadingProgress() const OVERRIDE;
+  PipelineStatistics GetStatistics() const OVERRIDE;
+
+ private:
+  // DataSourceHost (by way of DemuxerHost) implementation.
+  void SetTotalBytes(int64 total_bytes) OVERRIDE;
+  void AddBufferedByteRange(int64 start, int64 end) OVERRIDE;
+  void AddBufferedTimeRange(TimeDelta start, TimeDelta end) OVERRIDE;
+
+  // DemuxerHost implementaion.
+  void SetDuration(TimeDelta duration) OVERRIDE;
+  void OnDemuxerError(PipelineStatus error) OVERRIDE;
+
+  void OnDemuxerInitialized(PipelineStatus status);
+  void OnDemuxerSeeked(PipelineStatus status);
+  void OnDemuxerStopped();
+  void OnDemuxerStreamRead(DemuxerStream::Type type,
+                           int ticket,
+                           DemuxerStream::Status status,
+                           const scoped_refptr<DecoderBuffer>& buffer);
+
+  void OnDecoderStatus(SbMediaType type,
+                       SbPlayerDecoderState state,
+                       int ticket);
+  void OnPlayerStatus(SbPlayerState state, int ticket);
+  void OnDeallocateSample(void* sample_buffer);
+
+  static void DecoderStatusCB(SbPlayer player,
+                              void* context,
+                              SbMediaType type,
+                              SbPlayerDecoderState state,
+                              int ticket);
+  static void PlayerStatusCB(SbPlayer player,
+                             void* context,
+                             SbPlayerState state,
+                             int ticket);
+  static void DeallocateSampleCB(SbPlayer player,
+                                 void* context,
+                                 void* sample_buffer);
+
+  // Message loop used to execute pipeline tasks.
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
+
+  // MediaLog to which to log events.
+  scoped_refptr<MediaLog> media_log_;
+
+  // Lock used to serialize access for the following data members.
+  mutable base::Lock lock_;
+
+  // Whether or not the pipeline is running.
+  bool running_;
+
+  // Amount of available buffered data.  Set by filters.
+  Ranges<int64> buffered_byte_ranges_;
+  Ranges<TimeDelta> buffered_time_ranges_;
+
+  // True when AddBufferedByteRange() has been called more recently than
+  // DidLoadingProgress().
+  mutable bool did_loading_progress_;
+
+  // Total size of the media.  Set by filters.
+  int64 total_bytes_;
+
+  // Video's natural width and height.  Set by filters.
+  gfx::Size natural_size_;
+
+  // Current volume level (from 0.0f to 1.0f).  This value is set immediately
+  // via SetVolume() and a task is dispatched on the message loop to notify the
+  // filters.
+  float volume_;
+
+  // Current playback rate (>= 0.0f).  This value is set immediately via
+  // SetPlaybackRate() and a task is dispatched on the message loop to notify
+  // the filters.
+  float playback_rate_;
+
+  // Status of the pipeline.  Initialized to PIPELINE_OK which indicates that
+  // the pipeline is operating correctly. Any other value indicates that the
+  // pipeline is stopped or is stopping.  Clients can call the Stop() method to
+  // reset the pipeline state, and restore this to PIPELINE_OK.
+  PipelineStatus status_;
+
+  // Whether the media contains rendered audio and video streams.
+  // TODO(fischman,scherkus): replace these with checks for
+  // {audio,video}_decoder_ once extraction of {Audio,Video}Decoder from the
+  // Filter heirarchy is done.
+  bool has_audio_;
+  bool has_video_;
+
+  int ticket_;
+
+  // The following data members are only accessed by tasks posted to
+  // |message_loop_|.
+  scoped_ptr<FilterCollection> filter_collection_;
+
+  // Temporary callback used for Start() and Seek().
+  PipelineStatusCB seek_cb_;
+  SbMediaTime seek_time_;
+
+  // Temporary callback used for Stop().
+  base::Closure stop_cb_;
+
+  // Permanent callbacks passed in via Start().
+  PipelineStatusCB ended_cb_;
+  PipelineStatusCB error_cb_;
+  BufferingStateCB buffering_state_cb_;
+  base::Closure duration_change_cb_;
+
+  // Demuxer reference used for setting the preload value.
+  scoped_refptr<Demuxer> demuxer_;
+  bool audio_read_in_progress_;
+  bool video_read_in_progress_;
+  TimeDelta duration_;
+
+  PipelineStatistics statistics_;
+
+  SbPlayer player_;
+
+  std::map<const void*, scoped_refptr<DecoderBuffer> > decoding_buffers_;
+
+  DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
+};
 
 SbPlayerPipeline::SbPlayerPipeline(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
@@ -515,6 +682,14 @@ void SbPlayerPipeline::DeallocateSampleCB(SbPlayer player,
   pipeline->message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::OnDeallocateSample, pipeline,
                             sample_buffer));
+}
+
+}  // namespace
+
+scoped_refptr<Pipeline> Pipeline::Create(
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    MediaLog* media_log) {
+  return new SbPlayerPipeline(message_loop, media_log);
 }
 
 }  // namespace media

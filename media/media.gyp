@@ -234,8 +234,9 @@
         'base/message_loop_factory.h',
         'base/multi_channel_resampler.cc',
         'base/multi_channel_resampler.h',
-        'base/pipeline.cc',
         'base/pipeline.h',
+        'base/pipeline_impl.cc',
+        'base/pipeline_impl.h',
         'base/pipeline_status.cc',
         'base/pipeline_status.h',
         'base/ranges.cc',
@@ -696,9 +697,11 @@
           'sources': [
             'audio/shell_audio_streamer_starboard.cc',
             'base/sbplayer_pipeline.cc',
-            'base/sbplayer_pipeline.h',
             'base/shell_cached_decoder_buffer.cc',
             'base/shell_cached_decoder_buffer.h',
+          ],
+          'sources/': [
+            ['exclude', '^base/pipeline_impl.cc'],
           ],
         }],  # OS == "starboard"
         ['OS == "ios"', {
@@ -986,7 +989,7 @@
         'base/gmock_callback_support_unittest.cc',
         'base/interleaved_sinc_resampler_unittest.cc',
         'base/multi_channel_resampler_unittest.cc',
-        'base/pipeline_unittest.cc',
+        'base/pipeline_impl_unittest.cc',
         'base/ranges_unittest.cc',
         'base/run_all_unittests.cc',
         'base/seekable_buffer_unittest.cc',
