@@ -26,7 +26,7 @@ bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain) {
 
   // Flip the DirectFB surface that represents the swap chain.
   IDirectFBSurface* surface = swap_chain->render_target.surface;
-  if (surface->Flip(surface, NULL, static_cast<DFBSurfaceFlipFlags>(0)) !=
+  if (surface->Flip(surface, NULL, DSFLIP_WAITFORSYNC) !=
       DFB_OK) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling Flip().";
     return false;
