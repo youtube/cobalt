@@ -49,10 +49,7 @@ class SystemWindowStarboard : public SystemWindow {
 
   SbWindow window_;
 
-  int alt_count_;
-  int control_count_;
-  int meta_count_;
-  int shift_count_;
+  bool key_down_;
 };
 
 // The Starboard Event handler SbHandleEvent should call this function on
