@@ -539,6 +539,21 @@ SbKeyLocation XKeyEventToSbKeyLocation(XKeyEvent* event) {
   return kSbKeyLocationUnspecified;
 }
 
+// Get an SbKeyModifiers from an XKeyEvent.
+unsigned int XKeyEventToSbKeyModifiers(XKeyEvent* event) {
+  unsigned int key_modifiers = kSbKeyModifiersNone;
+  if (event->state & Mod1Mask) {
+    key_modifiers |= kSbKeyModifiersAlt;
+  }
+  if (event->state & ControlMask) {
+    key_modifiers |= kSbKeyModifiersCtrl;
+  }
+  if (event->state & ShiftMask) {
+    key_modifiers |= kSbKeyModifiersShift;
+  }
+  return key_modifiers;
+}
+
 bool XNextEventPoll(Display* display, XEvent* out_event) {
   if (XPending(display) == 0) {
     return false;
@@ -729,6 +744,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     data->device_id = kKeyboardDeviceId;
     data->key = XKeyEventToSbKey(x_key_event);
     data->key_location = XKeyEventToSbKeyLocation(x_key_event);
+    data->key_modifiers = XKeyEventToSbKeyModifiers(x_key_event);
     return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
   }
 
