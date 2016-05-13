@@ -47,12 +47,13 @@ void SpeechRecognizer::Stop() {
 }
 
 void SpeechRecognizer::RecognizeAudio(scoped_array<uint8> encoded_audio_data,
-                                      bool is_last_chunk) {
+                                      size_t size, bool is_last_chunk) {
   // Called by the speech recognition manager thread.
   thread_.message_loop()->PostTask(
-      FROM_HERE, base::Bind(&SpeechRecognizer::UploadAudioDataInternal,
-                            base::Unretained(this),
-                            base::Passed(&encoded_audio_data), is_last_chunk));
+      FROM_HERE,
+      base::Bind(&SpeechRecognizer::UploadAudioDataInternal,
+                 base::Unretained(this), base::Passed(&encoded_audio_data),
+                 size, is_last_chunk));
 }
 
 void SpeechRecognizer::OnURLFetchDownloadData(
@@ -74,7 +75,7 @@ void SpeechRecognizer::OnURLFetchComplete(const net::URLFetcher* source) {
 void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   if (started_) {
-    DLOG(WARNING) << "Speech recognizer is already started.";
+    // Recognizer is already started.
     return;
   }
   started_ = true;
@@ -89,7 +90,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config) {
 void SpeechRecognizer::StopInternal() {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   if (!started_) {
-    DLOG(WARNING) << "Speech recognizer is not started.";
+    // Recognizer is not started.
     return;
   }
   started_ = false;
@@ -99,13 +100,14 @@ void SpeechRecognizer::StopInternal() {
 }
 
 void SpeechRecognizer::UploadAudioDataInternal(
-    scoped_array<uint8> encoded_audio_data, bool is_last_chunk) {
+    scoped_array<uint8> encoded_audio_data, size_t size, bool is_last_chunk) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
 
   // TODO(***REMOVED***): upload encoded audio data chunk.
   NOTIMPLEMENTED();
 
   UNREFERENCED_PARAMETER(encoded_audio_data);
+  UNREFERENCED_PARAMETER(size);
   UNREFERENCED_PARAMETER(is_last_chunk);
 }
 
