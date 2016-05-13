@@ -24,7 +24,6 @@ import sys
 import urllib
 import urllib2
 
-
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 _SOURCE_TREE_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir,
                                                 os.pardir))
@@ -33,10 +32,7 @@ _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/ge
 _XSSI_PREFIX = ")]}'\n"
 
 # The list of directories, relative to "src/", to search through for ports.
-_PORT_SEARCH_PATH = [
-    'third_party/starboard',
-    'starboard',
-]
+_PORT_SEARCH_PATH = ['third_party/starboard', 'starboard',]
 
 # The list of files that must be present in a directory to allow it to be
 # considered a valid port.
@@ -52,7 +48,6 @@ _PORT_FILES = [
 # Whether to emit warnings if it finds a directory that almost has a port.
 # TODO: Enable when tree is clean.
 _WARN_ON_ALMOST_PORTS = False
-
 
 # The path to the build.id file that preserves a build ID.
 BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
@@ -159,8 +154,8 @@ def _EnsureGomaRunning():
     subprocess.check_output(cmd_line, shell=True, stderr=subprocess.STDOUT)
     return True
   except subprocess.CalledProcessError as e:
-    logging.error('goma failed to start.\nCommand: %s\n%s',
-                  ' '.join(e.cmd), e.output)
+    logging.error('goma failed to start.\nCommand: %s\n%s', ' '.join(e.cmd),
+                  e.output)
     return False
 
 
@@ -213,8 +208,8 @@ def GetConstantValue(file_path, constant_name):
   if not match:
     logging.critical('Could not query constant value.  The expression '
                      'should only have numbers, operators, spaces, and '
-                     'parens.  Please check "%s" in %s.\n',
-                     constant_name, file_path)
+                     'parens.  Please check "%s" in %s.\n', constant_name,
+                     file_path)
     sys.exit(1)
 
   expression = match.group(1)
@@ -251,7 +246,7 @@ def _GetPortName(root, directory):
   assert start < len(directory)
 
   # Calculate the name based on relative path from search root to port.
-  return re.sub(r'[^a-zA-Z0-9_]', r'_', directory[start:])
+  return re.sub(r'[^a-zA-Z0-9_]', r'-', directory[start:])
 
 
 def _FindValidPorts(root, result):
@@ -291,7 +286,6 @@ def _FindThirdPartyPlatforms():
     _FindValidPorts(root, result)
 
   return result
-
 
 # Global cache of TPP so the filesystem walk is only done once, and the values
 # are always consistent.
