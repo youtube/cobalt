@@ -24,12 +24,11 @@
 // The H5vcc node should just be a collection of readonly sub-nodes.
 // This is created by the BrowserModule and passed directly to the Window
 // during construction.
-// TODO(***REMOVED***): Investigate injecting this directly into Window, rather
-// than having Window have an explicit h5vcc attribute.
 
 interface H5vcc {
   readonly attribute H5vccAccountInfo accountInfo;
   readonly attribute H5vccAudioConfigArray audioConfig;
+  readonly attribute H5vccRuntime runtime;
   readonly attribute H5vccSettings settings;
   readonly attribute H5vccStorage storage;
   readonly attribute H5vccSystem system;
