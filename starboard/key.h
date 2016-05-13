@@ -271,6 +271,15 @@ typedef enum SbKeyLocation {
   kSbKeyLocationRight,
 } SbKeyLocation;
 
+// Bit-mask of key modifiers.
+typedef enum SbKeyModifiers {
+  kSbKeyModifiersNone = 0,
+  kSbKeyModifiersAlt = 1 << 0,
+  kSbKeyModifiersCtrl = 1 << 1,
+  kSbKeyModifiersMeta = 1 << 2,
+  kSbKeyModifiersShift = 1 << 3,
+} SbKeyModifiers;
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
