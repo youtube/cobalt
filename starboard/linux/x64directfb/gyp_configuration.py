@@ -23,8 +23,7 @@ import config.starboard_linux
 
 def CreatePlatformConfig():
   try:
-    return config.starboard_linux.PlatformConfig('linux_x64directfb',
-                                                 'SbLinuxDirectFB')
+    return config.starboard_linux.PlatformConfig('linux-x64directfb')
   except RuntimeError as e:
     logging.critical(e)
     return None
