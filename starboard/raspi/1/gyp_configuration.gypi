@@ -151,18 +151,18 @@
       '-std=gnu++11',
       '-Wno-literal-suffix',
     ],
-    'default_configuration': 'RasPi1_Debug',
+    'default_configuration': 'raspi-1_debug',
     'configurations': {
-      'RasPi1_Debug': {
+      'raspi-1_debug': {
         'inherit_from': ['debug_base'],
       },
-      'RasPi1_Devel': {
+      'raspi-1_devel': {
         'inherit_from': ['devel_base'],
       },
-      'RasPi1_QA': {
+      'raspi-1_qa': {
         'inherit_from': ['qa_base'],
       },
-      'RasPi1_Gold': {
+      'raspi-1_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations

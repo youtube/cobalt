@@ -22,7 +22,7 @@ import config.starboard_linux
 
 def CreatePlatformConfig():
   try:
-    return config.starboard_linux.PlatformConfig('linux_x64x11', 'SbLinuxX11')
+    return config.starboard_linux.PlatformConfig('linux-x64x11')
   except RuntimeError as e:
     logging.critical(e)
     return None

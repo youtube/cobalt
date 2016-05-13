@@ -27,18 +27,18 @@
   },
 
   'target_defaults': {
-    'default_configuration': 'SbLinuxDirectFB_Debug',
+    'default_configuration': 'linux-x64directfb_debug',
     'configurations': {
-      'SbLinuxDirectFB_Debug': {
+      'linux-x64directfb_debug': {
         'inherit_from': ['debug_base'],
       },
-      'SbLinuxDirectFB_Devel': {
+      'linux-x64directfb_devel': {
         'inherit_from': ['devel_base'],
       },
-      'SbLinuxDirectFB_QA': {
+      'linux-x64directfb_qa': {
         'inherit_from': ['qa_base'],
       },
-      'SbLinuxDirectFB_Gold': {
+      'linux-x64directfb_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
