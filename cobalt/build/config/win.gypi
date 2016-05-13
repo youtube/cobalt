@@ -250,7 +250,7 @@
       }],
     ],
 
-    'default_configuration': 'Win_Debug',
+    'default_configuration': 'win_debug',
     'configurations': {
       'msvs_base': {
         'abstract': 1,
@@ -284,7 +284,7 @@
           }],
         ],
       },
-      'Win_Debug': {
+      'win_debug': {
         'inherit_from': ['debug_base', 'msvs_base'],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -300,7 +300,7 @@
           },
         },
       },
-      'Win_Devel': {
+      'win_devel': {
         'inherit_from': ['devel_base', 'msvs_base'],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -315,7 +315,7 @@
           },
         },
       },
-      'Win_QA': {
+      'win_qa': {
         'inherit_from': ['qa_base', 'msvs_base'],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -332,7 +332,7 @@
           },
         },
       },
-      'Win_Gold': {
+      'win_gold': {
         'inherit_from': ['gold_base', 'msvs_base'],
         'msvs_settings': {
           'VCCLCompilerTool': {
