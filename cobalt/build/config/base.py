@@ -21,9 +21,8 @@ import os
 
 import gyp_utils
 
-
 # Represents all valid build configurations.
-VALID_BUILD_CONFIGS = ['Debug', 'Devel', 'QA', 'Gold']
+VALID_BUILD_CONFIGS = ['debug', 'devel', 'qa', 'gold']
 
 # Represents all supported platforms, uniquified and sorted.
 VALID_PLATFORMS = sorted(list(set(['linux', 'ps3', 'starboard_linux', 'win'] +
@@ -50,10 +49,6 @@ class PlatformConfigBase(object):
     """Returns the desired build format."""
     return 'ninja'
 
-  def GetPlatformFullName(self):
-    """Returns a full, human readable platform name."""
-    return self.platform.capitalize()
-
   def GetIncludes(self):
     """Returns a list of gypi files.
 
@@ -64,8 +59,7 @@ class PlatformConfigBase(object):
     """
     platforms = gyp_utils.GetThirdPartyPlatforms()
     if self.platform in platforms:
-      return [os.path.join(platforms[self.platform],
-                           'gyp_configuration.gypi')]
+      return [os.path.join(platforms[self.platform], 'gyp_configuration.gypi')]
     return [os.path.join(self.config_path, self.platform + '.gypi')]
 
   def GetEnvironmentVariables(self):
@@ -118,8 +112,7 @@ def LoadPlatformConfig(platform):
     return None
 
   if not hasattr(platform_module, 'CreatePlatformConfig'):
-    logging.error('"%s" does not contain CreatePlatformConfig.',
-                  module_path)
+    logging.error('"%s" does not contain CreatePlatformConfig.', module_path)
     return None
 
   return platform_module.CreatePlatformConfig()
