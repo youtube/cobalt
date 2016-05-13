@@ -39,12 +39,14 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   explicit SpeechRecognizer(loader::FetcherFactory* fetcher_factory);
   ~SpeechRecognizer() OVERRIDE;
 
+  // Multiple calls to Start/Stop are allowed, the implementation should take
+  // care of multiple calls.
   // Start speech recognizer.
   void Start(const SpeechRecognitionConfig& config);
   // Stop speech recognizer.
   void Stop();
   // An encoded audio data is available and ready to be recognized.
-  void RecognizeAudio(scoped_array<uint8> encoded_audio_data,
+  void RecognizeAudio(scoped_array<uint8> encoded_audio_data, size_t size,
                       bool is_last_chunk);
 
   // net::URLFetcherDelegate interface
@@ -60,7 +62,7 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   void StopInternal();
 
   void UploadAudioDataInternal(scoped_array<uint8> encoded_audio_data,
-                               bool is_last_chunk);
+                               size_t size, bool is_last_chunk);
 
   // This is used for creating fetchers.
   loader::FetcherFactory* fetcher_factory_;

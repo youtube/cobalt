@@ -22,8 +22,8 @@ namespace speech {
 class MicLinux : public Mic {
  public:
   MicLinux(int sample_rate, const DataReceivedCallback& data_received,
-           const CompletionCallback& completion)
-      : Mic(sample_rate, data_received, completion) {}
+           const CompletionCallback& completion, const ErrorCallback& error)
+      : Mic(sample_rate, data_received, completion, error) {}
 
   void Start() OVERRIDE { NOTIMPLEMENTED(); }
   void Stop() OVERRIDE { NOTIMPLEMENTED(); }
@@ -32,9 +32,10 @@ class MicLinux : public Mic {
 // static
 scoped_ptr<Mic> Mic::Create(int sample_rate,
                             const DataReceivedCallback& data_received,
-                            const CompletionCallback& completion) {
+                            const CompletionCallback& completion,
+                            const ErrorCallback& error) {
   return make_scoped_ptr<Mic>(
-      new MicLinux(sample_rate, data_received, completion));
+      new MicLinux(sample_rate, data_received, completion, error));
 }
 
 }  // namespace speech
