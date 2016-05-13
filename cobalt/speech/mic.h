@@ -29,13 +29,18 @@ class Mic {
   typedef ::media::AudioBus AudioBus;
   typedef base::Callback<void(scoped_ptr<AudioBus>)> DataReceivedCallback;
   typedef base::Callback<void(void)> CompletionCallback;
+  typedef base::Callback<void(void)> ErrorCallback;
 
   virtual ~Mic() {}
 
   static scoped_ptr<Mic> Create(int sample_rate,
                                 const DataReceivedCallback& data_received,
-                                const CompletionCallback& completion);
+                                const CompletionCallback& completion,
+                                const ErrorCallback& error);
 
+  // Multiple calls to Start/Stop are allowed, the implementation should take
+  // care of multiple calls. The Start/Stop methods are required to be called in
+  // the same thread.
   // Start microphone to receive voice.
   virtual void Start() = 0;
   // Stop microphone from receiving voice.
@@ -43,14 +48,16 @@ class Mic {
 
  protected:
   Mic(int sample_rate, const DataReceivedCallback& data_received,
-      const CompletionCallback& completion)
+      const CompletionCallback& completion, const ErrorCallback& error)
       : sample_rate_(sample_rate),
         data_received_callback_(data_received),
-        completion_callback_(completion) {}
+        completion_callback_(completion),
+        error_callback_(error) {}
 
   int sample_rate_;
   const DataReceivedCallback data_received_callback_;
   const CompletionCallback completion_callback_;
+  const ErrorCallback error_callback_;
 };
 
 }  // namespace speech

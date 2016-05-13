@@ -39,6 +39,8 @@ class SpeechRecognitionManager {
   explicit SpeechRecognitionManager(loader::FetcherFactory* fetcher_factory);
   ~SpeechRecognitionManager();
 
+  // Start/Stop speech recognizer and microphone. Multiple calls would be
+  // managed by their own class.
   void Start(const SpeechRecognitionConfig& config);
   void Stop();
 
@@ -46,6 +48,7 @@ class SpeechRecognitionManager {
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<AudioBus> audio_bus);
   void OnDataCompletion();
+  void OnError();
 
   base::WeakPtrFactory<SpeechRecognitionManager> weak_ptr_factory_;
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in
@@ -55,9 +58,6 @@ class SpeechRecognitionManager {
   scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
   SpeechRecognizer recognizer_;
   scoped_ptr<Mic> mic_;
-
-  // Track the start/stop state of speech recognition.
-  bool started_;
 };
 
 }  // namespace speech
