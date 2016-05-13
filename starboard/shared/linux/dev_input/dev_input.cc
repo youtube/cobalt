@@ -28,6 +28,7 @@
 #include "starboard/configuration.h"
 #include "starboard/directory.h"
 #include "starboard/input.h"
+#include "starboard/key.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/handle_eintr.h"
@@ -58,7 +59,8 @@ class DevInputImpl : public DevInput {
  private:
   // Converts an input_event into a kSbEventInput Application::Event. The caller
   // is responsible for deleting the returned event.
-  Event* InputToApplicationEvent(const struct input_event& event);
+  Event* InputToApplicationEvent(const struct input_event& event,
+                                 int modifiers);
 
   // The window to attribute /dev/input events to.
   SbWindow window_;
@@ -428,20 +430,44 @@ FileDescriptor GetKeyboardFd() {
   return fd;
 }
 
+// Returns whether |key_code|'s bit is set in the bitmap |map|, assuming
+// |key_code| fits into |map|.
+bool TestKey(int key_code, char* map) {
+  return map[key_code / 8] & (1 << (key_code % 8));
+}
+
+// Returns whether |key_code|'s bit is set in the bitmap |map|, assuming
+// |key_code| fits into |map|.
+int GetModifier(int left_key_code,
+                int right_key_code,
+                SbKeyModifiers modifier,
+                char* map) {
+  if (TestKey(left_key_code, map) || TestKey(right_key_code, map)) {
+    return modifier;
+  }
+
+  return 0;
+}
+
 // Polls the given keyboard file descriptor for an input_event. If there are no
 // bytes available, assumes that there is no input event to read. If it gets a
 // partial event, it will assume that it will be completed, and spins until it
 // receives an entire event.
-bool PollKeyboardEvent(FileDescriptor fd, struct input_event* out_event) {
+bool PollKeyboardEvent(FileDescriptor fd,
+                       struct input_event* out_event,
+                       int* out_modifiers) {
   if (fd == kInvalidFd) {
     return false;
   }
+
+  SB_DCHECK(out_event);
+  SB_DCHECK(out_modifiers);
 
   const size_t kEventSize = sizeof(struct input_event);
   size_t remaining = kEventSize;
   char* buffer = reinterpret_cast<char*>(out_event);
   while (remaining > 0) {
-    int bytes_read = HANDLE_EINTR(read(fd, buffer, remaining));
+    int bytes_read = read(fd, buffer, remaining);
     if (bytes_read <= 0) {
       if (errno == EAGAIN || bytes_read == 0) {
         if (remaining == kEventSize) {
@@ -454,7 +480,7 @@ bool PollKeyboardEvent(FileDescriptor fd, struct input_event* out_event) {
       }
 
       // Some unexpected type of read error occured.
-      SB_DLOG(ERROR) << __FUNCTION__ << ": error reading keyboard: " << errno
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Error reading keyboard: " << errno
                      << " - " << strerror(errno);
       return false;
     }
@@ -465,6 +491,30 @@ bool PollKeyboardEvent(FileDescriptor fd, struct input_event* out_event) {
     buffer += bytes_read;
   }
 
+  if (out_event->type != EV_KEY) {
+    return false;
+  }
+
+  // Calculate modifiers.
+  int modifiers = 0;
+  char map[(KEY_MAX / 8) + 1] = {0};
+  errno = 0;
+  int result = ioctl(fd, EVIOCGKEY(sizeof(map)), map);
+  if (result != -1) {
+    modifiers |=
+        GetModifier(KEY_LEFTSHIFT, KEY_RIGHTSHIFT, kSbKeyModifiersShift, map);
+    modifiers |=
+        GetModifier(KEY_LEFTALT, KEY_RIGHTALT, kSbKeyModifiersAlt, map);
+    modifiers |=
+        GetModifier(KEY_LEFTCTRL, KEY_RIGHTCTRL, kSbKeyModifiersCtrl, map);
+    modifiers |=
+        GetModifier(KEY_LEFTMETA, KEY_RIGHTMETA, kSbKeyModifiersMeta, map);
+  } else {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error getting modifiers: " << errno
+                   << " - " << strerror(errno);
+  }
+
+  *out_modifiers = modifiers;
   return true;
 }
 
@@ -491,8 +541,6 @@ DevInputImpl::DevInputImpl(SbWindow window)
       keyboard_fd_(GetKeyboardFd()),
       wakeup_write_fd_(kInvalidFd),
       wakeup_read_fd_(kInvalidFd) {
-  SB_DLOG(INFO) << "Keyboard File Descriptor: " << keyboard_fd_;
-
   // Initialize wakeup pipe.
   int fds[2] = {kInvalidFd, kInvalidFd};
   int result = pipe(fds);
@@ -517,11 +565,12 @@ DevInputImpl::~DevInputImpl() {
 
 DevInput::Event* DevInputImpl::PollNextSystemEvent() {
   struct input_event event;
-  if (!PollKeyboardEvent(keyboard_fd_, &event)) {
+  int modifiers = 0;
+  if (!PollKeyboardEvent(keyboard_fd_, &event, &modifiers)) {
     return NULL;
   }
 
-  return InputToApplicationEvent(event);
+  return InputToApplicationEvent(event, modifiers);
 }
 
 DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(SbTime duration) {
@@ -577,25 +626,23 @@ void DevInputImpl::WakeSystemEventWait() {
 }
 
 DevInput::Event* DevInputImpl::InputToApplicationEvent(
-    const struct input_event& event) {
+    const struct input_event& event,
+    int modifiers) {
   if (event.type != EV_KEY) {
     return NULL;
   }
 
-  // Only support press/release for now.
-  if (event.value > 1) {
-    return NULL;
-  }
-
+  SB_DCHECK(event.value <= 2);
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
   data->window = window_;
   data->type =
-      (event.value == 1 ? kSbInputEventTypePress : kSbInputEventTypeUnpress);
+      (event.value == 0 ? kSbInputEventTypeUnpress : kSbInputEventTypePress);
   data->device_type = kSbInputDeviceTypeKeyboard;
   data->device_id = kKeyboardDeviceId;
   data->key = KeyCodeToSbKey(event.code);
   data->key_location = KeyCodeToSbKeyLocation(event.code);
+  data->key_modifiers = modifiers;
   return new Event(kSbEventTypeInput, data,
                    &Application::DeleteDestructor<SbInputData>);
 }
