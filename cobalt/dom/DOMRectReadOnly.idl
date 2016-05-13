@@ -18,8 +18,7 @@
 
 [
   Constructor(unrestricted double x, unrestricted double y,
-              unrestricted double width, unrestricted double height),
-  Exposed=(Window)
+              unrestricted double width, unrestricted double height)
 ]
 interface DOMRectReadOnly {
   readonly attribute unrestricted double x;
