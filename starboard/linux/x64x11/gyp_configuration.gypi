@@ -14,18 +14,18 @@
 
 {
   'target_defaults': {
-    'default_configuration': 'SbLinuxX11_Debug',
+    'default_configuration': 'linux-x64x11_debug',
     'configurations': {
-      'SbLinuxX11_Debug': {
+      'linux-x64x11_debug': {
         'inherit_from': ['debug_base'],
       },
-      'SbLinuxX11_Devel': {
+      'linux-x64x11_devel': {
         'inherit_from': ['devel_base'],
       },
-      'SbLinuxX11_QA': {
+      'linux-x64x11_qa': {
         'inherit_from': ['qa_base'],
       },
-      'SbLinuxX11_Gold': {
+      'linux-x64x11_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
