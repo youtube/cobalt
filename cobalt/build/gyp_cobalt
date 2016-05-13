@@ -159,8 +159,7 @@ class _GypRunner(object):
     _AppendVariables(variables, args)
 
     # Add config specific generator variables.
-    generator_config = '{}_{}'.format(
-        self.platform_config.GetPlatformFullName(), config_name)
+    generator_config = '{}_{}'.format(self.options.platform, config_name)
 
     generator_variables = {
         'config': generator_config,

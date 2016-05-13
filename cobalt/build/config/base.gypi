@@ -26,7 +26,7 @@
     'cobalt_code%': 0,
 
     # Contains the current build configuration.
-    'cobalt_config%': 'Gold',
+    'cobalt_config%': 'gold',
     'cobalt_fastbuild%': 0,
     # Build version number.
     'cobalt_version%': 0,
@@ -318,7 +318,7 @@
   # For configurations other than Gold, set the flag that lets test data files
   # be copied and carried along with the build.
   'conditions': [
-    ['cobalt_config != "Gold"', {
+    ['cobalt_config != "gold"', {
       'variables' : {
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
