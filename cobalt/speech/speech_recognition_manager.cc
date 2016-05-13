@@ -35,33 +35,24 @@ SpeechRecognitionManager::SpeechRecognitionManager(
           kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
                                   base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnDataCompletion,
-                     base::Unretained(this))))),
-      started_(false) {}
+                     base::Unretained(this)),
+          base::Bind(&SpeechRecognitionManager::OnError,
+                     base::Unretained(this))))) {}
 
 SpeechRecognitionManager::~SpeechRecognitionManager() { Stop(); }
 
 void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
-  if (started_) {
-    // Already started.
-    return;
-  }
 
   recognizer_.Start(config);
   mic_->Start();
-  started_ = true;
 }
 
 void SpeechRecognitionManager::Stop() {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
-  if (!started_) {
-    // Not started.
-    return;
-  }
 
   mic_->Stop();
   recognizer_.Stop();
-  started_ = false;
 }
 
 void SpeechRecognitionManager::OnDataReceived(scoped_ptr<AudioBus> audio_bus) {
@@ -89,6 +80,17 @@ void SpeechRecognitionManager::OnDataCompletion() {
 
   // TODO(***REMOVED***): Handle the case that no audio data would be received
   // afterwards.
+}
+
+void SpeechRecognitionManager::OnError() {
+  if (!main_message_loop_->BelongsToCurrentThread()) {
+    // Called from mic thread.
+    main_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&SpeechRecognitionManager::OnError, weak_this_));
+    return;
+  }
+
+  // TODO(***REMOVED***): Handle the case that an error occurred.
 }
 
 }  // namespace speech
