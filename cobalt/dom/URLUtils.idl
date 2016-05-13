@@ -16,8 +16,7 @@
 
 // https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-urlutils
 
-[NoInterfaceObject,
- Exposed=(Window,Worker)]
+[NoInterfaceObject]
 interface URLUtils {
   stringifier attribute USVString href;
   attribute USVString protocol;
