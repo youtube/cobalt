@@ -23,7 +23,6 @@
 #include "media/base/filter_collection.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
-#include "media/base/pipeline.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
@@ -145,7 +144,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
       message_loop_factory_->GetMessageLoop(MessageLoopFactory::kPipeline);
-  pipeline_ = new Pipeline(pipeline_message_loop, media_log_);
+  pipeline_ = Pipeline::Create(pipeline_message_loop, media_log_);
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);

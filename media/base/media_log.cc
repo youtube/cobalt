@@ -156,10 +156,10 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateSeekEvent(float seconds) {
 }
 
 scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineStateChangedEvent(
-    Pipeline::State state) {
+    const std::string& state) {
   scoped_ptr<MediaLogEvent> event(
       CreateEvent(MediaLogEvent::PIPELINE_STATE_CHANGED));
-  event->params.SetString("pipeline_state", Pipeline::GetStateString(state));
+  event->params.SetString("pipeline_state", state);
   return event.Pass();
 }
 

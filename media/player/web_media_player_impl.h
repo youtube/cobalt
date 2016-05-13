@@ -82,14 +82,6 @@
 #endif  // (defined(__LB_XB1__) && !defined(COBALT_WIN)) ||
         // defined(__LB_XB360__)
 
-#if defined(COBALT_USE_SBPLAYER_PIPELINE)
-#include "media/base/sbplayer_pipeline.h"
-#endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
-
-#if defined(COBALT_USE_SHELL_PIPELINE)
-#include "chromium/media/base/shell_pipeline.h"
-#endif  // defined(COBALT_USE_SHELL_PIPELINE)
-
 namespace media {
 
 class AudioRendererSink;
@@ -101,12 +93,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                            public MessageLoop::DestructionObserver,
                            public base::SupportsWeakPtr<WebMediaPlayerImpl> {
  public:
-#if defined(COBALT_USE_SBPLAYER_PIPELINE)
-  typedef SbPlayerPipeline Pipeline;
-#elif defined(COBALT_USE_SHELL_PIPELINE)
-  typedef ShellPipeline Pipeline;
-#endif
-
   // Construct a WebMediaPlayerImpl with reference to the client, and media
   // filter collection. By providing the filter collection the implementor can
   // provide more specific media filters that does resource loading and
