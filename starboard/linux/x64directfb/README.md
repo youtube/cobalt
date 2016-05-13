@@ -20,7 +20,7 @@ Next, run gyp for this DirectFB configuration:
 
 And finally, run ninja to build the application:
 
-    $ ninja -C out/SbLinuxDirectFB_Debug starboard_blitter_example
+    $ ninja -C out/linux-x64directfb_debug starboard_blitter_example
 
 ## Running an application built for Starboard DirectFB x64 Linux
 
@@ -50,7 +50,7 @@ There is a script, starboard/linux/x64/directfb/xephyr_run.sh
 which will automatically run an executable (and its parameters) within a
 Xephyr window.  For example, to run the nplb executable under Xephyr:
 
-    $ starboard/linux/x64/directfb/xephyr_run.sh out/SbLinuxDirectFB_Debug/nplb
+    $ starboard/linux/x64/directfb/xephyr_run.sh out/linux-x64directfb_debug/nplb
 
 Note that the script will start an instance of Xephyr, run the application
 within it, and then shutdown Xephyr when the application terminates.
@@ -63,8 +63,8 @@ background:
 
 And then launch the application and have it target the Xephyr display:
 
-    $ DISPLAY=:1 out/SbLinuxDirectFB_Debug/starboard_blitter_example
+    $ DISPLAY=:1 out/linux-x64directfb_debug/starboard_blitter_example
 
 or
 
-    $ DISPLAY=:1 out/SbLinuxDirectFB_Debug/nplb
+    $ DISPLAY=:1 out/linux-x64directfb_debug/nplb
