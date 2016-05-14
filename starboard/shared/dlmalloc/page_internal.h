@@ -110,12 +110,12 @@ size_t SbPageGetVirtualRegionSize();
 // available virtual region. On some platforms, |name| appears in the debugger
 // and can be up to 32 bytes. Returns SB_MEMORY_MAP_FAILED on failure, as NULL
 // is a valid return value.
-void* SbPageMap(size_t size_bytes, const char* name);
+void* SbPageMap(size_t size_bytes, int flags, const char* name);
 
 // Same as SbMap() but "untracked" means size will not be reflected in
 // SbGetMappedBytes(). This should only be called by dlmalloc so that memory
 // allocated by dlmalloc isn't counted twice.
-void* SbPageMapUntracked(size_t size_bytes, const char* name);
+void* SbPageMapUntracked(size_t size_bytes, int flags, const char* name);
 
 // Unmap |size_bytes| of physical pages starting from |virtual_address|,
 // returning true on success. After this, [virtual_address, virtual_address +
