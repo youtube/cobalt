@@ -37,10 +37,31 @@ int32_t GetPageCount(size_t byte_count) {
                               SB_MEMORY_PAGE_SIZE);
 }
 
+int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
+  bool flag_set = false;
+  int mmap_protect = 0;
+  if (sb_flags & kSbMemoryMapProtectRead) {
+    mmap_protect |= PROT_READ;
+    flag_set = true;
+  }
+  if (sb_flags & kSbMemoryMapProtectWrite) {
+    mmap_protect |= PROT_WRITE;
+    flag_set = true;
+  }
+  if (sb_flags & kSbMemoryMapProtectExec) {
+    mmap_protect |= PROT_EXEC;
+    flag_set = true;
+  }
+  if (!flag_set) {
+    mmap_protect = PROT_NONE;
+  }
+  return mmap_protect;
+}
+
 }  // namespace
 
-void* SbPageMap(size_t size_bytes, const char* /*unused_name*/) {
-  void* ret = SbPageMapUntracked(size_bytes, NULL);
+void* SbPageMap(size_t size_bytes, int flags, const char* /*unused_name*/) {
+  void* ret = SbPageMapUntracked(size_bytes, flags, NULL);
   if (ret != SB_MEMORY_MAP_FAILED) {
     SbAtomicNoBarrier_Increment(&s_tracked_page_count,
                                 GetPageCount(size_bytes));
@@ -48,9 +69,11 @@ void* SbPageMap(size_t size_bytes, const char* /*unused_name*/) {
   return ret;
 }
 
-void* SbPageMapUntracked(size_t size_bytes, const char* /*unused_name*/) {
-  void* mem = mmap(0, size_bytes, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANON, -1, 0);
+void* SbPageMapUntracked(size_t size_bytes,
+                         int flags,
+                         const char* /*unused_name*/) {
+  int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
+  void* mem = mmap(0, size_bytes, mmap_protect, MAP_PRIVATE | MAP_ANON, -1, 0);
   return mem;
 }
 

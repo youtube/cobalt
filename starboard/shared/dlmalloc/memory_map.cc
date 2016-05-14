@@ -16,6 +16,6 @@
 
 #include "starboard/shared/dlmalloc/page_internal.h"
 
-void* SbMemoryMap(int64_t size_bytes, const char* name) {
-  return SbPageMap(size_bytes, name);
+void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
+  return SbPageMap(size_bytes, flags, name);
 }
