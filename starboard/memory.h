@@ -37,6 +37,18 @@ extern "C" {
 #define SbMemoryAllocateAligned SbMemoryAllocateAlignedUnchecked
 #endif
 
+// The bitwise OR of these flags should be passed to SbMemoryMap to indicate
+// how the mapped memory can be used.
+typedef enum SbMemoryMapFlags {
+  kSbMemoryMapProtectRead = 1 << 0,   // Mapped memory can be read.
+  kSbMemoryMapProtectWrite = 1 << 1,  // Mapped memory can be written to.
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+  kSbMemoryMapProtectExec = 1 << 2,  // Mapped memory can be executed.
+#endif
+  kSbMemoryMapProtectReadWrite =
+      kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite,
+} SbMemoryMapFlags;
+
 // Checks whether |memory| is aligned to |alignment| bytes.
 static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
                                                 size_t alignment) {
@@ -111,10 +123,11 @@ SB_EXPORT void SbMemoryFreeAligned(void* memory);
 
 #if SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into an
-// available virtual region. On some platforms, |name| appears in the debugger
-// and can be up to 32 bytes. Returns SB_MEMORY_MAP_FAILED on failure, as NULL
-// is a valid return value.
-SB_EXPORT void* SbMemoryMap(int64_t size_bytes, const char* name);
+// available virtual region. |flags| is the bitwise or of the protection flags
+// for the mapped memory as specified in SbMemoryMapFlags. On some platforms,
+// |name| appears in the debugger and can be up to 32 bytes. Returns
+// SB_MEMORY_MAP_FAILED on failure, as NULL is a valid return value.
+SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
 
 // Unmap |size_bytes| of physical pages starting from |virtual_address|,
 // returning true on success. After this, [virtual_address, virtual_address +
