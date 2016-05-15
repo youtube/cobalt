@@ -598,6 +598,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #if defined(STARBOARD)
 #include "dlmalloc_config.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 #ifdef MAX
@@ -1681,7 +1682,7 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 #if HAVE_MMAP
 
 #if defined(STARBOARD)
-#define MMAP_DEFAULT(s) SbPageMapUntracked(s, "dlmalloc_mmap")
+#define MMAP_DEFAULT(s) SbPageMapUntracked(s, kSbMemoryMapProtectReadWrite, "dlmalloc_mmap")
 #define DIRECT_MMAP_DEFAULT(s) MMAP_DEFAULT(s)
 #define MUNMAP_DEFAULT(a, s) (SbPageUnmapUntracked((a), (s)) ? 0 : 1)
 
