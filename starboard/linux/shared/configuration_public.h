@@ -249,37 +249,64 @@
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
 
-// Specifies the maximum amount of memory to reserve for media source audio
-// buffers.
-// TODO(***REMOVED***): Add some text about how to tune this.
+// Specifies the maximum amount of memory used by audio buffers of media source
+// before triggering a garbage collection.  A large value will cause more memory
+// being used by audio buffers but will also make JavaScript app less likely to
+// re-download audio data.  Note that the JavaScript app may experience
+// significant difficulty if this value is too low.
 #define SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT (3U * 1024U * 1024U)
 
-// Specifies the maximum amount of memory to reserve for media source video
-// buffers.
-// TODO(***REMOVED***): Add some text about how to tune this.
+// Specifies the maximum amount of memory used by video buffers of media source
+// before triggering a garbage collection.  A large value will cause more memory
+// being used by video buffers but will also make JavaScript app less likely to
+// re-download video data.  Note that the JavaScript app may experience
+// significant difficulty if this value is too low.
 #define SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT (16U * 1024U * 1024U)
 
-// Specifies how much main CPU memory to reserve up-front for media source
-// buffers.
-// TODO(***REMOVED***): Add some text about how to tune this.
+// Specifies how much memory to reserve up-front for the main media buffer
+// (usually resides inside the CPU memory) used by media source and demuxers.
+// The main media buffer can work in one of the following two ways:
+// 1. If GPU buffer is used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is non-zero), the
+//    main buffer will be used as a cache so a media buffer will be copied from
+//    GPU memory to main memory before sending to the decoder for further
+//    processing.  In this case this macro should be set to a value that is
+//    large enough to hold all media buffers being decoded.
+// 2. If GPU buffer is not used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is zero) all
+//    media buffers will reside in the main memory buffer.  In this case the
+//    macro should be set to a value that is greater than the sum of the above
+//    source buffer stream memory limits with extra room to take account of
+//    fragmentations and memory used by demuxers.
 #define SB_MEDIA_MAIN_BUFFER_BUDGET (128U * 1024U * 1024U)
 
 // Specifies how much GPU memory to reserve up-front for media source buffers.
-// TODO(***REMOVED***): Add some text about how to tune this.
+// This should only be set to non-zero on system with limited CPU memory and
+// excess GPU memory so the app can store media buffer in GPU memory.
+// SB_MEDIA_MAIN_BUFFER_BUDGET has to be set to a non-zero value to avoid
+// media buffers being decoded when being stored in GPU.
 #define SB_MEDIA_GPU_BUFFER_BUDGET 0U
 
-// Specifies how media buffers must be aligned on this platform.
-#define SB_MEDIA_BUFFER_ALIGNMENT 128U
+// --- Decoder-only Params ---
 
-// --- Decoder-only Params? ---
+// Specifies how media buffers must be aligned on this platform as some
+// decoders may have special requirement on the alignment of buffers being
+// decoded.
+#define SB_MEDIA_BUFFER_ALIGNMENT 128U
 
 // Specifies how video frame buffers must be aligned on this platform.
 #define SB_MEDIA_VIDEO_FRAME_ALIGNMENT 256U
 
-// TODO(***REMOVED***): Add description, and some text about how to tune this.
+// The encoded video frames are compressed in different ways, their decoding
+// time can vary a lot.  Occasionally a single frame can take longer time to
+// decode than the average time per frame.  The player has to cache some frames
+// to account for such inconsistency.  The number of frames being cached are
+// controlled by the following two macros.
+//
+// Specify the number of video frames to be cached before the playback starts.
+// Note that set this value too large may increase the playback start delay.
 #define SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES 4
 
-// TODO(***REMOVED***): Add description, and some text about how to tune this.
+// Specify the number of video frames to be cached during playback.  A large
+// value leads to more stable fps but also causes the app to use more memory.
 #define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
 
 // --- Tuneable Parameters ---------------------------------------------------
