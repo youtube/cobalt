@@ -30,7 +30,7 @@
         '<(DEPTH)/starboard/linux/shared/system_get_path.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_property.cc',
         '<(DEPTH)/starboard/linux/shared/system_has_capability.cc',
-        '<(DEPTH)/starboard/linux/x86x11/main.cc',
+        '<(DEPTH)/starboard/linux/x64x11/main.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_aligned_unchecked.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_unchecked.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_free.cc',

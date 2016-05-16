@@ -19,8 +19,8 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
-#ifndef STARBOARD_LINUX_X86X11_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_LINUX_X86X11_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 
 // --- Architecture Configuration --------------------------------------------
 
@@ -100,4 +100,4 @@
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
 
-#endif  // STARBOARD_LINUX_X86X11_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
