@@ -142,8 +142,8 @@ class _GypRunner(object):
     if not self.platform_config:
       raise RuntimeError('Unable to load platform configuration.')
 
-    self._MakeCommonArguments()
     os.environ.update(self.platform_config.GetEnvironmentVariables())
+    self._MakeCommonArguments()
 
   def BuildConfig(self, config_name):
     """Builds the GYP file for a given config."""
@@ -205,6 +205,7 @@ class _GypRunner(object):
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
         'cobalt_version': gyp_utils.GetBuildNumber(),
         'host_os': _GetHostOS(),
+        'CC': os.environ.get('CC', ''),
     }
     if self.platform_config.IsStarboard():
       variables['OS'] = 'starboard'
