@@ -128,6 +128,7 @@
         '<(DEPTH)/starboard/shared/linux/thread_get_id.cc',
         '<(DEPTH)/starboard/shared/linux/thread_get_name.cc',
         '<(DEPTH)/starboard/shared/linux/thread_set_name.cc',
+        '<(DEPTH)/starboard/shared/media/media_set_output_protection.cc',
         '<(DEPTH)/starboard/shared/nouser/user_get_current.cc',
         '<(DEPTH)/starboard/shared/nouser/user_get_property.cc',
         '<(DEPTH)/starboard/shared/nouser/user_get_signed_in.cc',
