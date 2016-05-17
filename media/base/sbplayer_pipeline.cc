@@ -484,9 +484,15 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     int ticket,
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(type == DemuxerStream::AUDIO || type == DemuxerStream::VIDEO)
       << "Unsupported DemuxerStream::Type " << type;
+
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this,
+                              type, ticket, status, buffer));
+    return;
+  }
 
   if (ticket != ticket_) {
     if (status == DemuxerStream::kConfigChanged) {
