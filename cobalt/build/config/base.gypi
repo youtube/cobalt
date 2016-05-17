@@ -121,6 +121,11 @@
     'platform_libraries%': [],
 
 
+    # Supported engine is currently only "javascriptcore".
+    # TODO: Figure out how to massage gyp the right way to make this work
+    # as expected, rather than requiring it to be set for each platform.
+    #'javascript_engine%': 'javascriptcore',
+
     # Customize variables used by Chromium's build/common.gypi.
 
     # Disable a check that looks for an official google api key.

@@ -30,6 +30,10 @@
 
     'gl_type': 'angle',
 
+    # This should have a default value in cobalt/base.gypi. See the comment
+    # there for acceptable values for this variable.
+    'javascript_engine': 'javascriptcore',
+
     # Compile with "PREfast" on by default.
     'static_analysis%': 'true',
 

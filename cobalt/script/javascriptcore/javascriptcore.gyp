@@ -15,7 +15,7 @@
 {
   'targets': [
     {
-      'target_name': 'jsc_engine',
+      'target_name': 'engine',
       'type': 'static_library',
       'sources': [
         'conversion_helpers.cc',
@@ -87,7 +87,7 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
-        'jsc_engine',
+        'engine',
       ]
     },
     {
@@ -105,7 +105,7 @@
         '<(DEPTH)/third_party/WebKit/Source/WTF',
       ],
       'dependencies': [
-        ':jsc_engine',
+        ':engine',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
       ],
