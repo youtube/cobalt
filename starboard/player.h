@@ -200,7 +200,7 @@ SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //
 // If there is a platform limitation on how many players can coexist
 // simultaneously, then calls made to this function that attempt to exceed that
-// limit will return NULL.
+// limit will return kSbPlayerInvalid.
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbMediaVideoCodec video_codec,
                SbMediaAudioCodec audio_codec,
