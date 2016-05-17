@@ -37,6 +37,8 @@
 
 namespace media {
 
+#if SB_HAS(PLAYER)
+
 using base::Time;
 using base::TimeDelta;
 
@@ -686,10 +688,16 @@ void SbPlayerPipeline::DeallocateSampleCB(SbPlayer player,
 
 }  // namespace
 
+#endif  // SB_HAS(PLAYER)
+
 scoped_refptr<Pipeline> Pipeline::Create(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     MediaLog* media_log) {
+#if SB_HAS(PLAYER)
   return new SbPlayerPipeline(message_loop, media_log);
+#else
+  return NULL;
+#endif
 }
 
 }  // namespace media
