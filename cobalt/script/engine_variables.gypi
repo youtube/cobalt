@@ -1,4 +1,4 @@
-# Copyright 2014 Google Inc. All Rights Reserved.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,18 +13,7 @@
 # limitations under the License.
 
 {
-  'targets': [
-    {
-      # Target that represents the JavaScript engine implementation and an
-      # interface to create a new engine instance.
-      'target_name': 'engine',
-      'type': 'static_library',
-      'sources': [
-        'javascript_engine.h',
-      ],
-      'dependencies': [
-        '<(javascript_engine)/<(javascript_engine).gyp:engine',
-      ],
-    },
+  'includes': [
+    'javascriptcore/javascriptcore_variables.gypi',
   ],
 }
