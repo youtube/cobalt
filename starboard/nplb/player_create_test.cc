@@ -15,6 +15,8 @@
 #include "starboard/player.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_HAS(PLAYER)
+
 namespace starboard {
 namespace nplb {
 
@@ -40,3 +42,5 @@ TEST(SbPlayerTest, SunnyDay) {
 
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_HAS(PLAYER)
