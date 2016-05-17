@@ -177,6 +177,7 @@ v8.log
 /third_party/eyesfree/src
 /third_party/findbugs
 /third_party/ffmpeg
+/third_party/flac
 /third_party/freetype
 /third_party/freetype2
 /third_party/gles2_conform
