@@ -30,6 +30,14 @@
 #undef SB_HAS_BLITTER
 #define SB_HAS_BLITTER 1
 
+// For now, until we get the player implementation working on DFB.
+#undef SB_HAS_PLAYER
+#undef SB_HAS_DECODER
+#undef SB_IS_PLAYER_COMPOSITED
+#undef SB_IS_PLAYER_PUNCHED_OUT
+#undef SB_IS_PLAYER_PRODUCING_TEXTURE
+#define SB_HAS_DECODER 1
+
 // DirectFB's only 32-bit RGBA color format is word-order ARGB.  This translates
 // to byte-order ARGB for big endian platforms and byte-order BGRA for
 // little-endian platforms.
