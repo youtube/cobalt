@@ -1,0 +1,195 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "starboard/shared/alsa/alsa_util.h"
+
+#include <alsa/asoundlib.h>
+
+#include "starboard/log.h"
+
+#define ALSA_CHECK(error, alsa_function)                      \
+  do {                                                        \
+    if (error < 0) {                                          \
+      SB_LOG(ERROR) << __FUNCTION__ << ": " << #alsa_function \
+                    << "() failed with error " << error;      \
+      return NULL;                                            \
+    }                                                         \
+  } while (false)
+
+namespace starboard {
+namespace shared {
+namespace alsa {
+
+namespace {
+
+template <typename T, typename CloseFunc>
+class AutoClose {
+ public:
+  explicit AutoClose(CloseFunc close_func)
+      : valid_(false), value_(NULL), close_func_(close_func) {}
+  ~AutoClose() {
+    if (valid_) {
+      close_func_(value_);
+    }
+  }
+  operator T() {
+    SB_DCHECK(valid_);
+    return value_;
+  }
+  T* operator&() {
+    SB_DCHECK(!valid_);
+    return &value_;
+  }
+  bool is_valid() const { return valid_; }
+  void set_valid() {
+    SB_DCHECK(!valid_);
+    valid_ = true;
+  }
+  T Detach() {
+    SB_DCHECK(valid_);
+    valid_ = false;
+    return value_;
+  }
+
+ private:
+  bool valid_;
+  T value_;
+  CloseFunc close_func_;
+};
+
+class HWParams
+    : public AutoClose<snd_pcm_hw_params_t*, void (*)(snd_pcm_hw_params_t*)> {
+ public:
+  HWParams() : AutoClose(snd_pcm_hw_params_free) {}
+};
+
+class SWParams
+    : public AutoClose<snd_pcm_sw_params_t*, void (*)(snd_pcm_sw_params_t*)> {
+ public:
+  SWParams() : AutoClose(snd_pcm_sw_params_free) {}
+};
+
+class PcmHandle : public AutoClose<snd_pcm_t*, int (*)(snd_pcm_t*)> {
+ public:
+  PcmHandle() : AutoClose(snd_pcm_close) {}
+};
+
+}  // namespace
+
+void* AlsaOpenPlaybackDevice(int channel,
+                             int sample_rate,
+                             int frames_per_request,
+                             int buffer_size_in_frames) {
+  PcmHandle playback_handle;
+  int error =
+      snd_pcm_open(&playback_handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
+  ALSA_CHECK(error, snd_pcm_open);
+  playback_handle.set_valid();
+
+  HWParams hw_params;
+  error = snd_pcm_hw_params_malloc(&hw_params);
+  ALSA_CHECK(error, snd_pcm_hw_params_malloc);
+  hw_params.set_valid();
+
+  error = snd_pcm_hw_params_any(playback_handle, hw_params);
+  ALSA_CHECK(error, snd_pcm_hw_params_any);
+
+  error = snd_pcm_hw_params_set_access(playback_handle, hw_params,
+                                       SND_PCM_ACCESS_RW_INTERLEAVED);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_access);
+
+  error = snd_pcm_hw_params_set_format(playback_handle, hw_params,
+                                       SND_PCM_FORMAT_FLOAT_LE);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_format);
+
+  error =
+      snd_pcm_hw_params_set_rate(playback_handle, hw_params, sample_rate, 0);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_rate);
+
+  error = snd_pcm_hw_params_set_channels(playback_handle, hw_params, channel);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_channels);
+
+  snd_pcm_uframes_t buffer_size = buffer_size_in_frames;
+  error = snd_pcm_hw_params_set_buffer_size_near(playback_handle, hw_params,
+                                                 &buffer_size);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_buffer_size);
+
+  error = snd_pcm_hw_params(playback_handle, hw_params);
+  ALSA_CHECK(error, snd_pcm_hw_params);
+
+  SWParams sw_params;
+  error = snd_pcm_sw_params_malloc(&sw_params);
+  ALSA_CHECK(error, snd_pcm_sw_params_malloc);
+  sw_params.set_valid();
+
+  error = snd_pcm_sw_params_current(playback_handle, sw_params);
+  ALSA_CHECK(error, snd_pcm_sw_params_current);
+
+  error = snd_pcm_sw_params_set_avail_min(playback_handle, sw_params,
+                                          frames_per_request);
+  ALSA_CHECK(error, snd_pcm_sw_params_set_avail_min);
+
+  error =
+      snd_pcm_sw_params_set_silence_threshold(playback_handle, sw_params, 256U);
+  ALSA_CHECK(error, snd_pcm_sw_params_set_silence_threshold);
+
+  error = snd_pcm_sw_params(playback_handle, sw_params);
+  ALSA_CHECK(error, snd_pcm_sw_params);
+
+  error = snd_pcm_prepare(playback_handle);
+  ALSA_CHECK(error, snd_pcm_prepare);
+
+  error = snd_pcm_start(playback_handle);
+  ALSA_CHECK(error, snd_pcm_start);
+
+  return playback_handle.Detach();
+}
+
+int AlsaWriteFrames(void* playback_handle,
+                    const float* buffer,
+                    int frames_to_write) {
+  int frames = snd_pcm_writei(reinterpret_cast<snd_pcm_t*>(playback_handle),
+                              buffer, frames_to_write);
+  ALSA_CHECK(frames, snd_pcm_writei);
+
+  return frames;
+}
+
+int AlsaGetBufferedFrames(void* playback_handle) {
+  snd_pcm_sframes_t delay;
+  int error =
+      snd_pcm_delay(reinterpret_cast<snd_pcm_t*>(playback_handle), &delay);
+  if (error < 0) {
+    SB_LOG(ERROR) << __FUNCTION__ << ": snd_pcm_delay() failed with error"
+                  << error;
+    return -1;
+  }
+  if (delay < 0) {
+    SB_LOG(ERROR) << __FUNCTION__
+                  << ": snd_pcm_delay() failed with negative delay " << delay;
+    return -1;
+  }
+  return delay;
+}
+
+void AlsaCloseDevice(void* playback_handle) {
+  if (playback_handle) {
+    snd_pcm_drain(reinterpret_cast<snd_pcm_t*>(playback_handle));
+    snd_pcm_close(reinterpret_cast<snd_pcm_t*>(playback_handle));
+  }
+}
+
+}  // namespace alsa
+}  // namespace shared
+}  // namespace starboard

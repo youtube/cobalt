@@ -78,7 +78,9 @@ class Mutex {
   ~Mutex() { SbMutexDestroy(&mutex_); }
 
   void Acquire() const { SbMutexAcquire(&mutex_); }
-  bool AcquireTry() { return SbMutexAcquireTry(&mutex_) == kSbMutexAcquired; }
+  bool AcquireTry() const {
+    return SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+  }
 
   void Release() const { SbMutexRelease(&mutex_); }
 
@@ -96,7 +98,29 @@ class ScopedLock {
 
   ~ScopedLock() { mutex_.Release(); }
 
+ private:
   const Mutex& mutex_;
+};
+
+// Scoped lock holder that works on starboard::Mutex which uses AcquireTry()
+// instead of Acquire().
+class ScopedTryLock {
+ public:
+  explicit ScopedTryLock(const Mutex& mutex) : mutex_(mutex) {
+    is_locked_ = mutex_.AcquireTry();
+  }
+
+  ~ScopedTryLock() {
+    if (is_locked_) {
+      mutex_.Release();
+    }
+  }
+
+  bool is_locked() const { return is_locked_; }
+
+ private:
+  const Mutex& mutex_;
+  bool is_locked_;
 };
 
 }  // namespace starboard
