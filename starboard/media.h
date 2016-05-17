@@ -75,7 +75,7 @@ typedef enum SbMediaAudioConnector {
   kSbMediaAudioConnectorUsb,
 } SbMediaAudioConnector;
 
-// Possible audio coding types types.
+// Possible audio coding types.
 typedef enum SbMediaAudioCodingType {
   kSbMediaAudioCodingTypeNone,
 
@@ -90,6 +90,25 @@ typedef enum SbMediaAudioCodingType {
   kSbMediaAudioCodingTypeMpeg3,
   kSbMediaAudioCodingTypePcm,
 } SbMediaAudioCodingType;
+
+// Possible audio sample types.
+typedef enum SbMediaAudioSampleType {
+  kSbMediaAudioSampleTypeInt16,
+  kSbMediaAudioSampleTypeFloat32,
+} SbMediaAudioSampleType;
+
+// Possible audio frame storage types.  Interleaved means the samples of a
+// multi-channel audio stream are stored in one continuous buffer, samples at
+// the same timestamp are stored one after another.  Planar means the samples
+// of each channel are stored in their own continuous buffer. For example, for
+// stereo stream with channels L and R that contains samples with timestamp
+// 0, 1, ..., interleaved means the samples are stored in one buffer as
+// "L0 R0 L1 R1 L2 R2 ...".  Planar means the samples are stored in two buffers
+// "L0 L1 L2 ..." and "R0 R1 R2 ...".
+typedef enum SbMediaAudioFrameStorageType {
+  kSbMediaAudioFrameStorageTypeInterleaved,
+  kSbMediaAudioFrameStorageTypePlanar,
+} SbMediaAudioFrameStorageType;
 
 // The set of information required by the decoder or player for each video
 // sample.
@@ -216,12 +235,6 @@ SB_EXPORT int SbMediaGetAudioOutputCount();
 SB_EXPORT bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration);
-
-// Gets whether a given audio |sampling_frequency_hz| is supported for the given
-// |output_index|.
-SB_EXPORT bool SbMediaIsAudioSampleFrequencySupported(
-    int output_index,
-    int sampling_frequency_hz);
 
 // Returns whether output copy protection is currently enabled on all capable
 // outputs. If true, then non-protection-capable outputs are expected to be
