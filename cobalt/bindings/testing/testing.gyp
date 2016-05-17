@@ -14,6 +14,14 @@
 
 {
   'variables': {
+    # Get the engine variables and pull them out to this 'variables' scope.
+    'includes': [
+        '../../script/engine_variables.gypi',
+    ],
+    'generated_bindings_prefix': '<(generated_bindings_prefix)',
+    'engine_defines': '<(engine_defines)',
+    'engine_dependencies': '<(engine_dependencies)',
+    'engine_include_dirs': '<(engine_include_dirs)',
 
     # Base directory into which generated sources and intermediate files should
     # be generated.
@@ -86,17 +94,14 @@
   'includes': [
     # Defines a `generated_sources` variable which is a list of all generated
     # source files.
-    '../javascriptcore_bindings.gypi',
+    '../bindings_gen.gypi',
   ],
 
   'targets': [
     {
       'target_name': 'testing_bindings',
       'type': 'static_library',
-      'include_dirs': [
-        '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore',
-        '<(DEPTH)/third_party/WebKit/Source/WTF',
-      ],
+      'include_dirs': [ '<@(engine_include_dirs)', ],
       'sources': [
         '<@(generated_sources)',
         'constants_interface.cc',
@@ -107,9 +112,7 @@
         'static_properties_interface.cc',
       ],
       'defines': [
-        # Avoid WTF LOG macro.
-        '__DISABLE_WTF_LOGGING__',
-
+        '<@(engine_defines)',
         # Used for testing [Conditional=] extended attribute.
         'ENABLE_CONDITIONAL_INTERFACE',
         'ENABLE_CONDITIONAL_PROPERTY',
@@ -123,9 +126,9 @@
       },
       'dependencies': [
         '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
-        # generated_bindings target is defined in javascriptcore_bindings.gypi
+        # generated_bindings target is defined in bindings_gen.gypi
         'generated_bindings',
+        '<@(engine_dependencies)',
       ],
     },
 
