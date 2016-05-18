@@ -16,7 +16,7 @@ First, ensure that the DirectFB libraries are installed and accessible.
 
 Next, run gyp for this DirectFB configuration:
 
-    $ cobalt/build/gyp_cobalt linux_x64directfb
+    $ cobalt/build/gyp_cobalt linux-x64directfb
 
 And finally, run ninja to build the application:
 
