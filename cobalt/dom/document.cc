@@ -220,7 +220,7 @@ scoped_refptr<Element> Document::GetElementById(const std::string& id) const {
   return NULL;
 }
 
-scoped_refptr<Location> Document::location() const { return location_; }
+const scoped_refptr<Location>& Document::location() const { return location_; }
 
 // Algorithm for body:
 //   https://www.w3.org/TR/html5/dom.html#dom-document-body
