@@ -16,21 +16,26 @@
 
 // https://www.w3.org/TR/html5/browsers.html#the-window-object
 
+// Note: Cobalt only supports one browsing context and one Window object.
 [PrimaryGlobal]
 /*sealed*/ interface Window : EventTarget {
+  // the current browsing context
+  [Unforgeable] readonly attribute Window window;
+  [Replaceable] readonly attribute Window self;
   [Unforgeable] readonly attribute Document document;
-  readonly attribute History history;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
-  readonly attribute Navigator navigator;
+  readonly attribute History history;
 
-  [NewObject] CSSStyleDeclaration getComputedStyle(Element elt, optional DOMString pseudoElt);
-
-  // TODO(b/20952738): Should be WindowProxy
+  // other browsing contexts
+  [Replaceable] readonly attribute Window frames;
+  [Replaceable] readonly attribute unsigned long length;
+  [Unforgeable] readonly attribute Window top;
   readonly attribute Window opener;
   readonly attribute Window parent;
-  readonly attribute Window self;
-  readonly attribute Window top;
-  readonly attribute Window window;
+  getter Window (unsigned long index);
+
+  // the user agent
+  readonly attribute Navigator navigator;
 
   // Custom, not in any spec.
   //

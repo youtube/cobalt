@@ -162,7 +162,7 @@ class Document : public Node, public cssom::MutationObserver {
   // Web API: HTML5 (partial interface)
   //   https://www.w3.org/TR/html5/dom.html#the-document-object
   //
-  scoped_refptr<Location> location() const;
+  const scoped_refptr<Location>& location() const;
 
   scoped_refptr<HTMLBodyElement> body() const;
   void set_body(const scoped_refptr<HTMLBodyElement>& body);

@@ -123,11 +123,11 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
 
-const scoped_refptr<History>& Window::history() const { return history_; }
-
-scoped_refptr<Location> Window::location() const {
+const scoped_refptr<Location>& Window::location() const {
   return document_->location();
 }
+
+const scoped_refptr<History>& Window::history() const { return history_; }
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 
