@@ -76,9 +76,15 @@ class WindowTest : public ::testing::Test {
   scoped_refptr<Window> window_;
 };
 
-TEST_F(WindowTest, WindowAndTopShouldReturnSelf) {
+TEST_F(WindowTest, WindowShouldNotHaveChildren) {
   EXPECT_EQ(window_, window_->window());
+  EXPECT_EQ(window_, window_->self());
+  EXPECT_EQ(window_, window_->frames());
+  EXPECT_EQ(0, window_->length());
   EXPECT_EQ(window_, window_->top());
+  EXPECT_EQ(window_, window_->opener());
+  EXPECT_EQ(window_, window_->parent());
+  EXPECT_FALSE(window_->AnonymousIndexedGetter(0));
 }
 
 TEST_F(WindowTest, ViewportSize) {
