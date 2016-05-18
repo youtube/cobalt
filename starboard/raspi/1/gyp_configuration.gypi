@@ -22,6 +22,10 @@
     'sysroot%': '/',
     'gl_type': 'system_gles2',
 
+    # This should have a default value in cobalt/base.gypi. See the comment
+    # there for acceptable values for this variable.
+    'javascript_engine': 'javascriptcore',
+
     # RasPi 1 is ARMv6
     'arm_version': 6,
     'armv7': 0,
