@@ -41,7 +41,7 @@ All source locations are specified relative to `src/starboard/` (this directory)
 
 Follow the Cobalt instructions, except when invoking gyp:
 
-    $ cobalt/build/gyp_cobalt -C Debug starboard_linux
+    $ cobalt/build/gyp_cobalt -C debug linux-x64x11
 
 and when invoking ninja:
 
