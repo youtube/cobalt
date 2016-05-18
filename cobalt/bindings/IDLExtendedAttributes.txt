@@ -109,6 +109,7 @@ ArrayClass
 OverrideBuiltins
 PutForwards=*
 Unforgeable
+Replaceable
 
 # Ignored attributes. We do not perform any additional logic in the bindings
 # when these attributes are present

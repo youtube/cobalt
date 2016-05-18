@@ -68,7 +68,7 @@ class Screen;
 class Storage;
 class WindowTimers;
 
-// Thii  e window object represents a window containing a DOM document.
+// The window object represents a window containing a DOM document.
 //   https://www.w3.org/TR/html5/browsers.html#the-window-object
 //
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
@@ -104,11 +104,24 @@ class Window : public EventTarget {
 
   // Web API: Window
   //
+  scoped_refptr<Window> window() { return this; }
+  scoped_refptr<Window> self() { return this; }
   const scoped_refptr<Document>& document() const;
+  const scoped_refptr<Location>& location() const;
   const scoped_refptr<History>& history() const;
-  scoped_refptr<Location> location() const;
+
+  scoped_refptr<Window> frames() { return this; }
+  unsigned int length() { return 0; }
+  scoped_refptr<Window> top() { return this; }
+  scoped_refptr<Window> opener() { return this; }
+  scoped_refptr<Window> parent() { return this; }
+  scoped_refptr<Window> AnonymousIndexedGetter(unsigned int /* index */) {
+    return NULL;
+  }
+
   const scoped_refptr<Navigator>& navigator() const;
 
+  // Web API: CSSOM (partial interface)
   // Returns the computed style of the given element, as described in
   // https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle.
   scoped_refptr<cssom::CSSStyleDeclaration> GetComputedStyle(
@@ -116,20 +129,13 @@ class Window : public EventTarget {
   scoped_refptr<cssom::CSSStyleDeclaration> GetComputedStyle(
       const scoped_refptr<Element>& elt, const std::string& pseudoElt);
 
-  // TODO(b/20952738): Should be WindowProxy
-  scoped_refptr<Window> opener() { return this; }
-  scoped_refptr<Window> parent() { return this; }
-  scoped_refptr<Window> self() { return this; }
-  scoped_refptr<Window> top() { return this; }
-  scoped_refptr<Window> window() { return this; }
-
   // Web API: Timing control for script-based animations (partial interface)
   //   https://www.w3.org/TR/animation-timing/#Window-interface-extensions
   int32 RequestAnimationFrame(
       const AnimationFrameRequestCallbackList::FrameRequestCallbackArg&);
   void CancelAnimationFrame(int32 handle);
 
-  // Web API: CSSOM View Module: Extensions to the window interface
+  // Web API: CSSOM View Module (partial interface)
   //
 
   // Parses a media query.
