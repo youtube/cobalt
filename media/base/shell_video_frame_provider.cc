@@ -17,6 +17,7 @@
 #include "media/base/shell_video_frame_provider.h"
 
 #include "base/logging.h"
+#include "media/base/shell_media_platform.h"
 
 namespace media {
 
@@ -47,6 +48,14 @@ void ShellVideoFrameProvider::UnregisterMediaTimeCB(
 }
 
 const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
+  scoped_refptr<VideoFrame> punch_out = ShellMediaPlatform::Instance()
+                                            ->GetVideoDataAllocator()
+                                            ->GetPunchOutFrame();
+  if (punch_out) {
+    current_frame_ = punch_out;
+    return current_frame_;
+  }
+
   const int kEpsilonInMicroseconds =
       base::Time::kMicrosecondsPerSecond / 60 / 2;
 
