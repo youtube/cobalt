@@ -1,0 +1,3 @@
+partial interface TestInterface {
+  attribute DOMString blueberry;
+};
