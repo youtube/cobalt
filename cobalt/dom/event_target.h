@@ -111,13 +111,6 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::load(), event_listener);
   }
 
-  const EventListenerScriptObject* onreadystatechange() const {
-    return GetAttributeEventListener(base::Tokens::readystatechange());
-  }
-  void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
-  }
-
   const EventListenerScriptObject* onunload() {
     return GetAttributeEventListener(base::Tokens::unload());
   }

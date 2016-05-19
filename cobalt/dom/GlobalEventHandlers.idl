@@ -22,8 +22,6 @@ interface GlobalEventHandlers {
   attribute EventHandler onerror;
   attribute EventHandler onfocus;
   attribute EventHandler onload;
-  attribute EventHandler onreadystatechange;
-  attribute EventHandler onunload;
 };
 
 // TODO(b/21154386): The IDL defines EventHandler as a nullable callback

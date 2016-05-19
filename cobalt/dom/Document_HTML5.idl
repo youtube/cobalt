@@ -27,4 +27,11 @@ partial /*sealed*/ interface Document {
   readonly attribute HTMLHeadElement? head;
   readonly attribute DOMString title;
   readonly attribute Element? activeElement;
+
+  [LenientThis] attribute EventHandler onreadystatechange;
 };
+
+// TODO(b/21154386): The IDL defines EventHandler as a nullable callback
+// function. Define it as a nullable EventListener for now until we can do
+// some refactoring to accept both in the EventTarget implementation.
+typedef EventListener? EventHandler;
