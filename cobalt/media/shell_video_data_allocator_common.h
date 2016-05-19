@@ -42,6 +42,10 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
       const scoped_refptr<FrameBuffer>& frame_buffer, const YV12Param& param,
       const base::TimeDelta& timestamp) OVERRIDE;
 
+  scoped_refptr<VideoFrame> GetPunchOutFrame() OVERRIDE {
+    return punch_out_frame_;
+  }
+
  private:
   typedef cobalt::render_tree::RawImageMemory RawImageMemory;
 
@@ -60,10 +64,14 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
     scoped_ptr<RawImageMemory> raw_image_memory_;
   };
 
+  void CreatePunchOutFrame();
+
   cobalt::render_tree::ResourceProvider* resource_provider_;
   size_t minimum_allocation_size_;
   size_t maximum_allocation_size_;
   size_t minimum_alignment_;
+
+  scoped_refptr<VideoFrame> punch_out_frame_;
 };
 
 }  // namespace media

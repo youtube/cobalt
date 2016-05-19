@@ -23,29 +23,38 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#endif  // defined(OS_STARBOARD)
 
 namespace media {
 
-namespace {
-void ReleaseImage(scoped_refptr<cobalt::render_tree::Image> /* image */) {}
-}  // namespace
-
+using cobalt::render_tree::Image;
+using cobalt::render_tree::ImageData;
 using cobalt::render_tree::ImageDataDescriptor;
+using cobalt::render_tree::kAlphaFormatPremultiplied;
+using cobalt::render_tree::kPixelFormatRGBA8;
 using cobalt::render_tree::MultiPlaneImageDataDescriptor;
+using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::kAlphaFormatUnpremultiplied;
 using cobalt::render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
 using cobalt::render_tree::kPixelFormatU8;
 using cobalt::render_tree::kPixelFormatV8;
 using cobalt::render_tree::kPixelFormatY8;
 
+namespace {
+void ReleaseImage(scoped_refptr<Image> /* image */) {}
+}  // namespace
+
 ShellVideoDataAllocatorCommon::ShellVideoDataAllocatorCommon(
-    cobalt::render_tree::ResourceProvider* resource_provider,
-    size_t minimum_allocation_size, size_t maximum_allocation_size,
-    size_t minimum_alignment)
+    ResourceProvider* resource_provider, size_t minimum_allocation_size,
+    size_t maximum_allocation_size, size_t minimum_alignment)
     : resource_provider_(resource_provider),
       minimum_allocation_size_(minimum_allocation_size),
       maximum_allocation_size_(maximum_allocation_size),
-      minimum_alignment_(minimum_alignment) {}
+      minimum_alignment_(minimum_alignment) {
+  CreatePunchOutFrame();
+}
 
 scoped_refptr<ShellVideoDataAllocator::FrameBuffer>
 ShellVideoDataAllocatorCommon::AllocateFrameBuffer(size_t size,
@@ -102,7 +111,7 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   offset += decoded_size.width() / 2 * decoded_size.height() / 2;
   CHECK_EQ(offset, param.decoded_width() * param.decoded_height() * 3 / 2);
 
-  scoped_refptr<cobalt::render_tree::Image> image =
+  scoped_refptr<Image> image =
       resource_provider_->CreateMultiPlaneImageFromRawMemory(
           frame_buffer_common->DetachRawImageMemory(), descriptor);
 
@@ -113,6 +122,23 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
       param.visible_rect(), visible_size, timestamp, VideoFrame::ReadPixelsCB(),
       base::Bind(ReleaseImage, image));
   return video_frame;
+}
+
+void ShellVideoDataAllocatorCommon::CreatePunchOutFrame() {
+#if defined(OS_STARBOARD) && defined(SB_IS_PLAYER_PUNCHED_OUT)
+  cobalt::math::Size size(4, 4);
+  scoped_ptr<ImageData> image_data = resource_provider_->AllocateImageData(
+      size, kPixelFormatRGBA8, kAlphaFormatPremultiplied);
+  const ImageDataDescriptor& descriptor = image_data->GetDescriptor();
+  memset(image_data->GetMemory(), 0,
+         descriptor.size.height() * descriptor.pitch_in_bytes);
+  scoped_refptr<Image> image =
+      resource_provider_->CreateImage(image_data.Pass());
+  punch_out_frame_ = VideoFrame::WrapNativeTexture(
+      reinterpret_cast<uintptr_t>(image.get()), 0, size,
+      cobalt::math::Rect(size), size, base::TimeDelta(),
+      VideoFrame::ReadPixelsCB(), base::Bind(ReleaseImage, image));
+#endif  // defined(OS_STARBOARD) && defined(SB_IS_PLAYER_PUNCHED_OUT)
 }
 
 ShellVideoDataAllocatorCommon::FrameBufferCommon::FrameBufferCommon(
