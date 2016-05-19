@@ -126,6 +126,10 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
       const base::TimeDelta& timestamp) = 0;
 #endif  // defined(__LB_PS4__)
 
+  // Return a video frame filled with RGBA zero on platforms that require punch
+  // out.  Return NULL otherwise.
+  virtual scoped_refptr<VideoFrame> GetPunchOutFrame() { return NULL; }
+
   // Most platforms limit the number of active raw video decoders to one.  The
   // following functions enable the implementations on these platforms to check
   // if there is more than one video decoder active.
