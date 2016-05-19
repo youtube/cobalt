@@ -107,6 +107,7 @@
       'dependencies': [
         ':engine',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/script/script.gyp:standalone_javascript_runner',
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
       ],
     },
