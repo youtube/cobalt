@@ -172,6 +172,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/script/script.gyp:standalone_javascript_runner',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         'bindings',
         'bindings_test_implementation',

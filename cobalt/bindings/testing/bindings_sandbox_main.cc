@@ -24,55 +24,18 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
 
+#include "cobalt/script/standalone_javascript_runner.h"
+
 using cobalt::bindings::testing::Window;
-using cobalt::script::EnvironmentSettings;
-using cobalt::script::GlobalObjectProxy;
-using cobalt::script::JavaScriptEngine;
-using cobalt::script::SourceCode;
+using cobalt::script::StandaloneJavascriptRunner;
 
 namespace {
 
 int SandboxMain(int argc, char** argv) {
-  // Environment Settings object
-  scoped_ptr<EnvironmentSettings> environment_settings =
-      make_scoped_ptr(new EnvironmentSettings());
-
-  // Initialize the JavaScript engine.
-  scoped_ptr<JavaScriptEngine> engine = JavaScriptEngine::CreateEngine();
-
-  // Create a new global object
-  scoped_refptr<GlobalObjectProxy> global_object_proxy =
-      engine->CreateGlobalObjectProxy();
-
   scoped_refptr<Window> test_window = new Window();
-  global_object_proxy->CreateGlobalObject(test_window,
-                                          environment_settings.get());
-
-  while (true) {
-    // Interactive prompt.
-    std::cout << "> ";
-
-    // Read user input from stdin.
-    std::string line;
-    std::getline(std::cin, line);
-    if (line.empty())
-      continue;
-
-    // Convert the utf8 string into a form that can be consumed by the
-    // JavaScript engine.
-    scoped_refptr<SourceCode> source = SourceCode::CreateSourceCode(
-        line, base::SourceLocation("[stdin]", 1, 1));
-
-    // Execute the script and get the results of execution.
-    std::string result;
-    bool success = global_object_proxy->EvaluateScript(source, &result);
-
-    // Echo the results to stdout.
-    if (!success) {
-      std::cout << "Exception: ";
-    }
-    std::cout << result << std::endl;
-  }
+  StandaloneJavascriptRunner standalone_runner(test_window);
+  standalone_runner.RunInteractive();
+  return 0;
 }
 
 }  // namespace
