@@ -1,0 +1,6 @@
+[ NoInterfaceObject ]
+interface ImplementedInterface {
+  long Onion();
+};
+
+TestInterface implements ImplementedInterface;

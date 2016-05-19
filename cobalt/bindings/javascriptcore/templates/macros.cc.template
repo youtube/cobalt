@@ -1,0 +1,324 @@
+{#
+ # Extract and marshal arguments that will be passed to a function-like call.
+ # Parameters:
+ #     operation: An IdlOperation object
+ # Passed to caller:
+ #     A string that can be used as the parameters for a function call. It will
+ #     be either empty, or a comma-separated list of variable names.
+ #}
+{% macro extract_arguments(operation) %}
+{% set non_optional_arguments = operation.arguments|rejectattr('is_optional')|rejectattr('is_variadic')|list %}
+{% set optional_arguments = operation.arguments|selectattr('is_optional')|list %}
+{% set num_default_arguments = optional_arguments|rejectattr('default_value', 'none')|list|length %}
+{% set variadic_argument = operation.arguments|last if (operation.arguments|length > 0) and (operation.arguments|last).is_variadic %}
+{% set has_non_default_optional_arguments = optional_arguments|length > num_default_arguments %}
+
+{%- if non_optional_arguments|length > 0 %}
+  const size_t kMinArguments = {{non_optional_arguments|length}};
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+{% endif -%}
+
+{# Declare variables for all arguments #}
+{% for argument in non_optional_arguments %}
+{% if loop.first %}
+  // Non-optional arguments
+{% endif %}
+  {{argument.type}} {{argument.name}};
+{% endfor %}
+{% for argument in optional_arguments if argument.default_value %}
+{% if loop.first %}
+  // Optional arguments with default values
+{% endif %}
+  {{argument.type}} {{argument.name}} = {{argument.default_value}};
+{% endfor %}
+{% for argument in optional_arguments if not argument.default_value %}
+{% if loop.first %}
+  // Optional arguments
+{% endif %}
+  {{argument.type}} {{argument.name}};
+{% endfor %}
+{% if variadic_argument %}
+  // Variadic argument
+  {{variadic_argument.type}} {{variadic_argument.name}};
+{% endif -%}
+
+{% for argument in non_optional_arguments %}
+
+  DCHECK_LT({{loop.index0}}, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument({{loop.index0}}),
+      {{argument.conversion_flags}},
+      &exception_state, &{{argument.name}});
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+{% endfor -%}
+{% for argument in optional_arguments %}
+{% if loop.first %}
+
+  size_t num_set_arguments = {{non_optional_arguments|length + num_default_arguments}};
+{% endif %}
+  if (exec_state->argumentCount() > {{loop.index0 + non_optional_arguments|length}}) {
+    FromJSValue(exec_state,
+        exec_state->argument({{loop.index0 + non_optional_arguments|length}}),
+        {{argument.conversion_flags}},
+        &exception_state,
+        &{{argument.name}});
+    if (exception_state.is_exception_set()) {
+      return JSC::throwVMError(exec_state, exception_state.exception_object());
+    }
+{% if not argument.default_value %}
+    ++num_set_arguments;
+{% endif %}
+  }
+{% endfor %}
+{% if variadic_argument %}
+
+  // Get variadic arguments.
+{% if optional_arguments|length %}
+  const size_t kLastOptionalArgIndex = {{non_optional_arguments|length + optional_arguments|length}};
+  if (num_set_arguments == kLastOptionalArgIndex) {
+    // If the last optional argument has been set, we will call the overload
+    // that takes the variadic argument, possibly with an empty vector in the
+    // case that there are no more arguments left.
+    ++num_set_arguments;
+  }
+{% endif %}
+  const size_t kFirstVariadicArgIndex = {{operation.arguments|length - 1}};
+  if (exec_state->argumentCount() > kFirstVariadicArgIndex) {
+    {{variadic_argument.name}}.resize(exec_state->argumentCount() - kFirstVariadicArgIndex);
+    for (int i = 0; i + kFirstVariadicArgIndex < exec_state->argumentCount(); ++i) {
+      FromJSValue(exec_state,
+          exec_state->argument(i + kFirstVariadicArgIndex),
+          {{variadic_argument.conversion_flags}},
+          &exception_state,
+          &{{variadic_argument.name}}[i]);
+      if (exception_state.is_exception_set()) {
+        return JSC::throwVMError(exec_state, exception_state.exception_object());
+      }
+    }
+  }
+{% endif -%}
+
+{# Call the implementation function, based on the number of set arguments. #}
+{% if has_non_default_optional_arguments %}
+  switch (num_set_arguments) {
+{% for num_arguments in range(non_optional_arguments|length + num_default_arguments, operation.arguments|length + 1) %}
+{# If no variadic arguments have been set, we still call the function with
+   signature that has the variadic argument and pass an empty vector. There is
+   no such function signature that takes the optional parameter immediately
+   preceeding the variadic argument but does not take the variadic arguments. #}
+{% if loop.last or not operation.arguments[num_arguments].is_variadic %}
+{% set function_arguments = operation.arguments[0:num_arguments]|map(attribute='name')|list %}
+    case {{num_arguments}}:
+      {
+        {# whitespace control block #}
+        {{-caller(function_arguments)|indent(8, True)}}
+        break;
+      }
+{% endif %}
+{% endfor %}
+    default:
+      NOTREACHED();
+      return JSC::JSValue::encode(JSC::jsUndefined());
+  }
+{% else %} {#- has_non_default_optional_arguments #}
+{% set function_arguments = operation.arguments|map(attribute='name')|list %}
+  {# whitespace control block #}
+  {{-caller(function_arguments)|indent(2, True)}}
+{% endif %}
+{% endmacro %}
+
+{#
+ # Append extra arguments that should be passed to a cobalt function.
+ # Specifically, this will prepend parameters specified on IDLs using the
+ # [CallWith=] extended attribute.
+ # Parameters:
+ #     global_object: A C++ expression to retrieve a JSCGlobalObject pointer.
+ #     arguments_list: A list of C++ expressions that represent a sequence of
+ #         arguments that will be passed to a function.
+ #     idl_object: An IDL object that may have the extended attribute that
+ #         we are interested in.
+ #     is_constructor: True if we are extracting the extended attribute for
+ #         a constructor.
+ # Passed to caller:
+ #     arguments_list, possibly with extra arguments prepended.
+ #}
+{% macro add_extra_arguments(global_object, arguments_list, context) %}
+{% set prepend = [] %}
+{% set append = [] %}
+{% if context.call_with %}
+{% set prepend = ['%s->Get%s()'|format(global_object, context.call_with)] %}
+{% endif %}
+{% if context.raises_exception %}
+{% set append = ['&exception_state'] %}
+{% endif %}
+{{caller(prepend + arguments_list + append)}}
+{%- endmacro %}
+
+{#
+ # Create an expression to call a member function, which might be static,
+ # with the given arguments.
+ # Parameters:
+ #     this_object: A string that is the name of a C++ variable that is a
+ #         pointer to an instance of the implementation class.
+ #     class_name: A string that is the name of the C++ implementation class.
+ #     function_name: A string that is the name of the function to be called.
+ #     arguments_list: A list of C++ expressions that represent a sequence of
+ #         arguments that will be passed to a function.
+ #     is_static: True if the method is static.
+ #}
+{% macro call_function(this_object, class_name, function_name, arguments_list, is_static) %}
+{% if is_static %}
+{{class_name}}::{{function_name}}({{arguments_list|join(', ')}})
+{%- else %}
+{{this_object}}->{{function_name}}({{arguments_list|join(', ')}})
+{%- endif %}
+{%- endmacro %}
+
+{#
+ # Function body for operation bindings.
+ # Parameters:
+ #     operation: The operation context object
+ #}
+{% macro function_implementation(operation) %}
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+{% if not operation.is_static %}
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  {{impl_class}}* impl =
+      GetWrappableOrSetException<{{impl_class}}>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+{% endif %}
+
+{% call(arguments_list) extract_arguments(operation) %}
+{% call(arguments_list) add_extra_arguments('global_object', arguments_list, operation) %}
+{{ operation.type + ' return_value = ' if operation.type != 'void'}}
+{{- call_function("impl", impl_class, operation.name, arguments_list, operation.is_static) -}};
+{% if operation.raises_exception %}
+if (exception_state.is_exception_set()) {
+  return JSC::throwVMError(exec_state, exception_state.exception_object());
+}
+{% endif %}
+return JSC::JSValue::encode({{'ToJSValue(global_object, return_value)' if operation.type != 'void' else 'JSC::jsUndefined()'}});
+{% endcall %}
+{% endcall %}
+{%- endmacro %}
+
+{#
+ # Function body for constructor bindings.
+ # Parameters:
+ #     operation: The constructor context object
+ #}
+{% macro constructor_implementation(constructor) %}
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+{% call(arguments_list) extract_arguments(constructor) %}
+{% call(arguments_list) add_extra_arguments('global_object', arguments_list, constructor) %}
+  scoped_refptr<{{impl_class}}> new_object =
+      new {{impl_class}}({{arguments_list|join(', ')}});
+{% if constructor.raises_exception %}
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+{% endif %}
+  return JSC::JSValue::encode(ToJSValue(global_object, new_object));
+{% endcall %}
+{% endcall %}
+{%- endmacro %}
+
+{#
+ # Function body for overload resolution function.
+ # Parameters:
+ #     overload_context: The overload context object.
+ #     bound_function_prefix: The prefix of the function to be called on
+ #         resolution. The overload index will be appended to this.
+ #}
+{% macro overload_resolution_implementation(overload_context, bound_function_prefix) %}
+  const size_t num_arguments = exec_state->argumentCount();
+  switch(num_arguments) {
+{% for length, distinguishing_argument_index, resolution_tests in overload_context.overload_resolution_by_length %}
+    case({{length}}): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+{# In the case there is only one resolution condition, we don't need the arg. #}
+{% if resolution_tests|length > 1 %}
+      JSC::JSValue arg = exec_state->argument({{distinguishing_argument_index}});
+{% endif %}
+{% for test, overload in resolution_tests %}
+      if ({{test("arg")}}) {
+        return {{bound_function_prefix}}{{overload.overload_index}}(exec_state);
+      }
+{% endfor %}
+      break;
+    }
+{% endfor %}
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  return JSC::throwVMTypeError(exec_state);
+{%- endmacro %}
+
+{#
+ # Function body for setting an attribute value.
+ # Parameters:
+ #     attribute: The attribute context object.
+ #     impl_class: Cobalt class name of the Cobalt implementation of the
+ #         interface on which the attribute is a member.
+ #     cobalt_impl: Variable name of a pointer to a Cobalt implementation of the
+ #         interface on which the attribute is a member.
+ #}
+{% macro set_attribute_implementation(attribute, impl_class, cobalt_impl) %}
+{% if attribute.is_constructor_attribute %}
+  NOTIMPLEMENTED() << "Setting constructors not yet supported.";
+{% else %}
+{% if attribute.put_forwards %}
+  {
+    {{attribute.type}} forwarded_{{cobalt_impl}} =
+        {{call_function(cobalt_impl, impl_class, attribute.getter_function_name,
+          arguments_list, attribute.is_static)-}};
+    if (!forwarded_{{cobalt_impl}}) {
+      return;
+    }
+{{ set_attribute_implementation(attribute.put_forwards, attribute.type,
+                                "forwarded_" + cobalt_impl) }}
+  }
+{% else %} {#- if attribute.put_forwards #}
+  {{attribute.type}} cobalt_value;
+{% if attribute.is_event_listener %}
+  ToEventListenerAttribute(exec_state, value, {{attribute.conversion_flags}},
+      &exception_state, this_object, &cobalt_value);
+{% else %}
+  FromJSValue(exec_state, value,
+      {{attribute.conversion_flags}}, &exception_state,
+      &cobalt_value);
+{% endif %}
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return;
+  }
+{% call(arguments_list) add_extra_arguments('global_object', ['cobalt_value'],
+                                            attribute) %}
+  // Check if argument conversion raised an exception.
+  if (!exec_state->hadException()) {
+    {{ call_function(cobalt_impl, impl_class, attribute.setter_function_name,
+                     arguments_list, attribute.is_static) -}};
+{% if attribute.raises_exception %}
+    if (exception_state.is_exception_set()) {
+      JSC::throwError(exec_state, exception_state.exception_object());
+    }
+{% endif %}
+  }
+{%- endcall %}
+{% endif %} {#- attribute.put_forwards #}
+{% endif %} {#- attribute.is_constructor_attribute #}
+{%- endmacro %}
+
