@@ -171,6 +171,13 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<Element> active_element() const;
 
+  const EventListenerScriptObject* onreadystatechange() const {
+    return GetAttributeEventListener(base::Tokens::readystatechange());
+  }
+  void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
+    SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
+  }
+
   // Web API: CSS Object Model (partial interface)
   //   http://dev.w3.org/csswg/cssom/#extensions-to-the-document-interface
   const scoped_refptr<cssom::StyleSheetList>& style_sheets() const {
