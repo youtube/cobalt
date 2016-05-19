@@ -88,6 +88,13 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
     kTimeoutError,
   };
 
+  const EventListenerScriptObject* onreadystatechange() const {
+    return GetAttributeEventListener(base::Tokens::readystatechange());
+  }
+  void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
+    SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
+  }
+
   void Abort();
   void Open(const std::string& method, const std::string& url,
             script::ExceptionState* exception_state) {

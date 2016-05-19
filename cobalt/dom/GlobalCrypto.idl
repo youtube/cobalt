@@ -20,3 +20,4 @@
 interface GlobalCrypto {
   readonly attribute Crypto crypto;
 };
+Window implements GlobalCrypto;

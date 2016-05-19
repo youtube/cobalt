@@ -21,47 +21,48 @@
     ConstructorCallWith=EnvironmentSettings,
     AddOpaqueRoots=("upload_or_null","response_array_buffer_or_null"),
 ] interface XMLHttpRequest : XMLHttpRequestEventTarget {
+    // event handler
+    attribute EventHandler onreadystatechange;
 
-    // values for readyState.
+    // states
     const unsigned short UNSENT = 0;
     const unsigned short OPENED = 1;
     const unsigned short HEADERS_RECEIVED = 2;
     const unsigned short LOADING = 3;
     const unsigned short DONE = 4;
+    readonly attribute unsigned short readyState;
 
+    // request
     [RaisesException] void open(DOMString method, DOMString url);
     [RaisesException] void open(DOMString method, DOMString url,
                                 boolean async,
                                 optional DOMString? username,
                                 optional DOMString? password);
-
     [RaisesException] void setRequestHeader(DOMString header, DOMString value);
-    // void send(optional (ArrayBufferView or Blob or Document or DOMString or FormData)? data);
-    [RaisesException] void send(optional (DOMString or ArrayBufferView)? request_body);
-    void abort();
-    [RaisesException] void overrideMimeType(DOMString mime_type);
-    DOMString getAllResponseHeaders();
-    DOMString? getResponseHeader(DOMString header);
-
-    readonly attribute unsigned short readyState;
-    attribute EventListener? onreadystatechange;
-
     attribute unsigned long timeout;
-
     [RaisesException=Setter] attribute boolean withCredentials;
-
     readonly attribute XMLHttpRequestUpload upload;
+    [RaisesException] void send(optional (DOMString or ArrayBufferView)? request_body);
+    // void send(optional (ArrayBufferView or Blob or Document or DOMString or FormData)? data);
+    void abort();
 
-    [RaisesException] readonly attribute DOMString responseText;
-    [RaisesException] readonly attribute Document? responseXML;
-
+    // response
+    readonly attribute unsigned short status;
+    readonly attribute DOMString statusText;
+    DOMString? getResponseHeader(DOMString header);
+    DOMString getAllResponseHeaders();
+    [RaisesException] void overrideMimeType(DOMString mime_type);
     [RaisesException=Setter] attribute DOMString responseType;
     // TODO(***REMOVED***): Use a union type for all the possible response types.
     [RaisesException] readonly attribute (DOMString or ArrayBuffer) response;
-
-    readonly attribute unsigned short status;
-    readonly attribute DOMString statusText;
+    [RaisesException] readonly attribute DOMString responseText;
+    [RaisesException] readonly attribute Document? responseXML;
 
     // Not part of the spec. Enable verbose XHR logging.
     static attribute boolean verbose;
 };
+
+// TODO(b/21154386): The IDL defines EventHandler as a nullable callback
+// function. Define it as a nullable EventListener for now until we can do
+// some refactoring to accept both in the EventTarget implementation.
+typedef EventListener? EventHandler;
