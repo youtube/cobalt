@@ -18,14 +18,11 @@
 
 #include "base/command_line.h"
 #include "base/file_path.h"
-#include "base/file_util.h"
-#include "base/memory/ref_counted.h"
 #include "base/string_util.h"
-#include "cobalt/base/source_location.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/script/javascriptcore/jsc_engine.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
-#include "cobalt/script/javascriptcore/jsc_source_code.h"
+#include "cobalt/script/standalone_javascript_runner.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 // Error.h needs to be included before JSCTypedArrayStubs.h
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/Error.h"
@@ -92,14 +89,12 @@ void SetupBindings(JSCGlobalObject* global_object) {
 }
 
 int JSCMain(int argc, char** argv) {
-  scoped_ptr<JavaScriptEngine> engine = JavaScriptEngine::CreateEngine();
-  scoped_refptr<GlobalObjectProxy> global_object_proxy =
-      engine->CreateGlobalObjectProxy();
-  global_object_proxy->CreateGlobalObject();
-  global_object_proxy->EnableEval();
+  cobalt::script::StandaloneJavascriptRunner standalone_runner;
+  standalone_runner.global_object_proxy()->EnableEval();
 
   JSCGlobalObject* global_object =
-      static_cast<JSCGlobalObjectProxy*>(global_object_proxy.get())
+      static_cast<JSCGlobalObjectProxy*>(
+          standalone_runner.global_object_proxy().get())
           ->global_object();
   SetupBindings(global_object);
 
@@ -107,47 +102,10 @@ int JSCMain(int argc, char** argv) {
   CommandLine::StringVector args = command_line.GetArgs();
   if (!args.empty()) {
     FilePath source_file(args[0]);
-    std::string source_contents;
-    if (!file_util::ReadFileToString(source_file, &source_contents)) {
-      LOG(ERROR) << "Failed to read file: " << source_file.value();
-      exit(1);
-    }
-    scoped_refptr<SourceCode> source = SourceCode::CreateSourceCode(
-        source_contents,
-        base::SourceLocation(source_file.value().c_str(), 1, 1));
-    std::string result;
-    if (global_object_proxy->EvaluateScript(source, &result)) {
-      LOG(INFO) << "Result: " << result;
-    } else {
-      LOG(INFO) << "Exception: " << result;
-    }
+    standalone_runner.ExecuteFile(source_file);
   } else {
-    while (true) {
-      // Interactive prompt.
-      std::cout << "> ";
-
-      // Read user input from stdin.
-      std::string line;
-      std::getline(std::cin, line);
-      if (line.empty()) continue;
-
-      // Convert the utf8 string into a form that can be consumed by the
-      // JavaScript engine.
-      scoped_refptr<SourceCode> source = SourceCode::CreateSourceCode(
-          line, base::SourceLocation("[stdin]", 1, 1));
-
-      // Execute the script and get the results of execution.
-      std::string result;
-      bool success = global_object_proxy->EvaluateScript(source, &result);
-
-      // Echo the results to stdout.
-      if (!success) {
-        std::cout << "Exception: ";
-      }
-      std::cout << result << std::endl;
-    }
+    standalone_runner.RunInteractive();
   }
-
   return 0;
 }
 
