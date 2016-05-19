@@ -48,7 +48,6 @@
         '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/bindings/browser.gyp:bindings',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/debug/debug.gyp:debug',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
@@ -67,6 +66,7 @@
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        'browser_bindings.gyp:bindings',
         'screen_shot_writer',
       ],
       'conditions': [
