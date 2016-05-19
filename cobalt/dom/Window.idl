@@ -43,7 +43,6 @@
   [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
   [CallWith=EnvironmentSettings] void gc();
 };
-Window implements GlobalCrypto;
 Window implements GlobalEventHandlers;
-Window implements WindowSessionStorage;
-Window implements WindowLocalStorage;
+Window implements WindowEventHandlers;
+

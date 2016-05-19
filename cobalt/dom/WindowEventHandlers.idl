@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/webstorage/#windowlocalstorage
+// https://www.w3.org/TR/html5/webappapis.html#windoweventhandlers
 
 [NoInterfaceObject]
-interface WindowLocalStorage {
-  readonly attribute Storage localStorage;
+interface WindowEventHandlers {
+  attribute EventHandler onunload;
 };
-Window implements WindowLocalStorage;
+
+// TODO(b/21154386): The IDL defines EventHandler as a nullable callback
+// function. Define it as a nullable EventListener for now until we can do
+// some refactoring to accept both in the EventTarget implementation.
+typedef EventListener? EventHandler;
