@@ -17,18 +17,174 @@
 #include "cobalt/audio/audio_device.h"
 
 #include "base/memory/scoped_ptr.h"
+#if defined(OS_STARBOARD)
+#include "starboard/audio_sink.h"
+#else  // defined(OS_STARBOARD)
 #include "media/audio/audio_parameters.h"
 #include "media/audio/shell_audio_streamer.h"
+#endif  // defined(OS_STARBOARD)
 #include "media/base/audio_bus.h"
 
 namespace cobalt {
 namespace audio {
+
+using ::media::AudioBus;
+using ::media::ShellAudioBus;
 
 namespace {
 const int kRenderBufferSizeFrames = 1024;
 const int kFramesPerChannel = kRenderBufferSizeFrames * 4;
 const int kStandardOutputSampleRate = 48000;
 }  // namespace
+
+#if defined(OS_STARBOARD)
+
+class AudioDevice::Impl {
+ public:
+  Impl(int number_of_channels, RenderCallback* callback);
+  ~Impl();
+
+ private:
+  static void UpdateSourceStatusFunc(int* frames_in_buffer,
+                                     int* offset_in_frames, bool* is_playing,
+                                     bool* is_eos_reached, void* context);
+  static void ConsumeFramesFunc(int frames_consumed, void* context);
+
+  void UpdateSourceStatus(int* frames_in_buffer, int* offset_in_frames,
+                          bool* is_playing, bool* is_eos_reached);
+  void ConsumeFrames(int frames_consumed);
+
+  void FillOutputAudioBus();
+
+  int number_of_channels_;
+  RenderCallback* render_callback_;
+
+  // The |render_callback_| returns audio data in planar form.  So we read it
+  // into |input_audio_bus_| and convert it into interleaved form and store in
+  // |output_frame_buffer_|.
+  ShellAudioBus input_audio_bus_;
+
+  std::vector<float> output_frame_buffer_;
+  void* frame_buffers_[1];
+  int64 frames_rendered_;  // Frames retrieved from |render_callback_|.
+  int64 frames_consumed_;  // Accumulated frames consumed reported by the sink.
+
+  SbAudioSink audio_sink_;
+
+  DISALLOW_COPY_AND_ASSIGN(Impl);
+};
+
+// AudioDevice::Impl.
+AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
+    : number_of_channels_(number_of_channels),
+      render_callback_(callback),
+      input_audio_bus_(static_cast<size_t>(number_of_channels),
+                       static_cast<size_t>(kRenderBufferSizeFrames),
+                       ShellAudioBus::kFloat32, ShellAudioBus::kPlanar),
+      output_frame_buffer_(kFramesPerChannel * number_of_channels),
+      frames_rendered_(0),
+      frames_consumed_(0),
+      audio_sink_(kSbAudioSinkInvalid) {
+  DCHECK(number_of_channels_ == 1 || number_of_channels_ == 2)
+      << "Invalid number of channels: " << number_of_channels_;
+  DCHECK(render_callback_);
+  DCHECK(SbAudioSinkIsAudioFrameStorageTypeSupported(
+      kSbMediaAudioFrameStorageTypeInterleaved))
+      << "Only interleaved frame storage is supported.";
+  DCHECK(SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32))
+      << "Only float sample is supported.";
+
+  frame_buffers_[0] = &output_frame_buffer_[0];
+  audio_sink_ = SbAudioSinkCreate(
+      number_of_channels_, kStandardOutputSampleRate,
+      kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypeInterleaved,
+      frame_buffers_, kFramesPerChannel,
+      &AudioDevice::Impl::UpdateSourceStatusFunc,
+      &AudioDevice::Impl::ConsumeFramesFunc, this);
+  DCHECK(SbAudioSinkIsValid(audio_sink_));
+}
+
+AudioDevice::Impl::~Impl() {
+  if (SbAudioSinkIsValid(audio_sink_)) {
+    SbAudioSinkDestroy(audio_sink_);
+  }
+}
+
+// static
+void AudioDevice::Impl::UpdateSourceStatusFunc(int* frames_in_buffer,
+                                               int* offset_in_frames,
+                                               bool* is_playing,
+                                               bool* is_eos_reached,
+                                               void* context) {
+  AudioDevice::Impl* impl = reinterpret_cast<AudioDevice::Impl*>(context);
+  DCHECK(impl);
+  DCHECK(frames_in_buffer);
+  DCHECK(offset_in_frames);
+  DCHECK(is_playing);
+  DCHECK(is_eos_reached);
+
+  impl->UpdateSourceStatus(frames_in_buffer, offset_in_frames, is_playing,
+                           is_eos_reached);
+}
+
+// static
+void AudioDevice::Impl::ConsumeFramesFunc(int frames_consumed, void* context) {
+  AudioDevice::Impl* impl = reinterpret_cast<AudioDevice::Impl*>(context);
+  DCHECK(impl);
+
+  impl->ConsumeFrames(frames_consumed);
+}
+
+void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
+                                           int* offset_in_frames,
+                                           bool* is_playing,
+                                           bool* is_eos_reached) {
+  *is_playing = true;
+  *is_eos_reached = false;
+
+  // Assert that we never consume more than we've rendered.
+  DCHECK_GE(frames_rendered_, frames_consumed_);
+  *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
+
+  if ((kFramesPerChannel - *frames_in_buffer) >= kRenderBufferSizeFrames) {
+    bool silence = false;
+
+    input_audio_bus_.ZeroAllFrames();
+    // Fill our temporary buffer with planar PCM float samples.
+    render_callback_->FillAudioBus(&input_audio_bus_, &silence);
+
+    if (!silence) {
+      FillOutputAudioBus();
+
+      frames_rendered_ += kRenderBufferSizeFrames;
+      *frames_in_buffer += kRenderBufferSizeFrames;
+    }
+  }
+
+  *offset_in_frames = frames_consumed_ % kFramesPerChannel;
+}
+
+void AudioDevice::Impl::ConsumeFrames(int frames_consumed) {
+  frames_consumed_ += frames_consumed;
+}
+
+void AudioDevice::Impl::FillOutputAudioBus() {
+  // Determine the offset into the audio bus that represents the tail of
+  // buffered data.
+  uint64 channel_offset = frames_rendered_ % kFramesPerChannel;
+
+  float* output_buffer = &output_frame_buffer_[0];
+  output_buffer += channel_offset * number_of_channels_;
+
+  for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+    for (size_t channel = 0; channel < input_audio_bus_.channels(); ++channel) {
+      *output_buffer = input_audio_bus_.GetFloat32Sample(channel, frame);
+      ++output_buffer;
+    }
+  }
+}
+
+#else  // defined(OS_STARBOARD)
 
 class AudioDevice::Impl : public ::media::ShellAudioStream {
  public:
@@ -189,6 +345,8 @@ void AudioDevice::Impl::FillOutputAudioBus() {
   // Clear the data in audio bus.
   audio_bus_.ZeroAllFrames();
 }
+
+#endif  // defined(OS_STARBOARD)
 
 // AudioDevice.
 AudioDevice::AudioDevice(int32 number_of_channels, RenderCallback* callback)
