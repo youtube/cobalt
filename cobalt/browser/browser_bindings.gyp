@@ -205,6 +205,7 @@
         '../dom/Window_CSSOM.idl',
         '../dom/Window_CSSOMView.idl',
         '../dom/Window_Performance.idl',
+        '../dom/WindowEventHandlers.idl',
         '../dom/WindowLocalStorage.idl',
         '../dom/WindowSessionStorage.idl',
         '../dom/WindowTimers.idl',

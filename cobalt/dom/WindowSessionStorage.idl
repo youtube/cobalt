@@ -20,3 +20,4 @@
 interface WindowSessionStorage {
   readonly attribute Storage sessionStorage;
 };
+Window implements WindowSessionStorage;
