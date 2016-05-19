@@ -39,5 +39,12 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
       ]
     },
+    {
+      'target_name': 'standalone_javascript_runner',
+      'type': 'static_library',
+      'sources': [
+        'standalone_javascript_runner.cc',
+      ],
+    },
   ],
 }
