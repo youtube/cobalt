@@ -17,9 +17,9 @@
 // https://www.w3.org/TR/dom/#eventtarget
 
 interface EventTarget {
-  void addEventListener(DOMString type, EventListener listener,
+  void addEventListener(DOMString type, EventListener? listener,
                         optional boolean useCapture = false);
-  void removeEventListener(DOMString type, EventListener listener,
+  void removeEventListener(DOMString type, EventListener? listener,
                            optional boolean useCapture = false);
 
   [RaisesException] boolean dispatchEvent(Event event);
