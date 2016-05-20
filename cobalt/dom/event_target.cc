@@ -34,7 +34,6 @@ void EventTarget::AddEventListener(const std::string& type,
   }
 
   EventListenerScriptObject::Reference listener_reference(this, listener);
-
   DCHECK(!listener_reference.value().IsAttribute());
 
   AddEventListenerInternal(base::Token(type), listener, use_capture);
@@ -43,7 +42,11 @@ void EventTarget::AddEventListener(const std::string& type,
 void EventTarget::RemoveEventListener(const std::string& type,
                                       const EventListenerScriptObject& listener,
                                       bool use_capture) {
-  DCHECK(!listener.IsNull());
+  // Do nothing if listener is null.
+  if (listener.IsNull()) {
+    return;
+  }
+
   EventListenerScriptObject::Reference listener_reference(this, listener);
   DCHECK(!listener_reference.value().IsAttribute());
 
