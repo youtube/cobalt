@@ -17,14 +17,40 @@
 
 #include <X11/Xlib.h>
 
+#include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/video_frame_internal.h"
 #include "starboard/window.h"
+
+#if SB_IS(PLAYER_PUNCHED_OUT)
+#include <X11/extensions/Xrender.h>
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
 struct SbWindowPrivate {
   SbWindowPrivate(Display* display, const SbWindowOptions* options);
   ~SbWindowPrivate();
 
   Window window;
+
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  // Composites graphics and the given video frame video for this window. In
+  // PLAYER_PUNCHED_OUT mode, this is the only way any graphics or video is
+  // presented in the window.
+  void Composite(::starboard::shared::starboard::VideoFrame* frame);
+
+  // The cached XRender Picture that represents the window that is the
+  // destination of the composition.
+  Picture window_picture;
+
+  // This pixmap is used to composite video and graphics before rendering onto
+  // the actual window. This is necessary to avoid horrible flickering.
+  Pixmap composition_pixmap;
+
+  // This window is bound to EGL and used to get the GL graphics output into an
+  // XRender Picture that can be manually composited with video.
+  Window gl_window;
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+
   Display* display;
 
   int width;
