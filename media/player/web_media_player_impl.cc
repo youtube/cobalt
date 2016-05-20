@@ -181,7 +181,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 }
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
+  DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
 
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
@@ -1122,7 +1122,18 @@ void WebMediaPlayerImpl::SetReadyState(WebMediaPlayer::ReadyState state) {
 }
 
 void WebMediaPlayerImpl::Destroy() {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
+  DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
+
+  // If |main_loop_| has already stopped, do nothing here.
+  if (!main_loop_) {
+    // This may happen if this function was already called by the
+    // DestructionObserver override when the thread running this player was
+    // stopped. The pipeline should have been shut down.
+    DCHECK(!chunk_demuxer_);
+    DCHECK(!message_loop_factory_);
+    DCHECK(!proxy_);
+    return;
+  }
 
   // Tell the data source to abort any pending reads so that the pipeline is
   // not blocked when issuing stop commands to the other filters.
