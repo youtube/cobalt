@@ -328,6 +328,20 @@ SbKeyLocation DFBKeyEventToSbKeyLocation(const DFBInputEvent& event) {
   return kSbKeyLocationUnspecified;
 }
 
+unsigned int DFBKeyEventToSbKeyModifiers(const DFBInputEvent& event) {
+  unsigned int key_modifiers = kSbKeyModifiersNone;
+  if (event.modifiers & DIMM_ALT) {
+    key_modifiers |= kSbKeyModifiersAlt;
+  }
+  if (event.modifiers & DIMM_CONTROL) {
+    key_modifiers |= kSbKeyModifiersCtrl;
+  }
+  if (event.modifiers & DIMM_SHIFT) {
+    key_modifiers |= kSbKeyModifiersShift;
+  }
+  return key_modifiers;
+}
+
 }  // namespace
 
 SbWindow ApplicationDirectFB::CreateWindow(const SbWindowOptions* options) {
@@ -443,6 +457,7 @@ shared::starboard::Application::Event* ApplicationDirectFB::DFBEventToEvent(
     data->device_id = kKeyboardDeviceId;
     data->key = DFBKeyEventToSbKey(event);
     data->key_location = DFBKeyEventToSbKeyLocation(event);
+    data->key_modifiers = DFBKeyEventToSbKeyModifiers(event);
     return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
   }
 
