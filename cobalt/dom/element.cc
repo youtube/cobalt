@@ -33,9 +33,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
-#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/parser.h"
-#include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/math/rect_f.h"
@@ -484,17 +482,6 @@ void Element::set_outer_html(const std::string& outer_html,
     document->html_element_context()->dom_parser()->ParseDocumentFragment(
         outer_html, document, parent, reference, GetInlineSourceLocation());
   }
-}
-
-scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
-  return dom::QuerySelector(
-      this, selectors, node_document()->html_element_context()->css_parser());
-}
-
-scoped_refptr<NodeList> Element::QuerySelectorAll(
-    const std::string& selectors) {
-  return dom::QuerySelectorAll(
-      this, selectors, node_document()->html_element_context()->css_parser());
 }
 
 void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
