@@ -153,11 +153,15 @@ class Node : public EventTarget {
   // Web API: ParentNode (implements)
   // The ParentNode interface contains methods that are particular to Node
   // objects that can have children.
-  //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-parentnode
+  //   https://www.w3.org/TR/dom/#parentnode
+  //
   scoped_refptr<HTMLCollection> children() const;
   scoped_refptr<Element> first_element_child() const;
   scoped_refptr<Element> last_element_child() const;
   unsigned int child_element_count() const;
+
+  scoped_refptr<Element> QuerySelector(const std::string& selectors);
+  scoped_refptr<NodeList> QuerySelectorAll(const std::string& selectors);
 
   // Web API: NonDocumentTypeChildNode (implements)
   // The NonDocumentTypeChildNode interface contains methods that are particular
