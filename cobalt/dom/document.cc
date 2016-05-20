@@ -51,8 +51,6 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
-#include "cobalt/dom/node_list.h"
-#include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 
@@ -317,17 +315,6 @@ scoped_refptr<Element> Document::active_element() const {
   } else {
     return active_element_.get();
   }
-}
-
-scoped_refptr<Element> Document::QuerySelector(const std::string& selectors) {
-  return dom::QuerySelector(this, selectors,
-                            html_element_context_->css_parser());
-}
-
-scoped_refptr<NodeList> Document::QuerySelectorAll(
-    const std::string& selectors) {
-  return dom::QuerySelectorAll(this, selectors,
-                               html_element_context()->css_parser());
 }
 
 void Document::set_cookie(const std::string& cookie) {

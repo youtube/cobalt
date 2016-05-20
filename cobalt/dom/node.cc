@@ -30,8 +30,10 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/node_list_live.h"
+#include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/text.h"
 
@@ -375,6 +377,16 @@ unsigned int Node::child_element_count() const {
     child = child->next_sibling();
   }
   return num_elements;
+}
+
+scoped_refptr<Element> Node::QuerySelector(const std::string& selectors) {
+  return dom::QuerySelector(
+      this, selectors, node_document_->html_element_context()->css_parser());
+}
+
+scoped_refptr<NodeList> Node::QuerySelectorAll(const std::string& selectors) {
+  return dom::QuerySelectorAll(
+      this, selectors, node_document_->html_element_context()->css_parser());
 }
 
 scoped_refptr<Element> Node::previous_element_sibling() const {

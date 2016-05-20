@@ -182,11 +182,9 @@
 
         '../dom/Document_CSSOM.idl',
         '../dom/Document_HTML5.idl',
-        '../dom/Document_SelectorsAPI.idl',
         '../dom/Document_WebAnimationsAPI.idl',
         '../dom/Element_CSSOMView.idl',
         '../dom/Element_DOMParsingAndSerialization.idl',
-        '../dom/Element_SelectorsAPI.idl',
         '../dom/ElementCSSInlineStyle.idl',
         '../dom/EventListener.idl',
         '../dom/GlobalCrypto.idl',
