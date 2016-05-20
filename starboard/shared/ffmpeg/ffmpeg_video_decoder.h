@@ -16,11 +16,11 @@
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_H_
 
 #include <queue>
-#include <vector>
 
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/video_frame_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -34,14 +34,7 @@ class VideoDecoder {
   // that the alignment on most modern desktop systems are 16 or 32.
   static const int kAlignment = 32;
 
-  struct Frame {
-    bool is_eos;
-    int32_t width;
-    int32_t height;
-    int32_t pitch;
-    SbMediaTime pts;
-    std::vector<uint8_t> pixels;
-  };
+  typedef shared::starboard::VideoFrame Frame;
 
   explicit VideoDecoder(SbMediaVideoCodec video_codec);
   ~VideoDecoder();
