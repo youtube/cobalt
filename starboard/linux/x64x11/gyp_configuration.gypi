@@ -13,6 +13,14 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'platform_libraries': [
+      '-lXcomposite',
+      '-lXext',
+      '-lXrender',
+    ],
+  },
+
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
     'configurations': {
