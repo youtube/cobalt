@@ -1,4 +1,4 @@
-# Copyright 2014 Google Inc. All Rights Reserved.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,31 +15,30 @@
 {
   'targets': [
     {
-      # Target that represents the JavaScript engine implementation and an
-      # interface to create a new engine instance.
       'target_name': 'engine',
       'type': 'static_library',
       'sources': [
-        'javascript_engine.h',
+        'mozjs_engine.cc',
+        'mozjs_global_object_proxy.cc',
+        'mozjs_source_code.cc',
       ],
       'dependencies': [
-        '<(javascript_engine)/<(javascript_engine).gyp:engine',
+        '<(DEPTH)/cobalt/script/script.gyp:script',
+        '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],
     },
     {
-      # Empty target to ensure all targets for all engines are built when
-      # building 'all'.
-      'target_name': 'all_engines',
-      'type': 'none',
-      'dependencies': [
-        'javascriptcore/javascriptcore.gyp:*',
+      # Standalone executable for JS engine
+      'target_name': 'mozjs',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'mozjs.cc',
       ],
-      'conditions': [
-        ['OS == "starboard"', {
-          'dependencies': [
-            'mozjs/mozjs.gyp:*',
-          ],
-        }],
+      'dependencies': [
+        ':engine',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/script/script.gyp:standalone_javascript_runner',
+        '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],
     },
   ],
