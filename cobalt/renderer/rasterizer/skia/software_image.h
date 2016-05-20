@@ -1,0 +1,116 @@
+/*
+ * Copyright 2014 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_IMAGE_H_
+#define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_IMAGE_H_
+
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/math/size.h"
+#include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/rasterizer/skia/image.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+
+namespace cobalt {
+namespace renderer {
+namespace rasterizer {
+namespace skia {
+
+class SkiaSoftwareImageData : public render_tree::ImageData {
+ public:
+  SkiaSoftwareImageData(const math::Size& size,
+                        render_tree::PixelFormat pixel_format,
+                        render_tree::AlphaFormat alpha_format);
+
+  const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE;
+  uint8_t* GetMemory() OVERRIDE;
+
+  scoped_array<uint8_t> PassPixelData();
+
+ private:
+  render_tree::ImageDataDescriptor descriptor_;
+  scoped_array<uint8_t> pixel_data_;
+};
+
+class SkiaSoftwareImage : public SkiaSinglePlaneImage {
+ public:
+  explicit SkiaSoftwareImage(
+      scoped_ptr<SkiaSoftwareImageData> source_data);
+  SkiaSoftwareImage(uint8_t* source_data,
+                    const render_tree::ImageDataDescriptor& descriptor);
+
+  const math::Size& GetSize() const OVERRIDE { return size_; }
+
+  const SkBitmap& GetBitmap() const OVERRIDE { return bitmap_; }
+
+  void EnsureInitialized() OVERRIDE {}
+
+ private:
+  void Initialize(uint8_t* source_data,
+                  const render_tree::ImageDataDescriptor& descriptor);
+
+  scoped_array<uint8_t> owned_pixel_data_;
+  SkBitmap bitmap_;
+  math::Size size_;
+};
+
+class SkiaSoftwareRawImageMemory : public render_tree::RawImageMemory {
+ public:
+  SkiaSoftwareRawImageMemory(size_t size_in_bytes, size_t alignment);
+
+  size_t GetSizeInBytes() const OVERRIDE;
+  uint8_t* GetMemory() OVERRIDE;
+
+  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> PassPixelData();
+
+ private:
+  size_t size_in_bytes_;
+  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> pixel_data_;
+};
+
+class SkiaSoftwareMultiPlaneImage : public SkiaMultiPlaneImage {
+ public:
+  SkiaSoftwareMultiPlaneImage(
+      scoped_ptr<SkiaSoftwareRawImageMemory> raw_image_memory,
+      const render_tree::MultiPlaneImageDataDescriptor& descriptor);
+
+  const math::Size& GetSize() const OVERRIDE { return size_; }
+
+  render_tree::MultiPlaneImageFormat GetFormat() const OVERRIDE {
+    return format_;
+  }
+  const SkBitmap& GetBitmap(int plane_index) const OVERRIDE {
+    return planes_[plane_index]->GetBitmap();
+  }
+
+  void EnsureInitialized() OVERRIDE {}
+
+ private:
+  math::Size size_;
+  render_tree::MultiPlaneImageFormat format_;
+
+  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> owned_pixel_data_;
+
+  scoped_refptr<SkiaSoftwareImage>
+      planes_[render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes];
+};
+
+}  // namespace skia
+}  // namespace rasterizer
+}  // namespace renderer
+}  // namespace cobalt
+
+#endif  // COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_IMAGE_H_
