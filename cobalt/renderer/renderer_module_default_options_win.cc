@@ -16,17 +16,17 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
-#include "cobalt/renderer/rasterizer_skia/hardware_rasterizer.h"
-#include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
+#include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
+#include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
 namespace cobalt {
 namespace renderer {
 
 namespace {
-scoped_ptr<Rasterizer> CreateRasterizer(
+scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context) {
-  return scoped_ptr<Rasterizer>(
-      new rasterizer_skia::SkiaHardwareRasterizer(graphics_context));
+  return scoped_ptr<rasterizer::Rasterizer>(
+      new rasterizer::skia::SkiaHardwareRasterizer(graphics_context));
 }
 }  // namespace
 

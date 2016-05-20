@@ -23,6 +23,7 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -135,7 +136,7 @@ TEST(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
 
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
-  scoped_ptr<Rasterizer> rasterizer =
+  scoped_ptr<rasterizer::Rasterizer> rasterizer =
       render_module_options.create_rasterizer_function.Run(
           graphics_context.get());
 
@@ -191,7 +192,7 @@ TEST(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
 
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
-  scoped_ptr<Rasterizer> rasterizer =
+  scoped_ptr<rasterizer::Rasterizer> rasterizer =
       render_module_options.create_rasterizer_function.Run(
           graphics_context.get());
 

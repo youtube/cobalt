@@ -25,7 +25,7 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
-#include "cobalt/renderer/rasterizer.h"
+#include "cobalt/renderer/rasterizer/rasterizer.h"
 
 namespace cobalt {
 namespace renderer {
@@ -96,7 +96,7 @@ class RenderTreePixelTester {
 
   scoped_ptr<cobalt::renderer::backend::GraphicsSystem> graphics_system_;
   scoped_ptr<cobalt::renderer::backend::GraphicsContext> graphics_context_;
-  scoped_ptr<cobalt::renderer::Rasterizer> rasterizer_;
+  scoped_ptr<cobalt::renderer::rasterizer::Rasterizer> rasterizer_;
   scoped_refptr<cobalt::renderer::backend::RenderTarget> test_surface_;
 
   FilePath expected_results_directory_;

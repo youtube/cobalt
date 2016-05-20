@@ -24,7 +24,7 @@
       'sources': [
         'pipeline.cc',
         'pipeline.h',
-        'rasterizer.h',
+        'rasterizer/rasterizer.h',
         'render_tree_backend_conversions.cc',
         'render_tree_backend_conversions.h',
         'renderer_module.cc',
@@ -38,7 +38,7 @@
 
       'includes': [
         'copy_font_data.gypi',
-        'rasterizer_skia/rasterizer_skia.gypi'
+        'rasterizer/skia/rasterizer_skia.gypi'
       ],
 
       'dependencies': [
@@ -75,7 +75,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
         '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
         'renderer',
       ],
@@ -87,9 +87,9 @@
       'sources': [
         'animations_test.cc',
         'pipeline_test.cc',
-        'rasterizer_test.cc',
-        'rasterizer_test_fixture.cc',
-        'rasterizer_test_fixture.h',
+        'rasterizer/pixel_test.cc',
+        'rasterizer/pixel_test_fixture.cc',
+        'rasterizer/pixel_test_fixture.h',
         'resource_provider_test.cc',
         'smoothed_value_test.cc',
         'submission_queue_test.cc',
@@ -106,9 +106,9 @@
           'action_name': 'renderer_copy_test_data',
           'variables': {
             'input_files': [
-              '<(DEPTH)/cobalt/renderer/rasterizer_testdata',
+              '<(DEPTH)/cobalt/renderer/rasterizer/testdata',
             ],
-            'output_dir': 'cobalt/renderer',
+            'output_dir': 'cobalt/renderer/rasterizer',
           },
           'includes': ['../build/copy_test_data.gypi'],
         }
@@ -130,7 +130,7 @@
       'target_name': 'renderer_benchmark',
       'type': '<(final_executable_type)',
       'sources': [
-        'rasterizer_benchmark.cc',
+        'rasterizer/benchmark.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
