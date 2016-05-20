@@ -27,7 +27,7 @@
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/rasterizer.h"
+#include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/submission_queue.h"
 
@@ -45,7 +45,8 @@ namespace renderer {
 // refresh rate.
 class Pipeline {
  public:
-  typedef base::Callback<scoped_ptr<Rasterizer>()> CreateRasterizerFunction;
+  typedef base::Callback<scoped_ptr<rasterizer::Rasterizer>()>
+      CreateRasterizerFunction;
   typedef base::Callback<void(scoped_array<uint8>, const math::Size&)>
       RasterizationCompleteCallback;
 
@@ -140,7 +141,7 @@ class Pipeline {
   // The rasterizer object that will run on the rasterizer_thread_ and is
   // effectively the last stage of the pipeline, responsible for rasterizing
   // the final render tree and submitting it to the render target.
-  scoped_ptr<Rasterizer> rasterizer_;
+  scoped_ptr<rasterizer::Rasterizer> rasterizer_;
 
   // A thread whose only purpose is to destroy submissions/render trees.
   // This is important because destroying a render tree can take some time,

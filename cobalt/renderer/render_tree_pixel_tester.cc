@@ -26,7 +26,7 @@
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/backend/surface_info.h"
-#include "cobalt/renderer/rasterizer.h"
+#include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "cobalt/renderer/test/png_utils/png_encode.h"

@@ -22,7 +22,7 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
-#include "cobalt/renderer/rasterizer.h"
+#include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
@@ -33,7 +33,7 @@ class RendererModule {
   struct Options {
     Options();
 
-    typedef base::Callback<scoped_ptr<Rasterizer>(
+    typedef base::Callback<scoped_ptr<rasterizer::Rasterizer>(
         backend::GraphicsContext*)> CreateRasterizerCallback;
     CreateRasterizerCallback create_rasterizer_function;
 

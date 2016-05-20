@@ -18,8 +18,8 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
-#include "cobalt/renderer/rasterizer_skia/hardware_rasterizer.h"
-#include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
+#include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
+#include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
 namespace cobalt {
 namespace renderer {
