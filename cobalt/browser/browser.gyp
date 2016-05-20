@@ -94,7 +94,7 @@
           ],
           'dependencies': [
             '<(DEPTH)/cobalt/base/base.gyp:base',
-            '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
+            '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
             '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
           ],
           'all_dependent_settings': {

@@ -21,7 +21,7 @@
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/renderer/pipeline.h"
-#include "cobalt/renderer/rasterizer.h"
+#include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/submission.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,7 +29,7 @@
 using ::testing::Between;
 using ::testing::_;
 using cobalt::renderer::Pipeline;
-using cobalt::renderer::Rasterizer;
+using cobalt::renderer::rasterizer::Rasterizer;
 
 namespace {
 // We explicitly state here how long our mock rasterizer will take to complete
