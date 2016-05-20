@@ -60,7 +60,6 @@ class HTMLHeadElement;
 class HTMLHtmlElement;
 class HTMLScriptElement;
 class Location;
-class NodeList;
 class Text;
 
 class DocumentObserver {
@@ -187,12 +186,6 @@ class Document : public Node, public cssom::MutationObserver {
   const scoped_refptr<cssom::StyleSheetList>& style_sheets() const {
     return style_sheets_;
   }
-
-  // Web API: Selectors API (partial interface)
-  //   https://www.w3.org/TR/selectors-api2/#interface-definitions
-  //
-  scoped_refptr<Element> QuerySelector(const std::string& selectors);
-  scoped_refptr<NodeList> QuerySelectorAll(const std::string& selectors);
 
   // Web Animations API
   // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#extensions-to-the-document-interface

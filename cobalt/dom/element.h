@@ -39,7 +39,6 @@ class HTMLCollection;
 class HTMLElement;
 class HTMLElementContext;
 class NamedNodeMap;
-class NodeList;
 
 // The Element interface represents an object of a Document. This interface
 // describes methods and properties common to all kinds of elements.
@@ -116,12 +115,6 @@ class Element : public Node {
   std::string outer_html(script::ExceptionState* exception_state) const;
   void set_outer_html(const std::string& outer_html,
                       script::ExceptionState* exception_state);
-
-  // Web API: Selectors API (partial interface)
-  //   https://www.w3.org/TR/selectors-api2/#interface-definitions
-  //
-  scoped_refptr<Element> QuerySelector(const std::string& selectors);
-  scoped_refptr<NodeList> QuerySelectorAll(const std::string& selectors);
 
   // Custom, not in any spec: Node.
   //
