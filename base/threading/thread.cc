@@ -83,7 +83,13 @@ bool Thread::StartWithOptions(const Options& options) {
       (options.message_loop_type == MessageLoop::TYPE_UI));
 #endif
 
+#if !defined(COBALT)
+  // BUG. This should not be called here. We are currently executing in the
+  // thread that is creating this thread, so this call incorrectly marks the
+  // calling thread as not being quit properly. Instead, set it in
+  // |ThreadMain|.
   SetThreadWasQuitProperly(false);
+#endif
 
   StartupData startup_data(options);
   startup_data_ = &startup_data;
@@ -172,6 +178,12 @@ bool Thread::GetThreadWasQuitProperly() {
 
 void Thread::ThreadMain() {
   {
+#if defined(COBALT)
+    // It is incorrect to call this in |StartWithOptions| - that would mark the
+    // calling thread as not being quit correctly. Instead, set it here.
+    SetThreadWasQuitProperly(false);
+#endif
+
     // The message loop for this thread.
     MessageLoop message_loop(startup_data_->options.message_loop_type);
 
