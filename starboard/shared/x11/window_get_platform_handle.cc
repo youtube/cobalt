@@ -21,5 +21,11 @@ void* SbWindowGetPlatformHandle(SbWindow window) {
     return NULL;
   }
 
-  return reinterpret_cast<void*>(window->window);
+  Window handle = None;
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  handle = window->gl_window;
+#else
+  handle = window->window;
+#endif
+  return reinterpret_cast<void*>(handle);
 }

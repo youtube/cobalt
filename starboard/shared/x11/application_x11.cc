@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
@@ -598,7 +599,23 @@ void XSendAtom(Window window, Atom atom) {
 // X IO error handler. Called if we lose our connection to the X server.
 int IOErrorHandler(Display* display) {
   // Not much we can do here except immediately exit.
+  SB_DSTACK(ERROR);
   quick_exit(0);
+  return 0;
+}
+
+int ErrorHandler(Display* display, XErrorEvent* event) {
+  char error_text[256] = {0};
+  XGetErrorText(event->display, event->error_code, error_text,
+                SB_ARRAY_SIZE_INT(error_text));
+  SB_DLOG(ERROR) << "X11 Error: " << error_text;
+  SB_DLOG(ERROR) << "display=" << XDisplayString(event->display);
+  SB_DLOG(ERROR) << "serial=" << event->serial;
+  SB_DLOG(ERROR) << "request=" << static_cast<int>(event->request_code);
+  SB_DLOG(ERROR) << "minor=" << static_cast<int>(event->minor_code);
+  SB_DLOG(ERROR) << "resourceid=" << event->resourceid;
+  SbSystemBreakIntoDebugger();
+  return 0;
 }
 
 }  // namespace
@@ -628,45 +645,72 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
   return true;
 }
 
-void ApplicationX11::Paint(int32_t width,
-                           int32_t height,
-                           int32_t pitch,
-                           void* pixels) {
-  SB_CHECK(windows_.size() == 1);
+#if SB_IS(PLAYER_PUNCHED_OUT)
+namespace {
+void CompositeCallback(void* context) {
+  ApplicationX11* application = reinterpret_cast<ApplicationX11*>(context);
+  application->Composite();
+}
+}  // namespace
 
-  SbWindowSize window_size;
-  if (!SbWindowGetSize(windows_[0], &window_size)) {
-    return;
+void ApplicationX11::Composite() {
+  if (!windows_.empty()) {
+    SbWindow window = windows_[0];
+    if (SbWindowIsValid(window)) {
+      int index = -1;
+      {
+        ScopedLock lock(frame_mutex_);
+        if (frame_written_) {
+          // Clear the old frame, now that we are done with it.
+          frames_[frame_read_index_].pixels.clear();
+
+          // Increment the index to the next frame, which has been written.
+          frame_read_index_ = (frame_read_index_ + 1) % kNumFrames;
+
+          // Clear the frame written flag, so we will not advance frames until
+          // the next frame is written.
+          frame_written_ = false;
+        }
+        index = frame_read_index_;
+      }
+      window->Composite(&frames_[index]);
+    }
   }
-  Drawable window =
-      reinterpret_cast<Drawable>((SbWindowGetPlatformHandle(windows_[0])));
-  XImage image = {0};
-  image.width = width;
-  image.height = height;
-  image.format = ZPixmap;
-  image.data = reinterpret_cast<char*>(pixels);
-  image.bitmap_pad = 32;
-  image.depth = 32;
-  image.bytes_per_line = pitch * 4;
-  image.bits_per_pixel = 32;
-  Status status = XInitImage(&image);
-  SB_DCHECK(status);
-
-  Pixmap pixmap = XCreatePixmap(display_, window, width, height, 32);
-  SB_DCHECK(pixmap);
-  GC context = XCreateGC(display_, window, 0, NULL);
-  XPutImage(display_, pixmap, context, &image, 0, 0, 0, 0, width, height);
-  XCopyArea(display_, pixmap, window, context, 0, 0, width, height,
-            (window_size.width - width) / 2, (window_size.height - height) / 2);
+  composite_event_id_ =
+      SbEventSchedule(&CompositeCallback, this, kSbTimeSecond / 60);
 }
 
+void ApplicationX11::AcceptFrame(const shared::starboard::VideoFrame& frame) {
+  int write_index = -1;
+  {
+    ScopedLock lock(frame_mutex_);
+    // Always write ahead 1 frame of the current read frame.
+    write_index = (frame_read_index_ + 1) % kNumFrames;
+
+    // Since we are about to modify the next frame, we need to ensure that the
+    // reader will not try to advance frames concurrently, so we clear the flag
+    // stating the frame has been written.
+    frame_written_ = false;
+  }
+
+  // Copy the frame.
+  frames_[write_index] = frame;
+
+  {
+    ScopedLock lock(frame_mutex_);
+    // The next frame is now ready to be read.
+    frame_written_ = true;
+  }
+}
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+
 void ApplicationX11::Initialize() {
-  // Mesa is installed on Goobuntu machines and will be selected as the default
+  // Mesa is installed on Ubuntu machines and will be selected as the default
   // EGL implementation.  This Mesa environment variable ensures that Mesa
   // internally uses its Gallium drivers for its EGL implementation.
   if (getenv("EGL_DRIVER") == NULL) {
     // putenv takes a non-const char *, and holds onto it indefinitely, so we
-    // first create a global writable memory and then copy the literal into it.
+    // first create global writable memory and then copy the literal into it.
     static char to_put[] = "EGL_DRIVER=egl_gallium";
     SB_CHECK(!putenv(to_put));
   }
@@ -685,7 +729,6 @@ shared::starboard::Application::Event* ApplicationX11::PollNextSystemEvent() {
 
   XEvent x_event;
 
-  // Let any pending X events take precedence.
   if (XNextEventPoll(display_, &x_event)) {
     return XEventToEvent(&x_event);
   }
@@ -717,6 +760,7 @@ void ApplicationX11::EnsureX() {
 
   XInitThreads();
   XSetIOErrorHandler(IOErrorHandler);
+  XSetErrorHandler(ErrorHandler);
   display_ = XOpenDisplay(NULL);
   SB_DCHECK(display_);
 
@@ -729,12 +773,21 @@ void ApplicationX11::EnsureX() {
 
   wake_up_atom_ = XInternAtom(display_, "WakeUpAtom", 0);
   wm_delete_atom_ = XInternAtom(display_, "WM_DELETE_WINDOW", True);
+
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  Composite();
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 }
 
 void ApplicationX11::StopX() {
   if (!display_) {
     return;
   }
+
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  SbEventCancel(composite_event_id_);
+  composite_event_id_ = kSbEventIdInvalid;
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   XCloseDisplay(display_);
   display_ = NULL;
@@ -779,6 +832,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     data->key_modifiers = XKeyEventToSbKeyModifiers(x_key_event);
     return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
   }
+
+  SB_DLOG(INFO) << "Unrecognized event type = " << x_event->type;
 
   return NULL;
 }

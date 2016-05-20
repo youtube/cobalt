@@ -23,6 +23,7 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/video_frame_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -111,16 +112,23 @@ class Application {
   int Run(int argc, char** argv);
 
   // Signals that the application should gracefully terminate as soon as
-  // possible. May be called from any thread.
+  // possible. May be called from an external thread.
   void Stop(int error_level);
 
-  // Schedules an event into the event queue.
+  // Schedules an event into the event queue.  May be called from an external
+  // thread.
   SbEventId Schedule(SbEventCallback callback,
                      void* context,
                      SbTimeMonotonic delay);
 
-  // Cancels an event that was previously scheduled.
+  // Cancels an event that was previously scheduled.  May be called from an
+  // external thread.
   void Cancel(SbEventId id);
+
+  // Handles receiving a new video frame from the media system. Only used when
+  // the application needs to composite video frames with punch-out video
+  // manually (should be rare). Will be called from an external thread.
+  void HandleFrame(const VideoFrame& frame);
 
  protected:
   // Initializes any systems that need initialization before application
@@ -133,13 +141,18 @@ class Application {
   // must be run after the application stop event is handled.
   virtual void Teardown() {}
 
+  // Subclasses may override this method to accept video frames from the media
+  // system. Will be called from an external thread.
+  virtual void AcceptFrame(const VideoFrame& frame) {}
+
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.
   virtual Event* GetNextEvent() = 0;
 
   // Injects an event into the queue, such that it will be returned from
   // GetNextEvent(), giving ownership of the event. NULL is valid, and will just
-  // wake up the main loop. Subclasses must implement this method.
+  // wake up the main loop. May be called from an external thread. Subclasses
+  // must implement this method.
   virtual void Inject(Event* event) = 0;
 
   // Injects a new TimedEvent into the scheduled event queue, passing

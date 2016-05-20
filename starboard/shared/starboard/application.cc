@@ -106,6 +106,10 @@ void Application::Cancel(SbEventId id) {
   CancelTimedEvent(id);
 }
 
+void Application::HandleFrame(const VideoFrame& frame) {
+  AcceptFrame(frame);
+}
+
 bool Application::DispatchAndDelete(Application::Event* event) {
   if (!event) {
     return true;
