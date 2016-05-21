@@ -18,6 +18,8 @@
 
 #include "starboard/blitter.h"
 
+#if SB_HAS(BLITTER)
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -48,3 +50,5 @@ SbBlitterRenderTarget SurfaceRenderTargetBlitter::GetSbRenderTarget() const {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // #if SB_HAS(BLITTER)

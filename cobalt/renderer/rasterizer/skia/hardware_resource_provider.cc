@@ -47,6 +47,11 @@ SkiaHardwareResourceProvider::SkiaHardwareResourceProvider(
       gr_context_(gr_context),
       self_message_loop_(MessageLoop::current()) {}
 
+bool SkiaHardwareResourceProvider::PixelFormatSupported(
+    render_tree::PixelFormat pixel_format) {
+  return pixel_format == render_tree::kPixelFormatRGBA8;
+}
+
 scoped_ptr<ImageData> SkiaHardwareResourceProvider::AllocateImageData(
     const math::Size& size, render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format) {

@@ -19,6 +19,8 @@
 #include "cobalt/renderer/backend/blitter/display.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 
+#if SB_HAS(BLITTER)
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -43,3 +45,5 @@ scoped_ptr<GraphicsContext> GraphicsSystemBlitter::CreateGraphicsContext() {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // #if SB_HAS(BLITTER)

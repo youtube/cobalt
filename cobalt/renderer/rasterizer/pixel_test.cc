@@ -326,6 +326,52 @@ struct RGBAWord {
   uint8_t rgba[4];
 };
 
+// This function will query the provided ResourceProvider to determine the
+// best pixel format to use when generating Images from pixel data.
+PixelFormat ChoosePixelFormat(ResourceProvider* resource_provider) {
+  if (resource_provider->PixelFormatSupported(render_tree::kPixelFormatRGBA8)) {
+    return render_tree::kPixelFormatRGBA8;
+  } else if (resource_provider->PixelFormatSupported(
+                 render_tree::kPixelFormatBGRA8)) {
+    return render_tree::kPixelFormatBGRA8;
+  } else {
+    return render_tree::kPixelFormatInvalid;
+  }
+}
+
+// Represents a RGBA channel swizzling relative to the order RGBA.
+// e.g. RGBA -> 0123, BGRA -> 2103.
+struct RGBASwizzle {
+  RGBASwizzle(int r, int g, int b, int a) {
+    channel[0] = r;
+    channel[1] = g;
+    channel[2] = b;
+    channel[3] = a;
+  }
+
+  int channel[4];
+};
+
+// Returns a RGBA Swizzle relative to the order RGBA, based off of the
+// render_tree::PixelFormat.
+RGBASwizzle GetRGBASwizzleForPixelFormat(PixelFormat pixel_format) {
+  switch (pixel_format) {
+    case render_tree::kPixelFormatRGBA8: {
+      return RGBASwizzle(0, 1, 2, 3);
+    }
+    case render_tree::kPixelFormatBGRA8: {
+      return RGBASwizzle(2, 1, 0, 3);
+    }
+    case render_tree::kPixelFormatY8:
+    case render_tree::kPixelFormatU8:
+    case render_tree::kPixelFormatV8:
+    case render_tree::kPixelFormatInvalid: {
+      NOTREACHED() << "Invalid pixel format.";
+    }
+  }
+  return RGBASwizzle(0, 1, 2, 3);
+}
+
 // Creates a 3x3 checkered image of colors where each cell color is determined
 // by adding the corresponding row and column colors (and clamping each
 // component to 255).
@@ -336,11 +382,13 @@ scoped_refptr<Image> CreateAdditiveColorGridImage(
   DCHECK_EQ(3, row_colors.size());
   DCHECK_EQ(3, column_colors.size());
   // Allocate memory to store the image data that we will subsequently generate.
+  PixelFormat pixel_format = ChoosePixelFormat(resource_provider);
   scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
       Size(static_cast<int>(dimensions.width()),
            static_cast<int>(dimensions.height())),
-      render_tree::kPixelFormatRGBA8, alpha_format);
+      pixel_format, alpha_format);
 
+  RGBASwizzle rgba_swizzle = GetRGBASwizzleForPixelFormat(pixel_format);
   for (int i = 0; i < dimensions.height(); ++i) {
     uint8_t* pixel_data = image_data->GetMemory() +
                           image_data->GetDescriptor().pitch_in_bytes * i;
@@ -353,10 +401,9 @@ scoped_refptr<Image> CreateAdditiveColorGridImage(
       // pixel color appropriately.
       int color_column = (j * 3) / dimensions.width();
       for (int c = 0; c < 4; ++c) {
-        pixel_data[pixel_offset + c] = std::min(
-            255,
-            row_colors[color_row].rgba[c] +
-                column_colors[color_column].rgba[c]);
+        pixel_data[pixel_offset + rgba_swizzle.channel[c]] =
+            std::min(255, row_colors[color_row].rgba[c] +
+                              column_colors[color_column].rgba[c]);
       }
     }
   }
@@ -1193,11 +1240,13 @@ scoped_refptr<Image> CreateCheckerImage(ResourceProvider* resource_provider,
                                         const SizeF& dimensions,
                                         const SizeF& block_size) {
   // Allocate memory to store the image data that we will subsequently generate.
+  PixelFormat pixel_format = ChoosePixelFormat(resource_provider);
   scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
       Size(static_cast<int>(dimensions.width()),
            static_cast<int>(dimensions.height())),
-      render_tree::kPixelFormatRGBA8, render_tree::kAlphaFormatPremultiplied);
+      pixel_format, render_tree::kAlphaFormatPremultiplied);
 
+  RGBASwizzle rgba_swizzle = GetRGBASwizzleForPixelFormat(pixel_format);
   for (int i = 0; i < dimensions.height(); ++i) {
     uint8_t* pixel_data = image_data->GetMemory() +
                           image_data->GetDescriptor().pitch_in_bytes * i;
@@ -1208,9 +1257,9 @@ scoped_refptr<Image> CreateCheckerImage(ResourceProvider* resource_provider,
 
       int pixel_offset = j * 4;
       for (int c = 0; c < 3; ++c) {
-        pixel_data[pixel_offset + c] = color_value;
+        pixel_data[pixel_offset + rgba_swizzle.channel[c]] = color_value;
       }
-      pixel_data[pixel_offset + 3] = 255;
+      pixel_data[pixel_offset + rgba_swizzle.channel[3]] = 255;
     }
   }
 

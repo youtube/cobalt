@@ -57,7 +57,8 @@ void SkiaImage::DCheckForPremultipliedAlpha(
     const math::Size& dimensions, int source_pitch_in_bytes,
     render_tree::PixelFormat pixel_format, const uint8_t* source_pixels) {
   TRACE_EVENT0("cobalt::renderer", "SkiaImage::DCheckForPremultipliedAlpha()");
-  DCHECK_EQ(render_tree::kPixelFormatRGBA8, pixel_format);
+  DCHECK(pixel_format == render_tree::kPixelFormatRGBA8 ||
+         pixel_format == render_tree::kPixelFormatBGRA8);
   for (int row = 0; row < dimensions.height(); ++row) {
     const uint8_t* current_pixel = source_pixels + row * source_pitch_in_bytes;
     for (int column = 0; column < dimensions.width(); ++column) {

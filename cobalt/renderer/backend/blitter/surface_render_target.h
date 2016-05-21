@@ -21,6 +21,8 @@
 #include "cobalt/renderer/backend/blitter/render_target.h"
 #include "starboard/blitter.h"
 
+#if SB_HAS(BLITTER)
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -50,5 +52,7 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // #if SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_BACKEND_BLITTER_SURFACE_RENDER_TARGET_H_
