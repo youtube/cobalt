@@ -27,6 +27,7 @@
         }],
         ['OS=="starboard"', {
           'dependencies': [
+            '<(DEPTH)/cobalt/renderer/rasterizer/blitter/rasterizer.gyp:hardware_rasterizer',
             '<(DEPTH)/cobalt/renderer/rasterizer/blitter/rasterizer.gyp:software_rasterizer',
           ],
         }],

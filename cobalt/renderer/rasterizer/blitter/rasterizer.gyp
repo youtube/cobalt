@@ -14,6 +14,30 @@
 
 {
   'targets': [
+    # The Blitter hardware rasterizer uses the Blitter API to draw render tree
+    # nodes directly, when possible, and falls back to software Skia when this
+    # is not possible.
+    {
+      'target_name': 'hardware_rasterizer',
+      'type': 'static_library',
+
+      'sources': [
+        'hardware_rasterizer.cc',
+        'image.cc',
+        'render_tree_blitter_conversions.cc',
+        'render_tree_node_visitor.cc',
+        'resource_provider.cc',
+      ],
+
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+      ],
+    },
+
+    # The Blitter software rasterizer uses Skia to rasterize render trees on
+    # the CPU and then uses the Blitter API to get the resulting image onto
+    # the display.
     {
       'target_name': 'software_rasterizer',
       'type': 'static_library',
@@ -27,6 +51,7 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },
   ],

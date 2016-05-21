@@ -14,36 +14,32 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_RENDERER_BACKEND_BLITTER_RENDER_TARGET_H_
-#define COBALT_RENDERER_BACKEND_BLITTER_RENDER_TARGET_H_
+#ifndef COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_BLITTER_CONVERSIONS_H_
+#define COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_BLITTER_CONVERSIONS_H_
 
-#include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/render_tree/image.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
-namespace backend {
+namespace rasterizer {
+namespace blitter {
 
-class RenderTargetBlitter : public RenderTarget {
- public:
-  virtual SbBlitterRenderTarget GetSbRenderTarget() const = 0;
+// Converts between render_tree pixel formats to Starboard Blitter API pixel
+// formats.
+SbBlitterPixelDataFormat RenderTreePixelFormatToBlitter(
+    render_tree::PixelFormat format);
 
-  intptr_t GetPlatformHandle() OVERRIDE {
-    return reinterpret_cast<intptr_t>(SbBlitterRenderTarget());
-  }
+SbBlitterAlphaFormat RenderTreeAlphaFormatToBlitter(
+    render_tree::AlphaFormat format);
 
-  virtual void Flip() = 0;
-
- protected:
-  virtual ~RenderTargetBlitter() {}
-};
-
-}  // namespace backend
+}  // namespace blitter
+}  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
 
 #endif  // #if SB_HAS(BLITTER)
 
-#endif  // COBALT_RENDERER_BACKEND_BLITTER_RENDER_TARGET_H_
+#endif  // COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_BLITTER_CONVERSIONS_H_

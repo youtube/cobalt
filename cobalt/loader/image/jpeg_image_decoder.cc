@@ -278,6 +278,17 @@ bool JPEGImageDecoder::DecodeProgressiveJPEG() {
   return true;
 }
 
+// Responsible for swizzeling and alpha-premultiplying a row of pixels.
+template <int r, int g, int b, int a>
+void FillRow(int width, uint8* dest, JSAMPLE* source) {
+  for (int x = 0; x < width; ++x, source += 3, dest += 4) {
+    dest[r] = source[0];
+    dest[g] = source[1];
+    dest[b] = source[2];
+    dest[a] = 0xFF;
+  }
+}
+
 bool JPEGImageDecoder::ReadLines() {
   // Creation of 2-D sample arrays which is for one row.
   // See the comments in jmemmgr.c.
@@ -308,11 +319,21 @@ bool JPEGImageDecoder::ReadLines() {
         image_data()->GetDescriptor().pitch_in_bytes * row_index;
 
     JSAMPLE* sample_buffer = *buffer;
-    for (uint32 x = 0; x < info_.output_width; ++x, sample_buffer += 3) {
-      *pixel_data++ = sample_buffer[0];
-      *pixel_data++ = sample_buffer[1];
-      *pixel_data++ = sample_buffer[2];
-      *pixel_data++ = 0xFF;
+    switch (pixel_format()) {
+      case render_tree::kPixelFormatRGBA8: {
+        FillRow<0, 1, 2, 3>(static_cast<int>(info_.output_width),
+                            pixel_data, sample_buffer);
+      } break;
+      case render_tree::kPixelFormatBGRA8: {
+        FillRow<2, 1, 0, 3>(static_cast<int>(info_.output_width),
+                            pixel_data, sample_buffer);
+      } break;
+      case render_tree::kPixelFormatY8:
+      case render_tree::kPixelFormatU8:
+      case render_tree::kPixelFormatV8:
+      case render_tree::kPixelFormatInvalid: {
+        NOTREACHED();
+      } break;
     }
   }
 

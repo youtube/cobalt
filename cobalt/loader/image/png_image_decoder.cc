@@ -241,6 +241,23 @@ void PNGImageDecoder::HeaderAvailableCallback() {
   set_state(kReadLines);
 }
 
+// Responsible for swizzeling and alpha-premultiplying a row of pixels.
+template <bool has_alpha, int r, int g, int b, int a>
+void FillRow(int width, uint8* dest, png_bytep source) {
+  const int color_channels = has_alpha ? 4 : 3;
+  for (int x = 0; x < width; ++x, dest += 4, source += color_channels) {
+    uint32 alpha = static_cast<uint32>(has_alpha ? source[3] : 255);
+
+    dest[r] = static_cast<uint8>(
+        has_alpha ? FixPointUnsignedMultiply(source[0], alpha) : source[0]);
+    dest[g] = static_cast<uint8>(
+        has_alpha ? FixPointUnsignedMultiply(source[1], alpha) : source[1]);
+    dest[b] = static_cast<uint8>(
+        has_alpha ? FixPointUnsignedMultiply(source[2], alpha) : source[2]);
+    dest[a] = static_cast<uint8>(alpha);
+  }
+}
+
 // This function is called for every row in the image.  If the image is
 // interlacing, and you turned on the interlace handler, this function will be
 // called for every row in every pass. Some of these rows will not be changed
@@ -273,16 +290,28 @@ void PNGImageDecoder::RowAvailableCallback(png_bytep row_buffer,
                       image_data()->GetDescriptor().pitch_in_bytes * row_index;
 
   png_bytep pixel = row_buffer;
-  for (int x = 0; x < width; ++x, pixel += color_channels) {
-    uint32 alpha = static_cast<uint32>(has_alpha_ ? pixel[3] : 255);
 
-    *pixel_data++ = static_cast<uint8>(
-        alpha < 255 ? FixPointUnsignedMultiply(pixel[0], alpha) : pixel[0]);
-    *pixel_data++ = static_cast<uint8>(
-        alpha < 255 ? FixPointUnsignedMultiply(pixel[1], alpha) : pixel[1]);
-    *pixel_data++ = static_cast<uint8>(
-        alpha < 255 ? FixPointUnsignedMultiply(pixel[2], alpha) : pixel[2]);
-    *pixel_data++ = static_cast<uint8>(alpha);
+  switch (pixel_format()) {
+    case render_tree::kPixelFormatRGBA8: {
+      if (has_alpha_) {
+        FillRow<true, 0, 1, 2, 3>(width, pixel_data, pixel);
+      } else {
+        FillRow<false, 0, 1, 2, 3>(width, pixel_data, pixel);
+      }
+    } break;
+    case render_tree::kPixelFormatBGRA8: {
+      if (has_alpha_) {
+        FillRow<true, 2, 1, 0, 3>(width, pixel_data, pixel);
+      } else {
+        FillRow<false, 2, 1, 0, 3>(width, pixel_data, pixel);
+      }
+    } break;
+    case render_tree::kPixelFormatY8:
+    case render_tree::kPixelFormatU8:
+    case render_tree::kPixelFormatV8:
+    case render_tree::kPixelFormatInvalid: {
+      NOTREACHED();
+    } break;
   }
 }
 

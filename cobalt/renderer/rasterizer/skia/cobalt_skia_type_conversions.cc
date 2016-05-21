@@ -26,6 +26,8 @@ SkColorType RenderTreeSurfaceFormatToSkia(
   switch (render_tree_format) {
     case render_tree::kPixelFormatRGBA8:
       return kRGBA_8888_SkColorType;
+    case render_tree::kPixelFormatBGRA8:
+      return kBGRA_8888_SkColorType;
     case render_tree::kPixelFormatY8:
       return kAlpha_8_SkColorType;
     case render_tree::kPixelFormatU8:

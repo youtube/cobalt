@@ -31,7 +31,9 @@ uint32 kMaxBufferSizeBytes = 32 * 1024L;
 
 ImageDataDecoder::ImageDataDecoder(
     render_tree::ResourceProvider* resource_provider)
-    : resource_provider_(resource_provider), state_(kWaitingForHeader) {}
+    : resource_provider_(resource_provider), state_(kWaitingForHeader) {
+  CalculatePixelFormat();
+}
 
 void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
   TRACE_EVENT0("cobalt::loader::image_decoder",
@@ -102,8 +104,16 @@ bool ImageDataDecoder::FinishWithSuccess() {
 
 void ImageDataDecoder::AllocateImageData(const math::Size& size) {
   image_data_ = resource_provider_->AllocateImageData(
-      size, render_tree::kPixelFormatRGBA8,
-      render_tree::kAlphaFormatPremultiplied);
+      size, pixel_format(), render_tree::kAlphaFormatPremultiplied);
+}
+
+void ImageDataDecoder::CalculatePixelFormat() {
+  pixel_format_ = render_tree::kPixelFormatRGBA8;
+  if (!resource_provider_->PixelFormatSupported(pixel_format_)) {
+    pixel_format_ = render_tree::kPixelFormatBGRA8;
+  }
+
+  DCHECK(resource_provider_->PixelFormatSupported(pixel_format_));
 }
 
 }  // namespace image

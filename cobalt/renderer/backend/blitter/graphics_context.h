@@ -23,6 +23,8 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "starboard/blitter.h"
 
+#if SB_HAS(BLITTER)
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -38,7 +40,6 @@ class GraphicsContextBlitter : public GraphicsContext {
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
 
   SbBlitterContext GetSbBlitterContext() const { return context_; }
-
   SbBlitterDevice GetSbBlitterDevice() const { return device_; }
 
  private:
@@ -49,5 +50,7 @@ class GraphicsContextBlitter : public GraphicsContext {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // #if SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_BACKEND_BLITTER_GRAPHICS_CONTEXT_H_
