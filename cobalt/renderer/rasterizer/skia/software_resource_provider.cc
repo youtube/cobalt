@@ -37,13 +37,17 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
+bool SkiaSoftwareResourceProvider::PixelFormatSupported(
+    render_tree::PixelFormat pixel_format) {
+  return RenderTreeSurfaceFormatToSkia(pixel_format) == kN32_SkColorType;
+}
+
 scoped_ptr<ImageData> SkiaSoftwareResourceProvider::AllocateImageData(
     const math::Size& size, render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("cobalt::renderer",
                "SkiaSoftwareResourceProvider::AllocateImageData()");
-  DCHECK_EQ(render_tree::kPixelFormatRGBA8, pixel_format)
-      << "Currently, only RGBA8 is supported.";
+  DCHECK(PixelFormatSupported(pixel_format));
   return scoped_ptr<ImageData>(
       new SkiaSoftwareImageData(size, pixel_format, alpha_format));
 }

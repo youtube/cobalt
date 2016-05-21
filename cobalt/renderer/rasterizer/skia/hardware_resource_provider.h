@@ -38,6 +38,8 @@ class SkiaHardwareResourceProvider : public render_tree::ResourceProvider {
   SkiaHardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
                                GrContext* gr_context);
 
+  bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
+
   scoped_ptr<render_tree::ImageData> AllocateImageData(
       const math::Size& size, render_tree::PixelFormat pixel_format,
       render_tree::AlphaFormat alpha_format) OVERRIDE;

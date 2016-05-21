@@ -70,7 +70,13 @@ class ImageDataDecoder {
   void set_state(State state) { state_ = state; }
   State state() const { return state_; }
 
+  render_tree::PixelFormat pixel_format() const { return pixel_format_; }
+
  private:
+  // Called on construction to query the ResourceProvider for the best image
+  // pixel format to use.
+  void CalculatePixelFormat();
+
   // |resource_provider_| is used to allocate render_tree::ImageData
   render_tree::ResourceProvider* const resource_provider_;
   // Decoded image data.
@@ -79,6 +85,8 @@ class ImageDataDecoder {
   std::vector<uint8> data_buffer_;
   // Record the current decoding status.
   State state_;
+  // The pixel format that the decoded image data is expected to be in.
+  render_tree::PixelFormat pixel_format_;
 };
 
 }  // namespace image
