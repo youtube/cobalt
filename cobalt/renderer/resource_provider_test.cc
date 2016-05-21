@@ -34,6 +34,18 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
+render_tree::PixelFormat ChoosePixelFormat(
+    ResourceProvider* resource_provider) {
+  if (resource_provider->PixelFormatSupported(render_tree::kPixelFormatRGBA8)) {
+    return render_tree::kPixelFormatRGBA8;
+  } else if (resource_provider->PixelFormatSupported(
+                 render_tree::kPixelFormatBGRA8)) {
+    return render_tree::kPixelFormatBGRA8;
+  } else {
+    return render_tree::kPixelFormatInvalid;
+  }
+}
+
 // This functor/thread is designed to simply allocate many textures as quickly
 // in a row as possible.  Many threads should be capable of doing this
 // simultaneously.
@@ -50,9 +62,14 @@ class CreateImagesThread : public base::SimpleThread {
     for (int i = 0; i < num_images_to_create_; ++i) {
       scoped_ptr<render_tree::ImageData> image_data =
           resource_provider_->AllocateImageData(
-              image_size_, render_tree::kPixelFormatRGBA8,
+              image_size_, ChoosePixelFormat(resource_provider_),
               render_tree::kAlphaFormatPremultiplied);
-
+      int num_bytes = image_data->GetDescriptor().pitch_in_bytes *
+                      image_data->GetDescriptor().size.height();
+      uint8* image_memory = image_data->GetMemory();
+      for (int i = 0; i < num_bytes; ++i) {
+        image_memory[i] = 0;
+      }
       resource_provider_->CreateImage(image_data.Pass());
     }
   }

@@ -16,9 +16,12 @@
 
 #include "cobalt/renderer/backend/blitter/display.h"
 
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
 #include "cobalt/system_window/starboard/system_window.h"
+
+#if SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -76,7 +79,10 @@ SbBlitterRenderTarget DisplayRenderTargetBlitter::GetSbRenderTarget() const {
   return render_target_;
 }
 
-void DisplayRenderTargetBlitter::Flip() { SbBlitterFlipSwapChain(swap_chain_); }
+void DisplayRenderTargetBlitter::Flip() {
+  TRACE_EVENT0("cobalt::renderer", "DisplayRenderTargetBlitter::Flip()");
+  SbBlitterFlipSwapChain(swap_chain_);
+}
 
 }  // namespace
 
@@ -93,3 +99,5 @@ scoped_refptr<RenderTarget> DisplayBlitter::GetRenderTarget() {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // #if SB_HAS(BLITTER)

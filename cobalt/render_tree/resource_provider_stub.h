@@ -162,6 +162,11 @@ class ResourceProviderStub : public ResourceProvider {
  public:
   ~ResourceProviderStub() OVERRIDE {}
 
+  bool PixelFormatSupported(PixelFormat pixel_format) OVERRIDE {
+    UNREFERENCED_PARAMETER(pixel_format);
+    return true;
+  }
+
   scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
                                           PixelFormat pixel_format,
                                           AlphaFormat alpha_format) OVERRIDE {

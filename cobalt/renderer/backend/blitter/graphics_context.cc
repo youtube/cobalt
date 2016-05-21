@@ -18,10 +18,13 @@
 
 #include <algorithm>
 
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/graphics_system.h"
 #include "cobalt/renderer/backend/blitter/surface_render_target.h"
 #include "starboard/blitter.h"
+
+#if SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -29,6 +32,9 @@ namespace backend {
 
 GraphicsContextBlitter::GraphicsContextBlitter(GraphicsSystem* system)
     : GraphicsContext(system) {
+  TRACE_EVENT0("cobalt::renderer",
+               "GraphicsContextBlitter::GraphicsContextBlitter");
+
   device_ = base::polymorphic_downcast<GraphicsSystemBlitter*>(system)
                 ->GetSbBlitterDevice();
   context_ = SbBlitterCreateContext(device_);
@@ -36,17 +42,23 @@ GraphicsContextBlitter::GraphicsContextBlitter(GraphicsSystem* system)
 }
 
 GraphicsContextBlitter::~GraphicsContextBlitter() {
+  TRACE_EVENT0("cobalt::renderer",
+               "GraphicsContextBlitter::~GraphicsContextBlitter");
   SbBlitterDestroyContext(context_);
 }
 
 scoped_refptr<RenderTarget> GraphicsContextBlitter::CreateOffscreenRenderTarget(
     const math::Size& dimensions) {
+  TRACE_EVENT0("cobalt::renderer",
+               "GraphicsContextBlitter::CreateOffscreenRenderTarget");
   return scoped_refptr<RenderTarget>(
       new SurfaceRenderTargetBlitter(device_, dimensions));
 }
 
 scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
     const scoped_refptr<RenderTarget>& render_target) {
+  TRACE_EVENT0("cobalt::renderer",
+               "GraphicsContextBlitter::DownloadPixelDataAsRGBA");
   SurfaceRenderTargetBlitter* render_target_blitter =
       base::polymorphic_downcast<SurfaceRenderTargetBlitter*>(
           render_target.get());
@@ -65,3 +77,5 @@ scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // #if SB_HAS(BLITTER)

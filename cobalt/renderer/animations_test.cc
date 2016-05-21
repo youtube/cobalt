@@ -78,15 +78,29 @@ class CreateImageThread : public base::SimpleThread {
     // Initialize the image data and store a predictable, testable pattern
     // of image data into it.
     math::Size image_size(16, 16);
+
+    int rgba_mapping[4] = {0, 1, 2, 3};
+    render_tree::PixelFormat pixel_format = render_tree::kPixelFormatInvalid;
+    if (resource_provider_->PixelFormatSupported(
+            render_tree::kPixelFormatRGBA8)) {
+      pixel_format = render_tree::kPixelFormatRGBA8;
+    } else if (resource_provider_->PixelFormatSupported(
+                   render_tree::kPixelFormatBGRA8)) {
+      pixel_format = render_tree::kPixelFormatBGRA8;
+      rgba_mapping[0] = 2;
+      rgba_mapping[2] = 0;
+    } else {
+      NOTREACHED() << "Unsupported pixel format.";
+    }
+
     scoped_ptr<render_tree::ImageData> image_data =
         resource_provider_->AllocateImageData(
-            image_size, render_tree::kPixelFormatRGBA8,
-            render_tree::kAlphaFormatPremultiplied);
+            image_size, pixel_format, render_tree::kAlphaFormatPremultiplied);
     for (int i = 0; i < image_size.width() * image_size.height(); ++i) {
-      image_data->GetMemory()[i * 4 + 0] = 1;
-      image_data->GetMemory()[i * 4 + 1] = 2;
-      image_data->GetMemory()[i * 4 + 2] = 3;
-      image_data->GetMemory()[i * 4 + 3] = 255;
+      image_data->GetMemory()[i * 4 + rgba_mapping[0]] = 1;
+      image_data->GetMemory()[i * 4 + rgba_mapping[1]] = 2;
+      image_data->GetMemory()[i * 4 + rgba_mapping[2]] = 3;
+      image_data->GetMemory()[i * 4 + rgba_mapping[3]] = 255;
     }
     // Create the new image.
     *image_ = resource_provider_->CreateImage(image_data.Pass());
