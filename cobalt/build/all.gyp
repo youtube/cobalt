@@ -59,7 +59,7 @@
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/samples/samples.gyp:*',
         '<(DEPTH)/cobalt/script/script.gyp:*',
-        '<(DEPTH)/cobalt/script/engine.gyp:*',
+        '<(DEPTH)/cobalt/script/engine.gyp:all_engines',
         '<(DEPTH)/cobalt/speech/speech.gyp:*',
         '<(DEPTH)/cobalt/storage/storage.gyp:*',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:*',

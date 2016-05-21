@@ -26,5 +26,14 @@
         '<(javascript_engine)/<(javascript_engine).gyp:engine',
       ],
     },
+    {
+      # Empty target to ensure all targets for all engines are built when
+      # building 'all'.
+      'target_name': 'all_engines',
+      'type': 'none',
+      'dependencies': [
+        'javascriptcore/javascriptcore.gyp:*',
+      ],
+    },
   ],
 }
