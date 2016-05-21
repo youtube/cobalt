@@ -55,6 +55,7 @@ void AddFunction(JSCGlobalObject* global_object, const char* name,
                               arguments, identifier.string(), function));
 }
 
+#if !USE(EXPORT_MACROS)
 void AddConstructableFunction(JSCGlobalObject* global_object, const char* name,
                               JSC::NativeFunction function, uint32 arguments) {
   JSC::Identifier identifier(global_object->globalExec(), name);
@@ -64,10 +65,15 @@ void AddConstructableFunction(JSCGlobalObject* global_object, const char* name,
                               arguments, identifier.string(), function,
                               JSC::NoIntrinsic, function));
 }
+#endif
 
 void SetupBindings(JSCGlobalObject* global_object) {
   JSC::JSLockHolder lock(&global_object->globalData());
   AddFunction(global_object, "print", &PrintFunction, 1);
+
+  // Getting these exported properly will take a bit of work, and it's likely
+  // not worth it.
+#if !USE(EXPORT_MACROS)
   AddConstructableFunction(global_object, "Uint8Array",
                            JSC::constructJSUint8Array, 1);
   AddConstructableFunction(global_object, "Uint8ClampedArray",
@@ -86,6 +92,7 @@ void SetupBindings(JSCGlobalObject* global_object) {
                            JSC::constructJSFloat32Array, 1);
   AddConstructableFunction(global_object, "Float64Array",
                            JSC::constructJSFloat64Array, 1);
+#endif
 }
 
 int JSCMain(int argc, char** argv) {
