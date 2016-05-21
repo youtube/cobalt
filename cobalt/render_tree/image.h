@@ -28,6 +28,7 @@ namespace render_tree {
 // Formats of pixel data that we support creating images from.
 enum PixelFormat {
   kPixelFormatRGBA8,
+  kPixelFormatBGRA8,
   kPixelFormatY8,
   kPixelFormatU8,
   kPixelFormatV8,
@@ -37,6 +38,8 @@ enum PixelFormat {
 inline int BytesPerPixel(PixelFormat pixel_format) {
   switch (pixel_format) {
     case kPixelFormatRGBA8:
+      return 4;
+    case kPixelFormatBGRA8:
       return 4;
     case kPixelFormatY8:
       return 1;
@@ -183,7 +186,6 @@ class MultiPlaneImageDataDescriptor {
   // default constructor for PlaneInformation.
   base::optional<PlaneInformation> plane_descriptors_[kMaxPlanes];
 };
-
 
 // The Image type is an abstract base class that represents a stored image
 // and all of its pixel information.  When constructing a render tree,

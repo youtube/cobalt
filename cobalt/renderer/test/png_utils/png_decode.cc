@@ -30,22 +30,11 @@ namespace png_utils {
 
 namespace {
 
-enum AlphaFormat {
-  // The premultiplied alpha format specifies pixel values where each RGB
-  // component has been multiplied by the A component (assuming values ranging
-  // from [0.0, 1.0]).  Thus, all RGB components should be less than or equal
-  // to the A component.
-  kAlphaFormatPremultiplied,
-
-  // Unpremultiplied alpha refers to the more standard RGBA format where each
-  // component is independent of the others.
-  kAlphaFormatUnpremultiplied,
-};
-
 class PNGFileReadContext {
  public:
   explicit PNGFileReadContext(const FilePath& file_path,
-                              AlphaFormat alpha_format);
+                              render_tree::PixelFormat pixel_format,
+                              render_tree::AlphaFormat alpha_format);
   ~PNGFileReadContext();
 
   void DecodeImageTo(const std::vector<png_bytep>& rows);
@@ -62,20 +51,32 @@ class PNGFileReadContext {
   int height_;
 };
 
-void PremultiplyAlphaTransform(png_structp ptr, png_row_infop row_info,
-                               png_bytep data) {
+uint8_t PremultiplyAlpha(uint8_t alpha_value, uint8_t component_value) {
+  // The following code divides by 255 and rounds without explicitly using
+  // a division instruction.
+  // For more information read:
+  // http://answers.google.com/answers/threadview/id/502016.html
+  uint32_t product = component_value * alpha_value + 128;
+  return (product + (product >> 8)) >> 8;
+}
+
+template <bool premultiply, int r, int g, int b, int a>
+void TransformPixelRow(png_structp ptr, png_row_infop row_info,
+                       png_bytep data) {
   for (unsigned int i = 0; i < row_info->width; ++i) {
     uint8_t* color_bytes = data + i * 4;
-    uint8_t alpha_value = color_bytes[3];
-    for (int c = 0; c < 3; ++c) {
-      uint8_t component_value = color_bytes[c];
-      // The following code divides by 255 and rounds without explicitly using a
-      // division instruction.
-      // For more information read:
-      // http://answers.google.com/answers/threadview/id/502016.html
-      uint32_t product = component_value * alpha_value + 128;
-      color_bytes[c] = (product + (product >> 8)) >> 8;
+    uint8_t pixel[4];
+    for (int i = 0; i < 4; ++i) {
+      pixel[i] = color_bytes[i];
     }
+    uint8_t alpha_value = pixel[3];
+    color_bytes[r] =
+        premultiply ? PremultiplyAlpha(alpha_value, pixel[0]) : pixel[0];
+    color_bytes[g] =
+        premultiply ? PremultiplyAlpha(alpha_value, pixel[1]) : pixel[1];
+    color_bytes[b] =
+        premultiply ? PremultiplyAlpha(alpha_value, pixel[2]) : pixel[2];
+    color_bytes[a] = pixel[3];
   }
 }
 
@@ -96,7 +97,8 @@ void PNGReadPlatformFile(png_structp png, png_bytep buffer,
 }
 
 PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
-                                       AlphaFormat alpha_format) {
+                                       render_tree::PixelFormat pixel_format,
+                                       render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("renderer::test::png_utils",
                "PNGFileReadContext::PNGFileReadContext()");
 
@@ -168,8 +170,43 @@ PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
     }
   }
 
-  if (alpha_format == kAlphaFormatPremultiplied) {
-    png_set_read_user_transform_fn(png_, &PremultiplyAlphaTransform);
+  switch (alpha_format) {
+    case render_tree::kAlphaFormatPremultiplied: {
+      switch (pixel_format) {
+        case render_tree::kPixelFormatRGBA8: {
+          png_set_read_user_transform_fn(png_,
+                                         &TransformPixelRow<true, 0, 1, 2, 3>);
+        } break;
+        case render_tree::kPixelFormatBGRA8: {
+          png_set_read_user_transform_fn(png_,
+                                         &TransformPixelRow<true, 2, 1, 0, 3>);
+        } break;
+        case render_tree::kPixelFormatY8:
+        case render_tree::kPixelFormatU8:
+        case render_tree::kPixelFormatV8:
+        case render_tree::kPixelFormatInvalid: {
+          NOTREACHED();
+        }
+      }
+    } break;
+    case render_tree::kAlphaFormatUnpremultiplied: {
+      switch (pixel_format) {
+        case render_tree::kPixelFormatRGBA8: {
+          // No need to set a transform in this case, this is how the data
+          // is coming out anyway.
+        } break;
+        case render_tree::kPixelFormatBGRA8: {
+          png_set_read_user_transform_fn(png_,
+                                         &TransformPixelRow<true, 2, 1, 0, 3>);
+        } break;
+        case render_tree::kPixelFormatY8:
+        case render_tree::kPixelFormatU8:
+        case render_tree::kPixelFormatV8:
+        case render_tree::kPixelFormatInvalid: {
+          NOTREACHED();
+        }
+      }
+    } break;
   }
 
   // End transformations. Get the updated info, and then verify.
@@ -204,10 +241,11 @@ void PNGFileReadContext::DecodeImageTo(const std::vector<png_bytep>& rows) {
   png_read_image(png_, const_cast<png_bytep*>(&rows[0]));
 }
 
-scoped_array<uint8_t> DecodePNGToRGBAInternal(const FilePath& png_file_path,
-                                              int* width, int* height,
-                                              AlphaFormat alpha_format) {
-  PNGFileReadContext png_read_context(png_file_path, alpha_format);
+scoped_array<uint8_t> DecodePNGToRGBAInternal(
+    const FilePath& png_file_path, int* width, int* height,
+    render_tree::AlphaFormat alpha_format) {
+  PNGFileReadContext png_read_context(
+      png_file_path, render_tree::kPixelFormatRGBA8, alpha_format);
 
   // Setup pointers to the rows in which libpng should read out the decoded png
   // image data to.
@@ -240,7 +278,7 @@ scoped_array<uint8_t> DecodePNGToRGBA(const FilePath& png_file_path, int* width,
                                       int* height) {
   TRACE_EVENT0("renderer::test::png_utils", "DecodePNGToRGBA()");
   return DecodePNGToRGBAInternal(png_file_path, width, height,
-                                 kAlphaFormatUnpremultiplied);
+                                 render_tree::kAlphaFormatUnpremultiplied);
 }
 
 scoped_array<uint8_t> DecodePNGToPremultipliedAlphaRGBA(
@@ -248,14 +286,32 @@ scoped_array<uint8_t> DecodePNGToPremultipliedAlphaRGBA(
   TRACE_EVENT0("renderer::test::png_utils",
                "DecodePNGToPremultipliedAlphaRGBA()");
   return DecodePNGToRGBAInternal(png_file_path, width, height,
-                                 kAlphaFormatPremultiplied);
+                                 render_tree::kAlphaFormatPremultiplied);
 }
+
+namespace {
+render_tree::PixelFormat ChoosePixelFormat(
+    render_tree::ResourceProvider* resource_provider) {
+  if (resource_provider->PixelFormatSupported(render_tree::kPixelFormatRGBA8)) {
+    return render_tree::kPixelFormatRGBA8;
+  } else if (resource_provider->PixelFormatSupported(
+                 render_tree::kPixelFormatBGRA8)) {
+    return render_tree::kPixelFormatBGRA8;
+  } else {
+    NOTREACHED() << "Invalid pixel format.";
+    return render_tree::kPixelFormatInvalid;
+  }
+}
+}  // namespace
 
 scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
     const FilePath& png_file_path,
     render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("renderer::test::png_utils", "DecodePNGToRenderTreeImage()");
-  PNGFileReadContext png_read_context(png_file_path, kAlphaFormatPremultiplied);
+
+  render_tree::PixelFormat pixel_format = ChoosePixelFormat(resource_provider);
+  PNGFileReadContext png_read_context(png_file_path, pixel_format,
+                                      render_tree::kAlphaFormatPremultiplied);
 
   // Setup pointers to the rows in which libpng should read out the decoded png
   // image data to.
@@ -263,8 +319,7 @@ scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
   scoped_ptr<render_tree::ImageData> data =
       resource_provider->AllocateImageData(
           math::Size(png_read_context.width(), png_read_context.height()),
-          render_tree::kPixelFormatRGBA8,
-          render_tree::kAlphaFormatPremultiplied);
+          pixel_format, render_tree::kAlphaFormatPremultiplied);
   std::vector<png_bytep> rows(png_read_context.height());
   uint8_t* row = data->GetMemory();
   for (int i = 0; i < png_read_context.height(); ++i) {

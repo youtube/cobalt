@@ -23,6 +23,8 @@
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "starboard/blitter.h"
 
+#if SB_HAS(BLITTER)
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -43,5 +45,7 @@ class DisplayBlitter : public Display {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // #if SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_BACKEND_BLITTER_DISPLAY_H_

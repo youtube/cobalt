@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,30 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RESOURCE_PROVIDER_H_
-#define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RESOURCE_PROVIDER_H_
+#ifndef COBALT_RENDERER_RASTERIZER_BLITTER_RESOURCE_PROVIDER_H_
+#define COBALT_RENDERER_RASTERIZER_BLITTER_RESOURCE_PROVIDER_H_
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/font_provider.h"
+#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/renderer/rasterizer/skia/text_shaper.h"
+#include "starboard/blitter.h"
+
+#if SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
-namespace skia {
+namespace blitter {
 
-// This class must be thread-safe and capable of creating resources that
-// are to be consumed by this skia software rasterizer.
-class SkiaSoftwareResourceProvider : public render_tree::ResourceProvider {
+class ResourceProvider : public render_tree::ResourceProvider {
  public:
+  explicit ResourceProvider(SbBlitterDevice device);
+  ~ResourceProvider() OVERRIDE {}
+
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
 
   scoped_ptr<render_tree::ImageData> AllocateImageData(
@@ -38,7 +45,7 @@ class SkiaSoftwareResourceProvider : public render_tree::ResourceProvider {
       render_tree::AlphaFormat alpha_format) OVERRIDE;
 
   scoped_refptr<render_tree::Image> CreateImage(
-      scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
+      scoped_ptr<render_tree::ImageData> source_data) OVERRIDE;
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) OVERRIDE;
@@ -53,15 +60,17 @@ class SkiaSoftwareResourceProvider : public render_tree::ResourceProvider {
       const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
-      int32 character, render_tree::FontStyle font_style,
+      int32 utf32_character, render_tree::FontStyle font_style,
       const std::string& language) OVERRIDE;
 
-  // This resource provider uses ots (OpenTypeSanitizer) to sanitize the raw
-  // typeface data and skia to generate the typeface. It supports TrueType,
-  // OpenType, and WOFF data formats.
   scoped_refptr<render_tree::Typeface> CreateTypefaceFromRawData(
-      scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data,
+      scoped_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) OVERRIDE;
+
+  float GetTextWidth(const char16* text_buffer, size_t text_length,
+                     const std::string& language, bool is_rtl,
+                     render_tree::FontProvider* font_provider,
+                     render_tree::FontVector* maybe_used_fonts) OVERRIDE;
 
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
       const char16* text_buffer, size_t text_length,
@@ -72,18 +81,15 @@ class SkiaSoftwareResourceProvider : public render_tree::ResourceProvider {
       const std::string& utf8_string,
       const scoped_refptr<render_tree::Font>& font) OVERRIDE;
 
-  float GetTextWidth(const char16* text_buffer, size_t text_length,
-                     const std::string& language, bool is_rtl,
-                     render_tree::FontProvider* font_provider,
-                     render_tree::FontVector* maybe_used_fonts) OVERRIDE;
-
  private:
-  TextShaper text_shaper_;
+  SbBlitterDevice device_;
 };
 
-}  // namespace skia
+}  // namespace blitter
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RESOURCE_PROVIDER_H_
+#endif  // #if SB_HAS(BLITTER)
+
+#endif  // COBALT_RENDERER_RASTERIZER_BLITTER_RESOURCE_PROVIDER_H_
