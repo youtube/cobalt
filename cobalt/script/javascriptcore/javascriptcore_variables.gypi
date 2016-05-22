@@ -28,6 +28,21 @@
           # Avoid WTF LOG macro.
           '__DISABLE_WTF_LOGGING__',
         ],
+        'engine_templates_dir': [
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates',
+        ],
+        'engine_template_files': [
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates/interface.cc.template',
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates/interface.h.template',
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates/interface-object.template',
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates/macros.cc.template',
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates/prototype-object.template',
+        ],
+        'engine_bindings_scripts': [
+          '<(DEPTH)/cobalt/bindings/javascriptcore/code_generator.py',
+          '<(DEPTH)/cobalt/bindings/javascriptcore/idl_compiler.py',
+        ],
+        'engine_idl_compiler': '<(DEPTH)/cobalt/bindings/javascriptcore/idl_compiler.py',
       }],
     ],
   },
