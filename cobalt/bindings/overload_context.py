@@ -12,17 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Functions for generating bindings for overloaded operations/constructors."""
+
+from functools import partial
 
 from bindings.scripts.v8_interface import distinguishing_argument_index
 from bindings.scripts.v8_interface import effective_overload_set_by_length
 
 
-def get_overload_contexts(method_overloads):
+def get_overload_contexts(expression_generator, method_overloads):
   """Create overload contexts for overloaded methods/constructors.
 
   Arguments:
+      expression_generator: An ExpressionGenerator instance.
       method_overloads: [overload_sets] where overload_sets is itself
           a list of method_contexts (or constructor_contexts). All methods
           in the list of method_contexts are overloads of the same symbol.
@@ -34,9 +36,7 @@ def get_overload_contexts(method_overloads):
     # Create an overload context. Binding generation will use this as a top
     # level context, and the identifier will be bound to an overload
     # resolution function.
-    overload_context = {
-        'overloads': overloaded_methods,
-    }
+    overload_context = {'overloads': overloaded_methods,}
 
     # Add a property to the overloaded methods indicating their overload
     # indices. This allows us to refer to each overload with a unique name.
@@ -86,11 +86,10 @@ def get_overload_contexts(method_overloads):
       # http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       # 7. If there is more than one entry in S, then set d to be the
       #    distinguishing argument index for the entries of S.
-      overload_resolution_context_by_length.append(
-          (length,
-           distinguishing_argument_index(overload_set)
-           if len(overload_set) > 1 else None,
-           list(resolution_tests_methods(overload_set))))
+      overload_resolution_context_by_length.append((
+          length, distinguishing_argument_index(overload_set) if len(
+              overload_set) > 1 else None, list(resolution_tests_methods(
+                  expression_generator, overload_set))))
     overload_context['overload_resolution_by_length'] = (
         overload_resolution_context_by_length)
 
@@ -99,7 +98,7 @@ def get_overload_contexts(method_overloads):
   return overload_contexts
 
 
-def resolution_tests_methods(effective_overloads):
+def resolution_tests_methods(expression_generator, effective_overloads):
   """Yields resolution test and associated method.
 
   Tests and methods are in resolution order for effective overloads of a given
@@ -116,6 +115,7 @@ def resolution_tests_methods(effective_overloads):
   performs the test.
 
   Args:
+      expression_generator: An ExpressionGenerator instance.
       effective_overloads: List of tuples returned from
           effective_overload_set_by_length
   Yields:
@@ -162,7 +162,7 @@ def resolution_tests_methods(effective_overloads):
   try:
     method = next(method for argument, method in arguments_methods
                   if argument['is_optional'])
-    yield (lambda arg: '%s.isUndefined()' % arg), method
+    yield expression_generator.is_undefined, method
   except StopIteration:
     pass
 
@@ -172,7 +172,7 @@ def resolution_tests_methods(effective_overloads):
   try:
     method = next(method for idl_type, method in idl_types_methods
                   if idl_type.is_nullable)
-    yield (lambda arg: '%s.isUndefinedOrNull()' % arg), method
+    yield expression_generator.is_undefined_or_null, method
   except StopIteration:
     pass
 
@@ -187,12 +187,7 @@ def resolution_tests_methods(effective_overloads):
                            for idl_type, method in idl_types_methods
                            if idl_type.is_wrapper_type):
     base_type = idl_type.base_type if idl_type.is_nullable else idl_type
-    # pylint raises a false-positive for referencing a variable in the loop.
-    # The usage here is fine because
-    def get_check_inherits_test(interface_type):
-      format_string = '%%s.inherits(JSC%s::s_classinfo())' % interface_type
-      return lambda arg: format_string % arg
-    yield get_check_inherits_test(base_type), method
+    yield partial(expression_generator.inherits_interface, base_type), method
 
   # 8. Otherwise: if V is any kind of object except for a native Date object,
   # a native RegExp object, and there is an entry in S that has one of the
@@ -229,7 +224,7 @@ def resolution_tests_methods(effective_overloads):
       try:
         method = next(method for idl_type, method in idl_types_methods
                       if idl_type.is_numeric_type)
-        yield (lambda arg: '%s.isNumber()' % arg), method
+        yield (expression_generator.is_number), method
       except StopIteration:
         pass
 

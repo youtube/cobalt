@@ -67,6 +67,8 @@
     'bindings_defines': ['<@(engine_defines)'],
     'bindings_dependencies': ['<@(engine_dependencies)'],
     'bindings_include_dirs': ['<@(engine_include_dirs)'],
+    'bindings_templates_dir': '<(engine_templates_dir)',
+    'idl_compiler_script': '<(engine_idl_compiler)',
 
     # The following lists of IDL files should be set in the including .gyp file.
 
@@ -107,13 +109,7 @@
     'jinja_module_files': ['<@(jinja_module_files)'],
 
     # Cobalt's Jinja templates
-    'code_generator_template_files': [
-      'javascriptcore/templates/interface.cc.template',
-      'javascriptcore/templates/interface.h.template',
-      'javascriptcore/templates/interface-object.template',
-      'javascriptcore/templates/macros.cc.template',
-      'javascriptcore/templates/prototype-object.template',
-    ],
+    'code_generator_template_files': [ '<@(engine_template_files)'],
 
     # Dependencies of the bindings generation that are not captured as inputs
     'bindings_extra_inputs': [
@@ -121,11 +117,13 @@
       '<@(idl_cache_files)',
       '<@(idl_compiler_files)',
       '<(DEPTH)/cobalt/bindings/code_generator_cobalt.py',
+      '<(DEPTH)/cobalt/bindings/expression_generator.py',
       '<(DEPTH)/cobalt/bindings/contexts.py',
       '<(DEPTH)/cobalt/bindings/idl_compiler_cobalt.py',
       '<(DEPTH)/cobalt/bindings/name_conversion.py',
       '<(DEPTH)/cobalt/bindings/overload_context.py',
       '<@(code_generator_template_files)',
+      '<@(engine_bindings_scripts)',
     ],
 
     # Prevents unnecessary rebuilds by not outputting a file if it has not
@@ -228,7 +226,7 @@
         ],
         'action': [
           'python',
-          '<(DEPTH)/cobalt/bindings/idl_compiler_cobalt.py',
+          '<(idl_compiler_script)',
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
           '--output-dir',
@@ -358,6 +356,7 @@
           'python',
           '<(DEPTH)/cobalt/bindings/code_generator_cobalt.py',
           '<(bindings_scripts_output_dir)',
+          '<(bindings_templates_dir)',
           '<(bindings_scripts_output_dir)/cached_jinja_templates.stamp',
         ],
         'message': 'Caching bytecode of Jinja templates',
