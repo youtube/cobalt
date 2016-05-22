@@ -25,6 +25,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::Pointee;
 using ::testing::Property;
@@ -145,13 +146,14 @@ TEST_F(XhrTest, InvalidMethod) {
 }
 
 TEST_F(XhrTest, Open) {
-  scoped_ptr<MockEventListener> listener =
-      MockEventListener::CreateAsAttribute();
+  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
   FakeScriptObject script_object(listener.get());
   xhr_->set_onreadystatechange(script_object);
-  EXPECT_CALL(*listener,
-              HandleEvent(Pointee(Property(&dom::Event::type,
-                                           base::Token("readystatechange")))))
+  EXPECT_CALL(
+      *listener,
+      HandleEvent(Eq(xhr_), Pointee(Property(&dom::Event::type,
+                                             base::Token("readystatechange"))),
+                  _))
       .Times(1);
   xhr_->Open("GET", "https://www.google.com", &exception_state_);
 

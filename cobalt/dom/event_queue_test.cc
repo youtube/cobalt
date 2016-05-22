@@ -41,12 +41,11 @@ class EventQueueTest : public ::testing::Test {
     // Note that we must pass the raw pointer to avoid reference counting issue.
     EXPECT_CALL(
         *listener,
-        HandleEvent(AllOf(Eq(event.get()),
-                          Pointee(Property(&Event::target, Eq(target.get()))))))
+        HandleEvent(_,
+                    AllOf(Eq(event.get()),
+                          Pointee(Property(&Event::target, Eq(target.get())))),
+                    _))
         .RetiresOnSaturation();
-  }
-  void ExpectNoHandleEventCall(const MockEventListener* listener) {
-    EXPECT_CALL(*listener, HandleEvent(_)).Times(0);
   }
   MessageLoop message_loop_;
 };
@@ -54,8 +53,7 @@ class EventQueueTest : public ::testing::Test {
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener =
-      MockEventListener::CreateAsNonAttribute();
+  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event_target->AddEventListener("event",
@@ -70,8 +68,7 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
 TEST_F(EventQueueTest, EventWithTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener =
-      MockEventListener::CreateAsNonAttribute();
+  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
@@ -87,14 +84,13 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
 TEST_F(EventQueueTest, CancelAllEventsTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener =
-      MockEventListener::CreateAsNonAttribute();
+  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
   event_target->AddEventListener("event",
                                  FakeScriptObject(event_listener.get()), false);
-  ExpectNoHandleEventCall(event_listener.get());
+  event_listener->ExpectNoHandleEventCall();
 
   event_queue.Enqueue(event);
   event_queue.CancelAllEvents();
@@ -108,8 +104,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
   scoped_refptr<EventTarget> event_target_1 = new EventTarget;
   scoped_refptr<EventTarget> event_target_2 = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener =
-      MockEventListener::CreateAsNonAttribute();
+  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
 
   EventQueue event_queue(event_target_1.get());
 

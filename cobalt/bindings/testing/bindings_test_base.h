@@ -51,7 +51,8 @@ class BindingsTestBase : public ::testing::Test {
                                              environment_settings_.get());
   }
 
-  bool EvaluateScript(const std::string& script, std::string* out_result) {
+  bool EvaluateScript(const std::string& script,
+                      std::string* out_result = NULL) {
     scoped_refptr<script::SourceCode> source =
         script::SourceCode::CreateSourceCode(
             script, base::SourceLocation("[object BindingsTestBase]", 1, 1));

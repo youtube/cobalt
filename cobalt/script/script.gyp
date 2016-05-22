@@ -21,7 +21,6 @@
       'type': 'static_library',
       'sources': [
         'call_frame.h',
-        'event_listener_callable.h',
         'execution_state.cc',
         'execution_state.h',
         'global_object_proxy.h',
