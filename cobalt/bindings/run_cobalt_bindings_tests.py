@@ -43,6 +43,7 @@ cobalt_bindings_dir = os.path.normpath(os.path.join(cobalt_src_root, 'cobalt',
 sys.path.append(cobalt_bindings_dir)
 
 from idl_compiler_cobalt import IdlCompilerCobalt  # pylint: disable=g-import-not-at-top
+from javascriptcore.code_generator import CodeGeneratorJsc
 from webkitpy.bindings.main import run_bindings_tests
 
 extended_attributes_path = os.path.join(cobalt_src_root, 'cobalt', 'bindings',
@@ -56,59 +57,70 @@ def main(argv):
   test_input_directory = os.path.join(cobalt_bindings_dir)
   reference_directory = os.path.join(cobalt_bindings_dir, 'generated')
 
-  args = {
-      'idl_compiler_constructor': IdlCompilerCobalt,
+  results = []
+  code_generators = [CodeGeneratorJsc]
+  for generator in code_generators:
+    args = {
+        'idl_compiler_constructor': IdlCompilerCobalt,
+        'code_generator_constructor': generator,
 
-      # Directory that contains IDL files for the bindings tests
-      'test_input_directory': test_input_directory,
+        # Directory that contains IDL files for the bindings tests
+        'test_input_directory': test_input_directory,
 
-      # Directory that contains reference generated files
-      'reference_directory': reference_directory,
+        # Directory that contains reference generated files
+        'reference_directory': reference_directory,
 
-      # Top-level directories containing IDL files. In blink, there are 'core'
-      # and 'modules'. These correspond to the subdirectories under Source/core
-      # and Source/modules in the blink repository. These are separated to
-      # enforce dependency restrictions. For example, for interface X and
-      # partial interface Y that extends X, the following are valid:
-      #   X and Y are both in core
-      #   X and Y are both in modules
-      #   X is in core and Y is in modules
-      # The following is invalid
-      #   X is in modules and Y is in core
-      # TODO(***REMOVED***): Evaluate the usefulness of this distinction in Cobalt.
-      # This promotes modularity, but necessarily introduces complexity.
-      'component_directories': frozenset(['testing']),
+        # Top-level directories containing IDL files. In blink, there are 'core'
+        # and 'modules'. These correspond to the subdirectories under
+        # Source/core and Source/modules in the blink repository. These are
+        # separated to enforce dependency restrictions. For example, for
+        # interface X and partial interface Y that extends X, the following are
+        # valid:
+        #   X and Y are both in core
+        #   X and Y are both in modules
+        #   X is in core and Y is in modules
+        # The following is invalid
+        #   X is in modules and Y is in core
+        # TODO(***REMOVED***): Evaluate the usefulness of this distinction in
+        # Cobalt. This promotes modularity, but necessarily introduces
+        # complexity.
+        'component_directories': frozenset(['testing']),
 
-      # These are IDL files that aren't built directly, but are used by their
-      # dependent IDLs. In blink this includes:
-      #   interfaces with the NoInterfaceObject extended attributes
-      #   partial interfaces
-      # This should be kept in sync with the list of dependency IDLS in
-      # testing.gyp.
-      'dependency_idl_files': frozenset([
-          'ImplementedInterface.idl',
-          'PartialInterface.idl',
-          'InterfaceWithUnsupportedProperties_partial.idl',
-          # UnsupportedInterface is not actually a dependency IDL, but this will
-          # prevent code from being generated for it.
-          'UnsupportedInterface.idl',
-      ]),
+        # These are IDL files that aren't built directly, but are used by their
+        # dependent IDLs. In blink this includes:
+        #   interfaces with the NoInterfaceObject extended attributes
+        #   partial interfaces
+        # This should be kept in sync with the list of dependency IDLS in
+        # testing.gyp.
+        'dependency_idl_files': frozenset([
+            'ImplementedInterface.idl',
+            'PartialInterface.idl',
+            'InterfaceWithUnsupportedProperties_partial.idl',
+            # UnsupportedInterface is not actually a dependency IDL, but this
+            # will prevent code from being generated for it.
+            'UnsupportedInterface.idl',
+        ]),
 
-      # .idl files that are not valid blink IDLs
-      'ignore_idl_files': frozenset([]),
+        # .idl files that are not valid blink IDLs
+        'ignore_idl_files': frozenset([]),
 
-      # Use as the base for constructing relative paths for includes, etc.
-      'root_directory': cobalt_src_root,
+        # Use as the base for constructing relative paths for includes, etc.
+        'root_directory': cobalt_src_root,
 
-      # Text file containing whitelisted extended attributes.
-      'extended_attributes_path': extended_attributes_path,
+        # Text file containing whitelisted extended attributes.
+        'extended_attributes_path': extended_attributes_path,
 
-      # We implement union types differently than blink, so don't generate
-      # Blink union classes.
-      'generate_union_containers': False,
-  }
+        # We implement union types differently than blink, so don't generate
+        # Blink union classes.
+        'generate_union_containers': False,
+    }
 
-  return run_bindings_tests(reset_results, verbose, args)
+    results.append(run_bindings_tests(reset_results, verbose, args))
+
+  # If any results are non-zero, exit with failure.
+  if any(result != 0 for result in results):
+    return 1
+  return 0
 
 
 if __name__ == '__main__':
