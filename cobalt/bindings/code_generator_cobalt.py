@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generate Cobalt JSC bindings (.h and .cpp files).
+"""Generate Cobalt bindings (.h and .cpp files).
 
 Based on and borrows heavily from code_generator_v8.py which is used as part
 of the bindings generation pipeline in Blink.
 """
 
+import abc
 from datetime import date
 import os
 import sys
@@ -24,8 +25,7 @@ import sys
 # Add blink's binding scripts to the path, so we can import
 module_path, module_filename = os.path.split(os.path.realpath(__file__))
 blink_script_dir = os.path.normpath(os.path.join(
-    module_path, os.pardir, os.pardir, 'third_party', 'blink',
-    'Source'))
+    module_path, os.pardir, os.pardir, 'third_party', 'blink', 'Source'))
 sys.path.append(blink_script_dir)
 
 from bindings.scripts.code_generator_v8 import CodeGeneratorBase  # pylint: disable=g-import-not-at-top
@@ -35,10 +35,6 @@ from bindings.scripts.idl_types import inherits_interface
 import contexts
 from name_conversion import convert_to_cobalt_name
 from name_conversion import get_interface_name
-
-cobalt_templates_dir = os.path.normpath(os.path.join(module_path,
-                                                     'javascriptcore',
-                                                     'templates'))
 
 module_path, module_filename = os.path.split(os.path.realpath(__file__))
 
@@ -51,43 +47,6 @@ def normalize_slashes(path):
     return path.replace('\\', '/')
   else:
     return path
-
-
-def wrapper_class_from_interface_name(interface_name):
-  return 'JSC' + interface_name
-
-
-def wrapper_header_from_interface_name(interface_name):
-  attribute_wrapper_class = wrapper_class_from_interface_name(interface_name)
-  return normalize_slashes(attribute_wrapper_class + '.h')
-
-
-def calculate_jsc_lookup_size(num_properties):
-  """Calculate the number of entries to allocate in JSC::Lookup hash table."""
-  # JSC::Lookup uses an array internally to represent hash entries.
-  # The first |size_mask + 1| entries are hash buckets, and the remaining
-  # entries starting from entries[size_mask+1] are used for hash collisions.
-  # In the worst case where all keys collide, we will need
-  # (size_mask +1) + (num_properties - 1) entries, to account for properties[0]
-  # getting assigned to a hash bucket, and the remaining N-1 properties getting
-  # assigned to overflow entries.
-  # TODO(***REMOVED***): WebKit's bindings generation script calculates the actual
-  # required number of entries by duplicating the JSC::Lookup logic in the
-  # script and determining the number of collisions. If we want to reduce the
-  # number of entries allocated we can do something similar.
-  size_mask = calculate_jsc_lookup_size_mask(num_properties)
-  return (size_mask + 1) + max(0, (num_properties - 1))
-
-
-def calculate_jsc_lookup_size_mask(num_properties):
-  """Calculate the number of hash buckets to use in JSC::Lookup hash table."""
-  # 2 * num_properties is the heuristic used in WebKit's JSC bindings generation
-  # script to determine the number of hash buckets for the property hash table
-  num_hash_buckets = max(1, 2 * num_properties)
-  # JSC::Lookup hash table implementation uses a bitmask of the Identifier's
-  # hash to determine which bucket a Property goes into. This also rounds the
-  # number of buckets up to the closest power of 2.
-  return pow(2, num_hash_buckets.bit_length()) - 1
 
 
 def get_implementation_header_path(interface_info):
@@ -124,8 +83,7 @@ def is_global_interface(interface):
 
 def get_indexed_special_operation(interface, special):
   special_operations = list(
-      operation
-      for operation in interface.operations
+      operation for operation in interface.operations
       if (special in operation.specials and operation.arguments and str(
           operation.arguments[0].idl_type) == 'unsigned long'))
   assert len(special_operations) <= 1, (
@@ -148,8 +106,7 @@ def get_indexed_property_setter(interface):
 
 def get_named_special_operation(interface, special):
   special_operations = list(
-      operation
-      for operation in interface.operations
+      operation for operation in interface.operations
       if (special in operation.specials and operation.arguments and str(
           operation.arguments[0].idl_type) == 'DOMString'))
   assert len(special_operations) <= 1, (
@@ -210,13 +167,36 @@ def split_unsupported_properties(context_list):
 
 
 class CodeGeneratorCobalt(CodeGeneratorBase):
-  """Code generator class for Cobalt."""
+  """Abstract Base code generator class for Cobalt.
 
-  def __init__(self, interfaces_info, cache_dir, output_dir):
+  Concrete classes will provide an implementation for generating bindings for a
+  specific JavaScript engine implementation.
+  """
+  __metaclass__ = abc.ABCMeta
+
+  def __init__(self, interfaces_info, templates_dir, cache_dir, output_dir):
     CodeGeneratorBase.__init__(self, interfaces_info, cache_dir, output_dir)
     # CodeGeneratorBase inititalizes this with the v8 template path, so
     # reinitialize it with cobalt's template path
-    self.jinja_env = initialize_jinja_env(cache_dir, cobalt_templates_dir)
+    self.jinja_env = initialize_jinja_env(cache_dir, templates_dir)
+
+  @abc.abstractproperty
+  def generated_file_prefix(self):
+    """The prefix to prepend to all generated source files."""
+    pass
+
+  @abc.abstractproperty
+  def expression_generator(self):
+    """An instance that implements the ExpressionGenerator class."""
+    pass
+
+  def wrapper_class_from_interface_name(self, interface_name):
+    return self.generated_file_prefix + interface_name
+
+  def wrapper_header_from_interface_name(self, interface_name):
+    attribute_wrapper_class = self.wrapper_class_from_interface_name(
+        interface_name)
+    return normalize_slashes(attribute_wrapper_class + '.h')
 
   def output_paths(self, class_name):
     """Construct the filenames for a generated source file.
@@ -321,38 +301,25 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         'conditional': conditional,
         'is_callback_interface': False,
     }
-    # Information about the JSC wrapper class.
-    if interface_name in IdlType.callback_interfaces:
-      # EventListener interface needs special case handling.
-      assert interface_name == 'EventListener'
+    # Information about non-callback interfaces.
+    if interface_name not in IdlType.callback_interfaces:
       yield {
-          'fully_qualified_name':
-              'cobalt::script::javascriptcore::JSCEventListenerHolder',
-          'include': 'cobalt/script/javascriptcore/jsc_event_listener_holder.h',
-          'conditional': None,
-          'is_callback_interface': True,
-      }
-    else:
-      yield {
-          'fully_qualified_name': 'cobalt::%s::JSC%s' %
-                                  (namespace, interface_name),
-          'include': wrapper_header_from_interface_name(interface_name),
+          'fully_qualified_name': 'cobalt::%s::%s' % (
+              namespace,
+              self.wrapper_class_from_interface_name(interface_name)),
+          'include': self.wrapper_header_from_interface_name(interface_name),
           'conditional': conditional,
           'is_callback_interface': False,
       }
 
   def build_interface_context(self, interface, interface_info, definitions):
-    wrapper_class_name = wrapper_class_from_interface_name(interface.name)
+    wrapper_class_name = self.wrapper_class_from_interface_name(interface.name)
     header, _ = self.output_paths(wrapper_class_name)
     generated_header_relative_path = os.path.relpath(header, self.output_dir)
     assert not os.path.isabs(generated_header_relative_path)
     assert os.pardir not in generated_header_relative_path.split(os.sep)
 
     context = {
-        # Functions to be called from template renderer.
-        'calculate_jsc_lookup_size': calculate_jsc_lookup_size,
-        'calculate_jsc_lookup_size_mask': calculate_jsc_lookup_size_mask,
-
         # Parameters used for template rendering.
         'today': date.today(),
         'binding_class': wrapper_class_name,
@@ -393,13 +360,15 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     # to avoid circular dependency problems.
     header_includes = set()
     if interface.parent:
-      header_includes.add(wrapper_header_from_interface_name(interface.parent))
+      header_includes.add(self.wrapper_header_from_interface_name(
+          interface.parent))
     header_includes.add(get_implementation_header_path(interface_info))
 
     attributes = [contexts.attribute_context(interface, attribute, definitions)
                   for attribute in interface.attributes]
-    constructor = contexts.get_constructor_context(interface)
-    methods = contexts.get_method_contexts(interface)
+    constructor = contexts.get_constructor_context(self.expression_generator,
+                                                   interface)
+    methods = contexts.get_method_contexts(self.expression_generator, interface)
     constants = [contexts.constant_context(c) for c in interface.constants]
 
     # Get a list of all the unsupported property names, and remove the
@@ -453,8 +422,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         unsupported_constant_names)
     if interface.parent:
       context['parent_interface'] = (
-          '::'.join(self.get_interface_components(interface.parent)) + '::JSC%s'
-          % interface.parent)
+          '::'.join(self.get_interface_components(interface.parent)) + '::%s' %
+          self.wrapper_class_from_interface_name(interface.parent))
     context['is_exception_interface'] = interface.is_exception
     context['components'] = self.get_interface_components(
         interface.idl_type.name)
@@ -496,16 +465,17 @@ def main(argv):
   # If file itself executed, cache templates
   try:
     cache_dir = argv[1]
-    dummy_filename = argv[2]
+    templates_dir = argv[2]
+    dummy_filename = argv[3]
   except IndexError:
-    print 'Usage: %s CACHE_DIR DUMMY_FILENAME' % argv[0]
+    print 'Usage: %s CACHE_DIR TEMPLATES_DIR DUMMY_FILENAME' % argv[0]
     return 1
 
   # Cache templates
-  jinja_env = initialize_jinja_env(cache_dir, cobalt_templates_dir)
+  jinja_env = initialize_jinja_env(cache_dir, templates_dir)
   template_filenames = [
       filename
-      for filename in os.listdir(cobalt_templates_dir)
+      for filename in os.listdir(templates_dir)
       # Skip .svn, directories, etc.
       if filename.endswith(('.template'))
   ]

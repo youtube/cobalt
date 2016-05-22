@@ -314,8 +314,7 @@ def attribute_context(interface, attribute, definitions):
         'PutForwards must be on a readonly attribute.')
     forwarded_interface = definitions.interfaces[
         get_interface_name(attribute.idl_type)]
-    matching_attributes = [a
-                           for a in forwarded_interface.attributes
+    matching_attributes = [a for a in forwarded_interface.attributes
                            if a.name == forwarded_attribute_name]
     assert len(matching_attributes) == 1
     context['put_forwards'] = attribute_context(forwarded_interface,
@@ -354,7 +353,7 @@ def constant_context(constant):
   }
 
 
-def get_method_contexts(interface):
+def get_method_contexts(expression_generator, interface):
   """Return a list of overload contexts for generating method bindings.
 
   The 'overloads' key of the overload_contexts will be the list of
@@ -362,6 +361,7 @@ def get_method_contexts(interface):
   a function is not overloaded, the length of this list will be one.
 
   Arguments:
+      expression_generator: An ExpressionGenerator object.
       interface: an IdlInterface object
   Returns:
       [overload_contexts]
@@ -369,21 +369,23 @@ def get_method_contexts(interface):
 
   # Get the method contexts for all operations.
   methods = [
-      method_context(interface, operation)
-      for operation in interface.operations if operation.name
+      method_context(interface, operation) for operation in interface.operations
+      if operation.name
   ]
 
   # Create overload sets for static and non-static methods seperately.
   # Each item in the list is a pair of (name, [method_contexts]) where for
   # each method_context m in the list, m['name'] == name.
-  static_method_overloads = method_overloads_by_name(
-      [m for m in methods if m['is_static']])
+  static_method_overloads = method_overloads_by_name([m for m in methods
+                                                      if m['is_static']])
   non_static_method_overloads = method_overloads_by_name(
       [m for m in methods if not m['is_static']])
   static_overload_contexts = get_overload_contexts(
-      [contexts for _, contexts in static_method_overloads])
+      expression_generator, [contexts
+                             for _, contexts in static_method_overloads])
   non_static_overload_contexts = get_overload_contexts(
-      [contexts for _, contexts in non_static_method_overloads])
+      expression_generator, [contexts
+                             for _, contexts in non_static_method_overloads])
 
   # Set is_static on each of these appropriately.
   for context in static_overload_contexts:
@@ -408,7 +410,7 @@ def get_method_contexts(interface):
   return overload_contexts
 
 
-def get_constructor_context(interface):
+def get_constructor_context(expression_generator, interface):
   """Return an overload_context for generating constructor bindings.
 
   The 'overloads' key for the overloads_context will be a list of
@@ -419,7 +421,8 @@ def get_constructor_context(interface):
   specify the 'length' property for the constructor.
 
   Arguments:
-      interface: an IdlInterface object
+      expression_generator: An ExpressionGenerator object.
+      interface: An IdlInterface object.
   Returns:
       overload_context
   """
@@ -431,7 +434,8 @@ def get_constructor_context(interface):
   if not constructors:
     return None
   else:
-    overload_contexts = get_overload_contexts([constructors])
+    overload_contexts = get_overload_contexts(expression_generator,
+                                              [constructors])
     assert len(overload_contexts) == 1, (
         'Expected exactly one overload context for constructor.')
     return overload_contexts[0]
