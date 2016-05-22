@@ -254,7 +254,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     interface_info = self.interfaces_info[interface_name]
     # Select appropriate Jinja template and contents function
     if interface.is_callback:
-      raise NotImplementedError('Callback interfaces not implemented')
+      header_template_filename = 'callback-interface.h.template'
+      cpp_template_filename = 'callback-interface.cc.template'
     elif interface.is_partial:
       raise NotImplementedError('Partial interfaces not implemented')
     else:
@@ -304,18 +305,15 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         'include': get_implementation_header_path(self.interfaces_info[
             interface_name]),
         'conditional': conditional,
-        'is_callback_interface': False,
+        'is_callback_interface': interface_name in IdlType.callback_interfaces,
     }
-    # Information about non-callback interfaces.
-    if interface_name not in IdlType.callback_interfaces:
-      yield {
-          'fully_qualified_name': 'cobalt::%s::%s' % (
-              namespace,
-              self.wrapper_class_from_interface_name(interface_name)),
-          'include': self.wrapper_header_from_interface_name(interface_name),
-          'conditional': conditional,
-          'is_callback_interface': False,
-      }
+    yield {
+        'fully_qualified_name': 'cobalt::%s::%s' % (
+            namespace, self.wrapper_class_from_interface_name(interface_name)),
+        'include': self.wrapper_header_from_interface_name(interface_name),
+        'conditional': conditional,
+        'is_callback_interface': interface_name in IdlType.callback_interfaces,
+    }
 
   def build_interface_context(self, interface, interface_info, definitions):
     wrapper_class_name = self.wrapper_class_from_interface_name(interface.name)
@@ -324,12 +322,18 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     assert not os.path.isabs(generated_header_relative_path)
     assert os.pardir not in generated_header_relative_path.split(os.sep)
 
+    interface_components = (
+        self.get_interface_components(interface.idl_type.name))
     context = {
         # Parameters used for template rendering.
         'today': date.today(),
         'binding_class': wrapper_class_name,
+        'fully_qualified_binding_class': (
+            '::'.join(interface_components + [wrapper_class_name])),
         'header_file': normalize_slashes(generated_header_relative_path),
         'impl_class': interface.name,
+        'fully_qualified_impl_class': (
+            '::'.join(interface_components + [interface.name])),
         'interface_name': interface.name,
         'is_event_interface': inherits_interface(interface.name, 'Event'),
         'is_global_interface': is_global_interface(interface),
@@ -346,7 +350,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
       referenced_interface_names = set(
           interface_name
           for interface_name in self.interfaces_info['all_interfaces']
-          if not self.interfaces_info[interface_name]['unsupported'])
+          if not self.interfaces_info[interface_name]['unsupported'] and
+          not self.interfaces_info[interface_name]['is_callback_interface'])
       referenced_interface_names.update(IdlType.callback_interfaces)
     else:
       # Build the set of referenced interfaces from this interface's members.

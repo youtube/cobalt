@@ -25,10 +25,10 @@
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/token.h"
-#include "cobalt/dom/script_event_listener.h"
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_callback_function_holder.h"
-#include "cobalt/script/javascriptcore/jsc_event_listener_callable.h"
+#include "cobalt/script/javascriptcore/jsc_callback_interface.h"
+#include "cobalt/script/javascriptcore/jsc_callback_interface_holder.h"
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle_holder.h"
@@ -46,6 +46,7 @@ namespace script {
 namespace javascriptcore {
 
 const char kNotAnObject[] = "Value is not an object.";
+const char kNotAnObjectOrFunction[] = "Value is not an object or function.";
 const char kNotAFunction[] = "Value is not a function.";
 const char kNotNullableType[] = "Value is null but type is not nullable.";
 const char kNotObjectType[] = "Value is not an object.";
@@ -69,6 +70,9 @@ enum ConversionFlags {
 
   // Valid conversion flags for callback functions.
   kConversionFlagsCallbackFunction = kConversionFlagNullable,
+
+  // Valid conversion flags for callback interfaces.
+  kConversionFlagsCallbackInterface = kConversionFlagNullable,
 
   // Valid conversion flags for objects.
   kConversionFlagsObject = kConversionFlagNullable,
@@ -253,6 +257,32 @@ inline JSC::JSValue ToJSValue(
   const JSCCallbackFunction<T>* jsc_callback =
       base::polymorphic_downcast<const JSCCallbackFunction<T>*>(callback);
   return JSC::JSValue(jsc_callback->callable());
+}
+
+// CallbackInterface -> JSValue
+template <class T>
+inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
+                              const ScriptObject<T>* callback_interface) {
+  if (!callback_interface) {
+    return JSC::jsNull();
+  }
+  typedef typename JSCCallbackInterfaceTraits<T>::JSCCallbackInterfaceClass
+      JSCCallbackInterfaceClass;
+  // Downcast to JSCCallbackInterfaceHolder
+  const JSCCallbackInterfaceHolder<T>* jsc_callback_interface_holder =
+      base::polymorphic_downcast<const JSCCallbackInterfaceHolder<T>*>(
+          callback_interface);
+
+  // Shouldn't be NULL. If the callback was NULL then NULL should have been
+  // passed as an argument into this function.
+  // Downcast to the corresponding JSCCallbackInterface type, from which we can
+  // get the implementing object.
+  const JSCCallbackInterfaceClass* jsc_callback_interface =
+      base::polymorphic_downcast<const JSCCallbackInterfaceClass*>(
+          jsc_callback_interface_holder->GetScriptObject());
+  DCHECK(jsc_callback_interface);
+  // Return the user object implementing this interface.
+  return JSC::JSValue(jsc_callback_interface->implementing_object());
 }
 
 // OpaqueHandle -> JSValue
@@ -453,6 +483,45 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   JSCCallbackFunction<typename T::Signature> callback_function(js_function);
   *out_callback = JSCCallbackFunctionHolder<T>(
       callback_function, global_object->script_object_registry());
+}
+
+// JSValue -> CallbackInterface
+template <class T>
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
+                        JSCCallbackInterfaceHolder<T>* out_callback_interface) {
+  typedef typename JSCCallbackInterfaceTraits<T>::JSCCallbackInterfaceClass
+      JSCCallbackInterfaceClass;
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsCallbackFunction, 0)
+      << "No conversion flags supported.";
+  if (jsvalue.isNull()) {
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotNullableType);
+    }
+    // If it is a nullable type, just return.
+    return;
+  }
+
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+
+  // https://www.w3.org/TR/WebIDL/#es-user-objects
+  // Any user object can be considered to implement a user interface. Actually
+  // checking if the correct properties exist will happen when the operation
+  // on the callback interface is run.
+
+  if (!jsvalue.isFunction() && !jsvalue.isObject()) {
+    out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                      kNotAnObjectOrFunction);
+    return;
+  }
+
+  JSC::JSObject* js_object = jsvalue.getObject();
+  DCHECK(js_object);
+  JSCCallbackInterfaceClass callback_interface(js_object);
+  *out_callback_interface = JSCCallbackInterfaceHolder<T>(
+      callback_interface, global_object->script_object_registry());
 }
 
 // JSValue -> OpaqueHandle

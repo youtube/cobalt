@@ -59,6 +59,17 @@ class JSCObjectHandleHolder : public OpaqueHandleHolder {
         object_handle_.value(), script_object_registry_));
   }
 
+  bool EqualTo(const OpaqueHandleHolder& other) const OVERRIDE {
+    const JSCObjectHandleHolder* jsc_other =
+        base::polymorphic_downcast<const JSCObjectHandleHolder*>(&other);
+    if (!object_handle_) {
+      return !jsc_other->object_handle_;
+    }
+    DCHECK(object_handle_);
+    DCHECK(jsc_other->object_handle_);
+    return object_handle_->handle() == jsc_other->object_handle_->handle();
+  }
+
   JSC::JSObject* js_object() const {
     DCHECK(object_handle_);
     return object_handle_->handle();

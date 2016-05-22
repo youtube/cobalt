@@ -25,6 +25,7 @@
 
 using ::testing::AllOf;
 using ::testing::Eq;
+using ::testing::IgnoreResult;
 using ::testing::InSequence;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Pointee;
@@ -36,44 +37,6 @@ namespace dom {
 
 using testing::FakeScriptObject;
 using testing::MockEventListener;
-
-namespace {
-
-void ExpectHandleEventCall(const MockEventListener* listener,
-                           const scoped_refptr<Event>& event,
-                           const scoped_refptr<EventTarget>& target,
-                           const scoped_refptr<EventTarget>& current_target,
-                           Event::EventPhase phase) {
-  // Note that we must pass the raw pointer to avoid reference counting issue.
-  EXPECT_CALL(
-      *listener,
-      HandleEvent(AllOf(
-          Eq(event.get()), Pointee(Property(&Event::target, Eq(target.get()))),
-          Pointee(Property(&Event::current_target, Eq(current_target.get()))),
-          Pointee(Property(&Event::event_phase, Eq(phase))),
-          Pointee(Property(&Event::IsBeingDispatched, Eq(true))))))
-      .RetiresOnSaturation();
-}
-
-void ExpectHandleEventCall(const MockEventListener* listener,
-                           const scoped_refptr<Event>& event,
-                           const scoped_refptr<EventTarget>& target,
-                           const scoped_refptr<EventTarget>& current_target,
-                           Event::EventPhase phase,
-                           void (Event::*function)(void)) {
-  // Note that we must pass the raw pointer to avoid reference counting issue.
-  EXPECT_CALL(
-      *listener,
-      HandleEvent(AllOf(
-          Eq(event.get()), Pointee(Property(&Event::target, Eq(target.get()))),
-          Pointee(Property(&Event::current_target, Eq(current_target.get()))),
-          Pointee(Property(&Event::event_phase, Eq(phase))),
-          Pointee(Property(&Event::IsBeingDispatched, Eq(true))))))
-      .WillOnce(InvokeWithoutArgs(event.get(), function))
-      .RetiresOnSaturation();
-}
-
-}  // namespace
 
 //////////////////////////////////////////////////////////////////////////
 // NodeDispatchEventTest
@@ -104,8 +67,8 @@ NodeDispatchEventTest::NodeDispatchEventTest()
   grand_parent_ = new FakeNode(document_);
   parent_ = grand_parent_->AppendChild(new FakeNode(document_));
   child_ = parent_->AppendChild(new FakeNode(document_));
-  event_listener_capture_ = MockEventListener::CreateAsNonAttribute();
-  event_listener_bubbling_ = MockEventListener::CreateAsNonAttribute();
+  event_listener_capture_ = MockEventListener::Create();
+  event_listener_bubbling_ = MockEventListener::Create();
 
   grand_parent_->AddEventListener(
       "fired", FakeScriptObject(event_listener_bubbling_.get()), false);
@@ -142,15 +105,15 @@ TEST_F(NodeDispatchEventTest, NonBubblingEventPropagation) {
       base::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, parent_,
+                                                 Event::kCapturingPhase);
   // The event listeners called at target are always in the order of append.
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_, child_,
-                        Event::kAtTarget);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, child_,
-                        Event::kAtTarget);
+  event_listener_bubbling_->ExpectHandleEventCall(event, child_, child_,
+                                                  Event::kAtTarget);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, child_,
+                                                 Event::kAtTarget);
   EXPECT_TRUE(child_->DispatchEvent(event));
 }
 
@@ -159,19 +122,19 @@ TEST_F(NodeDispatchEventTest, BubblingEventPropagation) {
       new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, parent_,
+                                                 Event::kCapturingPhase);
   // The event listeners called at target are always in the order of append.
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_, child_,
-                        Event::kAtTarget);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, child_,
-                        Event::kAtTarget);
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_, parent_,
-                        Event::kBubblingPhase);
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_,
-                        grand_parent_, Event::kBubblingPhase);
+  event_listener_bubbling_->ExpectHandleEventCall(event, child_, child_,
+                                                  Event::kAtTarget);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, child_,
+                                                 Event::kAtTarget);
+  event_listener_bubbling_->ExpectHandleEventCall(event, child_, parent_,
+                                                  Event::kBubblingPhase);
+  event_listener_bubbling_->ExpectHandleEventCall(event, child_, grand_parent_,
+                                                  Event::kBubblingPhase);
   EXPECT_TRUE(child_->DispatchEvent(event));
 }
 
@@ -180,10 +143,11 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtCapturePhase) {
       new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase, &Event::StopPropagation);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(
+      event, child_, parent_, Event::kCapturingPhase,
+      &MockEventListener::StopPropagation);
   EXPECT_TRUE(child_->DispatchEvent(event));
 }
 
@@ -192,14 +156,15 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtAtTargetPhase) {
       new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_, child_,
-                        Event::kAtTarget, &Event::StopPropagation);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, child_,
-                        Event::kAtTarget);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_bubbling_->ExpectHandleEventCall(
+      event, child_, child_, Event::kAtTarget,
+      &MockEventListener::StopPropagation);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, child_,
+                                                 Event::kAtTarget);
   EXPECT_TRUE(child_->DispatchEvent(event));
 }
 
@@ -208,17 +173,18 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtBubblingPhase) {
       new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, parent_,
+                                                 Event::kCapturingPhase);
   // The event listeners called at target are always in the order of append.
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_, child_,
-                        Event::kAtTarget);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, child_,
-                        Event::kAtTarget);
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_, parent_,
-                        Event::kBubblingPhase, &Event::StopPropagation);
+  event_listener_bubbling_->ExpectHandleEventCall(event, child_, child_,
+                                                  Event::kAtTarget);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, child_,
+                                                 Event::kAtTarget);
+  event_listener_bubbling_->ExpectHandleEventCall(
+      event, child_, parent_, Event::kBubblingPhase,
+      &MockEventListener::StopPropagation);
   EXPECT_TRUE(child_->DispatchEvent(event));
 }
 
@@ -227,12 +193,13 @@ TEST_F(NodeDispatchEventTest, StopImmediatePropagation) {
       new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase);
-  ExpectHandleEventCall(event_listener_bubbling_.get(), event, child_, child_,
-                        Event::kAtTarget, &Event::StopImmediatePropagation);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_capture_->ExpectHandleEventCall(event, child_, parent_,
+                                                 Event::kCapturingPhase);
+  event_listener_bubbling_->ExpectHandleEventCall(
+      event, child_, child_, Event::kAtTarget,
+      &MockEventListener::StopImmediatePropagation);
   EXPECT_TRUE(child_->DispatchEvent(event));
 }
 
@@ -241,11 +208,12 @@ TEST_F(NodeDispatchEventTest, PreventDefaultOnNonCancelableEvent) {
       new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase,
-                        &Event::PreventDefault);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase, &Event::StopPropagation);
+  event_listener_capture_->ExpectHandleEventCall(
+      event, child_, grand_parent_, Event::kCapturingPhase,
+      &MockEventListener::PreventDefault);
+  event_listener_capture_->ExpectHandleEventCall(
+      event, child_, parent_, Event::kCapturingPhase,
+      &MockEventListener::StopPropagation);
   EXPECT_TRUE(child_->DispatchEvent(event));
 }
 
@@ -254,11 +222,12 @@ TEST_F(NodeDispatchEventTest, PreventDefaultOnCancelableEvent) {
       new Event(base::Token("fired"), Event::kBubbles, Event::kCancelable);
 
   InSequence in_sequence;
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
-                        grand_parent_, Event::kCapturingPhase,
-                        &Event::PreventDefault);
-  ExpectHandleEventCall(event_listener_capture_.get(), event, child_, parent_,
-                        Event::kCapturingPhase, &Event::StopPropagation);
+  event_listener_capture_->ExpectHandleEventCall(
+      event, child_, grand_parent_, Event::kCapturingPhase,
+      &MockEventListener::PreventDefault);
+  event_listener_capture_->ExpectHandleEventCall(
+      event, child_, parent_, Event::kCapturingPhase,
+      &MockEventListener::StopPropagation);
   EXPECT_FALSE(child_->DispatchEvent(event));
 }
 

@@ -20,6 +20,8 @@
 #include "cobalt/dom/event_listener.h"
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -28,36 +30,116 @@ namespace cobalt {
 namespace dom {
 namespace testing {
 
-using ::testing::Return;
-
 class MockEventListener : public EventListener {
  public:
-  static scoped_ptr<MockEventListener> CreateAsAttribute() {
+  typedef base::optional<bool> (*HandleEventFunction)(
+      const scoped_refptr<script::Wrappable>&, const scoped_refptr<Event>&,
+      bool*);
+
+  static scoped_ptr<MockEventListener> Create() {
     return make_scoped_ptr<MockEventListener>(
-        new ::testing::NiceMock<MockEventListener>(true));
+        new ::testing::NiceMock<MockEventListener>());
   }
 
-  static scoped_ptr<MockEventListener> CreateAsNonAttribute() {
-    return make_scoped_ptr<MockEventListener>(
-        new ::testing::NiceMock<MockEventListener>(false));
+  MOCK_CONST_METHOD3(
+      HandleEvent, base::optional<bool>(const scoped_refptr<script::Wrappable>&,
+                                        const scoped_refptr<Event>&, bool*));
+
+  void ExpectHandleEventCall(const scoped_refptr<Event>& event,
+                             const scoped_refptr<EventTarget>& target) {
+    ExpectHandleEventCall(event, target, target, Event::kAtTarget, &DoNothing);
   }
 
-  MOCK_CONST_METHOD1(HandleEvent, void(const scoped_refptr<Event>&));
-  MOCK_CONST_METHOD1(EqualTo, bool(const EventListener&));
-  MOCK_CONST_METHOD0(IsAttribute, bool());
+  void ExpectHandleEventCall(const scoped_refptr<Event>& event,
+                             const scoped_refptr<EventTarget>& target,
+                             HandleEventFunction handle_event_function) {
+    ExpectHandleEventCall(event, target, target, Event::kAtTarget,
+                          handle_event_function);
+  }
+
+  void ExpectHandleEventCall(const scoped_refptr<Event>& event,
+                             const scoped_refptr<EventTarget>& target,
+                             const scoped_refptr<EventTarget>& current_target,
+                             Event::EventPhase phase) {
+    ExpectHandleEventCall(event, target, current_target, phase, &DoNothing);
+  }
+
+  void ExpectHandleEventCall(const scoped_refptr<Event>& event,
+                             const scoped_refptr<EventTarget>& target,
+                             const scoped_refptr<EventTarget>& current_target,
+                             Event::EventPhase phase,
+                             HandleEventFunction handle_event_function) {
+    using ::testing::_;
+    using ::testing::AllOf;
+    using ::testing::Eq;
+    using ::testing::Invoke;
+    using ::testing::Pointee;
+    using ::testing::Property;
+
+    EXPECT_CALL(
+        *this,
+        HandleEvent(
+            Eq(current_target.get()),
+            AllOf(Eq(event.get()),
+                  Pointee(Property(&Event::target, Eq(target.get()))),
+                  Pointee(Property(&Event::current_target,
+                                   Eq(current_target.get()))),
+                  Pointee(Property(&Event::event_phase, Eq(phase))),
+                  Pointee(Property(&Event::IsBeingDispatched, Eq(true)))),
+            _))
+        .WillOnce(Invoke(handle_event_function))
+        .RetiresOnSaturation();
+  }
+
+  void ExpectNoHandleEventCall() {
+    using ::testing::_;
+    EXPECT_CALL(*this, HandleEvent(_, _, _)).Times(0);
+  }
+
+  static base::optional<bool> DoNothing(const scoped_refptr<script::Wrappable>&,
+                                        const scoped_refptr<Event>&,
+                                        bool* had_exception) {
+    *had_exception = false;
+    return base::nullopt;
+  }
+
+  static base::optional<bool> StopPropagation(
+      const scoped_refptr<script::Wrappable>&,
+      const scoped_refptr<Event>& event, bool* had_exception) {
+    *had_exception = false;
+    event->StopPropagation();
+    return base::nullopt;
+  }
+
+  static base::optional<bool> StopImmediatePropagation(
+      const scoped_refptr<script::Wrappable>&,
+      const scoped_refptr<Event>& event, bool* had_exception) {
+    *had_exception = false;
+    event->StopImmediatePropagation();
+    return base::nullopt;
+  }
+
+  static base::optional<bool> PreventDefault(
+      const scoped_refptr<script::Wrappable>&,
+      const scoped_refptr<Event>& event, bool* had_exception) {
+    *had_exception = false;
+    event->PreventDefault();
+    return base::nullopt;
+  }
 
   virtual ~MockEventListener() {}
 
  protected:
-  explicit MockEventListener(bool is_attribute) {
-    // We expect that EqualTo has its default behavior in most cases.
-    ON_CALL(*this, EqualTo(::testing::_))
-        .WillByDefault(::testing::Invoke(this, &MockEventListener::IsEqual));
-    ON_CALL(*this, IsAttribute()).WillByDefault(Return(is_attribute));
+  MockEventListener() {
+    using ::testing::_;
+    using ::testing::DoAll;
+    using ::testing::Return;
+    using ::testing::SetArgPointee;
+    // No JavaScript exception, and no return value.
+    ON_CALL(*this, HandleEvent(_, _, _))
+        .WillByDefault(
+            DoAll(SetArgPointee<2>(false), Return(base::optional<bool>())));
   }
-
- private:
-  bool IsEqual(const EventListener& that) const { return this == &that; }
 };
 
 class FakeScriptObject : public script::ScriptObject<EventListener> {
@@ -73,6 +155,12 @@ class FakeScriptObject : public script::ScriptObject<EventListener> {
   }
   scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
     return make_scoped_ptr<BaseClass>(new FakeScriptObject(mock_listener_));
+  }
+
+  bool EqualTo(const BaseClass& other) const OVERRIDE {
+    const FakeScriptObject* other_script_object =
+        base::polymorphic_downcast<const FakeScriptObject*>(&other);
+    return mock_listener_ == other_script_object->mock_listener_;
   }
 
  private:

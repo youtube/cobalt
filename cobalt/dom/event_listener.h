@@ -18,7 +18,9 @@
 #define COBALT_DOM_EVENT_LISTENER_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -28,17 +30,26 @@ namespace dom {
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
 class EventListener {
  public:
-  // Web API: EventListener
-  //
-  virtual void HandleEvent(const scoped_refptr<Event>& event) const = 0;
+  // EventHandlers are implemented as EventListener?, so use this to
+  // differentiate between the two (b/21154386).
+  enum Type {
+    kAttribute,
+    kNotAttribute,
+  };
 
   // Custom, not in any spec.
   //
-  // Used by addEventListener/removeEventListener to check if two event
-  // listeners are the same.
-  virtual bool EqualTo(const EventListener& that) const = 0;
-  // Whether this is an event listener set as an attribute.
-  virtual bool IsAttribute() const = 0;
+  // Specify whether this is an attribute-type listener or not.
+  void HandleEvent(const scoped_refptr<Event>& event, Type listener_type) const;
+
+ protected:
+  // Web API: EventListener
+  //
+  // Cobalt's implementation of callback interfaces requires the 'callback this'
+  // to be explicitly passed in.
+  virtual base::optional<bool> HandleEvent(
+      const scoped_refptr<script::Wrappable>& callback_this,
+      const scoped_refptr<Event>& event, bool* had_exception) const = 0;
 };
 
 }  // namespace dom

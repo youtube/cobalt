@@ -48,16 +48,11 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-{% if impl_class == 'EventTarget' %}
-#include "cobalt/dom/script_event_listener.h"
-{% endif %}
 #include "cobalt/script/javascriptcore/constructor_base.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
 #include "cobalt/script/javascriptcore/prototype_base.h"
-{% if impl_class == 'EventTarget' %}
-#include "cobalt/script/javascriptcore/jsc_event_listener_callable.h"
-{% endif %}
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
+#include "cobalt/script/javascriptcore/jsc_callback_interface_holder.h"
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
@@ -112,6 +107,7 @@ using cobalt::script::javascriptcore::FromJSValue;
 using cobalt::script::javascriptcore::FromWTFString;
 using cobalt::script::javascriptcore::JSCCallbackFunction;
 using cobalt::script::javascriptcore::JSCCallbackFunctionHolder;
+using cobalt::script::javascriptcore::JSCCallbackInterfaceHolder;
 using cobalt::script::javascriptcore::JSCEngine;
 using cobalt::script::javascriptcore::JSCExceptionState;
 using cobalt::script::javascriptcore::JSCObjectHandle;
