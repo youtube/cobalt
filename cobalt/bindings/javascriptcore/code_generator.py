@@ -24,8 +24,7 @@ module_path, module_filename = os.path.split(os.path.realpath(__file__))
 cobalt_bindings_dir = os.path.normpath(os.path.join(module_path, os.pardir))
 sys.path.append(cobalt_bindings_dir)
 
-from bindings.scripts.idl_types import IdlType  # pylint: disable=g-import-not-at-top
-from code_generator_cobalt import CodeGeneratorCobalt
+from code_generator_cobalt import CodeGeneratorCobalt  # pylint: disable=g-import-not-at-top
 from expression_generator import ExpressionGenerator
 
 TEMPLATES_DIR = os.path.normpath(os.path.join(module_path, 'templates'))
@@ -102,21 +101,3 @@ class CodeGeneratorJsc(CodeGeneratorCobalt):
     }
     context.update(jsc_lookup_info)
     return context
-
-  def referenced_interface_contexts(self, interface_name):
-    """Overrides CodeGeneratorCobalt.referenced_interface_contexts."""
-    for context in super(CodeGeneratorJsc,
-                         self).referenced_interface_contexts(interface_name):
-      yield context
-
-    # Callback interface binding logic is currently JSC-specific.
-    if interface_name in IdlType.callback_interfaces:
-      # EventListener interface needs special case handling.
-      assert interface_name == 'EventListener'
-      yield {
-          'fully_qualified_name':
-              'cobalt::script::javascriptcore::JSCEventListenerHolder',
-          'include': 'cobalt/script/javascriptcore/jsc_event_listener_holder.h',
-          'conditional': None,
-          'is_callback_interface': True,
-      }

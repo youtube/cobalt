@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,6 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/dom/#eventlistener
-
-callback interface EventListener {
-  // TODO(b/21154386) Because the EventHandler type is typedef'd as a nullable
-  // EventListener, we need to allow the return of a boolean value. The value
-  // of this will only be checked if the EventListener was added as an
-  // attribute (not through addEventListener).
-  boolean? handleEvent(Event event);
+callback interface SingleOperationInterface {
+  long? handleCallback(ArbitraryInterface value);
 };

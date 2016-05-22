@@ -94,7 +94,7 @@ def cobalt_type_is_optional(idl_type):
 
   # These never need base::optional<>
   if (idl_type.is_interface_type or idl_type.is_callback_function or
-      is_event_listener(idl_type) or is_object_type(idl_type)):
+      idl_type.is_callback_interface or is_object_type(idl_type)):
     return False
 
   # We consider a union type to be nullable if either the entire union is
@@ -102,11 +102,6 @@ def cobalt_type_is_optional(idl_type):
   return (idl_type.is_nullable or
           (idl_type.is_union_type and
            (idl_union_type_has_nullable_member(idl_type))))
-
-
-def is_event_listener(idl_type):
-  return (idl_type.is_interface_type and
-          get_interface_name(idl_type) == 'EventListener')
 
 
 def is_object_type(idl_type):
@@ -120,8 +115,9 @@ def idl_type_to_cobalt_type(idl_type):
     cobalt_type = idl_primitive_type_to_cobalt(idl_type)
   elif idl_type.is_string_type:
     cobalt_type = 'std::string'
-  elif is_event_listener(idl_type):
-    cobalt_type = 'JSCEventListenerHolder'
+  elif idl_type.is_callback_interface:
+    cobalt_type = 'JSCCallbackInterfaceHolder<%s>' % get_interface_name(
+        idl_type)
   elif idl_type.is_interface_type:
     cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
   elif idl_type.is_union_type:
@@ -152,6 +148,19 @@ def typed_object_to_cobalt_type(interface, typed_object):
   if getattr(typed_object, 'is_variadic', False):
     cobalt_type = 'std::vector<%s>' % cobalt_type
   return cobalt_type
+
+
+def typed_object_to_arg_type(interface, typed_object):
+  """Map type of IDL TypedObject to C++ type that is a function argument."""
+  base_type = typed_object_to_cobalt_type(interface, typed_object)
+
+  idl_type = typed_object.idl_type
+  if (idl_type.is_callback_function or idl_type.is_object_type or
+      idl_type.is_callback_interface):
+    return base_type + '*'
+  if idl_type.is_string_type or idl_type.is_interface_type:
+    return 'const %s&' % base_type
+  return base_type
 
 
 def idl_literal_to_cobalt_literal(idl_type, idl_literal):
@@ -193,8 +202,8 @@ def argument_context(interface, argument):
       'idl_type_object': argument.idl_type,
       'name': argument.name,
       'type': typed_object_to_cobalt_type(interface, argument),
+      'arg_type': typed_object_to_arg_type(interface, argument),
       'conversion_flags': get_conversion_flags(argument),
-      'is_event_listener': is_event_listener(argument.idl_type),
       'is_optional': argument.is_optional,
       'is_variadic': argument.is_variadic,
       'default_value': idl_literal_to_cobalt_literal(argument.idl_type,
@@ -299,7 +308,6 @@ def attribute_context(interface, attribute, definitions):
       'is_static': attribute.is_static,
       'is_read_only': attribute.is_read_only,
       'call_with': attribute.extended_attributes.get('CallWith', None),
-      'is_event_listener': is_event_listener(attribute.idl_type),
       'raises_exception':
           attribute.extended_attributes.has_key('RaisesException'),
       'conversion_flags': get_conversion_flags(attribute),
