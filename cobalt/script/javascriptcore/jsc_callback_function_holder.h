@@ -66,6 +66,17 @@ class JSCCallbackFunctionHolder : public ScriptObject<CallbackFunction> {
         jsc_callable_.value(), script_object_registry_));
   }
 
+  bool EqualTo(const BaseClass& other) const OVERRIDE {
+    const JSCCallbackFunctionHolder* jsc_other =
+        base::polymorphic_downcast<const JSCCallbackFunctionHolder*>(&other);
+    if (!jsc_callable_) {
+      return !jsc_other->jsc_callable_;
+    }
+    DCHECK(jsc_callable_);
+    DCHECK(jsc_other->jsc_callable_);
+    return jsc_callable_->callable() == jsc_other->jsc_callable_->callable();
+  }
+
  private:
   base::optional<JSCCallbackFunctionClass> jsc_callable_;
   ScriptObjectRegistry* script_object_registry_;

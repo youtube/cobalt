@@ -147,16 +147,18 @@ class EventTarget : public script::Wrappable,
   struct EventListenerInfo {
     EventListenerInfo(base::Token type, const EventTarget* const event_target,
                       const EventListenerScriptObject& listener,
-                      bool use_capture);
+                      bool use_capture, EventListener::Type listener_type);
     base::Token type;
     script::ScriptObject<EventListener>::Reference listener;
     bool use_capture;
+    EventListener::Type listener_type;
   };
   typedef ScopedVector<EventListenerInfo> EventListenerInfos;
 
   void AddEventListenerInternal(base::Token type,
                                 const EventListenerScriptObject& listener,
-                                bool use_capture);
+                                bool use_capture,
+                                EventListener::Type listener_type);
 
   EventListenerInfos event_listener_infos_;
 };

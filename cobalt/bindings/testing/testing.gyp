@@ -32,6 +32,7 @@
         'BaseInterface.idl',
         'BooleanTypeTestInterface.idl',
         'CallbackFunctionInterface.idl',
+        'CallbackInterfaceInterface.idl',
         'ConditionalInterface.idl',
         'ConstantsInterface.idl',
         'ConstructorInterface.idl',
@@ -59,6 +60,7 @@
         'ObjectTypeBindingsInterface.idl',
         'OperationsTestInterface.idl',
         'PutForwardsInterface.idl',
+        'SingleOperationInterface.idl',
         'StringifierAnonymousOperationInterface.idl',
         'StringifierAttributeInterface.idl',
         'StringifierOperationInterface.idl',
@@ -117,6 +119,7 @@
       'sources': [
         'boolean_type_bindings_test.cc',
         'callback_function_test.cc',
+        'callback_interface_test.cc',
         'conditional_attribute_test.cc',
         'constants_bindings_test.cc',
         'constructor_bindings_test.cc',

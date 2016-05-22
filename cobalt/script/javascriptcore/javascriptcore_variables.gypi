@@ -32,6 +32,8 @@
           '<(DEPTH)/cobalt/bindings/javascriptcore/templates',
         ],
         'engine_template_files': [
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates/callback-interface.cc.template',
+          '<(DEPTH)/cobalt/bindings/javascriptcore/templates/callback-interface.h.template',
           '<(DEPTH)/cobalt/bindings/javascriptcore/templates/interface.cc.template',
           '<(DEPTH)/cobalt/bindings/javascriptcore/templates/interface.h.template',
           '<(DEPTH)/cobalt/bindings/javascriptcore/templates/interface-object.template',

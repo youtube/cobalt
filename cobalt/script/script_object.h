@@ -77,6 +77,9 @@ class ScriptObject {
     DISALLOW_COPY_AND_ASSIGN(Reference);
   };
 
+  // Return true iff |other| refers to the same underlying JavaScript object.
+  virtual bool EqualTo(const ScriptObject& other) const = 0;
+
   // Returns true if this ScriptObject is referring to a NULL JavaScript object.
   bool IsNull() const { return GetScriptObject() == NULL; }
 
