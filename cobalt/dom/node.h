@@ -99,6 +99,7 @@ class Node : public EventTarget {
     kCommentNode = 8,
     kDocumentNode = 9,
     kDocumentTypeNode = 10,
+    kFakeNode = kuint16max,
   };
 
   // Custom, not in any spec.
