@@ -11,18 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X86 X11 platform configuration for gyp_cobalt."""
+"""Starboard Linux X64 X11 platform configuration for gyp_cobalt."""
 
 import logging
+import os
+import sys
 
-# Import the original Linux x86 (X11) platform configuration until we move it
-# entirely here.
-import config.starboard_linux
+# Import the shared Linux platform configuration.
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__),
+                                              os.pardir, 'shared')))
+import gyp_configuration
 
 
 def CreatePlatformConfig():
   try:
-    return config.starboard_linux.PlatformConfig('linux-x64x11')
+    return gyp_configuration.PlatformConfig('linux-x64x11')
   except RuntimeError as e:
     logging.critical(e)
     return None
