@@ -20,6 +20,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/comment.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -129,6 +130,16 @@ TEST_F(DocumentTest, CreateTextNode) {
   EXPECT_EQ("#text", text->node_name());
   EXPECT_EQ("test_text", text->data());
   EXPECT_EQ(document, text->owner_document());
+}
+
+TEST_F(DocumentTest, CreateComment) {
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Comment> comment = document->CreateComment("test_comment");
+
+  EXPECT_EQ(Node::kCommentNode, comment->node_type());
+  EXPECT_EQ("#comment", comment->node_name());
+  EXPECT_EQ("test_comment", comment->data());
+  EXPECT_EQ(document, comment->owner_document());
 }
 
 TEST_F(DocumentTest, CreateEvent) {
