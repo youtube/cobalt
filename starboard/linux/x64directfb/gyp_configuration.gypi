@@ -45,6 +45,6 @@
   },
 
   'includes': [
-    '../../../cobalt/build/config/starboard_linux.gypi',
+    '../shared/gyp_configuration.gypi',
   ],
 }
