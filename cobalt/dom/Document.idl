@@ -28,6 +28,8 @@ interface Document : Node {
   [NewObject] Element createElementNS(DOMString namespaceURI, DOMString localName);
 
   [NewObject] Text createTextNode(DOMString data);
+  [NewObject] Comment createComment(DOMString data);
+
   [NewObject, RaisesException] Event createEvent(DOMString interfaceName);
   attribute DOMString cookie;
 };
