@@ -131,8 +131,7 @@ class TCPClientSocketStarboard : public StreamSocket, base::NonThreadSafe {
   // connection histograms.
   UseHistory use_history_;
 
-  scoped_ptr<MessageLoopForIO::SocketWatcher> read_watcher_;
-  scoped_ptr<MessageLoopForIO::SocketWatcher> write_watcher_;
+  scoped_ptr<MessageLoopForIO::SocketWatcher> socket_watcher_;
   class Watcher;
   scoped_ptr<Watcher> watcher_;
 
