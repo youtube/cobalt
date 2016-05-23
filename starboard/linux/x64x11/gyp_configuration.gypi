@@ -15,6 +15,9 @@
 {
   'variables': {
     'platform_libraries': [
+      '-lEGL',
+      '-lGLESv2',
+      '-lX11',
       '-lXcomposite',
       '-lXext',
       '-lXrender',
@@ -40,6 +43,6 @@
   },
 
   'includes': [
-    '../../../cobalt/build/config/starboard_linux.gypi',
+    '../shared/gyp_configuration.gypi',
   ],
 }

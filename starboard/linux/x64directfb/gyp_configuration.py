@@ -11,19 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X86 DirectFB platform configuration for gyp_cobalt."""
+"""Starboard Linux X64 DirectFB platform configuration for gyp_cobalt."""
 
 import logging
+import os
+import sys
 
-# Import the original Linux x86 platform configuration so that we can reuse
-# its configuration details since the only difference here is the use of
-# DirectFB.
-import config.starboard_linux
+# Import the shared Linux platform configuration.
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__),
+                                              os.pardir, 'shared')))
+import gyp_configuration
 
 
 def CreatePlatformConfig():
   try:
-    return config.starboard_linux.PlatformConfig('linux-x64directfb')
+    return gyp_configuration.PlatformConfig('linux-x64directfb')
   except RuntimeError as e:
     logging.critical(e)
     return None
