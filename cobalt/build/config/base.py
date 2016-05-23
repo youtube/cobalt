@@ -25,7 +25,7 @@ import gyp_utils
 VALID_BUILD_CONFIGS = ['debug', 'devel', 'qa', 'gold']
 
 # Represents all supported platforms, uniquified and sorted.
-VALID_PLATFORMS = sorted(list(set(['linux', 'ps3', 'starboard_linux', 'win'] +
+VALID_PLATFORMS = sorted(list(set(['linux', 'ps3', 'win'] +
                                   gyp_utils.GetThirdPartyPlatforms().keys())))
 
 _CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -108,7 +108,7 @@ def LoadPlatformConfig(platform):
       module_path = 'config/{}.py'.format(platform)
       platform_module = importlib.import_module('config.{}'.format(platform))
   except ImportError:
-    logging.error('Unable to import "%s".', module_path)
+    logging.exception('Unable to import "%s".', module_path)
     return None
 
   if not hasattr(platform_module, 'CreatePlatformConfig'):

@@ -159,6 +159,49 @@ def _EnsureGomaRunning():
     return False
 
 
+def _GetClangVersion(clang_path):
+  """Return clang version string."""
+
+  output = subprocess.check_output([clang_path, '--version']).splitlines()[0]
+  return output
+
+
+def CheckClangVersion():
+  """Ensure the expected version of clang is in the path."""
+
+  # Run the clang update script to get the correct version of clang.
+  # Then check that clang is in the path.
+  source_tree_dir = GetSourceTreeDir()
+  update_script = os.path.join(source_tree_dir, 'tools', 'clang', 'scripts',
+                               'update.sh')
+  update_proc = subprocess.Popen(update_script)
+  rc = update_proc.wait()
+  if rc != 0:
+    raise RuntimeError('%s failed.' % update_script)
+
+  # update.sh downloads clang to this path.
+  clang_bin_path = os.path.join(source_tree_dir, 'third_party', 'llvm-build',
+                                'Release+Asserts', 'bin')
+  clang_bin = os.path.join(clang_bin_path, 'clang')
+
+  if not os.path.exists(clang_bin):
+    raise RuntimeError('Clang not found.')
+
+  clang_in_path = Which('clang')
+  if not clang_in_path:
+    raise RuntimeError('clang not found in PATH. Add %s to your PATH' %
+                       clang_bin_path)
+
+  # The first clang in PATH may be goma's version, which is OK.
+  # It forwards to the real one. Just make sure the version strings
+  # are the same.
+  expected_version = _GetClangVersion(clang_bin)
+  detected_version = _GetClangVersion(clang_in_path)
+  if expected_version != detected_version:
+    raise RuntimeError('Invalid clang version found in PATH: (%s != %s)' %
+                       (expected_version, detected_version))
+
+
 def FindAndInitGoma():
   """Checks if goma is installed and makes sure that it's initialized.
 
