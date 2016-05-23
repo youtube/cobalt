@@ -118,6 +118,13 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
 
   SbSocket old_socket = controller->Release();
   if (SbSocketIsValid(old_socket)) {
+    // It's illegal to use this function to listen on 2 separate fds with the
+    // same |controller|.
+    if (old_socket != socket) {
+      NOTREACHED() << "Sockets don't match" << old_socket << "!=" << socket;
+      return false;
+    }
+
     // Make sure we don't pick up any funky internal masks.
     int old_interest_mask =
         controller->interests() &
@@ -128,13 +135,6 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
 
     // Must disarm the event before we can reuse it.
     SbSocketWaiterRemove(waiter_, old_socket);
-
-    // It's illegal to use this function to listen on 2 separate fds with the
-    // same |controller|.
-    if (old_socket != socket) {
-      NOTREACHED() << "Sockets don't match" << old_socket << "!=" << socket;
-      return false;
-    }
   }
 
   // Set current interest mask and waiter for this event.

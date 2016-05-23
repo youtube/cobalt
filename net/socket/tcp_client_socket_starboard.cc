@@ -111,8 +111,7 @@ TCPClientSocketStarboard::TCPClientSocketStarboard(
     const net::NetLog::Source& source)
     : next_connect_state_(CONNECT_STATE_NONE),
       connect_error_(OK),
-      read_watcher_(new MessageLoopForIO::SocketWatcher()),
-      write_watcher_(new MessageLoopForIO::SocketWatcher()),
+      socket_watcher_(new MessageLoopForIO::SocketWatcher()),
       ALLOW_THIS_IN_INITIALIZER_LIST(watcher_(new Watcher(this))),
       read_buf_len_(0),
       write_buf_len_(0),
@@ -232,7 +231,7 @@ int TCPClientSocketStarboard::DoConnect() {
   // When it is ready to write, it will have connected.
   MessageLoopForIO::current()->Watch(socket_, false,
                                      MessageLoopForIO::WATCH_WRITE,
-                                     write_watcher_.get(), watcher_.get());
+                                     socket_watcher_.get(), watcher_.get());
   return ERR_IO_PENDING;
 }
 
@@ -310,8 +309,7 @@ void TCPClientSocketStarboard::DoDisconnect() {
 
   // Make sure to clean up our watch accounting before we destroy the socket, or
   // else we would later try to stop watching a deleted socket.
-  read_watcher_->StopWatchingSocket();
-  write_watcher_->StopWatchingSocket();
+  socket_watcher_->StopWatchingSocket();
 
   SbSocketDestroy(socket_);
   socket_ = kSbSocketInvalid;
@@ -435,7 +433,7 @@ int TCPClientSocketStarboard::Read(IOBuffer* buf,
   read_callback_ = callback;
   MessageLoopForIO::current()->Watch(socket_, false,
                                      MessageLoopForIO::WATCH_READ,
-                                     read_watcher_.get(), watcher_.get());
+                                     socket_watcher_.get(), watcher_.get());
   return ERR_IO_PENDING;
 }
 
@@ -511,7 +509,7 @@ int TCPClientSocketStarboard::Write(IOBuffer* buf,
   write_callback_ = callback;
   MessageLoopForIO::current()->Watch(socket_, false,
                                      MessageLoopForIO::WATCH_WRITE,
-                                     write_watcher_.get(), watcher_.get());
+                                     socket_watcher_.get(), watcher_.get());
   return ERR_IO_PENDING;
 }
 
