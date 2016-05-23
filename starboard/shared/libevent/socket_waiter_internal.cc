@@ -108,13 +108,20 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
   // access is all going to come from one I/O thread anyway, and there will only
   // be one waiter.
   if (SbSocketWaiterIsValid(socket->waiter)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has waiter.";
+    if (socket->waiter == this) {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has this waiter ("
+                     << this << ").";
+    } else {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has waiter ("
+                     << socket->waiter << ", this=" << this << ").";
+    }
     return false;
   }
 
   Waitee* waitee =
       new Waitee(this, socket, context, callback, interests, persistent);
   AddWaitee(waitee);
+
   int16_t events = 0;
   if (interests & kSbSocketWaiterInterestRead) {
     events |= EV_READ;
