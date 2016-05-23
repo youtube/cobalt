@@ -47,6 +47,7 @@
 namespace cobalt {
 namespace dom {
 
+class Comment;
 class CspDelegate;
 class DOMImplementation;
 class Element;
@@ -77,7 +78,7 @@ class DocumentObserver {
 // The Document interface serves as an entry point into the web page's content
 // (the DOM tree, including elements such as <head> and <body>) and provides
 // functionality which is global to the document.
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-document
+//   https://www.w3.org/TR/dom/#document
 //
 // In the spec, "A document is assumed to be an XML document unless it is
 // flagged as being an HTML document". In Cobalt it is always considered as HTML
@@ -150,7 +151,10 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<Element> CreateElement(const std::string& local_name);
   scoped_refptr<Element> CreateElementNS(const std::string& namespace_uri,
                                          const std::string& local_name);
+
   scoped_refptr<Text> CreateTextNode(const std::string& data);
+  scoped_refptr<Comment> CreateComment(const std::string& data);
+
   scoped_refptr<Event> CreateEvent(const std::string& interface_name,
                                    script::ExceptionState* exception_state);
 

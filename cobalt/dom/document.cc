@@ -31,6 +31,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/benchmark_stat_names.h"
+#include "cobalt/dom/comment.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/dom_exception.h"
@@ -182,8 +183,12 @@ scoped_refptr<Element> Document::CreateElementNS(
   return CreateElement(local_name);
 }
 
-scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
-  return new Text(this, text);
+scoped_refptr<Text> Document::CreateTextNode(const std::string& data) {
+  return new Text(this, data);
+}
+
+scoped_refptr<Comment> Document::CreateComment(const std::string& data) {
+  return new Comment(this, data);
 }
 
 scoped_refptr<Event> Document::CreateEvent(
