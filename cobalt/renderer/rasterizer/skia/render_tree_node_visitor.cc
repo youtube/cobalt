@@ -87,9 +87,11 @@ float GetTransformedVectorScale(const SkMatrix& matrix,
 
 SkiaRenderTreeNodeVisitor::SkiaRenderTreeNodeVisitor(
     SkCanvas* render_target,
-    const CreateScratchSurfaceFunction* create_scratch_surface_function)
+    const CreateScratchSurfaceFunction* create_scratch_surface_function,
+    Type visitor_type)
     : render_target_(render_target),
-      create_scratch_surface_function_(create_scratch_surface_function) {}
+      create_scratch_surface_function_(create_scratch_surface_function),
+      visitor_type_(visitor_type) {}
 
 namespace {
 
@@ -289,8 +291,8 @@ void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   canvas->scale(scale_x, scale_y);
 
   // Render our source sub-tree into the offscreen surface.
-  SkiaRenderTreeNodeVisitor sub_visitor(canvas,
-                                        create_scratch_surface_function_);
+  SkiaRenderTreeNodeVisitor sub_visitor(
+      canvas, create_scratch_surface_function_, kType_SubVisitor);
   filter_node.source->Accept(&sub_visitor);
 
   // With the source subtree rendered to our temporary scratch surface, we
@@ -438,10 +440,12 @@ class RasterizeSkiaImageVisitor : public SkiaImageVisitor {
  public:
   RasterizeSkiaImageVisitor(SkCanvas* render_target,
                             const math::RectF& destination_rect,
-                            const math::Matrix3F* local_transform)
+                            const math::Matrix3F* local_transform,
+                            bool punch_through_alpha)
       : render_target_(render_target),
         destination_rect_(destination_rect),
-        local_transform_(local_transform) {}
+        local_transform_(local_transform),
+        punch_through_alpha_(punch_through_alpha) {}
 
   void VisitSinglePlaneImage(SkiaSinglePlaneImage* single_plane_image) OVERRIDE;
   void VisitMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image) OVERRIDE;
@@ -450,6 +454,7 @@ class RasterizeSkiaImageVisitor : public SkiaImageVisitor {
   SkCanvas* render_target_;
   const math::RectF& destination_rect_;
   const math::Matrix3F* local_transform_;
+  bool punch_through_alpha_;
 };
 
 namespace {
@@ -483,12 +488,22 @@ bool LocalCoordsStaysWithinUnitBox(const math::Matrix3F& mat) {
   return mat.Get(0, 2) <= 0.0f && 1.0f - mat.Get(0, 2) <= mat.Get(0, 0) &&
          mat.Get(1, 2) <= 0.0f && 1.0f - mat.Get(1, 2) <= mat.Get(1, 1);
 }
+
+SkPaint CreateSkPaintForImageRendering(bool punch_through_alpha) {
+  SkPaint paint;
+  paint.setFilterLevel(SkPaint::kLow_FilterLevel);
+
+  if (punch_through_alpha) {
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+  }
+
+  return paint;
+}
 }  // namespace
 
 void RasterizeSkiaImageVisitor::VisitSinglePlaneImage(
     SkiaSinglePlaneImage* single_plane_image) {
-  SkPaint paint;
-  paint.setFilterLevel(SkPaint::kLow_FilterLevel);
+  SkPaint paint = CreateSkPaintForImageRendering(punch_through_alpha_);
 
   // In the most frequent by far case where the normalized transformed image
   // texture coordinates lie within the unit square, then we must ensure NOT
@@ -561,8 +576,7 @@ void RasterizeSkiaImageVisitor::VisitMultiPlaneImage(
       SkNEW_ARGS(SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
                                    u_bitmap, u_matrix, v_bitmap, v_matrix)));
 
-  SkPaint paint;
-  paint.setFilterLevel(SkPaint::kLow_FilterLevel);
+  SkPaint paint = CreateSkPaintForImageRendering(punch_through_alpha_);
   paint.setShader(yuv2rgb_shader);
   render_target_->drawRect(CobaltRectFToSkiaRect(destination_rect_), paint);
 }
@@ -592,11 +606,23 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // that.
   image->EnsureInitialized();
 
+  if (image_node->data().punch_through_alpha &&
+      visitor_type_ == kType_SubVisitor) {
+    DLOG(ERROR) << "Punch through alpha images cannot be rendered via "
+                   "offscreen surfaces (since the offscreen surface will then "
+                   "be composed using blending).  Unfortunately, you will have "
+                   "to find another way to arrange your render tree if you "
+                   "wish to use punch through alpha (e.g. ensure no opacity "
+                   "filters exist as an ancestor to this node).";
+    // We proceed anyway, just in case things happen to work out.
+  }
+
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
   RasterizeSkiaImageVisitor image_visitor(
       render_target_, image_node->data().destination_rect,
-      &(image_node->data().local_transform));
+      &(image_node->data().local_transform),
+      image_node->data().punch_through_alpha);
   image->Accept(&image_visitor);
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE

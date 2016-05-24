@@ -2539,6 +2539,23 @@ TEST_F(PixelTest, BoxShadowInsetCircleSpread) {
       RoundedCorners(50, 50)));
 }
 
+TEST_F(PixelTest, PunchThroughAlphaImages) {
+  CompositionNode::Builder builder;
+  builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
+                                scoped_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(0.5f, 0.5f, 1.0f, 1.0f)))));
+
+  scoped_refptr<Image> image =
+      CreateTransparencyCheckersPremultipliedAlphaImage(
+          GetResourceProvider(), SizeF(100, 100), 127, 255, 127);
+
+  ImageNode::Builder image_builder(image, RectF(50, 50, 100, 100));
+  image_builder.punch_through_alpha = true;
+  builder.AddChild(new ImageNode(image_builder));
+
+  TestTree(new CompositionNode(builder.Pass()));
+}
+
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
