@@ -21,17 +21,23 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "cobalt/cssom/keyword_value.h"
-#include "cobalt/layout/create_letterboxed_image.h"
+#include "cobalt/layout/letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/rect_node.h"
 
 namespace cobalt {
 namespace layout {
 
 using render_tree::animations::NodeAnimationsMap;
 using render_tree::CompositionNode;
+using render_tree::ImageNode;
+using render_tree::RectNode;
+using render_tree::SolidColorBrush;
 
 namespace {
 
@@ -111,13 +117,31 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
 
 namespace {
 
+void AddLetterboxedImageToRenderTree(
+    const LetterboxDimensions& dimensions,
+    const scoped_refptr<render_tree::Image>& image,
+    CompositionNode::Builder* composition_node_builder) {
+  const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
+
+  if (dimensions.image_rect) {
+    ImageNode::Builder image_builder(image, *dimensions.image_rect);
+    image_builder.punch_through_alpha = true;
+    composition_node_builder->AddChild(new ImageNode(image_builder));
+  }
+
+  for (uint32 i = 0; i < dimensions.fill_rects.size(); ++i) {
+    const math::RectF& fill_rect = dimensions.fill_rects[i];
+    composition_node_builder->AddChild(new RectNode(
+        fill_rect,
+        scoped_ptr<render_tree::Brush>(new SolidColorBrush(kSolidBlack))));
+  }
+}
+
 void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
                math::SizeF destination_size,
                CompositionNode::Builder* composition_node_builder,
                base::TimeDelta time) {
   UNREFERENCED_PARAMETER(time);
-
-  const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
 
   DCHECK(!replace_image_cb.is_null());
   DCHECK(composition_node_builder);
@@ -131,8 +155,9 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
     destination_size = image->GetSize();
   }
 
-  CreateLetterboxedImage(image, destination_size, kSolidBlack,
-                         composition_node_builder);
+  AddLetterboxedImageToRenderTree(
+      GetLetterboxDimensions(image->GetSize(), destination_size), image,
+      composition_node_builder);
 }
 
 }  // namespace

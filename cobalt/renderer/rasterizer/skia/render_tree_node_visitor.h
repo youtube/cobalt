@@ -50,12 +50,20 @@ class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
   typedef base::Callback<scoped_ptr<ScratchSurface>(const math::Size&)>
       CreateScratchSurfaceFunction;
 
+  enum Type {
+    kType_Normal,
+    kType_SubVisitor,
+  };
+
   // The create_scratch_surface_function functor object will be saved within
   // SkiaRenderTreeNodeVisitor, so it must outlive the SkiaRenderTreeNodeVisitor
-  // object.
+  // object.  If |is_sub_visitor| is set to true, errors will be supported for
+  // certain operations such as punch out alpha textures, as it is unfortunately
+  // difficult to implement them when rendering to a sub-canvas.
   SkiaRenderTreeNodeVisitor(
       SkCanvas* render_target,
-      const CreateScratchSurfaceFunction* create_scratch_surface_function);
+      const CreateScratchSurfaceFunction* create_scratch_surface_function,
+      Type visitor_type = kType_Normal);
 
   void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
@@ -73,6 +81,7 @@ class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   SkCanvas* render_target_;
   const CreateScratchSurfaceFunction* create_scratch_surface_function_;
+  Type visitor_type_;
 
   DISALLOW_COPY_AND_ASSIGN(SkiaRenderTreeNodeVisitor);
 };
