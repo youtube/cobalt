@@ -29,10 +29,10 @@ blink_script_dir = os.path.normpath(os.path.join(
 sys.path.append(blink_script_dir)
 
 from bindings.scripts.code_generator_v8 import CodeGeneratorBase  # pylint: disable=g-import-not-at-top
-from bindings.scripts.code_generator_v8 import initialize_jinja_env  # pylint: disable=g-import-not-at-top
 from bindings.scripts.idl_types import IdlType
 from bindings.scripts.idl_types import inherits_interface
 import contexts
+import jinja2
 from name_conversion import convert_to_cobalt_name
 from name_conversion import get_interface_name
 
@@ -40,6 +40,20 @@ module_path, module_filename = os.path.split(os.path.realpath(__file__))
 
 # Track the cobalt directory, so we can use it for building relative paths.
 cobalt_dir = os.path.normpath(os.path.join(module_path, os.pardir))
+
+SHARED_TEMPLATES_DIR = os.path.abspath(os.path.join(module_path, 'templates'))
+
+
+def initialize_jinja_env(cache_dir, templates_dir):
+  jinja_env = jinja2.Environment(
+      loader=jinja2.FileSystemLoader([templates_dir, SHARED_TEMPLATES_DIR]),
+      # Bytecode cache is not concurrency-safe unless pre-cached:
+      # if pre-cached this is read-only, but writing creates a race condition.
+      bytecode_cache=jinja2.FileSystemBytecodeCache(cache_dir),
+      keep_trailing_newline=True,  # newline-terminate generated files
+      lstrip_blocks=True,  # so can indent control flow tags
+      trim_blocks=True)
+  return jinja_env
 
 
 def normalize_slashes(path):
