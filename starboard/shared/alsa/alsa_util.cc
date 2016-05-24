@@ -159,11 +159,24 @@ void* AlsaOpenPlaybackDevice(int channel,
 int AlsaWriteFrames(void* playback_handle,
                     const float* buffer,
                     int frames_to_write) {
-  int frames = snd_pcm_writei(reinterpret_cast<snd_pcm_t*>(playback_handle),
-                              buffer, frames_to_write);
-  ALSA_CHECK(frames, snd_pcm_writei);
+  int frames = 0;
+  for (;;) {
+    frames = snd_pcm_writei(reinterpret_cast<snd_pcm_t*>(playback_handle),
+                            buffer, frames_to_write);
+    if (frames > 0) {
+      return frames;
+    } else if (frames == -EPIPE) {
+      int error =
+          snd_pcm_prepare(reinterpret_cast<snd_pcm_t*>(playback_handle));
+      ALSA_CHECK(error, snd_pcm_start);
+    } else {
+      ALSA_CHECK(frames, snd_pcm_writei);
+      // "frames == 0" means snd_pcm_writei() is interrupted, we'll retry.
+    }
+  }
 
-  return frames;
+  SB_NOTREACHED();
+  return 0;
 }
 
 int AlsaGetBufferedFrames(void* playback_handle) {
