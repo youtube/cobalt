@@ -181,6 +181,7 @@ def generate_interface_dependencies(output_directory, test_input_directory, comp
 
 def bindings_tests(output_directory, verbose, reference_directory,
                    test_input_directory, idl_compiler_constructor,
+                   code_generator_constructor,
                    component_directories, ignore_idl_files,
                    dependency_idl_files, root_directory,
                    extended_attributes_path, generate_union_containers):
@@ -284,6 +285,7 @@ def bindings_tests(output_directory, verbose, reference_directory,
             if generate_union_containers:
                 generate_union_type_containers(output_dir, component)
             idl_compiler = idl_compiler_constructor(
+                code_generator_constructor,
                 output_dir,
                 interfaces_info=interfaces_info,
                 only_if_changed=True,
