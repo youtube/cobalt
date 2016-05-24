@@ -15,5 +15,6 @@
 {
   'includes': [
     'javascriptcore/javascriptcore_variables.gypi',
+    'mozjs/mozjs_variables.gypi',
   ],
 }
