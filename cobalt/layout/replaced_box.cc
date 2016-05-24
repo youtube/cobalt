@@ -201,9 +201,11 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
     destination_size = image->GetSize();
   }
 
-  AddLetterboxedImageToRenderTree(
-      GetLetterboxDimensions(image->GetSize(), destination_size), image,
-      composition_node_builder);
+  if (image) {
+    AddLetterboxedImageToRenderTree(
+        GetLetterboxDimensions(image->GetSize(), destination_size), image,
+        composition_node_builder);
+  }
 }
 
 }  // namespace
