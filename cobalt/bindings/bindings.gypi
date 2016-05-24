@@ -70,6 +70,14 @@
     'bindings_templates_dir': '<(engine_templates_dir)',
     'idl_compiler_script': '<(engine_idl_compiler)',
 
+    # Templates that are shared by the code generation for multiple engines.
+    'shared_template_files': [
+      'templates/interface-base.cc.template',
+      'templates/interface-base.h.template',
+      'templates/callback-interface-base.cc.template',
+      'templates/callback-interface-base.h.template',
+    ],
+
     # The following lists of IDL files should be set in the including .gyp file.
 
     # Bindings for the interfaces in this list will be generated, and there must
@@ -109,7 +117,10 @@
     'jinja_module_files': ['<@(jinja_module_files)'],
 
     # Cobalt's Jinja templates
-    'code_generator_template_files': [ '<@(engine_template_files)'],
+    'code_generator_template_files': [
+      '<@(engine_template_files)',
+      '<@(shared_template_files)'
+    ],
 
     # Dependencies of the bindings generation that are not captured as inputs
     'bindings_extra_inputs': [
