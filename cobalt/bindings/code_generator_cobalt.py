@@ -178,7 +178,12 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     CodeGeneratorBase.__init__(self, interfaces_info, cache_dir, output_dir)
     # CodeGeneratorBase inititalizes this with the v8 template path, so
     # reinitialize it with cobalt's template path
-    self.jinja_env = initialize_jinja_env(cache_dir, templates_dir)
+
+    # Whether the path is absolute or relative affects the cache file name. Use
+    # the absolute path to ensure that we use the same path as was used when the
+    # cache was prepopulated.
+    self.jinja_env = initialize_jinja_env(cache_dir,
+                                          os.path.abspath(templates_dir))
 
   @abc.abstractproperty
   def generated_file_prefix(self):
@@ -471,8 +476,11 @@ def main(argv):
     print 'Usage: %s CACHE_DIR TEMPLATES_DIR DUMMY_FILENAME' % argv[0]
     return 1
 
-  # Cache templates
-  jinja_env = initialize_jinja_env(cache_dir, templates_dir)
+  # Cache templates.
+  # Whether the path is absolute or relative affects the cache file name. Use
+  # the absolute path to ensure that the same path is used when we populate the
+  # cache here and when it's read during code generation.
+  jinja_env = initialize_jinja_env(cache_dir, os.path.abspath(templates_dir))
   template_filenames = [
       filename
       for filename in os.listdir(templates_dir)
