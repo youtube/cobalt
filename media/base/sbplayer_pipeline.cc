@@ -271,6 +271,8 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
     SbPlayerDestroy(player_);
     player_ = kSbPlayerInvalid;
   }
+  // When Stop() is in progress, we no longer need to call |error_cb_|.
+  error_cb_.Reset();
   if (demuxer_) {
     stop_cb_ = stop_cb;
     demuxer_->Stop(base::Bind(&SbPlayerPipeline::OnDemuxerStopped, this));
@@ -436,6 +438,13 @@ void SbPlayerPipeline::AddBufferedTimeRange(TimeDelta start, TimeDelta end) {
 
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (status != PIPELINE_OK) {
+    if (!error_cb_.is_null()) {
+      base::ResetAndReturn(&error_cb_).Run(status);
+    }
+    return;
+  }
 
   base::AutoLock auto_lock(lock_);
   has_audio_ = demuxer_->GetStream(DemuxerStream::AUDIO) != NULL;
