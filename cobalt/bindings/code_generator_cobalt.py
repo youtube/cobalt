@@ -45,6 +45,8 @@ SHARED_TEMPLATES_DIR = os.path.abspath(os.path.join(module_path, 'templates'))
 
 
 def initialize_jinja_env(cache_dir, templates_dir):
+  assert os.path.isabs(templates_dir)
+  assert os.path.isabs(SHARED_TEMPLATES_DIR)
   jinja_env = jinja2.Environment(
       loader=jinja2.FileSystemLoader([templates_dir, SHARED_TEMPLATES_DIR]),
       # Bytecode cache is not concurrency-safe unless pre-cached:
@@ -507,7 +509,13 @@ def main(argv):
       if filename.endswith(('.template'))
   ]
   assert template_filenames, 'Expected at least one template to be cached.'
-  for template_filename in template_filenames:
+  shared_template_filenames = [
+      filename
+      for filename in os.listdir(SHARED_TEMPLATES_DIR)
+      # Skip .svn, directories, etc.
+      if filename.endswith(('.template'))
+  ]
+  for template_filename in template_filenames + shared_template_filenames:
     jinja_env.get_template(template_filename)
 
   # Create a dummy file as output for the build system,
