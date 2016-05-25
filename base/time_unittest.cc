@@ -4,9 +4,14 @@
 
 #include "base/time.h"
 
+#if !defined(OS_STARBOARD)
 #include <time.h>
+#endif
+
+#include <string>
 
 #include "base/compiler_specific.h"
+#include "base/test/time_helpers.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -15,24 +20,20 @@ using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
 
-#if defined(OS_STARBOARD)
-// Starboard acknowledges that not all platforms can do local explosions
-// properly, so it doesn't allow usage of that API.
-#define MAYBE_TimeT DISABLED_TimeT
-#define MAYBE_LocalExplode DISABLED_LocalExplode
-#define MAYBE_LocalMidnight DISABLED_LocalMidnight
-#else
-#define MAYBE_TimeT TimeT
-#define MAYBE_LocalExplode LocalExplode
-#define MAYBE_LocalMidnight LocalMidnight
-#endif
-
 // Specialized test fixture allowing time strings without timezones to be
 // tested by comparing them to a known time in the local zone.
 // See also pr_time_unittests.cc
 class TimeTest : public testing::Test {
  protected:
   virtual void SetUp() OVERRIDE {
+#if defined(OS_STARBOARD)
+    // Since we don't have access to mktime, let's use time_helpers to do the
+    // same thing in a portable way.
+    comparison_time_local_ = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZoneLocal);
+    comparison_time_pdt_ = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZonePacific);
+#else   // defined(OS_STARBOARD)
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -52,17 +53,18 @@ class TimeTest : public testing::Test {
     time_t converted_time = mktime(&local_comparison_tm);
     ASSERT_GT(converted_time, 0);
     comparison_time_local_ = Time::FromTimeT(converted_time);
-
     // time_t representation of 15th Oct 2007 12:45:00 PDT
     comparison_time_pdt_ = Time::FromTimeT(1192477500);
+#endif  // defined(OS_STARBOARD)
   }
 
   Time comparison_time_local_;
   Time comparison_time_pdt_;
 };
 
+#if !defined(OS_STARBOARD)
 // Test conversions to/from time_t and exploding/unexploding.
-TEST_F(TimeTest, MAYBE_TimeT) {
+TEST_F(TimeTest, TimeT) {
   // C library time and exploded time.
   time_t now_t_1 = time(NULL);
   struct tm tms;
@@ -99,6 +101,7 @@ TEST_F(TimeTest, MAYBE_TimeT) {
   EXPECT_EQ(0, Time().ToTimeT());
   EXPECT_EQ(0, Time::FromTimeT(0).ToInternalValue());
 }
+#endif  // !defined(OS_STARBOARD)
 
 // Test conversions to/from javascript time.
 TEST_F(TimeTest, JsTime) {
@@ -141,7 +144,7 @@ TEST_F(TimeTest, ZeroIsSymmetric) {
   EXPECT_EQ(0.0, zero_time.ToDoubleT());
 }
 
-TEST_F(TimeTest, MAYBE_LocalExplode) {
+TEST_F(TimeTest, LocalExplode) {
   Time a = Time::Now();
   Time::Exploded exploded;
   a.LocalExplode(&exploded);
@@ -163,7 +166,7 @@ TEST_F(TimeTest, UTCExplode) {
   EXPECT_TRUE((a - b) < TimeDelta::FromSeconds(1));
 }
 
-TEST_F(TimeTest, MAYBE_LocalMidnight) {
+TEST_F(TimeTest, LocalMidnight) {
   Time::Exploded exploded;
   Time::Now().LocalMidnight().LocalExplode(&exploded);
   EXPECT_EQ(0, exploded.hour);
@@ -172,9 +175,22 @@ TEST_F(TimeTest, MAYBE_LocalMidnight) {
   EXPECT_EQ(0, exploded.millisecond);
 }
 
-#if !defined(OS_STARBOARD)
-// Local time conversion is broken on some platforms, so Starboard acknowledges
-// this by not providing such features.
+#if defined(OS_STARBOARD)
+TEST_F(TimeTest, ParseTimeTest1) {
+  Time now = Time::Now();
+
+  Time parsed_time;
+  std::string formatted = base::test::time_helpers::TimeFormatUTC(now);
+  EXPECT_TRUE(Time::FromUTCString(formatted.c_str(), &parsed_time));
+  EXPECT_GE(1, (now - parsed_time).InSecondsF());
+  EXPECT_GE(1, (parsed_time - now).InSecondsF());
+
+  formatted = base::test::time_helpers::TimeFormatLocal(now);
+  EXPECT_TRUE(Time::FromString(formatted.c_str(), &parsed_time));
+  EXPECT_GE(1, (now - parsed_time).InSecondsF());
+  EXPECT_GE(1, (parsed_time - now).InSecondsF());
+}
+#else  // !defined(OS_STARBOARD)
 TEST_F(TimeTest, ParseTimeTest1) {
   time_t current_time = 0;
   time(&current_time);
@@ -197,7 +213,7 @@ TEST_F(TimeTest, ParseTimeTest1) {
   EXPECT_TRUE(Time::FromString(time_buf, &parsed_time));
   EXPECT_EQ(current_time, parsed_time.ToTimeT());
 }
-#endif
+#endif  // !defined(OS_STARBOARD)
 
 TEST_F(TimeTest, DayOfWeekSunday) {
   Time time;
@@ -751,4 +767,12 @@ TEST(TimeDelta, WindowsEpoch) {
 
   // We can't test 1601 epoch, since the system time functions on Linux
   // only compute years starting from 1900.
+
+#if defined(OS_STARBOARD)
+  // But we can test this in Starboard, because we've implemented it in terms of
+  // ICU instead of possibly-flawed system APIs.
+  exploded.year = 1601;
+  // Unix 1970 epoch.
+  EXPECT_EQ(GG_INT64_C(0), Time::FromUTCExploded(exploded).ToInternalValue());
+#endif
 }
