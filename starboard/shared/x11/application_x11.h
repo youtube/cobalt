@@ -33,17 +33,8 @@ namespace x11 {
 // This application engine combines the generic queue with the X11 event queue.
 class ApplicationX11 : public shared::starboard::QueueApplication {
  public:
-  ApplicationX11()
-      : wake_up_atom_(None)
-      , wm_delete_atom_(None)
-      , display_(NULL)
-#if SB_IS(PLAYER_PUNCHED_OUT)
-      , composite_event_id_(kSbEventIdInvalid)
-      , frame_read_index_(0)
-      , frame_written_(false)
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
-  {}
-  ~ApplicationX11() SB_OVERRIDE {}
+  ApplicationX11();
+  ~ApplicationX11() SB_OVERRIDE;
 
   static ApplicationX11* Get() {
     return static_cast<ApplicationX11*>(shared::starboard::Application::Get());
@@ -88,8 +79,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   Atom wake_up_atom_;
   Atom wm_delete_atom_;
-  Display* display_;
-  SbWindowVector windows_;
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
   SbEventId composite_event_id_;
@@ -99,6 +88,9 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   static const int kNumFrames = 2;
   shared::starboard::VideoFrame frames_[kNumFrames];
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
+
+  Display* display_;
+  SbWindowVector windows_;
 };
 
 }  // namespace x11
