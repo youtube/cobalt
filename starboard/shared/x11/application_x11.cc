@@ -32,6 +32,7 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/time_internal.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/x11/window_internal.h"
 #include "starboard/time.h"
 
@@ -619,6 +620,22 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 }
 
 }  // namespace
+
+ApplicationX11::ApplicationX11()
+    : wake_up_atom_(None),
+      wm_delete_atom_(None),
+#if SB_IS(PLAYER_PUNCHED_OUT)
+      composite_event_id_(kSbEventIdInvalid),
+      frame_read_index_(0),
+      frame_written_(false),
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+      display_(NULL) {
+  SbAudioSinkPrivate::Initialize();
+}
+
+ApplicationX11::~ApplicationX11() {
+  SbAudioSinkPrivate::TearDown();
+}
 
 SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
   EnsureX();
