@@ -60,9 +60,7 @@ typedef void (*SbAudioSinkConsumeFramesFunc)(int frames_consumed,
 #define kSbAudioSinkInvalid ((SbAudioSink)NULL)
 
 // Returns whether the given audio sink handle is valid.
-SB_C_INLINE bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
-  return audio_sink != kSbAudioSinkInvalid;
-}
+bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 
 // --- Functions -------------------------------------------------------------
 
