@@ -109,7 +109,7 @@ void TraceManager::OnReceiveTraceEvent(
   DCHECK(thread_checker_.CalledOnValidThread());
   // TODO(***REMOVED***): Generalize the following logic. Currently the criteria for
   // interesting events are hardcoded.
-  if (event->name() == "WebModule::InjectEvent()" ||
+  if (event->name() == "WebModule::InjectKeyboardEvent()" ||
       event->name() == "Layout") {
     double event_duration = event->in_scope_duration()->InMillisecondsF();
 
