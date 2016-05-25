@@ -277,6 +277,8 @@
             ['_toolset == "target"', {
               'dependencies': [
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
+                '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
+                '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
                ],
             }],  # _toolset == "target"
           ],
@@ -651,6 +653,8 @@
         'test/sequenced_worker_pool_owner.cc',
         'test/sequenced_worker_pool_owner.h',
         'test/trace_event_analyzer_unittest.cc',
+        'test/time_helpers.cc',
+        'test/time_helpers.h',
         'threading/non_thread_safe_unittest.cc',
         'threading/platform_thread_unittest.cc',
         'threading/sequenced_worker_pool_unittest.cc',
