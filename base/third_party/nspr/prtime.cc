@@ -76,8 +76,9 @@
 #include "base/os_compat_android.h"  // For timegm()
 #elif defined(OS_NACL)
 #include "base/os_compat_nacl.h"  // For timegm()
-#elif defined(OS_STARBOARD)
-#include "starboard/time.h"
+#else
+#define PRTIME_USE_BASE_TIME
+#include "base/time.h"
 #endif
 
 #if !defined(OS_STARBOARD)
@@ -91,6 +92,40 @@ static void localtime_r(const time_t* secs, struct tm* time) {
   (void) localtime_s(time, secs);
 }
 #endif
+
+#if defined(PRTIME_USE_BASE_TIME)
+// Implodes |exploded| using base::Time's implosion methods. |is_local| states
+// whether to ignore the time zone params and just interpret as a local time, as
+// opposed to treating like a UTC exploded time and then adjusting by the TZ
+// params.
+static PRTime BaseImplode(const PRExplodedTime* exploded, bool is_local) {
+  static const PRTime kSecondsToMicroseconds = static_cast<PRTime>(1000000);
+  base::Time::Exploded base_exploded;
+  base_exploded.year = exploded->tm_year;
+  base_exploded.month = exploded->tm_month + 1;
+  base_exploded.day_of_week = 0;
+  base_exploded.day_of_month = exploded->tm_mday;
+  base_exploded.hour = exploded->tm_hour;
+  base_exploded.minute = exploded->tm_min;
+  base_exploded.second = exploded->tm_sec;
+  base_exploded.millisecond = 0;
+  base::Time base_time;
+  if (is_local) {
+    base_time = base::Time::FromLocalExploded(base_exploded);
+  } else {
+    base_time = base::Time::FromUTCExploded(base_exploded);
+  }
+  PRTime result = static_cast<PRTime>(
+      (base_time - base::Time::UnixEpoch()).InMicroseconds());
+  if (!is_local) {
+    result -= (exploded->tm_params.tp_gmt_offset +
+               exploded->tm_params.tp_dst_offset) *
+              kSecondsToMicroseconds;
+  }
+  result += exploded->tm_usec;
+  return result;
+}
+#endif  // defined(PRTIME_USE_BASE_TIME)
 
 /*
  *------------------------------------------------------------------------
@@ -192,23 +227,8 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
     result *= kSecondsToMicroseconds;
     result += exploded->tm_usec;
     return result;
-#elif defined(OS_STARBOARD)
-  SbTimeExploded sb_exploded;
-  sb_exploded.year         = exploded->tm_year;
-  sb_exploded.month        = exploded->tm_month + 1;
-  sb_exploded.day_of_week  = exploded->tm_wday;
-  sb_exploded.day_of_month = exploded->tm_mday;
-  sb_exploded.hour         = exploded->tm_hour;
-  sb_exploded.minute       = exploded->tm_min;
-  sb_exploded.second       = exploded->tm_sec;
-  sb_exploded.millisecond  = 0;
-
-  SbTime absolute_time = SbTimeImplode(&sb_exploded);
-  PRTime result = static_cast<PRTime>(SbTimeToPosix(absolute_time));
-  result -= (exploded->tm_params.tp_gmt_offset +
-             exploded->tm_params.tp_dst_offset) * kSecondsToMicroseconds;
-  result += exploded->tm_usec;
-  return result;
+#elif defined(PRTIME_USE_BASE_TIME)
+    return BaseImplode(exploded, false /*is_local*/);
 #else
 #error No PR_ImplodeTime implemented on your platform.
 #endif
@@ -1139,8 +1159,10 @@ PR_ParseTimeString(
          {
            /* no zone was specified, and we're to assume that everything
              is local. */
+#if !defined(PRTIME_USE_BASE_TIME)
           struct tm localTime;
           time_t secs;
+#endif
 
           PR_ASSERT(result->tm_month > -1 &&
                     result->tm_mday > 0 &&
@@ -1148,6 +1170,10 @@ PR_ParseTimeString(
                     result->tm_min > -1 &&
                     result->tm_sec > -1);
 
+#if defined(PRTIME_USE_BASE_TIME)
+          *result_imploded = BaseImplode(result, true /*is_local*/);
+          return PR_SUCCESS;
+#else  // defined(PRTIME_USE_BASE_TIME)
             /*
              * To obtain time_t from a tm structure representing the local
              * time, we call mktime().  However, we need to see if we are
@@ -1221,6 +1247,7 @@ PR_ParseTimeString(
                 zone_offset = localTime.tm_min
                               + 60 * localTime.tm_hour
                               + 1440 * (localTime.tm_mday - 2);
+#endif  // defined(PRTIME_USE_BASE_TIME)
         }
 
   result->tm_params.tp_gmt_offset = zone_offset * 60;
