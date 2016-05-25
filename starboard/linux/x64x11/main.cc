@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <time.h>
+
 #include "starboard/configuration.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/x11/application_x11.h"
 
 int main(int argc, char** argv) {
+  tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::x11::ApplicationX11 application;
   int result = application.Run(argc, argv);
