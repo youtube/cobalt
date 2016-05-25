@@ -41,11 +41,13 @@ def GenProject(project_def, proj_dir):
     os.makedirs(proj_dir)
 
   configuration = project_def['configuration']
+  current_config = configuration['out_dir']
 
   if not os.path.exists(proj_dir):
     os.makedirs(proj_dir)
 
-  basefilename = os.path.join(proj_dir, project_def['session_name_prefix'])
+  basefilename = os.path.join(
+      proj_dir, current_config + '_' + project_def['session_name_prefix'])
   with open(basefilename + '.creator', 'w') as f:
     f.write('[General]')
 
@@ -143,8 +145,7 @@ def GenProject(project_def, proj_dir):
       """ % {'project_number': project_number,
              'project_name': project_name,
              'project_target': project_target,
-             'out_dir': project_def['out_dir'],
-            })
+             'out_dir': project_def['out_dir'],})
       project_number += 1
 
     f.write("""
@@ -219,10 +220,8 @@ def GenerateProjects(definition):
     GenProject(proj, projects_dir)
 
 
-def GetProjectsDirectory(sessions_dir, platform_name):
-  return os.path.join(sessions_dir,
-                      PROJECT_DIR_RELATIVE_TO_SOLUTION,
-                      platform_name)
+def GetProjectsDirectory(sessions_dir):
+  return os.path.join(sessions_dir, PROJECT_DIR_RELATIVE_TO_SOLUTION)
 
 
 def GetValue(dictionary, path, default=None):
@@ -267,8 +266,8 @@ def GenerateQTCreatorFiles(target_dicts, params):
   current_config = generator_flags['config']
   repo_dir = params['options'].toplevel_dir
 
-  sessions_dir = os.path.join(os.environ['HOME'],
-                              '.config', 'QtProject', 'qtcreator')
+  sessions_dir = os.path.join(os.environ['HOME'], '.config', 'QtProject',
+                              'qtcreator')
   session_name_prefix = generator_flags['qtcreator_session_name_prefix']
   project_list = set()
   sources = set()
@@ -279,7 +278,7 @@ def GenerateQTCreatorFiles(target_dicts, params):
     raise RuntimeError('Expected only a single Gyp build file.')
 
   output_dir = os.path.join(repo_dir, generator_flags['output_dir'])
-  projects_dir = GetProjectsDirectory(output_dir, current_config)
+  projects_dir = GetProjectsDirectory(output_dir)
   configuration['out_dir'] = current_config
 
   # At the moment we are not tracking which dependencies were actually used
@@ -293,9 +292,8 @@ def GenerateQTCreatorFiles(target_dicts, params):
     configuration['defines'] |= (
         GetSet(config, 'defines') - GetSet(config, 'defines_excluded'))
     configuration['include_paths'] |= RebaseRelativePaths(
-        (GetSet(config, 'include_dirs') |
-         GetSet(config, 'include_dirs_target')),
-        gyp_dirname, projects_dir)
+        (GetSet(config, 'include_dirs')
+         | GetSet(config, 'include_dirs_target')), gyp_dirname, projects_dir)
 
     sources |= RebaseRelativePaths(
         (GetSet(target, 'sources') - GetSet(target, 'sources_excluded')),
@@ -331,12 +329,14 @@ def GenerateQTCreatorFiles(target_dicts, params):
 #
 # GYP generator external functions
 #
-def PerformBuild(data, configurations, params):  # pylint: disable=unused-argument
+def PerformBuild(data, configurations,
+                 params):  # pylint: disable=unused-argument
   # Not used by this generator
   pass
 
 
-def GenerateOutput(target_list, target_dicts, data, params):  # pylint: disable=unused-argument
+def GenerateOutput(target_list, target_dicts, data,
+                   params):  # pylint: disable=unused-argument
   """Generates QT Creator project files for Linux.
 
   A BuildConfiguration will be generated for each executable target that
