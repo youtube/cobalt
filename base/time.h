@@ -231,7 +231,7 @@ class BASE_EXPORT Time {
   static const int64 kNanosecondsPerSecond = kNanosecondsPerMicrosecond *
                                              kMicrosecondsPerSecond;
 
-#if !defined(OS_WIN)
+#if !defined(OS_WIN) && !defined(OS_STARBOARD)
   // On Mac & Linux, this value is the delta from the Windows epoch of 1601 to
   // the Posix delta of 1970. This is used for migrating between the old
   // 1970-based epochs to the new 1601-based ones. It should be removed from

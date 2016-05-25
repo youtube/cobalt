@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
+
+#if !defined(OS_STARBOARD)
 #include <time.h>
+#endif
 
 #include "base/compiler_specific.h"
+#include "base/test/time_helpers.h"
 #include "base/third_party/nspr/prtime.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,6 +30,11 @@ class PRTimeTest : public testing::Test {
 
  protected:
   virtual void SetUp() OVERRIDE {
+#if defined(OS_STARBOARD)
+    Time local_time = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZoneLocal);
+    comparison_time_local_ = (local_time - Time::UnixEpoch()).ToInternalValue();
+#else
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -42,6 +52,7 @@ class PRTimeTest : public testing::Test {
     };
     comparison_time_local_ = mktime(&local_comparison_tm) *
                              Time::kMicrosecondsPerSecond;
+#endif
     ASSERT_GT(comparison_time_local_, 0);
   }
 
