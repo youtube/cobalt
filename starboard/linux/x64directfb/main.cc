@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <time.h>
+
 #include "starboard/configuration.h"
 #include "starboard/shared/directfb/application_directfb.h"
 #include "starboard/shared/signal/crash_signals.h"
 
 int main(int argc, char** argv) {
+  tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::ApplicationDirectFB application;
   int result = application.Run(argc, argv);
