@@ -108,9 +108,9 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
     DLOG(FATAL) << "Unknown output surface type.";
   }
 
-  RenderTreeWithAnimations scene = scene_create_function.Run(
-      rasterizer->GetResourceProvider(), test_surface->GetSurfaceInfo().size,
-      base::TimeDelta());
+  RenderTreeWithAnimations scene =
+      scene_create_function.Run(rasterizer->GetResourceProvider(),
+                                test_surface->GetSize(), base::TimeDelta());
 
   const int kRenderIterationCount = 100;
   const float kFixedTimeStepInSecondsPerFrame = 0.016f;

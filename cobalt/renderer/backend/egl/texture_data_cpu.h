@@ -19,6 +19,7 @@
 
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
+#include "cobalt/renderer/backend/egl/utils.h"
 
 namespace cobalt {
 namespace renderer {
@@ -29,11 +30,13 @@ namespace backend {
 // the most compatible.
 class TextureDataCPU : public TextureDataEGL {
  public:
-  explicit TextureDataCPU(const SurfaceInfo& surface_info);
+  TextureDataCPU(const math::Size& size, GLenum format);
 
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
+  const math::Size& GetSize() const OVERRIDE { return size_; }
+  GLenum GetFormat() const OVERRIDE { return format_; }
+
   int GetPitchInBytes() const OVERRIDE {
-    return surface_info_.size.width() * surface_info_.BytesPerPixel();
+    return size_.width() * BytesPerPixelForGLFormat(format_);
   }
 
   uint8_t* GetMemory() OVERRIDE { return static_cast<uint8_t*>(memory_.get()); }
@@ -42,7 +45,8 @@ class TextureDataCPU : public TextureDataEGL {
                           bool bgra_supported);
 
  private:
-  SurfaceInfo surface_info_;
+  math::Size size_;
+  GLenum format_;
 
   scoped_array<uint8_t> memory_;
 };
@@ -58,8 +62,8 @@ class RawTextureMemoryCPU : public RawTextureMemoryEGL {
   uint8_t* GetMemory() OVERRIDE { return memory_.get(); }
 
   GLuint CreateTexture(GraphicsContextEGL* graphics_context, intptr_t offset,
-                       const SurfaceInfo& surface_info, int pitch_in_bytes,
-                       bool bgra_supported) const OVERRIDE;
+                       const math::Size& size, GLenum format,
+                       int pitch_in_bytes, bool bgra_supported) const OVERRIDE;
 
  protected:
   void MakeConst() OVERRIDE {}

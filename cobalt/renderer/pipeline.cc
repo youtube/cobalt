@@ -140,19 +140,14 @@ void Pipeline::RasterizeToRGBAPixels(
   }
   // Create a new target that is the same dimensions as the display target.
   scoped_refptr<backend::RenderTarget> offscreen_target =
-      graphics_context_->CreateOffscreenRenderTarget(
-          render_target_->GetSurfaceInfo().size);
+      graphics_context_->CreateOffscreenRenderTarget(render_target_->GetSize());
 
   // Rasterize this submission into the newly created target.
   RasterizeSubmissionToRenderTarget(render_tree_submission, offscreen_target);
 
-  scoped_ptr<backend::Texture> texture =
-      graphics_context_->CreateTextureFromOffscreenRenderTarget(
-          offscreen_target);
-
   // Load the texture's pixel data into a CPU memory buffer and return it.
-  complete.Run(graphics_context_->GetCopyOfTexturePixelDataAsRGBA(*texture),
-               render_target_->GetSurfaceInfo().size);
+  complete.Run(graphics_context_->DownloadPixelDataAsRGBA(offscreen_target),
+               render_target_->GetSize());
 }
 
 void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {

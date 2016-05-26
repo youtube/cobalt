@@ -16,8 +16,11 @@
 
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 
+#include <GLES2/gl2ext.h>
+
+#include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
-#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
@@ -35,18 +38,30 @@ SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context)
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target, int options) {
-  int width = render_target->GetSurfaceInfo().size.width();
-  int height = render_target->GetSurfaceInfo().size.height();
+  int width = render_target->GetSize().width();
+  int height = render_target->GetSize().height();
 
   // Determine the image size and format that we will use to render to.
   SkImageInfo output_image_info =
       SkImageInfo::MakeN32(width, height, kPremul_SkAlphaType);
 
   // Allocate the pixels for the output image.
-  scoped_ptr<cobalt::renderer::backend::TextureData> bitmap_pixels =
-      context_->system()->AllocateTextureData(backend::SurfaceInfo(
+  GLenum gl_format = GL_INVALID_ENUM;
+  switch (output_image_info.colorType()) {
+    case kRGBA_8888_SkColorType: {
+      gl_format = GL_RGBA;
+      break;
+    }
+    case kBGRA_8888_SkColorType: {
+      gl_format = GL_BGRA_EXT;
+      break;
+    }
+    default: { NOTREACHED() << "Unsupported GL color format."; }
+  }
+  scoped_ptr<cobalt::renderer::backend::TextureDataEGL> bitmap_pixels =
+      context_->system_egl()->AllocateTextureData(
           math::Size(output_image_info.width(), output_image_info.height()),
-          skia::SkiaSurfaceFormatToCobalt(output_image_info.colorType())));
+          gl_format);
 
   SkBitmap bitmap;
   bitmap.installPixels(output_image_info, bitmap_pixels->GetMemory(),
@@ -62,11 +77,8 @@ void SoftwareRasterizer::Submit(
   // The rasterized pixels are still on the CPU, ship them off to the GPU
   // for output to the display.  We must first create a backend GPU texture
   // with the data so that it is visible to the GPU.
-  scoped_ptr<backend::Texture> output_texture =
+  scoped_ptr<backend::TextureEGL> output_texture =
       context_->CreateTexture(bitmap_pixels.Pass());
-
-  backend::TextureEGL* output_texture_egl =
-      base::polymorphic_downcast<backend::TextureEGL*>(output_texture.get());
 
   backend::RenderTargetEGL* render_target_egl =
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
@@ -75,7 +87,7 @@ void SoftwareRasterizer::Submit(
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       context_, render_target_egl->GetSurface());
 
-  context_->Blit(output_texture_egl->gl_handle(), 0, 0, width, height);
+  context_->Blit(output_texture->gl_handle(), 0, 0, width, height);
   context_->SwapBuffers(render_target_egl->GetSurface());
 }
 

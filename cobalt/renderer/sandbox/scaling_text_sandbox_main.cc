@@ -57,7 +57,7 @@ int SandboxMain(int argc, char** argv) {
                                                    renderer_module_options);
 
   cobalt::math::SizeF output_dimensions(
-      renderer_module.render_target()->GetSurfaceInfo().size);
+      renderer_module.render_target()->GetSize());
 
   // Construct our render tree and associated animations to be passed into
   // the renderer pipeline for display.

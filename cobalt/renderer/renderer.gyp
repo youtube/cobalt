@@ -24,8 +24,6 @@
       'sources': [
         'pipeline.cc',
         'pipeline.h',
-        'render_tree_backend_conversions.cc',
-        'render_tree_backend_conversions.h',
         'renderer_module.cc',
         'renderer_module.h',
         'smoothed_value.cc',

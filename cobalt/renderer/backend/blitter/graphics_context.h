@@ -21,7 +21,6 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
 #include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/backend/texture.h"
 #include "starboard/blitter.h"
 
 namespace cobalt {
@@ -33,22 +32,14 @@ class GraphicsContextBlitter : public GraphicsContext {
   explicit GraphicsContextBlitter(GraphicsSystem* system);
   ~GraphicsContextBlitter() OVERRIDE;
 
-  scoped_ptr<Texture> CreateTexture(
-      scoped_ptr<TextureData> texture_data) OVERRIDE;
-
-  scoped_ptr<Texture> CreateTextureFromRawMemory(
-      const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
-      intptr_t offset, const SurfaceInfo& surface_info,
-      int pitch_in_bytes) OVERRIDE;
-
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE;
-  scoped_ptr<Texture> CreateTextureFromOffscreenRenderTarget(
+  scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
-  scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
-      const Texture& texture) OVERRIDE;
 
   SbBlitterContext GetSbBlitterContext() const { return context_; }
+
+  SbBlitterDevice GetSbBlitterDevice() const { return device_; }
 
  private:
   SbBlitterDevice device_;

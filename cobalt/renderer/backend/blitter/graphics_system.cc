@@ -16,11 +16,8 @@
 
 #include "cobalt/renderer/backend/blitter/graphics_system.h"
 
-#include "cobalt/renderer/backend/blitter/texture_data.h"
-
 #include "cobalt/renderer/backend/blitter/display.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
-#include "cobalt/renderer/backend/blitter/texture.h"
 
 namespace cobalt {
 namespace renderer {
@@ -41,18 +38,6 @@ scoped_ptr<Display> GraphicsSystemBlitter::CreateDisplay(
 
 scoped_ptr<GraphicsContext> GraphicsSystemBlitter::CreateGraphicsContext() {
   return scoped_ptr<GraphicsContext>(new GraphicsContextBlitter(this));
-}
-
-scoped_ptr<TextureData> GraphicsSystemBlitter::AllocateTextureData(
-    const SurfaceInfo& surface_info) {
-  return scoped_ptr<TextureData>(
-      new TextureDataBlitter(device_, surface_info.size, surface_info.format));
-}
-
-scoped_ptr<RawTextureMemory> GraphicsSystemBlitter::AllocateRawTextureMemory(
-    size_t size_in_bytes, size_t alignment) {
-  NOTREACHED();
-  return scoped_ptr<RawTextureMemory>();
 }
 
 }  // namespace backend
