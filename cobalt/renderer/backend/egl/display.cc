@@ -17,7 +17,6 @@
 #include "cobalt/renderer/backend/egl/display.h"
 
 #include "cobalt/renderer/backend/egl/render_target.h"
-#include "cobalt/renderer/backend/surface_info.h"
 
 namespace cobalt {
 namespace renderer {
@@ -30,7 +29,7 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
   DisplayRenderTargetEGL(EGLDisplay display, EGLConfig config,
                          EGLNativeWindowType window_handle);
 
-  const SurfaceInfo& GetSurfaceInfo() OVERRIDE;
+  const math::Size& GetSize() OVERRIDE;
 
   EGLSurface GetSurface() const OVERRIDE;
 
@@ -44,7 +43,7 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
 
   EGLSurface surface_;
 
-  SurfaceInfo surface_info_;
+  math::Size size_;
 };
 
 DisplayRenderTargetEGL::DisplayRenderTargetEGL(
@@ -57,15 +56,10 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
   EGLint egl_surface_height;
   eglQuerySurface(display_, surface_, EGL_WIDTH, &egl_surface_width);
   eglQuerySurface(display_, surface_, EGL_HEIGHT, &egl_surface_height);
-  // Querying for the texture format is unimplemented in Angle, so it is left
-  // out for now and assumed to be EGL_TEXTURE_RGBA.
-  surface_info_ = SurfaceInfo(math::Size(egl_surface_width, egl_surface_height),
-                              SurfaceInfo::kFormatRGBA8);
+  size_.SetSize(egl_surface_width, egl_surface_height);
 }
 
-const SurfaceInfo& DisplayRenderTargetEGL::GetSurfaceInfo() {
-  return surface_info_;
-}
+const math::Size& DisplayRenderTargetEGL::GetSize() { return size_; }
 
 DisplayRenderTargetEGL::~DisplayRenderTargetEGL() {
   eglDestroySurface(display_, surface_);

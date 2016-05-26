@@ -34,37 +34,35 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                        scoped_ptr<TextureDataEGL> texture_source_data,
                        bool bgra_supported)
     : graphics_context_(graphics_context),
-      surface_info_(texture_source_data->GetSurfaceInfo()) {
+      size_(texture_source_data->GetSize()),
+      format_(texture_source_data->GetFormat()) {
   gl_handle_ =
       texture_source_data->ConvertToTexture(graphics_context_, bgra_supported);
 }
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                        const RawTextureMemoryEGL* data, intptr_t offset,
-                       const SurfaceInfo& surface_info, int pitch_in_bytes,
-                       bool bgra_supported)
-    : graphics_context_(graphics_context), surface_info_(surface_info) {
-  gl_handle_ = data->CreateTexture(graphics_context_, offset, surface_info_,
+                       const math::Size& size, GLenum format,
+                       int pitch_in_bytes, bool bgra_supported)
+    : graphics_context_(graphics_context), size_(size), format_(format) {
+  gl_handle_ = data->CreateTexture(graphics_context_, offset, size, format,
                                    pitch_in_bytes, bgra_supported);
 }
 
 TextureEGL::TextureEGL(
     GraphicsContextEGL* graphics_context,
     const scoped_refptr<PBufferRenderTargetEGL>& render_target)
-    : graphics_context_(graphics_context) {
+    : graphics_context_(graphics_context),
+      size_(render_target->GetSize()),
+      format_(GL_RGBA) {
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
   source_render_target_ = render_target;
 
   // First we create the OpenGL texture object and maintain a handle to it.
-  surface_info_ = render_target->GetSurfaceInfo();
   GL_CALL(glGenTextures(1, &gl_handle_));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, gl_handle_));
   SetupInitialTextureParameters();
-
-  // PBuffers should always be RGBA, so we enforce this here.
-  GLenum gl_format = SurfaceInfoFormatToGL(surface_info_.format);
-  DCHECK_EQ(GL_RGBA, gl_format);
 
   // This call attaches the EGL PBuffer object to the currently bound OpenGL
   // texture object, effectively allowing the PBO render target to be used
@@ -88,7 +86,9 @@ TextureEGL::~TextureEGL() {
   GL_CALL(glDeleteTextures(1, &gl_handle_));
 }
 
-const SurfaceInfo& TextureEGL::GetSurfaceInfo() const { return surface_info_; }
+const math::Size& TextureEGL::GetSize() const { return size_; }
+
+GLenum TextureEGL::GetFormat() const { return format_; }
 
 }  // namespace backend
 }  // namespace renderer

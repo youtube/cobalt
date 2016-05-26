@@ -27,9 +27,7 @@ namespace backend {
 PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
                                                EGLConfig config,
                                                const math::Size& dimensions)
-    : display_(display),
-      config_(config),
-      surface_info_(dimensions, SurfaceInfo::kFormatRGBA8) {
+    : display_(display), config_(config), size_(dimensions) {
   EGLint surface_attrib_list[] = {
       EGL_WIDTH, dimensions.width(),
       EGL_HEIGHT, dimensions.height(),
@@ -43,9 +41,7 @@ PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 }
 
-const SurfaceInfo& PBufferRenderTargetEGL::GetSurfaceInfo() {
-  return surface_info_;
-}
+const math::Size& PBufferRenderTargetEGL::GetSize() { return size_; }
 
 EGLSurface PBufferRenderTargetEGL::GetSurface() const {
   return surface_;

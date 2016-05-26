@@ -21,9 +21,10 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
-#include "cobalt/renderer/render_tree_backend_conversions.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
 
@@ -32,41 +33,41 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-// Wraps a Cobalt backend::Texture with a Skia GrTexture, and returns the
+// Wraps a Cobalt backend::TextureEGL with a Skia GrTexture, and returns the
 // Skia ref-counted GrTexture object (that takes ownership of the cobalt
 // texture).
 GrTexture* CobaltTextureToSkiaTexture(
-    GrContext* gr_context, scoped_ptr<backend::Texture> cobalt_texture);
+    GrContext* gr_context, scoped_ptr<backend::TextureEGL> cobalt_texture);
 
 // Forwards ImageData methods on to TextureData methods.
 class SkiaHardwareImageData : public render_tree::ImageData {
  public:
-  SkiaHardwareImageData(scoped_ptr<backend::TextureData> texture_data,
+  SkiaHardwareImageData(scoped_ptr<backend::TextureDataEGL> texture_data,
                         render_tree::PixelFormat pixel_format,
                         render_tree::AlphaFormat alpha_format);
 
   const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE;
   uint8_t* GetMemory() OVERRIDE;
 
-  scoped_ptr<backend::TextureData> PassTextureData();
+  scoped_ptr<backend::TextureDataEGL> PassTextureData();
 
  private:
-  scoped_ptr<backend::TextureData> texture_data_;
+  scoped_ptr<backend::TextureDataEGL> texture_data_;
   render_tree::ImageDataDescriptor descriptor_;
 };
 
 class SkiaHardwareRawImageMemory : public render_tree::RawImageMemory {
  public:
   SkiaHardwareRawImageMemory(
-      scoped_ptr<backend::RawTextureMemory> raw_texture_memory);
+      scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory);
 
   size_t GetSizeInBytes() const OVERRIDE;
   uint8_t* GetMemory() OVERRIDE;
 
-  scoped_ptr<backend::RawTextureMemory> PassRawTextureMemory();
+  scoped_ptr<backend::RawTextureMemoryEGL> PassRawTextureMemory();
 
  private:
-  scoped_ptr<backend::RawTextureMemory> raw_texture_memory_;
+  scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory_;
 };
 
 // A proxy object that can be used for inclusion in render trees.  When
@@ -78,13 +79,14 @@ class SkiaHardwareRawImageMemory : public render_tree::RawImageMemory {
 class SkiaHardwareFrontendImage : public SkiaSinglePlaneImage {
  public:
   SkiaHardwareFrontendImage(scoped_ptr<SkiaHardwareImageData> image_data,
-                            backend::GraphicsContext* cobalt_context,
+                            backend::GraphicsContextEGL* cobalt_context,
                             GrContext* gr_context,
                             MessageLoop* rasterizer_message_loop);
   SkiaHardwareFrontendImage(
-      const scoped_refptr<backend::ConstRawTextureMemory>& raw_texture_memory,
+      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
+          raw_texture_memory,
       intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContext* cobalt_context, GrContext* gr_context,
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
@@ -106,11 +108,12 @@ class SkiaHardwareFrontendImage : public SkiaSinglePlaneImage {
   // only if |backend_image_| is ever needed by the rasterizer thread.
   void InitializeBackendImageFromImageData(
       scoped_ptr<SkiaHardwareImageData> image_data,
-      backend::GraphicsContext* cobalt_context, GrContext* gr_context);
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
   void InitializeBackendImageFromRawImageData(
-      const scoped_refptr<backend::ConstRawTextureMemory>& raw_texture_memory,
+      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
+          raw_texture_memory,
       intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContext* cobalt_context, GrContext* gr_context);
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
 
   // We shadow the image dimensions so they can be quickly looked up from just
   // the frontend image object.
@@ -146,7 +149,7 @@ class SkiaHardwareMultiPlaneImage : public SkiaMultiPlaneImage {
   SkiaHardwareMultiPlaneImage(
       scoped_ptr<SkiaHardwareRawImageMemory> raw_image_memory,
       const render_tree::MultiPlaneImageDataDescriptor& descriptor,
-      backend::GraphicsContext* cobalt_context, GrContext* gr_context,
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }

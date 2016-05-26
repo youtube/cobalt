@@ -24,10 +24,6 @@
     'surface_render_target.cc',
     'surface_render_target.h',
     'render_target.h',
-    'texture.cc',
-    'texture.h',
-    'texture_data.cc',
-    'texture_data.h',
   ],
 
   'dependencies': [

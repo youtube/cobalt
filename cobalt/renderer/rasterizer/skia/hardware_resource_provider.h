@@ -20,7 +20,7 @@
 #include <string>
 
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/text_shaper.h"
 #include "third_party/skia/include/gpu/GrContext.h"
@@ -35,7 +35,7 @@ namespace skia {
 // on the thread that will be visiting submitted render trees.
 class SkiaHardwareResourceProvider : public render_tree::ResourceProvider {
  public:
-  SkiaHardwareResourceProvider(backend::GraphicsContext* cobalt_context,
+  SkiaHardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
                                GrContext* gr_context);
 
   scoped_ptr<render_tree::ImageData> AllocateImageData(
@@ -83,7 +83,7 @@ class SkiaHardwareResourceProvider : public render_tree::ResourceProvider {
                      render_tree::FontVector* maybe_used_fonts) OVERRIDE;
 
  private:
-  backend::GraphicsContext* cobalt_context_;
+  backend::GraphicsContextEGL* cobalt_context_;
   GrContext* gr_context_;
 
   TextShaper text_shaper_;

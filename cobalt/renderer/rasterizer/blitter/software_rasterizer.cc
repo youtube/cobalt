@@ -18,7 +18,6 @@
 
 #if SB_HAS(BLITTER)
 
-#include "cobalt/renderer/backend/blitter/texture.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "starboard/blitter.h"
@@ -31,6 +30,21 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
+namespace {
+SbBlitterPixelDataFormat SkiaToBlitterPixelFormat(SkColorType skia_format) {
+  switch (skia_format) {
+    case kRGBA_8888_SkColorType:
+      return kSbBlitterPixelDataFormatRGBA8;
+    case kBGRA_8888_SkColorType:
+      return kSbBlitterPixelDataFormatBGRA8;
+    default:
+      DLOG(FATAL) << "Unsupported Skia image format!";
+      return kSbBlitterPixelDataFormatRGBA8;
+  }
+}
+
+}  // namespace
+
 SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
           context)) {}
@@ -38,22 +52,31 @@ SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context)
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target, int options) {
-  int width = render_target->GetSurfaceInfo().size.width();
-  int height = render_target->GetSurfaceInfo().size.height();
+  int width = render_target->GetSize().width();
+  int height = render_target->GetSize().height();
 
   // Determine the image size and format that we will use to render to.
   SkImageInfo output_image_info =
       SkImageInfo::MakeN32(width, height, kPremul_SkAlphaType);
 
   // Allocate the pixels for the output image.
-  scoped_ptr<cobalt::renderer::backend::TextureData> bitmap_pixels =
-      context_->system()->AllocateTextureData(backend::SurfaceInfo(
-          math::Size(output_image_info.width(), output_image_info.height()),
-          skia::SkiaSurfaceFormatToCobalt(output_image_info.colorType())));
+  SbBlitterPixelDataFormat blitter_pixel_data_format =
+      SkiaToBlitterPixelFormat(output_image_info.colorType());
+  SbBlitterAlphaFormat blitter_alpha_format =
+      kSbBlitterAlphaFormatPremultiplied;
+
+  CHECK(SbBlitterIsPixelFormatSupportedByPixelData(
+      context_->GetSbBlitterDevice(), blitter_pixel_data_format,
+      blitter_alpha_format));
+  SbBlitterPixelData pixel_data =
+      SbBlitterCreatePixelData(context_->GetSbBlitterDevice(), width, height,
+                               blitter_pixel_data_format, blitter_alpha_format);
+  CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
   SkBitmap bitmap;
-  bitmap.installPixels(output_image_info, bitmap_pixels->GetMemory(),
-                       bitmap_pixels->GetPitchInBytes());
+  bitmap.installPixels(output_image_info,
+                       SbBlitterGetPixelDataPointer(pixel_data),
+                       SbBlitterGetPixelDataPitchInBytes(pixel_data));
 
   // Setup our Skia canvas that we will be using as the target for all CPU Skia
   // output.
@@ -65,12 +88,8 @@ void SoftwareRasterizer::Submit(
   // The rasterized pixels are still on the CPU, ship them off to the GPU
   // for output to the display.  We must first create a backend GPU texture
   // with the data so that it is visible to the GPU.
-  scoped_ptr<backend::Texture> output_texture =
-      context_->CreateTexture(bitmap_pixels.Pass());
-
-  backend::TextureBlitter* output_texture_blitter =
-      base::polymorphic_downcast<backend::TextureBlitter*>(
-          output_texture.get());
+  SbBlitterSurface surface = SbBlitterCreateSurfaceFromPixelData(
+      context_->GetSbBlitterDevice(), pixel_data);
 
   backend::RenderTargetBlitter* render_target_blitter =
       base::polymorphic_downcast<backend::RenderTargetBlitter*>(
@@ -83,12 +102,13 @@ void SoftwareRasterizer::Submit(
   SbBlitterSetBlending(context, false);
   SbBlitterSetModulateBlitsWithColor(context, false);
 
-  SbBlitterBlitRectToRect(context,
-                          output_texture_blitter->GetSbBlitterSurface(),
+  SbBlitterBlitRectToRect(context, surface,
                           SbBlitterMakeRect(0, 0, width, height),
                           SbBlitterMakeRect(0, 0, width, height));
 
   SbBlitterFlushContext(context);
+
+  SbBlitterDestroySurface(surface);
 
   render_target_blitter->Flip();
 }

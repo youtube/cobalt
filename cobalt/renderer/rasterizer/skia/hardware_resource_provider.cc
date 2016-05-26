@@ -18,13 +18,13 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/renderer/backend/graphics_system.h"
+#include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/font.h"
+#include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
-#include "cobalt/renderer/render_tree_backend_conversions.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
 #include "third_party/skia/include/core/SkData.h"
@@ -42,7 +42,7 @@ namespace rasterizer {
 namespace skia {
 
 SkiaHardwareResourceProvider::SkiaHardwareResourceProvider(
-    backend::GraphicsContext* cobalt_context, GrContext* gr_context)
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context)
     : cobalt_context_(cobalt_context),
       gr_context_(gr_context),
       self_message_loop_(MessageLoop::current()) {}
@@ -56,8 +56,8 @@ scoped_ptr<ImageData> SkiaHardwareResourceProvider::AllocateImageData(
       << "Currently, only RGBA8 is supported.";
 
   return scoped_ptr<ImageData>(new SkiaHardwareImageData(
-      cobalt_context_->system()->AllocateTextureData(backend::SurfaceInfo(
-          size, RenderTreeToBackendPixelFormat(pixel_format))),
+      cobalt_context_->system_egl()->AllocateTextureData(
+          size, ConvertRenderTreeFormatToGL(pixel_format)),
       pixel_format, alpha_format));
 }
 
@@ -104,8 +104,8 @@ scoped_ptr<RawImageMemory> SkiaHardwareResourceProvider::AllocateRawImageMemory(
   TRACE_EVENT0("cobalt::renderer",
                "SkiaHardwareResourceProvider::AllocateRawImageMemory()");
   return scoped_ptr<RawImageMemory>(new SkiaHardwareRawImageMemory(
-      cobalt_context_->system()->AllocateRawTextureMemory(size_in_bytes,
-                                                          alignment)));
+      cobalt_context_->system_egl()->AllocateRawTextureMemory(size_in_bytes,
+                                                              alignment)));
 }
 
 scoped_refptr<Image>

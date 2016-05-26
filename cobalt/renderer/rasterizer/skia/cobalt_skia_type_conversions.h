@@ -19,7 +19,6 @@
 
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/renderer/backend/surface_info.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "third_party/skia/include/gpu/GrTypes.h"
@@ -29,12 +28,6 @@ namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace skia {
-
-GrPixelConfig CobaltSurfaceFormatToGrSkia(
-    cobalt::renderer::backend::SurfaceInfo::Format cobalt_format);
-
-backend::SurfaceInfo::Format SkiaSurfaceFormatToCobalt(
-    SkColorType skia_format);
 
 SkColorType RenderTreeSurfaceFormatToSkia(
     render_tree::PixelFormat render_tree_format);

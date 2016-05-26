@@ -22,10 +22,10 @@
 #include <GLES3/gl3.h>
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
-#include "cobalt/renderer/backend/surface_info.h"
-#include "cobalt/renderer/backend/texture.h"
+#include "cobalt/renderer/backend/egl/utils.h"
 
 namespace cobalt {
 namespace renderer {
@@ -37,13 +37,15 @@ namespace backend {
 // This allows us to reduce texture uploading when issuing glTexImage2d calls.
 class TextureDataPBO : public TextureDataEGL {
  public:
-  explicit TextureDataPBO(ResourceContext* resource_context,
-                          const SurfaceInfo& surface_info);
+  TextureDataPBO(ResourceContext* resource_context, const math::Size& size,
+                 GLenum format);
   virtual ~TextureDataPBO();
 
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
+  const math::Size& GetSize() const OVERRIDE { return size_; }
+  GLenum GetFormat() const OVERRIDE { return format_; }
+
   int GetPitchInBytes() const OVERRIDE {
-    return surface_info_.size.width() * surface_info_.BytesPerPixel();
+    return size_.width() * BytesPerPixelForGLFormat(format_);
   }
 
   uint8_t* GetMemory() OVERRIDE { return mapped_data_; }
@@ -58,7 +60,8 @@ class TextureDataPBO : public TextureDataEGL {
   void UnmapAndDeletePBO();
 
   ResourceContext* resource_context_;
-  SurfaceInfo surface_info_;
+  math::Size size_;
+  GLenum format_;
   GLuint pixel_buffer_;
   int data_size_;
   GLubyte* mapped_data_;
@@ -80,8 +83,8 @@ class RawTextureMemoryPBO : public RawTextureMemoryEGL {
   uint8_t* GetMemory() OVERRIDE { return mapped_data_ + alignment_offset_; }
 
   GLuint CreateTexture(GraphicsContextEGL* graphics_context, intptr_t offset,
-                       const SurfaceInfo& surface_info, int pitch_in_bytes,
-                       bool bgra_supported) const OVERRIDE;
+                       const math::Size& size, GLenum format,
+                       int pitch_in_bytes, bool bgra_supported) const OVERRIDE;
 
  protected:
   void MakeConst() OVERRIDE;

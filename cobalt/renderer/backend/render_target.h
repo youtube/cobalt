@@ -18,6 +18,7 @@
 #define COBALT_RENDERER_BACKEND_RENDER_TARGET_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/math/size.h"
 
 namespace cobalt {
 namespace renderer {
@@ -36,7 +37,7 @@ struct SurfaceInfo;
 class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
  public:
   // Return metadata about the render target such as dimensions and format.
-  virtual const SurfaceInfo& GetSurfaceInfo() = 0;
+  virtual const math::Size& GetSize() = 0;
 
   // Returns a platform-specific handle to the render target that can be
   // passed into platform-specific code.

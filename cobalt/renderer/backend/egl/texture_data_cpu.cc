@@ -29,9 +29,9 @@ namespace backend {
 
 namespace {
 GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
-                                   const uint8_t* data,
-                                   const SurfaceInfo& surface_info,
-                                   int pitch_in_bytes, bool bgra_supported) {
+                                   const uint8_t* data, const math::Size& size,
+                                   GLenum format, int pitch_in_bytes,
+                                   bool bgra_supported) {
   GLuint texture_handle;
 
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context);
@@ -40,35 +40,32 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
   GL_CALL(glBindTexture(GL_TEXTURE_2D, texture_handle));
   SetupInitialTextureParameters();
 
-  GLenum gl_format = SurfaceInfoFormatToGL(surface_info.format);
-  if (gl_format == GL_BGRA_EXT) {
+  if (format == GL_BGRA_EXT) {
     DCHECK(bgra_supported);
   }
 
-  DCHECK_EQ(surface_info.size.width() *
-                SurfaceInfo::BytesPerPixel(surface_info.format),
-            pitch_in_bytes);
+  DCHECK_EQ(size.width() * BytesPerPixelForGLFormat(format), pitch_in_bytes);
 
   // Copy pixel data over from the user provided source data into the OpenGL
   // driver to be used as a texture from now on.
-  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info.size.width(),
-                       surface_info.size.height(), 0, gl_format,
-                       GL_UNSIGNED_BYTE, data));
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(), size.height(), 0,
+                       format, GL_UNSIGNED_BYTE, data));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
   return texture_handle;
 }
 }  // namespace
 
-TextureDataCPU::TextureDataCPU(const SurfaceInfo& surface_info)
-    : surface_info_(surface_info),
-      memory_(new uint8_t[GetPitchInBytes() * surface_info_.size.height()]) {}
+TextureDataCPU::TextureDataCPU(const math::Size& size, GLenum format)
+    : size_(size),
+      format_(format),
+      memory_(new uint8_t[GetPitchInBytes() * size_.height()]) {}
 
 GLuint TextureDataCPU::ConvertToTexture(GraphicsContextEGL* graphics_context,
                                         bool bgra_supported) {
-  GLuint ret = UploadPixelDataToNewTexture(graphics_context, GetMemory(),
-                                           GetSurfaceInfo(), GetPitchInBytes(),
-                                           bgra_supported);
+  GLuint ret =
+      UploadPixelDataToNewTexture(graphics_context, GetMemory(), size_, format_,
+                                  GetPitchInBytes(), bgra_supported);
   memory_.reset();
 
   return ret;
@@ -82,11 +79,11 @@ RawTextureMemoryCPU::RawTextureMemoryCPU(size_t size_in_bytes, size_t alignment)
 
 GLuint RawTextureMemoryCPU::CreateTexture(GraphicsContextEGL* graphics_context,
                                           intptr_t offset,
-                                          const SurfaceInfo& surface_info,
+                                          const math::Size& size, GLenum format,
                                           int pitch_in_bytes,
                                           bool bgra_supported) const {
   return UploadPixelDataToNewTexture(graphics_context, memory_.get() + offset,
-                                     surface_info, pitch_in_bytes,
+                                     size, format, pitch_in_bytes,
                                      bgra_supported);
 }
 
