@@ -126,7 +126,10 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
 
 void ShellVideoDataAllocatorCommon::CreatePunchOutFrame() {
 #if defined(OS_STARBOARD) && defined(SB_IS_PLAYER_PUNCHED_OUT)
-  cobalt::math::Size size(4, 4);
+  // TODO: Add special type of Image for punch out to ensure that it always
+  // covers the render target in any aspect ratio.
+  // Use a 16:9 frame to ensure the proper aspect ratio.
+  cobalt::math::Size size(16, 9);
   scoped_ptr<ImageData> image_data = resource_provider_->AllocateImageData(
       size, kPixelFormatRGBA8, kAlphaFormatPremultiplied);
   const ImageDataDescriptor& descriptor = image_data->GetDescriptor();
