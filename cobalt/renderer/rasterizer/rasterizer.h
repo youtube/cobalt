@@ -43,12 +43,23 @@ namespace rasterizer {
 // having the Rasterizer return a specialized ResourceProvider.
 class Rasterizer {
  public:
+  // When set, will clear the render target before rasterizing the render tree
+  // to it.
+  static const int kSubmitOptions_Clear = (1 << 0);
+
   virtual ~Rasterizer() {}
 
   // Consumes the render tree and rasterizes it to the specified render_target.
-  virtual void Submit(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<backend::RenderTarget>& render_target) = 0;
+  // |options| must be a combination of the |kSubmitOptions_*| constants defined
+  // above.
+  virtual void Submit(const scoped_refptr<render_tree::Node>& render_tree,
+                      const scoped_refptr<backend::RenderTarget>& render_target,
+                      int options) = 0;
+
+  void Submit(const scoped_refptr<render_tree::Node>& render_tree,
+              const scoped_refptr<backend::RenderTarget>& render_target) {
+    Submit(render_tree, render_target, 0);
+  }
 
   // Returns a thread-safe object from which one can produce renderer resources
   // like images and fonts which can be referenced by render trees that are

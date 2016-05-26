@@ -24,7 +24,6 @@
       'sources': [
         'pipeline.cc',
         'pipeline.h',
-        'rasterizer/rasterizer.h',
         'render_tree_backend_conversions.cc',
         'render_tree_backend_conversions.h',
         'renderer_module.cc',
@@ -38,7 +37,6 @@
 
       'includes': [
         'copy_font_data.gypi',
-        'rasterizer/skia/rasterizer_skia.gypi'
       ],
 
       'dependencies': [
@@ -47,8 +45,8 @@
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:animations',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
+        '<(DEPTH)/cobalt/renderer/rasterizer/rasterizer.gyp:rasterizer',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
-        '<(DEPTH)/third_party/ots/ots.gyp:ots',
       ],
       'conditions': [
         ['OS=="starboard"', {

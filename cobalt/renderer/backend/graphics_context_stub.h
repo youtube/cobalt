@@ -84,23 +84,6 @@ class GraphicsContextStub : public GraphicsContext {
 
     return return_pixels.Pass();
   }
-
-  class FrameStub : public GraphicsContext::Frame {
-   public:
-    explicit FrameStub(const scoped_refptr<RenderTarget>& render_target) :
-        render_target_(base::polymorphic_downcast<RenderTargetStub*>(
-            render_target.get())) {}
-
-    void Clear(float red, float green, float blue, float alpha) OVERRIDE;
-    void BlitToRenderTarget(const Texture& texture) OVERRIDE;
-
-   private:
-    scoped_refptr<RenderTargetStub> render_target_;
-  };
-  scoped_ptr<GraphicsContext::Frame> StartFrame(
-      const scoped_refptr<backend::RenderTarget>& render_target) OVERRIDE {
-    return scoped_ptr<GraphicsContext::Frame>(new FrameStub(render_target));
-  }
 };
 
 }  // namespace backend

@@ -78,7 +78,7 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
 
   bgra_format_supported_ = HasExtension("GL_EXT_texture_format_BGRA8888");
 
-  SetupBlitToRenderTargetObjects();
+  SetupBlitObjects();
 }
 
 bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
@@ -94,49 +94,57 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
 
   scoped_refptr<RenderTarget> render_target = CreateOffscreenRenderTarget(
       math::Size(kDummyTextureWidth, kDummyTextureHeight));
+  scoped_refptr<PBufferRenderTargetEGL> render_target_egl = make_scoped_refptr(
+      base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get()));
   {
-    scoped_ptr<GraphicsContext::Frame> frame = StartFrame(render_target);
+    ScopedMakeCurrent scoped_make_current(this,
+                                          render_target_egl->GetSurface());
 
-    scoped_ptr<TextureData> texture_data = system()->AllocateTextureData(
-        SurfaceInfo(math::Size(kDummyTextureWidth, kDummyTextureHeight),
-                    SurfaceInfo::kFormatRGBA8));
-    int pitch = texture_data->GetPitchInBytes();
-    uint8_t* pixels = texture_data->GetMemory();
+    // Create a 2-pixel texture and then immediately blit it to our 2-pixel
+    // framebuffer render target.
+    GLuint texture;
+    GL_CALL(glGenTextures(1, &texture));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, texture));
+    SetupInitialTextureParameters();
+
+    uint8_t pixels[8];
     pixels[0] = 0;
     pixels[1] = 0;
     pixels[2] = 0;
     pixels[3] = 0;
-    pixels[0 + pitch] = 255;
-    pixels[1 + pitch] = 255;
-    pixels[2 + pitch] = 255;
-    pixels[3 + pitch] = 255;
-    scoped_ptr<Texture> texture = CreateTexture(texture_data.Pass());
+    pixels[4] = 255;
+    pixels[5] = 255;
+    pixels[6] = 255;
+    pixels[7] = 255;
 
-    frame->BlitToRenderTarget(*texture);
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kDummyTextureWidth,
+                         kDummyTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                         pixels));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
+    Blit(texture, 0, 0, kDummyTextureWidth, kDummyTextureHeight);
+    GL_CALL(glDeleteTextures(1, &texture));
+    GL_CALL(glFinish());
   }
 
-  scoped_ptr<Texture> rt_texture =
-      CreateTextureFromOffscreenRenderTarget(render_target);
-
-  TextureEGL* texture_egl =
-      base::polymorphic_downcast<TextureEGL*>(rt_texture.get());
-
-  GL_CALL(glFinish());
-
   // Now read back the texture data using glReadPixels().
-  GLuint texture_framebuffer;
-  GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, texture_framebuffer));
+  scoped_ptr<TextureEGL> render_target_texture(
+      new TextureEGL(this, render_target_egl));
+
+  GLuint framebuffer;
+  GL_CALL(glGenFramebuffers(1, &framebuffer));
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer));
 
   GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_2D, texture_egl->gl_handle(), 0));
+                                 GL_TEXTURE_2D,
+                                 render_target_texture->gl_handle(), 0));
 
   uint32_t out_data[2];
   GL_CALL(glReadPixels(0, 0, kDummyTextureWidth, kDummyTextureHeight, GL_RGBA,
                        GL_UNSIGNED_BYTE, out_data));
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-  GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
+  GL_CALL(glDeleteFramebuffers(1, &framebuffer));
 
   // Ensure the data is in one of two possible states, flipped or not flipped.
   DCHECK((out_data[0] == 0x00000000 && out_data[1] == 0xFFFFFFFF) ||
@@ -146,7 +154,7 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   return out_data[1] == 0x00000000;
 }
 
-void GraphicsContextEGL::SetupBlitToRenderTargetObjects() {
+void GraphicsContextEGL::SetupBlitObjects() {
   // Setup shaders used when blitting the current texture.
   blit_program_ = glCreateProgram();
 
@@ -356,39 +364,15 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   return pixels.Pass();
 }
 
-GraphicsContextEGL::Frame::Frame(GraphicsContextEGL* owner, EGLSurface surface)
-    : owner_(owner), scoped_make_current_(owner, surface) {}
+void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
+                              int height) {
+  // Render a texture to the specified output rectangle on the render target.
+  GL_CALL(glViewport(x, y, width, height));
+  GL_CALL(glScissor(x, y, width, height));
 
-GraphicsContextEGL::Frame::~Frame() { owner_->OnFrameEnd(); }
+  GL_CALL(glUseProgram(blit_program_));
 
-void GraphicsContextEGL::Frame::Clear(float red, float green, float blue,
-                                      float alpha) {
-  const SurfaceInfo& target_surface_info =
-      owner_->render_target_->GetSurfaceInfo();
-  GL_CALL(glViewport(0, 0, target_surface_info.size.width(),
-                     target_surface_info.size.height()));
-  GL_CALL(glScissor(0, 0, target_surface_info.size.width(),
-                    target_surface_info.size.height()));
-
-  GL_CALL(glClearColor(red, green, blue, alpha));
-  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
-}
-
-void GraphicsContextEGL::Frame::BlitToRenderTarget(const Texture& texture) {
-  const TextureEGL* texture_egl =
-      base::polymorphic_downcast<const TextureEGL*>(&texture);
-  const SurfaceInfo& target_surface_info =
-      owner_->render_target_->GetSurfaceInfo();
-
-  // Render a texture as a full-screen quad to the output render target.
-  GL_CALL(glViewport(0, 0, target_surface_info.size.width(),
-                     target_surface_info.size.height()));
-  GL_CALL(glScissor(0, 0, target_surface_info.size.width(),
-                    target_surface_info.size.height()));
-
-  GL_CALL(glUseProgram(owner_->blit_program_));
-
-  GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, owner_->blit_vertex_buffer_));
+  GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, blit_vertex_buffer_));
   GL_CALL(glVertexAttribPointer(kBlitPositionAttribute, 2, GL_FLOAT, GL_FALSE,
                                 sizeof(float) * 4, 0));
   GL_CALL(glVertexAttribPointer(kBlitTexcoordAttribute, 2, GL_FLOAT, GL_FALSE,
@@ -398,7 +382,7 @@ void GraphicsContextEGL::Frame::BlitToRenderTarget(const Texture& texture) {
   GL_CALL(glEnableVertexAttribArray(kBlitTexcoordAttribute));
 
   GL_CALL(glActiveTexture(GL_TEXTURE0));
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, texture_egl->gl_handle()));
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, texture));
 
   GL_CALL(glDisable(GL_BLEND));
 
@@ -411,23 +395,11 @@ void GraphicsContextEGL::Frame::BlitToRenderTarget(const Texture& texture) {
   GL_CALL(glUseProgram(0));
 }
 
-scoped_ptr<GraphicsContext::Frame> GraphicsContextEGL::StartFrame(
-    const scoped_refptr<RenderTarget>& render_target) {
-  TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::StartFrame()");
-  render_target_ = make_scoped_refptr(
-      base::polymorphic_downcast<RenderTargetEGL*>(render_target.get()));
-
-  return scoped_ptr<GraphicsContext::Frame>(
-      new Frame(this, render_target_->GetSurface()));
-}
-
-void GraphicsContextEGL::OnFrameEnd() {
-  TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::OnFrameEnd()");
+void GraphicsContextEGL::SwapBuffers(EGLSurface surface) {
+  TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::SwapBuffers()");
 
   GL_CALL(glFlush());
-  EGL_CALL(eglSwapBuffers(display_, render_target_->GetSurface()));
-
-  render_target_ = NULL;
+  EGL_CALL(eglSwapBuffers(display_, surface));
 }
 
 }  // namespace backend
