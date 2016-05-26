@@ -50,10 +50,10 @@ typedef struct SbTimeExploded {
 } SbTimeExploded;
 
 // How many nanoseconds in one SbTime unit (microseconds).
-static const SbTime kSbTimeNanosecondsPerMicrosecond = 1000;
+#define kSbTimeNanosecondsPerMicrosecond ((SbTime)1000)
 
 // One millisecond in SbTime units (microseconds).
-static const SbTime kSbTimeMillisecond = 1000;
+#define kSbTimeMillisecond ((SbTime)1000)
 
 // One second in SbTime units (microseconds).
 #define kSbTimeSecond (kSbTimeMillisecond * 1000)
@@ -82,6 +82,12 @@ static SB_C_FORCE_INLINE int64_t SbTimeToPosix(SbTime time) {
 // Converts microseconds from the POSIX epoch into an SbTime.
 static SB_C_FORCE_INLINE SbTime SbTimeFromPosix(int64_t time) {
   return time - kSbTimeToPosixDelta;
+}
+
+// Safely narrows a number from a more-precise unit to a less-precise one. This
+// rounds negative values towards negative infinity.
+static SB_C_FORCE_INLINE int64_t SbTimeNarrow(int64_t time, int64_t divisor) {
+  return time >= 0 ? time / divisor : (time - divisor + 1) / divisor;
 }
 
 // Gets the current system time as a SbTime.
