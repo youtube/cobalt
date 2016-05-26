@@ -282,6 +282,8 @@
         '<(DEPTH)/starboard/shared/starboard/string_duplicate.cc',
         '<(DEPTH)/starboard/shared/starboard/system_get_random_uint64.cc',
         '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
+        '<(DEPTH)/starboard/shared/starboard/video_frame_internal.cc',
+        '<(DEPTH)/starboard/shared/starboard/video_frame_internal.h',
         '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
       ],
       'include_dirs': [
