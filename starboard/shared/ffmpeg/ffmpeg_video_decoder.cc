@@ -132,22 +132,12 @@ bool VideoDecoder::ReadDecodedFrame(Frame* frame) {
     DecodePacket(&packet);
 
     if (frames_.empty()) {
-      frame->is_eos = true;
-      frame->width = 0;
-      frame->height = 0;
-      frame->pitch = 0;
-      frame->pts = 0;
-      frame->pixels.clear();
+      *frame = starboard::VideoFrame::CreateEOSFrame();
       return true;
     }
   }
 
-  frame->is_eos = frames_.front().is_eos;
-  frame->width = frames_.front().width;
-  frame->height = frames_.front().height;
-  frame->pitch = frames_.front().pitch;
-  frame->pts = frames_.front().pts;
-  frame->pixels.swap(frames_.front().pixels);
+  *frame = frames_.front();
   frames_.pop();
 
   return true;
@@ -183,19 +173,12 @@ void VideoDecoder::DecodePacket(AVPacket* packet) {
     return;
   }
 
-  Frame decoded_frame;
-  decoded_frame.is_eos = false;
-  decoded_frame.width = av_frame_->width;
-  decoded_frame.height = av_frame_->height;
-  decoded_frame.pitch = AlignUp(av_frame_->width, kAlignment * 2);
-  decoded_frame.pts = av_frame_->pkt_pts;
+  int pitch = AlignUp(av_frame_->width, kAlignment * 2);
+  // uint8_t* pixels = reinterpret_cast<uint8_t*>(av_frame_->opaque);
 
-  uint8_t* pixels = reinterpret_cast<uint8_t*>(av_frame_->opaque);
-  size_t frame_size =
-      GetYV12SizeInBytes(decoded_frame.pitch, decoded_frame.height);
-  decoded_frame.pixels.assign(pixels, pixels + frame_size);
-
-  frames_.push(decoded_frame);
+  frames_.push(starboard::VideoFrame::CreateYV12Frame(
+      av_frame_->width, av_frame_->height, pitch, av_frame_->pkt_pts,
+      av_frame_->data[0], av_frame_->data[1], av_frame_->data[2]));
 }
 
 void VideoDecoder::InitializeCodec() {
