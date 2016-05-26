@@ -54,7 +54,6 @@
         '<(DEPTH)/cobalt/media/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/network/network.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
-        '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/samples/samples.gyp:*',

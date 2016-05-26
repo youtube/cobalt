@@ -17,6 +17,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 
 #include "base/debug/trace_event.h"
+#include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
@@ -45,7 +46,8 @@ class SkiaHardwareRasterizer::Impl {
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
-              const scoped_refptr<backend::RenderTarget>& render_target);
+              const scoped_refptr<backend::RenderTarget>& render_target,
+              int options);
 
   render_tree::ResourceProvider* GetResourceProvider();
 
@@ -69,7 +71,7 @@ class SkiaHardwareRasterizer::Impl {
 
   base::ThreadChecker thread_checker_;
 
-  backend::GraphicsContext* graphics_context_;
+  backend::GraphicsContextEGL* graphics_context_;
   scoped_ptr<render_tree::ResourceProvider> resource_provider_;
 
   SkAutoTUnref<GrContext> gr_context_;
@@ -116,7 +118,9 @@ GrBackendRenderTargetDesc CobaltSurfaceInfoToSkiaBackendRenderTargetDesc(
 }  // namespace
 
 SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
-    : graphics_context_(graphics_context) {
+    : graphics_context_(
+          base::polymorphic_downcast<backend::GraphicsContextEGL*>(
+              graphics_context)) {
   TRACE_EVENT0("cobalt::renderer", "SkiaHardwareRasterizer::Impl::Impl()");
 
   graphics_context_->MakeCurrent();
@@ -154,11 +158,15 @@ SkiaHardwareRasterizer::Impl::~Impl() {
 
 void SkiaHardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target) {
+    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  scoped_ptr<backend::GraphicsContext::Frame> frame(
-      graphics_context_->StartFrame(render_target));
+  backend::RenderTargetEGL* render_target_egl =
+      base::polymorphic_downcast<backend::RenderTargetEGL*>(
+          render_target.get());
+
+  backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+      graphics_context_, render_target_egl->GetSurface());
 
   // First reset the graphics context state for the pending render tree
   // draw calls, in case we have modified state in between.
@@ -179,6 +187,10 @@ void SkiaHardwareRasterizer::Impl::Submit(
   // Get a SkCanvas that outputs to our hardware render target.
   SkCanvas* canvas = sk_output_surface_->getCanvas();
 
+  if (options & Rasterizer::kSubmitOptions_Clear) {
+    canvas->clear(SkColorSetARGB(0, 0, 0, 0));
+  }
+
   {
     TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
     // Rasterize the passed in render tree to our hardware render target.
@@ -194,6 +206,8 @@ void SkiaHardwareRasterizer::Impl::Submit(
     TRACE_EVENT0("cobalt::renderer", "Skia Flush");
     canvas->flush();
   }
+
+  graphics_context_->SwapBuffers(render_target_egl->GetSurface());
 }
 
 render_tree::ResourceProvider*
@@ -223,10 +237,10 @@ SkiaHardwareRasterizer::~SkiaHardwareRasterizer() {}
 
 void SkiaHardwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target) {
+    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
   TRACE_EVENT0("cobalt::renderer", "SkiaHardwareRasterizer::Submit()");
-  impl_->Submit(render_tree, render_target);
+  impl_->Submit(render_tree, render_target, options);
 }
 
 render_tree::ResourceProvider* SkiaHardwareRasterizer::GetResourceProvider() {

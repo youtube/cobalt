@@ -113,7 +113,7 @@ class CreateImageThread : public base::SimpleThread {
 // in this case, but it really should be working, as the media engine
 // relies on this mechanism to deliver responsive video with minimal frame
 // drops.
-TEST(ResourceProviderTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
+TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
   scoped_ptr<backend::GraphicsSystem> graphics_system =
       backend::CreateDefaultGraphicsSystem();
   scoped_ptr<backend::GraphicsContext> graphics_context =
