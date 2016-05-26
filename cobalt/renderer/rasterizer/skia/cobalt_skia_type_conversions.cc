@@ -21,41 +21,6 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-GrPixelConfig CobaltSurfaceFormatToGrSkia(
-    cobalt::renderer::backend::SurfaceInfo::Format cobalt_format) {
-  switch (cobalt_format) {
-    case cobalt::renderer::backend::SurfaceInfo::kFormatARGB8: {
-      return kBGRA_8888_GrPixelConfig;
-    }
-    case cobalt::renderer::backend::SurfaceInfo::kFormatBGRA8: {
-      return kBGRA_8888_GrPixelConfig;
-    }
-    case cobalt::renderer::backend::SurfaceInfo::kFormatRGBA8: {
-      return kRGBA_8888_GrPixelConfig;
-    }
-    case cobalt::renderer::backend::SurfaceInfo::kFormatA8: {
-      return kAlpha_8_GrPixelConfig;
-    }
-    default: {
-      DLOG(FATAL) << "Unexpected pixel pixel format.";
-      return kUnknown_GrPixelConfig;
-    }
-  }
-}
-
-backend::SurfaceInfo::Format SkiaSurfaceFormatToCobalt(
-    SkColorType skia_format) {
-  switch (skia_format) {
-    case kRGBA_8888_SkColorType:
-      return backend::SurfaceInfo::kFormatRGBA8;
-    case kBGRA_8888_SkColorType:
-      return backend::SurfaceInfo::kFormatBGRA8;
-    default:
-      DLOG(FATAL) << "Unsupported Skia image format!";
-      return backend::SurfaceInfo::kFormatRGBA8;
-  }
-}
-
 SkColorType RenderTreeSurfaceFormatToSkia(
     render_tree::PixelFormat render_tree_format) {
   switch (render_tree_format) {

@@ -21,6 +21,7 @@
 
 #include "base/optional.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
+#include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/system_window/system_window.h"
 
@@ -46,10 +47,10 @@ class GraphicsSystemEGL : public GraphicsSystem {
 
   scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE;
 
-  scoped_ptr<TextureData> AllocateTextureData(
-      const SurfaceInfo& surface_info) OVERRIDE;
-  scoped_ptr<RawTextureMemory> AllocateRawTextureMemory(
-      size_t size_in_bytes, size_t alignment) OVERRIDE;
+  scoped_ptr<TextureDataEGL> AllocateTextureData(const math::Size& size,
+                                                 GLenum format);
+  scoped_ptr<RawTextureMemoryEGL> AllocateRawTextureMemory(size_t size_in_bytes,
+                                                           size_t alignment);
 
  private:
   EGLDisplay display_;

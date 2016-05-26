@@ -32,17 +32,14 @@ SurfaceRenderTargetBlitter::SurfaceRenderTargetBlitter(
   render_target_ = SbBlitterGetRenderTargetFromSurface(surface_);
   CHECK(SbBlitterIsRenderTargetValid(render_target_));
 
-  surface_info_.size = dimensions;
-  surface_info_.format = SurfaceInfo::kFormatRGBA8;
+  size_ = dimensions;
 }
 
 SurfaceRenderTargetBlitter::~SurfaceRenderTargetBlitter() {
   SbBlitterDestroySurface(surface_);
 }
 
-const SurfaceInfo& SurfaceRenderTargetBlitter::GetSurfaceInfo() {
-  return surface_info_;
-}
+const math::Size& SurfaceRenderTargetBlitter::GetSize() { return size_; }
 
 SbBlitterRenderTarget SurfaceRenderTargetBlitter::GetSbRenderTarget() const {
   return render_target_;

@@ -30,9 +30,9 @@ namespace renderer {
 namespace backend {
 
 TextureDataPBO::TextureDataPBO(ResourceContext* resource_context,
-                               const SurfaceInfo& surface_info)
-    : resource_context_(resource_context), surface_info_(surface_info) {
-  data_size_ = GetPitchInBytes() * surface_info.size.height();
+                               const math::Size& size, GLenum format)
+    : resource_context_(resource_context), size_(size), format_(format) {
+  data_size_ = GetPitchInBytes() * size_.height();
 
   resource_context_->RunSynchronouslyWithinResourceContext(
       base::Bind(&TextureDataPBO::InitAndMapPBO, base::Unretained(this)));
@@ -100,8 +100,7 @@ GLuint TextureDataPBO::ConvertToTexture(GraphicsContextEGL* graphics_context,
   SetupInitialTextureParameters();
 
   // Determine the texture's GL format.
-  GLenum gl_format = SurfaceInfoFormatToGL(surface_info_.format);
-  if (gl_format == GL_BGRA_EXT) {
+  if (format_ == GL_BGRA_EXT) {
     DCHECK(bgra_supported);
   }
 
@@ -109,10 +108,9 @@ GLuint TextureDataPBO::ConvertToTexture(GraphicsContextEGL* graphics_context,
   // the "data" field passed to glTexImage2D will refer to an offset into that
   // buffer.
   GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                        GetPitchInBytes() / surface_info_.BytesPerPixel()));
-  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info_.size.width(),
-                       surface_info_.size.height(), 0, gl_format,
-                       GL_UNSIGNED_BYTE, 0));
+                        GetPitchInBytes() / BytesPerPixelForGLFormat(format_)));
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, format_, size_.width(), size_.height(),
+                       0, format_, GL_UNSIGNED_BYTE, 0));
   GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
   GL_CALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
@@ -208,7 +206,7 @@ void RawTextureMemoryPBO::UnmapPBO() {
 
 GLuint RawTextureMemoryPBO::CreateTexture(GraphicsContextEGL* graphics_context,
                                           intptr_t offset,
-                                          const SurfaceInfo& surface_info,
+                                          const math::Size& size, GLenum format,
                                           int pitch_in_bytes,
                                           bool bgra_supported) const {
   DCHECK(!mapped_data_)
@@ -230,8 +228,7 @@ GLuint RawTextureMemoryPBO::CreateTexture(GraphicsContextEGL* graphics_context,
   SetupInitialTextureParameters();
 
   // Determine the texture's GL format.
-  GLenum gl_format = SurfaceInfoFormatToGL(surface_info.format);
-  if (gl_format == GL_BGRA_EXT) {
+  if (format == GL_BGRA_EXT) {
     DCHECK(bgra_supported);
   }
 
@@ -239,10 +236,10 @@ GLuint RawTextureMemoryPBO::CreateTexture(GraphicsContextEGL* graphics_context,
   // the "data" field passed to glTexImage2D will refer to an offset into that
   // buffer.
   GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                        pitch_in_bytes / surface_info.BytesPerPixel()));
+                        pitch_in_bytes / BytesPerPixelForGLFormat(format)));
   GL_CALL(
-      glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info.size.width(),
-                   surface_info.size.height(), 0, gl_format, GL_UNSIGNED_BYTE,
+      glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(), size.height(), 0,
+                   format, GL_UNSIGNED_BYTE,
                    reinterpret_cast<const void*>(alignment_offset_ + offset)));
   GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));

@@ -22,8 +22,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
-#include "cobalt/renderer/backend/surface_info.h"
-#include "cobalt/renderer/backend/texture.h"
 
 namespace cobalt {
 namespace renderer {
@@ -32,7 +30,12 @@ namespace backend {
 class GraphicsContextEGL;
 class ResourceContext;
 
-class TextureEGL : public Texture {
+// An abstract class representing a texture in the cobalt rendering framework.
+// This class is useful because the GraphicsContext class provides
+// cross-platform methods for creating textures, and also for consuming them
+// to do things like blit to the screen.  Platform-specific rendering libraries
+// such as a Skia backend may also accept texture objects.
+class TextureEGL {
  public:
   // Create a texture from source pixel data possibly filled in by the CPU.
   TextureEGL(GraphicsContextEGL* graphics_context,
@@ -41,7 +44,7 @@ class TextureEGL : public Texture {
   // Create a texture from a pre-existing offscreen PBuffer render target.
   TextureEGL(GraphicsContextEGL* graphics_context,
              const RawTextureMemoryEGL* data, intptr_t offset,
-             const SurfaceInfo& surface_info, int pitch_in_bytes,
+             const math::Size& size, GLenum format, int pitch_in_bytes,
              bool bgra_supported);
 
   // Create a texture from a pre-existing offscreen PBuffer render target.
@@ -50,13 +53,10 @@ class TextureEGL : public Texture {
       const scoped_refptr<PBufferRenderTargetEGL>& render_target);
   virtual ~TextureEGL();
 
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE;
+  const math::Size& GetSize() const;
+  GLenum GetFormat() const;
 
-  Origin GetOrigin() const OVERRIDE { return kTopLeft; }
-
-  intptr_t GetPlatformHandle() OVERRIDE {
-    return static_cast<intptr_t>(gl_handle());
-  }
+  intptr_t GetPlatformHandle() { return static_cast<intptr_t>(gl_handle()); }
 
   // Returns an index to the texture that can be passed to OpenGL functions.
   GLuint gl_handle() const { return gl_handle_; }
@@ -65,8 +65,11 @@ class TextureEGL : public Texture {
   // A reference to the graphics context that this texture is associated with.
   GraphicsContextEGL* graphics_context_;
 
-  // Metadata about the texture.
-  SurfaceInfo surface_info_;
+  // Resolution of the texture pixel data.
+  math::Size size_;
+
+  // Pixel color format of the texture.
+  GLenum format_;
 
   // The OpenGL handle to the texture that can be passed into OpenGL functions.
   GLuint gl_handle_;

@@ -166,13 +166,10 @@ BrowserModule::BrowserModule(const GURL& url,
       system_window);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  const math::Size& viewport_size =
-      renderer_module_.render_target()->GetSurfaceInfo().size;
-
   debug_console_.reset(new DebugConsole(
       base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      media_module_.get(), &network_module_, viewport_size,
+      media_module_.get(), &network_module_, system_window->window_size(),
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
@@ -223,8 +220,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   web_module_.reset(NULL);
 
   // Show a splash screen while we're waiting for the web page to load.
-  const math::Size& viewport_size =
-      renderer_module_.render_target()->GetSurfaceInfo().size;
+  const math::Size& viewport_size = renderer_module_.render_target()->GetSize();
   DestroySplashScreen();
   splash_screen_.reset(new SplashScreen(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),

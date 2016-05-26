@@ -114,8 +114,7 @@ void MediaSandbox::Impl::RegisterFrameCB(
 void MediaSandbox::Impl::AnimateCB(render_tree::ImageNode::Builder* image_node,
                                    base::TimeDelta time) {
   DCHECK(image_node);
-  math::SizeF output_size(
-      renderer_module_->render_target()->GetSurfaceInfo().size);
+  math::SizeF output_size(renderer_module_->render_target()->GetSize());
   image_node->destination_rect = math::RectF(output_size);
   base::AutoLock auto_lock(lock_);
   image_node->source = frame_cb_.is_null() ? NULL : frame_cb_.Run(time);

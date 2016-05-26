@@ -25,7 +25,6 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
-#include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/png_utils/png_decode.h"
@@ -42,8 +41,6 @@ using cobalt::render_tree::ResourceProvider;
 using cobalt::renderer::backend::GraphicsContext;
 using cobalt::renderer::backend::GraphicsSystem;
 using cobalt::renderer::backend::RenderTarget;
-using cobalt::renderer::backend::SurfaceInfo;
-using cobalt::renderer::backend::Texture;
 using cobalt::renderer::test::png_utils::DecodePNGToRGBA;
 using cobalt::renderer::test::png_utils::EncodeRGBAToPNG;
 
@@ -317,13 +314,8 @@ scoped_array<uint8_t> RenderTreePixelTester::RasterizeRenderTree(
   rasterizer_->Submit(tree, test_surface_,
                       rasterizer::Rasterizer::kSubmitOptions_Clear);
 
-  // Convert the render target to a texture so that we can extract the pixel
-  // data from it onto the CPU.
-  scoped_ptr<Texture> test_texture =
-      graphics_context_->CreateTextureFromOffscreenRenderTarget(test_surface_);
-
   // Load the texture's pixel data into a CPU memory buffer and return it.
-  return graphics_context_->GetCopyOfTexturePixelDataAsRGBA(*test_texture);
+  return graphics_context_->DownloadPixelDataAsRGBA(test_surface_);
 }
 
 void RenderTreePixelTester::Rebaseline(
@@ -334,7 +326,7 @@ void RenderTreePixelTester::Rebaseline(
   // Wrap the generated image's raw RGBA8 pixel data in a SkBitmap so that
   // we can manipulate it using Skia.
   const SkBitmap actual_bitmap = CreateBitmapFromRGBAPixels(
-      test_surface_->GetSurfaceInfo().size, test_image_pixels.get());
+      test_surface_->GetSize(), test_image_pixels.get());
 
   FilePath output_base_filename(
       output_directory_.Append(expected_base_filename));
@@ -358,7 +350,7 @@ bool RenderTreePixelTester::TestTree(
   // Wrap the generated image's raw RGBA8 pixel data in a SkBitmap so that
   // we can manipulate it using Skia.
   const SkBitmap actual_bitmap = CreateBitmapFromRGBAPixels(
-      test_surface_->GetSurfaceInfo().size, test_image_pixels.get());
+      test_surface_->GetSize(), test_image_pixels.get());
 
   // Here we proceed with the the pixel tests.  We must first load the
   // expected output image from disk and use that to compare against
@@ -377,13 +369,13 @@ bool RenderTreePixelTester::TestTree(
   scoped_array<uint8_t> expected_image_pixels =
       DecodePNGToRGBA(expected_output_file, &expected_width, &expected_height);
 
-  DCHECK_EQ(test_surface_->GetSurfaceInfo().size.width(), expected_width);
-  DCHECK_EQ(test_surface_->GetSurfaceInfo().size.height(), expected_height);
+  DCHECK_EQ(test_surface_->GetSize().width(), expected_width);
+  DCHECK_EQ(test_surface_->GetSize().height(), expected_height);
 
   // We then wrap the expected image in a SkBitmap so that we can manipulate
   // it with Skia.
   const SkBitmap expected_bitmap = CreateBitmapFromRGBAPixels(
-      test_surface_->GetSurfaceInfo().size, expected_image_pixels.get());
+      test_surface_->GetSize(), expected_image_pixels.get());
 
   // Finally we perform the actual pixel tests on the bitmap given the
   // actual and expected bitmaps.  If it is requested that test details

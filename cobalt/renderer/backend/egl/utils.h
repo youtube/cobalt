@@ -49,6 +49,8 @@ namespace backend {
 EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
                               EGLContext share_context);
 
+int BytesPerPixelForGLFormat(GLenum format);
+
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
