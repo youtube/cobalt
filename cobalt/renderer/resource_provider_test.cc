@@ -146,9 +146,6 @@ TEST(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
   scoped_refptr<backend::RenderTarget> dummy_output_surface =
       graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
 
-  scoped_ptr<backend::GraphicsContext::Frame> frame =
-      graphics_context->StartFrame(dummy_output_surface);
-
   // Now that we're inside of a new frame, create images from a separate
   // thread.  This should be perfectly legal and cause no problems.
   const int kNumThreads = 20;
@@ -201,9 +198,6 @@ TEST(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
   const math::Size kDummySurfaceDimensions(1, 1);
   scoped_refptr<backend::RenderTarget> dummy_output_surface =
       graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
-
-  scoped_ptr<backend::GraphicsContext::Frame> frame =
-      graphics_context->StartFrame(dummy_output_surface);
 
   // Now that we're inside of a new frame, create images from a separate
   // thread.  This should be perfectly legal and cause no problems.
