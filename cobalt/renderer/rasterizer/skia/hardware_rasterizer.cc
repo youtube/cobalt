@@ -97,15 +97,14 @@ SkSurface* CreateSkiaRenderTargetSurface(GrRenderTarget* render_target) {
 // a Skia backend render target descriptor.  Additionally, it also references
 // the actual render target object as well so that Skia can then recover
 // the Cobalt render target object.
-GrBackendRenderTargetDesc CobaltSurfaceInfoToSkiaBackendRenderTargetDesc(
+GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
     cobalt::renderer::backend::RenderTarget* cobalt_render_target) {
-  const cobalt::renderer::backend::SurfaceInfo& cobalt_surface_info =
-      cobalt_render_target->GetSurfaceInfo();
+  const math::Size& size = cobalt_render_target->GetSize();
 
   GrBackendRenderTargetDesc skia_desc;
-  skia_desc.fWidth = cobalt_surface_info.size.width();
-  skia_desc.fHeight = cobalt_surface_info.size.height();
-  skia_desc.fConfig = CobaltSurfaceFormatToGrSkia(cobalt_surface_info.format);
+  skia_desc.fWidth = size.width();
+  skia_desc.fHeight = size.height();
+  skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
   skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
   skia_desc.fSampleCnt = 0;
   skia_desc.fStencilBits = 0;
@@ -176,7 +175,7 @@ void SkiaHardwareRasterizer::Impl::Submit(
     // Setup a Skia render target that wraps the passed in Cobalt render target.
     SkAutoTUnref<GrRenderTarget> skia_render_target(
         gr_context_->wrapBackendRenderTarget(
-            CobaltSurfaceInfoToSkiaBackendRenderTargetDesc(
+            CobaltRenderTargetToSkiaBackendRenderTargetDesc(
                 render_target.get())));
 
     // Create an SkSurface from the render target so that we can acquire a

@@ -38,11 +38,6 @@ class GraphicsSystemBlitter : public GraphicsSystem {
 
   scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE;
 
-  scoped_ptr<TextureData> AllocateTextureData(
-      const SurfaceInfo& surface_info) OVERRIDE;
-  scoped_ptr<RawTextureMemory> AllocateRawTextureMemory(
-      size_t size_in_bytes, size_t alignment) OVERRIDE;
-
   SbBlitterDevice GetSbBlitterDevice() { return device_; }
 
  private:

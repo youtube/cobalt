@@ -21,7 +21,6 @@
 
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
-#include "cobalt/renderer/backend/surface_info.h"
 
 namespace cobalt {
 namespace renderer {
@@ -34,7 +33,7 @@ class PBufferRenderTargetEGL : public RenderTargetEGL {
   PBufferRenderTargetEGL(
       EGLDisplay display, EGLConfig config, const math::Size& dimensions);
 
-  const SurfaceInfo& GetSurfaceInfo() OVERRIDE;
+  const math::Size& GetSize() OVERRIDE;
 
   EGLSurface GetSurface() const OVERRIDE;
 
@@ -48,7 +47,7 @@ class PBufferRenderTargetEGL : public RenderTargetEGL {
   EGLConfig config_;
   EGLSurface surface_;
 
-  SurfaceInfo surface_info_;
+  math::Size size_;
 };
 
 }  // namespace backend

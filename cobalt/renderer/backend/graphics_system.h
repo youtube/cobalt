@@ -48,21 +48,6 @@ class GraphicsSystem {
   // Creates a graphics context that can be used to issue graphics commands to
   // the hardware.
   virtual scoped_ptr<GraphicsContext> CreateGraphicsContext() = 0;
-
-  // This method will allocate CPU-accessible memory with the given
-  // SurfaceInfo specifications.  The resulting TextureData object
-  // allows access to pixel memory which the caller can write to and eventually
-  // pass the object in to CreateTexture() to finalize a texture.
-  virtual scoped_ptr<TextureData> AllocateTextureData(
-      const SurfaceInfo& surface_info) = 0;
-
-  // This function can be used to allocate a chunk of memory that is potentially
-  // directly accessible by the GPU as a texture.  This would be used along
-  // with functions like CreateTextureFromRawMemory().  In general, one should
-  // use AllocateTextureData() instead, as it is not sensitive to platform
-  // specific details.
-  virtual scoped_ptr<RawTextureMemory> AllocateRawTextureMemory(
-      size_t size_in_bytes, size_t alignment) = 0;
 };
 
 }  // namespace backend

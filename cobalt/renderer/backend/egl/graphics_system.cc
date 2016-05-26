@@ -89,23 +89,23 @@ scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
       new GraphicsContextEGL(this, display_, config_, resource_context));
 }
 
-scoped_ptr<TextureData> GraphicsSystemEGL::AllocateTextureData(
-    const SurfaceInfo& surface_info) {
+scoped_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
+    const math::Size& size, GLenum format) {
 #if defined(GLES3_SUPPORTED)
-  return scoped_ptr<TextureData>(
-      new TextureDataPBO(&(resource_context_.value()), surface_info));
+  return scoped_ptr<TextureDataEGL>(
+      new TextureDataPBO(&(resource_context_.value()), size, format));
 #else
-  return scoped_ptr<TextureData>(new TextureDataCPU(surface_info));
+  return scoped_ptr<TextureDataEGL>(new TextureDataCPU(size, format));
 #endif
 }
 
-scoped_ptr<RawTextureMemory> GraphicsSystemEGL::AllocateRawTextureMemory(
+scoped_ptr<RawTextureMemoryEGL> GraphicsSystemEGL::AllocateRawTextureMemory(
     size_t size_in_bytes, size_t alignment) {
 #if defined(GLES3_SUPPORTED)
-  return scoped_ptr<RawTextureMemory>(new RawTextureMemoryPBO(
+  return scoped_ptr<RawTextureMemoryEGL>(new RawTextureMemoryPBO(
       &(resource_context_.value()), size_in_bytes, alignment));
 #else
-  return scoped_ptr<RawTextureMemory>(
+  return scoped_ptr<RawTextureMemoryEGL>(
       new RawTextureMemoryCPU(size_in_bytes, alignment));
 #endif
 }

@@ -18,8 +18,9 @@
 
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
-#include "cobalt/renderer/backend/texture.h"
+#include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "third_party/skia/include/gpu/SkGrPixelRef.h"
 
 namespace cobalt {
@@ -27,28 +28,16 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-GrTexture* WrapCobaltTextureWithSkiaTexture(GrContext* gr_context,
-                                            backend::Texture* cobalt_texture) {
-  const backend::SurfaceInfo& surface_info = cobalt_texture->GetSurfaceInfo();
-
+GrTexture* WrapCobaltTextureWithSkiaTexture(
+    GrContext* gr_context, backend::TextureEGL* cobalt_texture) {
   // Setup a Skia texture descriptor to describe the texture we wish to have
   // wrapped within a Skia GrTexture.
   GrBackendTextureDesc desc;
   desc.fFlags = kNone_GrBackendTextureFlag;
-  switch (cobalt_texture->GetOrigin()) {
-    case backend::Texture::kTopLeft: {
-      desc.fOrigin = kTopLeft_GrSurfaceOrigin;
-    } break;
-    case backend::Texture::kBottomLeft: {
-      desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
-    } break;
-    default: {
-      DLOG(FATAL) << "Unknown texture origin.";
-    }
-  }
-  desc.fWidth = surface_info.size.width();
-  desc.fHeight = surface_info.size.height();
-  desc.fConfig = CobaltSurfaceFormatToGrSkia(surface_info.format);
+  desc.fOrigin = kTopLeft_GrSurfaceOrigin;
+  desc.fWidth = cobalt_texture->GetSize().width();
+  desc.fHeight = cobalt_texture->GetSize().height();
+  desc.fConfig = ConvertGLFormatToGr(cobalt_texture->GetFormat());
   desc.fSampleCnt = 0;
 
   desc.fTextureHandle =
@@ -58,12 +47,12 @@ GrTexture* WrapCobaltTextureWithSkiaTexture(GrContext* gr_context,
 }
 
 SkiaHardwareImageData::SkiaHardwareImageData(
-    scoped_ptr<backend::TextureData> texture_data,
+    scoped_ptr<backend::TextureDataEGL> texture_data,
     render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format)
     : texture_data_(texture_data.Pass()),
-      descriptor_(texture_data_->GetSurfaceInfo().size, pixel_format,
-                  alpha_format, texture_data_->GetPitchInBytes()) {}
+      descriptor_(texture_data_->GetSize(), pixel_format, alpha_format,
+                  texture_data_->GetPitchInBytes()) {}
 
 const render_tree::ImageDataDescriptor& SkiaHardwareImageData::GetDescriptor()
     const {
@@ -74,12 +63,12 @@ uint8_t* SkiaHardwareImageData::GetMemory() {
   return texture_data_->GetMemory();
 }
 
-scoped_ptr<backend::TextureData> SkiaHardwareImageData::PassTextureData() {
+scoped_ptr<backend::TextureDataEGL> SkiaHardwareImageData::PassTextureData() {
   return texture_data_.Pass();
 }
 
 SkiaHardwareRawImageMemory::SkiaHardwareRawImageMemory(
-    scoped_ptr<backend::RawTextureMemory> raw_texture_memory)
+    scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory)
     : raw_texture_memory_(raw_texture_memory.Pass()) {}
 
 size_t SkiaHardwareRawImageMemory::GetSizeInBytes() const {
@@ -90,7 +79,7 @@ uint8_t* SkiaHardwareRawImageMemory::GetMemory() {
   return raw_texture_memory_->GetMemory();
 }
 
-scoped_ptr<backend::RawTextureMemory>
+scoped_ptr<backend::RawTextureMemoryEGL>
 SkiaHardwareRawImageMemory::PassRawTextureMemory() {
   return raw_texture_memory_.Pass();
 }
@@ -102,28 +91,27 @@ SkiaHardwareRawImageMemory::PassRawTextureMemory() {
 class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
  public:
   SkiaHardwareBackendImage(scoped_ptr<SkiaHardwareImageData> image_data,
-                           backend::GraphicsContext* cobalt_context,
+                           backend::GraphicsContextEGL* cobalt_context,
                            GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
                  "SkiaHardwareBackendImage::SkiaHardwareBackendImage()");
-    scoped_ptr<backend::Texture> texture =
+    scoped_ptr<backend::TextureEGL> texture =
         cobalt_context->CreateTexture(image_data->PassTextureData());
 
     CommonInitialize(texture.Pass(), gr_context);
   }
 
   SkiaHardwareBackendImage(
-      const scoped_refptr<backend::ConstRawTextureMemory>& raw_texture_memory,
+      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
+          raw_texture_memory,
       intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContext* cobalt_context, GrContext* gr_context) {
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
                  "SkiaHardwareBackendImage::SkiaHardwareBackendImage()");
-    scoped_ptr<backend::Texture> texture =
+    scoped_ptr<backend::TextureEGL> texture =
         cobalt_context->CreateTextureFromRawMemory(
-            raw_texture_memory, offset,
-            backend::SurfaceInfo(
-                descriptor.size,
-                RenderTreeToBackendPixelFormat(descriptor.pixel_format)),
+            raw_texture_memory, offset, descriptor.size,
+            ConvertRenderTreeFormatToGL(descriptor.pixel_format),
             descriptor.pitch_in_bytes);
 
     CommonInitialize(texture.Pass(), gr_context);
@@ -139,7 +127,7 @@ class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
 
   // Initiate all texture initialization code here, which should be executed
   // on the rasterizer thread.
-  void CommonInitialize(scoped_ptr<backend::Texture> texture,
+  void CommonInitialize(scoped_ptr<backend::TextureEGL> texture,
                         GrContext* gr_context) {
     DCHECK(thread_checker_.CalledOnValidThread());
     TRACE_EVENT0("cobalt::renderer",
@@ -165,7 +153,7 @@ class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
  private:
   // Keep a reference to the texture alive as long as this backend image
   // exists.
-  scoped_ptr<backend::Texture> texture_;
+  scoped_ptr<backend::TextureEGL> texture_;
 
   base::ThreadChecker thread_checker_;
   SkAutoTUnref<GrTexture> gr_texture_;
@@ -174,7 +162,7 @@ class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
 
 SkiaHardwareFrontendImage::SkiaHardwareFrontendImage(
     scoped_ptr<SkiaHardwareImageData> image_data,
-    backend::GraphicsContext* cobalt_context, GrContext* gr_context,
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : size_(image_data->GetDescriptor().size),
       rasterizer_message_loop_(rasterizer_message_loop) {
@@ -188,9 +176,9 @@ SkiaHardwareFrontendImage::SkiaHardwareFrontendImage(
 }
 
 SkiaHardwareFrontendImage::SkiaHardwareFrontendImage(
-    const scoped_refptr<backend::ConstRawTextureMemory>& raw_texture_memory,
+    const scoped_refptr<backend::ConstRawTextureMemoryEGL>& raw_texture_memory,
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-    backend::GraphicsContext* cobalt_context, GrContext* gr_context,
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : size_(descriptor.size),
       rasterizer_message_loop_(rasterizer_message_loop) {
@@ -232,16 +220,16 @@ void SkiaHardwareFrontendImage::EnsureInitialized() {
 
 void SkiaHardwareFrontendImage::InitializeBackendImageFromImageData(
     scoped_ptr<SkiaHardwareImageData> image_data,
-    backend::GraphicsContext* cobalt_context, GrContext* gr_context) {
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   backend_image_.reset(new SkiaHardwareBackendImage(
       image_data.Pass(), cobalt_context, gr_context));
 }
 
 void SkiaHardwareFrontendImage::InitializeBackendImageFromRawImageData(
-    const scoped_refptr<backend::ConstRawTextureMemory>& raw_texture_memory,
+    const scoped_refptr<backend::ConstRawTextureMemoryEGL>& raw_texture_memory,
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-    backend::GraphicsContext* cobalt_context, GrContext* gr_context) {
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   backend_image_.reset(new SkiaHardwareBackendImage(
       raw_texture_memory, offset, descriptor, cobalt_context, gr_context));
@@ -250,12 +238,12 @@ void SkiaHardwareFrontendImage::InitializeBackendImageFromRawImageData(
 SkiaHardwareMultiPlaneImage::SkiaHardwareMultiPlaneImage(
     scoped_ptr<SkiaHardwareRawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor,
-    backend::GraphicsContext* cobalt_context, GrContext* gr_context,
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : size_(descriptor.GetPlaneDescriptor(0).size),
       format_(descriptor.image_format()) {
-  scoped_refptr<backend::ConstRawTextureMemory> const_raw_texture_memory(
-      new backend::ConstRawTextureMemory(
+  scoped_refptr<backend::ConstRawTextureMemoryEGL> const_raw_texture_memory(
+      new backend::ConstRawTextureMemoryEGL(
           raw_image_memory->PassRawTextureMemory()));
 
   // Construct a single plane image for each plane of this multi plane image.

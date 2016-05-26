@@ -18,7 +18,6 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
-#include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/system_window/starboard/system_window.h"
 
 namespace cobalt {
@@ -34,7 +33,7 @@ class DisplayRenderTargetBlitter : public RenderTargetBlitter {
   DisplayRenderTargetBlitter(SbBlitterDevice device,
                              system_window::SystemWindow* system_window);
 
-  const SurfaceInfo& GetSurfaceInfo() OVERRIDE;
+  const math::Size& GetSize() OVERRIDE;
 
   SbBlitterRenderTarget GetSbRenderTarget() const OVERRIDE;
 
@@ -46,7 +45,7 @@ class DisplayRenderTargetBlitter : public RenderTargetBlitter {
   SbBlitterSwapChain swap_chain_;
   SbBlitterRenderTarget render_target_;
 
-  SurfaceInfo surface_info_;
+  math::Size size_;
 };
 
 DisplayRenderTargetBlitter::DisplayRenderTargetBlitter(
@@ -64,13 +63,10 @@ DisplayRenderTargetBlitter::DisplayRenderTargetBlitter(
 
   SbWindowSize window_size;
   SbWindowGetSize(starboard_window, &window_size);
-  surface_info_.size.SetSize(window_size.width, window_size.height);
-  surface_info_.format = SurfaceInfo::kFormatRGBA8;
+  size_.SetSize(window_size.width, window_size.height);
 }
 
-const SurfaceInfo& DisplayRenderTargetBlitter::GetSurfaceInfo() {
-  return surface_info_;
-}
+const math::Size& DisplayRenderTargetBlitter::GetSize() { return size_; }
 
 DisplayRenderTargetBlitter::~DisplayRenderTargetBlitter() {
   SbBlitterDestroySwapChain(swap_chain_);

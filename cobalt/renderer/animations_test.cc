@@ -174,11 +174,8 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
   }
 
   // Verify that the image data was read and rendered correctly.
-  scoped_ptr<backend::Texture> test_texture =
-      graphics_context->CreateTextureFromOffscreenRenderTarget(
-          dummy_output_surface);
   scoped_array<uint8_t> rendered_data =
-      graphics_context->GetCopyOfTexturePixelDataAsRGBA(*test_texture);
+      graphics_context->DownloadPixelDataAsRGBA(dummy_output_surface);
   const int kNumRenderedPixels =
       kDummySurfaceDimensions.width() * kDummySurfaceDimensions.height();
   for (int i = 0; i < kNumRenderedPixels; ++i) {

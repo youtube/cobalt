@@ -20,8 +20,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/graphics_system.h"
-#include "cobalt/renderer/backend/blitter/texture.h"
-#include "cobalt/renderer/backend/blitter/texture_data.h"
+#include "cobalt/renderer/backend/blitter/surface_render_target.h"
 #include "starboard/blitter.h"
 
 namespace cobalt {
@@ -40,46 +39,22 @@ GraphicsContextBlitter::~GraphicsContextBlitter() {
   SbBlitterDestroyContext(context_);
 }
 
-scoped_ptr<Texture> GraphicsContextBlitter::CreateTexture(
-    scoped_ptr<TextureData> texture_data) {
-  scoped_ptr<TextureDataBlitter> texture_data_blitter(
-      base::polymorphic_downcast<TextureDataBlitter*>(texture_data.release()));
-
-  return scoped_ptr<Texture>(
-      new TextureBlitter(device_, texture_data_blitter.Pass()));
-}
-
-scoped_ptr<Texture> GraphicsContextBlitter::CreateTextureFromRawMemory(
-    const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
-    intptr_t offset, const SurfaceInfo& surface_info, int pitch_in_bytes) {
-  NOTREACHED();
-  return scoped_ptr<Texture>();
-}
-
 scoped_refptr<RenderTarget> GraphicsContextBlitter::CreateOffscreenRenderTarget(
     const math::Size& dimensions) {
   return scoped_refptr<RenderTarget>(
       new SurfaceRenderTargetBlitter(device_, dimensions));
 }
 
-scoped_ptr<Texture>
-GraphicsContextBlitter::CreateTextureFromOffscreenRenderTarget(
+scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
     const scoped_refptr<RenderTarget>& render_target) {
-  return scoped_ptr<Texture>(
-      new TextureBlitter(scoped_refptr<SurfaceRenderTargetBlitter>(
-          base::polymorphic_downcast<SurfaceRenderTargetBlitter*>(
-              render_target.get()))));
-}
+  SurfaceRenderTargetBlitter* render_target_blitter =
+      base::polymorphic_downcast<SurfaceRenderTargetBlitter*>(
+          render_target.get());
 
-scoped_array<uint8_t> GraphicsContextBlitter::GetCopyOfTexturePixelDataAsRGBA(
-    const Texture& texture) {
-  const TextureBlitter* texture_blitter =
-      base::polymorphic_downcast<const TextureBlitter*>(&texture);
-
-  SbBlitterSurface surface = texture_blitter->GetSbBlitterSurface();
+  SbBlitterSurface surface = render_target_blitter->GetSbSurface();
 
   scoped_array<uint8_t> pixels(
-      new uint8_t[texture.GetSurfaceInfo().size.GetArea() * 4]);
+      new uint8_t[render_target_blitter->GetSize().GetArea() * 4]);
 
   SbBlitterFlushContext(context_);
   SbBlitterDownloadSurfacePixelDataAsRGBA(surface, pixels.get());

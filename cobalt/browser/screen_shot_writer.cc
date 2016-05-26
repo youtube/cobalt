@@ -18,7 +18,6 @@
 
 #include "base/bind.h"
 #include "base/file_util.h"
-#include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/test/png_utils/png_encode.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkPixelRef.h"

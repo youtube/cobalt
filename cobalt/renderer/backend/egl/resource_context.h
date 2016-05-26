@@ -23,7 +23,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
-#include "cobalt/renderer/backend/surface_info.h"
 
 namespace cobalt {
 namespace renderer {
