@@ -13,17 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'graphics_system_stub_sources': [
-      'display_stub.h',
-      'graphics_context_stub.cc',
-      'graphics_context_stub.h',
-      'graphics_system_stub.h',
-      'render_target_stub.h',
-      'texture_stub.h',
-    ],
-  },
-
   'targets': [
     {
       'target_name': 'renderer_backend',
@@ -39,7 +28,6 @@
         'render_target.h',
         'surface_info.h',
         'texture.h',
-        '<@(graphics_system_stub_sources)'
       ],
 
       'dependencies': [

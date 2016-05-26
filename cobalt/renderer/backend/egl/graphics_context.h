@@ -55,9 +55,6 @@ class GraphicsContextEGL : public GraphicsContext {
   scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
       const Texture& texture) OVERRIDE;
 
-  scoped_ptr<GraphicsContext::Frame> StartFrame(
-      const scoped_refptr<backend::RenderTarget>& render_target) OVERRIDE;
-
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.
   class ScopedMakeCurrent {
@@ -98,8 +95,12 @@ class GraphicsContextEGL : public GraphicsContext {
   // Alternatively, this call can be made to make the context current along
   // with a null surface.  You would be interested in this method if you don't
   // plan to be making any draw calls, such as if you're setting up a texture.
-  void MakeCurrent() OVERRIDE;
-  void ReleaseCurrentContext() OVERRIDE;
+  void MakeCurrent();
+  void ReleaseCurrentContext();
+
+  void SwapBuffers(EGLSurface surface);
+
+  void Blit(GLuint texture, int x, int y, int width, int height);
 
  private:
   // Performs a test to determine if the pixel data returned by glReadPixels
@@ -109,22 +110,7 @@ class GraphicsContextEGL : public GraphicsContext {
 
   // Sets up all structures (like Shaders and vertex buffers) required to
   // support the Frame::BlitToRenderTarget() functionality.
-  void SetupBlitToRenderTargetObjects();
-
-  class Frame : public GraphicsContext::Frame {
-   public:
-    Frame(GraphicsContextEGL* owner, EGLSurface surface);
-    ~Frame();
-
-    void Clear(float red, float green, float blue, float alpha) OVERRIDE;
-    void BlitToRenderTarget(const Texture& texture) OVERRIDE;
-
-   private:
-    GraphicsContextEGL* owner_;
-    ScopedMakeCurrent scoped_make_current_;
-  };
-  friend class Frame;
-  void OnFrameEnd();
+  void SetupBlitObjects();
 
   EGLDisplay display_;
 
@@ -145,9 +131,6 @@ class GraphicsContextEGL : public GraphicsContext {
   // Cache whether or not BGRA texture format is supported by the underlying
   // OpenGL ES implementation.
   bool bgra_format_supported_;
-
-  // Active whenever a frame is started and a render target is bound to us.
-  scoped_refptr<RenderTargetEGL> render_target_;
 
   // Data required to provide BlitToRenderTarget() functionality via OpenGL ES.
   GLuint blit_vertex_shader_;
