@@ -197,6 +197,7 @@
         'time_get_monotonic_now_test.cc',
         'time_get_now_test.cc',
         'time_implode_test.cc',
+        'time_narrow_test.cc',
         'time_zone_get_current_test.cc',
         'time_zone_get_dst_name_test.cc',
         'time_zone_get_name_test.cc',
