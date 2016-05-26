@@ -48,25 +48,9 @@ class GraphicsContextBlitter : public GraphicsContext {
   scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
       const Texture& texture) OVERRIDE;
 
-  scoped_ptr<GraphicsContext::Frame> StartFrame(
-      const scoped_refptr<backend::RenderTarget>& render_target) OVERRIDE;
+  SbBlitterContext GetSbBlitterContext() const { return context_; }
 
  private:
-  class Frame : public GraphicsContext::Frame {
-   public:
-    Frame(GraphicsContextBlitter* owner,
-          const scoped_refptr<backend::RenderTarget>& render_target);
-    ~Frame();
-
-    void Clear(float red, float green, float blue, float alpha) OVERRIDE;
-    void BlitToRenderTarget(const Texture& texture) OVERRIDE;
-
-   private:
-    GraphicsContextBlitter* owner_;
-    scoped_refptr<RenderTargetBlitter> render_target_;
-  };
-  friend class Frame;
-
   SbBlitterDevice device_;
   SbBlitterContext context_;
 };

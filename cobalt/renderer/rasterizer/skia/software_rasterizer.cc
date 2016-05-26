@@ -17,7 +17,6 @@
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
 #include "base/debug/trace_event.h"
-#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/software_resource_provider.h"
@@ -29,10 +28,8 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SkiaSoftwareRasterizer::SkiaSoftwareRasterizer(
-    backend::GraphicsContext* graphics_context)
-    : graphics_context_(graphics_context),
-      resource_provider_(new SkiaSoftwareResourceProvider()) {
+SkiaSoftwareRasterizer::SkiaSoftwareRasterizer()
+    : resource_provider_(new SkiaSoftwareResourceProvider()) {
   TRACE_EVENT0("cobalt::renderer",
                "SkiaSoftwareRasterizer::SkiaSoftwareRasterizer()");
 }
@@ -65,29 +62,9 @@ void ReturnScratchImage(SkSurface* surface) { surface->unref(); }
 
 void SkiaSoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target) {
+    SkCanvas* render_target) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
   TRACE_EVENT0("cobalt::renderer", "SkiaSoftwareRasterizer::Submit()");
-
-  // Determine the image size and format that we will use to render to.
-  SkImageInfo output_image_info = SkImageInfo::MakeN32(
-      render_target->GetSurfaceInfo().size.width(),
-      render_target->GetSurfaceInfo().size.height(), kPremul_SkAlphaType);
-
-  // Allocate the pixels for the output image.
-  scoped_ptr<cobalt::renderer::backend::TextureData> bitmap_pixels =
-      graphics_context_->system()->AllocateTextureData(backend::SurfaceInfo(
-          math::Size(output_image_info.width(), output_image_info.height()),
-          SkiaSurfaceFormatToCobalt(output_image_info.colorType())));
-
-  SkBitmap bitmap;
-  bitmap.installPixels(output_image_info, bitmap_pixels->GetMemory(),
-                       bitmap_pixels->GetPitchInBytes());
-
-  // Setup our Skia canvas that we will be using as the target for all CPU Skia
-  // output.
-  SkCanvas canvas(bitmap);
-  canvas.clear(SkColorSetARGB(0, 0, 0, 0));
 
   {
     TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
@@ -95,27 +72,13 @@ void SkiaSoftwareRasterizer::Submit(
     // just created above.
     SkiaRenderTreeNodeVisitor::CreateScratchSurfaceFunction
         create_scratch_surface_function = base::Bind(&CreateScratchSurface);
-    SkiaRenderTreeNodeVisitor visitor(&canvas,
+    SkiaRenderTreeNodeVisitor visitor(render_target,
                                       &create_scratch_surface_function);
 
     // Finally, rasterize the render tree to the output canvas using the
     // rasterizer we just created.
     render_tree->Accept(&visitor);
   }
-
-  // The rasterized pixels are still on the CPU, ship them off to the GPU
-  // for output to the display.  We must first create a backend GPU texture
-  // with the data so that it is visible to the GPU.
-  scoped_ptr<backend::Texture> output_texture =
-      graphics_context_->CreateTexture(bitmap_pixels.Pass());
-
-  // Attach the output render target to the graphics context so we can blit
-  // the image to the target.
-  scoped_ptr<backend::GraphicsContext::Frame> frame(
-      graphics_context_->StartFrame(render_target));
-
-  // Issue the command to render the texture to the display.
-  frame->BlitToRenderTarget(*output_texture);
 }
 
 render_tree::ResourceProvider* SkiaSoftwareRasterizer::GetResourceProvider() {

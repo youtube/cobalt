@@ -87,51 +87,6 @@ scoped_array<uint8_t> GraphicsContextBlitter::GetCopyOfTexturePixelDataAsRGBA(
   return pixels.Pass();
 }
 
-scoped_ptr<GraphicsContext::Frame> GraphicsContextBlitter::StartFrame(
-    const scoped_refptr<backend::RenderTarget>& render_target) {
-  return scoped_ptr<GraphicsContext::Frame>(new Frame(this, render_target));
-}
-
-GraphicsContextBlitter::Frame::Frame(
-    GraphicsContextBlitter* owner,
-    const scoped_refptr<backend::RenderTarget>& render_target) {
-  owner_ = owner;
-  render_target_ = scoped_refptr<RenderTargetBlitter>(
-      base::polymorphic_downcast<RenderTargetBlitter*>(render_target.get()));
-  CHECK(SbBlitterSetRenderTarget(owner_->context_,
-                                 render_target_->GetSbRenderTarget()));
-}
-
-GraphicsContextBlitter::Frame::~Frame() {
-  CHECK(SbBlitterFlushContext(owner_->context_));
-
-  render_target_->Flip();
-}
-
-void GraphicsContextBlitter::Frame::Clear(float red, float green, float blue,
-                                          float alpha) {
-  math::Size target_size = render_target_->GetSurfaceInfo().size;
-
-  CHECK(SbBlitterSetColor(owner_->context_,
-                          SbBlitterColorFromRGBA(red, green, blue, alpha)));
-  CHECK(SbBlitterFillRect(
-      owner_->context_,
-      SbBlitterMakeRect(0, 0, target_size.width(), target_size.height())));
-}
-
-void GraphicsContextBlitter::Frame::BlitToRenderTarget(const Texture& texture) {
-  const TextureBlitter* texture_blitter =
-      base::polymorphic_downcast<const TextureBlitter*>(&texture);
-
-  math::Size source_size = texture.GetSurfaceInfo().size;
-  math::Size target_size = render_target_->GetSurfaceInfo().size;
-
-  CHECK(SbBlitterBlitRectToRect(
-      owner_->context_, texture_blitter->GetSbBlitterSurface(),
-      SbBlitterMakeRect(0, 0, source_size.width(), source_size.height()),
-      SbBlitterMakeRect(0, 0, target_size.width(), target_size.height())));
-}
-
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt

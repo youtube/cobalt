@@ -101,36 +101,6 @@ class GraphicsContext {
   virtual scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
       const Texture& texture) = 0;
 
-  // These methods are added since some APIs, like OpenGL, have a concept of
-  // a thread-local current context, and it can be set/unset by calling these
-  // methods.  This may be a no-op on platforms that don't have this concept.
-  virtual void MakeCurrent() {}
-  virtual void ReleaseCurrentContext() {}
-
-  // The interface for creating and submitting frames to be rendered is
-  // to call GraphicsContext::StartFrame() which instantiates a
-  // GraphicsContext::Frame object which binds the context to a render target.
-  // The created Frame's destruction is the signal that the frame is complete
-  // and should be flushed.
-  class Frame {
-   public:
-    virtual ~Frame() {}
-
-    // Clear the screen with the specified color.
-    virtual void Clear(float red, float green, float blue, float alpha) = 0;
-
-    // Renders the specified texture to the entire associated render target,
-    // stretching if necessary.  This method is provides a method for a software
-    // rasterized image to be sent to the display.
-    // TODO(***REMOVED***): Re-evaluate if there's a better home for this function that
-    //               better conveys the function's specific use-case for sending
-    //               software-rendered images to the display.  b/19081247
-    virtual void BlitToRenderTarget(const Texture& texture) = 0;
-  };
-
-  virtual scoped_ptr<Frame> StartFrame(
-      const scoped_refptr<backend::RenderTarget>& render_target) = 0;
-
  private:
   GraphicsSystem* system_;
 };

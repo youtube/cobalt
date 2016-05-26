@@ -23,34 +23,31 @@
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 
+class SkCanvas;
+
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-// This class provides a Rasterizer implementation where each render tree
-// submission results in a software Skia SkBitmap being setup as a render
-// target and rendered to.  Ultimately, the resulting SkBitmap will be
-// uploaded as a texture and blitted to the render target through the
-// use of the passed in graphics context.
-class SkiaSoftwareRasterizer : public Rasterizer {
+// While this class does not implement the rasterizer::Rasterizer interface,
+// it can be used within a wrapper class that does implement it.
+// This class focuses on rendering a render tree to a SkCanvas object,
+// so a platform-specific rasterizer::Rasterizer implementation could wrap
+// this object and after calling SkiaSoftwareRasterizer::Submit(), the wrapper
+// class can send the results to a display or render target.
+class SkiaSoftwareRasterizer {
  public:
-  // The graphics context will be used to issue commands to the GPU
-  // to blit the final output to the render target.
-  explicit SkiaSoftwareRasterizer(
-      backend::GraphicsContext* graphics_context);
+  SkiaSoftwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed
   // into the constructor.
-  void Submit(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<backend::RenderTarget>& render_target) OVERRIDE;
+  void Submit(const scoped_refptr<render_tree::Node>& render_tree,
+              SkCanvas* render_target);
 
-  render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
+  render_tree::ResourceProvider* GetResourceProvider();
 
  private:
-  scoped_refptr<backend::RenderTarget> render_target_;
-  backend::GraphicsContext* graphics_context_;
   scoped_ptr<render_tree::ResourceProvider> resource_provider_;
 };
 
