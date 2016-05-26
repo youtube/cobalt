@@ -139,17 +139,19 @@ void SbWindowPrivate::Composite(
   XFillRectangle(display, composition_pixmap, composition_pixmap_gc, 0, 0,
                  width, height);
 
-  if (frame != NULL && !frame->pixels.empty() && frame->width > 0 &&
-      frame->height > 0) {
+  if (frame != NULL &&
+      frame->format() == starboard::shared::starboard::VideoFrame::kBGRA32 &&
+      frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
     XImage image = {0};
-    image.width = frame->width / 4;
-    image.height = frame->height / 4;
+    image.width = frame->width();
+    image.height = frame->height();
     image.format = ZPixmap;
-    image.data = reinterpret_cast<char*>(&(frame->pixels[0]));
+    image.data = const_cast<char*>(
+        reinterpret_cast<const char*>(frame->GetPlane(0).data));
     image.depth = 32;
     image.bits_per_pixel = 32;
     image.bitmap_pad = 32;
-    image.bytes_per_line = frame->pitch / 4 * 4;
+    image.bytes_per_line = frame->GetPlane(0).pitch_in_bytes;
     Status status = XInitImage(&image);
     SB_DCHECK(status);
 
