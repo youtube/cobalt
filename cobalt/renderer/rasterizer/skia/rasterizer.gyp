@@ -19,6 +19,7 @@
       'type': 'static_library',
 
       'sources': [
+        'gl_format_conversions.cc',
         'hardware_image.cc',
         'hardware_image.h',
         'hardware_rasterizer.cc',

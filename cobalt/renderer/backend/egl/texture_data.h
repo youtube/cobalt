@@ -19,8 +19,9 @@
 
 #include <GLES2/gl2.h>
 
-#include "cobalt/renderer/backend/surface_info.h"
-#include "cobalt/renderer/backend/texture.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/math/size.h"
 
 namespace cobalt {
 namespace renderer {
@@ -32,25 +33,84 @@ class GraphicsContextEGL;
 // convert their pixel buffer data to a GL texture object and return the handle
 // to it.  After this method is called, the TextureData should be considered
 // invalid.
-class TextureDataEGL : public TextureData {
+class TextureDataEGL {
  public:
+  virtual ~TextureDataEGL() {}
+
   virtual GLuint ConvertToTexture(GraphicsContextEGL* graphics_context,
                                   bool bgra_supported) = 0;
+  // Returns information about the kind of data this TextureData is
+  // intended to store.
+  virtual const math::Size& GetSize() const = 0;
+  virtual GLenum GetFormat() const = 0;
+
+  virtual int GetPitchInBytes() const = 0;
+
+  // Returns a pointer to the image data so that one can set pixel data as
+  // necessary.
+  virtual uint8_t* GetMemory() = 0;
 };
 
 // Similar to TextureDataEGL::ConvertToTexture(), though this creates a texture
-// without invalidating the RawTextureMemory object, so that multiple textures
-// may be created through this data.
-class RawTextureMemoryEGL : public RawTextureMemory {
+// without invalidating the RawTextureMemoryEGL object, so that multiple
+// textures may be created through this data.
+class RawTextureMemoryEGL {
  public:
+  virtual ~RawTextureMemoryEGL() {}
+
+  // Returns the allocated size of the texture memory.
+  virtual size_t GetSizeInBytes() const = 0;
+
+  // Returns a CPU-accessible pointer to the allocated memory.
+  virtual uint8_t* GetMemory() = 0;
+
   virtual GLuint CreateTexture(GraphicsContextEGL* graphics_context,
-                               intptr_t offset, const SurfaceInfo& surface_info,
-                               int pitch_in_bytes,
+                               intptr_t offset, const math::Size& size,
+                               GLenum format, int pitch_in_bytes,
                                bool bgra_supported) const = 0;
+
+ protected:
+  // Called within ConstRawTextureMemoryEGL's constructor to indicate that we
+  // are
+  // done modifying the contained data and that it should be frozen and made
+  // immutable at that point.  For example, if using GLES3 PBOs, this would be a
+  // good time to call glUnmapBuffer() on the data.
+  virtual void MakeConst() = 0;
+
+  friend class ConstRawTextureMemoryEGL;
+};
+
+// In order to allow the GPU to access raw texture memory, it must first be
+// made immutable by constructing a ConstRawTextureMemoryEGL object from a
+// RawTextureMemoryEGL object.  This is so that we can guarantee that when the
+// GPU starts reading it, the CPU will not be writing to it and possibly
+// creating a race condition.
+class ConstRawTextureMemoryEGL
+    : public base::RefCountedThreadSafe<ConstRawTextureMemoryEGL> {
+ public:
+  explicit ConstRawTextureMemoryEGL(
+      scoped_ptr<RawTextureMemoryEGL> raw_texture_memory)
+      : raw_texture_memory_(raw_texture_memory.Pass()) {
+    raw_texture_memory_->MakeConst();
+  }
+
+  const RawTextureMemoryEGL& raw_texture_memory() const {
+    return *raw_texture_memory_;
+  }
+
+  size_t GetSizeInBytes() const {
+    return raw_texture_memory_->GetSizeInBytes();
+  }
+
+ private:
+  virtual ~ConstRawTextureMemoryEGL() {}
+
+  scoped_ptr<RawTextureMemoryEGL> raw_texture_memory_;
+
+  friend class base::RefCountedThreadSafe<ConstRawTextureMemoryEGL>;
 };
 
 void SetupInitialTextureParameters();
-GLenum SurfaceInfoFormatToGL(SurfaceInfo::Format format);
 
 }  // namespace backend
 }  // namespace renderer

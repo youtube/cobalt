@@ -17,6 +17,7 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 
 #include <EGL/egl.h>
+#include <GLES2/gl2ext.h>
 
 namespace cobalt {
 namespace renderer {
@@ -46,6 +47,19 @@ EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
   }
 
   return context;
+}
+
+int BytesPerPixelForGLFormat(GLenum format) {
+  switch (format) {
+    case GL_RGBA:
+    case GL_BGRA_EXT:
+      return 4;
+    case GL_ALPHA:
+      return 1;
+    default:
+      NOTREACHED() << "Unknown GL format.";
+  }
+  return 0;
 }
 
 }  // namespace backend

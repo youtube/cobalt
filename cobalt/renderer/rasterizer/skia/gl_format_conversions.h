@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,25 @@
  * limitations under the License.
  */
 
-#include "cobalt/renderer/backend/egl/texture_data.h"
+#ifndef COBALT_RENDERER_RASTERIZER_SKIA_GL_FORMAT_CONVERSIONS_H_
+#define COBALT_RENDERER_RASTERIZER_SKIA_GL_FORMAT_CONVERSIONS_H_
 
 #include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 
-#include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/render_tree/image.h"
+#include "third_party/skia/include/gpu/GrTypes.h"
 
 namespace cobalt {
 namespace renderer {
-namespace backend {
+namespace rasterizer {
+namespace skia {
 
-void SetupInitialTextureParameters() {
-  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-}
+GLenum ConvertRenderTreeFormatToGL(render_tree::PixelFormat pixel_format);
+GrPixelConfig ConvertGLFormatToGr(GLenum gl_format);
 
-}  // namespace backend
+}  // namespace skia
+}  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // COBALT_RENDERER_RASTERIZER_SKIA_GL_FORMAT_CONVERSIONS_H_

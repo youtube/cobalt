@@ -22,10 +22,10 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/utils.h"
-#include "cobalt/renderer/backend/graphics_system.h"
 
 namespace cobalt {
 namespace renderer {
@@ -79,6 +79,10 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   bgra_format_supported_ = HasExtension("GL_EXT_texture_format_BGRA8888");
 
   SetupBlitObjects();
+}
+
+GraphicsSystemEGL* GraphicsContextEGL::system_egl() {
+  return base::polymorphic_downcast<GraphicsSystemEGL*>(system());
 }
 
 bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
@@ -253,25 +257,22 @@ void GraphicsContextEGL::ReleaseCurrentContext() {
   is_current_ = false;
 }
 
-scoped_ptr<Texture> GraphicsContextEGL::CreateTexture(
-    scoped_ptr<TextureData> texture_data) {
-  scoped_ptr<TextureDataEGL> texture_data_egl(
-      base::polymorphic_downcast<TextureDataEGL*>(texture_data.release()));
-
-  return scoped_ptr<Texture>(
-      new TextureEGL(this, texture_data_egl.Pass(), bgra_format_supported_));
+scoped_ptr<TextureEGL> GraphicsContextEGL::CreateTexture(
+    scoped_ptr<TextureDataEGL> texture_data) {
+  return make_scoped_ptr(
+      new TextureEGL(this, texture_data.Pass(), bgra_format_supported_));
 }
 
-scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromRawMemory(
-    const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
-    intptr_t offset, const SurfaceInfo& surface_info, int pitch_in_bytes) {
-  const RawTextureMemoryEGL* texture_memory_egl(
-      base::polymorphic_downcast<const RawTextureMemoryEGL*>(
-          &(raw_texture_memory->raw_texture_memory())));
+scoped_ptr<TextureEGL> GraphicsContextEGL::CreateTextureFromRawMemory(
+    const scoped_refptr<ConstRawTextureMemoryEGL>& raw_texture_memory,
+    intptr_t offset, const math::Size& size, GLenum format,
+    int pitch_in_bytes) {
+  const RawTextureMemoryEGL* texture_memory =
+      &(raw_texture_memory->raw_texture_memory());
 
-  return scoped_ptr<Texture>(new TextureEGL(this, texture_memory_egl, offset,
-                                            surface_info, pitch_in_bytes,
-                                            bgra_format_supported_));
+  return make_scoped_ptr(new TextureEGL(this, texture_memory, offset, size,
+                                        format, pitch_in_bytes,
+                                        bgra_format_supported_));
 }
 
 scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
@@ -280,16 +281,6 @@ scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
       display_, config_, dimensions));
 
   return render_target;
-}
-
-scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromOffscreenRenderTarget(
-    const scoped_refptr<RenderTarget>& render_target) {
-  PBufferRenderTargetEGL* pbuffer_render_target =
-      base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get());
-
-  scoped_ptr<Texture> texture(new TextureEGL(this, pbuffer_render_target));
-
-  return texture.Pass();
 }
 
 namespace {
@@ -306,12 +297,16 @@ void VerticallyFlipPixels(uint8_t* pixels, int pitch_in_bytes, int height) {
 }
 }  // namespace
 
-scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
-    const Texture& texture) {
+scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
+    const scoped_refptr<RenderTarget>& render_target) {
   TRACE_EVENT0("cobalt::renderer",
-               "GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA()");
-  const TextureEGL* texture_egl =
-      base::polymorphic_downcast<const TextureEGL*>(&texture);
+               "GraphicsContextEGL::DownloadPixelDataAsRGBA()");
+
+  PBufferRenderTargetEGL* pbuffer_render_target =
+      base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get());
+
+  scoped_ptr<TextureEGL> texture(new TextureEGL(this, pbuffer_render_target));
+
   ScopedMakeCurrent scoped_current_context(this);
 
   // This shouldn't be strictly necessary as glReadPixels() should implicitly
@@ -325,18 +320,17 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, texture_framebuffer));
 
-  GL_CALL(glFramebufferTexture2D(
-      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-      texture_egl->gl_handle(), 0));
+  GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                 GL_TEXTURE_2D, texture->gl_handle(), 0));
   DCHECK_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
-  const SurfaceInfo& surface_info = texture.GetSurfaceInfo();
+  int pitch_in_bytes =
+      texture->GetSize().width() * BytesPerPixelForGLFormat(GL_RGBA);
 
   scoped_array<uint8_t> pixels(
-      new uint8_t[surface_info.size.width() * surface_info.size.height() *
-                  surface_info.BytesPerPixel()]);
-  GL_CALL(glReadPixels(0, 0, surface_info.size.width(),
-                       surface_info.size.height(), GL_RGBA, GL_UNSIGNED_BYTE,
+      new uint8_t[texture->GetSize().height() * pitch_in_bytes]);
+  GL_CALL(glReadPixels(0, 0, texture->GetSize().width(),
+                       texture->GetSize().height(), GL_RGBA, GL_UNSIGNED_BYTE,
                        pixels.get()));
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -345,8 +339,6 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   // Vertically flip the resulting pixel data before returning so that the 0th
   // pixel is at the top-left.  While this is not a fast procedure, this
   // entire function is only intended to be used in debug/test code.
-  int pitch_in_bytes = surface_info.size.width() * surface_info.BytesPerPixel();
-
   if (!read_pixels_needs_vertical_flip_) {
     // Lazily compute whether we need to vertically flip our read back pixels
     // or not.
@@ -358,7 +350,7 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
     // to return already flipped pixels.  So in that case, we flip them again
     // before returning here.
     VerticallyFlipPixels(pixels.get(), pitch_in_bytes,
-                         surface_info.size.height());
+                         texture->GetSize().height());
   }
 
   return pixels.Pass();

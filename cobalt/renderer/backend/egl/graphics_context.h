@@ -25,12 +25,15 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
+#include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/backend/texture.h"
 
 namespace cobalt {
 namespace renderer {
 namespace backend {
+
+class GraphicsSystemEGL;
 
 // Encapsulates a context created via EGL, which implies that it makes
 // accessible the OpenGL ES API.
@@ -40,20 +43,20 @@ class GraphicsContextEGL : public GraphicsContext {
                      EGLConfig config, ResourceContext* resource_context);
   ~GraphicsContextEGL() OVERRIDE;
 
-  scoped_ptr<Texture> CreateTexture(
-      scoped_ptr<TextureData> texture_data) OVERRIDE;
+  GraphicsSystemEGL* system_egl();
 
-  scoped_ptr<Texture> CreateTextureFromRawMemory(
-      const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
-      intptr_t offset, const SurfaceInfo& surface_info,
-      int pitch_in_bytes) OVERRIDE;
+  scoped_ptr<TextureEGL> CreateTexture(scoped_ptr<TextureDataEGL> texture_data);
+
+  scoped_ptr<TextureEGL> CreateTextureFromRawMemory(
+      const scoped_refptr<ConstRawTextureMemoryEGL>& raw_texture_memory,
+      intptr_t offset, const math::Size& size, GLenum format,
+      int pitch_in_bytes);
 
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE;
-  scoped_ptr<Texture> CreateTextureFromOffscreenRenderTarget(
+
+  scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
-  scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
-      const Texture& texture) OVERRIDE;
 
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.

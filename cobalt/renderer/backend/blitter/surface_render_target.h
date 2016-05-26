@@ -19,7 +19,6 @@
 
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
-#include "cobalt/renderer/backend/surface_info.h"
 #include "starboard/blitter.h"
 
 namespace cobalt {
@@ -31,7 +30,7 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
   SurfaceRenderTargetBlitter(SbBlitterDevice device,
                              const math::Size& dimensions);
 
-  const SurfaceInfo& GetSurfaceInfo() OVERRIDE;
+  const math::Size& GetSize() OVERRIDE;
 
   SbBlitterRenderTarget GetSbRenderTarget() const OVERRIDE;
 
@@ -45,7 +44,7 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
   SbBlitterSurface surface_;
   SbBlitterRenderTarget render_target_;
 
-  SurfaceInfo surface_info_;
+  math::Size size_;
 };
 
 }  // namespace backend
