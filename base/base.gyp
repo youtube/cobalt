@@ -277,8 +277,7 @@
             ['_toolset == "target"', {
               'dependencies': [
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
-                '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
-                '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
+                '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
                ],
             }],  # _toolset == "target"
           ],
@@ -362,6 +361,7 @@
         ['OS=="starboard"', {
           'dependencies': [
             '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<(DEPTH)/starboard/client_porting/icu_init/icu_init.gyp:icu_init',
           ],
         }],
       ],
