@@ -214,7 +214,7 @@ bool AlsaAudioSink::PrerollLoop() {
         WriteFrames(kPrerollSizeInFrames, frames_in_buffer, offset_in_frames);
         return true;
       }
-      if (is_eos_reached && frames_in_buffer != 0) {
+      if (is_eos_reached && frames_in_buffer > 0) {
         WriteFrames(frames_in_buffer, frames_in_buffer, offset_in_frames);
         return true;
       }
@@ -257,8 +257,10 @@ bool AlsaAudioSink::PlaybackLoop() {
           (frames_in_buffer < kFramesPerRequest && !is_eos_reached)) {
         return true;
       }
-      WriteFrames(std::min(kFramesPerRequest, frames_in_buffer),
-                  frames_in_buffer, offset_in_frames);
+      if (frames_in_buffer > 0) {
+        WriteFrames(std::min(kFramesPerRequest, frames_in_buffer),
+                    frames_in_buffer, offset_in_frames);
+      }
     } else {
       SbThreadSleep(time_to_wait_);
     }
