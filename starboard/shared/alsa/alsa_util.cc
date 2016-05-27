@@ -159,6 +159,10 @@ void* AlsaOpenPlaybackDevice(int channel,
 int AlsaWriteFrames(void* playback_handle,
                     const float* buffer,
                     int frames_to_write) {
+  if (frames_to_write == 0) {
+    return 0;
+  }
+
   int frames = 0;
   for (;;) {
     frames = snd_pcm_writei(reinterpret_cast<snd_pcm_t*>(playback_handle),
