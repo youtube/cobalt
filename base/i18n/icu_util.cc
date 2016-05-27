@@ -25,6 +25,10 @@
 #include "base/mac/foundation_util.h"
 #endif
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/icu_init/icu_init.h"
+#endif
+
 #define ICU_UTIL_DATA_FILE   0
 #define ICU_UTIL_DATA_SHARED 1
 #define ICU_UTIL_DATA_STATIC 2
@@ -88,7 +92,7 @@ bool Initialize() {
   // Mac/Linux bundle the ICU data in.
   return true;
 #elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
-#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
+#if defined(__LB_SHELL__)
   // Locate the data directory.
   FilePath data_path;
   bool path_ok = PathService::Get(base::DIR_EXE, &data_path);
@@ -104,6 +108,9 @@ bool Initialize() {
   UErrorCode err = U_ZERO_ERROR;
   udata_setFileAccess(UDATA_FILES_FIRST, &err);
   return err == U_ZERO_ERROR;
+#elif defined(OS_STARBOARD)
+  SbIcuInit();
+  return true;
 #elif !defined(OS_MACOSX)
   // For now, expect the data file to be alongside the executable.
   // This is sufficient while we work on unit tests, but will eventually
