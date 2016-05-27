@@ -23,9 +23,6 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#if defined(OS_STARBOARD)
-#include "starboard/configuration.h"
-#endif  // defined(OS_STARBOARD)
 
 namespace media {
 
@@ -52,9 +49,7 @@ ShellVideoDataAllocatorCommon::ShellVideoDataAllocatorCommon(
     : resource_provider_(resource_provider),
       minimum_allocation_size_(minimum_allocation_size),
       maximum_allocation_size_(maximum_allocation_size),
-      minimum_alignment_(minimum_alignment) {
-  CreatePunchOutFrame();
-}
+      minimum_alignment_(minimum_alignment) {}
 
 scoped_refptr<ShellVideoDataAllocator::FrameBuffer>
 ShellVideoDataAllocatorCommon::AllocateFrameBuffer(size_t size,
@@ -122,26 +117,6 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
       param.visible_rect(), visible_size, timestamp, VideoFrame::ReadPixelsCB(),
       base::Bind(ReleaseImage, image));
   return video_frame;
-}
-
-void ShellVideoDataAllocatorCommon::CreatePunchOutFrame() {
-#if defined(OS_STARBOARD) && defined(SB_IS_PLAYER_PUNCHED_OUT)
-  // TODO: Add special type of Image for punch out to ensure that it always
-  // covers the render target in any aspect ratio.
-  // Use a 16:9 frame to ensure the proper aspect ratio.
-  cobalt::math::Size size(16, 9);
-  scoped_ptr<ImageData> image_data = resource_provider_->AllocateImageData(
-      size, kPixelFormatRGBA8, kAlphaFormatPremultiplied);
-  const ImageDataDescriptor& descriptor = image_data->GetDescriptor();
-  memset(image_data->GetMemory(), 0,
-         descriptor.size.height() * descriptor.pitch_in_bytes);
-  scoped_refptr<Image> image =
-      resource_provider_->CreateImage(image_data.Pass());
-  punch_out_frame_ = VideoFrame::WrapNativeTexture(
-      reinterpret_cast<uintptr_t>(image.get()), 0, size,
-      cobalt::math::Rect(size), size, base::TimeDelta(),
-      VideoFrame::ReadPixelsCB(), base::Bind(ReleaseImage, image));
-#endif  // defined(OS_STARBOARD) && defined(SB_IS_PLAYER_PUNCHED_OUT)
 }
 
 ShellVideoDataAllocatorCommon::FrameBufferCommon::FrameBufferCommon(
