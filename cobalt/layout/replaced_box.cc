@@ -30,7 +30,18 @@
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
+
+// Here we determine if we are going to be rendering video ourselves, or if
+// the Starboard Player system will be rendering video in which case we need to
+// punch through our scene so that the video will be visible.
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#define PUNCH_THROUGH_VIDEO_RENDERING SB_IS(PLAYER_PUNCHED_OUT)
+#else  // defined(OS_STARBOARD)
+#define PUNCH_THROUGH_VIDEO_RENDERING 0
+#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace layout {
@@ -38,6 +49,7 @@ namespace layout {
 using render_tree::animations::NodeAnimationsMap;
 using render_tree::CompositionNode;
 using render_tree::ImageNode;
+using render_tree::PunchThroughVideoNode;
 using render_tree::RectNode;
 using render_tree::SolidColorBrush;
 
@@ -71,9 +83,7 @@ ReplacedBox::ReplacedBox(
       intrinsic_ratio_(maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)),
       replace_image_cb_(replace_image_cb),
       paragraph_(paragraph),
-      text_position_(text_position) {
-  DCHECK(!replace_image_cb_.is_null());
-}
+      text_position_(text_position) {}
 
 WrapResult ReplacedBox::TryWrapAt(
     WrapAtPolicy /*wrap_at_policy*/,
@@ -163,17 +173,11 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
 
 namespace {
 
-void AddLetterboxedImageToRenderTree(
-    const LetterboxDimensions& dimensions,
-    const scoped_refptr<render_tree::Image>& image,
-    CompositionNode::Builder* composition_node_builder) {
-  const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
+#if !PUNCH_THROUGH_VIDEO_RENDERING
 
-  if (dimensions.image_rect) {
-    ImageNode::Builder image_builder(image, *dimensions.image_rect);
-    image_builder.punch_through_alpha = true;
-    composition_node_builder->AddChild(new ImageNode(image_builder));
-  }
+void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
+                           CompositionNode::Builder* composition_node_builder) {
+  const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
 
   for (uint32 i = 0; i < dimensions.fill_rects.size(); ++i) {
     const math::RectF& fill_rect = dimensions.fill_rects[i];
@@ -182,6 +186,20 @@ void AddLetterboxedImageToRenderTree(
         scoped_ptr<render_tree::Brush>(new SolidColorBrush(kSolidBlack))));
   }
 }
+
+void AddLetterboxedImageToRenderTree(
+    const LetterboxDimensions& dimensions,
+    const scoped_refptr<render_tree::Image>& image,
+    CompositionNode::Builder* composition_node_builder) {
+  if (dimensions.image_rect) {
+    ImageNode::Builder image_builder(image, *dimensions.image_rect);
+    composition_node_builder->AddChild(new ImageNode(image_builder));
+  }
+
+  AddLetterboxFillRects(dimensions, composition_node_builder);
+}
+
+#endif  // !PUNCH_THROUGH_VIDEO_RENDERING
 
 void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
                math::SizeF destination_size,
@@ -192,6 +210,12 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
   DCHECK(!replace_image_cb.is_null());
   DCHECK(composition_node_builder);
 
+#if PUNCH_THROUGH_VIDEO_RENDERING
+  // For systems that have their own path to blitting video to the display, we
+  // simply punch a hole through our scene so that the video can appear there.
+  composition_node_builder->AddChild(
+      new PunchThroughVideoNode(math::RectF(destination_size)));
+#else
   scoped_refptr<render_tree::Image> image = replace_image_cb.Run();
 
   // TODO(***REMOVED***): Detect better when the intrinsic video size is used for the
@@ -206,13 +230,20 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
         GetLetterboxDimensions(image->GetSize(), destination_size), image,
         composition_node_builder);
   }
+#endif
 }
 
 }  // namespace
+
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
+    return;
+  }
+
+  if (replace_image_cb_.is_null()) {
+    // Nothing to render.
     return;
   }
 
@@ -222,9 +253,11 @@ void ReplacedBox::RenderAndAnimateContent(
 
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
+
   node_animations_map_builder->Add(
       composition_node,
       base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
+
   border_node_builder->AddChild(composition_node);
 }
 

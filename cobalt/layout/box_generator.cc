@@ -53,8 +53,8 @@ namespace {
 
 scoped_refptr<render_tree::Image> GetVideoFrame(
     const scoped_refptr<ShellVideoFrameProvider>& frame_provider) {
-  scoped_refptr<VideoFrame> video_frame =
-      frame_provider ? frame_provider->GetCurrentFrame() : NULL;
+  DCHECK(frame_provider);
+  scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
   if (video_frame && video_frame->texture_id()) {
     scoped_refptr<render_tree::Image> image =
         reinterpret_cast<render_tree::Image*>(video_frame->texture_id());
@@ -282,7 +282,9 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // adaptive videos.
   ReplacedBoxGenerator replaced_box_generator(
       video_element->css_computed_style_declaration(),
-      base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider()),
+      video_element->GetVideoFrameProvider() ?
+          base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider()) :
+          ReplacedBox::ReplaceImageCB(),
       *paragraph_, text_position, base::nullopt, base::nullopt, base::nullopt,
       used_style_provider_);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);

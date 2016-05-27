@@ -27,6 +27,7 @@
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
+#include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 
@@ -69,6 +70,8 @@ class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
   void Visit(render_tree::ImageNode* image_node) OVERRIDE;
   void Visit(render_tree::MatrixTransformNode* matrix_transform_node) OVERRIDE;
+  void Visit(
+      render_tree::PunchThroughVideoNode* punch_through_video_node) OVERRIDE;
   void Visit(render_tree::RectNode* rect_node) OVERRIDE;
   void Visit(render_tree::RectShadowNode* rect_shadow_node) OVERRIDE;
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
