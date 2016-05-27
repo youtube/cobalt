@@ -14,7 +14,6 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 
-#include "starboard/log.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -22,6 +21,12 @@ namespace shared {
 namespace ffmpeg {
 
 namespace {
+
+// FFmpeg requires its decoding buffers to align with platform alignment.  It
+// mentions inside
+// http://ffmpeg.org/doxygen/trunk/structAVFrame.html#aa52bfc6605f6a3059a0c3226cc0f6567
+// that the alignment on most modern desktop systems are 16 or 32.
+static const int kAlignment = 32;
 
 size_t AlignUp(size_t size, int alignment) {
   SB_DCHECK((alignment & (alignment - 1)) == 0);
@@ -33,8 +38,6 @@ size_t GetYV12SizeInBytes(int32_t width, int32_t height) {
 }
 
 int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame) {
-  const int kAlignment = VideoDecoder::kAlignment;
-
   SB_DCHECK(codec_context->pix_fmt == PIX_FMT_YUV420P);
   if (codec_context->pix_fmt != PIX_FMT_YUV420P) {
     return AVERROR(EINVAL);
@@ -81,82 +84,116 @@ void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
   SbMemoryFree(frame->opaque);
   frame->opaque = NULL;
 
-  // The FFmpeg API expects us to zero the data pointers in
-  // this callback
+  // The FFmpeg API expects us to zero the data pointers in this callback.
   SbMemorySet(frame->data, 0, sizeof(frame->data));
 }
 
 }  // namespace
 
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
-    : codec_context_(NULL), av_frame_(NULL), stream_ended_(false) {
-  SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
+VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
+                           DecoderStatusFunc decoder_status_func,
+                           void* context)
+    : video_codec_(video_codec),
+      decoder_status_func_(decoder_status_func),
+      context_(context),
+      codec_context_(NULL),
+      av_frame_(NULL),
+      stream_ended_(false),
+      error_occured_(false),
+      decoder_thread_(kSbThreadInvalid) {
+  SB_DCHECK(decoder_status_func != NULL);
 
   InitializeCodec();
 }
 
 VideoDecoder::~VideoDecoder() {
+  Reset();
   TeardownCodec();
 }
 
-void VideoDecoder::WriteEncodedFrame(const void* sample_buffer,
-                                     int sample_buffer_size,
-                                     SbMediaTime sample_pts) {
+void VideoDecoder::WriteInputBuffer(InputBuffer* input_buffer) {
+  SB_DCHECK(input_buffer != NULL);
+  SB_DCHECK(queue_.Poll().type == kInvalid);
+
   if (stream_ended_) {
-    SB_LOG(ERROR) << "WriteEncodedFrame() is called after WriteEndOfStream().";
+    SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
     return;
   }
 
-  AVPacket packet;
-  av_init_packet(&packet);
-  packet.data =
-      const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(sample_buffer));
-  packet.size = sample_buffer_size;
-  packet.pts = sample_pts;
-
-  DecodePacket(&packet);
-}
-
-bool VideoDecoder::ReadDecodedFrame(Frame* frame) {
-  if (frames_.empty()) {
-    if (!stream_ended_) {
-      return false;
-    }
-
-    AVPacket packet;
-    av_init_packet(&packet);
-    packet.data = NULL;
-    packet.size = 0;
-    packet.pts = 0;
-
-    DecodePacket(&packet);
-
-    if (frames_.empty()) {
-      *frame = starboard::VideoFrame::CreateEOSFrame();
-      return true;
-    }
+  if (!SbThreadIsValid(decoder_thread_)) {
+    decoder_thread_ =
+        SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
+                       "ff_video_dec", &VideoDecoder::ThreadEntryPoint, this);
+    SB_DCHECK(SbThreadIsValid(decoder_thread_));
   }
 
-  *frame = frames_.front();
-  frames_.pop();
-
-  return true;
+  queue_.Put(Event(kWriteInputBuffer, input_buffer));
 }
 
 void VideoDecoder::WriteEndOfStream() {
-  // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
-  // to ensure that Decode() is not called when the stream is ended.
+  // We have to flush the decoder to decode the rest frames and to ensure that
+  // Decode() is not called when the stream is ended.
   stream_ended_ = true;
+  queue_.Put(Event(kWriteEndOfStream));
 }
 
 void VideoDecoder::Reset() {
+  // Join the thread to ensure that all callbacks in process are finished.
+  if (SbThreadIsValid(decoder_thread_)) {
+    queue_.Put(Event(kReset));
+    SbThreadJoin(decoder_thread_, NULL);
+  }
+
+  decoder_thread_ = kSbThreadInvalid;
   stream_ended_ = false;
-  while (!frames_.empty()) {
-    frames_.pop();
+}
+
+// static
+void* VideoDecoder::ThreadEntryPoint(void* context) {
+  SB_DCHECK(context);
+  VideoDecoder* decoder = reinterpret_cast<VideoDecoder*>(context);
+  decoder->DecoderThreadFunc();
+  return NULL;
+}
+
+void VideoDecoder::DecoderThreadFunc() {
+  for (;;) {
+    Event event = queue_.Get();
+    if (event.type == kReset) {
+      return;
+    }
+    if (error_occured_) {
+      continue;
+    }
+    if (event.type == kWriteInputBuffer) {
+      // Send |input_buffer| to ffmpeg and try to decode one frame.
+      AVPacket packet;
+      av_init_packet(&packet);
+      packet.data = const_cast<uint8_t*>(event.input_buffer->data());
+      packet.size = event.input_buffer->size();
+      packet.pts = event.input_buffer->pts();
+
+      DecodePacket(&packet);
+      decoder_status_func_(kNeedMoreInput, NULL, context_);
+      delete event.input_buffer;
+    } else {
+      SB_DCHECK(event.type == kWriteEndOfStream);
+      // Stream has ended, try to decode any frames left in ffmpeg.
+      AVPacket packet;
+      do {
+        av_init_packet(&packet);
+        packet.data = NULL;
+        packet.size = 0;
+        packet.pts = 0;
+      } while (DecodePacket(&packet));
+
+      starboard::VideoFrame frame = starboard::VideoFrame::CreateEOSFrame();
+      decoder_status_func_(kBufferFull, &frame, context_);
+    }
   }
 }
 
-void VideoDecoder::DecodePacket(AVPacket* packet) {
+bool VideoDecoder::DecodePacket(AVPacket* packet) {
   SB_DCHECK(packet != NULL);
 
   avcodec_get_frame_defaults(av_frame_);
@@ -164,21 +201,23 @@ void VideoDecoder::DecodePacket(AVPacket* packet) {
   int result =
       avcodec_decode_video2(codec_context_, av_frame_, &frame_decoded, packet);
   if (frame_decoded == 0) {
-    return;
+    return false;
   }
 
   if (av_frame_->opaque == NULL) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
-    // TODO: Report fatal decoder error.
-    return;
+    decoder_status_func_(kFatalError, NULL, context_);
+    error_occured_ = true;
+    return false;
   }
 
   int pitch = AlignUp(av_frame_->width, kAlignment * 2);
-  // uint8_t* pixels = reinterpret_cast<uint8_t*>(av_frame_->opaque);
 
-  frames_.push(starboard::VideoFrame::CreateYV12Frame(
+  starboard::VideoFrame frame = starboard::VideoFrame::CreateYV12Frame(
       av_frame_->width, av_frame_->height, pitch, av_frame_->pkt_pts,
-      av_frame_->data[0], av_frame_->data[1], av_frame_->data[2]));
+      av_frame_->data[0], av_frame_->data[1], av_frame_->data[2]);
+  decoder_status_func_(kBufferFull, &frame, context_);
+  return true;
 }
 
 void VideoDecoder::InitializeCodec() {
