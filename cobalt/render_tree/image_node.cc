@@ -25,23 +25,20 @@ ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
                             const math::RectF& destination_rect)
     : source(source),
       destination_rect(destination_rect),
-      local_transform(math::Matrix3F::Identity()),
-      punch_through_alpha(false) {}
+      local_transform(math::Matrix3F::Identity()) {}
 
 ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
                             const math::Vector2dF& offset)
     : source(source),
       destination_rect(PointAtOffsetFromOrigin(offset), source->GetSize()),
-      local_transform(math::Matrix3F::Identity()),
-      punch_through_alpha(false) {}
+      local_transform(math::Matrix3F::Identity()) {}
 
 ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
                             const math::RectF& destination_rect,
                             const math::Matrix3F& local_transform)
     : source(source),
       destination_rect(destination_rect),
-      local_transform(local_transform),
-      punch_through_alpha(false) {}
+      local_transform(local_transform) {}
 
 ImageNode::ImageNode(const scoped_refptr<Image>& source)
     : data_(source, source ? math::RectF(source->GetSize()) : math::RectF()) {}

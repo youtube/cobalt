@@ -440,12 +440,10 @@ class RasterizeSkiaImageVisitor : public SkiaImageVisitor {
  public:
   RasterizeSkiaImageVisitor(SkCanvas* render_target,
                             const math::RectF& destination_rect,
-                            const math::Matrix3F* local_transform,
-                            bool punch_through_alpha)
+                            const math::Matrix3F* local_transform)
       : render_target_(render_target),
         destination_rect_(destination_rect),
-        local_transform_(local_transform),
-        punch_through_alpha_(punch_through_alpha) {}
+        local_transform_(local_transform) {}
 
   void VisitSinglePlaneImage(SkiaSinglePlaneImage* single_plane_image) OVERRIDE;
   void VisitMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image) OVERRIDE;
@@ -454,7 +452,6 @@ class RasterizeSkiaImageVisitor : public SkiaImageVisitor {
   SkCanvas* render_target_;
   const math::RectF& destination_rect_;
   const math::Matrix3F* local_transform_;
-  bool punch_through_alpha_;
 };
 
 namespace {
@@ -489,13 +486,9 @@ bool LocalCoordsStaysWithinUnitBox(const math::Matrix3F& mat) {
          mat.Get(1, 2) <= 0.0f && 1.0f - mat.Get(1, 2) <= mat.Get(1, 1);
 }
 
-SkPaint CreateSkPaintForImageRendering(bool punch_through_alpha) {
+SkPaint CreateSkPaintForImageRendering() {
   SkPaint paint;
   paint.setFilterLevel(SkPaint::kLow_FilterLevel);
-
-  if (punch_through_alpha) {
-    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
-  }
 
   return paint;
 }
@@ -503,7 +496,7 @@ SkPaint CreateSkPaintForImageRendering(bool punch_through_alpha) {
 
 void RasterizeSkiaImageVisitor::VisitSinglePlaneImage(
     SkiaSinglePlaneImage* single_plane_image) {
-  SkPaint paint = CreateSkPaintForImageRendering(punch_through_alpha_);
+  SkPaint paint = CreateSkPaintForImageRendering();
 
   // In the most frequent by far case where the normalized transformed image
   // texture coordinates lie within the unit square, then we must ensure NOT
@@ -576,7 +569,7 @@ void RasterizeSkiaImageVisitor::VisitMultiPlaneImage(
       SkNEW_ARGS(SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
                                    u_bitmap, u_matrix, v_bitmap, v_matrix)));
 
-  SkPaint paint = CreateSkPaintForImageRendering(punch_through_alpha_);
+  SkPaint paint = CreateSkPaintForImageRendering();
   paint.setShader(yuv2rgb_shader);
   render_target_->drawRect(CobaltRectFToSkiaRect(destination_rect_), paint);
 }
@@ -606,23 +599,11 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // that.
   image->EnsureInitialized();
 
-  if (image_node->data().punch_through_alpha &&
-      visitor_type_ == kType_SubVisitor) {
-    DLOG(ERROR) << "Punch through alpha images cannot be rendered via "
-                   "offscreen surfaces (since the offscreen surface will then "
-                   "be composed using blending).  Unfortunately, you will have "
-                   "to find another way to arrange your render tree if you "
-                   "wish to use punch through alpha (e.g. ensure no opacity "
-                   "filters exist as an ancestor to this node).";
-    // We proceed anyway, just in case things happen to work out.
-  }
-
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
   RasterizeSkiaImageVisitor image_visitor(
       render_target_, image_node->data().destination_rect,
-      &(image_node->data().local_transform),
-      image_node->data().punch_through_alpha);
+      &(image_node->data().local_transform));
   image->Accept(&image_visitor);
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
@@ -648,6 +629,35 @@ void SkiaRenderTreeNodeVisitor::Visit(
   matrix_transform_node->data().source->Accept(this);
 
   render_target_->restore();
+
+#if ENABLE_FLUSH_AFTER_EVERY_NODE
+  render_target_->flush();
+#endif
+}
+
+void SkiaRenderTreeNodeVisitor::Visit(
+    render_tree::PunchThroughVideoNode* punch_through_video_node) {
+#if ENABLE_RENDER_TREE_VISITOR_TRACING
+  TRACE_EVENT0("cobalt::renderer", "Visit(PunchThroughVideoNode)");
+#endif
+
+  if (visitor_type_ == kType_SubVisitor) {
+    DLOG(ERROR) << "Punch through alpha images cannot be rendered via "
+                   "offscreen surfaces (since the offscreen surface will then "
+                   "be composed using blending).  Unfortunately, you will have "
+                   "to find another way to arrange your render tree if you "
+                   "wish to use punch through alpha (e.g. ensure no opacity "
+                   "filters exist as an ancestor to this node).";
+    // We proceed anyway, just in case things happen to work out.
+  }
+
+  const math::RectF& rect = punch_through_video_node->data().rect;
+
+  SkPaint paint;
+  paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+  paint.setARGB(0, 0, 0, 0);
+  render_target_->drawRect(
+      SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height()), paint);
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   render_target_->flush();

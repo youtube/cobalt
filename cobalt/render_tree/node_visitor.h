@@ -24,6 +24,7 @@ class CompositionNode;
 class FilterNode;
 class ImageNode;
 class MatrixTransformNode;
+class PunchThroughVideoNode;
 class RectNode;
 class RectShadowNode;
 class TextNode;
@@ -36,7 +37,8 @@ class NodeVisitor {
   virtual void Visit(CompositionNode* composition) = 0;
   virtual void Visit(FilterNode* text) = 0;
   virtual void Visit(ImageNode* image) = 0;
-  virtual void Visit(MatrixTransformNode* image) = 0;
+  virtual void Visit(MatrixTransformNode* transform) = 0;
+  virtual void Visit(PunchThroughVideoNode* punch_through) = 0;
   virtual void Visit(RectNode* rect) = 0;
   virtual void Visit(RectShadowNode* rect) = 0;
   virtual void Visit(TextNode* text) = 0;
