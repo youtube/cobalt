@@ -46,6 +46,7 @@
         'node.h',
         'node_visitor.h',
         'opacity_filter.h',
+        'punch_through_video_node.cc',
         'rect_node.cc',
         'rect_node.h',
         'rect_shadow_node.cc',

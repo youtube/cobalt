@@ -26,6 +26,7 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
+#include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
@@ -45,6 +46,7 @@ using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::NodeVisitor;
 using cobalt::render_tree::OpacityFilter;
+using cobalt::render_tree::PunchThroughVideoNode;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::RectShadowNode;
 using cobalt::render_tree::TextNode;
@@ -55,6 +57,7 @@ class MockNodeVisitor : public NodeVisitor {
   MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
   MOCK_METHOD1(Visit, void(MatrixTransformNode* matrix_transform_node));
+  MOCK_METHOD1(Visit, void(PunchThroughVideoNode* punch_through_video_node));
   MOCK_METHOD1(Visit, void(RectNode* rect));
   MOCK_METHOD1(Visit, void(RectShadowNode* rect_shadow));
   MOCK_METHOD1(Visit, void(TextNode* text));
@@ -106,6 +109,14 @@ TEST(NodeVisitorTest, VisitsMatrixTransform) {
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(matrix_transform_node.get()));
   matrix_transform_node->Accept(&mock_visitor);
+}
+
+TEST(NodeVisitorTest, VisitsPunchThroughVideo) {
+  scoped_refptr<PunchThroughVideoNode> punch_through_video_node(
+      new PunchThroughVideoNode(cobalt::math::RectF()));
+  MockNodeVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, Visit(punch_through_video_node.get()));
+  punch_through_video_node->Accept(&mock_visitor);
 }
 
 TEST(NodeVisitorTest, VisitsRect) {
