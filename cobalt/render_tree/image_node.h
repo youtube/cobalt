@@ -53,17 +53,6 @@ class ImageNode : public Node {
     // matrix that scales the image coordinates by 0.5 in all directions, the
     // image will appear zoomed out.
     math::Matrix3F local_transform;
-
-    // If true, will disable alpha blending for this image and overwrite the
-    // destination alpha with the alpha from the image.  Defaults to false.
-    // WARNING: It is very difficult for implementations to support this
-    //          properly in every scenario (e.g. if the renderer happens to be
-    //          rendering to an offscreen surface when this ImageNode is
-    //          encountered, the punch through will apply to the offscreen
-    //          surface, which itself may be blended with the final image.)
-    //          Use this setting sparingly.  As of now it is used only to
-    //          support punch out video rendering.
-    bool punch_through_alpha;
   };
 
   explicit ImageNode(const Builder& builder) : data_(builder) {}
