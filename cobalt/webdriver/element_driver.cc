@@ -42,8 +42,8 @@ base::optional<std::string> GetAttribute(const std::string& attribute_name,
 std::string GetCssProperty(const std::string& property_name,
                            dom::Element* element) {
   DCHECK(element);
-  DCHECK(element->owner_document());
-  element->owner_document()->UpdateComputedStyles();
+  DCHECK(element->node_document());
+  element->node_document()->UpdateComputedStyles();
 
   scoped_refptr<dom::HTMLElement> html_element(element->AsHTMLElement());
   DCHECK(html_element);
