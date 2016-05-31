@@ -870,7 +870,9 @@ void BoxGenerator::Visit(dom::Text* text) {
   DCHECK(css_computed_style_declaration->data());
 
   const std::string& original_text = text->text();
-  DCHECK_GT(original_text.size(), size_t(0));
+  if (original_text.empty()) {
+    return;
+  }
 
   const scoped_refptr<cssom::PropertyValue>& white_space_property =
       css_computed_style_declaration->data()->white_space();
