@@ -178,7 +178,7 @@ class _GypRunner(object):
     """Makes a list of GYP arguments that is common to all configurations."""
 
     # Flavor will be used by the generator to figure out the target platform.
-    flavor = self.options.platform
+    flavor = self.platform_config.GetBuildFlavor()
     source_tree_dir = gyp_utils.GetSourceTreeDir()
     self.common_args = [
         # Set the build format
