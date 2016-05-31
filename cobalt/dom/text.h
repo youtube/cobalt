@@ -48,7 +48,7 @@ class Text : public CharacterData {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Text(owner_document(), data());
+    return new Text(node_document(), data());
   }
 
   DEFINE_WRAPPABLE_TYPE(Text);

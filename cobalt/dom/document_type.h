@@ -55,7 +55,7 @@ class DocumentType : public Node {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new DocumentType(owner_document(), name_, public_id_, system_id_);
+    return new DocumentType(node_document(), name_, public_id_, system_id_);
   }
 
   DEFINE_WRAPPABLE_TYPE(DocumentType);
