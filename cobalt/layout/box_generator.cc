@@ -102,7 +102,7 @@ void BoxGenerator::Visit(dom::Element* element) {
   bool partial_layout_is_enabled = true;
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   partial_layout_is_enabled =
-      html_element->owner_document()->partial_layout_is_enabled();
+      html_element->node_document()->partial_layout_is_enabled();
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // If the html element already has layout boxes, we can reuse them.
@@ -748,7 +748,7 @@ void BoxGenerator::AppendPseudoElementToLine(
       pseudo_element->computed_style()->content()->Accept(&content_provider);
       if (content_provider.is_element_generated()) {
         scoped_refptr<dom::Text> child_node(new dom::Text(
-            html_element->owner_document(), content_provider.content_string()));
+            html_element->node_document(), content_provider.content_string()));
 
         // In the case where the pseudo element has no color property of its
         // own, but is directly inheriting a color property from its parent html

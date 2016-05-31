@@ -345,6 +345,17 @@ TEST_F(NodeTest, NonDocumentTypeChildNode) {
   EXPECT_EQ(kNullNode, child3->next_element_sibling());
 }
 
+TEST_F(NodeTest, OwnerDocumentAndNodeDocument) {
+  scoped_refptr<Node> element1 = new Element(document_);
+  scoped_refptr<Node> element2 = new Element(document_);
+  EXPECT_FALSE(document_->owner_document());
+  EXPECT_EQ(document_, document_->node_document());
+  EXPECT_EQ(document_, element1->owner_document());
+  EXPECT_EQ(document_, element1->node_document());
+  EXPECT_EQ(document_, element2->owner_document());
+  EXPECT_EQ(document_, element2->node_document());
+}
+
 TEST_F(NodeTest, AdoptIntoDocument) {
   scoped_refptr<Element> element = new Element(document_);
   document_->AppendChild(element);

@@ -149,7 +149,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
   // 1. Let doc be the Document associated with the Window object on which the
   // method was invoked.
-  DCHECK_EQ(document_, elt->owner_document())
+  DCHECK_EQ(document_, elt->node_document())
       << "getComputedStyle not supported for elements outside of the document";
 
   scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
