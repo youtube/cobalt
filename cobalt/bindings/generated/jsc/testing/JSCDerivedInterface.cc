@@ -78,6 +78,7 @@ using cobalt::script::javascriptcore::ScriptObjectRegistry;
 using cobalt::script::javascriptcore::ToJSValue;
 using cobalt::script::javascriptcore::ToWTFString;
 using cobalt::script::javascriptcore::PrototypeBase;
+using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::WrapperBase;
 using cobalt::script::javascriptcore::util::HasPropertyOnPrototype;
 using cobalt::script::javascriptcore::util::GetStackTrace;
@@ -138,7 +139,8 @@ class JSCDerivedInterface::InterfaceObject : public ConstructorBase {
     // Same process as JSC::getStaticPropertySlot<>, which is defined in Lookup.h
     // Since JSFunction::getOwnPropertySlot is protected, we can't call it from
     // the helper function.
-    const JSC::HashEntry* entry = property_table.entry(exec, property_name);
+    const JSC::HashEntry* entry =
+        GetPropertyTable(exec)->entry(exec, property_name);
 
     if (!entry) // not found, forward to parent
       return Base::getOwnPropertySlot(this_object, exec, property_name, slot);
@@ -157,7 +159,8 @@ class JSCDerivedInterface::InterfaceObject : public ConstructorBase {
     InterfaceObject* this_object = JSC::jsCast<InterfaceObject*>(cell);
     ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
     bool found_property = JSC::lookupPut<InterfaceObject>(
-        exec_state, property_name, value, &property_table, this_object, slot.isStrictMode());
+        exec_state, property_name, value, GetPropertyTable(exec_state),
+        this_object, slot.isStrictMode());
     DLOG_IF(INFO, !found_property) << "Did not find property named " <<
         WTF::String(property_name.publicName()).utf8().data() <<
         " to set on interface object for JSCDerivedInterface";
@@ -194,8 +197,11 @@ class JSCDerivedInterface::InterfaceObject : public ConstructorBase {
                       JSC::NativeExecutable* native_executable, int length,
                       const String& name);
 
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
+
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCDerivedInterface::InterfaceObject::property_table_values[] = {
@@ -203,19 +209,34 @@ const JSC::HashTableValue JSCDerivedInterface::InterfaceObject::property_table_v
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCDerivedInterface::InterfaceObject::property_table_values
 
-JSC::HashTable JSCDerivedInterface::InterfaceObject::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCDerivedInterface::InterfaceObject::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable
+JSCDerivedInterface::InterfaceObject::property_table_prototype = {
     // Sizes will be calculated based on the number of static functions as well.
     2,  // compactSize
     1,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCDerivedInterface::InterfaceObject::property_table
+};  // JSCDerivedInterface::InterfaceObject::property_table_prototype
+
+// static
+const JSC::HashTable*
+JSCDerivedInterface::InterfaceObject::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo JSCDerivedInterface::InterfaceObject::s_info = {
     "DerivedInterfaceConstructor",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCDerivedInterface::InterfaceObject)
 };  // JSCDerivedInterface::InterfaceObject::s_info
 
@@ -298,9 +319,12 @@ class JSCDerivedInterface::Prototype : public PrototypeBase {
   static JSC::JSValue GetConstructor(JSC::ExecState* exec_state,
       JSC::JSValue slot_base,
       JSC::PropertyName property_name);
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
 
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable>
+      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCDerivedInterface::Prototype::property_table_values[] = {
@@ -319,18 +343,31 @@ const JSC::HashTableValue JSCDerivedInterface::Prototype::property_table_values[
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCDerivedInterface::Prototype::property_table_values
 
-JSC::HashTable JSCDerivedInterface::Prototype::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCDerivedInterface::Prototype::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable JSCDerivedInterface::Prototype::property_table_prototype = {
     9,  // compactSize
     7,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCDerivedInterface::Prototype::property_table
+};  // JSCDerivedInterface::Prototype::property_table_prototype
+
+// static
+const JSC::HashTable* JSCDerivedInterface::Prototype::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo JSCDerivedInterface::Prototype::s_info = {
     "DerivedInterfacePrototype",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCDerivedInterface::Prototype)
 };  // JSCDerivedInterface::Prototype::s_info
 
@@ -341,7 +378,7 @@ bool JSCDerivedInterface::Prototype::getOwnPropertySlot(JSC::JSCell* cell,
   Prototype* this_object = JSC::jsCast<Prototype*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   return JSC::getStaticPropertySlot<Prototype, JSC::JSObject>(
-      exec, &property_table, this_object, property_name, slot);
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
 }
 
 // static
@@ -393,12 +430,24 @@ const JSC::HashTableValue JSCDerivedInterface::property_table_values[] = {
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCDerivedInterface::property_table_values
 
-JSC::HashTable JSCDerivedInterface::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCDerivedInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable JSCDerivedInterface::property_table_prototype = {
     4,  // compactSize
     3,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCDerivedInterface::property_table
+};  // JSCDerivedInterface::property_table_prototype
+
+// static
+const JSC::HashTable* JSCDerivedInterface::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
 base::LazyInstance<JSCDerivedInterface::NonTrivialStaticFields>
@@ -408,8 +457,8 @@ base::LazyInstance<JSCDerivedInterface::NonTrivialStaticFields>
 const JSC::ClassInfo JSCDerivedInterface::s_info = {
     "DerivedInterface",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCDerivedInterface)
 };  // JSCDerivedInterface::s_info
 
@@ -498,7 +547,7 @@ bool JSCDerivedInterface::getOwnPropertySlot(JSC::JSCell* cell,
   JSCDerivedInterface* this_object = JSC::jsCast<JSCDerivedInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCDerivedInterface, BaseClass>(
-      exec, &property_table, this_object, property_name, slot);
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
   if (s_has_named_getter || s_use_debug_missing_property_handler) {
     bool found_property_on_prototype_chain = false;
     if (!found_property_slot && cell->isObject()) {
@@ -562,7 +611,7 @@ void JSCDerivedInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
 
   if (!property_handled) {
     JSC::lookupPut<JSCDerivedInterface, BaseClass>(
-        exec, property_name, value, &property_table, this_object, slot);
+        exec, property_name, value, GetPropertyTable(exec), this_object, slot);
   }
 }
 
@@ -572,7 +621,8 @@ bool JSCDerivedInterface::HasOwnPropertyOrPrototypeProperty(
   JSCDerivedInterface* this_object = JSC::jsCast<JSCDerivedInterface*>(cell);
   JSC::PropertySlot lookup_slot;
   bool has_property = JSC::getStaticPropertySlot<JSCDerivedInterface, BaseClass>(
-      exec_state, &property_table, this_object, property_name, lookup_slot);
+      exec_state, GetPropertyTable(exec_state), this_object, property_name,
+      lookup_slot);
   return has_property || HasPropertyOnPrototype(exec_state, cell, property_name);
 }
 
