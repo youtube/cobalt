@@ -49,6 +49,10 @@ class PlatformConfigBase(object):
     """Returns the desired build format."""
     return 'ninja'
 
+  def GetBuildFlavor(self):
+    """Returns the gyp build "flavor"."""
+    return self.platform
+
   def GetIncludes(self):
     """Returns a list of gypi files.
 
