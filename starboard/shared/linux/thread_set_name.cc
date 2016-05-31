@@ -14,9 +14,13 @@
 
 #include "starboard/thread.h"
 
+#include <errno.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "starboard/log.h"
+#include "starboard/string.h"
 
 void SbThreadSetName(const char* name) {
   // We don't want to rename the main thread.
@@ -24,5 +28,17 @@ void SbThreadSetName(const char* name) {
     return;
   }
 
-  pthread_setname_np(pthread_self(), name);
+  const int kMaxThreadNameLength = 16;
+  char buffer[kMaxThreadNameLength];
+
+  if (SbStringGetLength(name) >= SB_ARRAY_SIZE_INT(buffer)) {
+    SbStringCopy(buffer, name, SB_ARRAY_SIZE_INT(buffer));
+    SB_DLOG(WARNING) << "Thread name \"" << name << "\" was truncated to \""
+                     << buffer << "\"";
+    name = buffer;
+  }
+
+  if (pthread_setname_np(pthread_self(), name) != 0) {
+    SB_DLOG(ERROR) << "Failed to set thread name to " << name;
+  }
 }
