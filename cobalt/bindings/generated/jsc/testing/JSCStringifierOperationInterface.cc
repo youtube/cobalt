@@ -78,6 +78,7 @@ using cobalt::script::javascriptcore::ScriptObjectRegistry;
 using cobalt::script::javascriptcore::ToJSValue;
 using cobalt::script::javascriptcore::ToWTFString;
 using cobalt::script::javascriptcore::PrototypeBase;
+using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::WrapperBase;
 using cobalt::script::javascriptcore::util::HasPropertyOnPrototype;
 using cobalt::script::javascriptcore::util::GetStackTrace;
@@ -135,7 +136,8 @@ class JSCStringifierOperationInterface::InterfaceObject : public ConstructorBase
     // Same process as JSC::getStaticPropertySlot<>, which is defined in Lookup.h
     // Since JSFunction::getOwnPropertySlot is protected, we can't call it from
     // the helper function.
-    const JSC::HashEntry* entry = property_table.entry(exec, property_name);
+    const JSC::HashEntry* entry =
+        GetPropertyTable(exec)->entry(exec, property_name);
 
     if (!entry) // not found, forward to parent
       return Base::getOwnPropertySlot(this_object, exec, property_name, slot);
@@ -154,7 +156,8 @@ class JSCStringifierOperationInterface::InterfaceObject : public ConstructorBase
     InterfaceObject* this_object = JSC::jsCast<InterfaceObject*>(cell);
     ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
     bool found_property = JSC::lookupPut<InterfaceObject>(
-        exec_state, property_name, value, &property_table, this_object, slot.isStrictMode());
+        exec_state, property_name, value, GetPropertyTable(exec_state),
+        this_object, slot.isStrictMode());
     DLOG_IF(INFO, !found_property) << "Did not find property named " <<
         WTF::String(property_name.publicName()).utf8().data() <<
         " to set on interface object for JSCStringifierOperationInterface";
@@ -191,8 +194,11 @@ class JSCStringifierOperationInterface::InterfaceObject : public ConstructorBase
                       JSC::NativeExecutable* native_executable, int length,
                       const String& name);
 
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
+
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCStringifierOperationInterface::InterfaceObject::property_table_values[] = {
@@ -200,19 +206,34 @@ const JSC::HashTableValue JSCStringifierOperationInterface::InterfaceObject::pro
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCStringifierOperationInterface::InterfaceObject::property_table_values
 
-JSC::HashTable JSCStringifierOperationInterface::InterfaceObject::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCStringifierOperationInterface::InterfaceObject::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable
+JSCStringifierOperationInterface::InterfaceObject::property_table_prototype = {
     // Sizes will be calculated based on the number of static functions as well.
     2,  // compactSize
     1,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCStringifierOperationInterface::InterfaceObject::property_table
+};  // JSCStringifierOperationInterface::InterfaceObject::property_table_prototype
+
+// static
+const JSC::HashTable*
+JSCStringifierOperationInterface::InterfaceObject::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo JSCStringifierOperationInterface::InterfaceObject::s_info = {
     "StringifierOperationInterfaceConstructor",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCStringifierOperationInterface::InterfaceObject)
 };  // JSCStringifierOperationInterface::InterfaceObject::s_info
 
@@ -295,9 +316,12 @@ class JSCStringifierOperationInterface::Prototype : public PrototypeBase {
   static JSC::JSValue GetConstructor(JSC::ExecState* exec_state,
       JSC::JSValue slot_base,
       JSC::PropertyName property_name);
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
 
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable>
+      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCStringifierOperationInterface::Prototype::property_table_values[] = {
@@ -322,18 +346,31 @@ const JSC::HashTableValue JSCStringifierOperationInterface::Prototype::property_
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCStringifierOperationInterface::Prototype::property_table_values
 
-JSC::HashTable JSCStringifierOperationInterface::Prototype::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCStringifierOperationInterface::Prototype::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable JSCStringifierOperationInterface::Prototype::property_table_prototype = {
     10,  // compactSize
     7,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCStringifierOperationInterface::Prototype::property_table
+};  // JSCStringifierOperationInterface::Prototype::property_table_prototype
+
+// static
+const JSC::HashTable* JSCStringifierOperationInterface::Prototype::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo JSCStringifierOperationInterface::Prototype::s_info = {
     "StringifierOperationInterfacePrototype",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCStringifierOperationInterface::Prototype)
 };  // JSCStringifierOperationInterface::Prototype::s_info
 
@@ -344,7 +381,7 @@ bool JSCStringifierOperationInterface::Prototype::getOwnPropertySlot(JSC::JSCell
   Prototype* this_object = JSC::jsCast<Prototype*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   return JSC::getStaticPropertySlot<Prototype, JSC::JSObject>(
-      exec, &property_table, this_object, property_name, slot);
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
 }
 
 // static
@@ -389,12 +426,24 @@ const JSC::HashTableValue JSCStringifierOperationInterface::property_table_value
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCStringifierOperationInterface::property_table_values
 
-JSC::HashTable JSCStringifierOperationInterface::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCStringifierOperationInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable JSCStringifierOperationInterface::property_table_prototype = {
     2,  // compactSize
     1,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCStringifierOperationInterface::property_table
+};  // JSCStringifierOperationInterface::property_table_prototype
+
+// static
+const JSC::HashTable* JSCStringifierOperationInterface::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
 base::LazyInstance<JSCStringifierOperationInterface::NonTrivialStaticFields>
@@ -404,8 +453,8 @@ base::LazyInstance<JSCStringifierOperationInterface::NonTrivialStaticFields>
 const JSC::ClassInfo JSCStringifierOperationInterface::s_info = {
     "StringifierOperationInterface",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCStringifierOperationInterface)
 };  // JSCStringifierOperationInterface::s_info
 
@@ -494,7 +543,7 @@ bool JSCStringifierOperationInterface::getOwnPropertySlot(JSC::JSCell* cell,
   JSCStringifierOperationInterface* this_object = JSC::jsCast<JSCStringifierOperationInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCStringifierOperationInterface, BaseClass>(
-      exec, &property_table, this_object, property_name, slot);
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
   if (s_has_named_getter || s_use_debug_missing_property_handler) {
     bool found_property_on_prototype_chain = false;
     if (!found_property_slot && cell->isObject()) {
@@ -557,8 +606,7 @@ void JSCStringifierOperationInterface::put(JSC::JSCell* cell, JSC::ExecState* ex
 #ifdef __LB_SHELL__FORCE_LOGGING__
     std::string property_name_utf8 = FromWTFString(property_name.publicName());
 
-    DCHECK(non_trivial_static_fields.Get().
-        thread_checker.CalledOnValidThread());
+    base::AutoLock lock(non_trivial_static_fields.Get().lock_);
     base::hash_set<std::string>& properties_warned_about =
         non_trivial_static_fields.Get().properties_warned_about;
 
@@ -577,7 +625,7 @@ void JSCStringifierOperationInterface::put(JSC::JSCell* cell, JSC::ExecState* ex
 
   if (!property_handled) {
     JSC::lookupPut<JSCStringifierOperationInterface, BaseClass>(
-        exec, property_name, value, &property_table, this_object, slot);
+        exec, property_name, value, GetPropertyTable(exec), this_object, slot);
   }
 }
 
@@ -587,7 +635,8 @@ bool JSCStringifierOperationInterface::HasOwnPropertyOrPrototypeProperty(
   JSCStringifierOperationInterface* this_object = JSC::jsCast<JSCStringifierOperationInterface*>(cell);
   JSC::PropertySlot lookup_slot;
   bool has_property = JSC::getStaticPropertySlot<JSCStringifierOperationInterface, BaseClass>(
-      exec_state, &property_table, this_object, property_name, lookup_slot);
+      exec_state, GetPropertyTable(exec_state), this_object, property_name,
+      lookup_slot);
   return has_property || HasPropertyOnPrototype(exec_state, cell, property_name);
 }
 
