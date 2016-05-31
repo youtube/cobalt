@@ -163,7 +163,7 @@ class WebModule::Impl {
   scoped_ptr<script::ScriptRunner> script_runner_;
 
   // Object to register and retrieve MediaSource object with a string key.
-  dom::MediaSource::Registry media_source_registry_;
+  scoped_ptr<dom::MediaSource::Registry> media_source_registry_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
@@ -269,12 +269,14 @@ WebModule::Impl::Impl(const ConstructionData& data)
       script::ScriptRunner::CreateScriptRunner(global_object_proxy_);
   DCHECK(script_runner_);
 
+  media_source_registry_.reset(new dom::MediaSource::Registry);
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
       data.resource_provider, image_cache_.get(), remote_typeface_cache_.get(),
       local_storage_database_.get(), data.media_module, execution_state_.get(),
-      script_runner_.get(), &media_source_registry_, data.initial_url,
+      script_runner_.get(), media_source_registry_.get(), data.initial_url,
       data.network_module->GetUserAgent(),
       data.network_module->preferred_language(),
       data.options.navigation_callback,
@@ -290,7 +292,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   environment_settings_.reset(new dom::DOMSettings(
       fetcher_factory_.get(), data.network_module, window_,
-      &media_source_registry_, javascript_engine_.get(),
+      media_source_registry_.get(), javascript_engine_.get(),
       global_object_proxy_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
@@ -356,6 +358,7 @@ WebModule::Impl::~Impl() {
   environment_settings_.reset();
   window_weak_.reset();
   window_ = NULL;
+  media_source_registry_.reset();
   script_runner_.reset();
   execution_state_.reset();
   global_object_proxy_ = NULL;
