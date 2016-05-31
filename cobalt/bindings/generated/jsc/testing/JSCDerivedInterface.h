@@ -29,8 +29,10 @@
 #include "JSCBaseInterface.h"
 #include "cobalt/bindings/testing/derived_interface.h"
 
+#include "base/threading/thread_local_storage.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/script_object_registry.h"
+#include "cobalt/script/javascriptcore/thread_local_hash_table.h"
 #include "cobalt/script/javascriptcore/wrapper_base.h"
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
@@ -100,7 +102,12 @@ class JSCDerivedInterface
   class Prototype;
 
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<
+      cobalt::script::javascriptcore::ThreadLocalHashTable>
+          thread_local_property_table;
+
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
 
   static bool HasOwnPropertyOrPrototypeProperty(JSC::JSCell* cell,
       JSC::ExecState* exec_state, JSC::PropertyName property_name);
@@ -110,7 +117,7 @@ class JSCDerivedInterface
     // TODO(***REMOVED***): Only log attempts of usage of unsupported Web APIs
     //               (b/24548567).
     base::hash_set<std::string> properties_warned_about;
-    base::ThreadChecker thread_checker;
+    base::Lock lock_;
   };
   static base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields;
 #endif  // __LB_SHELL__FORCE_LOGGING__

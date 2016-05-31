@@ -80,6 +80,7 @@ using cobalt::script::javascriptcore::ScriptObjectRegistry;
 using cobalt::script::javascriptcore::ToJSValue;
 using cobalt::script::javascriptcore::ToWTFString;
 using cobalt::script::javascriptcore::PrototypeBase;
+using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::WrapperBase;
 using cobalt::script::javascriptcore::util::HasPropertyOnPrototype;
 using cobalt::script::javascriptcore::util::GetStackTrace;
@@ -161,7 +162,8 @@ class JSCConditionalInterface::InterfaceObject : public ConstructorBase {
     // Same process as JSC::getStaticPropertySlot<>, which is defined in Lookup.h
     // Since JSFunction::getOwnPropertySlot is protected, we can't call it from
     // the helper function.
-    const JSC::HashEntry* entry = property_table.entry(exec, property_name);
+    const JSC::HashEntry* entry =
+        GetPropertyTable(exec)->entry(exec, property_name);
 
     if (!entry) // not found, forward to parent
       return Base::getOwnPropertySlot(this_object, exec, property_name, slot);
@@ -180,7 +182,8 @@ class JSCConditionalInterface::InterfaceObject : public ConstructorBase {
     InterfaceObject* this_object = JSC::jsCast<InterfaceObject*>(cell);
     ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
     bool found_property = JSC::lookupPut<InterfaceObject>(
-        exec_state, property_name, value, &property_table, this_object, slot.isStrictMode());
+        exec_state, property_name, value, GetPropertyTable(exec_state),
+        this_object, slot.isStrictMode());
     DLOG_IF(INFO, !found_property) << "Did not find property named " <<
         WTF::String(property_name.publicName()).utf8().data() <<
         " to set on interface object for JSCConditionalInterface";
@@ -217,8 +220,11 @@ class JSCConditionalInterface::InterfaceObject : public ConstructorBase {
                       JSC::NativeExecutable* native_executable, int length,
                       const String& name);
 
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
+
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCConditionalInterface::InterfaceObject::property_table_values[] = {
@@ -226,19 +232,34 @@ const JSC::HashTableValue JSCConditionalInterface::InterfaceObject::property_tab
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCConditionalInterface::InterfaceObject::property_table_values
 
-JSC::HashTable JSCConditionalInterface::InterfaceObject::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCConditionalInterface::InterfaceObject::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable
+JSCConditionalInterface::InterfaceObject::property_table_prototype = {
     // Sizes will be calculated based on the number of static functions as well.
     2,  // compactSize
     1,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCConditionalInterface::InterfaceObject::property_table
+};  // JSCConditionalInterface::InterfaceObject::property_table_prototype
+
+// static
+const JSC::HashTable*
+JSCConditionalInterface::InterfaceObject::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo JSCConditionalInterface::InterfaceObject::s_info = {
     "ConditionalInterfaceConstructor",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCConditionalInterface::InterfaceObject)
 };  // JSCConditionalInterface::InterfaceObject::s_info
 
@@ -321,9 +342,12 @@ class JSCConditionalInterface::Prototype : public PrototypeBase {
   static JSC::JSValue GetConstructor(JSC::ExecState* exec_state,
       JSC::JSValue slot_base,
       JSC::PropertyName property_name);
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
 
   static const JSC::HashTableValue property_table_values[];
-  static JSC::HashTable property_table;
+  static const JSC::HashTable property_table_prototype;
+  static base::LazyInstance<ThreadLocalHashTable>
+      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCConditionalInterface::Prototype::property_table_values[] = {
@@ -352,18 +376,31 @@ const JSC::HashTableValue JSCConditionalInterface::Prototype::property_table_val
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCConditionalInterface::Prototype::property_table_values
 
-JSC::HashTable JSCConditionalInterface::Prototype::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCConditionalInterface::Prototype::thread_local_property_table =
+        LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable JSCConditionalInterface::Prototype::property_table_prototype = {
     10,  // compactSize
     7,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCConditionalInterface::Prototype::property_table
+};  // JSCConditionalInterface::Prototype::property_table_prototype
+
+// static
+const JSC::HashTable* JSCConditionalInterface::Prototype::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 const JSC::ClassInfo JSCConditionalInterface::Prototype::s_info = {
     "ConditionalInterfacePrototype",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCConditionalInterface::Prototype)
 };  // JSCConditionalInterface::Prototype::s_info
 
@@ -374,7 +411,7 @@ bool JSCConditionalInterface::Prototype::getOwnPropertySlot(JSC::JSCell* cell,
   Prototype* this_object = JSC::jsCast<Prototype*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   return JSC::getStaticPropertySlot<Prototype, JSC::JSObject>(
-      exec, &property_table, this_object, property_name, slot);
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
 }
 
 // static
@@ -435,12 +472,24 @@ const JSC::HashTableValue JSCConditionalInterface::property_table_values[] = {
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCConditionalInterface::property_table_values
 
-JSC::HashTable JSCConditionalInterface::property_table = {
+// static
+base::LazyInstance<ThreadLocalHashTable>
+    JSCConditionalInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
+
+// static
+const JSC::HashTable JSCConditionalInterface::property_table_prototype = {
     9,  // compactSize
     7,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
-};  // JSCConditionalInterface::property_table
+};  // JSCConditionalInterface::property_table_prototype
+
+// static
+const JSC::HashTable* JSCConditionalInterface::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return thread_local_property_table.Get().GetHashTable(
+      property_table_prototype);
+}
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
 base::LazyInstance<JSCConditionalInterface::NonTrivialStaticFields>
@@ -450,8 +499,8 @@ base::LazyInstance<JSCConditionalInterface::NonTrivialStaticFields>
 const JSC::ClassInfo JSCConditionalInterface::s_info = {
     "ConditionalInterface",  // className
     BaseClass::s_classinfo(),  // parentClass
-    &property_table,  // static hash-table of properties
-    NULL,  // function pointer to get hash-table of properties
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
     CREATE_METHOD_TABLE(JSCConditionalInterface)
 };  // JSCConditionalInterface::s_info
 
@@ -540,7 +589,7 @@ bool JSCConditionalInterface::getOwnPropertySlot(JSC::JSCell* cell,
   JSCConditionalInterface* this_object = JSC::jsCast<JSCConditionalInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCConditionalInterface, BaseClass>(
-      exec, &property_table, this_object, property_name, slot);
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
   if (s_has_named_getter || s_use_debug_missing_property_handler) {
     bool found_property_on_prototype_chain = false;
     if (!found_property_slot && cell->isObject()) {
@@ -603,8 +652,7 @@ void JSCConditionalInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
 #ifdef __LB_SHELL__FORCE_LOGGING__
     std::string property_name_utf8 = FromWTFString(property_name.publicName());
 
-    DCHECK(non_trivial_static_fields.Get().
-        thread_checker.CalledOnValidThread());
+    base::AutoLock lock(non_trivial_static_fields.Get().lock_);
     base::hash_set<std::string>& properties_warned_about =
         non_trivial_static_fields.Get().properties_warned_about;
 
@@ -623,7 +671,7 @@ void JSCConditionalInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
 
   if (!property_handled) {
     JSC::lookupPut<JSCConditionalInterface, BaseClass>(
-        exec, property_name, value, &property_table, this_object, slot);
+        exec, property_name, value, GetPropertyTable(exec), this_object, slot);
   }
 }
 
@@ -633,7 +681,8 @@ bool JSCConditionalInterface::HasOwnPropertyOrPrototypeProperty(
   JSCConditionalInterface* this_object = JSC::jsCast<JSCConditionalInterface*>(cell);
   JSC::PropertySlot lookup_slot;
   bool has_property = JSC::getStaticPropertySlot<JSCConditionalInterface, BaseClass>(
-      exec_state, &property_table, this_object, property_name, lookup_slot);
+      exec_state, GetPropertyTable(exec_state), this_object, property_name,
+      lookup_slot);
   return has_property || HasPropertyOnPrototype(exec_state, cell, property_name);
 }
 
