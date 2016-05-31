@@ -53,17 +53,13 @@ class TokenStorage {
   base::Lock lock_;
 };
 
-#if defined(COMPILER_GCC) &&                                 \
-    (!(defined(__LB_SHELL__) && !defined(__LB_LINUX__)) ||   \
-     (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && \
-      SB_HAS_HASH_VALUE))
+#if defined(BASE_HASH_USE_HASH_STRUCT)
 
 uint32 hash(const char* str) {
   return BASE_HASH_NAMESPACE::hash<const char*>()(str);
 }
 
-#elif defined(COMPILER_MSVC) || defined(__LB_SHELL__) || \
-    (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE)
+#else
 
 uint32 hash(const char* str) { return BASE_HASH_NAMESPACE::hash_value(str); }
 
