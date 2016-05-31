@@ -40,7 +40,7 @@ void CDATASection::Accept(ConstNodeVisitor* visitor) const {
 }
 
 scoped_refptr<Node> CDATASection::Duplicate() const {
-  return new CDATASection(owner_document(), data());
+  return new CDATASection(node_document(), data());
 }
 
 }  // namespace dom

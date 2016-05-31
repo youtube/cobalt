@@ -22,9 +22,9 @@ namespace dom {
 scoped_refptr<web_animations::AnimationTimeline>
 DOMAnimatable::GetDefaultTimeline() const {
   if (element_) {
-    return element_->owner_document()->timeline();
+    return element_->node_document()->timeline();
   } else if (pseudo_element_) {
-    return pseudo_element_->parent_element()->owner_document()->timeline();
+    return pseudo_element_->parent_element()->node_document()->timeline();
   } else {
     return scoped_refptr<web_animations::AnimationTimeline>();
   }

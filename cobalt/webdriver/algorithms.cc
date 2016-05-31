@@ -399,8 +399,8 @@ std::string GetElementText(dom::Element* element) {
 
   // Update the computed styles first to ensure we get up-to-date computed
   // styles.
-  DCHECK(element->owner_document());
-  element->owner_document()->UpdateComputedStyles();
+  DCHECK(element->node_document());
+  element->node_document()->UpdateComputedStyles();
 
   // Recursively visit this element and its children to create a vector of lines
   // of text.
@@ -433,8 +433,8 @@ bool IsDisplayed(dom::Element* element) {
 
   // Update the computed styles first to ensure we get up-to-date computed
   // styles.
-  DCHECK(element->owner_document());
-  element->owner_document()->UpdateComputedStyles();
+  DCHECK(element->node_document());
+  element->node_document()->UpdateComputedStyles();
 
   // By convention, BODY element is always shown: BODY represents the document
   // and even if there's nothing rendered in there, user can always see there's
