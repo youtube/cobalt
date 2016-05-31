@@ -47,10 +47,10 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   const scoped_refptr<Node> kNullNode;
   const scoped_refptr<HTMLCollection> kNullCollection;
 
-  Document* document = node->owner_document().get();
+  Document* document = node->node_document();
 
   if (!document) {
-    document = node->AsDocument().get();
+    document = node->AsDocument();
     DCHECK(document);
   }
 
@@ -145,10 +145,10 @@ template <typename T>
 void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   const scoped_refptr<Node> kNullNode;
   const scoped_refptr<HTMLCollection> kNullCollection;
-  Document* document = node->owner_document().get();
+  Document* document = node->node_document();
 
   if (!document) {
-    document = node->AsDocument().get();
+    document = node->AsDocument();
     DCHECK(document);
   }
 

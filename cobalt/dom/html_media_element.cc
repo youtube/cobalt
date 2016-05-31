@@ -494,7 +494,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
   if (media_source_) {
     media_source_->SetPlayer(player_.get());
   }
-  owner_document()->OnDOMMutation();
+  node_document()->OnDOMMutation();
 }
 
 void HTMLMediaElement::ScheduleLoad() {
@@ -573,7 +573,7 @@ void HTMLMediaElement::PrepareForLoad() {
 }
 
 void HTMLMediaElement::LoadInternal() {
-  DCHECK(owner_document());
+  DCHECK(node_document());
 
   // Select media resource.
   enum Mode { kAttribute, kChildren };
@@ -609,7 +609,7 @@ void HTMLMediaElement::LoadInternal() {
     GURL media_url(src);
     if (media_url.is_empty()) {
       // Try to resolve it as a relative url.
-      media_url = owner_document()->url_as_gurl().Resolve(src);
+      media_url = node_document()->url_as_gurl().Resolve(src);
     }
     if (media_url.is_empty()) {
       MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
@@ -641,8 +641,8 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   DCHECK(!media_source_);
   if (url.SchemeIs(kMediaSourceUrlProtocol)) {
     // Check whether url is allowed by security policy.
-    if (!owner_document()->csp_delegate()->CanLoad(CspDelegate::kMedia, url,
-                                                   false)) {
+    if (!node_document()->csp_delegate()->CanLoad(CspDelegate::kMedia, url,
+                                                  false)) {
       DLOG(INFO) << "URL " << url << " is rejected by security policy.";
       NoneSupported();
       return;
@@ -679,10 +679,9 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
-    csp::SecurityCallback csp_callback =
-        base::Bind(&CspDelegate::CanLoad,
-                   base::Unretained(owner_document()->csp_delegate()),
-                   CspDelegate::kMedia);
+    csp::SecurityCallback csp_callback = base::Bind(
+        &CspDelegate::CanLoad,
+        base::Unretained(node_document()->csp_delegate()), CspDelegate::kMedia);
     player_->LoadProgressive(
         url, new media::FetcherBufferedDataSource(
                  base::MessageLoopProxy::current(), url, csp_callback,
@@ -702,8 +701,8 @@ void HTMLMediaElement::ClearMediaPlayer() {
   pending_load_ = false;
   load_state_ = kWaitingForSource;
 
-  if (owner_document()) {
-    owner_document()->OnDOMMutation();
+  if (node_document()) {
+    node_document()->OnDOMMutation();
   }
 }
 

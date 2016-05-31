@@ -113,7 +113,7 @@ TEST_F(DocumentTest, CreateElement) {
   EXPECT_EQ(Node::kElementNode, element->node_type());
   EXPECT_EQ("element", element->node_name());
 
-  EXPECT_EQ(document, element->owner_document());
+  EXPECT_EQ(document, element->node_document());
   EXPECT_EQ(NULL, element->parent_node());
   EXPECT_EQ(NULL, element->first_child());
   EXPECT_EQ(NULL, element->last_child());
@@ -129,7 +129,7 @@ TEST_F(DocumentTest, CreateTextNode) {
   EXPECT_EQ(Node::kTextNode, text->node_type());
   EXPECT_EQ("#text", text->node_name());
   EXPECT_EQ("test_text", text->data());
-  EXPECT_EQ(document, text->owner_document());
+  EXPECT_EQ(document, text->node_document());
 }
 
 TEST_F(DocumentTest, CreateComment) {
@@ -139,7 +139,7 @@ TEST_F(DocumentTest, CreateComment) {
   EXPECT_EQ(Node::kCommentNode, comment->node_type());
   EXPECT_EQ("#comment", comment->node_name());
   EXPECT_EQ("test_comment", comment->data());
-  EXPECT_EQ(document, comment->owner_document());
+  EXPECT_EQ(document, comment->node_document());
 }
 
 TEST_F(DocumentTest, CreateEvent) {
@@ -203,29 +203,6 @@ TEST_F(DocumentTest, GetElementById) {
 
   document->RemoveChild(a1);
   EXPECT_EQ(d1, document->GetElementById("id"));
-}
-
-TEST_F(DocumentTest, OwnerDocument) {
-  // Construct a tree:
-  // document
-  //   element1
-  //     element2
-  scoped_refptr<Document> document = new Document(&html_element_context_);
-  scoped_refptr<Node> element1 = new Element(document, base::Token("element1"));
-  scoped_refptr<Node> element2 = new Element(document, base::Token("element2"));
-
-  EXPECT_EQ(NULL, document->owner_document());
-  EXPECT_EQ(document, element1->owner_document());
-
-  element1->AppendChild(element2);
-  document->AppendChild(element1);
-  EXPECT_EQ(NULL, document->owner_document());
-  EXPECT_EQ(document, element1->owner_document());
-  EXPECT_EQ(document, element2->owner_document());
-
-  document->RemoveChild(element1);
-  EXPECT_EQ(document, element1->owner_document());
-  EXPECT_EQ(document, element2->owner_document());
 }
 
 TEST_F(DocumentTest, Implementation) {
