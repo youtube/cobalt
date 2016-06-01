@@ -14,6 +14,22 @@
 
 {
   'targets': [
+    # Code shared by both the hardware and software Blitter rasterizers.
+    {
+      'target_name': 'common',
+      'type': 'static_library',
+
+      'sources': [
+        'skia_blitter_conversions.cc',
+      ],
+
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+      ],
+    },
     # The Blitter hardware rasterizer uses the Blitter API to draw render tree
     # nodes directly, when possible, and falls back to software Skia when this
     # is not possible.
@@ -31,7 +47,10 @@
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+        'common',
       ],
     },
 
@@ -49,9 +68,10 @@
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+        'common',
       ],
     },
   ],

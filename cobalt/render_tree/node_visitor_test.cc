@@ -91,6 +91,10 @@ class DummyBrush : public Brush {
   void Accept(BrushVisitor* visitor) const OVERRIDE {
     UNREFERENCED_PARAMETER(visitor);
   }
+
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<DummyBrush>();
+  }
 };
 
 }  // namespace

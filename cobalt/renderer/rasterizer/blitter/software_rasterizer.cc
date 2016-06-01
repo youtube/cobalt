@@ -19,6 +19,7 @@
 #if SB_HAS(BLITTER)
 
 #include "cobalt/renderer/backend/graphics_system.h"
+#include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "starboard/blitter.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -29,21 +30,6 @@ namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace blitter {
-
-namespace {
-SbBlitterPixelDataFormat SkiaToBlitterPixelFormat(SkColorType skia_format) {
-  switch (skia_format) {
-    case kRGBA_8888_SkColorType:
-      return kSbBlitterPixelDataFormatRGBA8;
-    case kBGRA_8888_SkColorType:
-      return kSbBlitterPixelDataFormatBGRA8;
-    default:
-      DLOG(FATAL) << "Unsupported Skia image format!";
-      return kSbBlitterPixelDataFormatRGBA8;
-  }
-}
-
-}  // namespace
 
 SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(

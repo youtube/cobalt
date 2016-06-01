@@ -21,6 +21,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/render_tree/brush_visitor.h"
 #include "cobalt/render_tree/color_rgba.h"
@@ -35,6 +36,10 @@ class Brush {
 
   // A type-safe branching.
   virtual void Accept(BrushVisitor* visitor) const = 0;
+
+  // Returns an ID that is unique to the brush type.  This can be used to
+  // polymorphically identify what type a brush is.
+  virtual base::TypeId GetTypeId() const = 0;
 };
 
 class SolidColorBrush : public Brush {
@@ -43,6 +48,10 @@ class SolidColorBrush : public Brush {
 
   // A type-safe branching.
   void Accept(BrushVisitor* visitor) const OVERRIDE;
+
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<SolidColorBrush>();
+  }
 
   const ColorRGBA& color() const { return color_; }
 
@@ -85,6 +94,10 @@ class LinearGradientBrush : public Brush {
 
   // A type-safe branching.
   void Accept(BrushVisitor* visitor) const OVERRIDE;
+
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<LinearGradientBrush>();
+  }
 
   // Returns the source and destination points of the linear gradient.
   const math::PointF& source() const { return source_; }
@@ -129,6 +142,10 @@ class RadialGradientBrush : public Brush {
 
   // A type-safe branching.
   void Accept(BrushVisitor* visitor) const OVERRIDE;
+
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<RadialGradientBrush>();
+  }
 
   // Returns the source and destination points of the linear gradient.
   const math::PointF& center() const { return center_; }
