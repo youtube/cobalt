@@ -25,8 +25,11 @@
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/node_visitor.h"
+#include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
+#include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -42,8 +45,10 @@ namespace blitter {
 // to software rendering.
 class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
-  RenderTreeNodeVisitor(SbBlitterContext context,
-                        SbBlitterRenderTarget render_target);
+  RenderTreeNodeVisitor(SbBlitterDevice device, SbBlitterContext context,
+                        SbBlitterRenderTarget render_target,
+                        const math::Size& bounds,
+                        skia::SkiaSoftwareRasterizer* software_rasterizer);
 
   void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
@@ -74,14 +79,27 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       scale.Scale(scale_mult.x(), scale_mult.y());
     }
 
-    SbBlitterRect TransformToBlitterRect(const math::RectF& rect) const;
+    math::RectF TransformRect(const math::RectF& rect) const;
 
     math::Vector2dF scale;
     math::Vector2dF translate;
   };
 
+  // Can be called with any render tree node in order to invoke the Skia
+  // software renderer to render to an offscreen surface which is then applied
+  // to the render target via a Blitter API blit.
+  void RenderWithSoftwareRenderer(render_tree::Node* node);
+
+  // We maintain an instance of a software skia rasterizer which is used to
+  // render anything that we cannot render via the Blitter API directly.
+  skia::SkiaSoftwareRasterizer* software_rasterizer_;
+
+  SbBlitterDevice device_;
   SbBlitterContext context_;
   SbBlitterRenderTarget render_target_;
+
+  // The bounds of |render_target_|.
+  math::Size bounds_;
 
   // The current transform state.
   Transform transform_;

@@ -35,7 +35,9 @@ namespace blitter {
 
 class ResourceProvider : public render_tree::ResourceProvider {
  public:
-  explicit ResourceProvider(SbBlitterDevice device);
+  explicit ResourceProvider(
+      SbBlitterDevice device,
+      render_tree::ResourceProvider* font_resource_provider);
   ~ResourceProvider() OVERRIDE {}
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
@@ -83,6 +85,11 @@ class ResourceProvider : public render_tree::ResourceProvider {
 
  private:
   SbBlitterDevice device_;
+
+  // Any requests for font-related resources will be forwarded on to this
+  // ResourceProvider, as the Blitter API does not natively support font
+  // rendering.
+  render_tree::ResourceProvider* font_resource_provider_;
 };
 
 }  // namespace blitter

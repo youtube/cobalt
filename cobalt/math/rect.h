@@ -76,6 +76,9 @@ Rect IntersectRects(const Rect& a, const Rect& b);
 Rect UnionRects(const Rect& a, const Rect& b);
 Rect SubtractRects(const Rect& a, const Rect& b);
 
+// Returns the smallest Rect that can completely contain the input RectF object.
+Rect RoundOut(const RectF& r);
+
 // Constructs a rectangle with |p1| and |p2| as opposite corners.
 //
 // This could also be thought of as "the smallest rect that contains both
