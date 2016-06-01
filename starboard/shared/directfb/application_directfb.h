@@ -30,8 +30,8 @@ namespace starboard {
 
 class ApplicationDirectFB : public shared::starboard::QueueApplication {
  public:
-  ApplicationDirectFB() : directfb_(NULL), window_(kSbWindowInvalid) {}
-  ~ApplicationDirectFB() SB_OVERRIDE {}
+  ApplicationDirectFB();
+  ~ApplicationDirectFB() SB_OVERRIDE;
 
   static ApplicationDirectFB* Get() {
     return static_cast<ApplicationDirectFB*>(
