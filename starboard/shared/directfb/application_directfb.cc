@@ -23,6 +23,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/directfb/window_internal.h"
 #include "starboard/shared/posix/time_internal.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -343,6 +344,15 @@ unsigned int DFBKeyEventToSbKeyModifiers(const DFBInputEvent& event) {
 }
 
 }  // namespace
+
+ApplicationDirectFB::ApplicationDirectFB()
+    : directfb_(NULL), window_(kSbWindowInvalid) {
+  SbAudioSinkPrivate::Initialize();
+}
+
+ApplicationDirectFB::~ApplicationDirectFB() {
+  SbAudioSinkPrivate::TearDown();
+}
 
 SbWindow ApplicationDirectFB::CreateWindow(const SbWindowOptions* options) {
   if (SbWindowIsValid(window_)) {
