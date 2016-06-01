@@ -21,40 +21,26 @@
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/video_frame_internal.h"
+#include "starboard/shared/starboard/player/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class VideoDecoder {
+class VideoDecoder : public starboard::player::VideoDecoder {
  public:
-  enum Status { kNeedMoreInput, kBufferFull, kFatalError };
-
   typedef starboard::player::InputBuffer InputBuffer;
-  typedef shared::starboard::VideoFrame Frame;
-  // |frame| can contain a decoded frame or be NULL when |status| is not
-  // kFatalError.   When status is kFatalError, |frame| will be NULL.  Its user
-  // should only call WriteInputFrame() when |status| is kNeedMoreInput or when
-  // the instance is just created.  Also note that calling Reset() or dtor from
-  // this callback will result in deadlock.
-  typedef void (*DecoderStatusFunc)(Status status, Frame* frame, void* context);
+  typedef starboard::player::VideoFrame VideoFrame;
 
-  VideoDecoder(SbMediaVideoCodec video_codec,
-               DecoderStatusFunc decoder_status_func,
-               void* context);
-  ~VideoDecoder();
+  explicit VideoDecoder(SbMediaVideoCodec);
+  ~VideoDecoder() SB_OVERRIDE;
 
-  // After this call, the VideoDecoder instance owns |input_buffer|.
-  void WriteInputBuffer(InputBuffer* input_buffer);
-  void WriteEndOfStream();
-  // Clear any cached buffer of the codec and reset the state of the codec.
-  // This function will be called during seek to ensure that there is no left
-  // over data from previous buffers.  No DecoderStatusFunc call will be made
-  // after this function returns unless WriteInputFrame() or WriteEndOfStream()
-  // is called again.
-  void Reset();
+  void SetHost(Host* host) SB_OVERRIDE;
+  void WriteInputBuffer(InputBuffer* input_buffer) SB_OVERRIDE;
+  void WriteEndOfStream() SB_OVERRIDE;
+  void Reset() SB_OVERRIDE;
 
  private:
   enum EventType {
@@ -86,11 +72,10 @@ class VideoDecoder {
   void InitializeCodec();
   void TeardownCodec();
 
-  // These variables will be initialized inside ctor and will not be changed
-  // during the life time of this class.
+  // These variables will be initialized inside ctor or SetHost() and will not
+  // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  const DecoderStatusFunc decoder_status_func_;
-  void* const context_;
+  Host* host_;
 
   Queue<Event> queue_;
 

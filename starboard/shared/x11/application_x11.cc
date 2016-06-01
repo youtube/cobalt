@@ -621,6 +621,8 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 }  // namespace
 
+using shared::starboard::player::VideoFrame;
+
 ApplicationX11::ApplicationX11()
     : wake_up_atom_(None),
       wm_delete_atom_(None),
@@ -679,7 +681,7 @@ void ApplicationX11::Composite() {
         ScopedLock lock(frame_mutex_);
         if (frame_written_) {
           // Clear the old frame, now that we are done with it.
-          frames_[frame_read_index_] = shared::starboard::VideoFrame();
+          frames_[frame_read_index_] = VideoFrame();
 
           // Increment the index to the next frame, which has been written.
           frame_read_index_ = (frame_read_index_ + 1) % kNumFrames;
@@ -691,9 +693,8 @@ void ApplicationX11::Composite() {
         index = frame_read_index_;
       }
       if (!frames_[index].IsEndOfStream() &&
-          frames_[index].format() != shared::starboard::VideoFrame::kBGRA32) {
-        frames_[index] =
-            frames_[index].ConvertTo(shared::starboard::VideoFrame::kBGRA32);
+          frames_[index].format() != VideoFrame::kBGRA32) {
+        frames_[index] = frames_[index].ConvertTo(VideoFrame::kBGRA32);
       }
       window->Composite(&frames_[index]);
     }
@@ -702,7 +703,7 @@ void ApplicationX11::Composite() {
       SbEventSchedule(&CompositeCallback, this, kSbTimeSecond / 60);
 }
 
-void ApplicationX11::AcceptFrame(const shared::starboard::VideoFrame& frame) {
+void ApplicationX11::AcceptFrame(const VideoFrame& frame) {
   int write_index = -1;
   {
     ScopedLock lock(frame_mutex_);

@@ -47,7 +47,8 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   void Composite();
 
  protected:
-  void AcceptFrame(const shared::starboard::VideoFrame& frame) SB_OVERRIDE;
+  void AcceptFrame(const shared::starboard::player::VideoFrame& frame)
+      SB_OVERRIDE;
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
  protected:
@@ -86,7 +87,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   int frame_read_index_;
   bool frame_written_;
   static const int kNumFrames = 2;
-  shared::starboard::VideoFrame frames_[kNumFrames];
+  shared::starboard::player::VideoFrame frames_[kNumFrames];
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   Display* display_;
