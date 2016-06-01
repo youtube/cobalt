@@ -53,6 +53,15 @@ Rect SubtractRects(const Rect& a, const Rect& b) {
   return result;
 }
 
+Rect RoundOut(const RectF& r) {
+  Point origin(std::floor(r.x()), std::floor(r.y()));
+
+  Size size(std::ceil(r.right()) - origin.x(),
+            std::ceil(r.bottom()) - origin.y());
+
+  return Rect(origin, size);
+}
+
 Rect BoundingRect(const Point& p1, const Point& p2) {
   int rx = std::min(p1.x(), p2.x());
   int ry = std::min(p1.y(), p2.y());
