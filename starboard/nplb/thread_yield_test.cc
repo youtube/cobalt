@@ -68,7 +68,7 @@ TEST(SbThreadYieldTest, SunnyDay) {
 // Note: This test ended up EVER so slightly flaky, but within most
 // tolerances. If it fails on you randomly and inconsistently, it was probably
 // just a flake.
-TEST(SbThreadYieldTest, SunnyDayRace) {
+TEST(SbThreadYieldTest, FLAKY_SunnyDayRace) {
   const int kTrials = 30;
   for (int trial = 0; trial < kTrials; ++trial) {
     // Pin to CPU 0 to make sure the threads don't get distributed onto other
