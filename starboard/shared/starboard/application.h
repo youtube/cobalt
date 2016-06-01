@@ -23,7 +23,7 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/video_frame_internal.h"
+#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -128,7 +128,7 @@ class Application {
   // Handles receiving a new video frame from the media system. Only used when
   // the application needs to composite video frames with punch-out video
   // manually (should be rare). Will be called from an external thread.
-  void HandleFrame(const VideoFrame& frame);
+  void HandleFrame(const player::VideoFrame& frame);
 
  protected:
   // Initializes any systems that need initialization before application
@@ -143,7 +143,7 @@ class Application {
 
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
-  virtual void AcceptFrame(const VideoFrame& frame) {}
+  virtual void AcceptFrame(const player::VideoFrame& frame) {}
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.

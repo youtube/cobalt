@@ -73,29 +73,28 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Decode(const void* sample_buffer,
-                          int sample_buffer_size,
+void AudioDecoder::Decode(InputBuffer* input_buffer,
                           std::vector<float>* output) {
   SB_CHECK(output != NULL);
   SB_CHECK(codec_context_ != NULL);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
+    delete input_buffer;
     return;
   }
 
   AVPacket packet;
   av_init_packet(&packet);
-  packet.data =
-      const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(sample_buffer));
-  packet.size = sample_buffer_size;
+  packet.data = const_cast<uint8_t*>(input_buffer->data());
+  packet.size = input_buffer->size();
 
   avcodec_get_frame_defaults(av_frame_);
   int frame_decoded = 0;
   int result =
       avcodec_decode_audio4(codec_context_, av_frame_, &frame_decoded, &packet);
-  SB_DCHECK(result == sample_buffer_size) << result << " " << sample_buffer_size
-                                          << " " << frame_decoded;
+  SB_DCHECK(result == input_buffer->size())
+      << result << " " << input_buffer->size() << " " << frame_decoded;
   SB_DCHECK(frame_decoded == 1);
 
   int decoded_audio_size = av_samples_get_buffer_size(
@@ -113,6 +112,8 @@ void AudioDecoder::Decode(const void* sample_buffer,
     SB_LOG(ERROR) << "Decoded audio frame is empty.";
     output->clear();
   }
+
+  delete input_buffer;
 }
 
 void AudioDecoder::WriteEndOfStream() {
@@ -181,5 +182,18 @@ void AudioDecoder::TeardownCodec() {
 }
 
 }  // namespace ffmpeg
+
+namespace starboard {
+namespace player {
+
+// static
+AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
+                                   const SbMediaAudioHeader& audio_header) {
+  return new ffmpeg::AudioDecoder(audio_codec, audio_header);
+}
+
+}  // namespace player
+}  // namespace starboard
+
 }  // namespace shared
 }  // namespace starboard
