@@ -106,7 +106,7 @@ void Application::Cancel(SbEventId id) {
   CancelTimedEvent(id);
 }
 
-void Application::HandleFrame(const VideoFrame& frame) {
+void Application::HandleFrame(const player::VideoFrame& frame) {
   AcceptFrame(frame);
 }
 

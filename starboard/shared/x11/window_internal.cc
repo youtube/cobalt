@@ -27,6 +27,8 @@
 #include <X11/extensions/Xrender.h>
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
+using starboard::shared::starboard::player::VideoFrame;
+
 namespace {
 
 const int kWindowWidth = 1920;
@@ -126,8 +128,7 @@ SbWindowPrivate::~SbWindowPrivate() {
 }
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
-void SbWindowPrivate::Composite(
-    ::starboard::shared::starboard::VideoFrame* frame) {
+void SbWindowPrivate::Composite(VideoFrame* frame) {
   if (composition_pixmap == None) {
     composition_pixmap = XCreatePixmap(display, window, width, height, 32);
   }
@@ -139,8 +140,7 @@ void SbWindowPrivate::Composite(
   XFillRectangle(display, composition_pixmap, composition_pixmap_gc, 0, 0,
                  width, height);
 
-  if (frame != NULL &&
-      frame->format() == starboard::shared::starboard::VideoFrame::kBGRA32 &&
+  if (frame != NULL && frame->format() == VideoFrame::kBGRA32 &&
       frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
     XImage image = {0};
     image.width = frame->width();
