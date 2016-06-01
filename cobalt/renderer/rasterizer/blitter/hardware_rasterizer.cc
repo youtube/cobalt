@@ -23,6 +23,7 @@
 #include "cobalt/renderer/backend/blitter/render_target.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/blitter/resource_provider.h"
+#include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
 #if SB_HAS(BLITTER)
 
@@ -46,6 +47,8 @@ class HardwareRasterizer::Impl {
   base::ThreadChecker thread_checker_;
 
   backend::GraphicsContextBlitter* context_;
+
+  skia::SkiaSoftwareRasterizer software_rasterizer_;
   scoped_ptr<render_tree::ResourceProvider> resource_provider_;
 };
 
@@ -53,7 +56,8 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
           graphics_context)) {
   resource_provider_ = scoped_ptr<render_tree::ResourceProvider>(
-      new ResourceProvider(context_->GetSbBlitterDevice()));
+      new ResourceProvider(context_->GetSbBlitterDevice(),
+                           software_rasterizer_.GetResourceProvider()));
 }
 
 HardwareRasterizer::Impl::~Impl() {}
@@ -86,8 +90,10 @@ void HardwareRasterizer::Impl::Submit(
     TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
 
     // Visit the render tree with our Blitter API visitor.
-    RenderTreeNodeVisitor visitor(context_->GetSbBlitterContext(),
-                                  render_target_blitter->GetSbRenderTarget());
+    RenderTreeNodeVisitor visitor(
+        context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
+        render_target_blitter->GetSbRenderTarget(),
+        render_target_blitter->GetSize(), &software_rasterizer_);
     render_tree->Accept(&visitor);
   }
 

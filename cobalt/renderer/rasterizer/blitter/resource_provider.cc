@@ -37,7 +37,10 @@ using render_tree::GlyphBuffer;
 using render_tree::PixelFormat;
 using render_tree::Typeface;
 
-ResourceProvider::ResourceProvider(SbBlitterDevice device) { device_ = device; }
+ResourceProvider::ResourceProvider(
+    SbBlitterDevice device,
+    render_tree::ResourceProvider* font_resource_provider)
+    : device_(device), font_resource_provider_(font_resource_provider) {}
 
 bool ResourceProvider::PixelFormatSupported(PixelFormat pixel_format) {
   return SbBlitterIsPixelFormatSupportedByPixelData(
@@ -76,30 +79,25 @@ ResourceProvider::CreateMultiPlaneImageFromRawMemory(
 }
 
 bool ResourceProvider::HasLocalFontFamily(const char* font_family_name) const {
-  UNREFERENCED_PARAMETER(font_family_name);
-  return true;
+  return font_resource_provider_->HasLocalFontFamily(font_family_name);
 }
 
 scoped_refptr<Typeface> ResourceProvider::GetLocalTypeface(
     const char* font_family_name, FontStyle font_style) {
-  UNREFERENCED_PARAMETER(font_family_name);
-  UNREFERENCED_PARAMETER(font_style);
-  return make_scoped_refptr(new render_tree::TypefaceStub(NULL));
+  return font_resource_provider_->GetLocalTypeface(font_family_name,
+                                                   font_style);
 }
 
 scoped_refptr<Typeface> ResourceProvider::GetCharacterFallbackTypeface(
     int32 utf32_character, FontStyle font_style, const std::string& language) {
-  UNREFERENCED_PARAMETER(utf32_character);
-  UNREFERENCED_PARAMETER(font_style);
-  UNREFERENCED_PARAMETER(language);
-  return make_scoped_refptr(new render_tree::TypefaceStub(NULL));
+  return font_resource_provider_->GetCharacterFallbackTypeface(
+      utf32_character, font_style, language);
 }
 
 scoped_refptr<Typeface> ResourceProvider::CreateTypefaceFromRawData(
     scoped_ptr<RawTypefaceDataVector> raw_data, std::string* error_string) {
-  UNREFERENCED_PARAMETER(raw_data);
-  UNREFERENCED_PARAMETER(error_string);
-  return make_scoped_refptr(new render_tree::TypefaceStub(NULL));
+  return font_resource_provider_->CreateTypefaceFromRawData(raw_data.Pass(),
+                                                            error_string);
 }
 
 float ResourceProvider::GetTextWidth(const char16* text_buffer,
@@ -107,12 +105,9 @@ float ResourceProvider::GetTextWidth(const char16* text_buffer,
                                      const std::string& language, bool is_rtl,
                                      FontProvider* font_provider,
                                      FontVector* maybe_used_fonts) {
-  UNREFERENCED_PARAMETER(text_buffer);
-  UNREFERENCED_PARAMETER(language);
-  UNREFERENCED_PARAMETER(is_rtl);
-  UNREFERENCED_PARAMETER(font_provider);
-  UNREFERENCED_PARAMETER(maybe_used_fonts);
-  return static_cast<float>(text_length);
+  return font_resource_provider_->GetTextWidth(text_buffer, text_length,
+                                               language, is_rtl, font_provider,
+                                               maybe_used_fonts);
 }
 
 // Creates a glyph buffer, which is populated with shaped text, and used to
@@ -120,21 +115,15 @@ float ResourceProvider::GetTextWidth(const char16* text_buffer,
 scoped_refptr<GlyphBuffer> ResourceProvider::CreateGlyphBuffer(
     const char16* text_buffer, size_t text_length, const std::string& language,
     bool is_rtl, FontProvider* font_provider) {
-  UNREFERENCED_PARAMETER(text_buffer);
-  UNREFERENCED_PARAMETER(language);
-  UNREFERENCED_PARAMETER(is_rtl);
-  UNREFERENCED_PARAMETER(font_provider);
-  return make_scoped_refptr(
-      new GlyphBuffer(math::RectF(0, 0, static_cast<float>(text_length), 1)));
+  return font_resource_provider_->CreateGlyphBuffer(
+      text_buffer, text_length, language, is_rtl, font_provider);
 }
 
 // Creates a glyph buffer, which is populated with shaped text, and used to
 // render that text.
 scoped_refptr<GlyphBuffer> ResourceProvider::CreateGlyphBuffer(
     const std::string& utf8_string, const scoped_refptr<Font>& font) {
-  UNREFERENCED_PARAMETER(font);
-  return make_scoped_refptr(new GlyphBuffer(
-      math::RectF(0, 0, static_cast<float>(utf8_string.size()), 1)));
+  return font_resource_provider_->CreateGlyphBuffer(utf8_string, font);
 }
 
 }  // namespace blitter
