@@ -20,26 +20,24 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/audio_decoder_internal.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class AudioDecoder {
+class AudioDecoder : public starboard::player::AudioDecoder {
  public:
+  typedef starboard::player::InputBuffer InputBuffer;
+
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header);
-  ~AudioDecoder();
+  ~AudioDecoder() SB_OVERRIDE;
 
-  bool is_valid() { return codec_context_ != NULL; }
-  void Decode(const void* sample_buffer,
-              int sample_buffer_size,
-              std::vector<float>* output);
-  void WriteEndOfStream();
-  // Clear any cached buffer of the codec and reset the state of the codec.
-  // This function will be called during seek to ensure that the left over
-  // data from previous buffers are cleared.
-  void Reset();
+  void Decode(InputBuffer* input_buffer,
+              std::vector<float>* output) SB_OVERRIDE;
+  void WriteEndOfStream() SB_OVERRIDE;
+  void Reset() SB_OVERRIDE;
 
  private:
   void InitializeCodec();
