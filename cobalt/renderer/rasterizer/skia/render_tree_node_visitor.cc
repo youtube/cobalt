@@ -94,7 +94,6 @@ SkiaRenderTreeNodeVisitor::SkiaRenderTreeNodeVisitor(
       visitor_type_(visitor_type) {}
 
 namespace {
-
 // Returns whether the specified node is within the canvas' bounds or not.
 bool NodeIsWithinCanvasBounds(const SkMatrix& total_matrix,
                               const SkRect& canvas_bounds,
