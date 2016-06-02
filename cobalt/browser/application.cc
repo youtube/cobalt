@@ -469,10 +469,14 @@ void Application::OnNetworkEvent(const base::Event* event) {
     ++network_disconnect_count_;
     browser_module_->Navigate(GURL("h5vcc://network-failure"));
   } else if (network_event->type() == network::NetworkEvent::kConnection) {
-    DLOG(INFO) << "Got network connection event, reloading browser.";
     network_status_ = kConnectedNetworkStatus;
     ++network_connect_count_;
-    browser_module_->Reload();
+    if (network_disconnect_count_ > 0) {
+      DLOG(INFO) << "Got network connection event, reloading browser.";
+      browser_module_->Reload();
+    } else {
+      DLOG(INFO) << "Got network connection event, NOT reloading browser.";
+    }
   }
 }
 
