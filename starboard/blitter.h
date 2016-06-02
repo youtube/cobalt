@@ -550,6 +550,20 @@ SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
     SbBlitterContext context,
     bool modulate_blits_with_color);
 
+// Sets the scissor rectangle.  The scissor rectangle dictates a rectangle of
+// visibility that affects all draw calls.  Only pixels within the scissor
+// rectangle will be rendered, all drawing outside of the scissor rectangle will
+// be clipped.  When SbBlitterSetRenderTarget() is called, the scissor rectangle
+// is automatically set to the extents of the specified render target.  If a
+// scissor rectangle is specified outside of the extents of the current render
+// target bounds, it will be intersected with the render target boudns.  It is
+// an error to call this function before a render target has been specified for
+// the context.
+// This function is not thread safe.
+// Returns whether the scissor was successfully set.
+SB_EXPORT bool SbBlitterSetScissor(SbBlitterContext context,
+                                   SbBlitterRect rect);
+
 // Issues a draw call on |context| that fills a rectangle |rect| with a color
 // specified by |color|.  The color specified is in unpremultiplied alpha
 // format
