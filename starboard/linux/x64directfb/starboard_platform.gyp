@@ -61,6 +61,7 @@
         '<(DEPTH)/starboard/shared/directfb/blitter_set_color.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_set_modulate_blits_with_color.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_set_render_target.cc',
+        '<(DEPTH)/starboard/shared/directfb/blitter_set_scissor.cc',
         '<(DEPTH)/starboard/shared/directfb/window_create.cc',
         '<(DEPTH)/starboard/shared/directfb/window_destroy.cc',
         '<(DEPTH)/starboard/shared/directfb/window_get_platform_handle.cc',

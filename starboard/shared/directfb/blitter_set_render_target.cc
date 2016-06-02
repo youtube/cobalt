@@ -31,10 +31,29 @@ bool SbBlitterSetRenderTarget(SbBlitterContext context,
 
   context->current_render_target = render_target;
 
+  // Get the extents of this render target so that we can later setup the
+  // scissor rectangle to the extents of this new render target.
+  int width, height;
+  if (render_target->surface->GetSize(render_target->surface, &width,
+                                      &height) != DFB_OK) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": GetSize() failed.";
+    return false;
+  }
+
   // In  DirectFB, draw state is stored within surfaces.  When switching
   // surfaces here, make the appropriate DirectFB calls to reset the surface's
   // state to known values.
-  render_target->surface->SetPorterDuff(render_target->surface, DSPD_NONE);
+  if (render_target->surface->SetPorterDuff(render_target->surface,
+                                            DSPD_NONE) != DFB_OK) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": SetPorderDuff() failed.";
+    return false;
+  }
+
+  // Finally, set the scissor rectangle to the extents of this render target.
+  if (!SbBlitterSetScissor(context, SbBlitterMakeRect(0, 0, width, height))) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": SbBlitterSetScissor() failed.";
+    return false;
+  }
 
   return true;
 }

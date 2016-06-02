@@ -93,6 +93,9 @@ struct SbBlitterContextPrivate {
 
   // Keep track of whether blits should be modulated by the current color.
   bool modulate_blits_with_color;
+
+  // Track the current scissor rectangle.
+  SbBlitterRect scissor;
 };
 
 struct SbBlitterDeviceRegistry {

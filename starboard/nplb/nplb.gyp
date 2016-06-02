@@ -53,6 +53,7 @@
         'blitter_set_blending_test.cc',
         'blitter_set_modulate_blits_with_color_test.cc',
         'blitter_set_render_target_test.cc',
+        'blitter_set_scissor_test.cc',
         'byte_swap_test.cc',
         'character_is_alphanumeric_test.cc',
         'character_is_digit_test.cc',
