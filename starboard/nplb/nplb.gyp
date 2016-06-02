@@ -22,6 +22,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'atomic_test.cc',
+        'audio_sink_create_test.cc',
         'blitter_blit_rect_to_rect_test.cc',
         'blitter_blit_rect_to_rect_tiled_test.cc',
         'blitter_blit_rects_to_rects_test.cc',
