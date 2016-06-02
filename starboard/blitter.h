@@ -534,7 +534,8 @@ SB_EXPORT bool SbBlitterSetBlending(SbBlitterContext context, bool blending);
 // fill rectangle's color in calls to SbBlitterFillRect(), and if
 // SbBlitterSetModulateBlitsWithColor() has been called to enable blit color
 // modulation, the source blit surface pixel color will also be modulated by
-// the color before being output.
+// the color before being output.  The color is specified in unpremultiplied
+// alpha format.
 // This function is not thread safe.
 // Returns whether the color was successfully set.
 SB_EXPORT bool SbBlitterSetColor(SbBlitterContext context,
@@ -564,9 +565,8 @@ SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
 SB_EXPORT bool SbBlitterSetScissor(SbBlitterContext context,
                                    SbBlitterRect rect);
 
-// Issues a draw call on |context| that fills a rectangle |rect| with a color
-// specified by |color|.  The color specified is in unpremultiplied alpha
-// format
+// Issues a draw call on |context| that fills a rectangle |rect|.  The color
+// of the rectangle is specified by the last call to SbBlitterSetColor().
 // This function is not thread safe.
 // Returns whether the draw call succeeded.
 SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect);
