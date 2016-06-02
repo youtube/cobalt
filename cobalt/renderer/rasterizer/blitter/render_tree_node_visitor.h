@@ -93,24 +93,54 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // existing stack of bounding boxes.
   class BoundsStack {
    public:
+    // Helper class to scope a pair of Push()/Pop() calls.
+    class ScopedPush {
+     public:
+      ScopedPush(BoundsStack* stack, const math::Rect& bounds) : stack_(stack) {
+        stack_->Push(bounds);
+      }
+      ~ScopedPush() { stack_->Pop(); }
+
+     private:
+      BoundsStack* stack_;
+    };
+
     BoundsStack(SbBlitterContext context, const math::Rect& initial_bounds);
     void Push(const math::Rect& bounds);
     void Pop();
 
     const math::Rect& Top() const { return bounds_.top(); }
 
-   private:
     // Updates the SbBlitterContext object with the current top of the stack.
     void UpdateContext();
 
+   private:
     SbBlitterContext context_;
     std::stack<math::Rect> bounds_;
   };
+
+  // The following helper function returns bounding box/transform information
+  // used to setup a sub-render, whether that sub render is happening through
+  // a Skia software renderer, or the Blitter API.
+  struct SubRenderBounds {
+    // Dictates where on the screen the final subrendered rectangle should be
+    // blitted, in absolute coordinates (i.e. |transform_| has already been
+    // taken into account).
+    math::Rect output_bounds;
+    // Specifies the transform which should be applied while performing the sub
+    // render.
+    Transform sub_transform;
+  };
+  SubRenderBounds GetSubRenderBounds(render_tree::Node* node);
 
   // Can be called with any render tree node in order to invoke the Skia
   // software renderer to render to an offscreen surface which is then applied
   // to the render target via a Blitter API blit.
   void RenderWithSoftwareRenderer(render_tree::Node* node);
+
+  // Uses a Blitter API sub-visitor to render the provided render tree to a
+  // offscreen SbBlitterSurface which is then returned.
+  SbBlitterSurface RenderToOffscreenSurface(render_tree::Node* node);
 
   // We maintain an instance of a software skia rasterizer which is used to
   // render anything that we cannot render via the Blitter API directly.
