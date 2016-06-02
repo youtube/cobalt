@@ -190,6 +190,29 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiledOffCenter) {
       SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
 }
 
+void DrawRectsWithBatchBlit(SbBlitterSurface texture,
+                            SbBlitterContext context,
+                            int width,
+                            int height) {
+  const int kNumRects = 8;
+
+  SbBlitterRect src_rects[kNumRects];
+  SbBlitterRect dst_rects[kNumRects];
+
+  for (int i = 0; i < kNumRects; ++i) {
+    src_rects[i].x = i * (width / kNumRects);
+    src_rects[i].y = 0;
+    src_rects[i].width = (width / kNumRects) / 2;
+    src_rects[i].height = (i + 1) * (height / kNumRects);
+
+    dst_rects[i].x = i * (width / kNumRects);
+    dst_rects[i].y = 0;
+    dst_rects[i].width = (width / kNumRects) / 2;
+    dst_rects[i].height = (i + 1) * (height / kNumRects);
+  }
+  SbBlitterBlitRectsToRects(context, texture, src_rects, dst_rects, kNumRects);
+}
+
 TEST_F(SbBlitterPixelTest, BlitRectsToRects) {
   SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 0, 0, 255),
@@ -197,24 +220,7 @@ TEST_F(SbBlitterPixelTest, BlitRectsToRects) {
 
   SbBlitterSetRenderTarget(context_, render_target_);
 
-  const int kNumRects = 8;
-
-  SbBlitterRect src_rects[kNumRects];
-  SbBlitterRect dst_rects[kNumRects];
-
-  for (int i = 0; i < kNumRects; ++i) {
-    src_rects[i].x = i * (GetWidth() / kNumRects);
-    src_rects[i].y = 0;
-    src_rects[i].width = (GetWidth() / kNumRects) / 2;
-    src_rects[i].height = (i + 1) * (GetHeight() / kNumRects);
-
-    dst_rects[i].x = i * (GetWidth() / kNumRects);
-    dst_rects[i].y = 0;
-    dst_rects[i].width = (GetWidth() / kNumRects) / 2;
-    dst_rects[i].height = (i + 1) * (GetHeight() / kNumRects);
-  }
-  SbBlitterBlitRectsToRects(context_, checker_image, src_rects, dst_rects,
-                            kNumRects);
+  DrawRectsWithBatchBlit(checker_image, context_, GetWidth(), GetHeight());
 }
 
 SbBlitterSurface CreateCheckerImageWithPixelData(SbBlitterDevice device,
@@ -437,6 +443,75 @@ TEST_F(SbBlitterPixelTest, FillRectColorIsNotPremultiplied) {
   SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
   SbBlitterSetBlending(context_, true);
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 255, 128));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredFillRect) {
+  // This test checks whether SbBlitterFillRect() works with scissor rectangles.
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRect) {
+  // This test checks whether SbBlitterBlitRectToRect() works with scissor
+  // rectangles.
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
+      device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRectTiled) {
+  // This test checks whether SbBlitterBlitRectToRectTiled() works with scissor
+  // rectangles.
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
+      device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterBlitRectToRectTiled(
+      context_, checker_image,
+      SbBlitterMakeRect(0, 0, GetWidth() * 2, GetHeight() * 2),
+      SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRects) {
+  // This test checks whether DrawRectsWithBatchBlit() works with scissor
+  // rectangles.
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
+      device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  DrawRectsWithBatchBlit(checker_image, context_, GetWidth(), GetHeight());
+}
+
+TEST_F(SbBlitterPixelTest, ScissorResetsWhenSetRenderTargetIsCalled) {
+  // This test checks that the scissor rectangle is reset whenever
+  // SbBlitterSetRenderTarget() is called.
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+
+  // This call should reset the scissor rectangle to the extents of the render
+  // target.
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
   SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
 }
 
