@@ -51,6 +51,29 @@ bool SetScissorRectangle(SbBlitterContext context, IDirectFBSurface* surface) {
   return true;
 }
 
+namespace {
+SbBlitterColor PremultiplyColor(SbBlitterColor color) {
+  uint8_t alpha = SbBlitterAFromColor(color);
+  float alpha_float = alpha / 255.0f;
+
+  return SbBlitterColorFromRGBA(
+      static_cast<uint8_t>(SbBlitterRFromColor(color) * alpha_float),
+      static_cast<uint8_t>(SbBlitterGFromColor(color) * alpha_float),
+      static_cast<uint8_t>(SbBlitterBFromColor(color) * alpha_float), alpha);
+}
+}  // namespace
+
+bool SetDFBColor(IDirectFBSurface* surface, SbBlitterColor color) {
+  if (surface->SetColor(surface, SbBlitterRFromColor(color),
+                        SbBlitterGFromColor(color), SbBlitterBFromColor(color),
+                        SbBlitterAFromColor(color)) != DFB_OK) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
+    return false;
+  }
+
+  return true;
+}
+
 bool SetupDFBSurfaceBlitStateFromBlitterContextState(
     SbBlitterContext context,
     SbBlitterSurface source,
@@ -78,12 +101,14 @@ bool SetupDFBSurfaceBlitStateFromBlitterContextState(
       blitting_flags |= DSBLIT_BLEND_COLORALPHA;
     }
 
-    if (surface->SetColor(surface, SbBlitterRFromColor(context->current_color),
-                          SbBlitterGFromColor(context->current_color),
-                          SbBlitterBFromColor(context->current_color),
-                          SbBlitterAFromColor(context->current_color)) !=
-        DFB_OK) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
+    // If we have told DFB to premultiply for us, we don't need to manually
+    // premultiply the color.
+    SbBlitterColor color = (blitting_flags & DSBLIT_SRC_PREMULTIPLY)
+                               ? context->current_color
+                               : PremultiplyColor(context->current_color);
+    if (!SetDFBColor(surface, color)) {
+      SB_DLOG(ERROR) << __FUNCTION__
+                     << ": Error calling SetUnpremultipliedColor().";
       return false;
     }
   }
@@ -109,9 +134,8 @@ bool SetupDFBSurfaceDrawStateFromBlitterContextState(
   // Depending on the context blend state, set the DirectFB blend state flags
   // on the current render target surface.
   if (context->blending_enabled) {
-    surface->SetDrawingFlags(
-        surface, static_cast<DFBSurfaceDrawingFlags>(DSDRAW_SRC_PREMULTIPLY |
-                                                     DSDRAW_BLEND));
+    surface->SetDrawingFlags(surface,
+                             static_cast<DFBSurfaceDrawingFlags>(DSDRAW_BLEND));
     surface->SetPorterDuff(surface, DSPD_SRC_OVER);
   } else {
     surface->SetDrawingFlags(surface, DSDRAW_NOFX);
@@ -119,12 +143,9 @@ bool SetupDFBSurfaceDrawStateFromBlitterContextState(
   }
 
   // Setup the rectangle fill color value as specified.
-  if (surface->SetColor(surface, SbBlitterRFromColor(context->current_color),
-                        SbBlitterGFromColor(context->current_color),
-                        SbBlitterBFromColor(context->current_color),
-                        SbBlitterAFromColor(context->current_color)) !=
-      DFB_OK) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
+  if (!SetDFBColor(surface, PremultiplyColor(context->current_color))) {
+    SB_DLOG(ERROR) << __FUNCTION__
+                   << ": Error calling SetUnpremultipliedColor().";
     return false;
   }
 
