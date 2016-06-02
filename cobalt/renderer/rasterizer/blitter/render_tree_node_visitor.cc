@@ -44,17 +44,26 @@ using render_tree::Border;
 using render_tree::Brush;
 using render_tree::ColorRGBA;
 using render_tree::SolidColorBrush;
+using render_tree::ViewportFilter;
 
 namespace {
-SbBlitterRect ToBlitterRect(const RectF& rect) {
+math::Rect RectFToRect(const RectF& rectf) {
   // We convert from floating point to integer in such a way that two boxes
   // joined at the seams in float-space continue to be joined at the seams in
   // integer-space.
-  int x = static_cast<int>(std::floor(rect.x()));
-  int y = static_cast<int>(std::floor(rect.y()));
+  int x = static_cast<int>(std::floor(rectf.x()));
+  int y = static_cast<int>(std::floor(rectf.y()));
 
-  return SbBlitterMakeRect(x, y, static_cast<int>(std::floor(rect.right())) - x,
-                           static_cast<int>(std::floor(rect.bottom())) - y);
+  return Rect(x, y, static_cast<int>(std::floor(rectf.right())) - x,
+              static_cast<int>(std::floor(rectf.bottom())) - y);
+}
+
+SbBlitterRect RectToBlitterRect(const Rect& rect) {
+  return SbBlitterMakeRect(rect.x(), rect.y(), rect.width(), rect.height());
+}
+
+SbBlitterRect RectFToBlitterRect(const RectF& rectf) {
+  return RectToBlitterRect(RectFToRect(rectf));
 }
 }  // namespace
 
@@ -62,11 +71,11 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SbBlitterDevice device, SbBlitterContext context,
     SbBlitterRenderTarget render_target, const Size& bounds,
     skia::SkiaSoftwareRasterizer* software_rasterizer)
-    : device_(device),
+    : software_rasterizer_(software_rasterizer),
+      device_(device),
       context_(context),
       render_target_(render_target),
-      bounds_(bounds),
-      software_rasterizer_(software_rasterizer) {}
+      bounds_stack_(context_, Rect(bounds)) {}
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
@@ -81,15 +90,34 @@ void RenderTreeNodeVisitor::Visit(
   for (render_tree::CompositionNode::Children::const_iterator iter =
            children.begin();
        iter != children.end(); ++iter) {
-    (*iter)->Accept(this);
+    if (transform_.TransformRect((*iter)->GetBounds())
+            .Intersects(RectF(bounds_stack_.Top()))) {
+      (*iter)->Accept(this);
+    }
   }
   transform_.ApplyOffset(-composition_node->data().offset());
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+  if (filter_node->data().viewport_filter) {
+    const ViewportFilter& viewport_filter =
+        *filter_node->data().viewport_filter;
+
+    if (viewport_filter.has_rounded_corners()) {
+      NOTIMPLEMENTED()
+          << "We don't currently handle rounded corners in viewport filters.";
+    }
+
+    bounds_stack_.Push(
+        RectFToRect(transform_.TransformRect(viewport_filter.viewport())));
+  }
   if (!filter_node->data().opacity_filter ||
       filter_node->data().opacity_filter->opacity() > 0.0f) {
     filter_node->data().source->Accept(this);
+  }
+
+  if (filter_node->data().viewport_filter) {
+    bounds_stack_.Pop();
   }
 }
 
@@ -121,8 +149,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   SbBlitterSetModulateBlitsWithColor(context_, false);
   SbBlitterBlitRectToRectTiled(
       context_, blitter_image->surface(),
-      ToBlitterRect(local_transform.TransformRect(RectF(image_size))),
-      ToBlitterRect(
+      RectFToBlitterRect(local_transform.TransformRect(RectF(image_size))),
+      RectFToBlitterRect(
           transform_.TransformRect(image_node->data().destination_rect)));
 }
 
@@ -150,7 +178,7 @@ void RenderTreeNodeVisitor::Visit(
     render_tree::PunchThroughVideoNode* punch_through_video_node) {
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
   SbBlitterSetBlending(context_, false);
-  SbBlitterFillRect(context_, ToBlitterRect(transform_.TransformRect(
+  SbBlitterFillRect(context_, RectFToBlitterRect(transform_.TransformRect(
                                   punch_through_video_node->data().rect)));
 }
 
@@ -189,19 +217,20 @@ void RenderRectNodeBorder(SbBlitterContext context, ColorRGBA color, float left,
   //  -------------
 
   // Left
-  SbBlitterFillRect(context, ToBlitterRect(RectF(rect.x(), rect.y(), left,
-                                                 rect.height() - bottom)));
+  SbBlitterFillRect(context, RectFToBlitterRect(RectF(rect.x(), rect.y(), left,
+                                                      rect.height() - bottom)));
   // Bottom
   SbBlitterFillRect(context,
-                    ToBlitterRect(RectF(rect.x(), rect.bottom() - bottom,
-                                        rect.width() - right, bottom)));
+                    RectFToBlitterRect(RectF(rect.x(), rect.bottom() - bottom,
+                                             rect.width() - right, bottom)));
   // Right
   SbBlitterFillRect(
-      context, ToBlitterRect(RectF(rect.right() - right, rect.y() + top, right,
-                                   rect.height() - top)));
+      context, RectFToBlitterRect(RectF(rect.right() - right, rect.y() + top,
+                                        right, rect.height() - top)));
   // Top
-  SbBlitterFillRect(context, ToBlitterRect(RectF(rect.x() + left, rect.y(),
-                                                 rect.width() - left, top)));
+  SbBlitterFillRect(
+      context, RectFToBlitterRect(
+                   RectF(rect.x() + left, rect.y(), rect.width() - left, top)));
 }
 
 }  // namespace
@@ -245,7 +274,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
     SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
 
-    SbBlitterFillRect(context_, ToBlitterRect(transformed_rect));
+    SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));
   }
 
   // Render the border, if it exists.
@@ -282,12 +311,40 @@ RectF RenderTreeNodeVisitor::Transform::TransformRect(const RectF& rect) const {
                rect.height() * scale.y());
 }
 
+RenderTreeNodeVisitor::BoundsStack::BoundsStack(
+    SbBlitterContext context, const math::Rect& initial_bounds)
+    : context_(context) {
+  bounds_.push(initial_bounds);
+  UpdateContext();
+}
+
+void RenderTreeNodeVisitor::BoundsStack::Push(const math::Rect& bounds) {
+  DCHECK_LE(1, bounds_.size())
+      << "The must always be at least an initial bounds on the stack.";
+
+  // Push onto the stack the rectangle that is the intersection with the current
+  // top of the stack and the rectangle being pushed.
+  bounds_.push(math::IntersectRects(bounds, bounds_.top()));
+  UpdateContext();
+}
+
+void RenderTreeNodeVisitor::BoundsStack::Pop() {
+  DCHECK_LT(1, bounds_.size()) << "Cannot pop the initial bounds.";
+  bounds_.pop();
+  UpdateContext();
+}
+
+void RenderTreeNodeVisitor::BoundsStack::UpdateContext() {
+  SbBlitterSetScissor(context_, RectToBlitterRect(bounds_.top()));
+}
+
 void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
     render_tree::Node* node) {
   // Start by retrieving the bounding box of our output, intersected with the
   // viewport bounds.
-  RectF bounds = math::IntersectRects(
-      transform_.TransformRect(node->GetBounds()), math::RectF(bounds_));
+  RectF bounds =
+      math::IntersectRects(transform_.TransformRect(node->GetBounds()),
+                           math::RectF(bounds_stack_.Top()));
   // Round it out to integer bounds so that we can fit it within a surface with
   // integer dimensions.
   Rect integer_bounds = math::RoundOut(bounds);
@@ -340,7 +397,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   SbBlitterBlitRectToRect(
       context_, surface,
       SbBlitterMakeRect(0, 0, integer_bounds.width(), integer_bounds.height()),
-      ToBlitterRect(integer_bounds));
+      RectToBlitterRect(integer_bounds));
 
   // Clean up our temporary surface.
   SbBlitterDestroySurface(surface);

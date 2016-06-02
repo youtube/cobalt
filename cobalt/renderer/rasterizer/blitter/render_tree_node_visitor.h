@@ -17,9 +17,12 @@
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_NODE_VISITOR_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_NODE_VISITOR_H_
 
+#include <stack>
+
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/optional.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -85,6 +88,25 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
     math::Vector2dF translate;
   };
 
+  // Helper class to manage the pushing and popping of rectangular bounding
+  // boxes.  This manages intersecting newly pushed bounding boxes with the
+  // existing stack of bounding boxes.
+  class BoundsStack {
+   public:
+    BoundsStack(SbBlitterContext context, const math::Rect& initial_bounds);
+    void Push(const math::Rect& bounds);
+    void Pop();
+
+    const math::Rect& Top() const { return bounds_.top(); }
+
+   private:
+    // Updates the SbBlitterContext object with the current top of the stack.
+    void UpdateContext();
+
+    SbBlitterContext context_;
+    std::stack<math::Rect> bounds_;
+  };
+
   // Can be called with any render tree node in order to invoke the Skia
   // software renderer to render to an offscreen surface which is then applied
   // to the render target via a Blitter API blit.
@@ -98,8 +120,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   SbBlitterContext context_;
   SbBlitterRenderTarget render_target_;
 
-  // The bounds of |render_target_|.
-  math::Size bounds_;
+  BoundsStack bounds_stack_;
 
   // The current transform state.
   Transform transform_;
