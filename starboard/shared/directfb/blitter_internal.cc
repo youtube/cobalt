@@ -35,6 +35,22 @@ SbBlitterDeviceRegistry* GetBlitterDeviceRegistry() {
   return s_device_registry;
 }
 
+bool SetScissorRectangle(SbBlitterContext context, IDirectFBSurface* surface) {
+  // Setup the clipping region according to the context's stored scissor state.
+  DFBRegion clip_region;
+  clip_region.x1 = context->scissor.x;
+  clip_region.y1 = context->scissor.y;
+  clip_region.x2 = context->scissor.x + context->scissor.width;
+  clip_region.y2 = context->scissor.y + context->scissor.height;
+
+  if (surface->SetClip(surface, &clip_region) != DFB_OK) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": SetClip() failed.";
+    return false;
+  }
+
+  return true;
+}
+
 bool SetupDFBSurfaceBlitStateFromBlitterContextState(
     SbBlitterContext context,
     SbBlitterSurface source,
@@ -79,6 +95,11 @@ bool SetupDFBSurfaceBlitStateFromBlitterContextState(
     return false;
   }
 
+  if (!SetScissorRectangle(context, surface)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetScissorRectangle().";
+    return false;
+  }
+
   return true;
 }
 
@@ -104,6 +125,11 @@ bool SetupDFBSurfaceDrawStateFromBlitterContextState(
                         SbBlitterAFromColor(context->current_color)) !=
       DFB_OK) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetColor().";
+    return false;
+  }
+
+  if (!SetScissorRectangle(context, surface)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetScissorRectangle().";
     return false;
   }
 

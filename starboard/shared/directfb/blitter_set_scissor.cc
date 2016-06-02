@@ -18,20 +18,24 @@
 #include "starboard/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
-SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
-  if (!SbBlitterIsDeviceValid(device)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid device.";
-    return kSbBlitterInvalidContext;
+bool SbBlitterSetScissor(SbBlitterContext context, SbBlitterRect rect) {
+  if (!SbBlitterIsContextValid(context)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid context.";
+    return false;
+  }
+  if (rect.width < 0 || rect.height < 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Width and height must both be "
+                   << "greater than or equal to 0.";
+    return false;
   }
 
-  // Create a context and initialize its state to default values.
-  SbBlitterContextPrivate* context = new SbBlitterContextPrivate();
-  context->device = device;
-  context->current_render_target = NULL;
-  context->blending_enabled = false;
-  context->current_color = SbBlitterColorFromRGBA(255, 255, 255, 255);
-  context->modulate_blits_with_color = false;
-  context->scissor = SbBlitterMakeRect(0, 0, 0, 0);
+  if (!context->current_render_target) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Render target must be previously "
+                   << "specified on a context before setting the scissor.";
+    return false;
+  }
 
-  return context;
+  context->scissor = rect;
+
+  return true;
 }
