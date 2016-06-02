@@ -436,6 +436,48 @@ TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithBlueColorModulationOnRed) {
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
 }
 
+TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithAlphaColorModulationOnRed) {
+  SbBlitterSurface checker_image = CreateAlphaCheckerImageWithPixelData(
+      device_, 0, 255, GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+  SbBlitterSetModulateBlitsWithColor(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 255, 255, 128));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlendedColorBlitWithAlphaColorModulationOnRed) {
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(0, 0, 0, 255),
+      SbBlitterColorFromRGBA(255, 255, 255, 255), GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 0, 0, 255));
+  SbBlitterFillRect(context_, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+  SbBlitterSetModulateBlitsWithColor(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 255, 255, 128));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
+TEST_F(SbBlitterPixelTest, BlendedColorBlitWithAlphaColorModulation) {
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(0, 0, 0, 255),
+      SbBlitterColorFromRGBA(255, 255, 255, 255), GetWidth(), GetHeight());
+
+  SbBlitterSetBlending(context_, true);
+  SbBlitterSetModulateBlitsWithColor(context_, true);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 255, 128));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+}
+
 TEST_F(SbBlitterPixelTest, FillRectColorIsNotPremultiplied) {
   // This test checks that the color blending works fine assuming that fill rect
   // colors are specified in unpremultiplied alpha.
