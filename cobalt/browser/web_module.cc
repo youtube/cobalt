@@ -25,7 +25,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/debug/debug_server_builder.h"
+#include "cobalt/debug/debug_server_module.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/h5vcc/h5vcc.h"
@@ -69,7 +69,9 @@ class WebModule::Impl {
   ~Impl();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::DebugServer* debug_server() const { return debug_server_.get(); }
+  debug::DebugServer* debug_server() const {
+    return debug_server_module_->debug_server();
+  }
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Called to inject a keyboard event into the web module.
@@ -195,7 +197,7 @@ class WebModule::Impl {
   // The core of the debugging system, described here:
   // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y
   // Created lazily when accessed via |GetDebugServer|.
-  scoped_ptr<debug::DebugServer> debug_server_;
+  scoped_ptr<debug::DebugServerModule> debug_server_module_;
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // DocumentObserver that observes the loading document.
@@ -351,7 +353,7 @@ WebModule::Impl::~Impl() {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset();
-  debug_server_.reset();
+  debug_server_module_.reset();
 #endif  // ENABLE_DEBUG_CONSOLE
 
   layout_manager_.reset();
@@ -460,19 +462,13 @@ void WebModule::Impl::CreateDebugServerIfNull() {
   DCHECK(global_object_proxy_);
   DCHECK(resource_provider_);
 
-  if (debug_server_) {
+  if (debug_server_module_) {
     return;
   }
 
-  debug::DebugServerBuilder debug_server_builder;
-  debug_server_builder.SetConsole(window_->console())
-      .SetGlobalObjectProxy(global_object_proxy_)
-      .SetMessageLoop(MessageLoop::current())
-      .SetRenderOverlay(debug_overlay_.get())
-      .SetResourceProvider(resource_provider_)
-      .SetWindow(window_);
-  debug_server_ = debug_server_builder.Build();
-  DCHECK(debug_server_);
+  debug_server_module_.reset(new debug::DebugServerModule(
+      window_->console(), global_object_proxy_, debug_overlay_.get(),
+      resource_provider_, window_));
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 

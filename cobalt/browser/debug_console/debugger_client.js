@@ -21,7 +21,6 @@ DebuggerClient.prototype.attach = function() {
     debugHub.debugger.attach(this.onAttachCallback);
     this.sendCommand('Console.enable');
     this.sendCommand('Runtime.enable');
-    this.sendCommand('Debugger.enable');
   } else if (this.attachState == this.DEBUGGER_ATTACHING) {
     printToMessageLog(messageLog.INTERACTIVE,
                       'Still attempting to attach to debugger...');

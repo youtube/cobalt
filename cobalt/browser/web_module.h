@@ -174,8 +174,8 @@ class WebModule {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Gets a reference to the debug server that interacts with this web module.
-  // The debug server is owned by this web module, and is lazily created by this
-  // function if necessary.
+  // The debug server is part of the debug server module owned by this web
+  // module, which is lazily created by this function if necessary.
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
