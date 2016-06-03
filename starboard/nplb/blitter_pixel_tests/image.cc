@@ -35,7 +35,9 @@ Image::Image(SbBlitterSurface surface) {
   height_ = surface_info.height;
 
   pixel_data_ = new uint8_t[width_ * height_ * 4];
-  SB_CHECK(SbBlitterDownloadSurfacePixelDataAsRGBA(surface, pixel_data_));
+  SB_CHECK(SbBlitterDownloadSurfacePixels(
+      surface, kSbBlitterPixelDataFormatRGBA8,
+      kSbBlitterAlphaFormatPremultiplied, width_ * 4, pixel_data_));
 }
 
 Image::Image(uint8_t* passed_pixel_data, int width, int height) {
