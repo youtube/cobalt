@@ -47,6 +47,15 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
       ],
       'conditions': [
+        ['force_software_rasterizer==1', {
+          'defines': [
+            'COBALT_FORCE_SOFTWARE_RASTERIZER=1',
+          ],
+        }, {
+          'defines': [
+            'COBALT_FORCE_SOFTWARE_RASTERIZER=0',
+          ],
+        }],
         ['OS=="starboard"', {
           'sources': [
             'renderer_module_default_options_starboard.cc',

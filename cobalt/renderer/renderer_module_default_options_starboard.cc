@@ -16,7 +16,9 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
+#include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
+#include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 
 namespace cobalt {
@@ -26,12 +28,21 @@ namespace {
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context) {
 #if SB_HAS(GLES2)
+#if COBALT_FORCE_SOFTWARE_RASTERIZER
+  return scoped_ptr<rasterizer::Rasterizer>(
+      new rasterizer::egl::SoftwareRasterizer(graphics_context));
+#else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::SkiaHardwareRasterizer(graphics_context));
+#endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #elif SB_HAS(BLITTER)
-  // TODO(***REMOVED***): Use hardware rasterizer with hardware blitter.
+#if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::SoftwareRasterizer(graphics_context));
+#else
+  return scoped_ptr<rasterizer::Rasterizer>(
+      new rasterizer::blitter::HardwareRasterizer(graphics_context));
+#endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #else
 #error "Either GLES2 or the Starboard Blitter API must be available."
   return scoped_ptr<rasterizer::Rasterizer>();
