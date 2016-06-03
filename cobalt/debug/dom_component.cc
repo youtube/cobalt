@@ -52,34 +52,38 @@ const char kHighlightConfig[] = "highlightConfig";
 const char kR[] = "r";
 }  // namespace
 
-DOMComponent::DOMComponent(const base::WeakPtr<DebugServer>& server,
+DOMComponent::DOMComponent(ComponentConnector* connector,
                            scoped_ptr<RenderLayer> render_layer)
-    : DebugServer::Component(server), render_layer_(render_layer.Pass()) {
-  AddCommand(kDisable,
-             base::Bind(&DOMComponent::Disable, base::Unretained(this)));
-  AddCommand(kEnable,
-             base::Bind(&DOMComponent::Enable, base::Unretained(this)));
-  AddCommand(kGetDocument,
-             base::Bind(&DOMComponent::GetDocument, base::Unretained(this)));
-  AddCommand(kRequestChildNodes, base::Bind(&DOMComponent::RequestChildNodes,
-                                            base::Unretained(this)));
-  AddCommand(kRequestNode,
-             base::Bind(&DOMComponent::RequestNode, base::Unretained(this)));
-  AddCommand(kResolveNode,
-             base::Bind(&DOMComponent::ResolveNode, base::Unretained(this)));
-  AddCommand(kHighlightNode,
-             base::Bind(&DOMComponent::HighlightNode, base::Unretained(this)));
-  AddCommand(kHideHighlight,
-             base::Bind(&DOMComponent::HideHighlight, base::Unretained(this)));
+    : connector_(connector), render_layer_(render_layer.Pass()) {
+  DCHECK(connector_);
+  connector_->AddCommand(
+      kDisable, base::Bind(&DOMComponent::Disable, base::Unretained(this)));
+  connector_->AddCommand(
+      kEnable, base::Bind(&DOMComponent::Enable, base::Unretained(this)));
+  connector_->AddCommand(kGetDocument, base::Bind(&DOMComponent::GetDocument,
+                                                  base::Unretained(this)));
+  connector_->AddCommand(
+      kRequestChildNodes,
+      base::Bind(&DOMComponent::RequestChildNodes, base::Unretained(this)));
+  connector_->AddCommand(kRequestNode, base::Bind(&DOMComponent::RequestNode,
+                                                  base::Unretained(this)));
+  connector_->AddCommand(kResolveNode, base::Bind(&DOMComponent::ResolveNode,
+                                                  base::Unretained(this)));
+  connector_->AddCommand(
+      kHighlightNode,
+      base::Bind(&DOMComponent::HighlightNode, base::Unretained(this)));
+  connector_->AddCommand(
+      kHideHighlight,
+      base::Bind(&DOMComponent::HideHighlight, base::Unretained(this)));
 }
 
 JSONObject DOMComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  bool initialized = RunScriptFile(kScriptFile);
+  bool initialized = connector_->RunScriptFile(kScriptFile);
   if (initialized) {
     return JSONObject(new base::DictionaryValue());
   } else {
-    return ErrorResponse("Cannot create DOM inspector.");
+    return connector_->ErrorResponse("Cannot create DOM inspector.");
   }
 }
 
@@ -89,19 +93,19 @@ JSONObject DOMComponent::Disable(const JSONObject& params) {
 }
 
 JSONObject DOMComponent::GetDocument(const JSONObject& params) {
-  return RunScriptCommand("dom.getDocument", params);
+  return connector_->RunScriptCommand("dom.getDocument", params);
 }
 
 JSONObject DOMComponent::RequestChildNodes(const JSONObject& params) {
-  return RunScriptCommand("dom.requestChildNodes", params);
+  return connector_->RunScriptCommand("dom.requestChildNodes", params);
 }
 
 JSONObject DOMComponent::RequestNode(const JSONObject& params) {
-  return RunScriptCommand("dom.requestNode", params);
+  return connector_->RunScriptCommand("dom.requestNode", params);
 }
 
 JSONObject DOMComponent::ResolveNode(const JSONObject& params) {
-  return RunScriptCommand("dom.resolveNode", params);
+  return connector_->RunScriptCommand("dom.resolveNode", params);
 }
 
 // Unlike most other DOM command handlers, this one is not fully implemented
@@ -112,7 +116,7 @@ JSONObject DOMComponent::ResolveNode(const JSONObject& params) {
 JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
   // Get the bounding rectangle of the specified node.
   JSONObject json_dom_rect =
-      RunScriptCommand("dom.getBoundingClientRect", params);
+      connector_->RunScriptCommand("dom.getBoundingClientRect", params);
   double x = 0.0;
   double y = 0.0;
   double width = 0.0;

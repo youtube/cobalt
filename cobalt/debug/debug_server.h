@@ -25,7 +25,6 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
@@ -49,8 +48,9 @@ class DebugClient;
 // system is documented here:
 // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y/
 //
-// A single lazily created instance of this class is owned by the main
-// WebModule. Clients that want to connect to the debug server should construct
+// A single instance of this class is owned by the DebugServerModule object,
+// which is in turn expected to be instanced once by the main WebModule.
+// Clients that want to connect to the debug server should construct
 // an instance of a DebugClient, passing in a pointer to the DebugServer.
 //
 // All client debugging commands and events are routed through an object of
@@ -61,16 +61,20 @@ class DebugClient;
 // DebugServer will also send events separately from command results, using
 // the callbacks specified in the constructor.
 //
-// This class knows nothing about the external modules it may be connecting to.
-// The actual functionality is implemented by objects of classes derived from
-// the |Component| class.
+// This class is not intended to implement any debugging commands directly -
+// it is expected that the functionality of the various debugging command
+// domains will be provided by other objects that add commands to this object
+// using the |AddCommand| and |RemoveCommand| methods.
 //
-// DebugServer handles synchronization and (de-)serialization of JSON
+// The DebugServer must be created on the same message loop as the WebModule it
+// attaches to, so that all debugging can be synchronized with the execution of
+// the WebModule.
+// DebugServer handles this synchronization and (de-)serialization of JSON
 // parameters. |SendCommand| may be called from any thread: the command itself
-// will be executed on the message loop specified in the constructor, which must
-// be the message loop of the WebModule containing the debug targets this
+// will be executed on the message loop this object was constructed on, which
+// must be the message loop of the WebModule containing the debug targets this
 // instance will attach to; the command callback will be posted to the message
-// loop the command was executed from. Command parameters are specified as
+// loop |SendCommand| was called on. Command parameters are specified as
 // JSON strings that are parsed to base::DictionaryValue objects before
 // passing to the debug targets. Event parameters are received from the debug
 // targets as base::DictionaryValue objects and serialized to JSON strings
@@ -84,7 +88,7 @@ class DebugClient;
 // (e.g. a web server) and will continue to execute commands on the WebModule
 // thread. This functionality is used by calling the |SetPaused| function.
 
-class DebugServer : public base::SupportsWeakPtr<DebugServer> {
+class DebugServer {
  public:
   // Callback to pass a command response to the client.
   typedef base::Callback<void(const base::optional<std::string>& response)>
@@ -93,76 +97,50 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // A command execution function stored in the command registry.
   typedef base::Callback<JSONObject(const JSONObject& params)> Command;
 
-  // Objects of this class are used to provide events and commands.
-  class Component {
-   public:
-    explicit Component(const base::WeakPtr<DebugServer>& server);
-    virtual ~Component();
-
-   protected:
-    // Adds a command function to the registry of the |DebugServer|
-    // referenced by this object.
-    void AddCommand(const std::string& method,
-                    const DebugServer::Command& callback);
-
-    // Removes a command function from the registry of the |DebugServer|
-    // referenced by this object.
-    void RemoveCommand(const std::string& method);
-
-    // Runs a JavaScript command with JSON parameters and returns a JSON result.
-    JSONObject RunScriptCommand(const std::string& command,
-                                const JSONObject& params);
-
-    // Loads JavaScript from file and runs the contents. Used to populate the
-    // JavaScript object created by |script_runner_| with commands.
-    bool RunScriptFile(const std::string& filename);
-
-    // Creates a Runtime.Remote object from an OpaqueHandleHolder.
-    JSONObject CreateRemoteObject(const script::OpaqueHandleHolder* object);
-
-    // Sends an event to the |DebugServer| referenced by this object.
-    void SendEvent(const std::string& method, const JSONObject& params);
-
-    bool CalledOnValidThread() const {
-      return thread_checker_.CalledOnValidThread();
-    }
-
-    // Generates an error response that can be returned by any command handler.
-    static JSONObject ErrorResponse(const std::string& error_message);
-
-   protected:
-    base::WeakPtr<DebugServer> server() { return server_; }
-
-   private:
-    base::WeakPtr<DebugServer> server_;
-    base::ThreadChecker thread_checker_;
-    std::vector<std::string> command_methods_;
-  };
-
-  // Adds a debug component to this object. This object takes ownership.
-  void AddComponent(scoped_ptr<Component> component);
+  DebugServer(script::GlobalObjectProxy* global_object_proxy,
+              const dom::CspDelegate* csp_delegate);
 
   // Adds a client to this object. This object does not own the client, but
   // notify it when debugging events occur, or when this object is destroyed.
   void AddClient(DebugClient* client);
 
+  // Adds a command to the command registry. This will be called by objects
+  // providing the debug command implementations.
+  void AddCommand(const std::string& method, const Command& callback);
+
   // Creates a Runtime.RemoteObject corresponding to an opaque JS object.
   base::optional<std::string> CreateRemoteObject(
       const script::OpaqueHandleHolder* object, const std::string& params);
 
+  // Called by the debug components when an event occurs.
+  // Serializes the method and params object to a JSON string and
+  // calls |OnEventInternal|.
+  void OnEvent(const std::string& method, const JSONObject& params);
+
   // Removes a client from this object.
   void RemoveClient(DebugClient* client);
+
+  // Removes a command from the command registry. This will be called by objects
+  // providing the debug command implementations.
+  void RemoveCommand(const std::string& method);
+
+  // Calls |command| in |script_runner_| and creates a response object from
+  // the result.
+  JSONObject RunScriptCommand(const std::string& command,
+                              const JSONObject& params);
+
+  // Loads JavaScript from file and executes the contents.
+  bool RunScriptFile(const std::string& filename);
 
   // Called to send a command to this debug server, with a callback for the
   // response. The command is one from the Chrome Remote Debugging Protocol:
   // https://developer.chrome.com/devtools/docs/protocol/1.1/index
-  // May be called from any thread - the command will be run on the
-  // message loop specified in the constructor and the callback will be run on
-  // the message loop of the caller.
+  // May be called from any thread - the command will be run on |message_loop_|
+  // and the callback will be run on the message loop of the caller.
   void SendCommand(const std::string& method, const std::string& json_params,
                    CommandCallback callback);
 
-  // Sets or unsets the paused state and calls |HandlePause| ifset.
+  // Sets or unsets the paused state and calls |HandlePause| if set.
   // Must be called on the debug target (WebModule) thread.
   void SetPaused(bool is_paused);
 
@@ -184,25 +162,12 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // received while script execution is paused.
   typedef std::deque<base::Closure> PausedTaskQueue;
 
-  // Constructor should only be called by |DebugServerBuilder|, which will
-  // ensure it is created on the specified thread, which must be the message
-  // loop of the WebModule this debug server is attached to, so that
-  // operations are executed synchronously with the other methods of that
-  // WebModule.
-  DebugServer(script::GlobalObjectProxy* global_object_proxy,
-              const dom::CspDelegate* csp_delegate);
-
   // Destructor should only be called by |scoped_ptr<DebugServer>|.
   ~DebugServer();
 
-  // Called by |script_runner_| and |OnEventInternal|. Notifies the clients.
-  void OnEvent(const std::string& method,
-               const base::optional<std::string>& params);
-
-  // Callback to receive events from the debug components.
-  // Serializes the method and params object to a JSON string and
-  // calls |OnEvent|.
-  void OnEventInternal(const std::string& method, const JSONObject& params);
+  // Called by |script_runner_| and |OnEvent|. Notifies the clients.
+  void OnEventInternal(const std::string& method,
+                       const base::optional<std::string>& params);
 
   // Dispatches a command received via |SendCommand| by looking up the method
   // name in the command registry and running the corresponding function.
@@ -215,26 +180,10 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // execution is paused.
   void DispatchCommandWhilePaused(const base::Closure& command_and_response);
 
-  // Adds a command to the command registry. This will be called by the
-  // objects referenced by |components_|.
-  void AddCommand(const std::string& method, const Command& callback);
-
   // Called by |SetPaused| to pause script execution in the debug target
   // (WebModule) by blocking its thread while continuing to process debugger
   // commands from other threads. Must be called on the WebModule thread.
   void HandlePause();
-
-  // Removes a command from the command registry. This will be called by the
-  // objects referenced by |components_|.
-  void RemoveCommand(const std::string& method);
-
-  // Calls |command| in |script_runner_| and creates a response object from
-  // the result.
-  JSONObject RunScriptCommand(const std::string& command,
-                              const JSONObject& params);
-
-  // Loads JavaScript from file and executes the contents.
-  bool RunScriptFile(const std::string& filename);
 
   // Used to run JavaScript commands with persistent state and receive events
   // from JS.
@@ -251,10 +200,6 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   MessageLoop* message_loop_;
   base::ThreadChecker thread_checker_;
 
-  // Debug components owned by this object.
-  std::vector<Component*> components_;
-  STLElementDeleter<std::vector<Component*> > components_deleter_;
-
   // Whether the debug target (WebModule) is currently paused.
   // See description of |SetPaused| and |HandlePause| above.
   bool is_paused_;
@@ -269,7 +214,6 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // Lock to synchronize access to |commands_pending_while_paused|.
   base::Lock command_while_paused_lock_;
 
-  friend class DebugServerBuilder;
   friend class scoped_ptr<DebugServer>;
 };
 

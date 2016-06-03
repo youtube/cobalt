@@ -19,18 +19,16 @@
 
 #include <string>
 
-#include "base/memory/weak_ptr.h"
-#include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/component_connector.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/console.h"
 
 namespace cobalt {
 namespace debug {
 
-class ConsoleComponent : public DebugServer::Component {
+class ConsoleComponent {
  public:
-  ConsoleComponent(const base::WeakPtr<DebugServer>& server,
-                   dom::Console* console);
+  ConsoleComponent(ComponentConnector* connector, dom::Console* console);
 
  private:
   class Listener : public dom::Console::Listener {
@@ -49,6 +47,7 @@ class ConsoleComponent : public DebugServer::Component {
   // Called by |console_listener_| when a new message is output.
   void OnMessageAdded(const std::string& text, dom::Console::Level level);
 
+  ComponentConnector* connector_;
   Listener console_listener_;
 };
 

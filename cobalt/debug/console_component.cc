@@ -51,14 +51,15 @@ void ConsoleComponent::Listener::OnMessage(const std::string& message,
   console_component_->OnMessageAdded(message, level);
 }
 
-ConsoleComponent::ConsoleComponent(const base::WeakPtr<DebugServer>& server,
+ConsoleComponent::ConsoleComponent(ComponentConnector* connector,
                                    dom::Console* console)
-    : DebugServer::Component(server),
+    : connector_(connector),
       ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)) {
-  AddCommand(kDisable,
-             base::Bind(&ConsoleComponent::Disable, base::Unretained(this)));
-  AddCommand(kEnable,
-             base::Bind(&ConsoleComponent::Enable, base::Unretained(this)));
+  DCHECK(connector_);
+  connector_->AddCommand(
+      kDisable, base::Bind(&ConsoleComponent::Disable, base::Unretained(this)));
+  connector_->AddCommand(
+      kEnable, base::Bind(&ConsoleComponent::Enable, base::Unretained(this)));
 }
 
 JSONObject ConsoleComponent::Disable(const JSONObject& params) {
@@ -77,7 +78,7 @@ void ConsoleComponent::OnMessageAdded(const std::string& text,
   params->SetString(kMessageText, text);
   params->SetString(kMessageLevel, dom::Console::GetLevelAsString(level));
   params->SetString(kMessageSource, kMessageSourceValue);
-  SendEvent(kMessageAdded, params);
+  connector_->SendEvent(kMessageAdded, params);
 }
 
 }  // namespace debug

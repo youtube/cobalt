@@ -72,55 +72,52 @@ const char kScriptParsed[] = "Debugger.scriptParsed";
 }  // namespace
 
 JavaScriptDebuggerComponent::JavaScriptDebuggerComponent(
-    const base::WeakPtr<DebugServer>& server,
-    script::GlobalObjectProxy* global_object_proxy)
-    : DebugServer::Component(server),
-      global_object_proxy_(global_object_proxy),
-      source_providers_deleter_(&source_providers_) {
-  AddCommand(kDisable, base::Bind(&JavaScriptDebuggerComponent::Disable,
-                                  base::Unretained(this)));
-  AddCommand(kEnable, base::Bind(&JavaScriptDebuggerComponent::Enable,
-                                 base::Unretained(this)));
-  AddCommand(kGetScriptSource,
-             base::Bind(&JavaScriptDebuggerComponent::GetScriptSource,
-                        base::Unretained(this)));
-  AddCommand(kPause, base::Bind(&JavaScriptDebuggerComponent::Pause,
-                                base::Unretained(this)));
-  AddCommand(kResume, base::Bind(&JavaScriptDebuggerComponent::Resume,
-                                 base::Unretained(this)));
-  AddCommand(kStepInto, base::Bind(&JavaScriptDebuggerComponent::StepInto,
-                                   base::Unretained(this)));
-  AddCommand(kSetPauseOnExceptions,
-             base::Bind(&JavaScriptDebuggerComponent::SetPauseOnExceptions,
-                        base::Unretained(this)));
-  AddCommand(kStepOut, base::Bind(&JavaScriptDebuggerComponent::StepOut,
-                                  base::Unretained(this)));
-  AddCommand(kStepOver, base::Bind(&JavaScriptDebuggerComponent::StepOver,
-                                   base::Unretained(this)));
+    ComponentConnector* connector)
+    : connector_(connector), source_providers_deleter_(&source_providers_) {
+  DCHECK(connector_);
+  connector_->AddCommand(kDisable,
+                         base::Bind(&JavaScriptDebuggerComponent::Disable,
+                                    base::Unretained(this)));
+  connector_->AddCommand(
+      kEnable,
+      base::Bind(&JavaScriptDebuggerComponent::Enable, base::Unretained(this)));
+  connector_->AddCommand(
+      kGetScriptSource,
+      base::Bind(&JavaScriptDebuggerComponent::GetScriptSource,
+                 base::Unretained(this)));
+  connector_->AddCommand(kPause, base::Bind(&JavaScriptDebuggerComponent::Pause,
+                                            base::Unretained(this)));
+  connector_->AddCommand(
+      kResume,
+      base::Bind(&JavaScriptDebuggerComponent::Resume, base::Unretained(this)));
+  connector_->AddCommand(kStepInto,
+                         base::Bind(&JavaScriptDebuggerComponent::StepInto,
+                                    base::Unretained(this)));
+  connector_->AddCommand(
+      kSetPauseOnExceptions,
+      base::Bind(&JavaScriptDebuggerComponent::SetPauseOnExceptions,
+                 base::Unretained(this)));
+  connector_->AddCommand(kStepOut,
+                         base::Bind(&JavaScriptDebuggerComponent::StepOut,
+                                    base::Unretained(this)));
+  connector_->AddCommand(kStepOver,
+                         base::Bind(&JavaScriptDebuggerComponent::StepOver,
+                                    base::Unretained(this)));
 }
 
 JavaScriptDebuggerComponent::~JavaScriptDebuggerComponent() {}
 
 JSONObject JavaScriptDebuggerComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-
-  // Reset the debugger first, to detach the current connection, if any.
-  script_debugger_.reset(NULL);
-
-  script_debugger_ =
-      script::ScriptDebugger::CreateDebugger(global_object_proxy_, this);
-  DCHECK(script_debugger_);
-
-  if (script_debugger_) {
-    return JSONObject(new base::DictionaryValue());
-  } else {
-    return ErrorResponse("Cannot create JavaScript debugger.");
-  }
+  DCHECK(connector_->script_debugger());
+  connector_->script_debugger()->Attach();
+  return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject JavaScriptDebuggerComponent::Disable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  script_debugger_.reset(NULL);
+  DCHECK(connector_->script_debugger());
+  connector_->script_debugger()->Detach();
   return JSONObject(new base::DictionaryValue());
 }
 
@@ -130,13 +127,14 @@ JSONObject JavaScriptDebuggerComponent::GetScriptSource(
   std::string script_id;
   bool got_script_id = params->GetString(kScriptId, &script_id);
   if (!got_script_id) {
-    return ErrorResponse("No scriptId specified in parameters.");
+    return connector_->ErrorResponse("No scriptId specified in parameters.");
   }
 
   // Find the source provider with a matching scriptId.
   SourceProviderMap::iterator it = source_providers_.find(script_id);
   if (it == source_providers_.end()) {
-    return ErrorResponse("No script found with specified scriptId.");
+    return connector_->ErrorResponse(
+        "No script found with specified scriptId.");
   }
   script::SourceProvider* source_provider = it->second;
   DCHECK(source_provider);
@@ -149,39 +147,36 @@ JSONObject JavaScriptDebuggerComponent::GetScriptSource(
 
 JSONObject JavaScriptDebuggerComponent::Pause(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  if (!script_debugger_) {
-    return ErrorResponse("JavaScript debugger is not enabled.");
-  }
-
-  script_debugger_->Pause();
+  DCHECK(connector_->script_debugger());
+  connector_->script_debugger()->Pause();
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject JavaScriptDebuggerComponent::Resume(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  if (!(script_debugger_ && server())) {
-    return ErrorResponse("JavaScript debugger is not enabled.");
-  }
-
-  script_debugger_->Resume();
-  server()->SetPaused(false);
+  DCHECK(connector_->script_debugger());
+  DCHECK(connector_->server());
+  connector_->script_debugger()->Resume();
+  connector_->server()->SetPaused(false);
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject JavaScriptDebuggerComponent::SetPauseOnExceptions(
     const JSONObject& params) {
-  if (!(script_debugger_ && server())) {
-    return ErrorResponse("JavaScript debugger is not enabled.");
-  }
+  DCHECK(connector_->script_debugger());
+  DCHECK(connector_->server());
 
   std::string state;
   DCHECK(params->GetString(kState, &state));
   if (state == "all") {
-    script_debugger_->SetPauseOnExceptions(script::ScriptDebugger::kAll);
+    connector_->script_debugger()->SetPauseOnExceptions(
+        script::ScriptDebugger::kAll);
   } else if (state == "none") {
-    script_debugger_->SetPauseOnExceptions(script::ScriptDebugger::kNone);
+    connector_->script_debugger()->SetPauseOnExceptions(
+        script::ScriptDebugger::kNone);
   } else if (state == "uncaught") {
-    script_debugger_->SetPauseOnExceptions(script::ScriptDebugger::kUncaught);
+    connector_->script_debugger()->SetPauseOnExceptions(
+        script::ScriptDebugger::kUncaught);
   } else {
     NOTREACHED();
   }
@@ -190,34 +185,28 @@ JSONObject JavaScriptDebuggerComponent::SetPauseOnExceptions(
 
 JSONObject JavaScriptDebuggerComponent::StepInto(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  if (!(script_debugger_ && server())) {
-    return ErrorResponse("JavaScript debugger is not enabled.");
-  }
-
-  script_debugger_->StepInto();
-  server()->SetPaused(false);
+  DCHECK(connector_->script_debugger());
+  DCHECK(connector_->server());
+  connector_->script_debugger()->StepInto();
+  connector_->server()->SetPaused(false);
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject JavaScriptDebuggerComponent::StepOut(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  if (!(script_debugger_ && server())) {
-    return ErrorResponse("JavaScript debugger is not enabled.");
-  }
-
-  script_debugger_->StepOut();
-  server()->SetPaused(false);
+  DCHECK(connector_->script_debugger());
+  DCHECK(connector_->server());
+  connector_->script_debugger()->StepOut();
+  connector_->server()->SetPaused(false);
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject JavaScriptDebuggerComponent::StepOver(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  if (!(script_debugger_ && server())) {
-    return ErrorResponse("JavaScript debugger is not enabled.");
-  }
-
-  script_debugger_->StepOver();
-  server()->SetPaused(false);
+  DCHECK(connector_->script_debugger());
+  DCHECK(connector_->server());
+  connector_->script_debugger()->StepOver();
+  connector_->server()->SetPaused(false);
   return JSONObject(new base::DictionaryValue());
 }
 
@@ -232,9 +221,8 @@ void JavaScriptDebuggerComponent::OnScriptDebuggerPause(
   SendPausedEvent(call_frame.Pass());
 
   // Tell the debug server to enter paused state - block this thread.
-  if (server()) {
-    server()->SetPaused(true);
-  }
+  DCHECK(connector_->server());
+  connector_->server()->SetPaused(true);
 
   // Notify the clients we've resumed.
   SendResumedEvent();
@@ -283,7 +271,7 @@ JSONObject JavaScriptDebuggerComponent::CreateCallFrameData(
   // Add the "this" object data.
   const script::OpaqueHandleHolder* this_object = call_frame->GetThis();
   if (this_object) {
-    JSONObject this_object_data(CreateRemoteObject(this_object));
+    JSONObject this_object_data(connector_->CreateRemoteObject(this_object));
     call_frame_data->Set(kThis, this_object_data.release());
   }
 
@@ -311,7 +299,8 @@ JSONObject JavaScriptDebuggerComponent::CreateScopeData(
   DCHECK(scope);
   const script::OpaqueHandleHolder* scope_object = scope->GetObject();
   JSONObject scope_data(new base::DictionaryValue());
-  scope_data->Set(kObject, CreateRemoteObject(scope_object).release());
+  scope_data->Set(kObject,
+                  connector_->CreateRemoteObject(scope_object).release());
   scope_data->SetString(kType, script::Scope::TypeToString(scope->GetType()));
   return scope_data.Pass();
 }
@@ -362,7 +351,7 @@ void JavaScriptDebuggerComponent::HandleScriptEvent(
     DCHECK_GE(start_column.value(), 1);
     params->SetInteger(kStartColumn, start_column.value());
   }
-  SendEvent(method, params.Pass());
+  connector_->SendEvent(method, params.Pass());
 
   // Store the raw pointer to the source provider in the map.
   // The values in the map will be deleted on destruction by
@@ -383,14 +372,14 @@ void JavaScriptDebuggerComponent::SendPausedEvent(
   DCHECK(call_stack_data);
   event_params->Set(kCallFrames, call_stack_data.release());
   event_params->SetString(kReason, kDebugCommand);
-  SendEvent(event_method, event_params);
+  connector_->SendEvent(event_method, event_params);
 }
 
 void JavaScriptDebuggerComponent::SendResumedEvent() {
   // Send the event to the clients. No parameters.
   std::string event_method = kResumed;
   scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
-  SendEvent(event_method, event_params);
+  connector_->SendEvent(event_method, event_params);
 }
 
 }  // namespace debug

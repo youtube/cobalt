@@ -106,11 +106,29 @@ JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
       current_source_id_(0),
       current_line_number_(0),
       current_column_number_(0),
-      is_paused_(false) {
-  attach(GetGlobalObject());
+      is_paused_(false) {}
+
+JSCDebugger::~JSCDebugger() {
+  if (GetGlobalObject()->debugger() == this) {
+    detach(GetGlobalObject());
+  }
 }
 
-JSCDebugger::~JSCDebugger() { detach(GetGlobalObject()); }
+void JSCDebugger::Attach() {
+  if (GetGlobalObject()->debugger() == NULL) {
+    attach(GetGlobalObject());
+  } else {
+    DLOG(WARNING) << "Debugger is already attached.";
+  }
+}
+
+void JSCDebugger::Detach() {
+  if (GetGlobalObject()->debugger() == this) {
+    detach(GetGlobalObject());
+  } else {
+    DLOG(WARNING) << "Debugger is not attached.";
+  }
+}
 
 void JSCDebugger::Pause() {
   pause_on_next_statement_ = true;
@@ -122,8 +140,11 @@ void JSCDebugger::Resume() {
   pause_on_call_frame_ = NULL;
 }
 
-void JSCDebugger::SetPauseOnExceptions(PauseOnExceptionsState state) {
+script::ScriptDebugger::PauseOnExceptionsState
+JSCDebugger::SetPauseOnExceptions(PauseOnExceptionsState state) {
+  const PauseOnExceptionsState previous_state = pause_on_exceptions_;
   pause_on_exceptions_ = state;
+  return previous_state;
 }
 
 void JSCDebugger::StepInto() {
