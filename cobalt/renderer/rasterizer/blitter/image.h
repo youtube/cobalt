@@ -21,11 +21,13 @@
 
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/rasterizer/skia/image.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -62,7 +64,11 @@ class ImageData : public render_tree::ImageData {
 
 // render_tree::Image objects are implemented in the Blitter API via
 // SbBlitterSurface objects, which are conceptually an exact match for Image.
-class Image : public render_tree::Image {
+// We derive from skia::SkiaSinglePlaneImage here because it is possible for
+// render tree nodes referencing blitter:Images to be passed into a Skia
+// software renderer.  Thus, skia::SkiaSinglePlaneImage is implemented such
+// that Skia render tree node visitors can also render blitter::Images.
+class Image : public skia::SkiaSinglePlaneImage {
  public:
   explicit Image(scoped_ptr<ImageData> image_data);
 
@@ -70,11 +76,23 @@ class Image : public render_tree::Image {
 
   SbBlitterSurface surface() const { return surface_; }
 
+  // Overrides from skia::SkiaSinglePlaneImage.
+  void EnsureInitialized() OVERRIDE;
+
+  // When GetBitmap() is called on a blitter::Image for the first time, we do a
+  // one-time download of the pixel data from the Blitter API surface into
+  // a SkBitmap.
+  const SkBitmap& GetBitmap() const OVERRIDE;
+
  private:
   ~Image() OVERRIDE;
 
   math::Size size_;
   SbBlitterSurface surface_;
+
+  // This field is populated when GetBitmap() is called for the first time, and
+  // after that is never modified.
+  mutable base::optional<SkBitmap> bitmap_;
 };
 
 }  // namespace blitter
