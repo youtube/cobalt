@@ -100,7 +100,10 @@ void RenderTreeNodeVisitor::Visit(
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   if (filter_node->data().blur_filter) {
-    NOTIMPLEMENTED() << "We don't currently support blur filters.";
+    // The Starboard Blitter API does not support blur filters, so we fallback
+    // to software for this.
+    RenderWithSoftwareRenderer(filter_node);
+    return;
   }
 
   render_tree::Node* source = filter_node->data().source.get();
@@ -113,8 +116,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         *filter_node->data().viewport_filter;
 
     if (viewport_filter.has_rounded_corners()) {
-      NOTIMPLEMENTED()
-          << "We don't currently handle rounded corners in viewport filters.";
+      RenderWithSoftwareRenderer(filter_node);
+      return;
     }
 
     scoped_push.emplace(
@@ -166,8 +169,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   const Matrix3F& local_matrix = image_node->data().local_transform;
   if (local_matrix.Get(1, 0) != 0 || local_matrix.Get(0, 1) != 0) {
-    NOTIMPLEMENTED()
-        << "We don't currently handle non-scale/non-translate matrices.";
+    // The Starboard Blitter API does not support local texture transforms that
+    // involve rotations or shears, so we must fallback to software to perform
+    // these.
+    RenderWithSoftwareRenderer(image_node);
     return;
   }
 
@@ -197,8 +202,9 @@ void RenderTreeNodeVisitor::Visit(
   const Matrix3F& transform = matrix_transform_node->data().transform;
 
   if (transform.Get(1, 0) != 0 || transform.Get(0, 1) != 0) {
-    NOTIMPLEMENTED()
-        << "We don't currently handle non-scale/non-translate matrices.";
+    // The Starboard Blitter API does not support rotations/shears, so we must
+    // fallback to software in order to render the entire subtree.
+    RenderWithSoftwareRenderer(matrix_transform_node);
     return;
   }
 

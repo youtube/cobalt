@@ -18,6 +18,7 @@
 
 #include "cobalt/render_tree/image.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_blitter_conversions.h"
+#include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -58,6 +59,32 @@ Image::Image(scoped_ptr<ImageData> image_data)
     : size_(image_data->GetDescriptor().size) {
   surface_ = SbBlitterCreateSurfaceFromPixelData(image_data->device(),
                                                  image_data->TakePixelData());
+}
+
+void Image::EnsureInitialized() {}
+
+const SkBitmap& Image::GetBitmap() const {
+  // This function will only ever get called if the Skia software renderer needs
+  // to reference the image, and so should be called rarely.  In that case, the
+  // first time it is called on this image, we will download the image data from
+  // the Blitter API surface into a SkBitmap object where the pixel data lives
+  // in CPU memory.
+  if (!bitmap_) {
+    bitmap_.emplace();
+
+    SkImageInfo image_info = SkImageInfo::Make(
+        size_.width(), size_.height(), kN32_SkColorType, kPremul_SkAlphaType);
+    bitmap_->allocPixels(image_info);
+
+    SkAutoLockPixels lock(*bitmap_);
+
+    CHECK(SbBlitterDownloadSurfacePixels(
+        surface_, SkiaToBlitterPixelFormat(image_info.colorType()),
+        kSbBlitterAlphaFormatPremultiplied, bitmap_->rowBytes(),
+        bitmap_->getPixels()));
+  }
+
+  return *bitmap_;
 }
 
 Image::~Image() { SbBlitterDestroySurface(surface_); }
