@@ -62,7 +62,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
                 int channels,
                 int sampling_frequency_hz,
                 SbAudioSinkFrameBuffers frame_buffers,
-                int frame_buffers_size_in_frames,
+                int frames_per_channel,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 SbAudioSinkConsumeFramesFunc consume_frame_func,
                 void* context);
@@ -105,7 +105,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   bool destroying_;
 
   float* frame_buffer_;
-  int frame_buffer_size_in_frames_;
+  int frames_per_channel_;
   std::vector<float> silence_frames_;
 
   void* playback_handle_;
@@ -116,7 +116,7 @@ AlsaAudioSink::AlsaAudioSink(
     int channels,
     int sampling_frequency_hz,
     SbAudioSinkFrameBuffers frame_buffers,
-    int frame_buffers_size_in_frames,
+    int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frame_func,
     void* context)
@@ -132,7 +132,7 @@ AlsaAudioSink::AlsaAudioSink(
                     2),
       destroying_(false),
       frame_buffer_(reinterpret_cast<float*>(frame_buffers[0])),
-      frame_buffer_size_in_frames_(frame_buffers_size_in_frames),
+      frames_per_channel_(frames_per_channel),
       silence_frames_(channels * kFramesPerRequest),
       playback_handle_(NULL) {
   SB_DCHECK(update_source_status_func_);
@@ -253,7 +253,7 @@ void AlsaAudioSink::WriteFrames(int frames_to_write,
                                 int offset_in_frames) {
   SB_DCHECK(frames_to_write <= frames_in_buffer);
 
-  int frames_to_buffer_end = frame_buffer_size_in_frames_ - offset_in_frames;
+  int frames_to_buffer_end = frames_per_channel_ - offset_in_frames;
   if (frames_to_write > frames_to_buffer_end) {
     int consumed = AlsaWriteFrames(playback_handle_,
                                    frame_buffer_ + offset_in_frames * channels_,
@@ -281,14 +281,13 @@ SbAudioSink AlsaAudioSinkType::Create(
     SbMediaAudioSampleType audio_sample_type,
     SbMediaAudioFrameStorageType audio_frame_storage_type,
     SbAudioSinkFrameBuffers frame_buffers,
-    int frame_buffers_size_in_frames,
+    int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
-  AlsaAudioSink* audio_sink =
-      new AlsaAudioSink(this, channels, sampling_frequency_hz, frame_buffers,
-                        frame_buffers_size_in_frames, update_source_status_func,
-                        consume_frames_func, context);
+  AlsaAudioSink* audio_sink = new AlsaAudioSink(
+      this, channels, sampling_frequency_hz, frame_buffers, frames_per_channel,
+      update_source_status_func, consume_frames_func, context);
   if (!audio_sink->is_valid()) {
     delete audio_sink;
     return kSbAudioSinkInvalid;
