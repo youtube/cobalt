@@ -57,9 +57,12 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
   ~JSCDebugger() OVERRIDE;
 
   // Implementation of ScriptDebugger.
+  void Attach() OVERRIDE;
+  void Detach() OVERRIDE;
   void Pause() OVERRIDE;
   void Resume() OVERRIDE;
-  void SetPauseOnExceptions(PauseOnExceptionsState state) OVERRIDE;
+  PauseOnExceptionsState SetPauseOnExceptions(
+      PauseOnExceptionsState state) OVERRIDE;
   void StepInto() OVERRIDE;
   void StepOut() OVERRIDE;
   void StepOver() OVERRIDE;

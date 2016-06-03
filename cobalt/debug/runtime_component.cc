@@ -51,31 +51,35 @@ const int kContextIdValue = 1;
 const char kContextNameValue[] = "Cobalt";
 }  // namespace
 
-RuntimeComponent::RuntimeComponent(const base::WeakPtr<DebugServer>& server)
-    : DebugServer::Component(server) {
-  if (!RunScriptFile(kScriptFile)) {
+RuntimeComponent::RuntimeComponent(ComponentConnector* connector)
+    : connector_(connector) {
+  DCHECK(connector_);
+  if (!connector_->RunScriptFile(kScriptFile)) {
     DLOG(WARNING) << "Cannot execute Runtime initialization script.";
   }
 
-  AddCommand(kCallFunctionOn, base::Bind(&RuntimeComponent::CallFunctionOn,
-                                         base::Unretained(this)));
-  AddCommand(kDisable,
-             base::Bind(&RuntimeComponent::Disable, base::Unretained(this)));
-  AddCommand(kEnable,
-             base::Bind(&RuntimeComponent::Enable, base::Unretained(this)));
-  AddCommand(kEvaluate,
-             base::Bind(&RuntimeComponent::Evaluate, base::Unretained(this)));
-  AddCommand(kGetProperties, base::Bind(&RuntimeComponent::GetProperties,
-                                        base::Unretained(this)));
-  AddCommand(kReleaseObject, base::Bind(&RuntimeComponent::ReleaseObject,
-                                        base::Unretained(this)));
-  AddCommand(kReleaseObjectGroup,
-             base::Bind(&RuntimeComponent::ReleaseObjectGroup,
-                        base::Unretained(this)));
+  connector_->AddCommand(
+      kCallFunctionOn,
+      base::Bind(&RuntimeComponent::CallFunctionOn, base::Unretained(this)));
+  connector_->AddCommand(
+      kDisable, base::Bind(&RuntimeComponent::Disable, base::Unretained(this)));
+  connector_->AddCommand(
+      kEnable, base::Bind(&RuntimeComponent::Enable, base::Unretained(this)));
+  connector_->AddCommand(kEvaluate, base::Bind(&RuntimeComponent::Evaluate,
+                                               base::Unretained(this)));
+  connector_->AddCommand(
+      kGetProperties,
+      base::Bind(&RuntimeComponent::GetProperties, base::Unretained(this)));
+  connector_->AddCommand(
+      kReleaseObject,
+      base::Bind(&RuntimeComponent::ReleaseObject, base::Unretained(this)));
+  connector_->AddCommand(kReleaseObjectGroup,
+                         base::Bind(&RuntimeComponent::ReleaseObjectGroup,
+                                    base::Unretained(this)));
 }
 
 JSONObject RuntimeComponent::CallFunctionOn(const JSONObject& params) {
-  return RunScriptCommand("runtime.callFunctionOn", params);
+  return connector_->RunScriptCommand("runtime.callFunctionOn", params);
 }
 
 JSONObject RuntimeComponent::Disable(const JSONObject& params) {
@@ -90,19 +94,19 @@ JSONObject RuntimeComponent::Enable(const JSONObject& params) {
 }
 
 JSONObject RuntimeComponent::Evaluate(const JSONObject& params) {
-  return RunScriptCommand("runtime.evaluate", params);
+  return connector_->RunScriptCommand("runtime.evaluate", params);
 }
 
 JSONObject RuntimeComponent::GetProperties(const JSONObject& params) {
-  return RunScriptCommand("runtime.getProperties", params);
+  return connector_->RunScriptCommand("runtime.getProperties", params);
 }
 
 JSONObject RuntimeComponent::ReleaseObjectGroup(const JSONObject& params) {
-  return RunScriptCommand("runtime.releaseObjectGroup", params);
+  return connector_->RunScriptCommand("runtime.releaseObjectGroup", params);
 }
 
 JSONObject RuntimeComponent::ReleaseObject(const JSONObject& params) {
-  return RunScriptCommand("runtime.releaseObject", params);
+  return connector_->RunScriptCommand("runtime.releaseObject", params);
 }
 
 void RuntimeComponent::OnExecutionContextCreated() {
@@ -110,7 +114,7 @@ void RuntimeComponent::OnExecutionContextCreated() {
   event->SetString(kContextFrameId, kContextFrameIdValue);
   event->SetInteger(kContextId, kContextIdValue);
   event->SetString(kContextName, kContextNameValue);
-  SendEvent(kExecutionContextCreated, event);
+  connector_->SendEvent(kExecutionContextCreated, event);
 }
 
 }  // namespace debug

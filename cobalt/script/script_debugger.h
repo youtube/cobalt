@@ -20,8 +20,6 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/script/call_frame.h"
-#include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
 #include "cobalt/script/source_provider.h"
 
 namespace cobalt {
@@ -55,20 +53,46 @@ class ScriptDebugger {
     virtual void OnScriptParsed(scoped_ptr<SourceProvider> source_provider) = 0;
   };
 
-  // Possible pause on exception states.
+  // Possible pause on exceptions states.
   enum PauseOnExceptionsState { kAll, kNone, kUncaught };
+
+  // Used to temporarily override the pause on exceptions state, e.g. to
+  // disable it when executing devtools backend scripts.
+  class ScopedPauseOnExceptionsState {
+   public:
+    ScopedPauseOnExceptionsState(ScriptDebugger* script_debugger,
+                                 PauseOnExceptionsState state)
+        : script_debugger_(script_debugger) {
+      DCHECK(script_debugger_);
+      stored_state_ = script_debugger_->SetPauseOnExceptions(state);
+    }
+
+    ~ScopedPauseOnExceptionsState() {
+      script_debugger_->SetPauseOnExceptions(stored_state_);
+    }
+
+   private:
+    ScriptDebugger* script_debugger_;
+    PauseOnExceptionsState stored_state_;
+  };
 
   // Factory method to create an engine-specific instance. Implementation to be
   // provided by derived class.
   static scoped_ptr<ScriptDebugger> CreateDebugger(
       GlobalObjectProxy* global_object_proxy, Delegate* delegate);
 
+  // Attach/detach the script debugger.
+  virtual void Attach() = 0;
+  virtual void Detach() = 0;
+
   // Code execution control. Implementations may use
   // |Delegate::OnScriptDebuggerPause| to have the delegate handle the
   // actual blocking of the thread in an engine-independent way.
   virtual void Pause() = 0;
   virtual void Resume() = 0;
-  virtual void SetPauseOnExceptions(PauseOnExceptionsState state) = 0;
+  // Returns the previous state.
+  virtual PauseOnExceptionsState SetPauseOnExceptions(
+      PauseOnExceptionsState state) = 0;
   virtual void StepInto() = 0;
   virtual void StepOut() = 0;
   virtual void StepOver() = 0;
