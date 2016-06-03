@@ -24,6 +24,11 @@
     ],
 
     'gl_type': 'none',
+
+    # The DirectFB hardware renderer is fully functional, but it currently
+    # cannot perform linear interpolation when scale up images, and so it
+    # fails the rasterizer pixel tests.
+    'force_software_rasterizer': 1,
   },
 
   'target_defaults': {
