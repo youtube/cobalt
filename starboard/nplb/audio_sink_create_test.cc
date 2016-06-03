@@ -13,14 +13,16 @@
 // limitations under the License.
 
 #include "starboard/audio_sink.h"
+
+#include <vector>
+
+#include "starboard/nplb/audio_sink_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 
 namespace {
-
-const int kFrameBufferSizeInFrames = 4096;
 
 void UpdateSourceStatusFuncStub(int* frames_in_buffer,
                                 int* offset_in_frames,
@@ -31,28 +33,196 @@ void ConsumeFramesFuncStub(int frames_consumed, void* context) {}
 
 }  // namespace
 
-TEST(SbAudioSinkTest, SunnyDay) {
-  ASSERT_GE(SbAudioSinkGetMaxChannels(), 2);
+TEST(SbAudioSinkCreateTest, SunnyDay) {
+  ASSERT_GE(SbAudioSinkGetMaxChannels(), 1);
 
-  SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeInt16;
-  if (!SbAudioSinkIsAudioSampleTypeSupported(sample_type)) {
-    sample_type = kSbMediaAudioSampleTypeFloat32;
-  }
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
 
-  SbMediaAudioFrameStorageType storage_type =
-      kSbMediaAudioFrameStorageTypeInterleaved;
-  if (!SbAudioSinkIsAudioFrameStorageTypeSupported(storage_type)) {
-    storage_type = kSbMediaAudioFrameStorageTypePlanar;
-  }
-
-  float frame_buffer[kFrameBufferSizeInFrames];
-  float* frame_buffers[1] = {frame_buffer};
   SbAudioSink audio_sink = SbAudioSinkCreate(
-      2, SbAudioSinkGetNearestSupportedSampleFrequency(44100), sample_type,
-      storage_type, reinterpret_cast<void**>(frame_buffers), 4096,
-      UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+      frame_buffers.channels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      frame_buffers.sample_type(), frame_buffers.storage_type(),
+      frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+      UpdateSourceStatusFuncStub, ConsumeFramesFuncStub,
+      reinterpret_cast<void*>(1));
   EXPECT_TRUE(SbAudioSinkIsValid(audio_sink));
   SbAudioSinkDestroy(audio_sink);
+}
+
+TEST(SbAudioSinkCreateTest, SunnyDayAllCombinations) {
+  std::vector<SbMediaAudioSampleType> sample_types;
+  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16)) {
+    sample_types.push_back(kSbMediaAudioSampleTypeInt16);
+  }
+  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
+    sample_types.push_back(kSbMediaAudioSampleTypeFloat32);
+  }
+
+  std::vector<SbMediaAudioFrameStorageType> storage_types;
+  if (SbAudioSinkIsAudioFrameStorageTypeSupported(
+          kSbMediaAudioFrameStorageTypeInterleaved)) {
+    storage_types.push_back(kSbMediaAudioFrameStorageTypeInterleaved);
+  }
+  if (SbAudioSinkIsAudioFrameStorageTypeSupported(
+          kSbMediaAudioFrameStorageTypePlanar)) {
+    storage_types.push_back(kSbMediaAudioFrameStorageTypePlanar);
+  }
+
+  for (size_t sample_type = 0; sample_type < sample_types.size();
+       ++sample_type) {
+    for (size_t storage_type = 0; storage_type < storage_types.size();
+         ++storage_type) {
+      AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels(),
+                                              sample_types[sample_type],
+                                              storage_types[storage_type]);
+      // It should at least support stereo and the claimed max channels.
+      SbAudioSink audio_sink = SbAudioSinkCreate(
+          frame_buffers.channels(),
+          SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+          frame_buffers.sample_type(), frame_buffers.storage_type(),
+          frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+          UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+      EXPECT_TRUE(SbAudioSinkIsValid(audio_sink));
+      SbAudioSinkDestroy(audio_sink);
+
+      if (SbAudioSinkGetMaxChannels() > 2) {
+        AudioSinkTestFrameBuffers frame_buffers(2, sample_types[sample_type],
+                                                storage_types[storage_type]);
+        audio_sink = SbAudioSinkCreate(
+            frame_buffers.channels(),
+            SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+            frame_buffers.sample_type(), frame_buffers.storage_type(),
+            frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+            UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+        EXPECT_TRUE(SbAudioSinkIsValid(audio_sink));
+        SbAudioSinkDestroy(audio_sink);
+      }
+    }
+  }
+}
+
+TEST(SbAudioSinkCreateTest, RainyDayInvalidChannels) {
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      0,  // |channels| is 0
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      frame_buffers.sample_type(), frame_buffers.storage_type(),
+      frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+      UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+}
+
+TEST(SbAudioSinkCreateTest, RainyDayInvalidFrequency) {
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      frame_buffers.channels(), 0,  // |sampling_frequency_hz| is 0
+      frame_buffers.sample_type(), frame_buffers.storage_type(),
+      frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+      UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+
+  const int kOddFrequency = 12345;
+  if (SbAudioSinkGetNearestSupportedSampleFrequency(kOddFrequency) !=
+      kOddFrequency) {
+    audio_sink = SbAudioSinkCreate(
+        frame_buffers.channels(),
+        kOddFrequency,  // |sampling_frequency_hz| is unsupported
+        frame_buffers.sample_type(), frame_buffers.storage_type(),
+        frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+        UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+    EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+  }
+}
+
+TEST(SbAudioSinkCreateTest, RainyDayInvalidSampleType) {
+  SbMediaAudioSampleType invalid_sample_type;
+  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16)) {
+    if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
+      return;
+    }
+    invalid_sample_type = kSbMediaAudioSampleTypeFloat32;
+  } else {
+    invalid_sample_type = kSbMediaAudioSampleTypeInt16;
+  }
+
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels(),
+                                          invalid_sample_type);
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      SbAudioSinkGetMaxChannels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      invalid_sample_type,  // |sample_type| is invalid
+      frame_buffers.storage_type(), frame_buffers.frame_buffers(),
+      frame_buffers.frames_per_channel(), UpdateSourceStatusFuncStub,
+      ConsumeFramesFuncStub, NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+}
+
+TEST(SbAudioSinkCreateTest, RainyDayInvalidFrameStorageType) {
+  SbMediaAudioFrameStorageType invalid_storage_type;
+  if (SbAudioSinkIsAudioFrameStorageTypeSupported(
+          kSbMediaAudioFrameStorageTypeInterleaved)) {
+    if (SbAudioSinkIsAudioFrameStorageTypeSupported(
+            kSbMediaAudioFrameStorageTypePlanar)) {
+      return;
+    }
+    invalid_storage_type = kSbMediaAudioFrameStorageTypePlanar;
+  } else {
+    invalid_storage_type = kSbMediaAudioFrameStorageTypeInterleaved;
+  }
+
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels(),
+                                          invalid_storage_type);
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      SbAudioSinkGetMaxChannels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      frame_buffers.sample_type(),
+      invalid_storage_type,  // |storage_type| is invalid
+      frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+      UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+}
+
+TEST(SbAudioSinkCreateTest, RainyDayInvalidFrameBuffers) {
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      frame_buffers.channels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      frame_buffers.sample_type(), frame_buffers.storage_type(),
+      NULL,  // |frame_buffers| is NULL
+      frame_buffers.frames_per_channel(), UpdateSourceStatusFuncStub,
+      ConsumeFramesFuncStub, NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+
+  audio_sink = SbAudioSinkCreate(
+      frame_buffers.channels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      frame_buffers.sample_type(), frame_buffers.storage_type(),
+      frame_buffers.frame_buffers(),
+      0,  // |frames_per_channel| is 0
+      UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+}
+
+TEST(SbAudioSinkCreateTest, RainyDayInvalidCallback) {
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      frame_buffers.channels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      frame_buffers.sample_type(), frame_buffers.storage_type(),
+      frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+      NULL,  // |update_source_status_func| is NULL
+      ConsumeFramesFuncStub, NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
+
+  audio_sink = SbAudioSinkCreate(
+      frame_buffers.channels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+      frame_buffers.sample_type(), frame_buffers.storage_type(),
+      frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+      UpdateSourceStatusFuncStub,
+      NULL,  // |consume_frames_func| is NULL
+      NULL);
+  EXPECT_FALSE(SbAudioSinkIsValid(audio_sink));
 }
 
 }  // namespace nplb

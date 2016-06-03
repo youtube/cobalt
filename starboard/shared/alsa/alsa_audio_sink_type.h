@@ -33,7 +33,7 @@ class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
       SbMediaAudioSampleType audio_sample_type,
       SbMediaAudioFrameStorageType audio_frame_storage_type,
       SbAudioSinkFrameBuffers frame_buffers,
-      int frame_buffers_size_in_frames,
+      int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
       void* context);
