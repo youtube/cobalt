@@ -65,11 +65,13 @@ scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
 
   SbBlitterSurface surface = render_target_blitter->GetSbSurface();
 
-  scoped_array<uint8_t> pixels(
-      new uint8_t[render_target_blitter->GetSize().GetArea() * 4]);
+  const math::Size& size = render_target_blitter->GetSize();
+  scoped_array<uint8_t> pixels(new uint8_t[size.GetArea() * 4]);
 
   SbBlitterFlushContext(context_);
-  SbBlitterDownloadSurfacePixelDataAsRGBA(surface, pixels.get());
+  SbBlitterDownloadSurfacePixels(surface, kSbBlitterPixelDataFormatRGBA8,
+                                 kSbBlitterAlphaFormatPremultiplied,
+                                 size.width() * 4, pixels.get());
 
   return pixels.Pass();
 }
