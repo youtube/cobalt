@@ -21,16 +21,16 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/debug/component_connector.h"
 #include "cobalt/debug/debug_script_runner.h"
-#include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/json_object.h"
 
 namespace cobalt {
 namespace debug {
 
-class RuntimeComponent : public DebugServer::Component {
+class RuntimeComponent {
  public:
-  explicit RuntimeComponent(const base::WeakPtr<DebugServer>& server);
+  explicit RuntimeComponent(ComponentConnector* connector);
 
  private:
   // Command handlers.
@@ -46,6 +46,9 @@ class RuntimeComponent : public DebugServer::Component {
   // created. Currently we just send this event once when the component
   // is enabled, passing default values.
   void OnExecutionContextCreated();
+
+  // Helper object to connect to the debug server, etc.
+  ComponentConnector* connector_;
 };
 
 }  // namespace debug
