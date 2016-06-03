@@ -70,11 +70,11 @@ bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 //
 // |frame_buffers| is an array of pointers to sample data.  If the sink is
 // operating in interleaved mode, the array contains only one element, which is
-// an array containing |frame_buffers_size_in_frames| * |channels| samples.  If
-// the sink is operating in planar mode, the number of elements in the array
-// will be the same as |channels|, each of the elements will be an array of
-// |frame_buffers_size_in_frames| samples.  The caller has to ensure that
-// |frame_buffers| is valid until SbAudioSinkDestroy is called.
+// an array containing |frames_per_channel| * |channels| samples.  If the sink
+// is operating in planar mode, the number of elements in the array will be the
+// same as |channels|, each of the elements will be an array of
+// |frames_per_channel| samples.  The caller has to ensure that |frame_buffers|
+// is valid until SbAudioSinkDestroy is called.
 //
 // |update_source_status_func| cannot be NULL.  The audio sink will call it on
 // an internal thread to query the status of the source.
@@ -98,7 +98,7 @@ SbAudioSinkCreate(int channels,
                   SbMediaAudioSampleType audio_sample_type,
                   SbMediaAudioFrameStorageType audio_frame_storage_type,
                   SbAudioSinkFrameBuffers frame_buffers,
-                  int frame_buffers_size_in_frames,
+                  int frames_per_channel,
                   SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                   SbAudioSinkConsumeFramesFunc consume_frames_func,
                   void* context);
