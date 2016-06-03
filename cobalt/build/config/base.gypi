@@ -43,6 +43,11 @@
     # assume some things, and it'll save us some configuration time.
     'target_os%': 'unknown',
 
+    # If true, will force render tree rasterization to occur via a software
+    # rasterizer.  Graphical APIs/hardware will only be used to send the final
+    # image to the display/output surface.
+    'force_software_rasterizer%': 0,
+
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
     'gtest_target_type%': 'executable',
