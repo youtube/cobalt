@@ -16,8 +16,8 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
+#include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
-#include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
 namespace cobalt {
 namespace renderer {
@@ -25,8 +25,13 @@ namespace renderer {
 namespace {
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context) {
+#if COBALT_FORCE_SOFTWARE_RASTERIZER
+  return scoped_ptr<rasterizer::Rasterizer>(
+      new rasterizer::egl::SoftwareRasterizer(graphics_context));
+#else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::SkiaHardwareRasterizer(graphics_context));
+#endif  // #if COBALT_FORCE_SOFTWARE_RASTERIZER
 }
 }  // namespace
 

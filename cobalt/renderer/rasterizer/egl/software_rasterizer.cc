@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 
+#include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
