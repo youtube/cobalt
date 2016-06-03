@@ -135,13 +135,6 @@ void LogMessage::Init(const char* file, int line) {
 
   stream_ << '[';
   stream_ << SbThreadGetId() << ':';
-  SbTime t = SbTimeGetNow();
-  SbTimeExploded exploded;
-  SbTimeExplode(t, &exploded);
-  stream_ << std::setfill('0') << std::setw(2) << exploded.month << std::setw(2)
-          << exploded.day_of_month << '/' << std::setw(2) << exploded.hour
-          << std::setw(2) << exploded.minute << std::setw(2) << exploded.second
-          << ':';
   stream_ << SbTimeGetMonotonicNow() << ':';
   stream_ << log_priority_names[priority_];
   stream_ << ":" << filename << "(" << line << ")] ";
