@@ -447,19 +447,34 @@ SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
 SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
                                        SbBlitterSurfaceInfo* surface_info);
 
+// Returns whether the combination of parameters (|surface|, |pixel_format|,
+// |alpha_format|) are valid for calls to SbBlitterDownloadSurfacePixels().
+// This function is not thread safe.
+SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
+    SbBlitterSurface surface,
+    SbBlitterPixelDataFormat pixel_format,
+    SbBlitterAlphaFormat alpha_format);
+
 // Downloads |surface| pixel data into CPU memory pointed to by
-// |out_pixel_data|, formatted as byte-ordered RGBA 32-bit with a pitch (in
-// bytes) equal to |surface|'s width multiplied by 4.  Thus, |out_pixel_data|
+// |out_pixel_data|, formatted according to the requested |pixel_format|,
+// |alpha_format| and the requested |pitch_in_bytes|.  Thus, |out_pixel_data|
 // must point to a region of memory with a size of
-// surface_width * surface_height * 4 bytes.  When this function is called, it
-// will first wait for all previously flushed graphics commands to be executed
-// by the device before downloading the data.  Since this function waits for the
-// pipeline to empty, it is slow, and is expected to only be called in debug or
-// test environments.
+// surface_height * |pitch_in_bytes| *
+// SbBlitterBytesPerPixelForFormat(pixel_format) bytes.  The function
+// SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels() can be called first
+// to check that your requested |pixel_format| and |alpha_format| are valid
+// for |surface|.  When this function is called, it will first wait for all
+// previously flushed graphics commands to be executed by the device before
+// downloading the data.  Since this function waits for the pipeline to empty,
+// it should be used sparingly, such as within in debug or test environments.
 // This function is not thread safe.
 // Returns whether the pixel data was downloaded successfully or not.
-SB_EXPORT bool SbBlitterDownloadSurfacePixelDataAsRGBA(SbBlitterSurface surface,
-                                                       void* out_pixel_data);
+SB_EXPORT bool SbBlitterDownloadSurfacePixels(
+    SbBlitterSurface surface,
+    SbBlitterPixelDataFormat pixel_format,
+    SbBlitterAlphaFormat alpha_format,
+    int pitch_in_bytes,
+    void* out_pixel_data);
 
 // Flips |swap_chain|, making the buffer that was previously accessible to
 // draw commands via SbBlitterGetRenderTargetFromSwapChain() now visible on the
