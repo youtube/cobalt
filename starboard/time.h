@@ -35,20 +35,6 @@ typedef int64_t SbTime;
 // for getting the wall clock time.
 typedef int64_t SbTimeMonotonic;
 
-// Represents an exploded SbTime that can be formatted nicely. This is adapted
-// directly from Chromium's base::Time::Exploded structure.
-typedef struct SbTimeExploded {
-  int year;          // Four digit year "2007"
-  int month;         // 1-based month (values 1 = January, etc.)
-  int day_of_week;   // 0-based day of week (0 = Sunday, etc.)
-  int day_of_month;  // 1-based day of month (1-31)
-  int hour;          // Hour within the current day (0-23)
-  int minute;        // Minute within the current hour (0-59)
-  int second;        // Second within the current minute (0-59 plus leap
-                     //   seconds which may take it up to 60).
-  int millisecond;   // Milliseconds within the current second (0-999)
-} SbTimeExploded;
-
 // How many nanoseconds in one SbTime unit (microseconds).
 #define kSbTimeNanosecondsPerMicrosecond ((SbTime)1000)
 
@@ -95,12 +81,6 @@ SB_EXPORT SbTime SbTimeGetNow();
 
 // Gets a monotonically increasing time representing right now.
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicNow();
-
-// Converts |time| into an SbTimeExploded, placing the result in |out_exploded|.
-SB_EXPORT void SbTimeExplode(SbTime time, SbTimeExploded* out_exploded);
-
-// Converts |exploded| into a SbTime.
-SB_EXPORT SbTime SbTimeImplode(SbTimeExploded* exploded);
 
 #ifdef __cplusplus
 }  // extern "C"
