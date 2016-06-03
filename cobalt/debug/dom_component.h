@@ -20,7 +20,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/component_connector.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/debug/render_layer.h"
 #include "cobalt/dom/dom_rect.h"
@@ -28,9 +28,9 @@
 namespace cobalt {
 namespace debug {
 
-class DOMComponent : public DebugServer::Component {
+class DOMComponent {
  public:
-  DOMComponent(const base::WeakPtr<DebugServer>& server,
+  DOMComponent(ComponentConnector* connector,
                scoped_ptr<RenderLayer> render_layer);
 
  private:
@@ -63,6 +63,9 @@ class DOMComponent : public DebugServer::Component {
   // Renders a highlight to the overlay.
   void RenderHighlight(const scoped_refptr<dom::DOMRect>& bounding_rect,
                        const base::DictionaryValue* highlight_config_value);
+
+  // Helper object to connect to the debug server, etc.
+  ComponentConnector* connector_;
 
   // Render layer owned by this object.
   scoped_ptr<RenderLayer> render_layer_;

@@ -21,28 +21,30 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/stl_util.h"
-#include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/component_connector.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/script/call_frame.h"
-#include "cobalt/script/global_object_proxy.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/scope.h"
 #include "cobalt/script/script_debugger.h"
-#include "cobalt/script/script_object.h"
 #include "cobalt/script/source_provider.h"
 
 namespace cobalt {
 namespace debug {
 
-class JavaScriptDebuggerComponent : public DebugServer::Component,
-                                    public script::ScriptDebugger::Delegate {
+class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
  public:
-  JavaScriptDebuggerComponent(const base::WeakPtr<DebugServer>& server,
-                              script::GlobalObjectProxy* global_object_proxy);
+  explicit JavaScriptDebuggerComponent(ComponentConnector* connector);
 
-  ~JavaScriptDebuggerComponent() OVERRIDE;
+  virtual ~JavaScriptDebuggerComponent();
+
+  // ScriptDebugger::Delegate implementation.
+  void OnScriptDebuggerDetach(const std::string& reason) OVERRIDE;
+  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame) OVERRIDE;
+  void OnScriptFailedToParse(
+      scoped_ptr<script::SourceProvider> source_provider) OVERRIDE;
+  void OnScriptParsed(
+      scoped_ptr<script::SourceProvider> source_provider) OVERRIDE;
 
  private:
   // Type to store a map of SourceProvider pointers, keyed by string ID.
@@ -61,14 +63,6 @@ class JavaScriptDebuggerComponent : public DebugServer::Component,
   JSONObject StepInto(const JSONObject& params);
   JSONObject StepOut(const JSONObject& params);
   JSONObject StepOver(const JSONObject& params);
-
-  // ScriptDebugger::Delegate implementation.
-  void OnScriptDebuggerDetach(const std::string& reason) OVERRIDE;
-  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame) OVERRIDE;
-  void OnScriptFailedToParse(
-      scoped_ptr<script::SourceProvider> source_provider) OVERRIDE;
-  void OnScriptParsed(
-      scoped_ptr<script::SourceProvider> source_provider) OVERRIDE;
 
   // Creates a JSON object describing a single call frame.
   JSONObject CreateCallFrameData(
@@ -97,11 +91,8 @@ class JavaScriptDebuggerComponent : public DebugServer::Component,
   // Sends a Debugger.resumed event to the clients with no parameters.
   void SendResumedEvent();
 
-  // No ownership.
-  script::GlobalObjectProxy* global_object_proxy_;
-
-  // Handles all debugging interaction with the JavaScript engine.
-  scoped_ptr<script::ScriptDebugger> script_debugger_;
+  // Helper object to connect to the debug server, etc.
+  ComponentConnector* connector_;
 
   // Map of source providers with scoped deleter to clean up on destruction.
   SourceProviderMap source_providers_;

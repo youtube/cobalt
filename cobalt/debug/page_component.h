@@ -21,18 +21,19 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/component_connector.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/debug/render_layer.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/script/script_debugger.h"
 
 namespace cobalt {
 namespace debug {
 
-class PageComponent : public DebugServer::Component {
+class PageComponent {
  public:
-  PageComponent(const base::WeakPtr<DebugServer>& server, dom::Window* window,
+  PageComponent(ComponentConnector* connector, dom::Window* window,
                 scoped_ptr<RenderLayer> render_layer,
                 render_tree::ResourceProvider* resource_provider);
 
@@ -42,6 +43,8 @@ class PageComponent : public DebugServer::Component {
   JSONObject GetResourceTree(const JSONObject& params);
   JSONObject SetOverlayMessage(const JSONObject& params);
 
+  // Helper object to connect to the debug server, etc.
+  ComponentConnector* connector_;
   // No ownership.
   dom::Window* window_;
   // Owned by this object.

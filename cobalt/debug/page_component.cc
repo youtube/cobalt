@@ -55,25 +55,29 @@ const char kLoaderIdValue[] = "Cobalt";
 const char kMimeTypeValue[] = "text/html";
 }  // namespace
 
-PageComponent::PageComponent(const base::WeakPtr<DebugServer>& server,
-                             dom::Window* window,
+PageComponent::PageComponent(ComponentConnector* connector, dom::Window* window,
                              scoped_ptr<RenderLayer> render_layer,
                              render_tree::ResourceProvider* resource_provider)
-    : DebugServer::Component(server),
+    : connector_(connector),
       window_(window),
       render_layer_(render_layer.Pass()),
       resource_provider_(resource_provider) {
+  DCHECK(connector_);
   DCHECK(window_);
   DCHECK(window_->document());
+  DCHECK(render_layer_);
+  DCHECK(resource_provider_);
 
-  AddCommand(kDisable,
-             base::Bind(&PageComponent::Disable, base::Unretained(this)));
-  AddCommand(kEnable,
-             base::Bind(&PageComponent::Enable, base::Unretained(this)));
-  AddCommand(kGetResourceTree, base::Bind(&PageComponent::GetResourceTree,
-                                          base::Unretained(this)));
-  AddCommand(kSetOverlayMessage, base::Bind(&PageComponent::SetOverlayMessage,
-                                            base::Unretained(this)));
+  connector_->AddCommand(
+      kDisable, base::Bind(&PageComponent::Disable, base::Unretained(this)));
+  connector_->AddCommand(
+      kEnable, base::Bind(&PageComponent::Enable, base::Unretained(this)));
+  connector_->AddCommand(
+      kGetResourceTree,
+      base::Bind(&PageComponent::GetResourceTree, base::Unretained(this)));
+  connector_->AddCommand(
+      kSetOverlayMessage,
+      base::Bind(&PageComponent::SetOverlayMessage, base::Unretained(this)));
 }
 
 JSONObject PageComponent::Disable(const JSONObject& params) {

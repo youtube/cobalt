@@ -33,106 +33,21 @@ const char kErrorMessage[] = "error.message";
 const char kResult[] = "result";
 }  // namespace
 
-DebugServer::Component::Component(const base::WeakPtr<DebugServer>& server)
-    : server_(server) {}
-
-DebugServer::Component::~Component() {
-  // Remove all the commands added by this component.
-  for (std::vector<std::string>::const_iterator it = command_methods_.begin();
-       it != command_methods_.end(); ++it) {
-    RemoveCommand(*it);
-  }
-}
-
-void DebugServer::Component::AddCommand(const std::string& method,
-                                        const Command& callback) {
-  if (server_) {
-    server_->AddCommand(method, callback);
-
-    // Store the command methods added by this component, so we can remove on
-    // destruction.
-    command_methods_.push_back(method);
-  }
-}
-
 void DebugServer::AddClient(DebugClient* client) { clients_.insert(client); }
 
 void DebugServer::RemoveClient(DebugClient* client) { clients_.erase(client); }
-
-void DebugServer::Component::RemoveCommand(const std::string& method) {
-  if (server_) {
-    server_->RemoveCommand(method);
-  }
-}
-
-JSONObject DebugServer::Component::RunScriptCommand(const std::string& command,
-                                                    const JSONObject& params) {
-  if (server_) {
-    return server_->RunScriptCommand(command, params);
-  } else {
-    return ErrorResponse("Not attached to debug server");
-  }
-}
-
-bool DebugServer::Component::RunScriptFile(const std::string& filename) {
-  if (server_) {
-    return server_->RunScriptFile(filename);
-  } else {
-    return ErrorResponse("Not attached to debug server");
-  }
-}
-
-JSONObject DebugServer::Component::CreateRemoteObject(
-    const script::OpaqueHandleHolder* object) {
-  // Parameter object for the JavaScript function call uses default values.
-  JSONObject params(new base::DictionaryValue());
-
-  // This will execute a JavaScript function to create a Runtime.Remote object
-  // that describes the opaque JavaScript object.
-  DCHECK(server_);
-  base::optional<std::string> json_result =
-      server()->CreateRemoteObject(object, JSONStringify(params));
-
-  // Parse the serialized JSON result.
-  if (json_result) {
-    return JSONParse(json_result.value());
-  } else {
-    DLOG(WARNING) << "Could not create Runtime.RemoteObject";
-    return JSONObject(new base::DictionaryValue());
-  }
-}
-
-void DebugServer::Component::SendEvent(const std::string& method,
-                                       const JSONObject& params) {
-  if (server_) {
-    server_->OnEventInternal(method, params);
-  }
-}
-
-// static
-JSONObject DebugServer::Component::ErrorResponse(
-    const std::string& error_message) {
-  JSONObject error_response(new base::DictionaryValue());
-  error_response->SetString(kErrorMessage, error_message);
-  return error_response.Pass();
-}
 
 DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy,
                          const dom::CspDelegate* csp_delegate)
     : ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(new DebugScriptRunner(
           global_object_proxy, csp_delegate,
-          base::Bind(&DebugServer::OnEvent, base::Unretained(this))))),
+          base::Bind(&DebugServer::OnEventInternal, base::Unretained(this))))),
       message_loop_(MessageLoop::current()),
-      components_deleter_(&components_),
       is_paused_(false),
       // No manual reset, not initially signaled.
       command_added_while_paused_(false, false) {}
 
 DebugServer::~DebugServer() {
-  // Invalidate weak pointers explicitly, as the weak pointer factory won't be
-  // destroyed until after the debug components that reference this object.
-  InvalidateWeakPtrs();
-
   // Notify all clients.
   // |detach_reason| argument from set here:
   // https://developer.chrome.com/extensions/debugger#type-DetachReason
@@ -141,12 +56,6 @@ DebugServer::~DebugServer() {
        it != clients_.end(); ++it) {
     (*it)->OnDetach(detach_reason);
   }
-}
-
-void DebugServer::AddComponent(scoped_ptr<DebugServer::Component> component) {
-  // This object takes ownership of the component here. The objects referenced
-  // in |components_| will be deleted on destruction.
-  components_.push_back(component.release());
 }
 
 base::optional<std::string> DebugServer::CreateRemoteObject(
@@ -243,17 +152,16 @@ void DebugServer::HandlePause() {
   }
 }
 
-void DebugServer::OnEvent(const std::string& method,
-                          const base::optional<std::string>& json_params) {
+void DebugServer::OnEvent(const std::string& method, const JSONObject& params) {
+  OnEventInternal(method, JSONStringify(params));
+}
+
+void DebugServer::OnEventInternal(
+    const std::string& method, const base::optional<std::string>& json_params) {
   for (std::set<DebugClient*>::iterator it = clients_.begin();
        it != clients_.end(); ++it) {
     (*it)->OnEvent(method, json_params);
   }
-}
-
-void DebugServer::OnEventInternal(const std::string& method,
-                                  const JSONObject& params) {
-  OnEvent(method, JSONStringify(params));
 }
 
 void DebugServer::AddCommand(const std::string& method,
