@@ -46,14 +46,41 @@ struct SbWindowPrivate {
   // the actual window. This is necessary to avoid horrible flickering.
   Pixmap composition_pixmap;
 
-  // This window is bound to EGL and used to get the GL graphics output into an
-  // XRender Picture that can be manually composited with video.
+  // A cached XRender Picture wrapper for |composition_pixmap|.
+  Picture composition_picture;
+
+  // This pixmap is used to load the video frame before stretching it onto the
+  // |composition_pixmap|. This is done so that we can stretch it with XRender.
+  Pixmap video_pixmap;
+
+  // The width of the |video_pixmap|.
+  int video_pixmap_width;
+
+  // The height of the allocated |video_pixmap|.
+  int video_pixmap_height;
+
+  // A cached GC for the |video_pixmap| to upload the frame.
+  GC video_pixmap_gc;
+
+  // A cached XRender Picture wrapper for |video_pixmap|.
+  Picture video_picture;
+
+  // This mapped, but invisible window is bound to EGL and used to get the GL
+  // graphics output into an XRender Picture that can be manually composited
+  // with video.
   Window gl_window;
+
+  // A cached XRender Picture wrapper for |gl_window|.
+  Picture gl_picture;
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
+  // The display that this window was created from.
   Display* display;
 
+  // The width of this window.
   int width;
+
+  // The height of this window.
   int height;
 };
 
