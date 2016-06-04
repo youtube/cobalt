@@ -19,7 +19,10 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include <algorithm>
+
 #include "starboard/configuration.h"
+#include "starboard/double.h"
 #include "starboard/log.h"
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
@@ -50,11 +53,16 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
 #if SB_IS(PLAYER_PUNCHED_OUT)
     , window_picture(None)
     , composition_pixmap(None)
+    , composition_picture(None)
+    , video_pixmap(None)
+    , video_pixmap_width(0)
+    , video_pixmap_height(0)
+    , video_pixmap_gc(None)
+    , video_picture(None)
     , gl_window(None)
+    , gl_picture(None)
 #endif
     , display(display) {
-  XSynchronize(display, True);
-
   // Request a 32-bit depth visual for our Window.
   XVisualInfo x_visual_info = {0};
   XMatchVisualInfo(display, DefaultScreen(display), 32, TrueColor,
@@ -105,6 +113,11 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   // the root window. We must composite manually, in Composite(), to avoid that.
   XCompositeRedirectWindow(display, gl_window, CompositeRedirectManual);
 
+  gl_picture = XRenderCreatePicture(
+      display, gl_window,
+      XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
+  SB_CHECK(gl_picture != None);
+
   // Create the picture for compositing onto. This can persist across frames.
   XRenderPictFormat* pict_format =
       XRenderFindVisualFormat(display, x_visual_info.visual);
@@ -113,35 +126,87 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   XMapWindow(display, window);
-  XSynchronize(display, False);
 }
 
 SbWindowPrivate::~SbWindowPrivate() {
 #if SB_IS(PLAYER_PUNCHED_OUT)
-  XRenderFreePicture(display, window_picture);
   if (composition_pixmap != None) {
     XFreePixmap(display, composition_pixmap);
+    XRenderFreePicture(display, composition_picture);
   }
+  if (video_pixmap != None) {
+    XRenderFreePicture(display, video_picture);
+    XFreeGC(display, video_pixmap_gc);
+    XFreePixmap(display, video_pixmap);
+  }
+  XRenderFreePicture(display, gl_picture);
   XDestroyWindow(display, gl_window);
+  XRenderFreePicture(display, window_picture);
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
   XDestroyWindow(display, window);
 }
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
 void SbWindowPrivate::Composite(VideoFrame* frame) {
+  XSynchronize(display, True);
+  XWindowAttributes window_attributes;
+  XGetWindowAttributes(display, window, &window_attributes);
+  if (window_attributes.width != width ||
+      window_attributes.height != height) {
+    width = window_attributes.width;
+    height = window_attributes.height;
+    if (composition_pixmap != None) {
+      XFreePixmap(display, composition_pixmap);
+      composition_pixmap = None;
+      XRenderFreePicture(display, composition_picture);
+      composition_picture = None;
+    }
+  }
+
   if (composition_pixmap == None) {
     composition_pixmap = XCreatePixmap(display, window, width, height, 32);
-  }
-  SB_DCHECK(composition_pixmap != None);
-  GC composition_pixmap_gc = XCreateGC(display, composition_pixmap, 0, NULL);
-  SB_DCHECK(composition_pixmap_gc != None);
+    SB_DCHECK(composition_pixmap != None);
 
-  // TODO: Once frame is solid, only do this if there is no frame.
-  XFillRectangle(display, composition_pixmap, composition_pixmap_gc, 0, 0,
-                 width, height);
+    composition_picture = XRenderCreatePicture(
+        display, composition_pixmap,
+        XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
+  }
+  SB_CHECK(composition_picture != None);
+
+  XRenderColor black = {0x0000, 0x0000, 0x0000, 0xFFFF};
+  XRenderFillRectangle(display, PictOpSrc, composition_picture, &black, 0, 0,
+                       width, height);
 
   if (frame != NULL && frame->format() == VideoFrame::kBGRA32 &&
       frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
+    if (frame->width() != video_pixmap_width ||
+        frame->height() != video_pixmap_height) {
+      if (video_pixmap != None) {
+        XRenderFreePicture(display, video_picture);
+        video_picture = None;
+        XFreeGC(display, video_pixmap_gc);
+        video_pixmap_gc = None;
+        XFreePixmap(display, video_pixmap);
+        video_pixmap = None;
+      }
+    }
+
+    if (video_pixmap == None) {
+      video_pixmap_width = frame->width();
+      video_pixmap_height = frame->height();
+      video_pixmap = XCreatePixmap(display, window, video_pixmap_width,
+                                   video_pixmap_height, 32);
+      SB_DCHECK(video_pixmap != None);
+
+      video_pixmap_gc = XCreateGC(display, video_pixmap, 0, NULL);
+      SB_DCHECK(video_pixmap_gc != None);
+
+      video_picture = XRenderCreatePicture(
+          display, video_pixmap,
+          XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
+    }
+    SB_CHECK(video_picture != None);
+
     XImage image = {0};
     image.width = frame->width();
     image.height = frame->height();
@@ -155,34 +220,44 @@ void SbWindowPrivate::Composite(VideoFrame* frame) {
     Status status = XInitImage(&image);
     SB_DCHECK(status);
 
-    // Replace the composition pixmap with the video plane.
-    // TODO: Scale frame to video bounds dimensions.
-    XPutImage(display, composition_pixmap, composition_pixmap_gc, &image, 0, 0,
-              (width - image.width) / 2, (height - image.height) / 2,
-              image.width, image.height);
+    // Upload the video frame to the X server.
+    XPutImage(display, video_pixmap, video_pixmap_gc, &image, 0, 0,
+              0, 0, image.width, image.height);
+
+    // Initially assume we don't have to center or scale.
+    int video_width = frame->width();
+    int video_height = frame->height();
+    if (frame->width() != width || frame->height() != height) {
+      // Scale to fit the smallest dimension of the frame into the window.
+      double scale = std::min(width / static_cast<double>(frame->width()),
+                              height / static_cast<double>(frame->height()));
+      // Center the scaled frame within the window.
+      video_width = scale * frame->width();
+      video_height = scale * frame->height();
+      XTransform transform = {{
+          { XDoubleToFixed(1), XDoubleToFixed(0), XDoubleToFixed(0) },
+          { XDoubleToFixed(0), XDoubleToFixed(1), XDoubleToFixed(0) },
+          { XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(scale) }
+        }};
+      XRenderSetPictureTransform(display, video_picture, &transform);
+    }
+
+    int dest_x = (width - video_width) / 2;
+    int dest_y = (height - video_height) / 2;
+    XRenderComposite(display, PictOpSrc, video_picture, NULL,
+                     composition_picture, 0, 0, 0, 0, dest_x, dest_y,
+                     video_width, video_height);
   }
-  XFreeGC(display, composition_pixmap_gc);
-
-  Picture composition_picture = XRenderCreatePicture(
-      display, composition_pixmap,
-      XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
-  SB_CHECK(composition_picture != None);
-
-  Picture gl_picture = XRenderCreatePicture(
-      display, gl_window,
-      XRenderFindStandardFormat(display, PictStandardARGB32), 0, NULL);
-  SB_CHECK(gl_picture != None);
 
   // Composite (with blending) the GL output on top of the composition pixmap
   // that already has the current video frame if video is playing.
   XRenderComposite(display, PictOpOver, gl_picture, NULL, composition_picture,
                    0, 0, 0, 0, 0, 0, width, height);
-  XRenderFreePicture(display, gl_picture);
 
   // Now that we have a fully-composited frame in composition_pixmap, render it
   // to the window, which acts as our front buffer.
   XRenderComposite(display, PictOpSrc, composition_picture, NULL,
                    window_picture, 0, 0, 0, 0, 0, 0, width, height);
-  XRenderFreePicture(display, composition_picture);
+  XSynchronize(display, False);
 }
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
