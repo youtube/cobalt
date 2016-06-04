@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 
 #include "starboard/log.h"
+#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {
@@ -23,14 +24,48 @@ namespace player {
 
 namespace {
 
+bool s_yuv_to_rgb_lookup_table_initialized = false;
+int s_y_to_rgb[256];
+int s_v_to_r[256];
+int s_u_to_g[256];
+int s_v_to_g[256];
+int s_u_to_b[256];
+uint8_t s_clamp_table[256 * 3];
+
+void EnsureYUVToRGBLookupTableInitialized() {
+  if (s_yuv_to_rgb_lookup_table_initialized) {
+    return;
+  }
+
+  // The YUV to RGBA conversion is based on
+  //   http://www.equasys.de/colorconversion.html.
+  // The formula is:
+  // r = 1.164f * y                      + 1.793f * (v - 128);
+  // g = 1.164f * y - 0.213f * (u - 128) - 0.533f * (v - 128);
+  // b = 1.164f * y + 2.112f * (u - 128);
+  // And r/g/b has to be clamped to [0, 255].
+  //
+  // We optimize the conversion algorithm by creating two kinds of lookup
+  // tables.  The color component table contains pre-calculated color component
+  // values.  The clamp table contains a map between |v| + 256 to the clamped
+  // |v| to avoid conditional operation.
+  SbMemorySet(s_clamp_table, 0, 256);
+  SbMemorySet(s_clamp_table + 512, 0xff, 256);
+
+  for (int i = 0; i < 256; ++i) {
+    s_y_to_rgb[i] = (static_cast<uint8_t>(i) - 16) * 1.164f;
+    s_v_to_r[i] = (static_cast<uint8_t>(i) - 128) * 1.793f;
+    s_u_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.213;
+    s_v_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.533f;
+    s_u_to_b[i] = (static_cast<uint8_t>(i) - 128) * 2.112f;
+    s_clamp_table[256 + i] = i;
+  }
+
+  s_yuv_to_rgb_lookup_table_initialized = true;
+}
+
 uint8_t ClampColorComponent(int component) {
-  if (component < 0) {
-    return 0;
-  }
-  if (component > 255) {
-    return 255;
-  }
-  return static_cast<uint8_t>(component);
+  return s_clamp_table[component + 256];
 }
 
 }  // namespace
@@ -68,6 +103,8 @@ VideoFrame VideoFrame::ConvertTo(Format target_format) const {
   SB_DCHECK(format_ == kYV12);
   SB_DCHECK(target_format == kBGRA32);
 
+  EnsureYUVToRGBLookupTableInitialized();
+
   VideoFrame target_frame;
 
   target_frame.format_ = target_format;
@@ -76,26 +113,41 @@ VideoFrame VideoFrame::ConvertTo(Format target_format) const {
   target_frame.planes_.push_back(
       Plane(width(), height(), width() * 4, &target_frame.pixel_buffer_[0]));
 
-  // Convert YV12 to BGRA32 according to ITU.BT-601 Y'CbCr.
-  // See http://www.martinreddy.net/gfx/faqs/colorconv.faq for more details.
   const uint8_t* y_data = GetPlane(0).data;
   const uint8_t* u_data = GetPlane(1).data;
   const uint8_t* v_data = GetPlane(2).data;
   uint8_t* bgra_data = &target_frame.pixel_buffer_[0];
 
-  for (int row = 0; row < height(); ++row) {
-    for (int column = 0; column < width(); ++column) {
-      uint8_t y = y_data[column + row * GetPlane(0).pitch_in_bytes];
-      uint8_t u = u_data[column / 2 + row / 2 * GetPlane(1).pitch_in_bytes];
-      uint8_t v = v_data[column / 2 + row / 2 * GetPlane(2).pitch_in_bytes];
-      int r = y + 1.403f * (v - 128);
-      int g = y - 0.344f * (u - 128) - 0.714f * (v - 128);
-      int b = y + 1.773f * (u - 128);
+  int height = this->height();
+  int width = this->width();
+
+  for (int row = 0; row < height; ++row) {
+    const uint8_t* y = &y_data[row * GetPlane(0).pitch_in_bytes];
+    const uint8_t* u = &u_data[row / 2 * GetPlane(1).pitch_in_bytes];
+    const uint8_t* v = &v_data[row / 2 * GetPlane(2).pitch_in_bytes];
+    int v_to_r, u_to_g, v_to_g, u_to_b;
+
+    for (int column = 0; column < width; ++column) {
+      if (column % 2 == 0) {
+        v_to_r = s_v_to_r[*v];
+        u_to_g = s_u_to_g[*u];
+        v_to_g = s_v_to_g[*v];
+        u_to_b = s_u_to_b[*u];
+      } else {
+        ++u, ++v;
+      }
+
+      int y_to_rgb = s_y_to_rgb[*y];
+      int r = y_to_rgb + v_to_r;
+      int g = y_to_rgb + u_to_g + v_to_g;
+      int b = y_to_rgb + u_to_b;
 
       *bgra_data++ = ClampColorComponent(b);
       *bgra_data++ = ClampColorComponent(g);
       *bgra_data++ = ClampColorComponent(r);
       *bgra_data++ = 0xff;
+
+      ++y;
     }
   }
 
