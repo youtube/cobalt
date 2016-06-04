@@ -322,6 +322,10 @@ void PlayerWorker::ProcessStopEvent() {
   audio_renderer_ = NULL;
   delete video_renderer_;
   video_renderer_ = NULL;
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  // Clear the video frame as we terminate.
+  shared::starboard::Application::Get()->HandleFrame(VideoFrame());
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
   UpdatePlayerState(kSbPlayerStateDestroyed);
 }
 
