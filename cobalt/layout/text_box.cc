@@ -371,14 +371,24 @@ void TextBox::RenderAndAnimateContent(
     if (used_color.a() > 0.0f || is_color_animated ||
         text_shadow != cssom::KeywordValue::GetNone()) {
       int32 text_start_position = GetNonCollapsedTextStartPosition();
-      scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
-          used_font_->CreateGlyphBuffer(
-              paragraph_->GetTextBuffer() + text_start_position,
-              GetVisibleTextLength(), paragraph_->IsRTL(text_start_position));
+      int32 text_length = GetVisibleTextLength();
+      // Generate the glyph buffer if it does not already exist or the position
+      // it covers has changed. Otherwise, just use the cached glyph buffer.
+      if (!cached_glyph_buffer_info_.glyph_buffer ||
+          text_start_position != cached_glyph_buffer_info_.start_position ||
+          text_length != cached_glyph_buffer_info_.length) {
+        cached_glyph_buffer_info_.start_position = text_start_position;
+        cached_glyph_buffer_info_.length = text_length;
+        cached_glyph_buffer_info_.glyph_buffer = used_font_->CreateGlyphBuffer(
+            paragraph_->GetTextBuffer() +
+                cached_glyph_buffer_info_.start_position,
+            cached_glyph_buffer_info_.length,
+            paragraph_->IsRTL(text_start_position));
+      }
 
       render_tree::TextNode::Builder text_node_builder(
           math::Vector2dF(truncated_text_offset_from_left_, ascent_),
-          glyph_buffer, used_color);
+          cached_glyph_buffer_info_.glyph_buffer, used_color);
 
       if (text_shadow != cssom::KeywordValue::GetNone()) {
         cssom::PropertyListValue* shadow_list =
@@ -612,8 +622,8 @@ void TextBox::SplitAtPosition(int32 split_start_position) {
   truncated_text_end_position_ = text_end_position_;
 
   // The width is no longer valid for this box now that it has been split.
-  non_collapsible_text_width_ = base::nullopt;
   update_size_results_valid_ = false;
+  non_collapsible_text_width_ = base::nullopt;
 
   scoped_refptr<TextBox> box_after_split(new TextBox(
       css_computed_style_declaration(), paragraph_, split_start_position,
