@@ -103,6 +103,8 @@ bool ImageDataDecoder::FinishWithSuccess() {
 }
 
 void ImageDataDecoder::AllocateImageData(const math::Size& size) {
+  DCHECK(resource_provider_->AlphaFormatSupported(
+      render_tree::kAlphaFormatPremultiplied));
   image_data_ = resource_provider_->AllocateImageData(
       size, pixel_format(), render_tree::kAlphaFormatPremultiplied);
 }

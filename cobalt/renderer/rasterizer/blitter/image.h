@@ -66,11 +66,11 @@ class ImageData : public render_tree::ImageData {
 // SbBlitterSurface objects, which are conceptually an exact match for Image.
 // We derive from skia::SkiaSinglePlaneImage here because it is possible for
 // render tree nodes referencing blitter:Images to be passed into a Skia
-// software renderer.  Thus, skia::SkiaSinglePlaneImage is implemented such
-// that Skia render tree node visitors can also render blitter::Images.
-class Image : public skia::SkiaSinglePlaneImage {
+// software renderer.  Thus, SinglePlaneImage is implemented such
+// that Skia render tree node visitors can also render it.
+class SinglePlaneImage : public skia::SkiaSinglePlaneImage {
  public:
-  explicit Image(scoped_ptr<ImageData> image_data);
+  explicit SinglePlaneImage(scoped_ptr<ImageData> image_data);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
@@ -79,13 +79,13 @@ class Image : public skia::SkiaSinglePlaneImage {
   // Overrides from skia::SkiaSinglePlaneImage.
   void EnsureInitialized() OVERRIDE;
 
-  // When GetBitmap() is called on a blitter::Image for the first time, we do a
-  // one-time download of the pixel data from the Blitter API surface into
-  // a SkBitmap.
+  // When GetBitmap() is called on a blitter::SinglePlaneImage for the first
+  // time, we do a one-time download of the pixel data from the Blitter API
+  // surface into a SkBitmap.
   const SkBitmap& GetBitmap() const OVERRIDE;
 
  private:
-  ~Image() OVERRIDE;
+  ~SinglePlaneImage() OVERRIDE;
 
   math::Size size_;
   SbBlitterSurface surface_;

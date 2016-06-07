@@ -32,6 +32,7 @@ namespace skia {
 class SkiaSoftwareResourceProvider : public render_tree::ResourceProvider {
  public:
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
+  bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
 
   scoped_ptr<render_tree::ImageData> AllocateImageData(
       const math::Size& size, render_tree::PixelFormat pixel_format,

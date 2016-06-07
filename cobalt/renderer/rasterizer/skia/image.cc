@@ -24,39 +24,17 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-void SkiaImage::SkiaConvertImageData(
-    const math::Size& dimensions,
-    int source_pitch_in_bytes,
-    SkColorType source_color_type, SkAlphaType source_alpha_type,
-    const uint8_t* source_pixels,
-    int destination_pitch_in_bytes,
-    uint8_t* destination_pixels,
-    SkColorType dest_color_type, SkAlphaType dest_alpha_type) {
-  TRACE_EVENT0("cobalt::renderer", "SkiaImage::SkiaConvertImageData()");
-
-  // Create a temporary SkBitmap wrapping the incoming source image data with
-  // RGB components unpremultiplied by the alpha component, as we expect them
-  // to be.
-  SkImageInfo image_info = SkImageInfo::Make(
-      dimensions.width(), dimensions.height(),
-      source_color_type, source_alpha_type);
-  SkBitmap unpremul_bitmap;
-  unpremul_bitmap.installPixels(
-      image_info, const_cast<uint8_t*>(source_pixels), source_pitch_in_bytes);
-
-  // Now convert these out into our stored SkBitmap with alpha premultiplied
-  // values, as Skia expects them to be formatted.
-  SkImageInfo premul_image_info = SkImageInfo::Make(
-      dimensions.width(), dimensions.height(),
-      dest_color_type, dest_alpha_type);
-  unpremul_bitmap.readPixels(
-      premul_image_info, destination_pixels, destination_pitch_in_bytes, 0, 0);
-}
-
 void SkiaImage::DCheckForPremultipliedAlpha(
     const math::Size& dimensions, int source_pitch_in_bytes,
     render_tree::PixelFormat pixel_format, const uint8_t* source_pixels) {
   TRACE_EVENT0("cobalt::renderer", "SkiaImage::DCheckForPremultipliedAlpha()");
+  if (pixel_format == render_tree::kPixelFormatY8 ||
+      pixel_format == render_tree::kPixelFormatU8 ||
+      pixel_format == render_tree::kPixelFormatV8) {
+    // These formats don't have alpha, so they are trivially good to go.
+    return;
+  }
+
   DCHECK(pixel_format == render_tree::kPixelFormatRGBA8 ||
          pixel_format == render_tree::kPixelFormatBGRA8);
   for (int row = 0; row < dimensions.height(); ++row) {
@@ -69,14 +47,6 @@ void SkiaImage::DCheckForPremultipliedAlpha(
       current_pixel += 4;
     }
   }
-}
-
-void SkiaSinglePlaneImage::Accept(SkiaImageVisitor* visitor) {
-  visitor->VisitSinglePlaneImage(this);
-}
-
-void SkiaMultiPlaneImage::Accept(SkiaImageVisitor* visitor) {
-  visitor->VisitMultiPlaneImage(this);
 }
 
 }  // namespace skia
