@@ -27,6 +27,7 @@
 #include "starboard/raspi/shared/window_internal.h"
 #include "starboard/shared/linux/dev_input/dev_input.h"
 #include "starboard/shared/posix/time_internal.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -66,10 +67,13 @@ bool ApplicationDispmanx::DestroyWindow(SbWindow window) {
   return true;
 }
 
-void ApplicationDispmanx::Initialize() {}
+void ApplicationDispmanx::Initialize() {
+  SbAudioSinkPrivate::Initialize();
+}
 
 void ApplicationDispmanx::Teardown() {
   ShutdownDispmanx();
+  SbAudioSinkPrivate::TearDown();
 }
 
 bool ApplicationDispmanx::MayHaveSystemEvents() {
