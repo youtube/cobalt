@@ -33,9 +33,9 @@ namespace skia {
 namespace {
 
 // A simple implementation of FontProvider where a single font is always used.
-class SimpleFontProvider : public render_tree::FontProvider {
+class SingleFontFontProvider : public render_tree::FontProvider {
  public:
-  explicit SimpleFontProvider(const scoped_refptr<render_tree::Font>& font)
+  explicit SingleFontFontProvider(const scoped_refptr<render_tree::Font>& font)
       : font_(font) {}
 
   const scoped_refptr<render_tree::Font>& GetCharacterFont(
@@ -87,7 +87,7 @@ scoped_refptr<SkiaGlyphBuffer> TextShaper::CreateGlyphBuffer(
   base::CodepageToUTF16(utf8_string, base::kCodepageUTF8,
                         base::OnStringConversionError::SUBSTITUTE,
                         &utf16_string);
-  SimpleFontProvider font_provider(font);
+  SingleFontFontProvider font_provider(font);
   return CreateGlyphBuffer(utf16_string.c_str(), utf16_string.size(), "en-US",
                            false, &font_provider);
 }
@@ -108,6 +108,11 @@ float TextShaper::ShapeText(const char16* text_buffer, size_t text_length,
                             render_tree::FontVector* maybe_used_fonts) {
   base::AutoLock lock(shaping_mutex_);
   float total_width = 0;
+  VerticalBounds vertical_bounds;
+  // Only set |maybe_vertical_bounds| to a non-NULL value when |maybe_bounds| is
+  // non-NULL. Otherwise, the text bounds are not being calculated.
+  VerticalBounds* maybe_vertical_bounds =
+      maybe_bounds ? &vertical_bounds : NULL;
 
   // Check for if the text contains a complex script, meaning that it requires
   // HarfBuzz. If it does, then attempt to collect the scripts. In the event
@@ -133,25 +138,27 @@ float TextShaper::ShapeText(const char16* text_buffer, size_t text_length,
       if (base::unicode::ContainsComplexScript(script_run_text_buffer,
                                                run.length)) {
         ShapeComplexRun(script_run_text_buffer, run, language, is_rtl,
-                        font_provider, maybe_builder, maybe_bounds,
+                        font_provider, maybe_builder, maybe_vertical_bounds,
                         maybe_used_fonts, &total_width);
       } else {
         ShapeSimpleRunWithDirection(script_run_text_buffer, run.length, is_rtl,
-                                    font_provider, maybe_builder, maybe_bounds,
-                                    maybe_used_fonts, &total_width);
+                                    font_provider, maybe_builder,
+                                    maybe_vertical_bounds, maybe_used_fonts,
+                                    &total_width);
       }
     }
   } else {
     ShapeSimpleRunWithDirection(text_buffer, text_length, is_rtl, font_provider,
-                                maybe_builder, maybe_bounds, maybe_used_fonts,
-                                &total_width);
+                                maybe_builder, maybe_vertical_bounds,
+                                maybe_used_fonts, &total_width);
   }
 
   // If |maybe_bounds| has been provided, then update the width of the bounds
   // with the total width of all of the shaped glyphs. The height is already
   // correct.
   if (maybe_bounds) {
-    maybe_bounds->set_width(total_width);
+    *maybe_bounds = math::RectF(0, vertical_bounds.GetY(), total_width,
+                                vertical_bounds.GetHeight());
   }
 
   return total_width;
@@ -254,7 +261,7 @@ void TextShaper::ShapeComplexRun(const char16* text_buffer,
                                  const std::string& language, bool is_rtl,
                                  render_tree::FontProvider* font_provider,
                                  SkTextBlobBuilder* maybe_builder,
-                                 math::RectF* maybe_bounds,
+                                 VerticalBounds* maybe_vertical_bounds,
                                  render_tree::FontVector* maybe_used_fonts,
                                  float* total_width) {
   TryAddFontToUsedFonts(script_run.font, maybe_used_fonts);
@@ -320,10 +327,15 @@ void TextShaper::ShapeComplexRun(const char16* text_buffer,
       run_buffer->pos[pos_index++] = -SkFixedToScalar(hb_positions[i].y_offset);
     }
 
-    // If |maybe_bounds| has been provided, then we're updating it with the
-    // bounds of all of the shaped glyphs.
-    if (maybe_bounds) {
-      maybe_bounds->Union(script_run.font->GetGlyphBounds(infos[i].codepoint));
+    // If |maybe_vertical_bounds| has been provided, then we're updating it with
+    // the vertical bounds of all of the shaped glyphs.
+    if (maybe_vertical_bounds) {
+      const math::RectF& glyph_bounds =
+          script_run.font->GetGlyphBounds(infos[i].codepoint);
+      float min_y =
+          glyph_bounds.y() - SkFixedToScalar(hb_positions[i].y_offset);
+      float max_y = min_y + glyph_bounds.height();
+      maybe_vertical_bounds->IncludeRange(min_y, max_y);
     }
 
     // Include the shaped glyph within the total width.
@@ -337,8 +349,8 @@ void TextShaper::ShapeComplexRun(const char16* text_buffer,
 void TextShaper::ShapeSimpleRunWithDirection(
     const char16* text_buffer, size_t text_length, bool is_rtl,
     render_tree::FontProvider* font_provider, SkTextBlobBuilder* maybe_builder,
-    math::RectF* maybe_bounds, render_tree::FontVector* maybe_used_fonts,
-    float* total_width) {
+    VerticalBounds* maybe_vertical_bounds,
+    render_tree::FontVector* maybe_used_fonts, float* total_width) {
   // If the text has an RTL direction and a builder was provided, then reverse
   // the text. This ensures that the glyphs will appear in the proper order
   // within the glyph buffer. The width and bounds do not rely on the direction
@@ -363,18 +375,18 @@ void TextShaper::ShapeSimpleRunWithDirection(
     }
 
     ShapeSimpleRun(local_text_buffer_.get(), reversed_buffer_length,
-                   font_provider, maybe_builder, maybe_bounds, maybe_used_fonts,
-                   total_width);
+                   font_provider, maybe_builder, maybe_vertical_bounds,
+                   maybe_used_fonts, total_width);
   } else {
     ShapeSimpleRun(text_buffer, text_length, font_provider, maybe_builder,
-                   maybe_bounds, maybe_used_fonts, total_width);
+                   maybe_vertical_bounds, maybe_used_fonts, total_width);
   }
 }
 
 void TextShaper::ShapeSimpleRun(const char16* text_buffer, size_t text_length,
                                 render_tree::FontProvider* font_provider,
                                 SkTextBlobBuilder* maybe_builder,
-                                math::RectF* maybe_bounds,
+                                VerticalBounds* maybe_vertical_bounds,
                                 render_tree::FontVector* maybe_used_fonts,
                                 float* total_width) {
   // If there's a builder (meaning that a glyph buffer is being generated), then
@@ -441,10 +453,11 @@ void TextShaper::ShapeSimpleRun(const char16* text_buffer, size_t text_length,
     const math::RectF& glyph_bounds = current_font->GetGlyphBounds(glyph);
     *total_width += glyph_bounds.width();
 
-    // If |maybe_bounds| has been provided, then we're updating it with the
-    // bounds of all of the shaped glyphs.
-    if (maybe_bounds) {
-      maybe_bounds->Union(glyph_bounds);
+    // If |maybe_vertical_bounds| has been provided, then we're updating it with
+    // the vertical bounds of all of the shaped glyphs.
+    if (maybe_vertical_bounds) {
+      maybe_vertical_bounds->IncludeRange(glyph_bounds.y(),
+                                          glyph_bounds.bottom());
     }
 
     ++glyph_count;
