@@ -30,6 +30,13 @@
 #undef SB_HAS_BLITTER
 #define SB_HAS_BLITTER 1
 
+// Unfortunately, DirectFB does not support bilinear filtering.  According to
+// http://osdir.com/ml/graphics.directfb.user/2008-06/msg00028.html, "smooth
+// scaling is not supported in conjunction with blending", and we need blending
+// more.
+#undef SB_HAS_BILINEAR_FILTERING_SUPPORT
+#define SB_HAS_BILINEAR_FILTERING_SUPPORT 0
+
 // DirectFB's only 32-bit RGBA color format is word-order ARGB.  This translates
 // to byte-order ARGB for big endian platforms and byte-order BGRA for
 // little-endian platforms.

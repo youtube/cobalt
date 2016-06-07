@@ -356,6 +356,10 @@ struct CompileAssert {};
 #error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
 #endif
 
+#if !defined(SB_HAS_BILINEAR_FILTERING_SUPPORT)
+#error "Your platform must define SB_HAS_BILINEAR_FILTERING_SUPPORT."
+#endif
+
 // --- Derived Configuration -------------------------------------------------
 
 // Whether the current platform is little endian.
