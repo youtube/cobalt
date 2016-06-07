@@ -94,6 +94,14 @@ class TextBox : public Box {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
+  struct CachedGlyphBufferInfo {
+    CachedGlyphBufferInfo() : start_position(-1), length(0) {}
+
+    scoped_refptr<render_tree::GlyphBuffer> glyph_buffer;
+    int32 start_position;
+    int32 length;
+  };
+
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
       BaseDirection base_direction, LayoutUnit desired_offset,
@@ -172,10 +180,6 @@ class TextBox : public Box {
   // additional sibling boxes to be added to a new line.
   bool has_trailing_line_break_;
 
-  // The width of the portion of the text that is unaffected by whitespace
-  // collapsing.
-  base::optional<LayoutUnit> non_collapsible_text_width_;
-
   // A vertical offset of the baseline relatively to the origin of the text box.
   base::optional<LayoutUnit> baseline_offset_from_top_;
 
@@ -188,6 +192,15 @@ class TextBox : public Box {
   LayoutUnit line_height_;
   LayoutUnit inline_top_margin_;
   float ascent_;
+
+  // The width of the portion of the text that is unaffected by whitespace
+  // collapsing.
+  base::optional<LayoutUnit> non_collapsible_text_width_;
+
+  // Glyph buffer caching is used to prevent it from needing to be recalculated
+  // during each call to RenderAndAnimateContent. It is mutable as a result of
+  // RenderAndAnimateContent being const.
+  mutable CachedGlyphBufferInfo cached_glyph_buffer_info_;
 };
 
 }  // namespace layout
