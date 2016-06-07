@@ -435,24 +435,6 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 #endif
 }
 
-class RasterizeSkiaImageVisitor : public SkiaImageVisitor {
- public:
-  RasterizeSkiaImageVisitor(SkCanvas* render_target,
-                            const math::RectF& destination_rect,
-                            const math::Matrix3F* local_transform)
-      : render_target_(render_target),
-        destination_rect_(destination_rect),
-        local_transform_(local_transform) {}
-
-  void VisitSinglePlaneImage(SkiaSinglePlaneImage* single_plane_image) OVERRIDE;
-  void VisitMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image) OVERRIDE;
-
- private:
-  SkCanvas* render_target_;
-  const math::RectF& destination_rect_;
-  const math::Matrix3F* local_transform_;
-};
-
 namespace {
 
 // Skia expects local texture coordinate transform matrices to map from image
@@ -491,10 +473,11 @@ SkPaint CreateSkPaintForImageRendering() {
 
   return paint;
 }
-}  // namespace
 
-void RasterizeSkiaImageVisitor::VisitSinglePlaneImage(
-    SkiaSinglePlaneImage* single_plane_image) {
+void RenderSinglePlaneImage(SkiaSinglePlaneImage* single_plane_image,
+                            SkCanvas* render_target,
+                            const math::RectF& destination_rect,
+                            const math::Matrix3F* local_transform) {
   SkPaint paint = CreateSkPaintForImageRendering();
 
   // In the most frequent by far case where the normalized transformed image
@@ -504,64 +487,65 @@ void RasterizeSkiaImageVisitor::VisitSinglePlaneImage(
   // Thus, if the normalized texture coordinates lie within the unit box, we
   // will blit the image using drawBitmapRectToRect() which handles the bleeding
   // edge problem for us.
-  if (IsScaleAndTranslateOnly(*local_transform_) &&
-      LocalCoordsStaysWithinUnitBox(*local_transform_)) {
+  if (IsScaleAndTranslateOnly(*local_transform) &&
+      LocalCoordsStaysWithinUnitBox(*local_transform)) {
     // Determine the source rectangle, in image texture pixel coordinates.
     const math::Size& img_size = single_plane_image->GetSize();
 
-    float width = img_size.width() / local_transform_->Get(0, 0);
-    float height = img_size.height() / local_transform_->Get(1, 1);
-    float x = -width * local_transform_->Get(0, 2);
-    float y = -height * local_transform_->Get(1, 2);
+    float width = img_size.width() / local_transform->Get(0, 0);
+    float height = img_size.height() / local_transform->Get(1, 1);
+    float x = -width * local_transform->Get(0, 2);
+    float y = -height * local_transform->Get(1, 2);
 
     SkRect src = SkRect::MakeXYWH(x, y, width, height);
 
-    render_target_->drawBitmapRectToRect(
-        single_plane_image->GetBitmap(), &src,
-        CobaltRectFToSkiaRect(destination_rect_), &paint);
+    render_target->drawBitmapRectToRect(single_plane_image->GetBitmap(), &src,
+                                        CobaltRectFToSkiaRect(destination_rect),
+                                        &paint);
   } else {
     // Use the more general approach which allows arbitrary local texture
     // coordinate matrices.
     SkMatrix skia_local_transform;
-    ConvertMatrixFromCobaltToSkia(*local_transform_, &skia_local_transform);
+    ConvertMatrixFromCobaltToSkia(*local_transform, &skia_local_transform);
 
-    ConvertLocalTransformMatrixToSkiaShaderFormat(single_plane_image->GetSize(),
-                                                  destination_rect_,
-                                                  &skia_local_transform);
+    ConvertLocalTransformMatrixToSkiaShaderFormat(
+        single_plane_image->GetSize(), destination_rect, &skia_local_transform);
 
     SkAutoTUnref<SkShader> image_shader(SkShader::CreateBitmapShader(
         single_plane_image->GetBitmap(), SkShader::kRepeat_TileMode,
         SkShader::kRepeat_TileMode, &skia_local_transform));
     paint.setShader(image_shader);
 
-    render_target_->drawRect(CobaltRectFToSkiaRect(destination_rect_), paint);
+    render_target->drawRect(CobaltRectFToSkiaRect(destination_rect), paint);
   }
 }
 
-void RasterizeSkiaImageVisitor::VisitMultiPlaneImage(
-    SkiaMultiPlaneImage* multi_plane_image) {
+void RenderMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image,
+                           SkCanvas* render_target,
+                           const math::RectF& destination_rect,
+                           const math::Matrix3F* local_transform) {
   DCHECK_EQ(render_tree::kMultiPlaneImageFormatYUV3PlaneBT709,
             multi_plane_image->GetFormat());
 
   SkMatrix skia_local_transform;
-  ConvertMatrixFromCobaltToSkia(*local_transform_, &skia_local_transform);
+  ConvertMatrixFromCobaltToSkia(*local_transform, &skia_local_transform);
 
   const SkBitmap& y_bitmap = multi_plane_image->GetBitmap(0);
   SkMatrix y_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(y_bitmap.width(), y_bitmap.height()), destination_rect_,
+      math::Size(y_bitmap.width(), y_bitmap.height()), destination_rect,
       &y_matrix);
 
   const SkBitmap& u_bitmap = multi_plane_image->GetBitmap(1);
   SkMatrix u_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(u_bitmap.width(), u_bitmap.height()), destination_rect_,
+      math::Size(u_bitmap.width(), u_bitmap.height()), destination_rect,
       &u_matrix);
 
   const SkBitmap& v_bitmap = multi_plane_image->GetBitmap(2);
   SkMatrix v_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect_,
+      math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect,
       &v_matrix);
 
   SkAutoTUnref<SkShader> yuv2rgb_shader(
@@ -570,8 +554,10 @@ void RasterizeSkiaImageVisitor::VisitMultiPlaneImage(
 
   SkPaint paint = CreateSkPaintForImageRendering();
   paint.setShader(yuv2rgb_shader);
-  render_target_->drawRect(CobaltRectFToSkiaRect(destination_rect_), paint);
+  render_target->drawRect(CobaltRectFToSkiaRect(destination_rect), paint);
 }
+
+}  // namespace
 
 void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // The image_node may contain nothing. For example, when it represents a video
@@ -600,10 +586,19 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
-  RasterizeSkiaImageVisitor image_visitor(
-      render_target_, image_node->data().destination_rect,
-      &(image_node->data().local_transform));
-  image->Accept(&image_visitor);
+  if (image->GetTypeId() == base::GetTypeId<SkiaSinglePlaneImage>()) {
+    RenderSinglePlaneImage(
+        base::polymorphic_downcast<SkiaSinglePlaneImage*>(image),
+        render_target_, image_node->data().destination_rect,
+        &(image_node->data().local_transform));
+  } else if (image->GetTypeId() == base::GetTypeId<SkiaMultiPlaneImage>()) {
+    RenderMultiPlaneImage(
+        base::polymorphic_downcast<SkiaMultiPlaneImage*>(image), render_target_,
+        image_node->data().destination_rect,
+        &(image_node->data().local_transform));
+  } else {
+    NOTREACHED();
+  }
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   render_target_->flush();

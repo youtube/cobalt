@@ -167,6 +167,11 @@ class ResourceProviderStub : public ResourceProvider {
     return true;
   }
 
+  bool AlphaFormatSupported(AlphaFormat alpha_format) OVERRIDE {
+    UNREFERENCED_PARAMETER(alpha_format);
+    return true;
+  }
+
   scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
                                           PixelFormat pixel_format,
                                           AlphaFormat alpha_format) OVERRIDE {
