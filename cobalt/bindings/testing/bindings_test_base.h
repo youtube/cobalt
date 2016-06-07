@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/at_exit.h"
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_object_proxy.h"
@@ -62,6 +63,9 @@ class BindingsTestBase : public ::testing::Test {
   void CollectGarbage() { engine_->CollectGarbage(); }
 
  protected:
+  // Use this to ensure that lazy instances created in the bindings
+  // implementations are properly destroyed after each test.
+  base::ShadowingAtExitManager at_exit_;
   const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   const scoped_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
