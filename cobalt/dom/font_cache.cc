@@ -21,6 +21,7 @@ namespace dom {
 
 namespace {
 
+const int64 kInactiveProcessTimeIntervalMs = 1000;
 const int32_t kInactiveFontListPurgeDelayMs = 300000;
 const int32_t kInactiveFontPurgeDelayMs = 900000;
 const int32_t kTotalFontCountPurgeThreshold = 64;
@@ -50,7 +51,8 @@ FontCache::FontCache(render_tree::ResourceProvider* resource_provider,
       external_typeface_load_event_callback_(
           external_typeface_load_event_callback),
       language_(language),
-      font_face_map_(new FontFaceMap()) {}
+      font_face_map_(new FontFaceMap()),
+      last_inactive_process_time_(base::Time::Now()) {}
 
 void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -93,8 +95,12 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
 void FontCache::ProcesInactiveFontListsAndFonts() {
   DCHECK(thread_checker_.CalledOnValidThread());
   base::Time current_time = base::Time::Now();
-  ProcessInactiveFontLists(current_time);
-  ProcessInactiveFonts(current_time);
+  if ((current_time - last_inactive_process_time_).InMilliseconds() >
+      kInactiveProcessTimeIntervalMs) {
+    last_inactive_process_time_ = current_time;
+    ProcessInactiveFontLists(current_time);
+    ProcessInactiveFonts(current_time);
+  }
 }
 
 const scoped_refptr<dom::FontList>& FontCache::GetFontList(

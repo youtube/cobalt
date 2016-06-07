@@ -310,6 +310,9 @@ class FontCache {
   // encountered size.
   CharacterFallbackTypefaceMaps character_fallback_typeface_maps_;
 
+  // The last time the cache was checked for inactivity.
+  base::Time last_inactive_process_time_;
+
   // Thread checker used to verify safe thread usage of the font cache.
   base::ThreadChecker thread_checker_;
 };
