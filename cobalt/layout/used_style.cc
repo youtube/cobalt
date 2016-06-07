@@ -470,7 +470,7 @@ void UsedStyleProvider::CleanupAfterLayout() {
   last_font_weight_refptr_ = NULL;
   last_font_list_ = NULL;
 
-  font_cache_->ProcesInactiveFontListsAndFonts();
+  font_cache_->ProcessInactiveFontListsAndFonts();
 }
 
 UsedStyleProviderLayoutScope::UsedStyleProviderLayoutScope(

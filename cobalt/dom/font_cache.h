@@ -95,7 +95,7 @@ class FontCache {
 
   struct FontListInfo {
     scoped_refptr<FontList> font_list;
-    base::Time inactive_time;
+    base::TimeTicks inactive_time;
   };
 
   struct FontKey {
@@ -116,11 +116,11 @@ class FontCache {
 
   struct FontInfo {
     scoped_refptr<render_tree::Font> font;
-    base::Time inactive_time;
+    base::TimeTicks inactive_time;
   };
 
   struct InactiveFontKey {
-    InactiveFontKey(base::Time time, FontKey key)
+    InactiveFontKey(base::TimeTicks time, FontKey key)
         : inactive_time(time), font_key(key) {}
 
     bool operator<(const InactiveFontKey& rhs) const {
@@ -131,7 +131,7 @@ class FontCache {
       }
     }
 
-    base::Time inactive_time;
+    base::TimeTicks inactive_time;
     FontKey font_key;
   };
 
@@ -184,7 +184,7 @@ class FontCache {
 
   // Process unused font lists and fonts, potentially purging them from the
   // cache if they meet the removal requirements.
-  void ProcesInactiveFontListsAndFonts();
+  void ProcessInactiveFontListsAndFonts();
 
   // Looks up and returns the font list in |font_list_map_|. If the font list
   // doesn't already exist, then a new one is created and added to the cache.
@@ -233,8 +233,8 @@ class FontCache {
                      render_tree::FontVector* maybe_used_fonts);
 
  private:
-  void ProcessInactiveFontLists(const base::Time& current_time);
-  void ProcessInactiveFonts(const base::Time& current_time);
+  void ProcessInactiveFontLists(const base::TimeTicks& current_time);
+  void ProcessInactiveFonts(const base::TimeTicks& current_time);
 
   // Looks up and returns the cached typeface in |local_typeface_map_|. If it
   // doesn't already exist in the cache, then the passed in typeface is added to
@@ -311,7 +311,7 @@ class FontCache {
   CharacterFallbackTypefaceMaps character_fallback_typeface_maps_;
 
   // The last time the cache was checked for inactivity.
-  base::Time last_inactive_process_time_;
+  base::TimeTicks last_inactive_process_time_;
 
   // Thread checker used to verify safe thread usage of the font cache.
   base::ThreadChecker thread_checker_;
