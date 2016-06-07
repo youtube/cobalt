@@ -560,7 +560,8 @@ base::LazyInstance<base::Lock> poller_lock = LAZY_INSTANCE_INITIALIZER;
 
 SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* directory, const SkTArray<SkString, true>& default_fonts)
-    : default_family_(NULL), last_font_cache_purge_time_(base::Time::Now()) {
+    : default_family_(NULL),
+      last_font_cache_purge_time_(base::TimeTicks::Now()) {
   SkTDArray<FontFamily*> font_families;
   SkFontConfigParser::GetFontFamilies(directory, &font_families);
   BuildNameToFamilyMap(directory, &font_families);
@@ -878,7 +879,7 @@ void SkFontMgr_Cobalt::NotifySystemTypefaceOfOpenStreamActivity(
 }
 
 void SkFontMgr_Cobalt::HandlePeriodicProcessing() {
-  base::Time current_time = base::Time::Now();
+  base::TimeTicks current_time = base::TimeTicks::Now();
 
   ProcessSystemTypefacesWithOpenStreams(current_time);
 
@@ -898,7 +899,7 @@ void SkFontMgr_Cobalt::HandlePeriodicProcessing() {
 }
 
 void SkFontMgr_Cobalt::ProcessSystemTypefacesWithOpenStreams(
-    const base::Time& current_time) const {
+    const base::TimeTicks& current_time) const {
   SkAutoMutexAcquire scoped_mutex(system_typeface_stream_mutex_);
 
   // First, release the inactive open streams that meet the following
