@@ -68,9 +68,8 @@ TEST_F(InterfaceObjectTest, PrototypePropertyIsSet) {
 // The value of the "name" property must be the identifier of the interface.
 TEST_F(InterfaceObjectTest, NamePropertyIsSet) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript(
-      "ArbitraryInterface.name == \"ArbitraryInterface\";", &result));
-  EXPECT_STREQ("true", result.c_str());
+  EXPECT_TRUE(EvaluateScript("ArbitraryInterface.name;", &result));
+  EXPECT_STREQ("ArbitraryInterface", result.c_str());
 }
 
 // The interface prototype object must have a property named "constructor" whose
@@ -111,7 +110,6 @@ TEST_F(NoInterfaceObjectTest, NoInterfaceObjectGlobalProperty) {
       "this.hasOwnProperty(\"NoInterfaceObjectInterface\");", &result));
   EXPECT_STREQ("false", result.c_str());
 }
-
 
 }  // namespace testing
 }  // namespace bindings
