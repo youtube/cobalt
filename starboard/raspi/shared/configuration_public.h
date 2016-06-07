@@ -208,6 +208,11 @@
 // generally prefer a byte order of RGBA, regardless of endianness.
 #define SB_PREFERRED_RGBA_BYTE_ORDER SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
 
+// Indicates whether or not the given platform supports bilinear filtering.
+// This can be checked to enable/disable renderer tests that verify that this is
+// working properly.
+#define SB_HAS_BILINEAR_FILTERING_SUPPORT 1
+
 // --- Media Configuration ---------------------------------------------------
 
 // Specifies whether this platform has support for direct access to a decoder
