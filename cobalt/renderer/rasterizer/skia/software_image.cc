@@ -55,37 +55,27 @@ SkiaSoftwareImage::SkiaSoftwareImage(
 
 void SkiaSoftwareImage::Initialize(
     uint8_t* source_data, const render_tree::ImageDataDescriptor& descriptor) {
+  SkAlphaType skia_alpha_format =
+      RenderTreeAlphaFormatToSkia(descriptor.alpha_format);
+  DCHECK_EQ(kPremul_SkAlphaType, skia_alpha_format);
+
   // Convert our incoming pixel data from unpremultiplied alpha to
   // premultiplied alpha format, which is what Skia expects.
   SkImageInfo premul_image_info =
       SkImageInfo::Make(descriptor.size.width(), descriptor.size.height(),
-                        kN32_SkColorType, kPremul_SkAlphaType);
+                        RenderTreeSurfaceFormatToSkia(descriptor.pixel_format),
+                        skia_alpha_format);
 
-  SkColorType skia_pixel_format =
-      RenderTreeSurfaceFormatToSkia(descriptor.pixel_format);
-  SkAlphaType skia_alpha_format =
-      RenderTreeAlphaFormatToSkia(descriptor.alpha_format);
-  if (skia_pixel_format != kN32_SkColorType ||
-      skia_alpha_format != kPremul_SkAlphaType) {
-    bitmap_.allocPixels(premul_image_info);
-
-    SkiaConvertImageData(descriptor.size, descriptor.pitch_in_bytes,
-                         RenderTreeSurfaceFormatToSkia(descriptor.pixel_format),
-                         RenderTreeAlphaFormatToSkia(descriptor.alpha_format),
-                         source_data, bitmap_.rowBytes(),
-                         static_cast<uint8_t*>(bitmap_.getPixels()),
-                         kN32_SkColorType, kPremul_SkAlphaType);
-  } else {
 // Check that the incoming pixel data is indeed in premultiplied alpha
 // format.
 #if !defined(NDEBUG)
-    SkiaImage::DCheckForPremultipliedAlpha(
-        descriptor.size, descriptor.pitch_in_bytes, descriptor.pixel_format,
-        source_data);
+  SkiaImage::DCheckForPremultipliedAlpha(descriptor.size,
+                                         descriptor.pitch_in_bytes,
+                                         descriptor.pixel_format, source_data);
 #endif
-    bitmap_.installPixels(premul_image_info, source_data,
-                          descriptor.pitch_in_bytes);
-  }
+  bitmap_.installPixels(premul_image_info, source_data,
+                        descriptor.pitch_in_bytes);
+
   size_ = descriptor.size;
 }
 

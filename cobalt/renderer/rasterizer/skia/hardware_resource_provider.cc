@@ -52,6 +52,11 @@ bool SkiaHardwareResourceProvider::PixelFormatSupported(
   return pixel_format == render_tree::kPixelFormatRGBA8;
 }
 
+bool SkiaHardwareResourceProvider::AlphaFormatSupported(
+    render_tree::AlphaFormat alpha_format) {
+  return alpha_format == render_tree::kAlphaFormatPremultiplied;
+}
+
 scoped_ptr<ImageData> SkiaHardwareResourceProvider::AllocateImageData(
     const math::Size& size, render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format) {
@@ -59,6 +64,9 @@ scoped_ptr<ImageData> SkiaHardwareResourceProvider::AllocateImageData(
                "SkiaHardwareResourceProvider::AllocateImageData()");
   DCHECK_EQ(render_tree::kPixelFormatRGBA8, pixel_format)
       << "Currently, only RGBA8 is supported.";
+
+  DCHECK(PixelFormatSupported(pixel_format));
+  DCHECK(AlphaFormatSupported(alpha_format));
 
   return scoped_ptr<ImageData>(new SkiaHardwareImageData(
       cobalt_context_->system_egl()->AllocateTextureData(
@@ -76,23 +84,12 @@ scoped_refptr<Image> SkiaHardwareResourceProvider::CreateImage(
   const render_tree::ImageDataDescriptor& descriptor =
       skia_hardware_source_data->GetDescriptor();
 
-  if (descriptor.alpha_format != render_tree::kAlphaFormatPremultiplied) {
-    SkiaImage::SkiaConvertImageData(
-        descriptor.size, descriptor.pitch_in_bytes,
-        RenderTreeSurfaceFormatToSkia(descriptor.pixel_format),
-        RenderTreeAlphaFormatToSkia(descriptor.alpha_format),
-        skia_hardware_source_data->GetMemory(), descriptor.pitch_in_bytes,
-        skia_hardware_source_data->GetMemory(),
-        RenderTreeSurfaceFormatToSkia(descriptor.pixel_format),
-        kPremul_SkAlphaType);
-  } else {
-    DCHECK_EQ(render_tree::kAlphaFormatPremultiplied, descriptor.alpha_format);
+  DCHECK_EQ(render_tree::kAlphaFormatPremultiplied, descriptor.alpha_format);
 #if defined(COBALT_BUILD_TYPE_DEBUG)
-    SkiaImage::DCheckForPremultipliedAlpha(
-        descriptor.size, descriptor.pitch_in_bytes, descriptor.pixel_format,
-        skia_hardware_source_data->GetMemory());
+  SkiaImage::DCheckForPremultipliedAlpha(
+      descriptor.size, descriptor.pitch_in_bytes, descriptor.pixel_format,
+      skia_hardware_source_data->GetMemory());
 #endif
-  }
 
   // Construct a frontend image from this data, which internally will send
   // a message to the rasterizer thread passing along the image data where the
