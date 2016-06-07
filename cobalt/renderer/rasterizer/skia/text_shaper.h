@@ -17,6 +17,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_TEXT_SHAPER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_TEXT_SHAPER_H_
 
+#include <algorithm>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -91,6 +93,30 @@ class TextShaper {
                      render_tree::FontVector* maybe_used_fonts);
 
  private:
+  // Internal class used for tracking the vertical bounds of a text buffer
+  // during shaping when bounds are requested (i.e. the passed in |maybe_bounds|
+  // is non-NULL).
+  class VerticalBounds {
+   public:
+    VerticalBounds()
+        : min_y_(std::numeric_limits<float>::max()),
+          max_y_(std::numeric_limits<float>::min()) {}
+
+    void IncludeRange(float min_y, float max_y) {
+      min_y_ = std::min(min_y_, min_y);
+      max_y_ = std::max(max_y_, max_y);
+    }
+
+    float GetY() const { return IsValid() ? min_y_ : 0; }
+    float GetHeight() const { return IsValid() ? max_y_ - min_y_ : 0; }
+
+   private:
+    bool IsValid() const { return max_y_ >= min_y_; }
+
+    float min_y_;
+    float max_y_;
+  };
+
   // Shape text relying on SkiaFont and HarfBuzz.
   // Returns the width of the shaped text.
   // If |maybe_glyph_buffer| is non-NULL, it is populated with SkiaGlyphBuffer
@@ -117,7 +143,7 @@ class TextShaper {
                        const std::string& language, bool is_rtl,
                        render_tree::FontProvider* font_provider,
                        SkTextBlobBuilder* maybe_builder,
-                       math::RectF* maybe_bounds,
+                       VerticalBounds* maybe_vertical_bounds,
                        render_tree::FontVector* maybe_used_fonts,
                        float* current_width);
 
@@ -127,7 +153,7 @@ class TextShaper {
                                    size_t text_length, bool is_rtl,
                                    render_tree::FontProvider* font_provider,
                                    SkTextBlobBuilder* maybe_builder,
-                                   math::RectF* maybe_bounds,
+                                   VerticalBounds* maybe_vertical_bounds,
                                    render_tree::FontVector* maybe_used_fonts,
                                    float* current_width);
 
@@ -136,7 +162,7 @@ class TextShaper {
   void ShapeSimpleRun(const char16* text_buffer, size_t text_length,
                       render_tree::FontProvider* font_provider,
                       SkTextBlobBuilder* maybe_builder,
-                      math::RectF* maybe_bounds,
+                      VerticalBounds* maybe_vertical_bounds,
                       render_tree::FontVector* maybe_used_fonts,
                       float* current_width);
 
