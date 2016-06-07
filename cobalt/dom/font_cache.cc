@@ -52,7 +52,7 @@ FontCache::FontCache(render_tree::ResourceProvider* resource_provider,
           external_typeface_load_event_callback),
       language_(language),
       font_face_map_(new FontFaceMap()),
-      last_inactive_process_time_(base::Time::Now()) {}
+      last_inactive_process_time_(base::TimeTicks::Now()) {}
 
 void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -92,9 +92,9 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   }
 }
 
-void FontCache::ProcesInactiveFontListsAndFonts() {
+void FontCache::ProcessInactiveFontListsAndFonts() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  base::Time current_time = base::Time::Now();
+  base::TimeTicks current_time = base::TimeTicks::Now();
   if ((current_time - last_inactive_process_time_).InMilliseconds() >
       kInactiveProcessTimeIntervalMs) {
     last_inactive_process_time_ = current_time;
@@ -201,7 +201,7 @@ float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
       font_list, maybe_used_fonts);
 }
 
-void FontCache::ProcessInactiveFontLists(const base::Time& current_time) {
+void FontCache::ProcessInactiveFontLists(const base::TimeTicks& current_time) {
   for (FontListMap::iterator font_list_iterator = font_list_map_.begin();
        font_list_iterator != font_list_map_.end();) {
     FontListInfo& font_list_info = font_list_iterator->second;
@@ -212,7 +212,7 @@ void FontCache::ProcessInactiveFontLists(const base::Time& current_time) {
       // If there is no inactive time set, then the font list has just become
       // inactive, so set the time now.
       if (font_list_info.inactive_time.is_null()) {
-        font_list_info.inactive_time = base::Time::Now();
+        font_list_info.inactive_time = current_time;
         // Otherwise, check to see if the purge delay has been reached.
       } else if ((current_time - font_list_info.inactive_time)
                      .InMilliseconds() >= kInactiveFontListPurgeDelayMs) {
@@ -221,14 +221,14 @@ void FontCache::ProcessInactiveFontLists(const base::Time& current_time) {
       }
       // Otherwise, if there's an inactive time set on this font list, clear it.
     } else if (!font_list_info.inactive_time.is_null()) {
-      font_list_info.inactive_time = base::Time();
+      font_list_info.inactive_time = base::TimeTicks();
     }
 
     ++font_list_iterator;
   }
 }
 
-void FontCache::ProcessInactiveFonts(const base::Time& current_time) {
+void FontCache::ProcessInactiveFonts(const base::TimeTicks& current_time) {
   for (FontMap::iterator font_iterator = font_map_.begin();
        font_iterator != font_map_.end();) {
     FontInfo& font_info = font_iterator->second;
@@ -239,7 +239,7 @@ void FontCache::ProcessInactiveFonts(const base::Time& current_time) {
       // If there is no inactive time set, then the font has just become
       // inactive, so set the time now and insert it into the inactive font set.
       if (font_info.inactive_time.is_null()) {
-        font_info.inactive_time = base::Time::Now();
+        font_info.inactive_time = current_time;
         inactive_font_set_.insert(
             InactiveFontKey(font_info.inactive_time, font_iterator->first));
       }
@@ -248,7 +248,7 @@ void FontCache::ProcessInactiveFonts(const base::Time& current_time) {
     } else if (!font_info.inactive_time.is_null()) {
       inactive_font_set_.erase(
           InactiveFontKey(font_info.inactive_time, font_iterator->first));
-      font_info.inactive_time = base::Time();
+      font_info.inactive_time = base::TimeTicks();
     }
 
     ++font_iterator;
