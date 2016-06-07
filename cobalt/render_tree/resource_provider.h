@@ -49,7 +49,11 @@ class ResourceProvider {
 
   virtual ~ResourceProvider() {}
 
+  // Returns true if AllocateImageData() supports the given |pixel_format|.
   virtual bool PixelFormatSupported(PixelFormat pixel_format) = 0;
+
+  // Returns true if AllocateImageData() supports the given |alpha_format|.
+  virtual bool AlphaFormatSupported(AlphaFormat alpha_format) = 0;
 
   // This method can be used to create an ImageData object.
   virtual scoped_ptr<ImageData> AllocateImageData(const math::Size& size,

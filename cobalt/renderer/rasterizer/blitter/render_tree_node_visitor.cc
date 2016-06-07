@@ -163,9 +163,18 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
-  Image* blitter_image =
-      base::polymorphic_downcast<Image*>(image_node->data().source.get());
-  const Size& image_size = blitter_image->GetSize();
+  // All Blitter API images derive from SkiaImage (so that they can be
+  // compatible with the Skia software renderer), so we start here by casting
+  // to SkiaImage.
+  skia::SkiaImage* skia_image = base::polymorphic_downcast<skia::SkiaImage*>(
+      image_node->data().source.get());
+  const Size& image_size = skia_image->GetSize();
+
+  if (skia_image->GetTypeId() == base::GetTypeId<skia::SkiaMultiPlaneImage>()) {
+    // Let software Skia deal with multiplane (e.g. YUV) image rendering.
+    RenderWithSoftwareRenderer(image_node);
+    return;
+  }
 
   const Matrix3F& local_matrix = image_node->data().local_transform;
   if (local_matrix.Get(1, 0) != 0 || local_matrix.Get(0, 1) != 0) {
@@ -175,6 +184,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     RenderWithSoftwareRenderer(image_node);
     return;
   }
+
+  // All single-plane images are guaranteed to be of type SinglePlaneImage.
+  SinglePlaneImage* blitter_image =
+      base::polymorphic_downcast<SinglePlaneImage*>(skia_image);
 
   // Apply the local image coordinate transform to the source rectangle.  Note
   // that the render tree local transform matrix is normalized, but the Blitter

@@ -19,6 +19,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/image.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -37,7 +38,9 @@ ImageData::ImageData(SbBlitterDevice device, const math::Size& size,
           RenderTreePixelFormatToBlitter(pixel_format),
           RenderTreeAlphaFormatToBlitter(alpha_format))),
       descriptor_(size, pixel_format, alpha_format,
-                  SbBlitterGetPixelDataPitchInBytes(pixel_data_)) {}
+                  SbBlitterGetPixelDataPitchInBytes(pixel_data_)) {
+  CHECK(SbBlitterIsPixelDataValid(pixel_data_));
+}
 
 ImageData::~ImageData() {
   if (SbBlitterIsPixelDataValid(pixel_data_)) {
@@ -55,15 +58,16 @@ SbBlitterPixelData ImageData::TakePixelData() {
   return pixel_data;
 }
 
-Image::Image(scoped_ptr<ImageData> image_data)
+SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
     : size_(image_data->GetDescriptor().size) {
   surface_ = SbBlitterCreateSurfaceFromPixelData(image_data->device(),
                                                  image_data->TakePixelData());
+  CHECK(SbBlitterIsSurfaceValid(surface_));
 }
 
-void Image::EnsureInitialized() {}
+void SinglePlaneImage::EnsureInitialized() {}
 
-const SkBitmap& Image::GetBitmap() const {
+const SkBitmap& SinglePlaneImage::GetBitmap() const {
   // This function will only ever get called if the Skia software renderer needs
   // to reference the image, and so should be called rarely.  In that case, the
   // first time it is called on this image, we will download the image data from
@@ -87,7 +91,7 @@ const SkBitmap& Image::GetBitmap() const {
   return *bitmap_;
 }
 
-Image::~Image() { SbBlitterDestroySurface(surface_); }
+SinglePlaneImage::~SinglePlaneImage() { SbBlitterDestroySurface(surface_); }
 
 }  // namespace blitter
 }  // namespace rasterizer

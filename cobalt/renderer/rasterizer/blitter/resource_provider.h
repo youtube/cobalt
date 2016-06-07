@@ -37,10 +37,11 @@ class ResourceProvider : public render_tree::ResourceProvider {
  public:
   explicit ResourceProvider(
       SbBlitterDevice device,
-      render_tree::ResourceProvider* font_resource_provider);
+      render_tree::ResourceProvider* skia_resource_provider);
   ~ResourceProvider() OVERRIDE {}
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
+  bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
 
   scoped_ptr<render_tree::ImageData> AllocateImageData(
       const math::Size& size, render_tree::PixelFormat pixel_format,
@@ -89,7 +90,7 @@ class ResourceProvider : public render_tree::ResourceProvider {
   // Any requests for font-related resources will be forwarded on to this
   // ResourceProvider, as the Blitter API does not natively support font
   // rendering.
-  render_tree::ResourceProvider* font_resource_provider_;
+  render_tree::ResourceProvider* skia_resource_provider_;
 };
 
 }  // namespace blitter

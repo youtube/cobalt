@@ -42,6 +42,15 @@
 #include "cobalt/renderer/rasterizer/pixel_test_fixture.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#define BILINEAR_FILTERING_SUPPORTED 1
+
+#if defined(STARBOARD)
+#if !SB_HAS(BILINEAR_FILTERING_SUPPORT)
+#undef BILINEAR_FILTERING_SUPPORTED
+#define BILINEAR_FILTERING_SUPPORTED 0
+#endif
+#endif
+
 using cobalt::math::Matrix3F;
 using cobalt::math::PointF;
 using cobalt::math::RectF;
@@ -633,30 +642,42 @@ scoped_refptr<Node> CreateTransparencyImageRenderTree(
 TEST_F(
     PixelTest,
     ImageOfBlackTransparentGridOverlappingSolidRectUsingUnpremultipliedAlpha) {
-  TestTree(CreateTransparencyImageRenderTree(
-      GetResourceProvider(), output_surface_size(), 0, 0, 0,
-      render_tree::kAlphaFormatUnpremultiplied));
+  if (GetResourceProvider()->AlphaFormatSupported(
+          render_tree::kAlphaFormatUnpremultiplied)) {
+    TestTree(CreateTransparencyImageRenderTree(
+        GetResourceProvider(), output_surface_size(), 0, 0, 0,
+        render_tree::kAlphaFormatUnpremultiplied));
+  }
 }
 
 TEST_F(PixelTest,
        ImageOfWhiteTransparentGridOverlappingSolidRectUnpremultipliedAlpha) {
-  TestTree(CreateTransparencyImageRenderTree(
-      GetResourceProvider(), output_surface_size(), 255, 255, 255,
-      render_tree::kAlphaFormatUnpremultiplied));
+  if (GetResourceProvider()->AlphaFormatSupported(
+          render_tree::kAlphaFormatUnpremultiplied)) {
+    TestTree(CreateTransparencyImageRenderTree(
+        GetResourceProvider(), output_surface_size(), 255, 255, 255,
+        render_tree::kAlphaFormatUnpremultiplied));
+  }
 }
 
 TEST_F(PixelTest,
        ImageOfBlackTransparentGridOverlappingSolidRectPremultipliedAlpha) {
-  TestTree(CreateTransparencyImageRenderTree(
-      GetResourceProvider(), output_surface_size(), 0, 0, 0,
-      render_tree::kAlphaFormatPremultiplied));
+  if (GetResourceProvider()->AlphaFormatSupported(
+          render_tree::kAlphaFormatPremultiplied)) {
+    TestTree(CreateTransparencyImageRenderTree(
+        GetResourceProvider(), output_surface_size(), 0, 0, 0,
+        render_tree::kAlphaFormatPremultiplied));
+  }
 }
 
 TEST_F(PixelTest,
        ImageOfWhiteTransparentGridOverlappingSolidRectPremultipliedAlpha) {
-  TestTree(CreateTransparencyImageRenderTree(
-      GetResourceProvider(), output_surface_size(), 255, 255, 255,
-      render_tree::kAlphaFormatPremultiplied));
+  if (GetResourceProvider()->AlphaFormatSupported(
+          render_tree::kAlphaFormatPremultiplied)) {
+    TestTree(CreateTransparencyImageRenderTree(
+        GetResourceProvider(), output_surface_size(), 255, 255, 255,
+        render_tree::kAlphaFormatPremultiplied));
+  }
 }
 
 namespace {
@@ -801,6 +822,15 @@ namespace {
 // half the columns and half the rows of the Y plane.
 scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
                                    const Size& image_size) {
+  // The alpha format doesn't really matter here, but we still need to pick one
+  // that the resource provider indicates it supports.
+  render_tree::AlphaFormat alpha_format =
+      render_tree::kAlphaFormatUnpremultiplied;
+  if (!resource_provider->AlphaFormatSupported(alpha_format)) {
+    alpha_format = render_tree::kAlphaFormatPremultiplied;
+  }
+  CHECK(resource_provider->AlphaFormatSupported(alpha_format));
+
   static const int kMaxBytesUsed =
       image_size.width() * image_size.height() * 3 / 2;
 
@@ -808,9 +838,9 @@ scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
       resource_provider->AllocateRawImageMemory(kMaxBytesUsed, 256);
 
   // Setup information about the Y plane.
-  ImageDataDescriptor y_plane_descriptor(
-      image_size, render_tree::kPixelFormatY8,
-      render_tree::kAlphaFormatUnpremultiplied, image_size.width());
+  ImageDataDescriptor y_plane_descriptor(image_size,
+                                         render_tree::kPixelFormatY8,
+                                         alpha_format, image_size.width());
   intptr_t y_plane_memory_offset = 0;
   uint8_t* y_plane_memory = image_memory->GetMemory() + y_plane_memory_offset;
   float y_plane_inverse_height = 1.0f / y_plane_descriptor.size.height();
@@ -825,8 +855,7 @@ scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
   // Setup information about the U plane.
   ImageDataDescriptor u_plane_descriptor(
       Size(image_size.width() / 2, image_size.height() / 2),
-      render_tree::kPixelFormatU8, render_tree::kAlphaFormatUnpremultiplied,
-      image_size.width() / 2);
+      render_tree::kPixelFormatU8, alpha_format, image_size.width() / 2);
   intptr_t u_plane_memory_offset =
       y_plane_memory_offset +
       y_plane_descriptor.pitch_in_bytes * y_plane_descriptor.size.height();
@@ -843,8 +872,7 @@ scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
   // Setup information about the V plane.
   ImageDataDescriptor v_plane_descriptor(
       Size(image_size.width() / 2, image_size.height() / 2),
-      render_tree::kPixelFormatV8, render_tree::kAlphaFormatUnpremultiplied,
-      image_size.width() / 2);
+      render_tree::kPixelFormatV8, alpha_format, image_size.width() / 2);
   intptr_t v_plane_memory_offset =
       u_plane_memory_offset +
       u_plane_descriptor.pitch_in_bytes * u_plane_descriptor.size.height();
@@ -1334,6 +1362,8 @@ TEST_F(PixelTest, ImageEdgeNoWrapWithPixelCentersOffset) {
       PointF(100.0f, 100.51f), kNumCascades));
 }
 
+#if BILINEAR_FILTERING_SUPPORTED
+
 TEST_F(PixelTest, ImagesAreLinearlyInterpolated) {
   // We want to make sure that image pixels are accessed through a bilinear
   // interpolation magnification filter.
@@ -1353,6 +1383,8 @@ TEST_F(PixelTest, ZoomedInImagesDoNotWrapInterpolated) {
       RectF(output_surface_size()),
       ScaleMatrix(2) * TranslateMatrix(-0.5f, -0.5f)));
 }
+
+#endif  // BILINEAR_FILTERING_SUPPORTED
 
 TEST_F(PixelTest, YUVImagesAreLinearlyInterpolated) {
   // Tests that YUV images are bilinearly interpolated.

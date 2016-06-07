@@ -42,12 +42,18 @@ bool SkiaSoftwareResourceProvider::PixelFormatSupported(
   return RenderTreeSurfaceFormatToSkia(pixel_format) == kN32_SkColorType;
 }
 
+bool SkiaSoftwareResourceProvider::AlphaFormatSupported(
+    render_tree::AlphaFormat alpha_format) {
+  return alpha_format == render_tree::kAlphaFormatPremultiplied;
+}
+
 scoped_ptr<ImageData> SkiaSoftwareResourceProvider::AllocateImageData(
     const math::Size& size, render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("cobalt::renderer",
                "SkiaSoftwareResourceProvider::AllocateImageData()");
   DCHECK(PixelFormatSupported(pixel_format));
+  DCHECK(AlphaFormatSupported(alpha_format));
   return scoped_ptr<ImageData>(
       new SkiaSoftwareImageData(size, pixel_format, alpha_format));
 }
