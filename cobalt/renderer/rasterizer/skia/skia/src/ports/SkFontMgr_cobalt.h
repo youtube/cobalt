@@ -174,11 +174,11 @@ class SkFontMgr_Cobalt : public SkFontMgr {
  private:
   struct TimedSystemTypeface {
     TimedSystemTypeface(const SkTypeface_CobaltSystem* system_typeface,
-                        const base::Time& event_time)
+                        const base::TimeTicks& event_time)
         : typeface(system_typeface), time(event_time) {}
 
     const SkTypeface_CobaltSystem* typeface;
-    base::Time time;
+    base::TimeTicks time;
   };
 
   //  Map names to the back end so that all names for a given family refer to
@@ -216,7 +216,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // active to the inactive list and releasing inactive open streams.
   // NOTE: Handles locking |system_typeface_stream_mutex_| internally
   void ProcessSystemTypefacesWithOpenStreams(
-      const base::Time& current_time) const;
+      const base::TimeTicks& current_time) const;
   // Mutex shared by all system typefaces for accessing/modifying stream data.
   SkMutex& GetSystemTypefaceStreamMutex() const;
 
@@ -253,7 +253,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // The last time that a partial purge of Skia's font cache was forced. This is
   // done periodically to ensure that unused fonts are not indefinitely
   // referenced by Skia.
-  base::Time last_font_cache_purge_time_;
+  base::TimeTicks last_font_cache_purge_time_;
 
   // SkTypeface_CobaltSystem is a friend so that it can make system typeface
   // open stream calls into SkFontMgr_Cobalt from
