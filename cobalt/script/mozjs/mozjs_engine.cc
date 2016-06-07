@@ -19,6 +19,8 @@
 #include "base/logging.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 
+#include "third_party/mozjs/js/src/jsapi.h"
+
 namespace cobalt {
 namespace script {
 namespace mozjs {

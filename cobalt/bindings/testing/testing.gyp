@@ -131,6 +131,7 @@
         'getter_setter_test.cc',
         'get_opaque_root_test.cc',
         'global_interface_bindings_test.cc',
+        'interface_object_test.cc',
         'nullable_types_bindings_test.cc',
         'numeric_type_bindings_test.cc',
         'object_type_bindings_test.cc',

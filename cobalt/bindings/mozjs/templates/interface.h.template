@@ -14,6 +14,18 @@
  # limitations under the License.
  #}
 {% extends "interface-base.h.template" %}
+{% block includes %}
+{{ super() }}
+#include "third_party/mozjs/js/src/jsapi.h"
+{% endblock includes %}
 {% block implementation %}
-class {{binding_class}} { };
+class {{binding_class}} {
+ public:
+  static JSObject* CreateInstance(JSContext* context,
+      const scoped_refptr<script::Wrappable>& wrappable);
+  static JSObject* GetPrototype(JSContext* context);
+{% if has_interface_object %}
+  static JSObject* GetInterfaceObject(JSContext* context);
+{% endif %}
+};
 {% endblock implementation %}
