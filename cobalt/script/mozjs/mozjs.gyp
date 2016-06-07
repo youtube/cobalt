@@ -21,6 +21,7 @@
         'mozjs_engine.cc',
         'mozjs_global_object_proxy.cc',
         'mozjs_source_code.cc',
+        'wrapper_factory.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/script/script.gyp:script',
