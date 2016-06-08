@@ -70,7 +70,6 @@ scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
 
   SbBlitterFlushContext(context_);
   SbBlitterDownloadSurfacePixels(surface, kSbBlitterPixelDataFormatRGBA8,
-                                 kSbBlitterAlphaFormatPremultiplied,
                                  size.width() * 4, pixels.get());
 
   return pixels.Pass();
