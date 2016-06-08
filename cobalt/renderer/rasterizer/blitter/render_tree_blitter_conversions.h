@@ -32,9 +32,6 @@ namespace blitter {
 SbBlitterPixelDataFormat RenderTreePixelFormatToBlitter(
     render_tree::PixelFormat format);
 
-SbBlitterAlphaFormat RenderTreeAlphaFormatToBlitter(
-    render_tree::AlphaFormat format);
-
 }  // namespace blitter
 }  // namespace rasterizer
 }  // namespace renderer
