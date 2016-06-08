@@ -32,32 +32,29 @@ TEST(SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels,
   const int kHeight = 128;
 
   // Test that every kind of surface can be downloaded in at least one format.
-  PixelAndAlphaFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForPixelData(device);
-  for (PixelAndAlphaFormats::const_iterator iter = supported_formats.begin();
+  std::vector<SbBlitterPixelDataFormat> supported_formats =
+      GetAllSupportedPixelFormatsForPixelData(device);
+  for (std::vector<SbBlitterPixelDataFormat>::const_iterator iter =
+           supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
-    SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-        device, kWidth, kHeight, iter->pixel, iter->alpha);
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(device, kWidth, kHeight, *iter);
     ASSERT_TRUE(SbBlitterIsPixelDataValid(pixel_data));
 
     SbBlitterSurface surface =
         SbBlitterCreateSurfaceFromPixelData(device, pixel_data);
     EXPECT_TRUE(SbBlitterIsSurfaceValid(surface));
 
-    // Check every color and alpha format and verify that at least one of them
-    // returns true.
+    // Check every color format and verify that at least one of them returns
+    // true.
     bool any_format_supported = false;
     for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
-      for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
         SbBlitterPixelDataFormat download_pixel_format =
             static_cast<SbBlitterPixelDataFormat>(i);
-        SbBlitterAlphaFormat download_alpha_format =
-            static_cast<SbBlitterAlphaFormat>(j);
 
         any_format_supported |=
             SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
-                surface, download_pixel_format, download_alpha_format);
-      }
+                surface, download_pixel_format);
     }
     EXPECT_TRUE(any_format_supported);
 

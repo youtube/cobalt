@@ -61,8 +61,7 @@ TEST(SbBlitterDownloadSurfacePixelsTest, SunnyDayRGBARenderTargetSurface) {
 
   uint8_t* downloaded_pixels = new uint8_t[kWidth * kHeight * 4];
   EXPECT_TRUE(SbBlitterDownloadSurfacePixels(
-      surface, kSbBlitterPixelDataFormatRGBA8,
-      kSbBlitterAlphaFormatPremultiplied, kWidth * 4,
+      surface, kSbBlitterPixelDataFormatRGBA8, kWidth * 4,
       static_cast<void*>(downloaded_pixels)));
 
   bool all_correct_color = true;
@@ -97,81 +96,77 @@ TEST(SbBlitterDownloadSurfacePixelsTest, SunnyDayPixelDataSurface) {
   };
 
   for (size_t i = 0; i < SB_ARRAY_SIZE(test_formats); ++i) {
-    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
-      if (!SbBlitterIsPixelFormatSupportedByPixelData(
-              device, test_formats[i], static_cast<SbBlitterAlphaFormat>(j))) {
-        continue;
-      }
-
-      SbBlitterPixelData pixel_data =
-          SbBlitterCreatePixelData(device, kWidth, kHeight, test_formats[i],
-                                   static_cast<SbBlitterAlphaFormat>(j));
-      ASSERT_TRUE(SbBlitterIsPixelDataValid(pixel_data));
-
-      int pitch_in_bytes = SbBlitterGetPixelDataPitchInBytes(pixel_data);
-      ASSERT_NE(-1, pitch_in_bytes);
-
-      uint8_t* pixels =
-          static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
-      ASSERT_TRUE(pixels);
-
-      // Fill the pixels with dummy data.
-      for (int y = 0; y < kHeight; ++y) {
-        for (int x = 0; x < kWidth; ++x) {
-          pixels[x * 4 + 0] = 0;
-          pixels[x * 4 + 1] = 1;
-          pixels[x * 4 + 2] = 2;
-          pixels[x * 4 + 3] = 3;
-        }
-        pixels += pitch_in_bytes;
-      }
-
-      // Create the surface.
-      SbBlitterSurface surface =
-          SbBlitterCreateSurfaceFromPixelData(device, pixel_data);
-      EXPECT_TRUE(SbBlitterIsSurfaceValid(surface));
-
-      // Now download the data and test that the downloaded data is as we
-      // expect it to be.
-      uint8_t* downloaded_pixels = new uint8_t[kWidth * kHeight * 4];
-      EXPECT_TRUE(SbBlitterDownloadSurfacePixels(
-          surface, kSbBlitterPixelDataFormatRGBA8,
-          kSbBlitterAlphaFormatPremultiplied, kWidth * 4, downloaded_pixels));
-
-      bool all_correct_color = true;
-      for (int pixel = 0; pixel < kWidth * kHeight; ++pixel) {
-        uint8_t* downloaded_pixel = downloaded_pixels + pixel * 4;
-
-        // Take into account the fact that the pixels may have been swizzeled
-        // from their input format in order for them to be output as RGBA.
-        switch (test_formats[i]) {
-          case kSbBlitterPixelDataFormatBGRA8: {
-            all_correct_color &= downloaded_pixel[0] == 2;
-            all_correct_color &= downloaded_pixel[1] == 1;
-            all_correct_color &= downloaded_pixel[2] == 0;
-            all_correct_color &= downloaded_pixel[3] == 3;
-          } break;
-          case kSbBlitterPixelDataFormatARGB8: {
-            all_correct_color &= downloaded_pixel[0] == 1;
-            all_correct_color &= downloaded_pixel[1] == 2;
-            all_correct_color &= downloaded_pixel[2] == 3;
-            all_correct_color &= downloaded_pixel[3] == 0;
-          } break;
-          case kSbBlitterPixelDataFormatRGBA8: {
-            all_correct_color &= downloaded_pixel[0] == 0;
-            all_correct_color &= downloaded_pixel[1] == 1;
-            all_correct_color &= downloaded_pixel[2] == 2;
-            all_correct_color &= downloaded_pixel[3] == 3;
-          } break;
-          default: { SB_NOTREACHED(); }
-        }
-      }
-      EXPECT_TRUE(all_correct_color);
-
-      delete[] downloaded_pixels;
-
-      EXPECT_TRUE(SbBlitterDestroySurface(surface));
+    if (!SbBlitterIsPixelFormatSupportedByPixelData(device, test_formats[i])) {
+      continue;
     }
+
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(device, kWidth, kHeight, test_formats[i]);
+    ASSERT_TRUE(SbBlitterIsPixelDataValid(pixel_data));
+
+    int pitch_in_bytes = SbBlitterGetPixelDataPitchInBytes(pixel_data);
+    ASSERT_NE(-1, pitch_in_bytes);
+
+    uint8_t* pixels =
+        static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
+    ASSERT_TRUE(pixels);
+
+    // Fill the pixels with dummy data.
+    for (int y = 0; y < kHeight; ++y) {
+      for (int x = 0; x < kWidth; ++x) {
+        pixels[x * 4 + 0] = 0;
+        pixels[x * 4 + 1] = 1;
+        pixels[x * 4 + 2] = 2;
+        pixels[x * 4 + 3] = 3;
+      }
+      pixels += pitch_in_bytes;
+    }
+
+    // Create the surface.
+    SbBlitterSurface surface =
+        SbBlitterCreateSurfaceFromPixelData(device, pixel_data);
+    EXPECT_TRUE(SbBlitterIsSurfaceValid(surface));
+
+    // Now download the data and test that the downloaded data is as we
+    // expect it to be.
+    uint8_t* downloaded_pixels = new uint8_t[kWidth * kHeight * 4];
+    EXPECT_TRUE(SbBlitterDownloadSurfacePixels(surface,
+                                               kSbBlitterPixelDataFormatRGBA8,
+                                               kWidth * 4, downloaded_pixels));
+
+    bool all_correct_color = true;
+    for (int pixel = 0; pixel < kWidth * kHeight; ++pixel) {
+      uint8_t* downloaded_pixel = downloaded_pixels + pixel * 4;
+
+      // Take into account the fact that the pixels may have been swizzeled
+      // from their input format in order for them to be output as RGBA.
+      switch (test_formats[i]) {
+        case kSbBlitterPixelDataFormatBGRA8: {
+          all_correct_color &= downloaded_pixel[0] == 2;
+          all_correct_color &= downloaded_pixel[1] == 1;
+          all_correct_color &= downloaded_pixel[2] == 0;
+          all_correct_color &= downloaded_pixel[3] == 3;
+        } break;
+        case kSbBlitterPixelDataFormatARGB8: {
+          all_correct_color &= downloaded_pixel[0] == 1;
+          all_correct_color &= downloaded_pixel[1] == 2;
+          all_correct_color &= downloaded_pixel[2] == 3;
+          all_correct_color &= downloaded_pixel[3] == 0;
+        } break;
+        case kSbBlitterPixelDataFormatRGBA8: {
+          all_correct_color &= downloaded_pixel[0] == 0;
+          all_correct_color &= downloaded_pixel[1] == 1;
+          all_correct_color &= downloaded_pixel[2] == 2;
+          all_correct_color &= downloaded_pixel[3] == 3;
+        } break;
+        default: { SB_NOTREACHED(); }
+      }
+    }
+    EXPECT_TRUE(all_correct_color);
+
+    delete[] downloaded_pixels;
+
+    EXPECT_TRUE(SbBlitterDestroySurface(surface));
   }
 
   ASSERT_TRUE(SbBlitterIsDeviceValid(device));
@@ -182,9 +177,9 @@ TEST(SbBlitterDownloadSurfacePixelsTest, RainyDayInvalidSurface) {
   const int kWidth = 32;
   const int kHeight = 32;
   uint32_t* pixel_data = new uint32_t[kWidth * kHeight];
-  EXPECT_FALSE(SbBlitterDownloadSurfacePixels(
-      kSbBlitterInvalidSurface, kSbBlitterPixelDataFormatRGBA8,
-      kSbBlitterAlphaFormatPremultiplied, kWidth * 4, pixel_data));
+  EXPECT_FALSE(SbBlitterDownloadSurfacePixels(kSbBlitterInvalidSurface,
+                                              kSbBlitterPixelDataFormatRGBA8,
+                                              kWidth * 4, pixel_data));
   delete[] pixel_data;
 }
 
@@ -193,8 +188,7 @@ TEST(SbBlitterDownloadSurfacePixelsTest, RainyDayNullDataPointer) {
   const int kHeight = 32;
   ContextTestEnvironment env(kWidth, kHeight);
   EXPECT_FALSE(SbBlitterDownloadSurfacePixels(
-      env.surface(), kSbBlitterPixelDataFormatRGBA8,
-      kSbBlitterAlphaFormatPremultiplied, kWidth * 4, NULL));
+      env.surface(), kSbBlitterPixelDataFormatRGBA8, kWidth * 4, NULL));
 }
 
 }  // namespace

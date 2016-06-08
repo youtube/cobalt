@@ -118,7 +118,8 @@ typedef uint32_t SbBlitterColor;
 // supported first (e.g. via SbBlitterIsPixelFormatSupportedByPixelData()).
 // SbBlitterPixelDataFormat specifies specific orderings of the color channels,
 // and when doing so, byte-order is used, e.g. "RGBA" implies that a value for
-// red is stored in the byte with the lowest memory address.
+// red is stored in the byte with the lowest memory address.  All pixel values
+// are assumed to be in premultiplied alpha format.
 typedef enum SbBlitterPixelDataFormat {
   // 32-bit pixels with 8-bits per channel, the alpha component in the byte
   // with the lowest address and blue in the byte with the highest address.
@@ -137,21 +138,6 @@ typedef enum SbBlitterPixelDataFormat {
   kSbBlitterNumPixelDataFormats,
   kSbBlitterInvalidPixelDataFormat = kSbBlitterNumPixelDataFormats,
 } SbBlitterPixelDataFormat;
-
-typedef enum SbBlitterAlphaFormat {
-  // Colors are provided in premultiplied alpha format, where each color
-  // component channel is already multiplied by the value of the alpha channel
-  // (divided by 255).  Thus, if the alpha value is 128, the maximum value of
-  // any other color component cannot be larger than 128.
-  kSbBlitterAlphaFormatPremultiplied,
-  // Colors are provided in unpremultiplied alpha, where color is specified
-  // in the color channels independent of the alpha value.
-  kSbBlitterAlphaFormatUnpremultiplied,
-
-  // Constant that indicates how many unique alpha formats Starboard supports.
-  kSbBlitterNumAlphaFormats,
-  kSbBlitterInvalidAlphaFormat = kSbBlitterNumAlphaFormats,
-} SbBlitterAlphaFormat;
 
 // Enumeration that describes the color format of surfaces.  Note that
 // SbBlitterSurfaceFormat does not differentiate between permutations of the
@@ -347,8 +333,7 @@ SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain);
 // This function is thread safe.
 SB_EXPORT bool SbBlitterIsPixelFormatSupportedByPixelData(
     SbBlitterDevice device,
-    SbBlitterPixelDataFormat pixel_format,
-    SbBlitterAlphaFormat alpha_format);
+    SbBlitterPixelDataFormat pixel_format);
 
 // Allocates a SbBlitterPixelData object through |device| with |width|, |height|
 // and |pixel_format|.  |pixel_format| must be supported by |device| (see
@@ -364,8 +349,7 @@ SB_EXPORT SbBlitterPixelData
 SbBlitterCreatePixelData(SbBlitterDevice device,
                          int width,
                          int height,
-                         SbBlitterPixelDataFormat pixel_format,
-                         SbBlitterAlphaFormat alpha_format);
+                         SbBlitterPixelDataFormat pixel_format);
 
 // Destroys the |pixel_data| object created through |device|.  Note that
 // if SbBlitterCreateSurfaceFromPixelData() has been called on |pixel_data|
@@ -447,32 +431,30 @@ SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
 SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
                                        SbBlitterSurfaceInfo* surface_info);
 
-// Returns whether the combination of parameters (|surface|, |pixel_format|,
-// |alpha_format|) are valid for calls to SbBlitterDownloadSurfacePixels().
+// Returns whether the combination of parameters (|surface|, |pixel_format|) are
+// valid for calls to SbBlitterDownloadSurfacePixels().
 // This function is not thread safe.
 SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
     SbBlitterSurface surface,
-    SbBlitterPixelDataFormat pixel_format,
-    SbBlitterAlphaFormat alpha_format);
+    SbBlitterPixelDataFormat pixel_format);
 
 // Downloads |surface| pixel data into CPU memory pointed to by
-// |out_pixel_data|, formatted according to the requested |pixel_format|,
-// |alpha_format| and the requested |pitch_in_bytes|.  Thus, |out_pixel_data|
-// must point to a region of memory with a size of
-// surface_height * |pitch_in_bytes| *
+// |out_pixel_data|, formatted according to the requested |pixel_format| and
+// the requested |pitch_in_bytes|.  Thus, |out_pixel_data| must point to a
+// region of memory with a size of surface_height * |pitch_in_bytes| *
 // SbBlitterBytesPerPixelForFormat(pixel_format) bytes.  The function
 // SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels() can be called first
-// to check that your requested |pixel_format| and |alpha_format| are valid
-// for |surface|.  When this function is called, it will first wait for all
-// previously flushed graphics commands to be executed by the device before
-// downloading the data.  Since this function waits for the pipeline to empty,
-// it should be used sparingly, such as within in debug or test environments.
+// to check that your requested |pixel_format| is valid for |surface|.  When
+// this function is called, it will first wait for all previously flushed
+// graphics commands to be executed by the device before downloading the data.
+// Since this function waits for the pipeline to empty, it should be used
+// sparingly, such as within in debug or test environments.  The returned
+// alpha format will be premultiplied.
 // This function is not thread safe.
 // Returns whether the pixel data was downloaded successfully or not.
 SB_EXPORT bool SbBlitterDownloadSurfacePixels(
     SbBlitterSurface surface,
     SbBlitterPixelDataFormat pixel_format,
-    SbBlitterAlphaFormat alpha_format,
     int pitch_in_bytes,
     void* out_pixel_data);
 

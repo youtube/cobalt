@@ -18,16 +18,12 @@
 
 bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
     SbBlitterSurface surface,
-    SbBlitterPixelDataFormat pixel_format,
-    SbBlitterAlphaFormat alpha_format) {
+    SbBlitterPixelDataFormat pixel_format) {
   if (!SbBlitterIsSurfaceValid(surface)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid surface.";
     return false;
   }
 
-  if (alpha_format != kSbBlitterAlphaFormatPremultiplied) {
-    return false;
-  }
   if (pixel_format != kSbBlitterPixelDataFormatARGB8 &&
       pixel_format != kSbBlitterPixelDataFormatBGRA8 &&
       pixel_format != kSbBlitterPixelDataFormatRGBA8) {
