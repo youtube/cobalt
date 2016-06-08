@@ -21,7 +21,8 @@ namespace nplb {
 namespace {
 
 void* EntryPoint(void* context) {
-  return ToVoid(SbThreadGetCurrent());
+  // NOLINTNEXTLINE(readability/casting)
+  return ToVoid((intptr_t)SbThreadGetCurrent());
 }
 
 TEST(SbThreadGetCurrentTest, SunnyDay) {
@@ -36,7 +37,8 @@ TEST(SbThreadGetCurrentTest, SunnyDay) {
   for (int i = 0; i < kThreads; ++i) {
     void* result = NULL;
     EXPECT_TRUE(SbThreadJoin(threads[i], &result));
-    EXPECT_EQ(ToVoid(threads[i]), result);
+    // NOLINTNEXTLINE(readability/casting)
+    EXPECT_EQ(ToVoid((intptr_t)threads[i]), result);
   }
 }
 
