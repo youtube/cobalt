@@ -30,11 +30,8 @@ TEST(SbBlitterIsPixelFormatSupportedByPixelDataTest, SunnyDay) {
   // returns true.
   bool any_format_supported = false;
   for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
-    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
-      any_format_supported |= SbBlitterIsPixelFormatSupportedByPixelData(
-          device, static_cast<SbBlitterPixelDataFormat>(i),
-          static_cast<SbBlitterAlphaFormat>(j));
-    }
+    any_format_supported |= SbBlitterIsPixelFormatSupportedByPixelData(
+        device, static_cast<SbBlitterPixelDataFormat>(i));
   }
   EXPECT_TRUE(any_format_supported);
 
@@ -43,11 +40,8 @@ TEST(SbBlitterIsPixelFormatSupportedByPixelDataTest, SunnyDay) {
 
 TEST(SbBlitterIsPixelFormatSupportedByPixelDataTest, RainyDayInvalidDevice) {
   for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
-    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
-      EXPECT_FALSE(SbBlitterIsPixelFormatSupportedByPixelData(
-          kSbBlitterInvalidDevice, static_cast<SbBlitterPixelDataFormat>(i),
-          static_cast<SbBlitterAlphaFormat>(j)));
-    }
+    EXPECT_FALSE(SbBlitterIsPixelFormatSupportedByPixelData(
+        kSbBlitterInvalidDevice, static_cast<SbBlitterPixelDataFormat>(i)));
   }
 }
 

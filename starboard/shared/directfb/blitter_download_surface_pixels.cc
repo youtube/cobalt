@@ -84,7 +84,6 @@ void SwizzlePixels(void* in_data,
 
 bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
                                     SbBlitterPixelDataFormat pixel_format,
-                                    SbBlitterAlphaFormat alpha_format,
                                     int pitch_in_bytes,
                                     void* out_pixel_data) {
   if (!SbBlitterIsSurfaceValid(surface)) {
@@ -95,8 +94,8 @@ bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
     SB_DLOG(ERROR) << __FUNCTION__ << ": |out_pixel_data| cannot be NULL.";
     return false;
   }
-  if (!SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
-          surface, pixel_format, alpha_format)) {
+  if (!SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(surface,
+                                                              pixel_format)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Unsupported pixel format.";
     return false;
   }
@@ -131,8 +130,6 @@ bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
     SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling Lock().";
     return false;
   }
-
-  SB_DCHECK(alpha_format == kSbBlitterAlphaFormatPremultiplied);
 
   switch (DFB_PIXELFORMAT_INDEX(surface_pixel_format)) {
     case DFB_PIXELFORMAT_INDEX(DSPF_ARGB): {

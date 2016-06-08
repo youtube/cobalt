@@ -146,8 +146,7 @@ Application::Application() {
   // which can be populated with pixel data by the CPU and then passed on to
   // the device for reference within blit calls.
   SbBlitterPixelData image_data = SbBlitterCreatePixelData(
-      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatBGRA8,
-      kSbBlitterAlphaFormatPremultiplied);
+      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatBGRA8);
 
   // Once our pixel data object is created, we can extract from it the image
   // data pitch as well as a CPU-accessible pointer to the pixel data.  We
@@ -164,8 +163,7 @@ Application::Application() {
 
   // Now setup our alpha-only image.
   SbBlitterPixelData alpha_image_data = SbBlitterCreatePixelData(
-      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatA8,
-      kSbBlitterAlphaFormatPremultiplied);
+      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatA8);
   int alpha_image_data_pitch =
       SbBlitterGetPixelDataPitchInBytes(alpha_image_data);
   FillAlphaCheckerImageData(kImageHeight, kImageHeight, alpha_image_data_pitch,
