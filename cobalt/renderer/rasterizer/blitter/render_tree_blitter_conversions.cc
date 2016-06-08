@@ -49,20 +49,6 @@ SbBlitterPixelDataFormat RenderTreePixelFormatToBlitter(
   }
 }
 
-SbBlitterAlphaFormat RenderTreeAlphaFormatToBlitter(
-    render_tree::AlphaFormat format) {
-  switch (format) {
-    case render_tree::kAlphaFormatPremultiplied:
-      return kSbBlitterAlphaFormatPremultiplied;
-    case render_tree::kAlphaFormatUnpremultiplied:
-      return kSbBlitterAlphaFormatUnpremultiplied;
-    default: {
-      NOTREACHED() << "Unknown render tree alpha format.";
-      return kSbBlitterAlphaFormatPremultiplied;
-    }
-  }
-}
-
 }  // namespace blitter
 }  // namespace rasterizer
 }  // namespace renderer

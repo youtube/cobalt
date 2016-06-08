@@ -43,8 +43,7 @@ ResourceProvider::ResourceProvider(
 
 bool ResourceProvider::PixelFormatSupported(PixelFormat pixel_format) {
   return SbBlitterIsPixelFormatSupportedByPixelData(
-      device_, RenderTreePixelFormatToBlitter(pixel_format),
-      kSbBlitterAlphaFormatPremultiplied);
+      device_, RenderTreePixelFormatToBlitter(pixel_format));
 }
 
 bool ResourceProvider::AlphaFormatSupported(
