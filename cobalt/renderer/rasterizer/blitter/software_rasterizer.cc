@@ -48,15 +48,11 @@ void SoftwareRasterizer::Submit(
   // Allocate the pixels for the output image.
   SbBlitterPixelDataFormat blitter_pixel_data_format =
       SkiaToBlitterPixelFormat(output_image_info.colorType());
-  SbBlitterAlphaFormat blitter_alpha_format =
-      kSbBlitterAlphaFormatPremultiplied;
 
   CHECK(SbBlitterIsPixelFormatSupportedByPixelData(
-      context_->GetSbBlitterDevice(), blitter_pixel_data_format,
-      blitter_alpha_format));
-  SbBlitterPixelData pixel_data =
-      SbBlitterCreatePixelData(context_->GetSbBlitterDevice(), width, height,
-                               blitter_pixel_data_format, blitter_alpha_format);
+      context_->GetSbBlitterDevice(), blitter_pixel_data_format));
+  SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
+      context_->GetSbBlitterDevice(), width, height, blitter_pixel_data_format);
   CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
   SkBitmap bitmap;

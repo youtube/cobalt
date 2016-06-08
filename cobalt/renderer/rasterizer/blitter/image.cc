@@ -35,10 +35,10 @@ ImageData::ImageData(SbBlitterDevice device, const math::Size& size,
     : device_(device),
       pixel_data_(SbBlitterCreatePixelData(
           device_, size.width(), size.height(),
-          RenderTreePixelFormatToBlitter(pixel_format),
-          RenderTreeAlphaFormatToBlitter(alpha_format))),
+          RenderTreePixelFormatToBlitter(pixel_format))),
       descriptor_(size, pixel_format, alpha_format,
                   SbBlitterGetPixelDataPitchInBytes(pixel_data_)) {
+  CHECK_EQ(render_tree::kAlphaFormatPremultiplied, alpha_format);
   CHECK(SbBlitterIsPixelDataValid(pixel_data_));
 }
 
@@ -84,8 +84,7 @@ const SkBitmap& SinglePlaneImage::GetBitmap() const {
 
     CHECK(SbBlitterDownloadSurfacePixels(
         surface_, SkiaToBlitterPixelFormat(image_info.colorType()),
-        kSbBlitterAlphaFormatPremultiplied, bitmap_->rowBytes(),
-        bitmap_->getPixels()));
+        bitmap_->rowBytes(), bitmap_->getPixels()));
   }
 
   return *bitmap_;

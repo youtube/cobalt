@@ -456,12 +456,11 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   // Allocate the pixels for the output image.
   SbBlitterPixelDataFormat blitter_pixel_data_format =
       SkiaToBlitterPixelFormat(output_image_info.colorType());
-  DCHECK(SbBlitterIsPixelFormatSupportedByPixelData(
-      device_, blitter_pixel_data_format, kSbBlitterAlphaFormatPremultiplied));
+  DCHECK(SbBlitterIsPixelFormatSupportedByPixelData(device_,
+                                                    blitter_pixel_data_format));
   SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
       device_, sub_render_bounds.output_bounds.width(),
-      sub_render_bounds.output_bounds.height(), blitter_pixel_data_format,
-      kSbBlitterAlphaFormatPremultiplied);
+      sub_render_bounds.output_bounds.height(), blitter_pixel_data_format);
   CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
   SkBitmap bitmap;
