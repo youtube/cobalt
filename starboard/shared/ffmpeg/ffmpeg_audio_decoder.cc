@@ -22,8 +22,6 @@ namespace ffmpeg {
 
 namespace {
 
-const int kAacSamplesPerFrame = 1024;
-
 // The required output format for the decoder is interleaved float.  However
 // the output of the ffmpeg decoder can be in other formats.  So libavresample
 // is used to convert the output into the required format.
@@ -100,13 +98,13 @@ void AudioDecoder::Decode(InputBuffer* input_buffer,
   int decoded_audio_size = av_samples_get_buffer_size(
       NULL, codec_context_->channels, av_frame_->nb_samples,
       codec_context_->sample_fmt, 1);
+  audio_header_.samples_per_second = codec_context_->sample_rate;
 
   if (decoded_audio_size > 0) {
     output->resize(decoded_audio_size / sizeof(float));
-
     ConvertToInterleavedFloat(
         codec_context_->sample_fmt, codec_context_->channel_layout,
-        audio_header_.samples_per_second, kAacSamplesPerFrame,
+        audio_header_.samples_per_second, av_frame_->nb_samples,
         av_frame_->extended_data, reinterpret_cast<uint8_t*>(&(*output)[0]));
   } else {
     SB_LOG(ERROR) << "Decoded audio frame is empty.";
@@ -124,6 +122,10 @@ void AudioDecoder::WriteEndOfStream() {
 
 void AudioDecoder::Reset() {
   stream_ended_ = false;
+}
+
+int AudioDecoder::GetSamplesPerSecond() {
+  return audio_header_.samples_per_second;
 }
 
 void AudioDecoder::InitializeCodec() {

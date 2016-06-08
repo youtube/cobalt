@@ -77,7 +77,6 @@ class AudioRenderer {
   void AppendFrames(const float* source_buffer, int frames_to_append);
 
   const int channels_;
-  const int sample_frequency_hz_;
 
   Mutex mutex_;
   bool paused_;

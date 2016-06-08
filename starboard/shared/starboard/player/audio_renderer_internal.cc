@@ -25,13 +25,13 @@ namespace player {
 
 namespace {
 // TODO: This should be retrieved from the decoder.
-const int kMaxFramesPerAccessUnit = 1024;
+// TODO: Make it not dependent on the frame size of AAC and HE-AAC.
+const int kMaxFramesPerAccessUnit = 1024 * 2;
 }  // namespace
 
 AudioRenderer::AudioRenderer(AudioDecoder* decoder,
                              const SbMediaAudioHeader& audio_header)
     : channels_(audio_header.number_of_channels),
-      sample_frequency_hz_(audio_header.samples_per_second),
       paused_(true),
       seeking_(false),
       seeking_to_pts_(0),
@@ -67,7 +67,6 @@ void AudioRenderer::WriteSample(InputBuffer* input_buffer) {
   std::vector<float> decoded_audio;
   decoder_->Decode(input_buffer, &decoded_audio);
   SB_DCHECK(!decoded_audio.empty());
-  SB_DCHECK(decoded_audio.size() <= kMaxFramesPerAccessUnit * channels_);
 
   ScopedLock lock(mutex_);
   if (seeking_) {
@@ -82,7 +81,20 @@ void AudioRenderer::WriteSample(InputBuffer* input_buffer) {
     seeking_ = false;
   }
 
-  return;
+  // Create the audio sink if it is the first incoming AU after seeking.
+  if (audio_sink_ == kSbAudioSinkInvalid) {
+    int sample_rate = decoder_->GetSamplesPerSecond();
+    // TODO: Implement resampler.
+    SB_DCHECK(sample_rate ==
+              SbAudioSinkGetNearestSupportedSampleFrequency(sample_rate));
+    // TODO: Handle sink creation failure.
+    audio_sink_ = SbAudioSinkCreate(
+        channels_, sample_rate, kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved,
+        reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
+        kMaxCachedFrames, &AudioRenderer::UpdateSourceStatusFunc,
+        &AudioRenderer::ConsumeFramesFunc, this);
+  }
 }
 
 void AudioRenderer::WriteEndOfStream() {
@@ -115,9 +127,8 @@ void AudioRenderer::Pause() {
 void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(seek_to_pts >= 0);
 
-  if (audio_sink_ != kSbAudioSinkInvalid) {
-    SbAudioSinkDestroy(audio_sink_);
-  }
+  SbAudioSinkDestroy(audio_sink_);
+  audio_sink_ = kSbAudioSinkInvalid;
 
   seeking_to_pts_ = std::max<SbMediaTime>(seek_to_pts, 0);
   seeking_ = true;
@@ -127,18 +138,6 @@ void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
   end_of_stream_reached_ = false;
 
   decoder_->Reset();
-
-  // TODO: Implement resampler.
-  SB_DCHECK(
-      sample_frequency_hz_ ==
-      SbAudioSinkGetNearestSupportedSampleFrequency(sample_frequency_hz_));
-  // TODO: Handle sink creation failure.
-  audio_sink_ = SbAudioSinkCreate(
-      channels_, sample_frequency_hz_, kSbMediaAudioSampleTypeFloat32,
-      kSbMediaAudioFrameStorageTypeInterleaved,
-      reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
-      kMaxCachedFrames, &AudioRenderer::UpdateSourceStatusFunc,
-      &AudioRenderer::ConsumeFramesFunc, this);
   return;
 }
 
@@ -161,7 +160,8 @@ SbMediaTime AudioRenderer::GetCurrentTime() {
     return seeking_to_pts_;
   }
   return seeking_to_pts_ +
-         frames_consumed_ * kSbMediaTimeSecond / sample_frequency_hz_;
+         frames_consumed_ * kSbMediaTimeSecond /
+             decoder_->GetSamplesPerSecond();
 }
 
 // static
