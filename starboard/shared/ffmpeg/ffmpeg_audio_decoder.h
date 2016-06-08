@@ -38,6 +38,7 @@ class AudioDecoder : public starboard::player::AudioDecoder {
               std::vector<float>* output) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
+  int GetSamplesPerSecond() SB_OVERRIDE;
 
  private:
   void InitializeCodec();
