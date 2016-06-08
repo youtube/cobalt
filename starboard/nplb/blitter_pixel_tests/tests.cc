@@ -229,7 +229,6 @@ SbBlitterSurface CreateCheckerImageWithPixelData(SbBlitterDevice device,
                                                  int width,
                                                  int height) {
   SbBlitterPixelDataFormat pixel_data_format;
-  SbBlitterAlphaFormat alpha_format = kSbBlitterAlphaFormatPremultiplied;
 
 #if SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
   pixel_data_format = kSbBlitterPixelDataFormatRGBA8;
@@ -265,8 +264,8 @@ SbBlitterSurface CreateCheckerImageWithPixelData(SbBlitterDevice device,
     default: { SB_NOTREACHED(); }
   }
 
-  SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-      device, width, height, pixel_data_format, alpha_format);
+  SbBlitterPixelData pixel_data =
+      SbBlitterCreatePixelData(device, width, height, pixel_data_format);
   SB_CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
   int pitch = SbBlitterGetPixelDataPitchInBytes(pixel_data);
@@ -300,8 +299,7 @@ SbBlitterSurface CreateAlphaCheckerImageWithPixelData(SbBlitterDevice device,
                                                       int width,
                                                       int height) {
   SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-      device, width, height, kSbBlitterPixelDataFormatA8,
-      kSbBlitterAlphaFormatPremultiplied);
+      device, width, height, kSbBlitterPixelDataFormatA8);
   SB_CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
   int pitch = SbBlitterGetPixelDataPitchInBytes(pixel_data);

@@ -24,16 +24,10 @@
 namespace starboard {
 namespace nplb {
 
-struct PixelAndAlphaFormat {
-  SbBlitterPixelDataFormat pixel;
-  SbBlitterAlphaFormat alpha;
-};
-
-typedef std::vector<PixelAndAlphaFormat> PixelAndAlphaFormats;
-PixelAndAlphaFormats GetAllSupportedPixelAndAlphaFormatsForPixelData(
+std::vector<SbBlitterPixelDataFormat> GetAllSupportedPixelFormatsForPixelData(
     SbBlitterDevice device);
 
-PixelAndAlphaFormats GetAllUnsupportedPixelAndAlphaFormatsForPixelData(
+std::vector<SbBlitterPixelDataFormat> GetAllUnsupportedPixelFormatsForPixelData(
     SbBlitterDevice device);
 
 typedef std::vector<SbBlitterSurfaceFormat> SurfaceFormats;
