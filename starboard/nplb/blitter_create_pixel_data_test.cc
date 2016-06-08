@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "starboard/blitter.h"
 #include "starboard/nplb/blitter_helpers.h"
 #include "starboard/window.h"
@@ -31,12 +33,13 @@ TEST(SbBlitterCreatePixelDataTest, SunnyDay) {
   const int kHeight = 128;
 
   // Test that we can successfully create pixel data in all supported formats.
-  PixelAndAlphaFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForPixelData(device);
-  for (PixelAndAlphaFormats::const_iterator iter = supported_formats.begin();
+  std::vector<SbBlitterPixelDataFormat> supported_formats =
+      GetAllSupportedPixelFormatsForPixelData(device);
+  for (std::vector<SbBlitterPixelDataFormat>::const_iterator iter =
+           supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
-    SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-        device, kWidth, kHeight, iter->pixel, iter->alpha);
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(device, kWidth, kHeight, *iter);
     EXPECT_TRUE(SbBlitterIsPixelDataValid(pixel_data));
     EXPECT_TRUE(SbBlitterDestroyPixelData(pixel_data));
   }
@@ -50,13 +53,10 @@ TEST(SbBlitterCreatePixelDataTest, RainyDayInvalidDevice) {
 
   // If an invalid device is provided, then false should always be returned.
   for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
-    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
-      SbBlitterPixelData pixel_data =
-          SbBlitterCreatePixelData(kSbBlitterInvalidDevice, kWidth, kHeight,
-                                   static_cast<SbBlitterPixelDataFormat>(i),
-                                   static_cast<SbBlitterAlphaFormat>(j));
-      EXPECT_FALSE(SbBlitterIsPixelDataValid(pixel_data));
-    }
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(kSbBlitterInvalidDevice, kWidth, kHeight,
+                                 static_cast<SbBlitterPixelDataFormat>(i));
+    EXPECT_FALSE(SbBlitterIsPixelDataValid(pixel_data));
   }
 }
 
@@ -69,12 +69,13 @@ TEST(SbBlitterCreatePixelDataTest, RainyDayUnsupportedFormats) {
 
   // Test that we are unsuccessful at creating pixel data objects in all
   // unsupported formats.
-  PixelAndAlphaFormats supported_formats =
-      GetAllUnsupportedPixelAndAlphaFormatsForPixelData(device);
-  for (PixelAndAlphaFormats::const_iterator iter = supported_formats.begin();
+  std::vector<SbBlitterPixelDataFormat> supported_formats =
+      GetAllUnsupportedPixelFormatsForPixelData(device);
+  for (std::vector<SbBlitterPixelDataFormat>::const_iterator iter =
+           supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
-    SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-        device, kWidth, kHeight, iter->pixel, iter->alpha);
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(device, kWidth, kHeight, *iter);
     EXPECT_FALSE(SbBlitterIsPixelDataValid(pixel_data));
   }
 

@@ -23,40 +23,28 @@
 namespace starboard {
 namespace nplb {
 
-PixelAndAlphaFormats GetAllSupportedPixelAndAlphaFormatsForPixelData(
+std::vector<SbBlitterPixelDataFormat> GetAllSupportedPixelFormatsForPixelData(
     SbBlitterDevice device) {
-  PixelAndAlphaFormats ret;
+  std::vector<SbBlitterPixelDataFormat> ret;
 
   for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
-    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
-      if (SbBlitterIsPixelFormatSupportedByPixelData(
-              device, static_cast<SbBlitterPixelDataFormat>(i),
-              static_cast<SbBlitterAlphaFormat>(j))) {
-        PixelAndAlphaFormat format;
-        format.pixel = static_cast<SbBlitterPixelDataFormat>(i);
-        format.alpha = static_cast<SbBlitterAlphaFormat>(j);
-        ret.push_back(format);
-      }
+    if (SbBlitterIsPixelFormatSupportedByPixelData(
+            device, static_cast<SbBlitterPixelDataFormat>(i))) {
+      ret.push_back(static_cast<SbBlitterPixelDataFormat>(i));
     }
   }
 
   return ret;
 }
 
-PixelAndAlphaFormats GetAllUnsupportedPixelAndAlphaFormatsForPixelData(
+std::vector<SbBlitterPixelDataFormat> GetAllUnsupportedPixelFormatsForPixelData(
     SbBlitterDevice device) {
-  PixelAndAlphaFormats ret;
+  std::vector<SbBlitterPixelDataFormat> ret;
 
   for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
-    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
-      if (!SbBlitterIsPixelFormatSupportedByPixelData(
-              device, static_cast<SbBlitterPixelDataFormat>(i),
-              static_cast<SbBlitterAlphaFormat>(j))) {
-        PixelAndAlphaFormat format;
-        format.pixel = static_cast<SbBlitterPixelDataFormat>(i);
-        format.alpha = static_cast<SbBlitterAlphaFormat>(j);
-        ret.push_back(format);
-      }
+    if (!SbBlitterIsPixelFormatSupportedByPixelData(
+            device, static_cast<SbBlitterPixelDataFormat>(i))) {
+      ret.push_back(static_cast<SbBlitterPixelDataFormat>(i));
     }
   }
 

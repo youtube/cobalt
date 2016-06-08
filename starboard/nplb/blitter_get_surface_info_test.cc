@@ -61,12 +61,13 @@ TEST(SbBlitterGetSurfaceInfoTest, SunnyDayWithPixelDataSurfaces) {
   const int kWidth = 128;
   const int kHeight = 128;
 
-  PixelAndAlphaFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForPixelData(device);
-  for (PixelAndAlphaFormats::const_iterator iter = supported_formats.begin();
+  std::vector<SbBlitterPixelDataFormat> supported_formats =
+      GetAllSupportedPixelFormatsForPixelData(device);
+  for (std::vector<SbBlitterPixelDataFormat>::const_iterator iter =
+           supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
-    SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-        device, kWidth, kHeight, iter->pixel, iter->alpha);
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(device, kWidth, kHeight, *iter);
     ASSERT_TRUE(SbBlitterIsPixelDataValid(pixel_data));
 
     SbBlitterSurface surface =
@@ -78,7 +79,7 @@ TEST(SbBlitterGetSurfaceInfoTest, SunnyDayWithPixelDataSurfaces) {
     EXPECT_EQ(kWidth, surface_info.width);
     EXPECT_EQ(kHeight, surface_info.height);
 
-    EXPECT_EQ(SbBlitterPixelDataFormatToSurfaceFormat(iter->pixel),
+    EXPECT_EQ(SbBlitterPixelDataFormatToSurfaceFormat(*iter),
               surface_info.format);
 
     EXPECT_TRUE(SbBlitterDestroySurface(surface));
