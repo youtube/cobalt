@@ -31,12 +31,13 @@ TEST(SbBlitterDestroySurfaceTest, SunnyDayDestroyPixelDataSurface) {
   const int kHeight = 128;
 
   // Test that we can get pitch on all supported image formats.
-  PixelAndAlphaFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForPixelData(device);
-  for (PixelAndAlphaFormats::const_iterator iter = supported_formats.begin();
+  std::vector<SbBlitterPixelDataFormat> supported_formats =
+      GetAllSupportedPixelFormatsForPixelData(device);
+  for (std::vector<SbBlitterPixelDataFormat>::const_iterator iter =
+           supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
-    SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-        device, kWidth, kHeight, iter->pixel, iter->alpha);
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(device, kWidth, kHeight, *iter);
     ASSERT_TRUE(SbBlitterIsPixelDataValid(pixel_data));
 
     SbBlitterSurface surface =

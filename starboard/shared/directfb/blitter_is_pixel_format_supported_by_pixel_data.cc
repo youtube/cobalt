@@ -20,8 +20,7 @@
 
 bool SbBlitterIsPixelFormatSupportedByPixelData(
     SbBlitterDevice device,
-    SbBlitterPixelDataFormat pixel_format,
-    SbBlitterAlphaFormat alpha_format) {
+    SbBlitterPixelDataFormat pixel_format) {
   if (!SbBlitterIsDeviceValid(device)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid device.";
     return false;
@@ -31,12 +30,7 @@ bool SbBlitterIsPixelFormatSupportedByPixelData(
     return true;
   }
 
-  // DirectFB supports ARGB but not RGBA.  This implementation currently only
-  // supports incoming pixel data in unpremultiplied alpha format.
-  if (alpha_format != kSbBlitterAlphaFormatPremultiplied) {
-    return false;
-  }
-
+// DirectFB supports ARGB but not RGBA.
 // Since DirectFB specifies its color formats in word-order, we must swap
 // them to cater to the Blitter API's specification of byte-order color
 // formats.

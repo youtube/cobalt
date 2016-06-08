@@ -22,14 +22,12 @@ SbBlitterPixelData SbBlitterCreatePixelData(
     SbBlitterDevice device,
     int width,
     int height,
-    SbBlitterPixelDataFormat pixel_format,
-    SbBlitterAlphaFormat alpha_format) {
+    SbBlitterPixelDataFormat pixel_format) {
   if (!SbBlitterIsDeviceValid(device)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid device.";
     return kSbBlitterInvalidPixelData;
   }
-  if (!SbBlitterIsPixelFormatSupportedByPixelData(device, pixel_format,
-                                                  alpha_format)) {
+  if (!SbBlitterIsPixelFormatSupportedByPixelData(device, pixel_format)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Unsupported pixel format.";
     return kSbBlitterInvalidPixelData;
   }
