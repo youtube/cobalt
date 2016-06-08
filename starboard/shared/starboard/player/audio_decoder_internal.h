@@ -43,6 +43,11 @@ class AudioDecoder {
   // data from previous buffers are cleared.
   virtual void Reset() = 0;
 
+  // Return the sample rate of the incoming audio.  This should be used by the
+  // audio renderer as the sample rate of the underlying audio stream can be
+  // different than the sample rate stored in the meta data.
+  virtual int GetSamplesPerSecond() = 0;
+
   // Individual implementation has to implement this function to create an
   // audio decoder.
   static AudioDecoder* Create(SbMediaAudioCodec audio_codec,
