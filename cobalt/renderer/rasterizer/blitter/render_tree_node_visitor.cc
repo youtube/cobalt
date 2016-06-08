@@ -47,15 +47,19 @@ using render_tree::SolidColorBrush;
 using render_tree::ViewportFilter;
 
 namespace {
+int RoundToInt(float value) {
+  return static_cast<int>(std::floor(value + 0.5f));
+}
+
 math::Rect RectFToRect(const RectF& rectf) {
   // We convert from floating point to integer in such a way that two boxes
   // joined at the seams in float-space continue to be joined at the seams in
   // integer-space.
-  int x = static_cast<int>(std::floor(rectf.x()));
-  int y = static_cast<int>(std::floor(rectf.y()));
+  int x = RoundToInt(rectf.x());
+  int y = RoundToInt(rectf.y());
 
-  return Rect(x, y, static_cast<int>(std::floor(rectf.right())) - x,
-              static_cast<int>(std::floor(rectf.bottom())) - y);
+  return Rect(x, y, RoundToInt(rectf.right()) - x,
+              RoundToInt(rectf.bottom()) - y);
 }
 
 SbBlitterRect RectToBlitterRect(const Rect& rect) {
