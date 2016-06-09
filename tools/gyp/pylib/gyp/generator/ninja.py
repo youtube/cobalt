@@ -1893,7 +1893,32 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       rspfile='$out.rsp',
       rspfile_content='$in_newline')
 
-    if flavor == 'linux':
+    if flavor == 'ps3':
+      # TODO(***REMOVED***): Can we suppress the warnings from verlog.txt rather than
+      # rm'ing it?
+      ld_cmd = 'rm -f $verlog && ' + ld_cmd
+      if is_windows:
+        ld_cmd = 'cmd.exe /c ' + ld_cmd
+
+      prx_flags = '--oformat=fsprx --prx-with-runtime --zgenprx -zgenstub'
+      master_ninja.rule(
+        'solink',
+        description='LINK(PRX) $lib',
+        restat=True,
+        command=ld_cmd + ' @$prx.rsp',
+        rspfile='$prx.rsp',
+        rspfile_content='$ldflags %s -o $prx $in $libs' % prx_flags,
+        pool='link_pool'
+      )
+      master_ninja.rule(
+        'prx_export_pickup',
+        description='PRX-EXPORT-PICKUP $out',
+        command='$prx_export_pickup --output-src=$out $in')
+
+    elif flavor == 'ps4':
+      # TODO(***REMOVED***): PS4 SOLINK rule.
+      pass
+    else:  # Assume it is a Linux platform
       # This allows targets that only need to depend on $lib's API to declare an
       # order-only dependency on $lib.TOC and avoid relinking such downstream
       # dependencies when $lib changes only in non-public ways.
@@ -1925,31 +1950,6 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
         restat=True,
         command=(mtime_preserving_solink_base % {
             'suffix': '-Wl,--start-group $in $solibs -Wl,--end-group $libs'}))
-    elif flavor == 'ps3':
-      # TODO(***REMOVED***): Can we suppress the warnings from verlog.txt rather than
-      # rm'ing it?
-      ld_cmd = 'rm -f $verlog && ' + ld_cmd
-      if is_windows:
-        ld_cmd = 'cmd.exe /c ' + ld_cmd
-
-      prx_flags = '--oformat=fsprx --prx-with-runtime --zgenprx -zgenstub'
-      master_ninja.rule(
-        'solink',
-        description='LINK(PRX) $lib',
-        restat=True,
-        command=ld_cmd + ' @$prx.rsp',
-        rspfile='$prx.rsp',
-        rspfile_content='$ldflags %s -o $prx $in $libs' % prx_flags,
-        pool='link_pool'
-      )
-      master_ninja.rule(
-        'prx_export_pickup',
-        description='PRX-EXPORT-PICKUP $out',
-        command='$prx_export_pickup --output-src=$out $in')
-
-    elif flavor == 'ps4':
-      # TODO(***REMOVED***): PS4 SOLINK rule.
-      pass
 
     if flavor in ['ps3', 'ps4']:
       # PS3 and PS4 linkers don't know about rpath.
