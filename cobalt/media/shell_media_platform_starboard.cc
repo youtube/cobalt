@@ -114,6 +114,9 @@ ShellMediaPlatformStarboard::ProcessBeforeLeavingDemuxer(
 }
 
 bool ShellMediaPlatformStarboard::IsOutputProtected() {
+  if (SbMediaIsOutputProtected()) {
+    return true;
+  }
   return SbMediaSetOutputProtection(true);
 }
 
