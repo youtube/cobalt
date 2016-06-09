@@ -224,6 +224,7 @@
         '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
         '<(DEPTH)/starboard/shared/starboard/log_raw_format.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
         '<(DEPTH)/starboard/shared/starboard/media/media_set_output_protection.cc',
         '<(DEPTH)/starboard/shared/starboard/new.cc',
         '<(DEPTH)/starboard/shared/starboard/player/audio_decoder_internal.h',
