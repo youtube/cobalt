@@ -29,7 +29,8 @@ ContainerBox::ContainerBox(
         css_computed_style_declaration,
     UsedStyleProvider* used_style_provider)
     : Box(css_computed_style_declaration, used_style_provider),
-      update_size_results_valid_(false) {}
+      update_size_results_valid_(false),
+      are_bidi_levels_runs_split_(false) {}
 
 ContainerBox::~ContainerBox() {}
 
@@ -457,10 +458,16 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
 }
 
 void ContainerBox::SplitBidiLevelRuns() {
-  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    child_box->SplitBidiLevelRuns();
+  // Only split the child boxes if the bidi level runs haven't already been
+  // split.
+  if (!are_bidi_levels_runs_split_) {
+    are_bidi_levels_runs_split_ = true;
+
+    for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
+         child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->SplitBidiLevelRuns();
+    }
   }
 }
 
