@@ -392,9 +392,14 @@ class Box : public base::RefCounted<Box> {
   // changed as well.
   virtual bool ValidateUpdateSizeInputs(const LayoutParams& params);
 
-  // updates the boxes so that they can be reused for layout.
+  // Invalidating the sizes causes them to be re-calculated the next time they
+  // are needed.
   void InvalidateUpdateSizeInputsOfBox();
   void InvalidateUpdateSizeInputsOfBoxAndAncestors();
+
+  // Invalidating the cross references causes them to be re-calculated the next
+  // time they are needed.
+  virtual void InvalidateCrossReferencesOfBoxAndAncestors();
 
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
@@ -454,20 +459,9 @@ class Box : public base::RefCounted<Box> {
   // Returns the z-index of this box, based on its computed style.
   int GetZIndex() const;
 
-  // Updates all cross-references to other boxes in the box tree (e.g. stacking
-  // contexts and containing blocks).  Calling this function will recursively
-  // resolve these links for all elements in the box tree.
-  void UpdateCrossReferences();
-
   // Invalidates the parent of the box, used in box generation for partial
   // layout.
   void InvalidateParent() { parent_ = NULL; }
-
-  // Sets up this box as a positioned box (thus, Box::IsPositioned() must return
-  // true) with the associated containing block and stacking context.
-  // Note that the box's parent node remains unchanged throughout this, and will
-  // always be the same as if the box was not positioned.
-  void SetupAsPositionedChild();
 
  protected:
   UsedStyleProvider* used_style_provider() const {
@@ -552,13 +546,13 @@ class Box : public base::RefCounted<Box> {
   virtual void DumpChildrenWithIndent(std::ostream* stream, int indent) const;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
-  // Updates the box's cross references to other boxes in the box tree (e.g. its
-  // containing block and stacking context).  "Context" implies that the caller
-  // has already computed what the stacking context is and containing block
-  // for absolute elements.
-  virtual void UpdateCrossReferencesWithContext(
-      ContainerBox* fixed_containing_block,
-      ContainerBox* absolute_containing_block, ContainerBox* stacking_context);
+  // Updates the source container box's cross references with its descendants in
+  // the box tree that have it as their containing block or stacking context.
+  // This function is called recursively.
+  virtual void UpdateCrossReferencesOfContainerBox(
+      ContainerBox* source_box, bool is_nearest_containing_block,
+      bool is_nearest_absolute_containing_block,
+      bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context);
 
   // Updates the horizontal margins for block level in-flow boxes. This is used
   // for both non-replaced and replaced elements. See
@@ -574,14 +568,6 @@ class Box : public base::RefCounted<Box> {
   void UpdateBorders();
   // Updates used values of "padding" properties.
   void UpdatePaddings(const LayoutParams& layout_params);
-
-  // Sets up this box as a positioned box (thus, Box::IsPositioned() must return
-  // true) with the associated containing block and stacking context.
-  // Note that the box's parent node remains unchanged throughout this, and will
-  // always be the same as if the box was not positioned.
-  void SetupAsPositionedChild(ContainerBox* containing_block,
-                              ContainerBox* stacking_context);
-  void RemoveAsPositionedChild();
 
   // Called after TryPlaceEllipsisOrProcessPlacedEllipsis() determines that the
   // box is impacted by the ellipsis. This handles both determining the location
