@@ -35,7 +35,7 @@ def main():
   # Update the build id to the latest, even if one is already set.
   try:
     os.unlink(_BUILD_ID_PATH)
-  except RuntimeError:
+  except OSError:
     pass
 
   build_id = gyp_utils.GetBuildNumber()
