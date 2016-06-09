@@ -518,6 +518,14 @@ SbBlitterSurface RenderTreeNodeVisitor::RenderToOffscreenSurface(
 
   SbBlitterSetRenderTarget(context_, render_target);
 
+  // Clear the background to fully transparent before we begin rendering the
+  // subtree.
+  SbBlitterSetBlending(context_, false);
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
+  SbBlitterFillRect(
+      context_,
+      RectToBlitterRect(Rect(sub_render_bounds.output_bounds.size())));
+
   // Render to the sub-surface.
   RenderTreeNodeVisitor sub_visitor(device_, context_, render_target,
                                     sub_render_bounds.output_bounds.size(),
