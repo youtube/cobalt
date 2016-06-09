@@ -74,29 +74,31 @@
         'common_clang_flags': [
           '-Werror',
           '-fcolor-diagnostics',
+          # Default visibility to hidden, to enable dead stripping.
+          '-fvisibility=hidden',
+          # Warn for implicit type conversions that may change a value.
+          '-Wconversion',
+          '-Wno-c++11-compat',
+          # This (rightfully) complains about 'override', which we use
+          # heavily.
+          '-Wno-c++11-extensions',
+          # Warns on switches on enums that cover all enum values but
+          # also contain a default: branch. Chrome is full of that.
+          '-Wno-covered-switch-default',
+          # protobuf uses hash_map.
+          '-Wno-deprecated',
           '-fno-exceptions',
+          # Don't warn about the "struct foo f = {0};" initialization pattern.
+          '-Wno-missing-field-initializers',
+          # Do not warn for implicit sign conversions.
+          '-Wno-sign-conversion',
           '-fno-strict-aliasing',  # See http://crbug.com/32204
           # TODO(pkasting): In C++11 this is legal, so this should be
           # removed when we change to that.  (This is also why we don't
           # bother fixing all these cases today.)
           '-Wno-unnamed-type-template-args',
-          # This (rightfully) complains about 'override', which we use
-          # heavily.
-          '-Wno-c++11-extensions',
-          '-Wno-c++11-compat',
-          # Warns on switches on enums that cover all enum values but
-          # also contain a default: branch. Chrome is full of that.
-          '-Wno-covered-switch-default',
           # Triggered by the COMPILE_ASSERT macro.
           '-Wno-unused-local-typedef',
-          # Don't warn about the "struct foo f = {0};" initialization pattern.
-          '-Wno-missing-field-initializers',
-          # Default visibility to hidden, to enable dead stripping.
-          '-fvisibility=hidden',
-          # Warn for implicit type conversions that may change a value.
-          '-Wconversion',
-          # Do not warn for implicit sign conversions.
-          '-Wno-sign-conversion',
         ],
       }],
       ['cobalt_fastbuild==0', {
