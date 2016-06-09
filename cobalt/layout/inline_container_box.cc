@@ -249,15 +249,13 @@ bool InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
       }
     }
 
-    ++child_box_iterator;
-
     // Try to split the child box's internals.
     if (child_box->TrySplitAtSecondBidiLevelRun()) {
-      DCHECK(child_box->GetSplitSibling());
-      child_box_iterator =
-          InsertDirectChild(child_box_iterator, child_box->GetSplitSibling());
+      child_box_iterator = InsertSplitSiblingOfDirectChild(child_box_iterator);
       break;
     }
+
+    ++child_box_iterator;
   }
 
   // If the iterator reached the end, then no split was found.
@@ -599,8 +597,7 @@ WrapResult InlineContainerBox::TryWrapAtIndex(
     // If the child was split during its wrap, then the split sibling that was
     // produced by the split needs to be added to the container's children.
     if (wrap_result == kWrapResultSplitWrap) {
-      wrap_iterator =
-          InsertDirectChild(++wrap_iterator, child_box->GetSplitSibling());
+      wrap_iterator = InsertSplitSiblingOfDirectChild(wrap_iterator);
     }
 
     SplitAtIterator(wrap_iterator);
@@ -623,8 +620,9 @@ void InlineContainerBox::SplitAtIterator(
   box_after_split->split_sibling_ = split_sibling_;
   split_sibling_ = box_after_split;
 
-  box_after_split->MoveChildrenFrom(box_after_split->child_boxes().end(), this,
-                                    child_split_iterator, child_boxes().end());
+  // Now move the children, starting at the iterator, from this container to the
+  // split sibling.
+  MoveDirectChildrenToSplitSibling(child_split_iterator);
 
 #ifdef _DEBUG
   // Make sure that the |UpdateContentSizeAndMargins| is called afterwards.

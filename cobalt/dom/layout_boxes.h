@@ -78,6 +78,9 @@ class LayoutBoxes {
   // Invalidate the sizes of the layout boxes so that they'll be recalculated
   // during the next layout.
   virtual void InvalidateSizes() = 0;
+  // Invalidate the cross references, which relates to both positioned children
+  // of containing blocks and z-index children of stacking contexts.
+  virtual void InvalidateCrossReferences() = 0;
 
  protected:
   LayoutBoxes() {}

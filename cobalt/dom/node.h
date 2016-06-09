@@ -231,12 +231,14 @@ class Node : public EventTarget {
   // removed from to its owner document.
   virtual void OnRemovedFromDocument();
 
-  // Invalidate layout boxes from this node and all parent nodes
+  // Invalidate layout boxes from this node and all parent nodes.
   virtual void InvalidateLayoutBoxesFromNodeAndAncestors();
-  // Invalidate layout boxes from this node and all child nodes
+  // Invalidate layout boxes from this node and all child nodes.
   virtual void InvalidateLayoutBoxesFromNodeAndDescendants();
   // Invalidate the sizes within the layout boxes of this node.
   virtual void InvalidateLayoutBoxSizesFromNode() {}
+  // Invalidate the cross references within the layout boxes of this node.
+  virtual void InvalidateLayoutBoxCrossReferencesFromNode() {}
 
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();
