@@ -32,6 +32,7 @@ ContainerBox::ContainerBox(
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
       update_size_results_valid_(false),
+      are_cross_references_valid_(false),
       are_bidi_levels_runs_split_(false) {}
 
 ContainerBox::~ContainerBox() {}
@@ -48,69 +49,99 @@ Boxes::iterator ContainerBox::RemoveConst(Boxes* container,
 }
 
 void ContainerBox::PushBackDirectChild(const scoped_refptr<Box>& child_box) {
-  child_boxes_.push_back(child_box);
-  OnChildAdded(child_box);
-}
-
-Boxes::const_iterator ContainerBox::InsertDirectChild(
-    Boxes::const_iterator position, const scoped_refptr<Box>& child_box) {
-  Boxes::const_iterator inserted =
-      child_boxes_.insert(RemoveConst(&child_boxes_, position), child_box);
-  OnChildAdded(child_box);
-  if (child_box->IsPositioned() || child_box->IsTransformed()) {
-    child_box->SetupAsPositionedChild();
-  }
-
-  return inserted;
-}
-
-void ContainerBox::MoveChildrenFrom(
-    Boxes::const_iterator position_in_destination, ContainerBox* source_box,
-    Boxes::const_iterator source_start, Boxes::const_iterator source_end) {
-  // Add the children to our list of child boxes.
-  Boxes::iterator source_start_non_const =
-      RemoveConst(&source_box->child_boxes_, source_start);
-  Boxes::iterator source_end_non_const =
-      RemoveConst(&source_box->child_boxes_, source_end);
-  child_boxes_.insert(RemoveConst(&child_boxes_, position_in_destination),
-                      source_start_non_const, source_end_non_const);
-
-  // Setup any link relationships given our new parent.
-  for (Boxes::const_iterator iter = source_start; iter != source_end; ++iter) {
-    Box* child_box = *iter;
-    DCHECK_NE(this, child_box->parent())
-        << "Move children within the same container node is not supported by "
-           "this method.";
-    if (child_box->IsPositioned() || child_box->IsTransformed()) {
-      child_box->RemoveAsPositionedChild();
-      // For positioned boxes, the parent box is not always also the containing
-      // block. Instead of calling OnChildAdded(), only update the containing
-      // block if that is the case.
-
-      child_box->parent_ = this;
-      update_size_results_valid_ = false;
-    } else {
-      child_box->parent_ = NULL;
-      OnChildAdded(child_box);
-    }
-    child_box->UpdateCrossReferences();
-  }
-
-  // Erase the children from their previous container's list of children.
-  source_box->child_boxes_.erase(source_start_non_const, source_end_non_const);
-
-  // Invalidate the source box's size calculations.
-  source_box->update_size_results_valid_ = false;
-}
-
-void ContainerBox::OnChildAdded(Box* child_box) {
+  // Verify that the child doesn't have a pre-existing parent.
   DCHECK(!child_box->parent());
 
-  child_box->parent_ = this;
+  // Verify that this container hasn't had its sizes and cross references
+  // already updated. This is because children should only ever be added to
+  // containers created during the current box generation run.
+  DCHECK(!update_size_results_valid_);
+  DCHECK(!are_cross_references_valid_);
 
-  // Invalidate our size calculations as a result of having our set of
-  // children modified.
+  child_box->parent_ = this;
+  child_boxes_.push_back(child_box);
+}
+
+Boxes::const_iterator ContainerBox::InsertSplitSiblingOfDirectChild(
+    Boxes::const_iterator child_position) {
+  Box* split_sibling = (*child_position)->GetSplitSibling();
+
+  // Verify that the split sibling exists and that it doesn't have a
+  // pre-existing parent.
+  DCHECK(split_sibling);
+  DCHECK(!split_sibling->parent());
+
+  // Set the parent of the split sibling to this container.
+  split_sibling->parent_ = this;
+
+  // Add the split sibling to this container after it's sibling.
+  Boxes::const_iterator split_sibling_position = child_boxes_.insert(
+      RemoveConst(&child_boxes_, ++child_position), split_sibling);
+
+  // Invalidate the size now that the children have changed.
   update_size_results_valid_ = false;
+
+  // Check to see if the split sibling is positioned, which means that it
+  // needs to invalidate its cross references.
+  // NOTE: Only block level and atomic inline-level elements are transformable.
+  // As these are not splittable, the split sibling does not need to be checked
+  // for being transformed.
+  // https://www.w3.org/TR/css-transforms-1/#transformable-element
+  DCHECK(!split_sibling->IsTransformable());
+  if (split_sibling->IsPositioned()) {
+    // Absolutely positioned boxes are not splittable.
+    DCHECK(!split_sibling->IsAbsolutelyPositioned());
+    // This container is the containing block because the split sibling cannot
+    // be an absolutely positioned box.
+    are_cross_references_valid_ = false;
+    split_sibling->GetStackingContext()->are_cross_references_valid_ = false;
+  }
+
+  return split_sibling_position;
+}
+
+void ContainerBox::MoveDirectChildrenToSplitSibling(
+    Boxes::const_iterator start_position) {
+  // Verify that the move includes children.
+  DCHECK(start_position != child_boxes_.end());
+
+  ContainerBox* split_sibling = GetSplitSibling()->AsContainerBox();
+
+  // Verify that the split sibling exists and that it hasn't been processed yet.
+  DCHECK(split_sibling);
+  DCHECK(!split_sibling->parent());
+  DCHECK(!split_sibling->update_size_results_valid_);
+  DCHECK(!split_sibling->are_cross_references_valid_);
+
+  // Update the parent of the children being moved.
+  for (Boxes::const_iterator iter = start_position; iter != child_boxes_.end();
+       ++iter) {
+    (*iter)->parent_ = split_sibling;
+  }
+
+  // Add the children to the split sibling's list of children.
+  Boxes::iterator source_start_non_const =
+      RemoveConst(&child_boxes_, start_position);
+  Boxes::iterator source_end_non_const =
+      RemoveConst(&child_boxes_, child_boxes_.end());
+  split_sibling->child_boxes_.insert(
+      RemoveConst(&split_sibling->child_boxes_,
+                  split_sibling->child_boxes_.end()),
+      source_start_non_const, source_end_non_const);
+
+  // Erase the children from this container's list of children.
+  child_boxes_.erase(source_start_non_const, source_end_non_const);
+
+  // Invalidate the size now that the children have changed.
+  update_size_results_valid_ = false;
+
+  // Children are only being removed from this container. As a result, the cross
+  // references only need to be invalidated if there is a non-empty cross
+  // reference list that can potentially lose an element.
+  if (!positioned_child_boxes_.empty() || !negative_z_index_child_.empty() ||
+      !non_negative_z_index_child_.empty()) {
+    are_cross_references_valid_ = false;
+  }
 }
 
 // Returns true if the given style allows a container box to act as a containing
@@ -144,6 +175,36 @@ bool ContainerBox::IsStackingContext() const {
          is_positioned_with_non_auto_z_index;
 }
 
+void ContainerBox::UpdateCrossReferences() {
+  if (!are_cross_references_valid_) {
+    // Cross references are not cleared when they are invalidated. This is
+    // because they can be invalidated while they are being walked if a
+    // relatively positioned descendant is split. Therefore, they need to be
+    // cleared now.
+    positioned_child_boxes_.clear();
+    negative_z_index_child_.clear();
+    non_negative_z_index_child_.clear();
+
+    bool is_nearest_containing_block = true;
+    bool is_nearest_absolute_containing_block =
+        IsContainingBlockForPositionAbsoluteElements();
+    bool is_nearest_fixed_containing_block =
+        IsContainingBlockForPositionFixedElements();
+    bool is_nearest_stacking_context = IsStackingContext();
+
+    for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
+         child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->UpdateCrossReferencesOfContainerBox(
+          this, is_nearest_containing_block,
+          is_nearest_absolute_containing_block,
+          is_nearest_fixed_containing_block, is_nearest_stacking_context);
+    }
+
+    are_cross_references_valid_ = true;
+  }
+}
+
 void ContainerBox::AddContainingBlockChild(Box* child_box) {
   DCHECK_NE(this, child_box);
   DCHECK_EQ(this, child_box->GetContainingBlock());
@@ -162,39 +223,6 @@ void ContainerBox::AddStackingContextChild(Box* child_box) {
     negative_z_index_child_.insert(child_box);
   } else {
     non_negative_z_index_child_.insert(child_box);
-  }
-}
-
-void ContainerBox::RemoveContainingBlockChild(Box* child_box) {
-  DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
-
-  std::vector<Box*>::iterator positioned_child_iterator =
-      std::find(positioned_child_boxes_.begin(), positioned_child_boxes_.end(),
-                child_box);
-  if (positioned_child_iterator != positioned_child_boxes_.end()) {
-    positioned_child_boxes_.erase(positioned_child_iterator);
-  } else {
-    NOTREACHED();
-  }
-}
-
-void ContainerBox::RemoveStackingContextChild(Box* child_box) {
-  DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
-
-  if (child_box->GetZIndex() < 0) {
-    ZIndexSortedList::iterator source_child_iterator =
-        std::find(negative_z_index_child_.begin(),
-                  negative_z_index_child_.end(), child_box);
-    if (source_child_iterator != negative_z_index_child_.end()) {
-      negative_z_index_child_.erase(source_child_iterator);
-    }
-  } else {
-    ZIndexSortedList::iterator source_child_iterator =
-        std::find(non_negative_z_index_child_.begin(),
-                  non_negative_z_index_child_.end(), child_box);
-    if (source_child_iterator != non_negative_z_index_child_.end()) {
-      non_negative_z_index_child_.erase(source_child_iterator);
-    }
   }
 }
 
@@ -233,12 +261,22 @@ bool ContainerBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
+void ContainerBox::InvalidateCrossReferencesOfBoxAndAncestors() {
+  // NOTE: The cross reference containers are not cleared here. Instead they are
+  // cleared when the cross references are updated.
+  are_cross_references_valid_ = false;
+  Box::InvalidateCrossReferencesOfBoxAndAncestors();
+}
+
 ContainerBox* ContainerBox::AsContainerBox() { return this; }
 const ContainerBox* ContainerBox::AsContainerBox() const { return this; }
 
 void ContainerBox::UpdateRectOfPositionedChildBoxes(
     const LayoutParams& relative_child_layout_params,
     const LayoutParams& absolute_child_layout_params) {
+  // Ensure that the cross references are up to date.
+  UpdateCrossReferences();
+
   for (std::vector<Box*>::const_iterator child_box_iterator =
            positioned_child_boxes_.begin();
        child_box_iterator != positioned_child_boxes_.end();
@@ -259,6 +297,10 @@ void ContainerBox::UpdateRectOfPositionedChildBoxes(
       UpdateRectOfFixedPositionedChildBox(child_box,
                                           relative_child_layout_params);
     }
+    // Verify that the positioned child boxes didn't get cleared during the
+    // walk. This should never happen because the cross references being
+    // invalidated should not cause them to be cleared.
+    DCHECK_GT(positioned_child_boxes_.size(), size_t(0));
   }
 }
 
@@ -465,37 +507,51 @@ void ContainerBox::SplitBidiLevelRuns() {
   }
 }
 
-void ContainerBox::UpdateCrossReferencesWithContext(
-    ContainerBox* fixed_containing_block,
-    ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
-  positioned_child_boxes_.clear();
-  negative_z_index_child_.clear();
-  non_negative_z_index_child_.clear();
+void ContainerBox::UpdateCrossReferencesOfContainerBox(
+    ContainerBox* source_box, bool is_nearest_containing_block,
+    bool is_nearest_absolute_containing_block,
+    bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context) {
+  // First update the source container box's cross references with this box.
+  Box::UpdateCrossReferencesOfContainerBox(
+      source_box, is_nearest_containing_block,
+      is_nearest_absolute_containing_block, is_nearest_fixed_containing_block,
+      is_nearest_stacking_context);
 
-  // First setup this box with cross-references as necessary.
-  Box::UpdateCrossReferencesWithContext(
-      fixed_containing_block, absolute_containing_block, stacking_context);
+  // In addition to updating the source container box's cross references with
+  // this box, we also recursively update it with our children.
 
-  // In addition to updating our cross references like a normal Box, we
-  // also recursively update the cross-references of our children.
-  ContainerBox* fixed_containing_block_of_children =
-      IsContainingBlockForPositionFixedElements() ? this
-                                                  : fixed_containing_block;
+  // Set the nearest flags for the children. If this container box is any of the
+  // specified types, then the target container box cannot be the nearest box of
+  // that type for the children.
 
-  ContainerBox* absolute_containing_block_of_children =
-      IsContainingBlockForPositionAbsoluteElements()
-          ? this
-          : absolute_containing_block;
+  bool is_nearest_containing_block_of_children = false;
 
-  ContainerBox* stacking_context_of_children =
-      IsStackingContext() ? this : stacking_context;
+  bool is_nearest_absolute_containing_block_of_children =
+      is_nearest_absolute_containing_block &&
+      !IsContainingBlockForPositionAbsoluteElements();
 
-  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    child_box->UpdateCrossReferencesWithContext(
-        fixed_containing_block_of_children,
-        absolute_containing_block_of_children, stacking_context_of_children);
+  bool is_nearest_fixed_containing_block_of_children =
+      is_nearest_fixed_containing_block &&
+      !IsContainingBlockForPositionFixedElements();
+
+  bool is_nearest_stacking_context_of_children =
+      is_nearest_stacking_context && !IsStackingContext();
+
+  // Only process the children if the target container box is still the nearest
+  // box of one of the types. If it is not, then it is impossible for any of the
+  // children to be added to the cross references.
+  if (is_nearest_absolute_containing_block_of_children ||
+      is_nearest_fixed_containing_block_of_children ||
+      is_nearest_stacking_context_of_children) {
+    for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
+         child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->UpdateCrossReferencesOfContainerBox(
+          source_box, is_nearest_containing_block_of_children,
+          is_nearest_absolute_containing_block_of_children,
+          is_nearest_fixed_containing_block_of_children,
+          is_nearest_stacking_context_of_children);
+    }
   }
 }
 
@@ -503,6 +559,9 @@ void ContainerBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* border_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
+  // Ensure that the cross references are up to date.
+  const_cast<ContainerBox*>(this)->UpdateCrossReferences();
+
   Vector2dLayoutUnit content_box_offset(border_left_width() + padding_left(),
                                         border_top_width() + padding_top());
   // Render all positioned children in our stacking context that have negative

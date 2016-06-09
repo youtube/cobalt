@@ -49,12 +49,10 @@ void AnonymousBlockBox::SplitBidiLevelRuns() {
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;
-    ++child_box_iterator;
-
     if (child_box->TrySplitAtSecondBidiLevelRun()) {
-      DCHECK(child_box->GetSplitSibling());
-      child_box_iterator =
-          InsertDirectChild(child_box_iterator, child_box->GetSplitSibling());
+      child_box_iterator = InsertSplitSiblingOfDirectChild(child_box_iterator);
+    } else {
+      ++child_box_iterator;
     }
   }
 }
@@ -178,7 +176,6 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
         while (*child_box_iterator != child_box_before_wrap) {
           --child_box_iterator;
         }
-        ++child_box_iterator;
 
         // If |child_box_before_wrap| has a split sibling, then this potentially
         // means that a split occurred during the wrap, and a new box needs to
@@ -192,13 +189,14 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
         // added to the container. This will be the first box added during
         // the next iteration of the loop.
         Box* split_child_after_wrap = child_box_before_wrap->GetSplitSibling();
+        Boxes::const_iterator next_child_box_iterator = child_box_iterator + 1;
         if (split_child_after_wrap &&
-            (child_box_iterator == child_boxes().end() ||
-             *child_box_iterator != split_child_after_wrap)) {
+            (next_child_box_iterator == child_boxes().end() ||
+             *next_child_box_iterator != split_child_after_wrap)) {
           child_box_iterator =
-              InsertDirectChild(child_box_iterator, split_child_after_wrap);
+              InsertSplitSiblingOfDirectChild(child_box_iterator);
+          continue;
         }
-        continue;
       }
     }
 
