@@ -63,7 +63,7 @@ configuration for that.
 
 The recommended naming convention for a `<platform-configuration>` is:
 
-    <family-name>_<binary-variant>
+    <family-name>-<binary-variant>
 
 Where `<family-name>` is a name specific to the family of products you are
 porting to Starboard and `<binary-variant>` is one or more tokens that uniquely
@@ -77,8 +77,8 @@ All the BobCo devices are called BobBox, so it's a reasonable choice as a
 product `<family-name>`. But they have both big- and little-endian MIPS
 chips. So they might define two platform configurations:
 
-  1. `bobbox_mipseb` - For big-endian MIPS devices.
-  1. `bobbox_mipsel` - For little-endian MIPS devices.
+  1. `bobbox-mipseb` - For big-endian MIPS devices.
+  1. `bobbox-mipsel` - For little-endian MIPS devices.
 
 
 ### II. Choose a Location in the Source Tree for Your Starboard Port
@@ -133,7 +133,7 @@ And so on.
 If your device runs Linux, you should start off by copying the Linux-specific
 files from `src/starboard/linux/...` to your port's location.
 
-Rename the `x86/` directory to `<binary-variant>` (e.g. `mipseb`).
+Rename the `x64x11/` directory to `<binary-variant>` (e.g. `mipseb`).
 
 Modify the files in `<binary-variant>/` as appropriate (you will probably be
 coming back to these files a lot).
@@ -149,30 +149,24 @@ relative to the directory the `.gyp` or `.gypi` file is in.
 
 In order to use a new platform configuration in a build, you need to ensure that
 you have a `gyp_configuration.py`, `gyp_configuration.gypi`, and
-`starboard_platform.gypi` in their own directory for each binary
-variant. `gyp_cobalt` will scan your directories for these files, and then
-calculate a port name based on the directories between
+`starboard_platform.gypi` in their own directory for each binary variant, plus
+the header files `configuration_public.h`, `atomic_public.h`, and
+`thread_types_public.h`. `gyp_cobalt` will scan your directories for these
+files, and then calculate a port name based on the directories between
 `src/third_party/starboard` and your `gyp_configuration.*` files. (e.g. for
 `src/third_party/starboard/bobbox/mipseb/gyp_configuration.py`, it would choose
 the port name `bobbox_mipseb`.)
 
   1. Set up `gyp_configuration.py`
-      1. Copy `src/cobalt/build/config/starboard_linux.py` to
+      1. Copy `src/starboard/linux/x64x11/gyp_configuration.py` to
          `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.py`.
+         You may also consider copying from another reference platform, like `raspi-1`.
       1. In `gyp_configuration.py`
           1. In the `_PlatformConfig.__init__()` function, remove checks for Clang
              or GOMA.
           1. In the `CreatePlatformConfig()` function, pass your
-             `<platform-configuration>` as the first parameter to the
-             _PlatformConfig constructor, like
-             `return _PlatformConfig('bobbox_mipseb', ...)`.
-          1. (optional) Adjust the second parameter of the _PlatformConfig
-              constructor to specify a name, like `BobBoxMIPSEB`.  This name will
-              be used in your output directory,
-             e.g. `BobBoxMIPSEB_Debug`, and must be the name of your build
-             configurations defined in your build configuration GYPI file.  By
-             default, it will just capitalize your platform name,
-             e.g. `Bobbox_mipseb`.
+             `<platform-configuration>` as the parameter to the _PlatformConfig
+             constructor, like `return _PlatformConfig('bobbox-mipseb')`.
         1. In `GetVariables`
             1. Set `'clang': 1` if your toolchain is clang.
             1. Delete other variables in that function that are not needed for
@@ -180,14 +174,15 @@ the port name `bobbox_mipseb`.)
             1. In `GetEnvironmentVariables`, set the dictionary values to point
                to the toolchain analogs for the toolchain for your platform.
   1. Set up `gyp_configuration.gypi`
-      1. Copy `src/cobalt/build/config/starboard_linux.gypi` to
+      1. Copy `src/starboard/linux/x64x11/gyp_configuration.gypi` to
          `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.gypi`.
+         You may also consider copying from another reference platform, like `raspi-1`.
       1. Update your platform variables.
-          1. Set `'target_arch'` to your `<platform-configuration>` name. (It's
-             not really named correctly.)
+          1. Set `'target_arch'` to your architecture: `'arm'`, `'ppc'`,
+             `'x64'`, `'x86'`, `'mips'`
           1. Set `'target_os': 'linux'` if your platform is Linux-based.
-          1. Set `'gl_type': 'system'` if you are using the system EGL + GLES2
-             implementation.
+          1. Set `'gl_type': 'system_gles2'` if you are using the system EGL +
+             GLES2 implementation.
           1. Set `'in_app_dial'` to `1` or `0`. This enables or disables the
              DIAL server that runs inside Cobalt, only when Coblat is
              running. You do not want in-app DIAL if you already have
@@ -201,8 +196,8 @@ the port name `bobbox_mipseb`.)
 
 You should now be able to run gyp with your new port. From your `src/` directory:
 
-    $ cobalt/build/gyp_cobalt -C Debug bobbox_mipseb
-    $ ninja -C out/BobBoxMIPSEB_Debug nplb
+    $ cobalt/build/gyp_cobalt -C debug bobbox-mipseb
+    $ ninja -C out/bobbox-mipseb_debug nplb
 
 This will attempt to build the "No Platform Left Behind" test suite with your
 new Starboard implementation, and you are ready to start porting!
@@ -219,19 +214,28 @@ Here's a recommended module implementation order in which to get things going
 (still significantly subject to change based on feedback):
 
   1. Configuration
+  1. main(), Application, & Event Pump (i.e. the call into SbEventHandle)
   1. Memory
+  1. Byte Swap
   1. Time
-  1. String
+  1. String/Character/Double
   1. Log
   1. File
   1. Directory
   1. System
   1. Atomic
-  1. Thread
+  1. Thread & Thread Types
   1. Mutex
-  1. ConditionVariable
+  1. Condition Variable
   1. Once
   1. Socket
   1. SocketWaiter
   1. Window
+  1. Input
+  1. Blitter (if applicable)
+  1. Audio Sink
+  1. Media & Player
+  1. DRM
   1. TimeZone
+  1. User
+  1. Storage
