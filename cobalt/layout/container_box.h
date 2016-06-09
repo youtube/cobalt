@@ -194,6 +194,10 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
 
   bool update_size_results_valid_;
 
+  // Whether or not bidi level run splitting has already occurred. This is
+  // tracked so it will never be attempted more than once.
+  bool are_bidi_levels_runs_split_;
+
   // Boxes and ContainerBoxes are closely related.  For example, when
   // Box::SetupAsPositionedChild() is called, it will internally call
   // ContainerBox::AddContainingBlockChild() and
