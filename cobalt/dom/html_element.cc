@@ -79,6 +79,7 @@ struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
     cssom::PropertyKeyVector layout_box_invalidation_properties;
     cssom::PropertyKeyVector size_invalidation_properties;
+    cssom::PropertyKeyVector cross_references_invalidation_properties;
 
     for (int i = 0; i <= cssom::kMaxLonghandPropertyKey; ++i) {
       cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
@@ -97,6 +98,10 @@ struct NonTrivialStaticFields {
             cssom::kImpactsBoxSizesYes) {
           size_invalidation_properties.push_back(property_key);
         }
+        if (cssom::GetPropertyImpactsBoxCrossReferences(property_key) ==
+            cssom::kImpactsBoxCrossReferencesYes) {
+          cross_references_invalidation_properties.push_back(property_key);
+        }
       }
     }
 
@@ -106,12 +111,17 @@ struct NonTrivialStaticFields {
     size_invalidation_property_checker =
         cssom::CSSComputedStyleData::PropertySetMatcher(
             size_invalidation_properties);
+    cross_references_invalidation_property_checker =
+        cssom::CSSComputedStyleData::PropertySetMatcher(
+            cross_references_invalidation_properties);
   }
 
   cssom::CSSComputedStyleData::PropertySetMatcher
       layout_box_invalidation_property_checker;
   cssom::CSSComputedStyleData::PropertySetMatcher
       size_invalidation_property_checker;
+  cssom::CSSComputedStyleData::PropertySetMatcher
+      cross_references_invalidation_property_checker;
 
   HtmlElementCountLog html_element_count_log;
 
@@ -641,6 +651,12 @@ void HTMLElement::InvalidateLayoutBoxSizesFromNode() {
   }
 }
 
+void HTMLElement::InvalidateLayoutBoxCrossReferencesFromNode() {
+  if (layout_boxes_) {
+    layout_boxes_->InvalidateCrossReferences();
+  }
+}
+
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
       directionality_(kNoExplicitDirectionality),
@@ -772,6 +788,15 @@ bool NewComputedStyleInvalidatesSizes(
                   old_computed_style, new_computed_style);
 }
 
+bool NewComputedStyleInvalidatesCrossReferences(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
+  return !non_trivial_static_fields.Get()
+              .cross_references_invalidation_property_checker
+              .DoDeclaredPropertiesMatch(old_computed_style,
+                                         new_computed_style);
+}
+
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
@@ -810,6 +835,8 @@ void HTMLElement::UpdateComputedStyle(
   // boxes, and nothing has to be invalidated.
   bool invalidate_layout_boxes = false;
   bool invalidate_sizes = false;
+  bool invalidate_cross_references = false;
+
   DCHECK(computed_style() || NULL == layout_boxes());
   if (computed_style()) {
     if (NewComputedStyleInvalidatesLayoutBoxes(computed_style(),
@@ -819,6 +846,10 @@ void HTMLElement::UpdateComputedStyle(
       if (NewComputedStyleInvalidatesSizes(computed_style(),
                                            new_computed_style)) {
         invalidate_sizes = true;
+      }
+      if (NewComputedStyleInvalidatesCrossReferences(computed_style(),
+                                                     new_computed_style)) {
+        invalidate_cross_references = true;
       }
     }
   }
@@ -858,6 +889,11 @@ void HTMLElement::UpdateComputedStyle(
                   pseudo_element_computed_style)) {
             invalidate_sizes = true;
           }
+          if (!invalidate_cross_references &&
+              NewComputedStyleInvalidatesCrossReferences(computed_style(),
+                                                         new_computed_style)) {
+            invalidate_cross_references = true;
+          }
         }
       }
       pseudo_elements_[pseudo_element_type]->set_computed_style(
@@ -871,6 +907,9 @@ void HTMLElement::UpdateComputedStyle(
   } else {
     if (invalidate_sizes) {
       InvalidateLayoutBoxSizesFromNode();
+    }
+    if (invalidate_cross_references) {
+      InvalidateLayoutBoxCrossReferencesFromNode();
     }
   }
 }

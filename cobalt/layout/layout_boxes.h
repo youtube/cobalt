@@ -57,6 +57,7 @@ class LayoutBoxes : public dom::LayoutBoxes {
   float GetPaddingEdgeHeight() const OVERRIDE;
 
   void InvalidateSizes() OVERRIDE;
+  void InvalidateCrossReferences() OVERRIDE;
 
   // Other
   //
