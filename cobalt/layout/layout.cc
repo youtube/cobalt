@@ -115,17 +115,6 @@ void UpdateComputedStylesAndLayoutBoxTree(
     (*initial_containing_block)->SplitBidiLevelRuns();
   }
 
-  // Update node cross-references.
-  // "Cross-references" here refers to box node references to other boxes in the
-  // box tree.  For example, stacking contexts and container boxes are setup
-  // for each node in this pass.
-  {
-    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateCrossReferences);
-    // Since scrolling is not supported in Cobalt, setting the fixed containing
-    // block to be equal to the initial containing block will work perfectly.
-    (*initial_containing_block)->UpdateCrossReferences();
-  }
-
   // Layout.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateUsedSizes);

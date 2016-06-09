@@ -55,6 +55,10 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // From |Box|.
   void SplitBidiLevelRuns() OVERRIDE;
 
+  // Invalidates the cross references, indicating that they need to be
+  // re-generated the next time they are needed.
+  void InvalidateCrossReferencesOfBoxAndAncestors() OVERRIDE;
+
   ContainerBox* AsContainerBox() OVERRIDE;
   const ContainerBox* AsContainerBox() const OVERRIDE;
 
@@ -97,30 +101,28 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
       const LayoutParams& relative_child_layout_params,
       const LayoutParams& absolute_child_layout_params);
 
-  // child_box will be added to the end of the list of direct children.
+  // Adds the child box to the end of the list of direct children.
+  // NOTE: This should only be called during box generation.
   void PushBackDirectChild(const scoped_refptr<Box>& child_box);
 
-  // Adds a direct child at the specified position in this container's list of
-  // children.
-  Boxes::const_iterator InsertDirectChild(Boxes::const_iterator position,
-                                          const scoped_refptr<Box>& child_box);
+  // Adds the split sibling of the specified child as another direct child.
+  // NOTE: This should be called immediately after the split sibling is created.
+  Boxes::const_iterator InsertSplitSiblingOfDirectChild(
+      Boxes::const_iterator child_position);
 
-  // Moves a range of children from a range within a source container node, to
-  // this destination container node at the specified position. This function
-  // may not result in correct cross references for the moved child boxes if
-  // the source and destination container do not have the same fixed containing
-  // block, absolute containing block, or stacking context.
-  void MoveChildrenFrom(Boxes::const_iterator position_in_destination,
-                        ContainerBox* source_box,
-                        Boxes::const_iterator source_start,
-                        Boxes::const_iterator source_end);
+  // Moves all of the direct children starting with the iterator from this
+  // container to its split sibling.
+  // NOTE: This should be called immediately after the split sibling is created
+  // and prior to it being inserted into the tree.
+  void MoveDirectChildrenToSplitSibling(Boxes::const_iterator start_position);
 
   const Boxes& child_boxes() const { return child_boxes_; }
 
-  void UpdateCrossReferencesWithContext(
-      ContainerBox* fixed_containing_block,
-      ContainerBox* absolute_containing_block,
-      ContainerBox* stacking_context) OVERRIDE;
+  void UpdateCrossReferencesOfContainerBox(
+      ContainerBox* source_box, bool is_nearest_containing_block,
+      bool is_nearest_absolute_containing_block,
+      bool is_nearest_fixed_containing_block,
+      bool is_nearest_stacking_context) OVERRIDE;
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
   void InvalidateUpdateSizeInputs() { update_size_results_valid_ = false; }
@@ -130,13 +132,13 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
                                      Boxes::const_iterator const_iter);
   ContainerBox* FindContainingBlock(Box* box);
 
-  // These helper functions are called from Box::SetupAsPositionedChild().
+  // Update the cross references of the container box if they are invalid.
+  void UpdateCrossReferences();
+
+  // These helper functions are called from
+  // Box::UpdateCrossReferencesOfContainerBox().
   void AddContainingBlockChild(Box* child_box);
   void AddStackingContextChild(Box* child_box);
-
-  // These helper functions are called from RemoveAsPositionedChild().
-  void RemoveContainingBlockChild(Box* child_box);
-  void RemoveStackingContextChild(Box* child_box);
 
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
@@ -169,12 +171,6 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
           node_animations_map_builder,
       const Vector2dLayoutUnit& offset_from_parent_node) const;
 
-  // Introduces a child box into the box hierarchy as a direct child of this
-  // container node.  Calling this function will result in other relationships
-  // being established as well (such as the child box's containing block, which
-  // may not be this box, such as for absolute or fixed position children.)
-  void OnChildAdded(Box* child_box);
-
   // A list of our direct children.  If a box is one of our child boxes, we
   // are that box's parent.  We may not be the box's containing block (such
   // as for 'absolute' or 'fixed' position elements).
@@ -192,6 +188,11 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   ZIndexSortedList non_negative_z_index_child_;
 
   bool update_size_results_valid_;
+
+  // Whether or not the cross references--which refers to positioned children
+  // and z-index children of the container--are valid, and do not need to be
+  // updated the next time cross references are needed.
+  bool are_cross_references_valid_;
 
   // Whether or not bidi level run splitting has already occurred. This is
   // tracked so it will never be attempted more than once.
