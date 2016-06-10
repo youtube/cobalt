@@ -49,8 +49,8 @@ SbBlitterPixelData SbBlitterCreatePixelData(
   dsc.flags = static_cast<DFBSurfaceDescriptionFlags>(
       DSDESC_HEIGHT | DSDESC_WIDTH | DSDESC_PIXELFORMAT | DSDESC_CAPS);
   // Specify that we wish for this surface data to live in device memory.
-  dsc.caps = static_cast<DFBSurfaceCapabilities>(
-      DSCAPS_VIDEOONLY | DSCAPS_STATIC_ALLOC | DSCAPS_PREMULTIPLIED);
+  dsc.caps = static_cast<DFBSurfaceCapabilities>(DSCAPS_STATIC_ALLOC |
+                                                 DSCAPS_PREMULTIPLIED);
   switch (pixel_format) {
 // Conversion from Starboard's byte-order color formats to DirectFB's
 // word-order color formats.
