@@ -240,18 +240,12 @@ class JSCNullableTypesTestInterface::InterfaceObject : public ConstructorBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCNullableTypesTestInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCNullableTypesTestInterface::InterfaceObject::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNullableTypesTestInterface::InterfaceObject::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable
@@ -267,7 +261,8 @@ JSCNullableTypesTestInterface::InterfaceObject::property_table_prototype = {
 const JSC::HashTable*
 JSCNullableTypesTestInterface::InterfaceObject::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNullableTypesTestInterface::InterfaceObject::s_classinfo(),
       property_table_prototype);
 }
 
@@ -362,8 +357,6 @@ class JSCNullableTypesTestInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCNullableTypesTestInterface::Prototype::property_table_values[] = {
@@ -425,11 +418,6 @@ const JSC::HashTableValue JSCNullableTypesTestInterface::Prototype::property_tab
 };  // JSCNullableTypesTestInterface::Prototype::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNullableTypesTestInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCNullableTypesTestInterface::Prototype::property_table_prototype = {
     40,  // compactSize
     31,  // compactSizeMask
@@ -440,8 +428,8 @@ const JSC::HashTable JSCNullableTypesTestInterface::Prototype::property_table_pr
 // static
 const JSC::HashTable* JSCNullableTypesTestInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNullableTypesTestInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCNullableTypesTestInterface::Prototype::s_info = {
@@ -529,10 +517,6 @@ const JSC::HashTableValue JSCNullableTypesTestInterface::property_table_values[]
 };  // JSCNullableTypesTestInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNullableTypesTestInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCNullableTypesTestInterface::property_table_prototype = {
     19,  // compactSize
     15,  // compactSizeMask
@@ -543,8 +527,8 @@ const JSC::HashTable JSCNullableTypesTestInterface::property_table_prototype = {
 // static
 const JSC::HashTable* JSCNullableTypesTestInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNullableTypesTestInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__

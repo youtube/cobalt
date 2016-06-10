@@ -202,18 +202,12 @@ class JSCConstructorWithArgumentsInterface::InterfaceObject : public Constructor
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCConstructorWithArgumentsInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCConstructorWithArgumentsInterface::InterfaceObject::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCConstructorWithArgumentsInterface::InterfaceObject::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable
@@ -229,7 +223,8 @@ JSCConstructorWithArgumentsInterface::InterfaceObject::property_table_prototype 
 const JSC::HashTable*
 JSCConstructorWithArgumentsInterface::InterfaceObject::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCConstructorWithArgumentsInterface::InterfaceObject::s_classinfo(),
       property_table_prototype);
 }
 
@@ -323,8 +318,6 @@ class JSCConstructorWithArgumentsInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCConstructorWithArgumentsInterface::Prototype::property_table_values[] = {
@@ -338,11 +331,6 @@ const JSC::HashTableValue JSCConstructorWithArgumentsInterface::Prototype::prope
 };  // JSCConstructorWithArgumentsInterface::Prototype::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCConstructorWithArgumentsInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCConstructorWithArgumentsInterface::Prototype::property_table_prototype = {
     4,  // compactSize
     3,  // compactSizeMask
@@ -353,8 +341,8 @@ const JSC::HashTable JSCConstructorWithArgumentsInterface::Prototype::property_t
 // static
 const JSC::HashTable* JSCConstructorWithArgumentsInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCConstructorWithArgumentsInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCConstructorWithArgumentsInterface::Prototype::s_info = {
@@ -436,10 +424,6 @@ const JSC::HashTableValue JSCConstructorWithArgumentsInterface::property_table_v
 };  // JSCConstructorWithArgumentsInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCConstructorWithArgumentsInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCConstructorWithArgumentsInterface::property_table_prototype = {
     10,  // compactSize
     7,  // compactSizeMask
@@ -450,8 +434,8 @@ const JSC::HashTable JSCConstructorWithArgumentsInterface::property_table_protot
 // static
 const JSC::HashTable* JSCConstructorWithArgumentsInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCConstructorWithArgumentsInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
