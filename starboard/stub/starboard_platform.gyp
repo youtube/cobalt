@@ -17,6 +17,13 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        '<(DEPTH)/starboard/stub/character_is_alphanumeric.cc',
+        '<(DEPTH)/starboard/stub/character_is_digit.cc',
+        '<(DEPTH)/starboard/stub/character_is_hex_digit.cc',
+        '<(DEPTH)/starboard/stub/character_is_space.cc',
+        '<(DEPTH)/starboard/stub/character_is_upper.cc',
+        '<(DEPTH)/starboard/stub/character_to_lower.cc',
+        '<(DEPTH)/starboard/stub/character_to_upper.cc',
         '<(DEPTH)/starboard/stub/string_compare.cc',
         '<(DEPTH)/starboard/stub/string_compare_all.cc',
         '<(DEPTH)/starboard/stub/string_find_character.cc',
