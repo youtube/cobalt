@@ -197,18 +197,12 @@ class JSCGetOpaqueRootInterface::InterfaceObject : public ConstructorBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCGetOpaqueRootInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCGetOpaqueRootInterface::InterfaceObject::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCGetOpaqueRootInterface::InterfaceObject::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable
@@ -224,7 +218,8 @@ JSCGetOpaqueRootInterface::InterfaceObject::property_table_prototype = {
 const JSC::HashTable*
 JSCGetOpaqueRootInterface::InterfaceObject::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCGetOpaqueRootInterface::InterfaceObject::s_classinfo(),
       property_table_prototype);
 }
 
@@ -318,8 +313,6 @@ class JSCGetOpaqueRootInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCGetOpaqueRootInterface::Prototype::property_table_values[] = {
@@ -333,11 +326,6 @@ const JSC::HashTableValue JSCGetOpaqueRootInterface::Prototype::property_table_v
 };  // JSCGetOpaqueRootInterface::Prototype::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCGetOpaqueRootInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCGetOpaqueRootInterface::Prototype::property_table_prototype = {
     4,  // compactSize
     3,  // compactSizeMask
@@ -348,8 +336,8 @@ const JSC::HashTable JSCGetOpaqueRootInterface::Prototype::property_table_protot
 // static
 const JSC::HashTable* JSCGetOpaqueRootInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCGetOpaqueRootInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCGetOpaqueRootInterface::Prototype::s_info = {
@@ -413,10 +401,6 @@ const JSC::HashTableValue JSCGetOpaqueRootInterface::property_table_values[] = {
 };  // JSCGetOpaqueRootInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCGetOpaqueRootInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCGetOpaqueRootInterface::property_table_prototype = {
     2,  // compactSize
     1,  // compactSizeMask
@@ -427,8 +411,8 @@ const JSC::HashTable JSCGetOpaqueRootInterface::property_table_prototype = {
 // static
 const JSC::HashTable* JSCGetOpaqueRootInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCGetOpaqueRootInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__

@@ -206,18 +206,12 @@ class JSCBooleanTypeTestInterface::InterfaceObject : public ConstructorBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCBooleanTypeTestInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCBooleanTypeTestInterface::InterfaceObject::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCBooleanTypeTestInterface::InterfaceObject::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable
@@ -233,7 +227,8 @@ JSCBooleanTypeTestInterface::InterfaceObject::property_table_prototype = {
 const JSC::HashTable*
 JSCBooleanTypeTestInterface::InterfaceObject::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCBooleanTypeTestInterface::InterfaceObject::s_classinfo(),
       property_table_prototype);
 }
 
@@ -328,8 +323,6 @@ class JSCBooleanTypeTestInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCBooleanTypeTestInterface::Prototype::property_table_values[] = {
@@ -355,11 +348,6 @@ const JSC::HashTableValue JSCBooleanTypeTestInterface::Prototype::property_table
 };  // JSCBooleanTypeTestInterface::Prototype::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCBooleanTypeTestInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCBooleanTypeTestInterface::Prototype::property_table_prototype = {
     10,  // compactSize
     7,  // compactSizeMask
@@ -370,8 +358,8 @@ const JSC::HashTable JSCBooleanTypeTestInterface::Prototype::property_table_prot
 // static
 const JSC::HashTable* JSCBooleanTypeTestInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCBooleanTypeTestInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCBooleanTypeTestInterface::Prototype::s_info = {
@@ -441,10 +429,6 @@ const JSC::HashTableValue JSCBooleanTypeTestInterface::property_table_values[] =
 };  // JSCBooleanTypeTestInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCBooleanTypeTestInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCBooleanTypeTestInterface::property_table_prototype = {
     4,  // compactSize
     3,  // compactSizeMask
@@ -455,8 +439,8 @@ const JSC::HashTable JSCBooleanTypeTestInterface::property_table_prototype = {
 // static
 const JSC::HashTable* JSCBooleanTypeTestInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCBooleanTypeTestInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
