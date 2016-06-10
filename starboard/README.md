@@ -130,8 +130,18 @@ And so on.
 
 ### III. Base Your Port on a Reference Port
 
-If your device runs Linux, you should start off by copying the Linux-specific
-files from `src/starboard/linux/...` to your port's location.
+You can start off by copying files from a reference port to your port's
+location. Currently these reference ports include:
+
+  * `src/starboard/stub`
+  * `src/starboard/linux`
+  * `src/starboard/raspi`
+
+The `starboard_platform.gyp` contains absolute paths, so the paths will still be
+valid if you copy it to a new directory. You can then incrementally replace
+files with new implementations as necessary.
+
+For example, if your device runs Linux, you should start from linux.
 
 Rename the `x64x11/` directory to `<binary-variant>` (e.g. `mipseb`).
 
