@@ -18,12 +18,14 @@
 
 #include "starboard/log.h"
 
-#define ALSA_CHECK(error, alsa_function)                      \
+#define ALSA_CHECK(error, alsa_function, failure_return)      \
   do {                                                        \
     if (error < 0) {                                          \
       SB_LOG(ERROR) << __FUNCTION__ << ": " << #alsa_function \
-                    << "() failed with error " << error;      \
-      return NULL;                                            \
+                    << "() failed with error "                \
+                    << snd_strerror(error)                    \
+                    << " (" << error << ")";                  \
+      return (failure_return);                                \
     }                                                         \
   } while (false)
 
@@ -94,64 +96,64 @@ void* AlsaOpenPlaybackDevice(int channel,
   PcmHandle playback_handle;
   int error =
       snd_pcm_open(&playback_handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
-  ALSA_CHECK(error, snd_pcm_open);
+  ALSA_CHECK(error, snd_pcm_open, NULL);
   playback_handle.set_valid();
 
   HWParams hw_params;
   error = snd_pcm_hw_params_malloc(&hw_params);
-  ALSA_CHECK(error, snd_pcm_hw_params_malloc);
+  ALSA_CHECK(error, snd_pcm_hw_params_malloc, NULL);
   hw_params.set_valid();
 
   error = snd_pcm_hw_params_any(playback_handle, hw_params);
-  ALSA_CHECK(error, snd_pcm_hw_params_any);
+  ALSA_CHECK(error, snd_pcm_hw_params_any, NULL);
 
   error = snd_pcm_hw_params_set_access(playback_handle, hw_params,
                                        SND_PCM_ACCESS_RW_INTERLEAVED);
-  ALSA_CHECK(error, snd_pcm_hw_params_set_access);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_access, NULL);
 
   error = snd_pcm_hw_params_set_format(playback_handle, hw_params,
                                        SND_PCM_FORMAT_FLOAT_LE);
-  ALSA_CHECK(error, snd_pcm_hw_params_set_format);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_format, NULL);
 
   error =
       snd_pcm_hw_params_set_rate(playback_handle, hw_params, sample_rate, 0);
-  ALSA_CHECK(error, snd_pcm_hw_params_set_rate);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_rate, NULL);
 
   error = snd_pcm_hw_params_set_channels(playback_handle, hw_params, channel);
-  ALSA_CHECK(error, snd_pcm_hw_params_set_channels);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_channels, NULL);
 
   snd_pcm_uframes_t buffer_size = buffer_size_in_frames;
   error = snd_pcm_hw_params_set_buffer_size_near(playback_handle, hw_params,
                                                  &buffer_size);
-  ALSA_CHECK(error, snd_pcm_hw_params_set_buffer_size);
+  ALSA_CHECK(error, snd_pcm_hw_params_set_buffer_size, NULL);
 
   error = snd_pcm_hw_params(playback_handle, hw_params);
-  ALSA_CHECK(error, snd_pcm_hw_params);
+  ALSA_CHECK(error, snd_pcm_hw_params, NULL);
 
   SWParams sw_params;
   error = snd_pcm_sw_params_malloc(&sw_params);
-  ALSA_CHECK(error, snd_pcm_sw_params_malloc);
+  ALSA_CHECK(error, snd_pcm_sw_params_malloc, NULL);
   sw_params.set_valid();
 
   error = snd_pcm_sw_params_current(playback_handle, sw_params);
-  ALSA_CHECK(error, snd_pcm_sw_params_current);
+  ALSA_CHECK(error, snd_pcm_sw_params_current, NULL);
 
   error = snd_pcm_sw_params_set_avail_min(playback_handle, sw_params,
                                           frames_per_request);
-  ALSA_CHECK(error, snd_pcm_sw_params_set_avail_min);
+  ALSA_CHECK(error, snd_pcm_sw_params_set_avail_min, NULL);
 
   error =
       snd_pcm_sw_params_set_silence_threshold(playback_handle, sw_params, 256U);
-  ALSA_CHECK(error, snd_pcm_sw_params_set_silence_threshold);
+  ALSA_CHECK(error, snd_pcm_sw_params_set_silence_threshold, NULL);
 
   error = snd_pcm_sw_params(playback_handle, sw_params);
-  ALSA_CHECK(error, snd_pcm_sw_params);
+  ALSA_CHECK(error, snd_pcm_sw_params, NULL);
 
   error = snd_pcm_prepare(playback_handle);
-  ALSA_CHECK(error, snd_pcm_prepare);
+  ALSA_CHECK(error, snd_pcm_prepare, NULL);
 
   error = snd_pcm_start(playback_handle);
-  ALSA_CHECK(error, snd_pcm_start);
+  ALSA_CHECK(error, snd_pcm_start, NULL);
 
   return playback_handle.Detach();
 }
@@ -172,9 +174,9 @@ int AlsaWriteFrames(void* playback_handle,
     } else if (frames == -EPIPE) {
       int error =
           snd_pcm_prepare(reinterpret_cast<snd_pcm_t*>(playback_handle));
-      ALSA_CHECK(error, snd_pcm_start);
+      ALSA_CHECK(error, snd_pcm_prepare, 0);
     } else {
-      ALSA_CHECK(frames, snd_pcm_writei);
+      ALSA_CHECK(frames, snd_pcm_writei, 0);
       // "frames == 0" means snd_pcm_writei() is interrupted, we'll retry.
     }
   }
@@ -187,11 +189,7 @@ int AlsaGetBufferedFrames(void* playback_handle) {
   snd_pcm_sframes_t delay;
   int error =
       snd_pcm_delay(reinterpret_cast<snd_pcm_t*>(playback_handle), &delay);
-  if (error < 0) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": snd_pcm_delay() failed with error"
-                  << error;
-    return -1;
-  }
+  ALSA_CHECK(error, snd_pcm_delay, -1);
   if (delay < 0) {
     SB_LOG(ERROR) << __FUNCTION__
                   << ": snd_pcm_delay() failed with negative delay " << delay;
