@@ -205,18 +205,12 @@ class JSCExceptionObjectInterface::InterfaceObject : public ConstructorBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCExceptionObjectInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCExceptionObjectInterface::InterfaceObject::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCExceptionObjectInterface::InterfaceObject::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable
@@ -232,7 +226,8 @@ JSCExceptionObjectInterface::InterfaceObject::property_table_prototype = {
 const JSC::HashTable*
 JSCExceptionObjectInterface::InterfaceObject::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCExceptionObjectInterface::InterfaceObject::s_classinfo(),
       property_table_prototype);
 }
 
@@ -327,8 +322,6 @@ class JSCExceptionObjectInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCExceptionObjectInterface::Prototype::property_table_values[] = {
@@ -342,11 +335,6 @@ const JSC::HashTableValue JSCExceptionObjectInterface::Prototype::property_table
 };  // JSCExceptionObjectInterface::Prototype::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCExceptionObjectInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCExceptionObjectInterface::Prototype::property_table_prototype = {
     4,  // compactSize
     3,  // compactSizeMask
@@ -357,8 +345,8 @@ const JSC::HashTable JSCExceptionObjectInterface::Prototype::property_table_prot
 // static
 const JSC::HashTable* JSCExceptionObjectInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCExceptionObjectInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCExceptionObjectInterface::Prototype::s_info = {
@@ -434,10 +422,6 @@ const JSC::HashTableValue JSCExceptionObjectInterface::property_table_values[] =
 };  // JSCExceptionObjectInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCExceptionObjectInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCExceptionObjectInterface::property_table_prototype = {
     9,  // compactSize
     7,  // compactSizeMask
@@ -448,8 +432,8 @@ const JSC::HashTable JSCExceptionObjectInterface::property_table_prototype = {
 // static
 const JSC::HashTable* JSCExceptionObjectInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCExceptionObjectInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__

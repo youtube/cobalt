@@ -15,29 +15,48 @@
  */
 #include "cobalt/script/javascriptcore/thread_local_hash_table.h"
 
+#include <map>
+
 #include "base/logging.h"
+#include "base/memory/singleton.h"
 
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
+namespace {
+typedef std::map<const JSC::ClassInfo*, JSC::HashTable> HashTableMap;
+}
+
+// static
+ThreadLocalHashTable* ThreadLocalHashTable::GetInstance() {
+  return Singleton<ThreadLocalHashTable>::get();
+}
+
 ThreadLocalHashTable::ThreadLocalHashTable() : slot_(SlotDestructor) {}
 
 JSC::HashTable* ThreadLocalHashTable::GetHashTable(
-    const JSC::HashTable& prototype) {
+    const JSC::ClassInfo* class_info, const JSC::HashTable& prototype) {
   if (!slot_.Get()) {
-    slot_.Set(new JSC::HashTable(prototype));
+    slot_.Set(new HashTableMap);
   }
   DCHECK(slot_.Get());
-  return static_cast<JSC::HashTable*>(slot_.Get());
+  HashTableMap* hash_table_map = static_cast<HashTableMap*>(slot_.Get());
+  if (hash_table_map->find(class_info) == hash_table_map->end()) {
+    (*hash_table_map)[class_info] = prototype;
+  }
+  return &(*hash_table_map)[class_info];
 }
 
 // static
 void ThreadLocalHashTable::SlotDestructor(void* value) {
-  JSC::HashTable* hash_table = static_cast<JSC::HashTable*>(value);
-  if (hash_table) {
-    hash_table->deleteTable();
-    delete hash_table;
+  HashTableMap* hash_table_map = static_cast<HashTableMap*>(value);
+  if (hash_table_map) {
+    for (HashTableMap::iterator it = hash_table_map->begin();
+         it != hash_table_map->end(); ++it) {
+      it->second.deleteTable();
+    }
+    delete hash_table_map;
   }
 }
 

@@ -235,10 +235,6 @@ const JSC::HashTableValue {{binding_class}}::property_table_values[] = {
 };  // {{binding_class}}::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    {{binding_class}}::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable {{binding_class}}::property_table_prototype = {
 {# This doesn't take into account disabled properties, but this is okay. This
    value must be at least as large as the number of properties. #}
@@ -255,8 +251,8 @@ const JSC::HashTable {{binding_class}}::property_table_prototype = {
 // static
 const JSC::HashTable* {{binding_class}}::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      {{binding_class}}::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__

@@ -142,18 +142,11 @@ class JSCNoInterfaceObjectInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCNoInterfaceObjectInterface::Prototype::property_table_values[] = {
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCNoInterfaceObjectInterface::Prototype::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNoInterfaceObjectInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable JSCNoInterfaceObjectInterface::Prototype::property_table_prototype = {
@@ -166,8 +159,8 @@ const JSC::HashTable JSCNoInterfaceObjectInterface::Prototype::property_table_pr
 // static
 const JSC::HashTable* JSCNoInterfaceObjectInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNoInterfaceObjectInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCNoInterfaceObjectInterface::Prototype::s_info = {
@@ -231,10 +224,6 @@ const JSC::HashTableValue JSCNoInterfaceObjectInterface::property_table_values[]
 };  // JSCNoInterfaceObjectInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNoInterfaceObjectInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCNoInterfaceObjectInterface::property_table_prototype = {
     2,  // compactSize
     1,  // compactSizeMask
@@ -245,8 +234,8 @@ const JSC::HashTable JSCNoInterfaceObjectInterface::property_table_prototype = {
 // static
 const JSC::HashTable* JSCNoInterfaceObjectInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNoInterfaceObjectInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
