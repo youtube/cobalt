@@ -39,6 +39,7 @@
         '<(DEPTH)/starboard/stub/mutex_create.cc',
         '<(DEPTH)/starboard/stub/mutex_destroy.cc',
         '<(DEPTH)/starboard/stub/mutex_release.cc',
+        '<(DEPTH)/starboard/stub/once.cc',
         '<(DEPTH)/starboard/stub/string_compare.cc',
         '<(DEPTH)/starboard/stub/string_compare_all.cc',
         '<(DEPTH)/starboard/stub/string_find_character.cc',
