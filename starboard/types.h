@@ -51,6 +51,8 @@
 extern "C" {
 #endif
 
+// --- Standard Include Emulation ----------------------------------------------
+
 // Simulate stdint.h for platforms that don't provide it.
 #if !SB_HAS(STDINT_H) && !SB_HAS(INTTYPES_H)
 #if !defined(SB_INT8) || !defined(SB_UINT8) || !defined(SB_INT16) ||    \
@@ -162,7 +164,7 @@ static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt kSbInt32Min
 
-// --- Standard Include Emulation Audits -------------------------------------
+// --- Standard Include Emulation Audits ---------------------------------------
 
 #if !defined(UINT_MAX) || !defined(INT_MIN) || !defined(INT_MAX) || \
     !defined(LONG_MIN) || !defined(LONG_MAX)
@@ -177,6 +179,28 @@ static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 
 #if !defined(PRId32)
 #error "inttypes.h should provide the portable formatting macros."
+#endif
+
+// --- Standard Type Audits ----------------------------------------------------
+
+#if SB_IS(WCHAR_T_UTF16)
+SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
+                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
+#endif
+
+#if SB_IS(WCHAR_T_UTF32)
+SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
+                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
+#endif
+
+#if SB_IS(WCHAR_T_SIGNED)
+SB_COMPILE_ASSERT((wchar_t)(-1) < 0,
+                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
+#endif
+
+#if SB_IS(WCHAR_T_UNSIGNED)
+SB_COMPILE_ASSERT((wchar_t)(-1) > 0,
+                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
 #endif
 
 #ifdef __cplusplus
