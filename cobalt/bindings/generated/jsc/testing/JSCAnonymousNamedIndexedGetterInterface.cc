@@ -523,9 +523,6 @@ JSCAnonymousNamedIndexedGetterInterface::~JSCAnonymousNamedIndexedGetterInterfac
 bool JSCAnonymousNamedIndexedGetterInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCAnonymousNamedIndexedGetterInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCAnonymousNamedIndexedGetterInterface* this_object = JSC::jsCast<JSCAnonymousNamedIndexedGetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCAnonymousNamedIndexedGetterInterface, BaseClass>(
@@ -564,8 +561,6 @@ bool JSCAnonymousNamedIndexedGetterInterface::getOwnPropertySlot(JSC::JSCell* ce
 // static
 bool JSCAnonymousNamedIndexedGetterInterface::getOwnPropertySlotByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::PropertySlot& slot) {
-  TRACE_EVENT0("JSCAnonymousNamedIndexedGetterInterface", "getOwnPropertySlotByIndex");
-
   AnonymousNamedIndexedGetterInterface* impl =
       GetWrappableOrSetException<AnonymousNamedIndexedGetterInterface>(exec_state, cell);
   if (!impl) {
@@ -593,7 +588,6 @@ bool JSCAnonymousNamedIndexedGetterInterface::getOwnPropertySlotByIndex(JSC::JSC
 void JSCAnonymousNamedIndexedGetterInterface::getOwnPropertyNames(JSC::JSObject* object,
     JSC::ExecState* exec_state, JSC::PropertyNameArray& property_names,
     JSC::EnumerationMode mode) {
-  TRACE_EVENT0("JSCAnonymousNamedIndexedGetterInterface", "getOwnPropertyNames");
   AnonymousNamedIndexedGetterInterface* impl =
       GetWrappableOrSetException<AnonymousNamedIndexedGetterInterface>(exec_state, object);
   if (impl) {
@@ -610,8 +604,6 @@ void JSCAnonymousNamedIndexedGetterInterface::getOwnPropertyNames(JSC::JSObject*
 void JSCAnonymousNamedIndexedGetterInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCAnonymousNamedIndexedGetterInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCAnonymousNamedIndexedGetterInterface* this_object = JSC::jsCast<JSCAnonymousNamedIndexedGetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
@@ -664,7 +656,6 @@ void JSCAnonymousNamedIndexedGetterInterface::put(JSC::JSCell* cell, JSC::ExecSt
 void JSCAnonymousNamedIndexedGetterInterface::putByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::JSValue value,
     bool should_throw) {
-  TRACE_EVENT0("JSCAnonymousNamedIndexedGetterInterface", "putByIndex");
   AnonymousNamedIndexedGetterInterface* impl =
       GetWrappableOrSetException<AnonymousNamedIndexedGetterInterface>(exec_state, cell);
   if (impl) {

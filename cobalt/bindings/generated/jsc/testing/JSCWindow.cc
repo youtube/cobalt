@@ -883,9 +883,6 @@ JSCWindow::~JSCWindow() {
 bool JSCWindow::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCWindow", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCWindow* this_object = JSC::jsCast<JSCWindow*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   // Global interface may have both operations and properties as own properties
@@ -927,8 +924,6 @@ bool JSCWindow::getOwnPropertySlot(JSC::JSCell* cell,
 void JSCWindow::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCWindow", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCWindow* this_object = JSC::jsCast<JSCWindow*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
