@@ -539,9 +539,6 @@ JSCConstantsInterface::~JSCConstantsInterface() {
 bool JSCConstantsInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCConstantsInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCConstantsInterface* this_object = JSC::jsCast<JSCConstantsInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCConstantsInterface, BaseClass>(
@@ -581,8 +578,6 @@ bool JSCConstantsInterface::getOwnPropertySlot(JSC::JSCell* cell,
 void JSCConstantsInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCConstantsInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCConstantsInterface* this_object = JSC::jsCast<JSCConstantsInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;

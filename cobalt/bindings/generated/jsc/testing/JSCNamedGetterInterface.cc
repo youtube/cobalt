@@ -530,9 +530,6 @@ JSCNamedGetterInterface::~JSCNamedGetterInterface() {
 bool JSCNamedGetterInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCNamedGetterInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCNamedGetterInterface* this_object = JSC::jsCast<JSCNamedGetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCNamedGetterInterface, BaseClass>(
@@ -571,8 +568,6 @@ bool JSCNamedGetterInterface::getOwnPropertySlot(JSC::JSCell* cell,
 // static
 bool JSCNamedGetterInterface::getOwnPropertySlotByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::PropertySlot& slot) {
-  TRACE_EVENT0("JSCNamedGetterInterface", "getOwnPropertySlotByIndex");
-
   NamedGetterInterface* impl =
       GetWrappableOrSetException<NamedGetterInterface>(exec_state, cell);
   if (!impl) {
@@ -596,7 +591,6 @@ bool JSCNamedGetterInterface::getOwnPropertySlotByIndex(JSC::JSCell* cell,
 void JSCNamedGetterInterface::getOwnPropertyNames(JSC::JSObject* object,
     JSC::ExecState* exec_state, JSC::PropertyNameArray& property_names,
     JSC::EnumerationMode mode) {
-  TRACE_EVENT0("JSCNamedGetterInterface", "getOwnPropertyNames");
   NamedGetterInterface* impl =
       GetWrappableOrSetException<NamedGetterInterface>(exec_state, object);
   if (impl) {
@@ -610,8 +604,6 @@ void JSCNamedGetterInterface::getOwnPropertyNames(JSC::JSObject* object,
 void JSCNamedGetterInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCNamedGetterInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCNamedGetterInterface* this_object = JSC::jsCast<JSCNamedGetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
@@ -664,7 +656,6 @@ void JSCNamedGetterInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
 void JSCNamedGetterInterface::putByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::JSValue value,
     bool should_throw) {
-  TRACE_EVENT0("JSCNamedGetterInterface", "putByIndex");
   NamedGetterInterface* impl =
       GetWrappableOrSetException<NamedGetterInterface>(exec_state, cell);
   if (impl) {

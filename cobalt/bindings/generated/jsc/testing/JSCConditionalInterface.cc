@@ -567,9 +567,6 @@ JSCConditionalInterface::~JSCConditionalInterface() {
 bool JSCConditionalInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCConditionalInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCConditionalInterface* this_object = JSC::jsCast<JSCConditionalInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCConditionalInterface, BaseClass>(
@@ -609,8 +606,6 @@ bool JSCConditionalInterface::getOwnPropertySlot(JSC::JSCell* cell,
 void JSCConditionalInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCConditionalInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCConditionalInterface* this_object = JSC::jsCast<JSCConditionalInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;

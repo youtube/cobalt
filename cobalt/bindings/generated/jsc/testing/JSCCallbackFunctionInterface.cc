@@ -574,9 +574,6 @@ JSCCallbackFunctionInterface::~JSCCallbackFunctionInterface() {
 bool JSCCallbackFunctionInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCCallbackFunctionInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCCallbackFunctionInterface* this_object = JSC::jsCast<JSCCallbackFunctionInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCCallbackFunctionInterface, BaseClass>(
@@ -616,8 +613,6 @@ bool JSCCallbackFunctionInterface::getOwnPropertySlot(JSC::JSCell* cell,
 void JSCCallbackFunctionInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCCallbackFunctionInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCCallbackFunctionInterface* this_object = JSC::jsCast<JSCCallbackFunctionInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;

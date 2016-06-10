@@ -731,9 +731,6 @@ JSCNumericTypesTestInterface::~JSCNumericTypesTestInterface() {
 bool JSCNumericTypesTestInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCNumericTypesTestInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCNumericTypesTestInterface* this_object = JSC::jsCast<JSCNumericTypesTestInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCNumericTypesTestInterface, BaseClass>(
@@ -773,8 +770,6 @@ bool JSCNumericTypesTestInterface::getOwnPropertySlot(JSC::JSCell* cell,
 void JSCNumericTypesTestInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCNumericTypesTestInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCNumericTypesTestInterface* this_object = JSC::jsCast<JSCNumericTypesTestInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
