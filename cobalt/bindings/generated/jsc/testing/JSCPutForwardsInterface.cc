@@ -208,18 +208,12 @@ class JSCPutForwardsInterface::InterfaceObject : public ConstructorBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCPutForwardsInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCPutForwardsInterface::InterfaceObject::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCPutForwardsInterface::InterfaceObject::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable
@@ -235,7 +229,8 @@ JSCPutForwardsInterface::InterfaceObject::property_table_prototype = {
 const JSC::HashTable*
 JSCPutForwardsInterface::InterfaceObject::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCPutForwardsInterface::InterfaceObject::s_classinfo(),
       property_table_prototype);
 }
 
@@ -330,8 +325,6 @@ class JSCPutForwardsInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCPutForwardsInterface::Prototype::property_table_values[] = {
@@ -345,11 +338,6 @@ const JSC::HashTableValue JSCPutForwardsInterface::Prototype::property_table_val
 };  // JSCPutForwardsInterface::Prototype::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCPutForwardsInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCPutForwardsInterface::Prototype::property_table_prototype = {
     4,  // compactSize
     3,  // compactSizeMask
@@ -360,8 +348,8 @@ const JSC::HashTable JSCPutForwardsInterface::Prototype::property_table_prototyp
 // static
 const JSC::HashTable* JSCPutForwardsInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCPutForwardsInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCPutForwardsInterface::Prototype::s_info = {
@@ -431,10 +419,6 @@ const JSC::HashTableValue JSCPutForwardsInterface::property_table_values[] = {
 };  // JSCPutForwardsInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCPutForwardsInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCPutForwardsInterface::property_table_prototype = {
     4,  // compactSize
     3,  // compactSizeMask
@@ -445,8 +429,8 @@ const JSC::HashTable JSCPutForwardsInterface::property_table_prototype = {
 // static
 const JSC::HashTable* JSCPutForwardsInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCPutForwardsInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
