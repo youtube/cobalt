@@ -228,6 +228,16 @@ struct CompileAssert {};
 #error "Your platform's long size must be either 32 bit or 64 bit."
 #endif
 
+#if SB_HAS(32_BIT_LONG)
+SB_COMPILE_ASSERT(sizeof(long) == 4,  // NOLINT(runtime/int)
+                  SB_HAS_32_BIT_LONG_is_inconsistent_with_sizeof_long);
+#endif
+
+#if SB_HAS(64_BIT_LONG)
+SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
+                  SB_HAS_64_BIT_LONG_is_inconsistent_with_sizeof_long);
+#endif
+
 #if !defined(SB_IS_BIG_ENDIAN)
 #error "Your platform must define SB_IS_BIG_ENDIAN."
 #endif
@@ -240,8 +250,28 @@ struct CompileAssert {};
 #error "You must define either SB_IS_WCHAR_T_UTF16 or SB_IS_WCHAR_T_UTF32."
 #endif
 
+#if SB_IS(WCHAR_T_UTF16)
+SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
+                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
+#endif
+
+#if SB_IS(WCHAR_T_UTF32)
+SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
+                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
+#endif
+
 #if defined(SB_IS_WCHAR_T_SIGNED) && defined(SB_IS_WCHAR_T_UNSIGNED)
 #error "You can't define SB_IS_WCHAR_T_SIGNED and SB_IS_WCHAR_T_UNSIGNED."
+#endif
+
+#if SB_IS(WCHAR_T_SIGNED)
+SB_COMPILE_ASSERT((wchar_t)(-1) < 0,
+                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
+#endif
+
+#if SB_IS(WCHAR_T_UNSIGNED)
+SB_COMPILE_ASSERT((wchar_t)(-1) > 0,
+                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
 #endif
 
 #if !defined(SB_C_FORCE_INLINE)
