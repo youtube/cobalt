@@ -535,9 +535,6 @@ JSCIndexedGetterInterface::~JSCIndexedGetterInterface() {
 bool JSCIndexedGetterInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCIndexedGetterInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCIndexedGetterInterface* this_object = JSC::jsCast<JSCIndexedGetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCIndexedGetterInterface, BaseClass>(
@@ -576,8 +573,6 @@ bool JSCIndexedGetterInterface::getOwnPropertySlot(JSC::JSCell* cell,
 // static
 bool JSCIndexedGetterInterface::getOwnPropertySlotByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::PropertySlot& slot) {
-  TRACE_EVENT0("JSCIndexedGetterInterface", "getOwnPropertySlotByIndex");
-
   IndexedGetterInterface* impl =
       GetWrappableOrSetException<IndexedGetterInterface>(exec_state, cell);
   if (!impl) {
@@ -605,7 +600,6 @@ bool JSCIndexedGetterInterface::getOwnPropertySlotByIndex(JSC::JSCell* cell,
 void JSCIndexedGetterInterface::getOwnPropertyNames(JSC::JSObject* object,
     JSC::ExecState* exec_state, JSC::PropertyNameArray& property_names,
     JSC::EnumerationMode mode) {
-  TRACE_EVENT0("JSCIndexedGetterInterface", "getOwnPropertyNames");
   IndexedGetterInterface* impl =
       GetWrappableOrSetException<IndexedGetterInterface>(exec_state, object);
   if (impl) {
@@ -620,8 +614,6 @@ void JSCIndexedGetterInterface::getOwnPropertyNames(JSC::JSObject* object,
 void JSCIndexedGetterInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCIndexedGetterInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCIndexedGetterInterface* this_object = JSC::jsCast<JSCIndexedGetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
@@ -674,7 +666,6 @@ void JSCIndexedGetterInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
 void JSCIndexedGetterInterface::putByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::JSValue value,
     bool should_throw) {
-  TRACE_EVENT0("JSCIndexedGetterInterface", "putByIndex");
   IndexedGetterInterface* impl =
       GetWrappableOrSetException<IndexedGetterInterface>(exec_state, cell);
   if (impl) {
