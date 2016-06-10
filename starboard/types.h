@@ -112,8 +112,8 @@ SB_COMPILE_ASSERT(sizeof(int) == sizeof(int32_t),  // NOLINT[runtime/int]
 
 #if SB_HAS(32_BIT_LONG)
 
-SB_COMPILE_ASSERT(sizeof(long) == sizeof(int),  // NOLINT[runtime/int]
-                  starboard_long_is_int);
+SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
+                  starboard_long_is_32_bits);
 #if !defined(LONG_MIN)
 #define LONG_MIN INT_MIN
 #endif

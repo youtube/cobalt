@@ -51,7 +51,10 @@ class _PlatformConfig(config.starboard.PlatformConfigStarboard):
                        'to be a valid directory.')
       sys.exit(1)
     variables = super(_PlatformConfig, self).GetVariables(configuration)
-    variables.update({'clang': 0, 'sysroot': sysroot,})
+    variables.update({
+        'clang': 0,
+        'sysroot': sysroot,
+    })
 
     return variables
 
