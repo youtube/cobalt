@@ -276,18 +276,12 @@ class JSCNumericTypesTestInterface::InterfaceObject : public ConstructorBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable> thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCNumericTypesTestInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCNumericTypesTestInterface::InterfaceObject::property_table_values
-
-// static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNumericTypesTestInterface::InterfaceObject::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
 
 // static
 const JSC::HashTable
@@ -303,7 +297,8 @@ JSCNumericTypesTestInterface::InterfaceObject::property_table_prototype = {
 const JSC::HashTable*
 JSCNumericTypesTestInterface::InterfaceObject::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNumericTypesTestInterface::InterfaceObject::s_classinfo(),
       property_table_prototype);
 }
 
@@ -398,8 +393,6 @@ class JSCNumericTypesTestInterface::Prototype : public PrototypeBase {
 
   static const JSC::HashTableValue property_table_values[];
   static const JSC::HashTable property_table_prototype;
-  static base::LazyInstance<ThreadLocalHashTable>
-      thread_local_property_table;
 };
 
 const JSC::HashTableValue JSCNumericTypesTestInterface::Prototype::property_table_values[] = {
@@ -509,11 +502,6 @@ const JSC::HashTableValue JSCNumericTypesTestInterface::Prototype::property_tabl
 };  // JSCNumericTypesTestInterface::Prototype::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNumericTypesTestInterface::Prototype::thread_local_property_table =
-        LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCNumericTypesTestInterface::Prototype::property_table_prototype = {
     80,  // compactSize
     63,  // compactSizeMask
@@ -524,8 +512,8 @@ const JSC::HashTable JSCNumericTypesTestInterface::Prototype::property_table_pro
 // static
 const JSC::HashTable* JSCNumericTypesTestInterface::Prototype::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNumericTypesTestInterface::Prototype::s_classinfo(), property_table_prototype);
 }
 
 const JSC::ClassInfo JSCNumericTypesTestInterface::Prototype::s_info = {
@@ -637,10 +625,6 @@ const JSC::HashTableValue JSCNumericTypesTestInterface::property_table_values[] 
 };  // JSCNumericTypesTestInterface::property_table_values
 
 // static
-base::LazyInstance<ThreadLocalHashTable>
-    JSCNumericTypesTestInterface::thread_local_property_table = LAZY_INSTANCE_INITIALIZER;
-
-// static
 const JSC::HashTable JSCNumericTypesTestInterface::property_table_prototype = {
     39,  // compactSize
     31,  // compactSizeMask
@@ -651,8 +635,8 @@ const JSC::HashTable JSCNumericTypesTestInterface::property_table_prototype = {
 // static
 const JSC::HashTable* JSCNumericTypesTestInterface::GetPropertyTable(
     JSC::ExecState* exec_state) {
-  return thread_local_property_table.Get().GetHashTable(
-      property_table_prototype);
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      JSCNumericTypesTestInterface::s_classinfo(), property_table_prototype);
 }
 
 #ifdef __LB_SHELL__FORCE_LOGGING__

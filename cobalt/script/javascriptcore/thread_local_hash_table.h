@@ -16,8 +16,10 @@
 #ifndef COBALT_SCRIPT_JAVASCRIPTCORE_THREAD_LOCAL_HASH_TABLE_H_
 #define COBALT_SCRIPT_JAVASCRIPTCORE_THREAD_LOCAL_HASH_TABLE_H_
 
+#include "base/memory/singleton.h"
 #include "base/threading/thread_local_storage.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/ClassInfo.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/Lookup.h"
 
 namespace cobalt {
@@ -26,12 +28,19 @@ namespace javascriptcore {
 
 class ThreadLocalHashTable {
  public:
-  ThreadLocalHashTable();
-  JSC::HashTable* GetHashTable(const JSC::HashTable& prototype);
+  static ThreadLocalHashTable* GetInstance();
+
+  JSC::HashTable* GetHashTable(const JSC::ClassInfo* class_info,
+                               const JSC::HashTable& prototype);
 
  private:
+  ThreadLocalHashTable();
   static void SlotDestructor(void* value);
+
   base::ThreadLocalStorage::Slot slot_;
+
+  friend struct DefaultSingletonTraits<ThreadLocalHashTable>;
+  DISALLOW_COPY_AND_ASSIGN(ThreadLocalHashTable);
 };
 
 }  // namespace javascriptcore
