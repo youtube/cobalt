@@ -117,7 +117,7 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
   if username:
     post_data['user'] = username
 
-  logging.info('Post data is %s', post_data)
+  logging.debug('Post data is %s', post_data)
   request = urllib2.Request(version_server, data=urllib.urlencode(post_data))
   # TODO(***REMOVED***): retry on timeout.
   try:
