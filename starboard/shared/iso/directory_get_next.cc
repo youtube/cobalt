@@ -21,8 +21,7 @@
 #include "starboard/shared/iso/directory_internal.h"
 #include "starboard/string.h"
 
-SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
-                                  SbDirectoryEntry* out_entry) {
+bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
   if (!directory || !directory->directory || !out_entry) {
     return false;
   }
