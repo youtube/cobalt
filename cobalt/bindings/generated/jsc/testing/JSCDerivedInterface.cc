@@ -525,9 +525,6 @@ JSCDerivedInterface::~JSCDerivedInterface() {
 bool JSCDerivedInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCDerivedInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCDerivedInterface* this_object = JSC::jsCast<JSCDerivedInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCDerivedInterface, BaseClass>(
@@ -567,8 +564,6 @@ bool JSCDerivedInterface::getOwnPropertySlot(JSC::JSCell* cell,
 void JSCDerivedInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCDerivedInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCDerivedInterface* this_object = JSC::jsCast<JSCDerivedInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
