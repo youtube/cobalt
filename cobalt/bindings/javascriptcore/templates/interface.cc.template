@@ -448,9 +448,6 @@ void {{binding_class}}::visitChildren(JSC::JSCell* cell, JSC::SlotVisitor& visit
 bool {{binding_class}}::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("{{binding_class}}", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   {{binding_class}}* this_object = JSC::jsCast<{{binding_class}}*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
 {% if is_global_interface %}
@@ -497,8 +494,6 @@ bool {{binding_class}}::getOwnPropertySlot(JSC::JSCell* cell,
 // static
 bool {{binding_class}}::getOwnPropertySlotByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::PropertySlot& slot) {
-  TRACE_EVENT0("{{binding_class}}", "getOwnPropertySlotByIndex");
-
   {{impl_class}}* impl =
       GetWrappableOrSetException<{{impl_class}}>(exec_state, cell);
   if (!impl) {
@@ -528,7 +523,6 @@ bool {{binding_class}}::getOwnPropertySlotByIndex(JSC::JSCell* cell,
 void {{binding_class}}::getOwnPropertyNames(JSC::JSObject* object,
     JSC::ExecState* exec_state, JSC::PropertyNameArray& property_names,
     JSC::EnumerationMode mode) {
-  TRACE_EVENT0("{{binding_class}}", "getOwnPropertyNames");
   {{impl_class}}* impl =
       GetWrappableOrSetException<{{impl_class}}>(exec_state, object);
   if (impl) {
@@ -550,8 +544,6 @@ void {{binding_class}}::getOwnPropertyNames(JSC::JSObject* object,
 void {{binding_class}}::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("{{binding_class}}", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   {{binding_class}}* this_object = JSC::jsCast<{{binding_class}}*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
@@ -607,7 +599,6 @@ void {{binding_class}}::put(JSC::JSCell* cell, JSC::ExecState* exec,
 void {{binding_class}}::putByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::JSValue value,
     bool should_throw) {
-  TRACE_EVENT0("{{binding_class}}", "putByIndex");
   {{impl_class}}* impl =
       GetWrappableOrSetException<{{impl_class}}>(exec_state, cell);
   if (impl) {

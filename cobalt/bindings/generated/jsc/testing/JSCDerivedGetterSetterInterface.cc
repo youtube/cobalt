@@ -559,9 +559,6 @@ JSCDerivedGetterSetterInterface::~JSCDerivedGetterSetterInterface() {
 bool JSCDerivedGetterSetterInterface::getOwnPropertySlot(JSC::JSCell* cell,
     JSC::ExecState* exec, JSC::PropertyName property_name,
     JSC::PropertySlot& slot) {
-  TRACE_EVENT1("JSCDerivedGetterSetterInterface", "getOwnPropertySlot", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
-
   JSCDerivedGetterSetterInterface* this_object = JSC::jsCast<JSCDerivedGetterSetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool found_property_slot = JSC::getStaticValueSlot<JSCDerivedGetterSetterInterface, BaseClass>(
@@ -600,8 +597,6 @@ bool JSCDerivedGetterSetterInterface::getOwnPropertySlot(JSC::JSCell* cell,
 // static
 bool JSCDerivedGetterSetterInterface::getOwnPropertySlotByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::PropertySlot& slot) {
-  TRACE_EVENT0("JSCDerivedGetterSetterInterface", "getOwnPropertySlotByIndex");
-
   DerivedGetterSetterInterface* impl =
       GetWrappableOrSetException<DerivedGetterSetterInterface>(exec_state, cell);
   if (!impl) {
@@ -629,7 +624,6 @@ bool JSCDerivedGetterSetterInterface::getOwnPropertySlotByIndex(JSC::JSCell* cel
 void JSCDerivedGetterSetterInterface::getOwnPropertyNames(JSC::JSObject* object,
     JSC::ExecState* exec_state, JSC::PropertyNameArray& property_names,
     JSC::EnumerationMode mode) {
-  TRACE_EVENT0("JSCDerivedGetterSetterInterface", "getOwnPropertyNames");
   DerivedGetterSetterInterface* impl =
       GetWrappableOrSetException<DerivedGetterSetterInterface>(exec_state, object);
   if (impl) {
@@ -646,8 +640,6 @@ void JSCDerivedGetterSetterInterface::getOwnPropertyNames(JSC::JSObject* object,
 void JSCDerivedGetterSetterInterface::put(JSC::JSCell* cell, JSC::ExecState* exec,
     JSC::PropertyName property_name, JSC::JSValue value,
     JSC::PutPropertySlot& slot) {
-  TRACE_EVENT1("JSCDerivedGetterSetterInterface", "put", "property",
-               TRACE_STR_COPY(WTF::String(property_name.publicName()).utf8().data()));
   JSCDerivedGetterSetterInterface* this_object = JSC::jsCast<JSCDerivedGetterSetterInterface*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   bool property_handled = false;
@@ -682,7 +674,6 @@ void JSCDerivedGetterSetterInterface::put(JSC::JSCell* cell, JSC::ExecState* exe
 void JSCDerivedGetterSetterInterface::putByIndex(JSC::JSCell* cell,
     JSC::ExecState* exec_state, uint32_t index, JSC::JSValue value,
     bool should_throw) {
-  TRACE_EVENT0("JSCDerivedGetterSetterInterface", "putByIndex");
   DerivedGetterSetterInterface* impl =
       GetWrappableOrSetException<DerivedGetterSetterInterface>(exec_state, cell);
   if (impl) {
