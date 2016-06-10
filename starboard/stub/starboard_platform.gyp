@@ -106,6 +106,11 @@
         '<(DEPTH)/starboard/stub/thread_set_name.cc',
         '<(DEPTH)/starboard/stub/thread_sleep.cc',
         '<(DEPTH)/starboard/stub/thread_yield.cc',
+        '<(DEPTH)/starboard/stub/window_create.cc',
+        '<(DEPTH)/starboard/stub/window_destroy.cc',
+        '<(DEPTH)/starboard/stub/window_get_platform_handle.cc',
+        '<(DEPTH)/starboard/stub/window_get_size.cc',
+        '<(DEPTH)/starboard/stub/window_set_default_options.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
