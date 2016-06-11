@@ -17,51 +17,67 @@
 
 #include "starboard/atomic.h"
 
+#include "starboard/log.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicNoBarrier_CompareAndSwap(volatile SbAtomic32* /*ptr*/,
-                                 SbAtomic32 /*old_value*/,
-                                 SbAtomic32 /*new_value*/) {
+SbAtomicNoBarrier_CompareAndSwap(volatile SbAtomic32* ptr,
+                                 SbAtomic32 old_value,
+                                 SbAtomic32 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(old_value);
+  SB_UNREFERENCED_PARAMETER(new_value);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicNoBarrier_Exchange(volatile SbAtomic32* /*ptr*/,
-                           SbAtomic32 /*new_value*/) {
+SbAtomicNoBarrier_Exchange(volatile SbAtomic32* ptr,
+                           SbAtomic32 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(new_value);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicNoBarrier_Increment(volatile SbAtomic32* /*ptr*/,
-                            SbAtomic32 /*increment*/) {
+SbAtomicNoBarrier_Increment(volatile SbAtomic32* ptr,
+                            SbAtomic32 increment) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(increment);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicBarrier_Increment(volatile SbAtomic32* /*ptr*/,
-                          SbAtomic32 /*increment*/) {
+SbAtomicBarrier_Increment(volatile SbAtomic32* ptr,
+                          SbAtomic32 increment) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(increment);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicAcquire_CompareAndSwap(volatile SbAtomic32* /*ptr*/,
-                               SbAtomic32 /*old_value*/,
-                               SbAtomic32 /*new_value*/) {
-  SB_NOTIMPLEMENTED();
+SbAtomicAcquire_CompareAndSwap(volatile SbAtomic32* ptr,
+                               SbAtomic32 old_value,
+                               SbAtomic32 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(old_value);
+  SB_UNREFERENCED_PARAMETER(new_value);
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicRelease_CompareAndSwap(volatile SbAtomic32* /*ptr*/,
-                               SbAtomic32 /*old_value*/,
-                               SbAtomic32 /*new_value*/) {
+SbAtomicRelease_CompareAndSwap(volatile SbAtomic32* ptr,
+                               SbAtomic32 old_value,
+                               SbAtomic32 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(old_value);
+  SB_UNREFERENCED_PARAMETER(new_value);
   SB_NOTIMPLEMENTED();
   return 0;
 }
@@ -70,35 +86,44 @@ SB_C_FORCE_INLINE void SbAtomicMemoryBarrier() {
   SB_NOTIMPLEMENTED();
 }
 
-SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store(volatile SbAtomic32* /*ptr*/,
-                                               SbAtomic32 /*value*/) {
+SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store(volatile SbAtomic32* ptr,
+                                               SbAtomic32 value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(value);
   SB_NOTIMPLEMENTED();
 }
 
-SB_C_FORCE_INLINE void SbAtomicAcquire_Store(volatile SbAtomic32* /*ptr*/,
-                                             SbAtomic32 /*value*/) {
+SB_C_FORCE_INLINE void SbAtomicAcquire_Store(volatile SbAtomic32* ptr,
+                                             SbAtomic32 value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(value);
   SB_NOTIMPLEMENTED();
 }
 
-SB_C_FORCE_INLINE void SbAtomicRelease_Store(volatile SbAtomic32* /*ptr*/,
-                                             SbAtomic32 /*value*/) {
+SB_C_FORCE_INLINE void SbAtomicRelease_Store(volatile SbAtomic32* ptr,
+                                             SbAtomic32 value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(value);
   SB_NOTIMPLEMENTED();
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicNoBarrier_Load(volatile const SbAtomic32* /*ptr*/) {
+SbAtomicNoBarrier_Load(volatile const SbAtomic32* ptr) {
+  SB_UNREFERENCED_PARAMETER(ptr);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicAcquire_Load(volatile const SbAtomic32* /*ptr*/) {
+SbAtomicAcquire_Load(volatile const SbAtomic32* ptr) {
+  SB_UNREFERENCED_PARAMETER(ptr);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic32
-SbAtomicRelease_Load(volatile const SbAtomic32* /*ptr*/) {
+SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
+  SB_UNREFERENCED_PARAMETER(ptr);
   SB_NOTIMPLEMENTED();
   return 0;
 }
@@ -106,79 +131,103 @@ SbAtomicRelease_Load(volatile const SbAtomic32* /*ptr*/) {
 // 64-bit atomic operations (only available on 64-bit processors).
 #if SB_HAS(64_BIT_ATOMICS)
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicNoBarrier_CompareAndSwap64(volatile SbAtomic64* /*ptr*/,
-                                   SbAtomic64 /*old_value*/,
-                                   SbAtomic64 /*new_value*/) {
+SbAtomicNoBarrier_CompareAndSwap64(volatile SbAtomic64* ptr,
+                                   SbAtomic64 old_value,
+                                   SbAtomic64 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(old_value);
+  SB_UNREFERENCED_PARAMETER(new_value);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicNoBarrier_Exchange64(volatile SbAtomic64* /*ptr*/,
-                             SbAtomic64 /*new_value*/) {
+SbAtomicNoBarrier_Exchange64(volatile SbAtomic64* ptr,
+                             SbAtomic64 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(new_value);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicNoBarrier_Increment64(volatile SbAtomic64* /*ptr*/,
-                              SbAtomic64 /*increment*/) {
+SbAtomicNoBarrier_Increment64(volatile SbAtomic64* ptr,
+                              SbAtomic64 increment) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(increment);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicBarrier_Increment64(volatile SbAtomic64* /*ptr*/,
-                            SbAtomic64 /*increment*/) {
+SbAtomicBarrier_Increment64(volatile SbAtomic64* ptr,
+                            SbAtomic64 increment) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(increment);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicAcquire_CompareAndSwap64(volatile SbAtomic64* /*ptr*/,
-                                 SbAtomic64 /*old_value*/,
-                                 SbAtomic64 /*new_value*/) {
+SbAtomicAcquire_CompareAndSwap64(volatile SbAtomic64* ptr,
+                                 SbAtomic64 old_value,
+                                 SbAtomic64 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(old_value);
+  SB_UNREFERENCED_PARAMETER(new_value);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicRelease_CompareAndSwap64(volatile SbAtomic64* /*ptr*/,
-                                 SbAtomic64 /*old_value*/,
-                                 SbAtomic64 /*new_value*/) {
+SbAtomicRelease_CompareAndSwap64(volatile SbAtomic64* ptr,
+                                 SbAtomic64 old_value,
+                                 SbAtomic64 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(old_value);
+  SB_UNREFERENCED_PARAMETER(new_value);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
-SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store64(volatile SbAtomic64* /*ptr*/,
-                                                 SbAtomic64 /*value*/) {
+SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store64(volatile SbAtomic64* ptr,
+                                                 SbAtomic64 value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(value);
   SB_NOTIMPLEMENTED();
 }
 
-SB_C_FORCE_INLINE void SbAtomicAcquire_Store64(volatile SbAtomic64* /*ptr*/,
-                                               SbAtomic64 /*value*/) {
+SB_C_FORCE_INLINE void SbAtomicAcquire_Store64(volatile SbAtomic64* ptr,
+                                               SbAtomic64 value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(value);
   SB_NOTIMPLEMENTED();
 }
 
-SB_C_FORCE_INLINE void SbAtomicRelease_Store64(volatile SbAtomic64* /*ptr*/,
-                                               SbAtomic64 /*value*/) {
+SB_C_FORCE_INLINE void SbAtomicRelease_Store64(volatile SbAtomic64* ptr,
+                                               SbAtomic64 value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(value);
   SB_NOTIMPLEMENTED();
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicNoBarrier_Load64(volatile const SbAtomic64* /*ptr*/) {
+SbAtomicNoBarrier_Load64(volatile const SbAtomic64* ptr) {
+  SB_UNREFERENCED_PARAMETER(ptr);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicAcquire_Load64(volatile const SbAtomic64* /*ptr*/) {
+SbAtomicAcquire_Load64(volatile const SbAtomic64* ptr) {
+  SB_UNREFERENCED_PARAMETER(ptr);
   SB_NOTIMPLEMENTED();
   return 0;
 }
 
 SB_C_FORCE_INLINE SbAtomic64
-SbAtomicRelease_Load64(volatile const SbAtomic64* /*ptr*/) {
+SbAtomicRelease_Load64(volatile const SbAtomic64* ptr) {
+  SB_UNREFERENCED_PARAMETER(ptr);
   SB_NOTIMPLEMENTED();
   return 0;
 }

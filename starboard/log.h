@@ -264,7 +264,9 @@ class LogMessageVoidify {
 // We also provide a very small subset for straight-C users.
 
 #if SB_IS(COMPILER_GCC)
-#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " __PRETTY_FUNCTION__
+#define STR(X) #X
+#define SB_NOTIMPLEMENTED_MSG                             \
+  "Not implemented reached in " STR(__PRETTY_FUNCTION__)
 #else
 #define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " __FUNCTION__
 #endif
