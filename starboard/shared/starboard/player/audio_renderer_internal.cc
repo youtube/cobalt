@@ -53,17 +53,14 @@ AudioRenderer::~AudioRenderer() {
   delete decoder_;
 }
 
-void AudioRenderer::WriteSample(InputBuffer* input_buffer) {
-  SB_DCHECK(input_buffer != NULL);
-
+void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
   if (end_of_stream_reached_) {
-    SB_LOG(ERROR) << "Appending audio sample at " << input_buffer->pts()
+    SB_LOG(ERROR) << "Appending audio sample at " << input_buffer.pts()
                   << " after EOS reached.";
-    delete input_buffer;
     return;
   }
 
-  SbMediaTime input_pts = input_buffer->pts();
+  SbMediaTime input_pts = input_buffer.pts();
   std::vector<float> decoded_audio;
   decoder_->Decode(input_buffer, &decoded_audio);
   SB_DCHECK(!decoded_audio.empty());

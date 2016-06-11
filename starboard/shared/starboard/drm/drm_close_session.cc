@@ -12,13 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
+#include "starboard/drm.h"
 
-#include "starboard/shared/starboard/player/player_internal.h"
+#include "starboard/log.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 
-void SbPlayerDestroy(SbPlayer player) {
-  if (!SbPlayerIsValid(player)) {
+void SbDrmCloseSession(SbDrmSystem drm_system,
+                       const void* session_id,
+                       int session_id_size) {
+  if (!SbDrmSystemIsValid(drm_system)) {
+    SB_DLOG(WARNING) << "Invalid drm system";
     return;
   }
-  delete player;
+
+  drm_system->CloseSession(session_id, session_id_size);
 }

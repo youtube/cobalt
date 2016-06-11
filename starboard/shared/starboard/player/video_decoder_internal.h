@@ -46,10 +46,8 @@ class VideoDecoder {
 
   virtual void SetHost(Host* host) = 0;
 
-  // Send encoded video frame stored in |input_buffer| to decode.  After this
-  // call, the VideoDecoder instance owns |input_buffer| and will delete it
-  // once finished using it.
-  virtual void WriteInputBuffer(InputBuffer* input_buffer) = 0;
+  // Send encoded video frame stored in |input_buffer| to decode.
+  virtual void WriteInputBuffer(const InputBuffer& input_buffer) = 0;
   // Note that there won't be more input data unless Reset() is called.
   // OnDecoderStatusUpdate will still be called on Host during flushing until
   // the |frame| is an EOS frame.
