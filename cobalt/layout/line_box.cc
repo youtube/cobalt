@@ -164,16 +164,17 @@ void LineBox::BeginEstimateStaticPosition(Box* child_box) {
 
   switch (child_box->GetLevel()) {
     case Box::kInlineLevel:
-      child_box->set_left(shrink_to_fit_width_);
+      // NOTE: This case is never reached as a result of b/29370980.
+      child_box->SetStaticPositionLeftFromParent(shrink_to_fit_width_);
       break;
     case Box::kBlockLevel:
-      child_box->set_left(LayoutUnit());
+      child_box->SetStaticPositionLeftFromParent(LayoutUnit());
       break;
     default:
       NOTREACHED();
       break;
   }
-  child_box->set_top(LayoutUnit());
+  child_box->SetStaticPositionTopFromParent(LayoutUnit());
 }
 
 void LineBox::EndUpdates() {

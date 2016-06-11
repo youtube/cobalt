@@ -231,15 +231,6 @@ bool ContainerBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
-void ContainerBox::InvalidateUpdateSizeInputsOfBoxAndDescendants() {
-  Box::InvalidateUpdateSizeInputsOfBoxAndDescendants();
-  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    child_box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
-  }
-}
-
 ContainerBox* ContainerBox::AsContainerBox() { return this; }
 const ContainerBox* ContainerBox::AsContainerBox() const { return this; }
 
@@ -335,26 +326,27 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
 
 void ContainerBox::UpdateRectOfFixedPositionedChildBox(
     Box* child_box, const LayoutParams& child_layout_params) {
-  Vector2dLayoutUnit static_position_offset =
+  Vector2dLayoutUnit offset_from_containing_block_to_parent =
       GetOffsetFromContainingBlockToParent(child_box);
-  child_box->set_left(child_box->left() + static_position_offset.x());
-  child_box->set_top(child_box->top() + static_position_offset.y());
-
+  child_box->SetStaticPositionLeftFromContainingBlockToParent(
+      offset_from_containing_block_to_parent.x());
+  child_box->SetStaticPositionTopFromContainingBlockToParent(
+      offset_from_containing_block_to_parent.y());
   child_box->UpdateSize(child_layout_params);
 }
 
 void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
     Box* child_box, const LayoutParams& child_layout_params) {
-  Vector2dLayoutUnit static_position_offset =
+  Vector2dLayoutUnit offset_from_containing_block_to_parent =
       GetOffsetFromContainingBlockToParent(child_box);
   // The containing block is formed by the padding box instead of the content
   // box, as described in
   // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-  static_position_offset +=
-      child_box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
-  child_box->set_left(child_box->left() + static_position_offset.x());
-  child_box->set_top(child_box->top() + static_position_offset.y());
-
+  offset_from_containing_block_to_parent += GetContentBoxOffsetFromPaddingBox();
+  child_box->SetStaticPositionLeftFromContainingBlockToParent(
+      offset_from_containing_block_to_parent.x());
+  child_box->SetStaticPositionTopFromContainingBlockToParent(
+      offset_from_containing_block_to_parent.y());
   child_box->UpdateSize(child_layout_params);
 }
 

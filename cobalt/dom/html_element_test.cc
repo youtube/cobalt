@@ -82,6 +82,8 @@ class MockLayoutBoxes : public dom::LayoutBoxes {
   MOCK_CONST_METHOD0(GetPaddingEdgeTop, float());
   MOCK_CONST_METHOD0(GetPaddingEdgeWidth, float());
   MOCK_CONST_METHOD0(GetPaddingEdgeHeight, float());
+
+  MOCK_METHOD0(InvalidateSizes, void());
 };
 
 // Takes the fist child of the given element repeatedly to the given depth.

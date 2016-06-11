@@ -70,6 +70,9 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 #ifdef _DEBUG
   margin_box_offset_from_containing_block_.SetVector(LayoutUnit(),
                                                      LayoutUnit());
+  static_position_offset_from_parent_.SetVector(LayoutUnit(), LayoutUnit());
+  static_position_offset_from_containing_block_to_parent_.SetVector(
+      LayoutUnit(), LayoutUnit());
   margin_insets_.SetInsets(LayoutUnit(), LayoutUnit(), LayoutUnit(),
                            LayoutUnit());
   border_insets_.SetInsets(LayoutUnit(), LayoutUnit(), LayoutUnit(),
@@ -114,8 +117,67 @@ bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
-void Box::InvalidateUpdateSizeInputsOfBoxAndDescendants() {
+void Box::InvalidateUpdateSizeInputsOfBox() {
   last_update_size_params_ = base::nullopt;
+}
+
+void Box::InvalidateUpdateSizeInputsOfBoxAndAncestors() {
+  InvalidateUpdateSizeInputsOfBox();
+  if (parent_) {
+    parent_->InvalidateUpdateSizeInputsOfBoxAndAncestors();
+  }
+}
+
+void Box::SetStaticPositionLeftFromParent(LayoutUnit left) {
+  if (left != static_position_offset_from_parent_.x()) {
+    static_position_offset_from_parent_.set_x(left);
+    // Invalidate the size if the static position offset changes, as the
+    // positioning for absolutely positioned elements is handled within the size
+    // update.
+    InvalidateUpdateSizeInputsOfBox();
+  }
+}
+
+void Box::SetStaticPositionLeftFromContainingBlockToParent(LayoutUnit left) {
+  if (left != static_position_offset_from_containing_block_to_parent_.x()) {
+    static_position_offset_from_containing_block_to_parent_.set_x(left);
+    // Invalidate the size if the static position offset changes, as the
+    // positioning for absolutely positioned elements is handled within the size
+    // update.
+    InvalidateUpdateSizeInputsOfBox();
+  }
+}
+
+LayoutUnit Box::GetStaticPositionLeft() const {
+  DCHECK(IsAbsolutelyPositioned());
+  return static_position_offset_from_parent_.x() +
+         static_position_offset_from_containing_block_to_parent_.x();
+}
+
+void Box::SetStaticPositionTopFromParent(LayoutUnit top) {
+  if (top != static_position_offset_from_parent_.y()) {
+    static_position_offset_from_parent_.set_y(top);
+    // Invalidate the size if the static position offset changes, as the
+    // positioning for absolutely positioned elements is handled within the size
+    // update.
+    InvalidateUpdateSizeInputsOfBox();
+  }
+}
+
+void Box::SetStaticPositionTopFromContainingBlockToParent(LayoutUnit top) {
+  if (top != static_position_offset_from_containing_block_to_parent_.y()) {
+    static_position_offset_from_containing_block_to_parent_.set_y(top);
+    // Invalidate the size if the static position offset changes, as the
+    // positioning for absolutely positioned elements is handled within the size
+    // update.
+    InvalidateUpdateSizeInputsOfBox();
+  }
+}
+
+LayoutUnit Box::GetStaticPositionTop() const {
+  DCHECK(IsAbsolutelyPositioned());
+  return static_position_offset_from_parent_.y() +
+         static_position_offset_from_containing_block_to_parent_.y();
 }
 
 LayoutUnit Box::GetMarginBoxWidth() const {

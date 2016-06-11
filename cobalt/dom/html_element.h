@@ -230,6 +230,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
   void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
   void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
+  void InvalidateLayoutBoxSizesFromNode() OVERRIDE;
 
   // Determines whether this element is focusable.
   bool IsFocusable() const { return HasAttribute("tabindex"); }

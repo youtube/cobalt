@@ -54,8 +54,6 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // From |Box|.
   void SplitBidiLevelRuns() OVERRIDE;
 
-  void InvalidateUpdateSizeInputsOfBoxAndDescendants() OVERRIDE;
-
   ContainerBox* AsContainerBox() OVERRIDE;
   const ContainerBox* AsContainerBox() const OVERRIDE;
 
