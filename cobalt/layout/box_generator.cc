@@ -120,7 +120,6 @@ void BoxGenerator::Visit(dom::Element* element) {
         Box* box = *box_iterator;
         do {
           box->InvalidateParent();
-          box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
           box = box->GetSplitSibling();
         } while (box != NULL);
       }

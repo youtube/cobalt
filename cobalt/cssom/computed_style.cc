@@ -2745,6 +2745,13 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       // According to https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
       // "inline" and "inline-block" values of "display" become "block" if
       // "position" is "absolute" or "fixed".
+      // TODO(***REMOVED***): Modify this logic so that the original display value is
+      // not lost. Being unable to determine the original value breaks static
+      // positioning of "inline" and "inline-block" values with absolute
+      // positioning, because they are treated as block boxes but are supposed
+      // to placed at the position they would be in the normal flow.
+      // https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+      // This is tracked as b/29370980.
       if ((*value == KeywordValue::GetInline() ||
            *value == KeywordValue::GetInlineBlock()) &&
           IsAbsolutelyPositioned()) {
