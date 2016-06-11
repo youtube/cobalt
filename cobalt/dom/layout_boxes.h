@@ -75,6 +75,10 @@ class LayoutBoxes {
   virtual float GetPaddingEdgeWidth() const = 0;
   virtual float GetPaddingEdgeHeight() const = 0;
 
+  // Invalidate the sizes of the layout boxes so that they'll be recalculated
+  // during the next layout.
+  virtual void InvalidateSizes() = 0;
+
  protected:
   LayoutBoxes() {}
 };

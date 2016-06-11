@@ -235,6 +235,8 @@ class Node : public EventTarget {
   virtual void InvalidateLayoutBoxesFromNodeAndAncestors();
   // Invalidate layout boxes from this node and all child nodes
   virtual void InvalidateLayoutBoxesFromNodeAndDescendants();
+  // Invalidate the sizes within the layout boxes of this node.
+  virtual void InvalidateLayoutBoxSizesFromNode() {}
 
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();

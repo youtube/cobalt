@@ -78,6 +78,8 @@ struct HtmlElementCountLog {
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
     cssom::PropertyKeyVector layout_box_invalidation_properties;
+    cssom::PropertyKeyVector size_invalidation_properties;
+
     for (int i = 0; i <= cssom::kMaxLonghandPropertyKey; ++i) {
       cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
       // TODO(***REMOVED***): Only invalidate layout boxes when a property that is used
@@ -90,16 +92,26 @@ struct NonTrivialStaticFields {
           cssom::GetPropertyImpactsBoxGeneration(property_key) ==
               cssom::kImpactsBoxGenerationYes) {
         layout_box_invalidation_properties.push_back(property_key);
+      } else {
+        if (cssom::GetPropertyImpactsBoxSizes(property_key) ==
+            cssom::kImpactsBoxSizesYes) {
+          size_invalidation_properties.push_back(property_key);
+        }
       }
     }
 
     layout_box_invalidation_property_checker =
         cssom::CSSComputedStyleData::PropertySetMatcher(
             layout_box_invalidation_properties);
+    size_invalidation_property_checker =
+        cssom::CSSComputedStyleData::PropertySetMatcher(
+            size_invalidation_properties);
   }
 
   cssom::CSSComputedStyleData::PropertySetMatcher
       layout_box_invalidation_property_checker;
+  cssom::CSSComputedStyleData::PropertySetMatcher
+      size_invalidation_property_checker;
 
   HtmlElementCountLog html_element_count_log;
 
@@ -623,6 +635,12 @@ void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
   Node::InvalidateLayoutBoxesFromNodeAndDescendants();
 }
 
+void HTMLElement::InvalidateLayoutBoxSizesFromNode() {
+  if (layout_boxes_) {
+    layout_boxes_->InvalidateSizes();
+  }
+}
+
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
       directionality_(kNoExplicitDirectionality),
@@ -743,6 +761,14 @@ bool NewComputedStyleInvalidatesLayoutBoxes(
                                          new_computed_style);
 }
 
+bool NewComputedStyleInvalidatesSizes(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
+  return !non_trivial_static_fields.Get()
+              .size_invalidation_property_checker.DoDeclaredPropertiesMatch(
+                  old_computed_style, new_computed_style);
+}
+
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
@@ -777,11 +803,20 @@ void HTMLElement::UpdateComputedStyle(
   // If there is no previous computed style, there should also be no layout
   // boxes, and nothing has to be invalidated.
   bool invalidate_layout_boxes = false;
+  bool invalidate_sizes = false;
   DCHECK(computed_style() || NULL == layout_boxes());
-  if (computed_style() && NewComputedStyleInvalidatesLayoutBoxes(
-                              computed_style(), new_computed_style)) {
-    invalidate_layout_boxes = true;
+  if (computed_style()) {
+    if (NewComputedStyleInvalidatesLayoutBoxes(computed_style(),
+                                               new_computed_style)) {
+      invalidate_layout_boxes = true;
+    } else {
+      if (NewComputedStyleInvalidatesSizes(computed_style(),
+                                           new_computed_style)) {
+        invalidate_sizes = true;
+      }
+    }
   }
+
   set_computed_style(new_computed_style);
 
   // Update cached background images after resolving the urls in
@@ -805,11 +840,19 @@ void HTMLElement::UpdateComputedStyle(
               document->keyframes_map());
 
       if (!invalidate_layout_boxes &&
-          pseudo_elements_[pseudo_element_type]->computed_style() &&
-          NewComputedStyleInvalidatesLayoutBoxes(
-              pseudo_elements_[pseudo_element_type]->computed_style(),
-              pseudo_element_computed_style)) {
-        invalidate_layout_boxes = true;
+          pseudo_elements_[pseudo_element_type]->computed_style()) {
+        if (NewComputedStyleInvalidatesLayoutBoxes(
+                pseudo_elements_[pseudo_element_type]->computed_style(),
+                pseudo_element_computed_style)) {
+          invalidate_layout_boxes = true;
+        } else {
+          if (!invalidate_sizes &&
+              NewComputedStyleInvalidatesSizes(
+                  pseudo_elements_[pseudo_element_type]->computed_style(),
+                  pseudo_element_computed_style)) {
+            invalidate_sizes = true;
+          }
+        }
       }
       pseudo_elements_[pseudo_element_type]->set_computed_style(
           pseudo_element_computed_style);
@@ -819,15 +862,20 @@ void HTMLElement::UpdateComputedStyle(
   if (invalidate_layout_boxes) {
     InvalidateLayoutBoxesFromNodeAndAncestors();
     InvalidateLayoutBoxesFromNodeAndDescendants();
+  } else {
+    if (invalidate_sizes) {
+      InvalidateLayoutBoxSizesFromNode();
+    }
   }
 }
 
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
-  scoped_refptr<cssom::PropertyValue> background_image =
-      computed_style()->background_image();
   // Don't fetch or cache the image if the display of this element is turned
   // off.
   if (computed_style()->display() != cssom::KeywordValue::GetNone()) {
+    scoped_refptr<cssom::PropertyValue> background_image =
+        computed_style()->background_image();
+
     cssom::PropertyListValue* property_list_value =
         base::polymorphic_downcast<cssom::PropertyListValue*>(
             background_image.get());

@@ -56,6 +56,8 @@ class LayoutBoxes : public dom::LayoutBoxes {
   float GetPaddingEdgeWidth() const OVERRIDE;
   float GetPaddingEdgeHeight() const OVERRIDE;
 
+  void InvalidateSizes() OVERRIDE;
+
   // Other
   //
   void SwapBoxes(Boxes& boxes) { boxes_.swap(boxes); }

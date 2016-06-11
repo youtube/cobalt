@@ -2,3 +2,8 @@ added_inline_child_of_inline_box_gets_rendered
 removed_inline_child_of_inline_box_does_not_get_rendered
 computed_style_change_gets_rendered
 dir_attribute_change_gets_rendered
+size-related-style-change-should-trigger-size-update-of-absolute-positioned-children
+size-related-style-change-should-trigger-size-update-of-absolute-positioned-descendants
+size-related-style-change-should-trigger-size-update-of-static-descendants
+size-related-style-change-should-trigger-size-update-of-static-siblings
+transform-style-change-should-trigger-size-update
