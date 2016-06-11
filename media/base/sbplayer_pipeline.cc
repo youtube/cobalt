@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include <map>
+#include <vector>
 
+#include "base/basictypes.h"  // For COMPILE_ASSERT
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
@@ -32,6 +34,8 @@
 #include "media/base/pipeline.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
+#include "media/base/video_decoder_config.h"
+#include "media/crypto/starboard_decryptor.h"
 #include "starboard/player.h"
 #include "ui/gfx/size.h"
 
@@ -54,6 +58,68 @@ SbMediaTime TimeDeltaToSbMediaTime(TimeDelta timedelta) {
          Time::kMicrosecondsPerSecond;
 }
 
+void UpdateDecoderConfig(scoped_refptr<DemuxerStream> stream) {
+  if (stream->type() == DemuxerStream::AUDIO) {
+    stream->audio_decoder_config();
+  } else {
+    DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
+    stream->video_decoder_config();
+  }
+}
+
+bool IsEncrypted(const scoped_refptr<DemuxerStream>& stream) {
+  if (stream->type() == DemuxerStream::AUDIO) {
+    return stream->audio_decoder_config().is_encrypted();
+  } else {
+    DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
+    return stream->video_decoder_config().is_encrypted();
+  }
+}
+
+void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
+                       SbDrmSampleInfo* drm_info) {
+  const DecryptConfig* config = buffer->GetDecryptConfig();
+  if (!config || config->iv().empty() || config->key_id().empty()) {
+    drm_info->initialization_vector_size = 0;
+    drm_info->identifier_size = 0;
+    drm_info->subsample_count = 0;
+    drm_info->subsample_mapping = NULL;
+    return;
+  }
+
+  DCHECK_LE(config->iv().size(), sizeof(drm_info->initialization_vector));
+  DCHECK_LE(config->key_id().size(), sizeof(drm_info->identifier));
+
+  if (config->iv().size() > sizeof(drm_info->initialization_vector) ||
+      config->key_id().size() > sizeof(drm_info->identifier)) {
+    drm_info->initialization_vector_size = 0;
+    drm_info->identifier_size = 0;
+    drm_info->subsample_count = 0;
+    drm_info->subsample_mapping = NULL;
+    return;
+  }
+
+  memcpy(drm_info->initialization_vector, &config->iv()[0],
+         config->iv().size());
+  drm_info->initialization_vector_size = config->iv().size();
+  memcpy(drm_info->identifier, &config->key_id()[0], config->key_id().size());
+  drm_info->identifier_size = config->key_id().size();
+  drm_info->subsample_count = config->subsamples().size();
+
+  if (drm_info->subsample_count > 0) {
+    COMPILE_ASSERT(sizeof(SbDrmSubSampleMapping) == sizeof(SubsampleEntry),
+                   SubSampleEntrySizesMatch);
+    drm_info->subsample_mapping =
+        reinterpret_cast<const SbDrmSubSampleMapping*>(
+            &config->subsamples()[0]);
+  } else {
+    // TODO: According to the SbDrm interface we have to provide a subsample
+    //       with exactly one element covering the whole sample.  This needs
+    //       extra memory management.
+    drm_info->subsample_mapping = NULL;
+  }
+}
+
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
 class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
@@ -64,6 +130,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   ~SbPlayerPipeline() OVERRIDE;
 
   void Start(scoped_ptr<FilterCollection> filter_collection,
+             const SetDecryptorReadyCB& decryptor_ready_cb,
              const PipelineStatusCB& ended_cb,
              const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
@@ -90,6 +157,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   PipelineStatistics GetStatistics() const OVERRIDE;
 
  private:
+  void StartTask();
+
   // DataSourceHost (by way of DemuxerHost) implementation.
   void SetTotalBytes(int64 total_bytes) OVERRIDE;
   void AddBufferedByteRange(int64 start, int64 end) OVERRIDE;
@@ -99,6 +168,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   void SetDuration(TimeDelta duration) OVERRIDE;
   void OnDemuxerError(PipelineStatus error) OVERRIDE;
 
+  void CreatePlayer(SbDrmSystem drm_system);
+  void SetDecryptor(Decryptor* decryptor);
   void OnDemuxerInitialized(PipelineStatus status);
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
@@ -111,7 +182,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
                        SbPlayerDecoderState state,
                        int ticket);
   void OnPlayerStatus(SbPlayerState state, int ticket);
-  void OnDeallocateSample(void* sample_buffer);
+  void OnDeallocateSample(const void* sample_buffer);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,
@@ -124,7 +195,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
                              int ticket);
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
-                                 void* sample_buffer);
+                                 const void* sample_buffer);
 
   // Message loop used to execute pipeline tasks.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -189,6 +260,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   base::Closure stop_cb_;
 
   // Permanent callbacks passed in via Start().
+  SetDecryptorReadyCB decryptor_ready_cb_;
   PipelineStatusCB ended_cb_;
   PipelineStatusCB error_cb_;
   BufferingStateCB buffering_state_cb_;
@@ -230,21 +302,20 @@ SbPlayerPipeline::~SbPlayerPipeline() {
 }
 
 void SbPlayerPipeline::Start(scoped_ptr<FilterCollection> filter_collection,
+                             const SetDecryptorReadyCB& decryptor_ready_cb,
                              const PipelineStatusCB& ended_cb,
                              const PipelineStatusCB& error_cb,
                              const PipelineStatusCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb) {
-  if (!message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&SbPlayerPipeline::Start, this,
-                   base::Passed(&filter_collection), ended_cb, error_cb,
-                   seek_cb, buffering_state_cb, duration_change_cb));
-    return;
-  }
+  DCHECK(!filter_collection_);
+  DCHECK(filter_collection);
 
+  // Assign the parameters here instead of posting it to StartTask() as the
+  // number of parameters exceeds the maximum number of parameters that Bind
+  // supports.
   filter_collection_ = filter_collection.Pass();
+  decryptor_ready_cb_ = decryptor_ready_cb;
   ended_cb_ = ended_cb;
   error_cb_ = error_cb;
   seek_cb_ = seek_cb;
@@ -252,9 +323,9 @@ void SbPlayerPipeline::Start(scoped_ptr<FilterCollection> filter_collection,
   duration_change_cb_ = duration_change_cb;
 
   demuxer_ = filter_collection_->GetDemuxer();
-  demuxer_->Initialize(
-      this, BindToCurrentLoop(
-                base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
+
+  message_loop_->PostTask(FROM_HERE,
+                          base::Bind(&SbPlayerPipeline::StartTask, this));
 }
 
 void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
@@ -409,6 +480,14 @@ PipelineStatistics SbPlayerPipeline::GetStatistics() const {
   return statistics_;
 }
 
+void SbPlayerPipeline::StartTask() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  demuxer_->Initialize(
+      this, BindToCurrentLoop(
+                base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
+}
+
 void SbPlayerPipeline::SetTotalBytes(int64 total_bytes) {
   base::AutoLock auto_lock(lock_);
   total_bytes_ = total_bytes;
@@ -436,6 +515,33 @@ void SbPlayerPipeline::AddBufferedTimeRange(TimeDelta start, TimeDelta end) {
   did_loading_progress_ = true;
 }
 
+void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
+  const AudioDecoderConfig& audio_config =
+      demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
+  SbMediaAudioHeader audio_header;
+  audio_header.format_tag = 0x00ff;
+  audio_header.number_of_channels =
+      ChannelLayoutToChannelCount(audio_config.channel_layout());
+  audio_header.samples_per_second = audio_config.samples_per_second();
+  audio_header.average_bytes_per_second = 1;
+  audio_header.block_alignment = 4;
+  audio_header.bits_per_sample = audio_config.bits_per_channel();
+  audio_header.audio_specific_config_size = 0;
+  player_ =
+      SbPlayerCreate(kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
+                     SB_PLAYER_NO_DURATION, drm_system, &audio_header,
+                     DeallocateSampleCB, DecoderStatusCB, PlayerStatusCB, this);
+}
+
+void SbPlayerPipeline::SetDecryptor(Decryptor* decryptor) {
+  if (!decryptor) {
+    return;
+  }
+  StarboardDecryptor* sb_decryptor =
+      reinterpret_cast<StarboardDecryptor*>(decryptor);
+  CreatePlayer(sb_decryptor->drm_system());
+}
+
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -455,21 +561,21 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 
   NOTIMPLEMENTED() << "Dynamically determinate codecs";
 
-  const AudioDecoderConfig& config =
+  const AudioDecoderConfig& audio_config =
       demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
-  SbMediaAudioHeader audio_header;
-  audio_header.format_tag = 0x00ff;
-  audio_header.number_of_channels =
-      ChannelLayoutToChannelCount(config.channel_layout());
-  audio_header.samples_per_second = config.samples_per_second();
-  audio_header.average_bytes_per_second = 1;
-  audio_header.block_alignment = 4;
-  audio_header.bits_per_sample = config.bits_per_channel();
-  audio_header.audio_specific_config_size = 0;
-  player_ =
-      SbPlayerCreate(kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
-                     SB_PLAYER_NO_DURATION, NULL, &audio_header,
-                     DeallocateSampleCB, DecoderStatusCB, PlayerStatusCB, this);
+  bool is_encrypted = audio_config.is_encrypted();
+  if (has_video_) {
+    const VideoDecoderConfig& video_config =
+        demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
+    is_encrypted |= video_config.is_encrypted();
+  }
+  if (is_encrypted) {
+    decryptor_ready_cb_.Run(
+        BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDecryptor, this)));
+    return;
+  }
+
+  CreatePlayer(kSbDrmSystemInvalid);
 }
 
 void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
@@ -503,14 +609,11 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     return;
   }
 
+  scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(type);
+
   if (ticket != ticket_) {
     if (status == DemuxerStream::kConfigChanged) {
-      scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(type);
-      if (type == DemuxerStream::AUDIO) {
-        stream->audio_decoder_config();
-      } else {
-        stream->video_decoder_config();
-      }
+      UpdateDecoderConfig(stream);
     }
     return;
   }
@@ -535,15 +638,22 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     return;
   }
 
-  scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(type);
+  if (status == DemuxerStream::kConfigChanged) {
+    NOTIMPLEMENTED() << "Update decoder config";
+    UpdateDecoderConfig(stream);
+    stream->Read(
+        base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type, ticket));
+    return;
+  }
+
+  bool is_encrypted = IsEncrypted(stream);
+  SbDrmSampleInfo drm_info;
+
+  if (is_encrypted) {
+    FillDrmSampleInfo(buffer, &drm_info);
+  }
+
   if (type == DemuxerStream::AUDIO) {
-    if (status == DemuxerStream::kConfigChanged) {
-      NOTIMPLEMENTED() << "Update audio decoder config";
-      stream->audio_decoder_config();
-      stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this,
-                              type, ticket));
-      return;
-    }
     audio_read_in_progress_ = false;
     if (buffer->IsEndOfStream()) {
       SbPlayerWriteEndOfStream(player_, kSbMediaTypeAudio);
@@ -552,36 +662,29 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     DCHECK(decoding_buffers_.find(buffer->GetData()) ==
            decoding_buffers_.end());
     decoding_buffers_[buffer->GetData()] = buffer;
-    SbPlayerWriteSample(
-        player_, kSbMediaTypeAudio, const_cast<uint8*>(buffer->GetData()),
-        buffer->GetDataSize(), TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
-        NULL, NULL);
+    SbPlayerWriteSample(player_, kSbMediaTypeAudio, buffer->GetData(),
+                        buffer->GetDataSize(),
+                        TimeDeltaToSbMediaTime(buffer->GetTimestamp()), NULL,
+                        is_encrypted ? &drm_info : NULL);
     return;
   }
 
-  if (status == DemuxerStream::kConfigChanged) {
-    NOTIMPLEMENTED() << "Update video decoder config";
-    stream->video_decoder_config();
-    stream->Read(
-        base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type, ticket));
-    return;
-  }
   video_read_in_progress_ = false;
   if (buffer->IsEndOfStream()) {
     SbPlayerWriteEndOfStream(player_, kSbMediaTypeAudio);
     return;
   }
-  SbMediaVideoSampleInfo sample_info;
-  NOTIMPLEMENTED() << "Fill sample info";
-  sample_info.is_key_frame = false;
-  sample_info.frame_width = 1;
-  sample_info.frame_height = 1;
+  SbMediaVideoSampleInfo video_info;
+  NOTIMPLEMENTED() << "Fill video_info";
+  video_info.is_key_frame = false;
+  video_info.frame_width = 1;
+  video_info.frame_height = 1;
   DCHECK(decoding_buffers_.find(buffer->GetData()) == decoding_buffers_.end());
   decoding_buffers_[buffer->GetData()] = buffer;
-  SbPlayerWriteSample(
-      player_, kSbMediaTypeVideo, const_cast<uint8*>(buffer->GetData()),
-      buffer->GetDataSize(), TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
-      &sample_info, NULL);
+  SbPlayerWriteSample(player_, kSbMediaTypeVideo, buffer->GetData(),
+                      buffer->GetDataSize(),
+                      TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
+                      &video_info, is_encrypted ? &drm_info : NULL);
 }
 
 void SbPlayerPipeline::OnDecoderStatus(SbMediaType type,
@@ -659,7 +762,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
   }
 }
 
-void SbPlayerPipeline::OnDeallocateSample(void* sample_buffer) {
+void SbPlayerPipeline::OnDeallocateSample(const void* sample_buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(decoding_buffers_.find(sample_buffer) != decoding_buffers_.end());
   decoding_buffers_.erase(decoding_buffers_.find(sample_buffer));
@@ -693,7 +796,7 @@ void SbPlayerPipeline::PlayerStatusCB(SbPlayer player,
 // static
 void SbPlayerPipeline::DeallocateSampleCB(SbPlayer player,
                                           void* context,
-                                          void* sample_buffer) {
+                                          const void* sample_buffer) {
   SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
   DCHECK_EQ(pipeline->player_, player);
   pipeline->message_loop_->PostTask(

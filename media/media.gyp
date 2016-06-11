@@ -699,6 +699,8 @@
             'base/sbplayer_pipeline.cc',
             'base/shell_cached_decoder_buffer.cc',
             'base/shell_cached_decoder_buffer.h',
+            'crypto/starboard_decryptor.cc',
+            'crypto/starboard_decryptor.h',
           ],
           'sources/': [
             ['exclude', '^base/pipeline_impl.cc'],
