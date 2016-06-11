@@ -1498,7 +1498,19 @@ def CalculateVariables(default_variables, params):
     default_variables['SHARED_LIB_SUFFIX'] = '.sprx'
     generator_flags = params.get('generator_flags', {})
 
-  elif (is_windows and flavor in ['wiiu', 'ps4']):
+  elif flavor == 'ps4':
+    if is_windows:
+      # This is required for BuildCygwinBashCommandLine() to work.
+      import gyp.generator.msvs as msvs_generator
+      generator_additional_non_configuration_keys = getattr(msvs_generator,
+          'generator_additional_non_configuration_keys', [])
+      generator_additional_path_sections = getattr(msvs_generator,
+          'generator_additional_path_sections', [])
+
+    default_variables['EXECUTABLE_SUFFIX'] = '.self'
+    default_variables['SHARED_LIB_PREFIX'] = 'lib'
+    default_variables['SHARED_LIB_SUFFIX'] = '.so'
+  elif (is_windows and flavor == 'wiiu'):
     # TODO(***REMOVED***): Can we remove this?
     default_variables.setdefault('OS', 'win')
     default_variables['EXECUTABLE_SUFFIX'] = '.exe'
@@ -1713,7 +1725,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     # Require LD to be set.
     master_ninja.variable('ld', os.environ.get('LD'))
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
-    master_ninja.variable('prx_export_pickup', os.environ['PRX_EXPORT_PICKUP'])
+    if flavor =='ps3':
+      master_ninja.variable('prx_export_pickup', os.environ['PRX_EXPORT_PICKUP'])
     ar_flags = os.environ.get('ARFLAGS', 'rcs')
     master_ninja.variable('arFlags', ar_flags)
     # On the PS3, when we use ps3snarl.exe with a response file, we cannot
