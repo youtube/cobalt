@@ -134,6 +134,7 @@ PipelineImpl::~PipelineImpl() {
 }
 
 void PipelineImpl::Start(scoped_ptr<FilterCollection> collection,
+                         const SetDecryptorReadyCB& decryptor_ready_cb,
                          const PipelineStatusCB& ended_cb,
                          const PipelineStatusCB& error_cb,
                          const PipelineStatusCB& seek_cb,

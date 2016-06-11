@@ -14,9 +14,32 @@
  * limitations under the License.
  */
 
-#include "shell_decryptor_factory.h"
+#include "media/crypto/shell_decryptor_factory.h"
+
+#if defined(OS_STARBOARD)
+#include "media/crypto/starboard_decryptor.h"
+#include "starboard/drm.h"
+#include "starboard/media.h"
+#endif  // defined(OS_STARBOARD)
 
 namespace media {
+
+#if defined(OS_STARBOARD)
+
+// static
+bool ShellDecryptorFactory::Supports(const std::string& key_system) {
+  // TODO: Hook up with codecs.
+  return SbMediaIsSupported(kSbMediaVideoCodecNone, kSbMediaAudioCodecNone,
+                            key_system.c_str());
+}
+
+// static
+Decryptor* ShellDecryptorFactory::Create(const std::string& key_system,
+                                         DecryptorClient* client) {
+  return new StarboardDecryptor(key_system.c_str(), client);
+}
+
+#else  // defined(OS_STARBOARD)
 
 // static
 ShellDecryptorFactory::DecryptorRegistry ShellDecryptorFactory::registry_;
@@ -42,5 +65,7 @@ void ShellDecryptorFactory::RegisterDecryptor(const std::string& key_system,
                                               const CreateCB& create_cb) {
   registry_[key_system] = create_cb;
 }
+
+#endif  // defined(OS_STARBOARD)
 
 }  // namespace media

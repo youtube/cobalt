@@ -1073,19 +1073,15 @@ void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
 void WebMediaPlayerImpl::StartPipeline() {
   state_.starting = true;
 
-#if defined(COBALT_USE_SHELL_PIPELINE)
   SetDecryptorReadyCB set_decryptor_ready_cb;
   if (decryptor_) {
     set_decryptor_ready_cb = base::Bind(&ProxyDecryptor::SetDecryptorReadyCB,
                                         base::Unretained(decryptor_.get()));
   }
-#endif  // defined(COBALT_USE_SHELL_PIPELINE)
 
   pipeline_->Start(
       filter_collection_.Pass(),
-#if defined(COBALT_USE_SHELL_PIPELINE)
       set_decryptor_ready_cb,
-#endif  // defined(COBALT_USE_SHELL_PIPELINE)
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),

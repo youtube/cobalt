@@ -105,15 +105,18 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   //
   // The following permanent callbacks will be executed as follows up until
   // Stop() has completed:
+  //   |decryptor_ready_cb| can be used if Pipeline needs to be notified when
+  //                        the Decryptor is ready.
   //   |ended_cb| will be executed whenever the media reaches the end.
   //   |error_cb| will be executed whenever an error occurs but hasn't
   //              been reported already through another callback.
   //   |buffering_state_cb| Optional callback that will be executed whenever the
-  //                    pipeline's buffering state changes.
+  //                        pipeline's buffering state changes.
   //   |duration_change_cb| optional callback that will be executed whenever the
   //                        presentation duration changes.
   // It is an error to call this method after the pipeline has already started.
   void Start(scoped_ptr<FilterCollection> filter_collection,
+             const SetDecryptorReadyCB& decryptor_ready_cb,
              const PipelineStatusCB& ended_cb,
              const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,

@@ -201,7 +201,7 @@ class PipelineTest : public ::testing::Test {
     }
 
     pipeline_->Start(
-        mocks_->Create().Pass(),
+        mocks_->Create().Pass(), SetDecryptorReadyCB(),
         base::Bind(&CallbackHelper::OnEnded, base::Unretained(&callbacks_)),
         base::Bind(&CallbackHelper::OnError, base::Unretained(&callbacks_)),
         base::Bind(&CallbackHelper::OnStart, base::Unretained(&callbacks_)),
@@ -335,13 +335,13 @@ TEST_F(PipelineTest, NeverInitializes) {
   // InitializationComplete().  StrictMock<> will ensure that the callback is
   // never executed.
   pipeline_->Start(
-        mocks_->Create().Pass(),
-        base::Bind(&CallbackHelper::OnEnded, base::Unretained(&callbacks_)),
-        base::Bind(&CallbackHelper::OnError, base::Unretained(&callbacks_)),
-        base::Bind(&CallbackHelper::OnStart, base::Unretained(&callbacks_)),
-        base::Bind(&CallbackHelper::OnBufferingState,
-                   base::Unretained(&callbacks_)),
-        base::Closure());
+      mocks_->Create().Pass(), SetDecryptorReadyCB(),
+      base::Bind(&CallbackHelper::OnEnded, base::Unretained(&callbacks_)),
+      base::Bind(&CallbackHelper::OnError, base::Unretained(&callbacks_)),
+      base::Bind(&CallbackHelper::OnStart, base::Unretained(&callbacks_)),
+      base::Bind(&CallbackHelper::OnBufferingState,
+                 base::Unretained(&callbacks_)),
+      base::Closure());
   message_loop_.RunUntilIdle();
 
 
@@ -940,7 +940,7 @@ class PipelineTeardownTest : public PipelineTest {
 
     EXPECT_CALL(callbacks_, OnStart(expected_status));
     pipeline_->Start(
-        mocks_->Create().Pass(),
+        mocks_->Create().Pass(), SetDecryptorReadyCB(),
         base::Bind(&CallbackHelper::OnEnded, base::Unretained(&callbacks_)),
         base::Bind(&CallbackHelper::OnError, base::Unretained(&callbacks_)),
         base::Bind(&CallbackHelper::OnStart, base::Unretained(&callbacks_)),
