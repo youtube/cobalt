@@ -164,11 +164,6 @@ class Box : public base::RefCounted<Box> {
   // Used values of "left" and "top" are publicly readable and writable so that
   // they can be calculated and adjusted by the formatting context of
   // the parent box.
-  //
-  // TODO(***REMOVED***): Clean up the semantics of "left" and "top". Currently, they
-  //               refer to an origin of either a parent's content edge
-  //               (for in-flow boxes), or a nearest positioned ancestor's
-  //               padding edge (for out-of-flow boxes).
   void set_left(LayoutUnit left) {
     margin_box_offset_from_containing_block_.set_x(left);
   }
@@ -181,6 +176,31 @@ class Box : public base::RefCounted<Box> {
   LayoutUnit top() const {
     return margin_box_offset_from_containing_block_.y();
   }
+
+  // The following static position functions are only used with absolutely
+  // positioned boxes.
+  // https://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
+
+  // The static position for 'left' is the distance from the left edge of the
+  // containing block to the left margin edge of a hypothetical box that would
+  // have been the first box of the element if its 'position' property had been
+  // 'static' and 'float' had been 'none'. The value is negative if the
+  // hypothetical box is to the left of the containing block.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  void SetStaticPositionLeftFromParent(LayoutUnit left);
+  void SetStaticPositionLeftFromContainingBlockToParent(LayoutUnit left);
+  LayoutUnit GetStaticPositionLeft() const;
+
+  // For the purposes of this section and the next, the term "static position"
+  // (of an element) refers, roughly, to the position an element would have had
+  // in the normal flow. More precisely, the static position for 'top' is the
+  // distance from the top edge of the containing block to the top margin edge
+  // of a hypothetical box that would have been the first box of the element if
+  // its specified 'position' value had been 'static'.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
+  void SetStaticPositionTopFromParent(LayoutUnit top);
+  void SetStaticPositionTopFromContainingBlockToParent(LayoutUnit top);
+  LayoutUnit GetStaticPositionTop() const;
 
   // Each box has a content area and optional surrounding padding, border,
   // and margin areas.
@@ -371,7 +391,8 @@ class Box : public base::RefCounted<Box> {
   virtual bool ValidateUpdateSizeInputs(const LayoutParams& params);
 
   // updates the boxes so that they can be reused for layout.
-  virtual void InvalidateUpdateSizeInputsOfBoxAndDescendants();
+  void InvalidateUpdateSizeInputsOfBox();
+  void InvalidateUpdateSizeInputsOfBoxAndAncestors();
 
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
@@ -632,6 +653,26 @@ class Box : public base::RefCounted<Box> {
 
   // Used values of "left" and "top" properties.
   Vector2dLayoutUnit margin_box_offset_from_containing_block_;
+
+  // The following static position variables are only used with absolutely
+  // positioned boxes.
+  // https://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
+  // The static position for 'left' is the distance from the left edge of the
+  // containing block to the left margin edge of a hypothetical box that would
+  // have been the first box of the element if its 'position' property had been
+  // 'static' and 'float' had been 'none'. The value is negative if the
+  // hypothetical box is to the left of the containing block.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  // For the purposes of this section and the next, the term "static position"
+  // (of an element) refers, roughly, to the position an element would have had
+  // in the normal flow. More precisely, the static position for 'top' is the
+  // distance from the top edge of the containing block to the top margin edge
+  // of a hypothetical box that would have been the first box of the element if
+  // its specified 'position' value had been 'static'.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
+  Vector2dLayoutUnit static_position_offset_from_parent_;
+  Vector2dLayoutUnit static_position_offset_from_containing_block_to_parent_;
+
   // Used values of "margin-left", "margin-top", "margin-right",
   // and "margin-bottom".
   InsetsLayoutUnit margin_insets_;
