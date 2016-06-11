@@ -37,7 +37,7 @@ class VideoRenderer : private VideoDecoder::Host {
 
   bool is_valid() const { return true; }
 
-  void WriteSample(InputBuffer* input_buffer);
+  void WriteSample(const InputBuffer& input_buffer);
   void WriteEndOfStream();
 
   void Seek(SbMediaTime seek_to_pts);

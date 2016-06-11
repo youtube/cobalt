@@ -32,9 +32,8 @@ class AudioDecoder {
   virtual ~AudioDecoder() {}
 
   // Decode the encoded audio data stored in |input_buffer| and store the
-  // result in |output|.  After this call, the VideoDecoder instance owns
-  // |input_buffer| and will delete it once finished using it.
-  virtual void Decode(InputBuffer* input_buffer,
+  // result in |output|.
+  virtual void Decode(const InputBuffer& input_buffer,
                       std::vector<float>* output) = 0;
   // Note that there won't be more input data unless Reset() is called.
   virtual void WriteEndOfStream() = 0;

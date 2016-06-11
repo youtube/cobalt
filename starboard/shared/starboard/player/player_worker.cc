@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_decoder_internal.h"
@@ -30,9 +31,8 @@ namespace player {
 PlayerWorker::PlayerWorker(Host* host,
                            SbMediaVideoCodec video_codec,
                            SbMediaAudioCodec audio_codec,
-                           SbDrmSession drm,
+                           SbDrmSystem drm_system,
                            const SbMediaAudioHeader& audio_header,
-                           SbPlayerDeallocateSampleFunc sample_deallocate_func,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
                            SbPlayer player,
@@ -40,8 +40,8 @@ PlayerWorker::PlayerWorker(Host* host,
     : host_(host),
       video_codec_(video_codec),
       audio_codec_(audio_codec),
+      drm_system_(drm_system),
       audio_header_(audio_header),
-      sample_deallocate_func_(sample_deallocate_func),
       decoder_status_func_(decoder_status_func),
       player_status_func_(player_status_func),
       player_(player),
@@ -97,7 +97,13 @@ void PlayerWorker::RunLoop() {
     if (event->type == Event::kSeek) {
       running &= ProcessSeekEvent(event->data.seek);
     } else if (event->type == Event::kWriteSample) {
-      running &= ProcessWriteSampleEvent(event->data.write_sample);
+      bool retry;
+      running &= ProcessWriteSampleEvent(event->data.write_sample, &retry);
+      if (retry && running) {
+        EnqueueEvent(event->data.write_sample);
+      } else {
+        delete event->data.write_sample.input_buffer;
+      }
     } else if (event->type == Event::kWriteEndOfStream) {
       running &= ProcessWriteEndOfStreamEvent(event->data.write_end_of_stream);
     } else if (event->type == Event::kSetPause) {
@@ -157,16 +163,19 @@ bool PlayerWorker::ProcessSeekEvent(const SeekEventData& data) {
   return true;
 }
 
-bool PlayerWorker::ProcessWriteSampleEvent(const WriteSampleEventData& data) {
+bool PlayerWorker::ProcessWriteSampleEvent(const WriteSampleEventData& data,
+                                           bool* retry) {
+  SB_DCHECK(retry != NULL);
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
   SB_DCHECK(player_state_ != kSbPlayerStateError);
+
+  *retry = false;
 
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream ||
       player_state_ == kSbPlayerStateError) {
     SB_LOG(ERROR) << "Try to write sample when |player_state_| is "
                   << player_state_;
-    DeallocateSample(data.sample_buffer);
     // Return true so the pipeline will continue running with the particular
     // call ignored.
     return true;
@@ -178,10 +187,17 @@ bool PlayerWorker::ProcessWriteSampleEvent(const WriteSampleEventData& data) {
     } else {
       SB_DCHECK(audio_renderer_->CanAcceptMoreData());
 
-      InputBuffer* input_buffer = new InputBuffer(
-          sample_deallocate_func_, player_, context_, data.sample_buffer,
-          data.sample_buffer_size, data.sample_pts, NULL, NULL);
-      audio_renderer_->WriteSample(input_buffer);
+      if (data.input_buffer->drm_info()) {
+        if (!SbDrmSystemIsValid(drm_system_)) {
+          return false;
+        }
+        if (drm_system_->Decrypt(data.input_buffer) ==
+            SbDrmSystemPrivate::kRetry) {
+          *retry = true;
+          return true;
+        }
+      }
+      audio_renderer_->WriteSample(*data.input_buffer);
       if (audio_renderer_->CanAcceptMoreData()) {
         audio_decoder_state_ = kSbPlayerDecoderStateNeedsData;
       } else {
@@ -195,10 +211,17 @@ bool PlayerWorker::ProcessWriteSampleEvent(const WriteSampleEventData& data) {
       SB_LOG(WARNING) << "Try to write video sample after EOS is reached";
     } else {
       SB_DCHECK(video_renderer_->CanAcceptMoreData());
-      InputBuffer* input_buffer = new InputBuffer(
-          sample_deallocate_func_, player_, context_, data.sample_buffer,
-          data.sample_buffer_size, data.sample_pts, NULL, NULL);
-      video_renderer_->WriteSample(input_buffer);
+      if (data.input_buffer->drm_info()) {
+        if (!SbDrmSystemIsValid(drm_system_)) {
+          return false;
+        }
+        if (drm_system_->Decrypt(data.input_buffer) ==
+            SbDrmSystemPrivate::kRetry) {
+          *retry = true;
+          return true;
+        }
+      }
+      video_renderer_->WriteSample(*data.input_buffer);
       if (video_renderer_->CanAcceptMoreData()) {
         video_decoder_state_ = kSbPlayerDecoderStateNeedsData;
       } else {
@@ -327,12 +350,6 @@ void PlayerWorker::ProcessStopEvent() {
   shared::starboard::Application::Get()->HandleFrame(VideoFrame());
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
   UpdatePlayerState(kSbPlayerStateDestroyed);
-}
-
-void PlayerWorker::DeallocateSample(void* sample_buffer) {
-  if (sample_deallocate_func_) {
-    sample_deallocate_func_(player_, context_, sample_buffer);
-  }
 }
 
 void PlayerWorker::UpdateDecoderState(SbMediaType type) {

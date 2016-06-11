@@ -129,7 +129,7 @@ typedef void (*SbPlayerStatusFunc)(SbPlayer player,
 // Callback to free the given sample buffer data.
 typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
                                              void* context,
-                                             void* sample_buffer);
+                                             const void* sample_buffer);
 
 #if SB_IS(PLAYER_COMPOSITED)
 // A handle that can be used to compose a player's video output with other
@@ -169,9 +169,9 @@ SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // |duration_pts| is the expected media duration in 90KHz ticks (PTS). It may be
 // set to SB_PLAYER_NO_DURATION for live streams.
 //
-// If the media stream has encrypted portions, then an appropriate DRM session
-// must first be created with SbDrmCreateSession() and passed into |drm|. If
-// not, then |drm| may be SB_DRM_INVALID_SESSION.
+// If the media stream has encrypted portions, then an appropriate DRM system
+// must first be created with SbDrmCreateSystem() and passed into |drm_system|.
+// If not, then |drm_system| may be kSbDrmSystemInvalid.
 //
 // If |audio_codec| is kSbMediaAudioCodecAac, then the caller must provide a
 // populated |audio_header|. Otherwise, this may be NULL.
@@ -205,8 +205,8 @@ SB_EXPORT SbPlayer
 SbPlayerCreate(SbMediaVideoCodec video_codec,
                SbMediaAudioCodec audio_codec,
                SbMediaTime duration_pts,
-               SbDrmSession drm,
-               SbMediaAudioHeader* audio_header,
+               SbDrmSystem drm_system,
+               const SbMediaAudioHeader* audio_header,
                SbPlayerDeallocateSampleFunc sample_deallocate_func,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
@@ -259,13 +259,14 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 // past the call to SbPlayerWriteSample, so the implementation must copy any
 // information it wants to retain from those structures synchronously, before it
 // returns.
-SB_EXPORT void SbPlayerWriteSample(SbPlayer player,
-                                   SbMediaType sample_type,
-                                   void* sample_buffer,
-                                   int sample_buffer_size,
-                                   SbMediaTime sample_pts,
-                                   SbMediaVideoSampleInfo* video_sample_info,
-                                   SbDrmSampleInfo* sample_drm_info);
+SB_EXPORT void SbPlayerWriteSample(
+    SbPlayer player,
+    SbMediaType sample_type,
+    const void* sample_buffer,
+    int sample_buffer_size,
+    SbMediaTime sample_pts,
+    const SbMediaVideoSampleInfo* video_sample_info,
+    const SbDrmSampleInfo* sample_drm_info);
 
 // Writes a marker to |player|'s input stream of |stream_type| that there are no
 // more samples for that media type for the remainder of this media stream.

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
+#include "starboard/drm.h"
 
-#include "starboard/shared/starboard/player/player_internal.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 
-void SbPlayerDestroy(SbPlayer player) {
-  if (!SbPlayerIsValid(player)) {
-    return;
+void SbDrmDestroySystem(SbDrmSystem drm_system) {
+  if (SbDrmSystemIsValid(drm_system)) {
+    delete drm_system;
   }
-  delete player;
 }
