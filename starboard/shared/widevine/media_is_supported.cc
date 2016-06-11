@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
+#include "starboard/media.h"
 
-#include "starboard/shared/starboard/player/player_internal.h"
+#include "starboard/string.h"
 
-void SbPlayerDestroy(SbPlayer player) {
-  if (!SbPlayerIsValid(player)) {
-    return;
-  }
-  delete player;
+SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
+                                  SbMediaAudioCodec audio_codec,
+                                  const char* key_system) {
+  return SbStringCompareAll(key_system, "com.widevine") == 0 ||
+         SbStringCompareAll(key_system, "com.widevine.alpha") == 0;
 }

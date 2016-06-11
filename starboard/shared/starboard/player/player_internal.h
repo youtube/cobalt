@@ -28,20 +28,20 @@ struct SbPlayerPrivate
   SbPlayerPrivate(SbMediaVideoCodec video_codec,
                   SbMediaAudioCodec audio_codec,
                   SbMediaTime duration_pts,
-                  SbDrmSession drm,
-                  SbMediaAudioHeader* audio_header,
-                  SbPlayerDeallocateSampleFunc sample_deallocator_func,
+                  SbDrmSystem drm_system,
+                  const SbMediaAudioHeader* audio_header,
+                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
                   SbPlayerDecoderStatusFunc decoder_status_func,
                   SbPlayerStatusFunc player_status_func,
                   void* context);
 
   void Seek(SbMediaTime seek_to_pts, int ticket);
   void WriteSample(SbMediaType sample_type,
-                   void* sample_buffer,
+                   const void* sample_buffer,
                    int sample_buffer_size,
                    SbMediaTime sample_pts,
-                   SbMediaVideoSampleInfo* video_sample_info,
-                   SbDrmSampleInfo* sample_drm_info);
+                   const SbMediaVideoSampleInfo* video_sample_info,
+                   const SbDrmSampleInfo* sample_drm_info);
   void WriteEndOfStream(SbMediaType stream_type);
   void GetInfo(SbPlayerInfo* out_player_info);
   void SetPause(bool pause);
@@ -50,6 +50,9 @@ struct SbPlayerPrivate
  private:
   // PlayerWorker::Host methods.
   void UpdateMediaTime(SbMediaTime media_time, int ticket) SB_OVERRIDE;
+
+  SbPlayerDeallocateSampleFunc sample_deallocate_func_;
+  void* context_;
 
   starboard::Mutex mutex_;
   int ticket_;

@@ -38,7 +38,7 @@ class VideoDecoder : public starboard::player::VideoDecoder {
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
-  void WriteInputBuffer(InputBuffer* input_buffer) SB_OVERRIDE;
+  void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
 
@@ -53,16 +53,14 @@ class VideoDecoder : public starboard::player::VideoDecoder {
   struct Event {
     EventType type;
     // |input_buffer| is only used when |type| is kWriteInputBuffer.
-    InputBuffer* input_buffer;
+    InputBuffer input_buffer;
 
-    explicit Event(EventType type = kInvalid, InputBuffer* input_buffer = NULL)
-        : type(type), input_buffer(input_buffer) {
-      if (input_buffer) {
-        SB_DCHECK(type == kWriteInputBuffer);
-      } else {
-        SB_DCHECK(type != kWriteInputBuffer);
-      }
+    explicit Event(EventType type = kInvalid) : type(type) {
+      SB_DCHECK(type != kWriteInputBuffer);
     }
+
+    explicit Event(InputBuffer input_buffer)
+        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 
   static void* ThreadEntryPoint(void* context);

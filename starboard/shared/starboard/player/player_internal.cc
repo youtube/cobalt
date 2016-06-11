@@ -16,6 +16,7 @@
 
 #include "starboard/log.h"
 
+using starboard::shared::starboard::player::InputBuffer;
 using starboard::shared::starboard::player::PlayerWorker;
 
 namespace {
@@ -31,13 +32,15 @@ SbPlayerPrivate::SbPlayerPrivate(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbMediaTime duration_pts,
-    SbDrmSession drm,
-    SbMediaAudioHeader* audio_header,
-    SbPlayerDeallocateSampleFunc sample_deallocator_func,
+    SbDrmSystem drm_system,
+    const SbMediaAudioHeader* audio_header,
+    SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     void* context)
-    : ticket_(SB_PLAYER_INITIAL_TICKET),
+    : sample_deallocate_func_(sample_deallocate_func),
+      context_(context),
+      ticket_(SB_PLAYER_INITIAL_TICKET),
       duration_pts_(duration_pts),
       media_pts_(0),
       media_pts_update_time_(SbTimeGetMonotonicNow()),
@@ -48,9 +51,8 @@ SbPlayerPrivate::SbPlayerPrivate(
       worker_(this,
               video_codec,
               audio_codec,
-              drm,
+              drm_system,
               *audio_header,
-              sample_deallocator_func,
               decoder_status_func,
               player_status_func,
               this,
@@ -69,20 +71,17 @@ void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
   worker_.EnqueueEvent(data);
 }
 
-void SbPlayerPrivate::WriteSample(SbMediaType sample_type,
-                                  void* sample_buffer,
-                                  int sample_buffer_size,
-                                  SbMediaTime sample_pts,
-                                  SbMediaVideoSampleInfo* video_sample_info,
-                                  SbDrmSampleInfo* sample_drm_info) {
-  PlayerWorker::WriteSampleEventData data = {sample_type, sample_buffer,
-                                             sample_buffer_size, sample_pts};
-  if (video_sample_info) {
-    data.video_sample_info = *video_sample_info;
-  }
-  if (sample_drm_info) {
-    data.sample_drm_info = *sample_drm_info;
-  }
+void SbPlayerPrivate::WriteSample(
+    SbMediaType sample_type,
+    const void* sample_buffer,
+    int sample_buffer_size,
+    SbMediaTime sample_pts,
+    const SbMediaVideoSampleInfo* video_sample_info,
+    const SbDrmSampleInfo* sample_drm_info) {
+  InputBuffer* input_buffer = new InputBuffer(
+      sample_deallocate_func_, this, context_, sample_buffer,
+      sample_buffer_size, sample_pts, video_sample_info, sample_drm_info);
+  PlayerWorker::WriteSampleEventData data = {sample_type, input_buffer};
   worker_.EnqueueEvent(data);
 }
 

@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides definitions useful for working with SbOnce implemented using
-// SbAtomic32.
-
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 
-#include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -28,8 +24,14 @@ namespace shared {
 namespace starboard {
 namespace player {
 
+// This class encapsulate a media buffer.  It holds a reference-counted object
+// internally to ensure that the object of this class can be copied while the
+// underlying resources allocated is properly managed.
+// Note that pass this class as const reference doesn't guarantee that the
+// content of the internal buffer won't be changed.
 class InputBuffer {
  public:
+  InputBuffer();
   InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
               void* context,
@@ -37,48 +39,23 @@ class InputBuffer {
               int sample_buffer_size,
               SbMediaTime sample_pts,
               const SbMediaVideoSampleInfo* video_sample_info,
-              const SbDrmSampleInfo* sample_drm_info)
-      : deallocate_sample_func_(deallocate_sample_func),
-        player_(player),
-        context_(context),
-        data_(reinterpret_cast<const uint8_t*>(sample_buffer)),
-        size_(sample_buffer_size),
-        pts_(sample_pts),
-        has_video_sample_info_(video_sample_info != NULL),
-        has_drm_info_(sample_drm_info != NULL) {
-    SB_DCHECK(deallocate_sample_func);
-    if (has_video_sample_info_) {
-      video_sample_info_ = *video_sample_info;
-    }
-    if (has_drm_info_) {
-      drm_info_ = *sample_drm_info;
-    }
-  }
-  ~InputBuffer() {
-    deallocate_sample_func_(player_, context_, const_cast<uint8_t*>(data_));
-  }
+              const SbDrmSampleInfo* sample_drm_info);
+  InputBuffer(const InputBuffer& that);
+  ~InputBuffer();
 
-  const uint8_t* data() const { return data_; }
-  int size() const { return size_; }
-  SbMediaTime pts() const { return pts_; }
-  const SbMediaVideoSampleInfo* video_sample_info() const {
-    return has_video_sample_info_ ? &video_sample_info_ : NULL;
-  }
-  const SbDrmSampleInfo* drm_info() const {
-    return has_drm_info_ ? &drm_info_ : NULL;
-  }
+  InputBuffer& operator=(const InputBuffer& that);
+
+  const uint8_t* data() const;
+  int size() const;
+  SbMediaTime pts() const;
+  const SbMediaVideoSampleInfo* video_sample_info() const;
+  const SbDrmSampleInfo* drm_info() const;
+  void SetDecryptedContent(const void* buffer, int size);
 
  private:
-  SbPlayerDeallocateSampleFunc deallocate_sample_func_;
-  SbPlayer player_;
-  void* context_;
-  const uint8_t* data_;
-  int size_;
-  SbMediaTime pts_;
-  bool has_video_sample_info_;
-  SbMediaVideoSampleInfo video_sample_info_;
-  bool has_drm_info_;
-  SbDrmSampleInfo drm_info_;
+  class ReferenceCountedBuffer;
+
+  ReferenceCountedBuffer* buffer_;
 };
 
 }  // namespace player
