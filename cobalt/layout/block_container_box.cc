@@ -339,7 +339,7 @@ void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
     set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
 
     // Then set "left" to the static position...
-    // Nothing to do, "left" was set by the parent box.
+    set_left(GetStaticPositionLeft());
 
     // ...and apply rule number three (the width is shrink-to-fit).
     set_width(GetShrinkToFitWidth(containing_block_width, maybe_height));
@@ -404,7 +404,7 @@ void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
   if (!maybe_left && !maybe_right && maybe_width) {
     set_width(*maybe_width);
     // ...then set "left" to the static position.
-    // Nothing to do, "left" was set by the parent box.
+    set_left(GetStaticPositionLeft());
     DCHECK_EQ(left(), left());  // Check for NaN.
     return;
   }
@@ -465,7 +465,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
     set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
 
     // Then set "top" to the static position...
-    // Nothing to do, "top" was set by the parent box.
+    set_top(GetStaticPositionTop());
     DCHECK_EQ(top(), top());  // Check for NaN.
 
     // ...and apply rule number three (the height is based on the content).
@@ -524,7 +524,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
   if (!maybe_top && !maybe_bottom && maybe_height) {
     set_height(*maybe_height);
     // ...then set "top" to the static position.
-    // Nothing to do, "top" was set by the parent box.
+    set_top(GetStaticPositionTop());
     DCHECK_EQ(top(), top());  // Check for NaN.
     return;
   }

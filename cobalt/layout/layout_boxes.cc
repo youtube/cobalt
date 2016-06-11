@@ -137,6 +137,17 @@ float LayoutBoxes::GetPaddingEdgeHeight() const {
   return boxes_.front()->GetPaddingBoxHeight().toFloat();
 }
 
+void LayoutBoxes::InvalidateSizes() {
+  for (Boxes::const_iterator box_iterator = boxes_.begin();
+       box_iterator != boxes_.end(); ++box_iterator) {
+    Box* box = *box_iterator;
+    do {
+      box->InvalidateUpdateSizeInputsOfBoxAndAncestors();
+      box = box->GetSplitSibling();
+    } while (box != NULL);
+  }
+}
+
 math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
   // In the CSSOM View extensions to the HTMLElement interface, at
   // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface,
