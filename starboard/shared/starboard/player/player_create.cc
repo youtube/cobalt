@@ -20,8 +20,8 @@
 SbPlayer SbPlayerCreate(SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
                         SbMediaTime duration_pts,
-                        SbDrmSession drm,
-                        SbMediaAudioHeader* audio_header,
+                        SbDrmSystem drm_system,
+                        const SbMediaAudioHeader* audio_header,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
@@ -41,7 +41,7 @@ SbPlayer SbPlayerCreate(SbMediaVideoCodec video_codec,
     return kSbPlayerInvalid;
   }
 
-  return new SbPlayerPrivate(video_codec, audio_codec, duration_pts, drm,
+  return new SbPlayerPrivate(video_codec, audio_codec, duration_pts, drm_system,
                              audio_header, sample_deallocate_func,
                              decoder_status_func, player_status_func, context);
 }

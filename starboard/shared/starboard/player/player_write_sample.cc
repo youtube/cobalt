@@ -19,11 +19,11 @@
 
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
-                         void* sample_buffer,
+                         const void* sample_buffer,
                          int sample_buffer_size,
                          SbMediaTime sample_pts,
-                         SbMediaVideoSampleInfo* video_sample_info,
-                         SbDrmSampleInfo* sample_drm_info) {
+                         const SbMediaVideoSampleInfo* video_sample_info,
+                         const SbDrmSampleInfo* sample_drm_info) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
     return;

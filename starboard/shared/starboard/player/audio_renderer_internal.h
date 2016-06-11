@@ -38,7 +38,7 @@ class AudioRenderer {
 
   bool is_valid() const { return true; }
 
-  void WriteSample(InputBuffer* input_buffer);
+  void WriteSample(const InputBuffer& input_buffer);
   void WriteEndOfStream();
 
   void Play();

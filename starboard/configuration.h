@@ -182,6 +182,12 @@ struct CompileAssert {};
 #endif  // SB_IS(COMPILER_MSVC)
 #endif  // !defined(SB_UNLIKELY)
 
+// A macro to disallow the copy constructor and operator= functions
+// This should be used in the private: declarations for a class
+#define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&);                  \
+  void operator=(const TypeName&)
+
 // An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
 // passing pixel data from one library to another.  Note that these definitions
