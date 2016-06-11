@@ -48,11 +48,7 @@ class PlayerWorker {
 
   struct WriteSampleEventData {
     SbMediaType sample_type;
-    void* sample_buffer;
-    int sample_buffer_size;
-    SbMediaTime sample_pts;
-    SbMediaVideoSampleInfo video_sample_info;
-    SbDrmSampleInfo sample_drm_info;
+    InputBuffer* input_buffer;
   };
 
   struct WriteEndOfStreamEventData {
@@ -112,9 +108,8 @@ class PlayerWorker {
   PlayerWorker(Host* host,
                SbMediaVideoCodec video_codec,
                SbMediaAudioCodec audio_codec,
-               SbDrmSession drm,
+               SbDrmSystem drm_system,
                const SbMediaAudioHeader& audio_header,
-               SbPlayerDeallocateSampleFunc sample_deallocate_func,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
                SbPlayer player,
@@ -132,13 +127,12 @@ class PlayerWorker {
 
   bool ProcessInitEvent();
   bool ProcessSeekEvent(const SeekEventData& data);
-  bool ProcessWriteSampleEvent(const WriteSampleEventData& data);
+  bool ProcessWriteSampleEvent(const WriteSampleEventData& data, bool* retry);
   bool ProcessWriteEndOfStreamEvent(const WriteEndOfStreamEventData& data);
   bool ProcessSetPauseEvent(const SetPauseEventData& data);
   bool ProcessUpdateEvent();
   void ProcessStopEvent();
 
-  void DeallocateSample(void* sample_buffer);
   void UpdateDecoderState(SbMediaType type);
   void UpdatePlayerState(SbPlayerState player_state);
 
@@ -149,8 +143,8 @@ class PlayerWorker {
 
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;
+  SbDrmSystem drm_system_;
   SbMediaAudioHeader audio_header_;
-  SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   SbPlayerDecoderStatusFunc decoder_status_func_;
   SbPlayerStatusFunc player_status_func_;
   SbPlayer player_;

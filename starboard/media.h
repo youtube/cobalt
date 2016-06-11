@@ -196,12 +196,13 @@ typedef struct SbMediaAudioHeader {
 // --- Functions -------------------------------------------------------------
 
 // Returns whether decoding |video_codec|, |audio_codec|, and decrypting using
-// |key_system| is supported together by this platform. If true, and if
-// |out_capabilities| is not NULL, this function will fill out the
-// |out_capabilities| structure as best as it can.
+// |key_system| is supported together by this platform.  If |video_codec| is
+// kSbMediaVideoCodecNone or |audio_codec| is kSbMediaAudioCodecNone, this
+// function should return true if |key_system| is supported on the platform to
+// decode any supported input formats.
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
-                                  SbDrmKeySystem key_system);
+                                  const char* key_system);
 
 // Returns whether a given combination of |frame_width| x |frame_height| frames
 // at |bitrate| and |fps| is supported on this platform with |video_codec|. If

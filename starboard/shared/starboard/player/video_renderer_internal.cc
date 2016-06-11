@@ -35,15 +35,12 @@ VideoRenderer::~VideoRenderer() {
   delete decoder_;
 }
 
-void VideoRenderer::WriteSample(InputBuffer* input_buffer) {
-  SB_DCHECK(input_buffer != NULL);
-
+void VideoRenderer::WriteSample(const InputBuffer& input_buffer) {
   ScopedLock lock(mutex_);
 
   if (end_of_stream_written_) {
-    SB_LOG(ERROR) << "Appending video sample at " << input_buffer->pts()
+    SB_LOG(ERROR) << "Appending video sample at " << input_buffer.pts()
                   << " after EOS reached.";
-    delete input_buffer;
     return;
   }
   need_more_input_ = false;

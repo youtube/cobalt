@@ -115,14 +115,12 @@ void VideoDecoder::SetHost(Host* host) {
   host_ = host;
 }
 
-void VideoDecoder::WriteInputBuffer(InputBuffer* input_buffer) {
-  SB_DCHECK(input_buffer != NULL);
+void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
   SB_DCHECK(queue_.Poll().type == kInvalid);
   SB_DCHECK(host_ != NULL);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
-    delete input_buffer;
     return;
   }
 
@@ -133,7 +131,7 @@ void VideoDecoder::WriteInputBuffer(InputBuffer* input_buffer) {
     SB_DCHECK(SbThreadIsValid(decoder_thread_));
   }
 
-  queue_.Put(Event(kWriteInputBuffer, input_buffer));
+  queue_.Put(Event(input_buffer));
 }
 
 void VideoDecoder::WriteEndOfStream() {
@@ -179,13 +177,12 @@ void VideoDecoder::DecoderThreadFunc() {
       // Send |input_buffer| to ffmpeg and try to decode one frame.
       AVPacket packet;
       av_init_packet(&packet);
-      packet.data = const_cast<uint8_t*>(event.input_buffer->data());
-      packet.size = event.input_buffer->size();
-      packet.pts = event.input_buffer->pts();
+      packet.data = const_cast<uint8_t*>(event.input_buffer.data());
+      packet.size = event.input_buffer.size();
+      packet.pts = event.input_buffer.pts();
 
       DecodePacket(&packet);
       host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
-      delete event.input_buffer;
     } else {
       SB_DCHECK(event.type == kWriteEndOfStream);
       // Stream has ended, try to decode any frames left in ffmpeg.
