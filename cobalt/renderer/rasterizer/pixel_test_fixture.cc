@@ -81,7 +81,7 @@ FilePath GetTestInputDirectory() {
 
 }  // namespace
 
-PixelTest::PixelTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {
+PixelTest::PixelTest() {
   // Create a render tree pixel tester object based on options specified
   // by command-line parameters and compile time constants defined in this
   // file.
