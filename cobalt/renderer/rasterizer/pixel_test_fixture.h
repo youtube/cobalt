@@ -18,7 +18,6 @@
 #define COBALT_RENDERER_RASTERIZER_PIXEL_TEST_FIXTURE_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
 #include "base/optional.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/node.h"
@@ -53,9 +52,6 @@ class PixelTest : public testing::Test {
  private:
   base::optional<RenderTreePixelTester> pixel_tester_;
   math::Size output_surface_size_;
-
-  // Include a message loop since fonts require it.
-  MessageLoop message_loop_;
 };
 
 }  // namespace rasterizer

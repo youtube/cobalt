@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "base/message_loop.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -75,9 +74,6 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   // results.  This is to trigger any lazy initialization that may need to
   // be done.
   base::debug::TraceLog::GetInstance()->SetEnabled(false);
-
-  // Include a message loop since fonts require it.
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
 
   // Setup our graphics system.
   scoped_ptr<GraphicsSystem> graphics_system =
