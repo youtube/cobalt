@@ -73,12 +73,50 @@ struct HtmlElementCountLog {
   }
 
   int count;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(HtmlElementCountLog);
 };
 
-base::LazyInstance<HtmlElementCountLog> html_element_count_log =
+struct NonTrivialStaticFields {
+  NonTrivialStaticFields() {
+    // Load |layout_box_invalidation_property_checker| with all of the
+    // properties that can cause layout boxes to need to be invalidated.
+    // TODO(***REMOVED***): Only invalidate layout boxes when a property that is used
+    // for box generation is modified. We currently have to also invalidate when
+    // any inheritable property is modified, because AnonymousBlockBox and
+    // TextBox use GetComputedStyleOfAnonymousBox() to store a copy of them that
+    // won't automatically get updated when the style() in a
+    // CSSComputedStyleDeclaration gets updated.
+    cssom::PropertyKeyVector layout_box_invalidation_properties;
+    layout_box_invalidation_properties.push_back(cssom::kDisplayProperty);
+    layout_box_invalidation_properties.push_back(cssom::kContentProperty);
+    layout_box_invalidation_properties.push_back(cssom::kColorProperty);
+    layout_box_invalidation_properties.push_back(cssom::kFontFamilyProperty);
+    layout_box_invalidation_properties.push_back(cssom::kFontSizeProperty);
+    layout_box_invalidation_properties.push_back(cssom::kFontStyleProperty);
+    layout_box_invalidation_properties.push_back(cssom::kFontWeightProperty);
+    layout_box_invalidation_properties.push_back(cssom::kLineHeightProperty);
+    layout_box_invalidation_properties.push_back(cssom::kOverflowWrapProperty);
+    layout_box_invalidation_properties.push_back(cssom::kPositionProperty);
+    layout_box_invalidation_properties.push_back(cssom::kTextAlignProperty);
+    layout_box_invalidation_properties.push_back(cssom::kTextIndentProperty);
+    layout_box_invalidation_properties.push_back(cssom::kTextShadowProperty);
+    layout_box_invalidation_properties.push_back(cssom::kTextTransformProperty);
+    layout_box_invalidation_properties.push_back(cssom::kVisibilityProperty);
+    layout_box_invalidation_properties.push_back(cssom::kWhiteSpaceProperty);
+    layout_box_invalidation_property_checker =
+        cssom::CSSComputedStyleData::PropertySetMatcher(
+            layout_box_invalidation_properties);
+  }
+
+  cssom::CSSComputedStyleData::PropertySetMatcher
+      layout_box_invalidation_property_checker;
+
+  HtmlElementCountLog html_element_count_log;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
+};
+
+base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
     LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
@@ -610,10 +648,12 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
       matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
-  ++(html_element_count_log.Get().count);
+  ++(non_trivial_static_fields.Get().html_element_count_log.count);
 }
 
-HTMLElement::~HTMLElement() { --(html_element_count_log.Get().count); }
+HTMLElement::~HTMLElement() {
+  --(non_trivial_static_fields.Get().html_element_count_log.count);
+}
 
 void HTMLElement::CopyDirectionality(const HTMLElement& other) {
   directionality_ = other.directionality_;
@@ -706,43 +746,10 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
 bool NewComputedStyleInvalidatesLayoutBoxes(
     const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
     const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
-  // FIXE(***REMOVED***): Only invalidate layout boxes when a property that is used for
-  // box generation is modified. We currently have to also invalidate when any
-  // inheritable property is modified, because AnonymousBlockBox and TextBox use
-  // GetComputedStyleOfAnonymousBox() to store a copy of them that won't
-  // automatically get updated when the style() in a CSSComputedStyleDeclaration
-  // gets updated.
-  return !old_computed_style->display()->Equals(
-             *new_computed_style->display()) ||
-         !old_computed_style->content()->Equals(
-             *new_computed_style->content()) ||
-         !old_computed_style->color()->Equals(*new_computed_style->color()) ||
-         !old_computed_style->font_family()->Equals(
-             *new_computed_style->font_family()) ||
-         !old_computed_style->font_size()->Equals(
-             *new_computed_style->font_size()) ||
-         !old_computed_style->font_style()->Equals(
-             *new_computed_style->font_style()) ||
-         !old_computed_style->font_weight()->Equals(
-             *new_computed_style->font_weight()) ||
-         !old_computed_style->line_height()->Equals(
-             *new_computed_style->line_height()) ||
-         !old_computed_style->overflow_wrap()->Equals(
-             *new_computed_style->overflow_wrap()) ||
-         !old_computed_style->position()->Equals(
-             *new_computed_style->position()) ||
-         !old_computed_style->text_align()->Equals(
-             *new_computed_style->text_align()) ||
-         !old_computed_style->text_indent()->Equals(
-             *new_computed_style->text_indent()) ||
-         !old_computed_style->text_shadow()->Equals(
-             *new_computed_style->text_shadow()) ||
-         !old_computed_style->text_transform()->Equals(
-             *new_computed_style->text_transform()) ||
-         !old_computed_style->visibility()->Equals(
-             *new_computed_style->visibility()) ||
-         !old_computed_style->white_space()->Equals(
-             *new_computed_style->white_space());
+  return !non_trivial_static_fields.Get()
+              .layout_box_invalidation_property_checker
+              .DoDeclaredPropertiesMatch(old_computed_style,
+                                         new_computed_style);
 }
 
 }  // namespace
