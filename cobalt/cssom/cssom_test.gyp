@@ -24,6 +24,7 @@
         'cascade_precedence_test.cc',
         'cascaded_style_test.cc',
         'computed_style_test.cc',
+        'css_computed_style_data_property_set_matcher_test.cc',
         'css_computed_style_data_test.cc',
         'css_declared_style_data_test.cc',
         'css_font_face_declaration_data_test.cc',
