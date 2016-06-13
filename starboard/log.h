@@ -263,12 +263,11 @@ class LogMessageVoidify {
 #else  // __cplusplus
 // We also provide a very small subset for straight-C users.
 
+#define SB_NOTIMPLEMENTED_IN(X) "Not implemented reached in " #X
 #if SB_IS(COMPILER_GCC)
-#define STR(X) #X
-#define SB_NOTIMPLEMENTED_MSG                             \
-  "Not implemented reached in " STR(__PRETTY_FUNCTION__)
+#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(__PRETTY_FUNCTION__)
 #else
-#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " __FUNCTION__
+#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(__FUNCTION__)
 #endif
 
 #define SB_CHECK(condition)                                        \
