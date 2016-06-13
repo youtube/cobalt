@@ -18,6 +18,7 @@
       'type': 'static_library',
       'sources': [
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
+        '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/stub/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/stub/character_is_digit.cc',
         '<(DEPTH)/starboard/stub/character_is_hex_digit.cc',
@@ -58,6 +59,8 @@
         '<(DEPTH)/starboard/stub/log_format.cc',
         '<(DEPTH)/starboard/stub/log_is_tty.cc',
         '<(DEPTH)/starboard/stub/log_raw.cc',
+        '<(DEPTH)/starboard/stub/log_raw_dump_stack.cc',
+        '<(DEPTH)/starboard/stub/log_raw_format.cc',
         '<(DEPTH)/starboard/stub/mutex_acquire.cc',
         '<(DEPTH)/starboard/stub/mutex_acquire_try.cc',
         '<(DEPTH)/starboard/stub/mutex_create.cc',
