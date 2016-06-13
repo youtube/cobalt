@@ -26,6 +26,41 @@
 namespace cobalt {
 namespace cssom {
 
+CSSComputedStyleData::PropertySetMatcher::PropertySetMatcher(
+    const PropertyKeyVector& properties)
+    : properties_(properties) {
+  for (size_t i = 0; i < properties_.size(); ++i) {
+    PropertyKey property_key = properties_[i];
+    DCHECK_GT(property_key, kNoneProperty);
+    DCHECK_LE(property_key, kMaxLonghandPropertyKey);
+    properties_bitset_.set(property_key);
+  }
+}
+
+bool CSSComputedStyleData::PropertySetMatcher::DoDeclaredPropertiesMatch(
+    const scoped_refptr<const CSSComputedStyleData>& lhs,
+    const scoped_refptr<const CSSComputedStyleData>& rhs) const {
+  LonghandPropertiesBitset lhs_properties_bitset =
+      lhs->declared_properties_ & properties_bitset_;
+  LonghandPropertiesBitset rhs_properties_bitset =
+      rhs->declared_properties_ & properties_bitset_;
+  if (lhs_properties_bitset != rhs_properties_bitset) {
+    return false;
+  } else if (lhs_properties_bitset.none()) {
+    return true;
+  }
+  for (size_t i = 0; i < properties_.size(); ++i) {
+    PropertyKey property_key = properties_[i];
+    if (lhs_properties_bitset[property_key] &&
+        !lhs->declared_property_values_.find(property_key)
+             ->second->Equals(
+                 *rhs->declared_property_values_.find(property_key)->second)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 CSSComputedStyleData::CSSComputedStyleData()
     : has_inherited_properties_(false) {}
 

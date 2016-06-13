@@ -106,7 +106,6 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
   PropertyValues::const_iterator Find(PropertyKey key) const;
   PropertyValues::iterator Find(PropertyKey key);
 
-  typedef std::bitset<kNumLonghandProperties> LonghandPropertiesBitset;
   LonghandPropertiesBitset declared_properties_;
   PropertyValues declared_property_values_;
   LonghandPropertiesBitset important_properties_;
