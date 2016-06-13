@@ -17,6 +17,7 @@
 #ifndef COBALT_CSSOM_PROPERTY_DEFINITIONS_H_
 #define COBALT_CSSOM_PROPERTY_DEFINITIONS_H_
 
+#include <bitset>
 #include <map>
 #include <set>
 #include <string>
@@ -183,6 +184,9 @@ bool IsShorthandProperty(PropertyKey key);
 // over hash_set values of enum type.
 typedef std::set<PropertyKey> LonghandPropertySet;
 const LonghandPropertySet& ExpandShorthandProperty(PropertyKey key);
+
+typedef std::bitset<kNumLonghandProperties> LonghandPropertiesBitset;
+typedef std::vector<PropertyKey> PropertyKeyVector;
 
 }  // namespace cssom
 }  // namespace cobalt
