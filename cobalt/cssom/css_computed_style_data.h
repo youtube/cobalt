@@ -17,7 +17,6 @@
 #ifndef COBALT_CSSOM_CSS_COMPUTED_STYLE_DATA_H_
 #define COBALT_CSSOM_CSS_COMPUTED_STYLE_DATA_H_
 
-#include <bitset>
 #include <functional>
 #include <map>
 #include <string>
@@ -39,12 +38,29 @@ namespace cssom {
 class CSSComputedStyleData
     : public base::RefCountedThreadSafe<CSSComputedStyleData> {
  public:
-  CSSComputedStyleData();
+  // This class provides the ability to determine whether the properties of two
+  // CSSComputedStyleData objects match for a given set of property keys.
+  class PropertySetMatcher {
+   public:
+    PropertySetMatcher() {}
+
+    explicit PropertySetMatcher(const PropertyKeyVector& properties);
+
+    bool DoDeclaredPropertiesMatch(
+        const scoped_refptr<const CSSComputedStyleData>& lhs,
+        const scoped_refptr<const CSSComputedStyleData>& rhs) const;
+
+   private:
+    PropertyKeyVector properties_;
+    LonghandPropertiesBitset properties_bitset_;
+  };
 
   // Time spent during initial layout and incremental layout is the shortest
   // with an array size of 16.
   typedef base::SmallMap<std::map<PropertyKey, scoped_refptr<PropertyValue> >,
                          16, std::equal_to<PropertyKey> > PropertyValues;
+
+  CSSComputedStyleData();
 
   // The length attribute must return the number of CSS declarations in the
   // declarations.
@@ -672,7 +688,6 @@ class CSSComputedStyleData
 
   bool IsBorderStyleNoneOrHiddenForAnEdge(PropertyKey key) const;
 
-  typedef std::bitset<kNumLonghandProperties> LonghandPropertiesBitset;
   LonghandPropertiesBitset declared_properties_;
   PropertyValues declared_property_values_;
 
