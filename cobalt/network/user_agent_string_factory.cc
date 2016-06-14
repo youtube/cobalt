@@ -30,13 +30,13 @@ namespace network {
 namespace {
 
 #if defined(COBALT_BUILD_TYPE_DEBUG)
-const char kBuildConfiguration[] = "Debug";
+const char kBuildConfiguration[] = "debug";
 #elif defined(COBALT_BUILD_TYPE_DEVEL)
-const char kBuildConfiguration[] = "Devel";
+const char kBuildConfiguration[] = "devel";
 #elif defined(COBALT_BUILD_TYPE_QA)
-const char kBuildConfiguration[] = "QA";
+const char kBuildConfiguration[] = "qa";
 #elif defined(COBALT_BUILD_TYPE_GOLD)
-const char kBuildConfiguration[] = "Gold";
+const char kBuildConfiguration[] = "gold";
 #else
 #error Unknown build configuration.
 #endif
