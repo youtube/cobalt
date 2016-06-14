@@ -44,5 +44,15 @@
         }
       ],
     },
+    {
+      'target_name': 'nplb_blitter_pixel_tests_deploy',
+      'type': 'none',
+      'dependencies': [
+        'nplb_blitter_pixel_tests',
+      ],
+      'variables': {
+        'executable_name': 'nplb_blitter_pixel_tests',
+      },
+    },
   ],
 }

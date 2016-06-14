@@ -42,5 +42,15 @@
         'eztime',
       ],
     },
+    {
+      'target_name': 'eztime_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'eztime_test',
+      ],
+      'variables': {
+        'executable_name': 'eztime_test',
+      },
+    },
   ],
 }

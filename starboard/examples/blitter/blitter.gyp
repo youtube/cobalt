@@ -27,5 +27,15 @@
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },
+    {
+      'target_name': 'starboard_blitter_example_deploy',
+      'type': 'none',
+      'dependencies': [
+        'starboard_blitter_example',
+      ],
+      'variables': {
+        'executable_name': 'starboard_blitter_example',
+      },
+    },
   ],
 }
