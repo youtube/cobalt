@@ -41,7 +41,7 @@
             'ps3/psn_state_machine.h',
           ],
         }],
-        ['OS!="starboard" and actual_target_arch in ["linux", "win"]', {
+        ['OS!="starboard" and actual_target_arch=="win"', {
           'sources': [
             'account_manager_stub.cc',
             'account_manager_stub.h',
