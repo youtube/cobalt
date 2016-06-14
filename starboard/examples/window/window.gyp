@@ -24,5 +24,15 @@
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },
+    {
+      'target_name': 'starboard_window_example_deploy',
+      'type': 'none',
+      'dependencies': [
+        'starboard_window_example',
+      ],
+      'variables': {
+        'executable_name': 'starboard_window_example',
+      },
+    },
   ],
 }
