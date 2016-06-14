@@ -20,15 +20,10 @@
     {
       'target_name': 'media',
       'type': 'static_library',
-      'include_dirs': [
-        '<(lbshell_root)/src',
-        '<(lbshell_root)/src/platform/<(target_arch)',
-      ],
       'sources': [
         'fetcher_buffered_data_source.cc',
         'fetcher_buffered_data_source.h',
         'media_module.h',
-        'media_module_<(actual_target_arch).cc',
         'media_module_stub.cc',
         'media_module_stub.h',
         'shell_video_data_allocator_common.cc',
@@ -44,23 +39,19 @@
       ],
       'conditions': [
         ['OS=="starboard"', {
-          'sources!': [
-            'media_module_<(actual_target_arch).cc',
-          ],
           'sources': [
             'media_module_starboard.cc',
             'shell_media_platform_starboard.cc',
             'shell_media_platform_starboard.h',
           ],
-          'include_dirs!': [
+        }],
+        ['OS=="lb_shell"', {
+          'sources': [
+            'media_module_<(actual_target_arch).cc',
+          ],
+          'include_dirs': [
             '<(lbshell_root)/src',
             '<(lbshell_root)/src/platform/<(target_arch)',
-          ],
-        }],
-        ['OS=="lb_shell" and target_arch == "linux"', {
-          'sources': [
-            'shell_media_platform_linux.cc',
-            'shell_media_platform_linux.h',
           ],
         }],
         ['OS=="lb_shell" and target_arch == "ps3"', {

@@ -49,7 +49,7 @@
             'keycode_conversion_ps3.h',
           ],
         }],
-        ['OS!="starboard" and actual_target_arch in ["linux", "win"]', {
+        ['OS!="starboard" and actual_target_arch=="win"', {
           'sources': [
             'input_device_manager_<(actual_target_arch).cc',
             'input_device_manager_desktop.cc',
