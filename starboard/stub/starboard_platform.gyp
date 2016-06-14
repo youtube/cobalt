@@ -20,6 +20,7 @@
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
         '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/stub/atomic_public.h',
+        '<(DEPTH)/starboard/stub/byte_swap.cc',
         '<(DEPTH)/starboard/stub/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/stub/character_is_digit.cc',
         '<(DEPTH)/starboard/stub/character_is_hex_digit.cc',
