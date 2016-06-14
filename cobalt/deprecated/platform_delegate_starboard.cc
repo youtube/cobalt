@@ -15,9 +15,15 @@
  */
 #include "cobalt/deprecated/platform_delegate.h"
 
+#include <unicode/uloc.h>
+
+#include <string>
+
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
+#include "starboard/character.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 
@@ -73,22 +79,25 @@ PlatformDelegateStarboard::PlatformDelegateStarboard() {
 PlatformDelegateStarboard::~PlatformDelegateStarboard() {}
 
 std::string PlatformDelegateStarboard::GetSystemLanguage() {
-  // Get Locale ID (e.g. "en_US.UTF8").
-  std::string locale_id = SbSystemGetLocaleId();
+  char buffer[ULOC_LANG_CAPACITY];
+  UErrorCode icu_result = U_ZERO_ERROR;
 
-  // Split Locale ID up into components, if there are any.
-  std::vector<std::string> components;
-  size_t count = Tokenize(locale_id, ".", &components);
-  if (count == 0 || components[0].length() == 0) {
-    DLOG(FATAL) << "Unable to get valid locale_id: " << locale_id;
+  // Get the ISO language and country and assemble the system language.
+  uloc_getLanguage(NULL, buffer, arraysize(buffer), &icu_result);
+  if (!U_SUCCESS(icu_result)) {
+    DLOG(FATAL) << __FUNCTION__ << ": Unable to get language from ICU for "
+                << "default locale " << uloc_getDefault() << ".";
     return "en-US";
   }
 
-  // Take only the first component, and replace '_' with '-'.
-  std::string language;
-  ReplaceChars(components[0], "_", "-", &language);
+  std::string language = buffer;
+  uloc_getCountry(NULL, buffer, arraysize(buffer), &icu_result);
+  if (U_SUCCESS(icu_result) && buffer[0]) {
+    language += "-";
+    language += buffer;
+  }
 
-  // We should end up with something like "en-US".
+  // We should end up with something like "en" or "en-US".
   return language;
 }
 
