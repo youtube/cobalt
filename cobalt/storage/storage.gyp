@@ -57,7 +57,7 @@
             'files': ['<(static_contents_source_dir)/platform/ps3/USRDIR/SAVE_ICON.PNG'],
           }],
         }],
-        ['OS!="starboard" and actual_target_arch in ["linux", "win"]', {
+        ['OS!="starboard" and actual_target_arch=="win"', {
           'sources': [
             'savegame_file.cc',
           ],
