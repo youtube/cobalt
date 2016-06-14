@@ -23,6 +23,9 @@
           'sources': [
             'platform_delegate_starboard.cc',
           ],
+          'dependencies': [
+            '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
+          ],
         }, {
           'sources': [
             # actual_target_arch is equal to target_arch, except on Windows
