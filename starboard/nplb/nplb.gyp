@@ -224,5 +224,15 @@
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },
+    {
+      'target_name': 'nplb_deploy',
+      'type': 'none',
+      'dependencies': [
+        'nplb',
+      ],
+      'variables': {
+        'executable_name': 'nplb',
+      },
+    },
   ],
 }
