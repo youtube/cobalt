@@ -156,21 +156,6 @@
       # by Chromium code.
       '-std=gnu++98',
     ],
-    'default_configuration': 'starboard_linux_debug',
-    'configurations': {
-      'starboard_linux_debug': {
-        'inherit_from': ['debug_base'],
-      },
-      'starboard_linux_devel': {
-        'inherit_from': ['devel_base'],
-      },
-      'starboard_linux_qa': {
-        'inherit_from': ['qa_base'],
-      },
-      'starboard_linux_gold': {
-        'inherit_from': ['gold_base'],
-      },
-    }, # end of configurations
     'target_conditions': [
       ['cobalt_code==1', {
         'cflags': [
