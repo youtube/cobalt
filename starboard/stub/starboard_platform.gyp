@@ -90,6 +90,7 @@
         '<(DEPTH)/starboard/stub/socket_free_resolution.cc',
         '<(DEPTH)/starboard/stub/socket_get_last_error.cc',
         '<(DEPTH)/starboard/stub/socket_get_local_address.cc',
+        '<(DEPTH)/starboard/stub/socket_get_local_interface_address.cc',
         '<(DEPTH)/starboard/stub/socket_is_connected.cc',
         '<(DEPTH)/starboard/stub/socket_is_connected_and_idle.cc',
         '<(DEPTH)/starboard/stub/socket_join_multicast_group.cc',
