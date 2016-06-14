@@ -1507,7 +1507,7 @@ def CalculateVariables(default_variables, params):
       generator_additional_path_sections = getattr(msvs_generator,
           'generator_additional_path_sections', [])
 
-    default_variables['EXECUTABLE_SUFFIX'] = '.self'
+    default_variables['EXECUTABLE_SUFFIX'] = '.elf'
     default_variables['SHARED_LIB_PREFIX'] = 'lib'
     default_variables['SHARED_LIB_SUFFIX'] = '.so'
   elif (is_windows and flavor == 'wiiu'):
