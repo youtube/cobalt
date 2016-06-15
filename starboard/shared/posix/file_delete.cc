@@ -25,12 +25,17 @@ bool SbFileDelete(const char* path) {
     return false;
   }
 
-  struct stat stat;
-  if (lstat(path, &stat) != 0) {
+  struct stat file_info;
+#if SB_HAS(SYMBOLIC_LINKS)
+  int result = lstat(path, &file_info);
+#else
+  int result = stat(path, &file_info);
+#endif
+  if (result) {
     return (errno == ENOENT || errno == ENOTDIR);
   }
 
-  if (S_ISDIR(stat.st_mode)) {
+  if (S_ISDIR(file_info.st_mode)) {
     return !rmdir(path);
   }
 
