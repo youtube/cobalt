@@ -77,31 +77,22 @@ struct HtmlElementCountLog {
 
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
-    // Load |layout_box_invalidation_property_checker| with all of the
-    // properties that can cause layout boxes to need to be invalidated.
-    // TODO(***REMOVED***): Only invalidate layout boxes when a property that is used
-    // for box generation is modified. We currently have to also invalidate when
-    // any inheritable property is modified, because AnonymousBlockBox and
-    // TextBox use GetComputedStyleOfAnonymousBox() to store a copy of them that
-    // won't automatically get updated when the style() in a
-    // CSSComputedStyleDeclaration gets updated.
     cssom::PropertyKeyVector layout_box_invalidation_properties;
-    layout_box_invalidation_properties.push_back(cssom::kDisplayProperty);
-    layout_box_invalidation_properties.push_back(cssom::kContentProperty);
-    layout_box_invalidation_properties.push_back(cssom::kColorProperty);
-    layout_box_invalidation_properties.push_back(cssom::kFontFamilyProperty);
-    layout_box_invalidation_properties.push_back(cssom::kFontSizeProperty);
-    layout_box_invalidation_properties.push_back(cssom::kFontStyleProperty);
-    layout_box_invalidation_properties.push_back(cssom::kFontWeightProperty);
-    layout_box_invalidation_properties.push_back(cssom::kLineHeightProperty);
-    layout_box_invalidation_properties.push_back(cssom::kOverflowWrapProperty);
-    layout_box_invalidation_properties.push_back(cssom::kPositionProperty);
-    layout_box_invalidation_properties.push_back(cssom::kTextAlignProperty);
-    layout_box_invalidation_properties.push_back(cssom::kTextIndentProperty);
-    layout_box_invalidation_properties.push_back(cssom::kTextShadowProperty);
-    layout_box_invalidation_properties.push_back(cssom::kTextTransformProperty);
-    layout_box_invalidation_properties.push_back(cssom::kVisibilityProperty);
-    layout_box_invalidation_properties.push_back(cssom::kWhiteSpaceProperty);
+    for (int i = 0; i <= cssom::kMaxLonghandPropertyKey; ++i) {
+      cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
+      // TODO(***REMOVED***): Only invalidate layout boxes when a property that is used
+      // for box generation is modified. We currently have to also invalidate
+      // when any inheritable property is modified, because AnonymousBlockBox
+      // and TextBox use GetComputedStyleOfAnonymousBox() to store a copy of
+      // them that won't automatically get updated when the style() in a
+      // CSSComputedStyleDeclaration gets updated.
+      if (cssom::GetPropertyInheritance(property_key) == cssom::kInheritedYes ||
+          cssom::GetPropertyImpactsBoxGeneration(property_key) ==
+              cssom::kImpactsBoxGenerationYes) {
+        layout_box_invalidation_properties.push_back(property_key);
+      }
+    }
+
     layout_box_invalidation_property_checker =
         cssom::CSSComputedStyleData::PropertySetMatcher(
             layout_box_invalidation_properties);
