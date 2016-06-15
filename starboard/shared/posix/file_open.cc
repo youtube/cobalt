@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/file_internal.h"

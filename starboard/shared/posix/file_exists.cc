@@ -16,10 +16,9 @@
 
 #include "starboard/file.h"
 
-#include <unistd.h>
-
-#include "starboard/shared/posix/file_internal.h"
+#include <sys/stat.h>
 
 bool SbFileExists(const char* path) {
-  return access(path, F_OK) == 0;
+  struct stat file_info;
+  return stat(path, &file_info) == 0;
 }
