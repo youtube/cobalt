@@ -415,9 +415,13 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
     // There's nothing to render if the bounds are 0.
     return;
   }
-  DCHECK((TranslateMatrix(coord_mapping.output_pre_translate) *
-          transform_.ToMatrix() * ScaleMatrix(coord_mapping.output_post_scale))
-             .IsNear(math::Matrix3F::Identity(), 0.001f));
+
+  DCHECK_GE(0.001f, std::abs(1.0f -
+                             transform_.scale.x() *
+                                 coord_mapping.output_post_scale.x()));
+  DCHECK_GE(0.001f, std::abs(1.0f -
+                             transform_.scale.y() *
+                                 coord_mapping.output_post_scale.y()));
 
   SkImageInfo output_image_info = SkImageInfo::MakeN32(
       coord_mapping.output_bounds.width(), coord_mapping.output_bounds.height(),
@@ -460,6 +464,10 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   SbBlitterSurface surface =
       SbBlitterCreateSurfaceFromPixelData(device_, pixel_data);
 
+  math::RectF output_rect = coord_mapping.output_bounds;
+  output_rect.Offset(coord_mapping.output_pre_translate);
+  output_rect.Offset(transform_.translate);
+
   // Finally blit the resulting surface to our actual render target.
   SbBlitterSetBlending(context_, true);
   SbBlitterSetModulateBlitsWithColor(context_, false);
@@ -467,7 +475,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
       context_, surface,
       SbBlitterMakeRect(0, 0, coord_mapping.output_bounds.width(),
                         coord_mapping.output_bounds.height()),
-      RectToBlitterRect(coord_mapping.output_bounds));
+      RectFToBlitterRect(output_rect));
 
   // Clean up our temporary surface.
   SbBlitterDestroySurface(surface);
@@ -484,9 +492,12 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
     ret.surface = kSbBlitterInvalidSurface;
     return ret;
   }
-  DCHECK((TranslateMatrix(coord_mapping.output_pre_translate) *
-          transform_.ToMatrix() * ScaleMatrix(coord_mapping.output_post_scale))
-             .IsNear(math::Matrix3F::Identity(), 0.001f));
+  DCHECK_GE(0.001f, std::abs(1.0f -
+                             transform_.scale.x() *
+                                 coord_mapping.output_post_scale.x()));
+  DCHECK_GE(0.001f, std::abs(1.0f -
+                             transform_.scale.y() *
+                                 coord_mapping.output_post_scale.y()));
 
   SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
       device_, coord_mapping.output_bounds.width(),
@@ -516,9 +527,12 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
   // render targets.
   bounds_stack_.UpdateContext();
 
+  math::PointF output_point = coord_mapping.output_bounds.origin() +
+                              coord_mapping.output_pre_translate +
+                              transform_.translate;
+
   OffscreenRender ret;
-  ret.position.SetPoint(coord_mapping.output_bounds.x(),
-                        coord_mapping.output_bounds.y());
+  ret.position.SetPoint(output_point.x(), output_point.y());
   ret.surface = surface;
 
   return ret;
