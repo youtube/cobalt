@@ -17,9 +17,11 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_COBALT_SKIA_TYPE_CONVERSIONS_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_COBALT_SKIA_TYPE_CONVERSIONS_H_
 
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "third_party/skia/include/gpu/GrTypes.h"
 #include "third_party/skia/include/ports/SkFontStyle.h"
@@ -37,6 +39,9 @@ SkAlphaType RenderTreeAlphaFormatToSkia(
 SkFontStyle CobaltFontStyleToSkFontStyle(render_tree::FontStyle style);
 
 SkRect CobaltRectFToSkiaRect(const math::RectF& rect);
+
+SkMatrix CobaltMatrixToSkia(const math::Matrix3F& cobalt_matrix);
+math::Matrix3F SkiaMatrixToCobalt(const SkMatrix& skia_matrix);
 
 }  // namespace skia
 }  // namespace rasterizer

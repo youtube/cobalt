@@ -31,9 +31,13 @@ using math::Vector3dF;
 using math::TranslateMatrix;
 using math::ScaleMatrix;
 
+namespace {
+float GetFractionalComponent(float value) { return value - std::floor(value); }
+}  // namespace
+
 OffscreenRenderCoordinateMapping GetOffscreenRenderCoordinateMapping(
     const RectF& local_bounds, const Matrix3F& transform,
-    const Rect& viewport_bounds) {
+    const base::optional<Rect>& viewport_bounds) {
   bool has_rotation_or_skew =
       transform.Get(0, 1) != 0 || transform.Get(1, 0) != 0;
 
@@ -50,11 +54,13 @@ OffscreenRenderCoordinateMapping GetOffscreenRenderCoordinateMapping(
   Vector3dF column_1(transform.column(1));
   Vector2dF scale(column_0.Length(), column_1.Length());
 
-  // If we're aligning translate, we will use this as well within our offscreen
-  // rendering and if not, just leave this vector at zero.
+  // If we're aligning translate, bring the fractional component of the
+  // translation into the offscreen render so that we can ensure that we are
+  // sub-pixel aligned when rendering it.
   Vector2dF translate;
   if (align_translate) {
-    translate.SetVector(transform.Get(0, 2), transform.Get(1, 2));
+    translate.SetVector(GetFractionalComponent(transform.Get(0, 2)),
+                        GetFractionalComponent(transform.Get(1, 2)));
   }
 
   // |scaled_local_bounds| represents |local_bounds| transformed into a hybrid
@@ -77,11 +83,16 @@ OffscreenRenderCoordinateMapping GetOffscreenRenderCoordinateMapping(
   // local bounds space since that is where our rendering will occur, thus
   // we must take the inverse of the components of the transform not reflected
   // in scaled local bounds space.
-  Matrix3F inverse_transform = (TranslateMatrix(output_pre_translate) *
-                                transform * ScaleMatrix(output_post_scale))
-                                   .Inverse();
-  RectF clipped_scaled_local_bounds = IntersectRects(
-      inverse_transform.MapRect(viewport_bounds), scaled_local_bounds);
+  RectF clipped_scaled_local_bounds;
+  if (viewport_bounds) {
+    Matrix3F inverse_transform = (TranslateMatrix(output_pre_translate) *
+                                  transform * ScaleMatrix(output_post_scale))
+                                     .Inverse();
+    clipped_scaled_local_bounds = IntersectRects(
+        inverse_transform.MapRect(*viewport_bounds), scaled_local_bounds);
+  } else {
+    clipped_scaled_local_bounds = scaled_local_bounds;
+  }
 
   // Round out our RectF to a Rect here to get integer coordinates that can
   // be used to define offscreen surface dimensions.

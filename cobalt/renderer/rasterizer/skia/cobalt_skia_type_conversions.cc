@@ -64,6 +64,24 @@ SkRect CobaltRectFToSkiaRect(const math::RectF& rect) {
   return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
 }
 
+SkMatrix CobaltMatrixToSkia(const math::Matrix3F& cobalt_matrix) {
+  // Shorten the variable name.
+  const math::Matrix3F& cm = cobalt_matrix;
+
+  SkMatrix skia_matrix;
+  skia_matrix.setAll(cm.Get(0, 0), cm.Get(0, 1), cm.Get(0, 2), cm.Get(1, 0),
+                     cm.Get(1, 1), cm.Get(1, 2), cm.Get(2, 0), cm.Get(2, 1),
+                     cm.Get(2, 2));
+  return skia_matrix;
+}
+
+math::Matrix3F SkiaMatrixToCobalt(const SkMatrix& skia_matrix) {
+  return math::Matrix3F::FromValues(
+      skia_matrix.get(0), skia_matrix.get(1), skia_matrix.get(2),
+      skia_matrix.get(3), skia_matrix.get(4), skia_matrix.get(5),
+      skia_matrix.get(6), skia_matrix.get(7), skia_matrix.get(8));
+}
+
 }  // namespace skia
 }  // namespace rasterizer
 }  // namespace renderer

@@ -20,6 +20,7 @@
 
       'sources': [
         'offscreen_render_coordinate_mapping.cc',
+        'surface_cache.cc',
       ],
 
       'dependencies': [

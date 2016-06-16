@@ -68,31 +68,26 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-void ConvertMatrixFromCobaltToSkia(const math::Matrix3F& cobalt_matrix,
-                                   SkMatrix* skia_matrix) {
-  // Shorten the variable name.
-  const math::Matrix3F& cm = cobalt_matrix;
-
-  skia_matrix->setAll(
-      cm.Get(0, 0), cm.Get(0, 1), cm.Get(0, 2),
-      cm.Get(1, 0), cm.Get(1, 1), cm.Get(1, 2),
-      cm.Get(2, 0), cm.Get(2, 1), cm.Get(2, 2));
-}
-
-math::Matrix3F ConvertMatrixFromSkiaToCobalt(const SkMatrix& skia_matrix) {
-  return math::Matrix3F::FromValues(
-      skia_matrix.get(0), skia_matrix.get(1), skia_matrix.get(2),
-      skia_matrix.get(3), skia_matrix.get(4), skia_matrix.get(5),
-      skia_matrix.get(6), skia_matrix.get(7), skia_matrix.get(8));
-}
-
 SkiaRenderTreeNodeVisitor::SkiaRenderTreeNodeVisitor(
     SkCanvas* render_target,
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
+    SurfaceCacheDelegate* surface_cache_delegate, SurfaceCache* surface_cache,
     Type visitor_type)
     : render_target_(render_target),
       create_scratch_surface_function_(create_scratch_surface_function),
-      visitor_type_(visitor_type) {}
+      surface_cache_delegate_(surface_cache_delegate),
+      surface_cache_(surface_cache),
+      visitor_type_(visitor_type) {
+  DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
+  if (surface_cache_delegate_) {
+    // Update our surface cache delegate to point to this render tree node
+    // visitor and our canvas.
+    surface_cache_scoped_context_.emplace(
+        surface_cache_delegate_, render_target_,
+        base::Bind(&SkiaRenderTreeNodeVisitor::SetRenderTarget,
+                   base::Unretained(this)));
+  }
+}
 
 namespace {
 // Returns whether the specified node is within the canvas' bounds or not.
@@ -117,6 +112,9 @@ void SkiaRenderTreeNodeVisitor::Visit(
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(CompositionNode)");
 #endif
+
+  SurfaceCache::Block cache_block(surface_cache_, composition_node);
+  if (cache_block.Cached()) return;
 
   const render_tree::CompositionNode::Children& children =
       composition_node->data().children();
@@ -226,8 +224,7 @@ void ApplyBlurFilterToPaint(
 void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
     const render_tree::FilterNode::Builder& filter_node) {
   const SkMatrix& total_matrix_skia = render_target_->getTotalMatrix();
-  math::Matrix3F total_matrix =
-      ConvertMatrixFromSkiaToCobalt(total_matrix_skia);
+  math::Matrix3F total_matrix = SkiaMatrixToCobalt(total_matrix_skia);
 
   SkIRect canvas_boundsi;
   render_target_->getClipDeviceBounds(&canvas_boundsi);
@@ -263,15 +260,15 @@ void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
 
   // Transform our drawing coordinates so we only render the source tree within
   // the viewport.
-  SkMatrix skia_sub_render_transform;
-  ConvertMatrixFromCobaltToSkia(coord_mapping.sub_render_transform,
-                                &skia_sub_render_transform);
-  canvas->setMatrix(skia_sub_render_transform);
+  canvas->setMatrix(CobaltMatrixToSkia(coord_mapping.sub_render_transform));
 
   // Render our source sub-tree into the offscreen surface.
-  SkiaRenderTreeNodeVisitor sub_visitor(
-      canvas, create_scratch_surface_function_, kType_SubVisitor);
-  filter_node.source->Accept(&sub_visitor);
+  {
+    SkiaRenderTreeNodeVisitor sub_visitor(
+        canvas, create_scratch_surface_function_, surface_cache_delegate_,
+        surface_cache_, kType_SubVisitor);
+    filter_node.source->Accept(&sub_visitor);
+  }
 
   // With the source subtree rendered to our temporary scratch surface, we
   // will now render it to our parent render target with an alpha value set to
@@ -290,12 +287,9 @@ void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   ApplyBlurFilterToPaint(&paint, filter_node.blur_filter);
   ApplyViewportMask(render_target_, filter_node.viewport_filter);
 
-  SkMatrix skia_output_transform;
-  ConvertMatrixFromCobaltToSkia(
+  render_target_->setMatrix(CobaltMatrixToSkia(
       math::TranslateMatrix(coord_mapping.output_pre_translate) * total_matrix *
-          math::ScaleMatrix(coord_mapping.output_post_scale),
-      &skia_output_transform);
-  render_target_->setMatrix(skia_output_transform);
+      math::ScaleMatrix(coord_mapping.output_post_scale)));
 
   SkAutoTUnref<SkImage> image(
       scratch_surface->GetSurface()->newImageSnapshot());
@@ -417,6 +411,9 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     filter_node->data().source->Accept(this);
     render_target_->restore();
   } else {
+    SurfaceCache::Block cache_block(surface_cache_, filter_node);
+    if (cache_block.Cached()) return;
+
     RenderFilterViaOffscreenSurface(filter_node->data());
   }
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
@@ -494,8 +491,7 @@ void RenderSinglePlaneImage(SkiaSinglePlaneImage* single_plane_image,
   } else {
     // Use the more general approach which allows arbitrary local texture
     // coordinate matrices.
-    SkMatrix skia_local_transform;
-    ConvertMatrixFromCobaltToSkia(*local_transform, &skia_local_transform);
+    SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
 
     ConvertLocalTransformMatrixToSkiaShaderFormat(
         single_plane_image->GetSize(), destination_rect, &skia_local_transform);
@@ -516,8 +512,7 @@ void RenderMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image,
   DCHECK_EQ(render_tree::kMultiPlaneImageFormatYUV3PlaneBT709,
             multi_plane_image->GetFormat());
 
-  SkMatrix skia_local_transform;
-  ConvertMatrixFromCobaltToSkia(*local_transform, &skia_local_transform);
+  SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
 
   const SkBitmap& y_bitmap = multi_plane_image->GetBitmap(0);
   SkMatrix y_matrix = skia_local_transform;
@@ -600,14 +595,21 @@ void SkiaRenderTreeNodeVisitor::Visit(
   TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransformNode)");
 #endif
 
+  SurfaceCache::Block cache_block(surface_cache_, matrix_transform_node);
+  if (cache_block.Cached()) return;
+
   // Concatenate the matrix transform to the render target and then continue
   // on with rendering our source.
   render_target_->save();
 
-  SkMatrix skia_matrix;
-  ConvertMatrixFromCobaltToSkia(matrix_transform_node->data().transform,
-                                &skia_matrix);
-  render_target_->concat(skia_matrix);
+  render_target_->concat(
+      CobaltMatrixToSkia(matrix_transform_node->data().transform));
+
+  // Since our scale may have changed, inform the surface cache system to update
+  // its scale.
+  if (surface_cache_delegate_) {
+    surface_cache_delegate_->UpdateCanvasScale();
+  }
 
   matrix_transform_node->data().source->Accept(this);
 
@@ -1198,6 +1200,9 @@ void SkiaRenderTreeNodeVisitor::Visit(
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(RectShadowNode)");
 #endif
+  SurfaceCache::Block cache_block(surface_cache_, rect_shadow_node);
+  if (cache_block.Cached()) return;
+
   if (rect_shadow_node->data().rounded_corners) {
     DrawRoundedRectShadowNode(rect_shadow_node, render_target_);
   } else {
@@ -1257,6 +1262,9 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(TextNode)");
 #endif
+  SurfaceCache::Block cache_block(surface_cache_, text_node);
+  if (cache_block.Cached()) return;
+
   // If blur was used for any of the shadows, apply a little bit of blur
   // to all of them, to ensure that Skia follows the same path for rendering
   // them all (i.e. we don't want the main text to use distance field rendering
