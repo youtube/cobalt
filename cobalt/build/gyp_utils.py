@@ -294,7 +294,7 @@ def _GetPortName(root, directory):
 
 def _FindValidPorts(root, result):
   """Adds name->path for all ports under |directory| to |result|."""
-  for current_path, directories, filenames in os.walk(root):
+  for current_path, _, filenames in os.walk(root):
     if _IsValidPortFilenameList(current_path, filenames):
       if current_path == root:
         logging.warning('Found port at search path root: %s', current_path)
@@ -303,7 +303,6 @@ def _FindValidPorts(root, result):
         logging.error('Found duplicate port name "%s" at "%s" and "%s"',
                       port_name, result[port_name], current_path)
       result[port_name] = current_path
-      del directories[:]  # Don't detect ports inside other ports.
 
   return result
 
