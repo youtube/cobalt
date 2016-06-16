@@ -59,10 +59,10 @@ typedef void (*SbAudioSinkConsumeFramesFunc)(int frames_consumed,
 // Well-defined value for an invalid audio sink.
 #define kSbAudioSinkInvalid ((SbAudioSink)NULL)
 
-// Returns whether the given audio sink handle is valid.
-bool SbAudioSinkIsValid(SbAudioSink audio_sink);
-
 // --- Functions -------------------------------------------------------------
+
+// Returns whether the given audio sink handle is valid.
+SB_EXPORT bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 
 // Creates an audio sink for the specified |channels| and
 // |sampling_frequency_hz|, acquiring all resources needed to operate it, and
