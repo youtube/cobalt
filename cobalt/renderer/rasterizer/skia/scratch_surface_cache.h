@@ -19,11 +19,11 @@
 
 #include <vector>
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "cobalt/math/size.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkSurfaceProps.h"
-#include "third_party/skia/include/gpu/GrContext.h"
 
 namespace cobalt {
 namespace renderer {
@@ -44,8 +44,10 @@ namespace skia {
 // out textures in large to small order makes sense.
 class ScratchSurfaceCache {
  public:
-  ScratchSurfaceCache(GrContext* gr_context,
-                      const SkSurfaceProps& surface_props);
+  typedef base::Callback<SkSurface*(const math::Size&)> CreateSkSurfaceFunction;
+
+  ScratchSurfaceCache(
+      const CreateSkSurfaceFunction& create_sk_surface_function);
   ~ScratchSurfaceCache();
 
  private:
@@ -65,10 +67,8 @@ class ScratchSurfaceCache {
   // Allocate a new SkSurface and return it.
   SkSurface* CreateScratchSurface(const math::Size& size);
 
-  GrContext* gr_context_;
-
-  // The surface properties that all new surfaces should be created with.
-  SkSurfaceProps surface_props_;
+  // Called to allocate new SkSurfaces.
+  CreateSkSurfaceFunction create_sk_surface_function_;
 
   // We keep track of all surfaces we've handed out using |surface_stack_|.
   // This is mostly for debug checks to verify that surfaces returned to us

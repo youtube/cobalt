@@ -18,6 +18,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
@@ -25,6 +26,7 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
+#include "third_party/skia/include/gpu/GrTexture.h"
 #include "third_party/skia/include/gpu/SkGrPixelRef.h"
 #include "third_party/skia/src/gpu/SkGpuDevice.h"
 
@@ -42,7 +44,8 @@ const size_t kMaxSkiaCacheBytes = 4 * 1024 * 1024u;
 
 class SkiaHardwareRasterizer::Impl {
  public:
-  explicit Impl(backend::GraphicsContext* graphics_context);
+  explicit Impl(backend::GraphicsContext* graphics_context,
+                SurfaceCachingSwitch surface_caching_switch);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -66,6 +69,7 @@ class SkiaHardwareRasterizer::Impl {
     CachedScratchSurface cached_scratch_surface_;
   };
 
+  SkSurface* CreateSkSurface(const math::Size& size);
   scoped_ptr<SkiaRenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
       const math::Size& size);
 
@@ -79,6 +83,9 @@ class SkiaHardwareRasterizer::Impl {
   SkAutoTUnref<SkSurface> sk_output_surface_;
 
   base::optional<ScratchSurfaceCache> scratch_surface_cache_;
+
+  base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
+  base::optional<SurfaceCache> surface_cache_;
 };
 
 namespace {
@@ -116,7 +123,8 @@ GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
 
 }  // namespace
 
-SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
+SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                                   SurfaceCachingSwitch surface_caching_switch)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
@@ -137,8 +145,22 @@ SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
   gr_context_->setResourceCacheLimits(
       kMaxSkiaCacheResources, kMaxSkiaCacheBytes);
 
-  scratch_surface_cache_.emplace(gr_context_.get(),
-                                 GetRenderTargetSurfaceProps());
+  base::Callback<SkSurface*(const math::Size&)> create_sk_surface_function =
+      base::Bind(&SkiaHardwareRasterizer::Impl::CreateSkSurface,
+                 base::Unretained(this));
+
+  scratch_surface_cache_.emplace(create_sk_surface_function);
+
+  if (surface_caching_switch == kSurfaceCachingEnabled) {
+    surface_cache_delegate_.emplace(
+        create_sk_surface_function,
+        math::Size(gr_context_->getMaxTextureSize(),
+                   gr_context_->getMaxTextureSize()));
+
+    const size_t kSurfaceCacheCapacityInBytes = 10 * 1024 * 1024;
+    surface_cache_.emplace(&surface_cache_delegate_.value(),
+                           kSurfaceCacheCapacityInBytes);
+  }
 
   // Setup a resource provider for resources to be used with a hardware
   // accelerated Skia rasterizer.
@@ -171,6 +193,13 @@ void SkiaHardwareRasterizer::Impl::Submit(
   // draw calls, in case we have modified state in between.
   gr_context_->resetContext();
 
+  // Update our surface cache to do per-frame calculations such as deciding
+  // which render tree nodes are candidates for caching in this upcoming
+  // frame.
+  if (surface_cache_) {
+    surface_cache_->Frame();
+  }
+
   if (!sk_output_surface_) {
     // Setup a Skia render target that wraps the passed in Cobalt render target.
     SkAutoTUnref<GrRenderTarget> skia_render_target(
@@ -197,7 +226,10 @@ void SkiaHardwareRasterizer::Impl::Submit(
         create_scratch_surface_function =
             base::Bind(&SkiaHardwareRasterizer::Impl::CreateScratchSurface,
                        base::Unretained(this));
-    SkiaRenderTreeNodeVisitor visitor(canvas, &create_scratch_surface_function);
+    SkiaRenderTreeNodeVisitor visitor(
+        canvas, &create_scratch_surface_function,
+        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
+        surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
   }
 
@@ -214,9 +246,46 @@ SkiaHardwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
 }
 
+SkSurface* SkiaHardwareRasterizer::Impl::CreateSkSurface(
+    const math::Size& size) {
+  TRACE_EVENT2("cobalt::renderer", "SkiaHardwareRasterizer::CreateSkSurface()",
+               "width", size.width(), "height", size.height());
+
+  // Create a texture of the specified size.  Then convert it to a render
+  // target and then convert that to a SkSurface which we return.
+  GrTextureDesc target_surface_desc;
+  target_surface_desc.fFlags =
+      kRenderTarget_GrTextureFlagBit | kNoStencil_GrTextureFlagBit;
+  target_surface_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
+  target_surface_desc.fWidth = size.width();
+  target_surface_desc.fHeight = size.height();
+  target_surface_desc.fConfig = kRGBA_8888_GrPixelConfig;
+  target_surface_desc.fSampleCnt = 0;
+
+  SkAutoTUnref<GrTexture> skia_texture(
+      gr_context_->createUncachedTexture(target_surface_desc, NULL, 0));
+  if (!skia_texture) {
+    // If we failed at creating a texture, try again using a different texture
+    // format.
+    target_surface_desc.fConfig = kBGRA_8888_GrPixelConfig;
+    skia_texture.reset(
+        gr_context_->createUncachedTexture(target_surface_desc, NULL, 0));
+  }
+  if (!skia_texture) {
+    return NULL;
+  }
+
+  GrRenderTarget* skia_render_target = skia_texture->asRenderTarget();
+  DCHECK(skia_render_target);
+
+  SkSurfaceProps surface_props = GetRenderTargetSurfaceProps();
+  return SkSurface::NewRenderTargetDirect(skia_render_target, &surface_props);
+}
+
 scoped_ptr<SkiaRenderTreeNodeVisitor::ScratchSurface>
 SkiaHardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
-  TRACE_EVENT2("cobalt::renderer", "CreateScratchImage()", "width",
+  TRACE_EVENT2("cobalt::renderer",
+               "SkiaHardwareRasterizer::CreateScratchImage()", "width",
                size.width(), "height", size.height());
 
   scoped_ptr<CachedScratchSurfaceHolder> scratch_surface(
@@ -229,8 +298,9 @@ SkiaHardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
 }
 
 SkiaHardwareRasterizer::SkiaHardwareRasterizer(
-    backend::GraphicsContext* graphics_context)
-    : impl_(new Impl(graphics_context)) {}
+    backend::GraphicsContext* graphics_context,
+    SurfaceCachingSwitch surface_caching_switch)
+    : impl_(new Impl(graphics_context, surface_caching_switch)) {}
 
 SkiaHardwareRasterizer::~SkiaHardwareRasterizer() {}
 
