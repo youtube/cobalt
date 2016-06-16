@@ -21,7 +21,6 @@
 #include "base/debug/trace_event.h"
 
 #include "third_party/skia/include/core/SkCanvas.h"
-#include "third_party/skia/include/gpu/GrTexture.h"
 
 namespace cobalt {
 namespace renderer {
@@ -44,10 +43,9 @@ size_t ApproximateSurfaceMemory(const math::Size& size) {
 
 }  // namespace
 
-ScratchSurfaceCache::ScratchSurfaceCache(GrContext* gr_context,
-                                         const SkSurfaceProps& surface_props)
-    : gr_context_(gr_context),
-      surface_props_(surface_props),
+ScratchSurfaceCache::ScratchSurfaceCache(
+    const CreateSkSurfaceFunction& create_sk_surface_function)
+    : create_sk_surface_function_(create_sk_surface_function),
       surface_memory_(0) {}
 
 ScratchSurfaceCache::~ScratchSurfaceCache() {
@@ -75,7 +73,7 @@ SkSurface* ScratchSurfaceCache::AcquireScratchSurface(const math::Size& size) {
     Purge();
 
     // Create the surface.
-    surface = CreateScratchSurface(size);
+    surface = create_sk_surface_function_.Run(size);
 
     if (!surface) {
       // We were unable to allocate a scratch surface, either because we are
@@ -188,41 +186,6 @@ void ScratchSurfaceCache::Purge() {
     to_free->unref();
     unused_surfaces_.erase(unused_surfaces_.begin());
   }
-}
-
-SkSurface* ScratchSurfaceCache::CreateScratchSurface(const math::Size& size) {
-  TRACE_EVENT2("cobalt::renderer",
-               "ScratchSurfaceCache::CreateScratchSurface()", "width",
-               size.width(), "height", size.height());
-
-  // Create a texture of the specified size.  Then convert it to a render
-  // target and then convert that to a SkSurface which we return.
-  GrTextureDesc target_surface_desc;
-  target_surface_desc.fFlags =
-      kRenderTarget_GrTextureFlagBit | kNoStencil_GrTextureFlagBit;
-  target_surface_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
-  target_surface_desc.fWidth = size.width();
-  target_surface_desc.fHeight = size.height();
-  target_surface_desc.fConfig = kRGBA_8888_GrPixelConfig;
-  target_surface_desc.fSampleCnt = 0;
-
-  SkAutoTUnref<GrTexture> skia_texture(
-      gr_context_->createUncachedTexture(target_surface_desc, NULL, 0));
-  if (!skia_texture) {
-    // If we failed at creating a texture, try again using a different texture
-    // format.
-    target_surface_desc.fConfig = kBGRA_8888_GrPixelConfig;
-    skia_texture.reset(
-        gr_context_->createUncachedTexture(target_surface_desc, NULL, 0));
-  }
-  if (!skia_texture) {
-    return NULL;
-  }
-
-  GrRenderTarget* skia_render_target = skia_texture->asRenderTarget();
-  DCHECK(skia_render_target);
-
-  return SkSurface::NewRenderTargetDirect(skia_render_target, &surface_props_);
 }
 
 }  // namespace skia

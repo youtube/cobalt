@@ -30,7 +30,9 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
       new rasterizer::egl::SoftwareRasterizer(graphics_context));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
-      new rasterizer::skia::SkiaHardwareRasterizer(graphics_context));
+      new rasterizer::skia::SkiaHardwareRasterizer(
+          graphics_context,
+          rasterizer::skia::SkiaHardwareRasterizer::kSurfaceCachingDisabled));
 #endif  // #if COBALT_FORCE_SOFTWARE_RASTERIZER
 }
 }  // namespace
