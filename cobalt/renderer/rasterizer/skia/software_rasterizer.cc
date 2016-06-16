@@ -72,8 +72,8 @@ void SkiaSoftwareRasterizer::Submit(
     // just created above.
     SkiaRenderTreeNodeVisitor::CreateScratchSurfaceFunction
         create_scratch_surface_function = base::Bind(&CreateScratchSurface);
-    SkiaRenderTreeNodeVisitor visitor(render_target,
-                                      &create_scratch_surface_function);
+    SkiaRenderTreeNodeVisitor visitor(
+        render_target, &create_scratch_surface_function, NULL, NULL);
 
     // Finally, rasterize the render tree to the output canvas using the
     // rasterizer we just created.
