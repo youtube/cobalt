@@ -15,28 +15,16 @@
 {
   'targets': [
     {
-      'target_name': 'hardware_rasterizer',
+      'target_name': 'common',
       'type': 'static_library',
 
       'sources': [
-        'gl_format_conversions.cc',
-        'hardware_image.cc',
-        'hardware_image.h',
-        'hardware_rasterizer.cc',
-        'hardware_rasterizer.h',
-        'hardware_resource_provider.cc',
-        'hardware_resource_provider.h',
+        'offscreen_render_coordinate_mapping.cc',
       ],
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
-        '<(DEPTH)/cobalt/renderer/rasterizer/skia/common.gyp:common',
-        '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
-        '<(DEPTH)/third_party/harfbuzz-ng/harfbuzz.gyp:harfbuzz-ng',
-        '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
-        '<(DEPTH)/third_party/ots/ots.gyp:ots',
-        '<(DEPTH)/cobalt/renderer/rasterizer/common/common.gyp:common',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
       ],
     },
   ],

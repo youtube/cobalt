@@ -271,5 +271,26 @@ PointF Matrix3F::operator*(const PointF& rhs) const {
   return PointF(x / z, y / z);
 }
 
+RectF Matrix3F::MapRect(const RectF& rect) {
+  PointF points[4];
+  points[0] = *this * rect.origin();
+  points[1] = *this * rect.top_right();
+  points[2] = *this * rect.bottom_left();
+  points[3] = *this * rect.bottom_right();
+
+  float min_x = std::numeric_limits<float>::max();
+  float max_x = -std::numeric_limits<float>::max();
+  float min_y = std::numeric_limits<float>::max();
+  float max_y = -std::numeric_limits<float>::max();
+  for (int i = 0; i < 4; ++i) {
+    min_x = std::min(min_x, points[i].x());
+    max_x = std::max(max_x, points[i].x());
+    min_y = std::min(min_y, points[i].y());
+    max_y = std::max(max_y, points[i].y());
+  }
+
+  return RectF(min_x, min_y, max_x - min_x, max_y - min_y);
+}
+
 }  // namespace math
 }  // namespace cobalt

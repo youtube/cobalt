@@ -71,6 +71,14 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   struct Transform {
     Transform() : scale(1.0f, 1.0f), translate(0.0f, 0.0f) {}
 
+    explicit Transform(const math::Matrix3F& matrix)
+        : scale(matrix.Get(0, 0), matrix.Get(1, 1)),
+          translate(matrix.Get(0, 2), matrix.Get(1, 2)) {
+      // We cannot handle sheers and rotations.
+      DCHECK_EQ(0, matrix.Get(0, 1));
+      DCHECK_EQ(0, matrix.Get(1, 0));
+    }
+
     Transform(const math::Vector2dF& scale, const math::Vector2dF& translate)
         : scale(scale), translate(translate) {}
 
@@ -83,6 +91,11 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
     }
 
     math::RectF TransformRect(const math::RectF& rect) const;
+
+    math::Matrix3F ToMatrix() const {
+      return math::Matrix3F::FromValues(scale.x(), 0, translate.x(), 0,
+                                        scale.y(), translate.y(), 0, 0, 1);
+    }
 
     math::Vector2dF scale;
     math::Vector2dF translate;
@@ -119,20 +132,6 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
     std::stack<math::Rect> bounds_;
   };
 
-  // The following helper function returns bounding box/transform information
-  // used to setup a sub-render, whether that sub render is happening through
-  // a Skia software renderer, or the Blitter API.
-  struct SubRenderBounds {
-    // Dictates where on the screen the final subrendered rectangle should be
-    // blitted, in absolute coordinates (i.e. |transform_| has already been
-    // taken into account).
-    math::Rect output_bounds;
-    // Specifies the transform which should be applied while performing the sub
-    // render.
-    Transform sub_transform;
-  };
-  SubRenderBounds GetSubRenderBounds(render_tree::Node* node);
-
   // Can be called with any render tree node in order to invoke the Skia
   // software renderer to render to an offscreen surface which is then applied
   // to the render target via a Blitter API blit.
@@ -140,7 +139,11 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   // Uses a Blitter API sub-visitor to render the provided render tree to a
   // offscreen SbBlitterSurface which is then returned.
-  SbBlitterSurface RenderToOffscreenSurface(render_tree::Node* node);
+  struct OffscreenRender {
+    math::Point position;
+    SbBlitterSurface surface;
+  };
+  OffscreenRender RenderToOffscreenSurface(render_tree::Node* node);
 
   // We maintain an instance of a software skia rasterizer which is used to
   // render anything that we cannot render via the Blitter API directly.
