@@ -7,6 +7,7 @@
 
 #include "base/logging.h"
 #include "cobalt/math/point_f.h"
+#include "cobalt/math/rect_f.h"
 #include "cobalt/math/vector3d_f.h"
 
 namespace cobalt {
@@ -98,6 +99,11 @@ class Matrix3F {
   // Eigenvectors are placed as column in |eigenvectors| in order corresponding
   // to eigenvalues.
   Vector3dF SolveEigenproblem(Matrix3F* eigenvectors) const;
+
+  // Applies operator*(const PointF&) to each of the 4 points on the rectangle
+  // and then returns a RectF that is the tightest axis-aligned bounding box
+  // around those points.
+  RectF MapRect(const RectF& rect);
 
  private:
   Matrix3F();  // Uninitialized default.
