@@ -207,6 +207,7 @@ v8.log
 /third_party/libphonenumber/src
 /third_party/libsrtp
 /third_party/libvpx
+/third_party/libvpx_gpu
 /third_party/libyuv
 /third_party/lighttpd
 /third_party/llvm
