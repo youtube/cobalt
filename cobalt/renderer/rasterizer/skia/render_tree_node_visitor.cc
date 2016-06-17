@@ -27,6 +27,7 @@
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_conversions.h"
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/border.h"
 #include "cobalt/render_tree/brush_visitor.h"
 #include "cobalt/render_tree/color_rgba.h"
@@ -38,12 +39,12 @@
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/rounded_corners.h"
 #include "cobalt/render_tree/text_node.h"
+#include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkYUV2RGBShader.h"
-
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "third_party/skia/include/effects/SkBlurImageFilter.h"
@@ -78,11 +79,11 @@ void ConvertMatrixFromCobaltToSkia(const math::Matrix3F& cobalt_matrix,
       cm.Get(2, 0), cm.Get(2, 1), cm.Get(2, 2));
 }
 
-float GetTransformedVectorScale(const SkMatrix& matrix,
-                                const SkVector& vector) {
-  SkVector result;
-  matrix.mapVectors(&result, &vector, 1);
-  return sqrt(result.x() * result.x() + result.y() * result.y());
+math::Matrix3F ConvertMatrixFromSkiaToCobalt(const SkMatrix& skia_matrix) {
+  return math::Matrix3F::FromValues(
+      skia_matrix.get(0), skia_matrix.get(1), skia_matrix.get(2),
+      skia_matrix.get(3), skia_matrix.get(4), skia_matrix.get(5),
+      skia_matrix.get(6), skia_matrix.get(7), skia_matrix.get(8));
 }
 
 SkiaRenderTreeNodeVisitor::SkiaRenderTreeNodeVisitor(
@@ -224,55 +225,31 @@ void ApplyBlurFilterToPaint(
 
 void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
     const render_tree::FilterNode::Builder& filter_node) {
-  const SkMatrix& total_matrix = render_target_->getTotalMatrix();
+  const SkMatrix& total_matrix_skia = render_target_->getTotalMatrix();
+  math::Matrix3F total_matrix =
+      ConvertMatrixFromSkiaToCobalt(total_matrix_skia);
 
   SkIRect canvas_boundsi;
   render_target_->getClipDeviceBounds(&canvas_boundsi);
-  SkRect canvas_bounds = SkRect::Make(canvas_boundsi);
 
-  SkMatrix total_matrix_inverse;
-  if (!total_matrix.invert(&total_matrix_inverse)) {
-    // If the total matrix is not invertible, then its determinant is 0 and so
-    // it maps all areas to 0, and so we have nothing to render in this case.
+  common::OffscreenRenderCoordinateMapping coord_mapping =
+      common::GetOffscreenRenderCoordinateMapping(
+          filter_node.GetBounds(), total_matrix,
+          math::Rect(canvas_boundsi.x(), canvas_boundsi.y(),
+                     canvas_boundsi.width(), canvas_boundsi.height()));
+  if (coord_mapping.output_bounds.size().GetArea() == 0) {
     return;
   }
-
-  // Intersect the filter bounds with the canvas bounds so that we know the
-  // minimal scratch surface that we should render to.
-  math::RectF filter_bounds = filter_node.GetBounds();
-  SkRect filter_clipped_bounds;
-  total_matrix_inverse.mapRect(&filter_clipped_bounds, canvas_bounds);
-  if (!filter_clipped_bounds.intersect(CobaltRectFToSkiaRect(filter_bounds))) {
-    // Nothing to do here, the entire filter is outside of the parent viewport
-    // so it will not be visible.
-    return;
-  }
-
-  // Apply the scale from the total matrix first to the source render tree in
-  // order to avoid pixellation which could be caused by the scale of filter
-  // node.
-  SkVector direction_x = {1, 0};
-  SkVector direction_y = {0, 1};
-  float scale_x = GetTransformedVectorScale(total_matrix, direction_x);
-  float scale_y = GetTransformedVectorScale(total_matrix, direction_y);
-
-  // Determine the size needed by our offscreen surface.
-  SkRect scaled_filter_bounds = SkRect::MakeXYWH(
-      filter_clipped_bounds.x() * scale_x, filter_clipped_bounds.y() * scale_y,
-      filter_clipped_bounds.width() * scale_x,
-      filter_clipped_bounds.height() * scale_y);
-
-  scaled_filter_bounds.roundOut();
 
   // Create a scratch surface upon which we will render the source subtree.
   scoped_ptr<ScratchSurface> scratch_surface(
       create_scratch_surface_function_->Run(
-          math::Size(static_cast<int>(scaled_filter_bounds.width()),
-                     static_cast<int>(scaled_filter_bounds.height()))));
+          math::Size(coord_mapping.output_bounds.width(),
+                     coord_mapping.output_bounds.height())));
   if (!scratch_surface) {
     DLOG(ERROR) << "Error creating scratch image surface (width = "
-                << scaled_filter_bounds.width()
-                << ", height = " << scaled_filter_bounds.height()
+                << coord_mapping.output_bounds.width()
+                << ", height = " << coord_mapping.output_bounds.height()
                 << "), probably because "
                    "we are low on memory, or the requested dimensions are "
                    "too large or invalid.";
@@ -286,8 +263,10 @@ void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
 
   // Transform our drawing coordinates so we only render the source tree within
   // the viewport.
-  canvas->translate(-scaled_filter_bounds.x(), -scaled_filter_bounds.y());
-  canvas->scale(scale_x, scale_y);
+  SkMatrix skia_sub_render_transform;
+  ConvertMatrixFromCobaltToSkia(coord_mapping.sub_render_transform,
+                                &skia_sub_render_transform);
+  canvas->setMatrix(skia_sub_render_transform);
 
   // Render our source sub-tree into the offscreen surface.
   SkiaRenderTreeNodeVisitor sub_visitor(
@@ -310,17 +289,27 @@ void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   render_target_->save();
   ApplyBlurFilterToPaint(&paint, filter_node.blur_filter);
   ApplyViewportMask(render_target_, filter_node.viewport_filter);
-  render_target_->scale(1.0f / scale_x, 1.0f / scale_y);
+
+  SkMatrix skia_output_transform;
+  ConvertMatrixFromCobaltToSkia(
+      math::TranslateMatrix(coord_mapping.output_pre_translate) * total_matrix *
+          math::ScaleMatrix(coord_mapping.output_post_scale),
+      &skia_output_transform);
+  render_target_->setMatrix(skia_output_transform);
 
   SkAutoTUnref<SkImage> image(
       scratch_surface->GetSurface()->newImageSnapshot());
   DCHECK(image);
 
-  SkRect source_rect = SkRect::MakeWH(scaled_filter_bounds.width(),
-                                      scaled_filter_bounds.height());
+  SkRect dest_rect = SkRect::MakeXYWH(coord_mapping.output_bounds.x(),
+                                      coord_mapping.output_bounds.y(),
+                                      coord_mapping.output_bounds.width(),
+                                      coord_mapping.output_bounds.height());
 
-  render_target_->drawImageRect(image, &source_rect, scaled_filter_bounds,
-                                &paint);
+  SkRect source_rect = SkRect::MakeWH(coord_mapping.output_bounds.width(),
+                                      coord_mapping.output_bounds.height());
+
+  render_target_->drawImageRect(image, &source_rect, dest_rect, &paint);
 
   // Finally restore our parent render target's original transform for the
   // next draw call.
