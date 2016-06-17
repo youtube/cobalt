@@ -20,9 +20,11 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/renderer/rasterizer/blitter/image.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
+#include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
 #include "starboard/blitter.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
@@ -140,13 +142,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 
     // Render our source subtree to an offscreen surface, and then we will
     // re-render it to our main render target with an alpha value applied to it.
-    Rect output_rect = GetSubRenderBounds(source).output_bounds;
-    if (output_rect.IsEmpty()) {
-      // Nothing to do if the output area of the source node is 0.
+    OffscreenRender offscreen_render = RenderToOffscreenSurface(source);
+    if (!SbBlitterIsSurfaceValid(offscreen_render.surface)) {
+      // This can happen if the output area of the source node is 0, in which
+      // case we're trivially done.
       return;
     }
-    SbBlitterSurface offscreen_surface = RenderToOffscreenSurface(source);
-    DCHECK(SbBlitterIsSurfaceValid(offscreen_surface));
+
+    SbBlitterSurfaceInfo offscreen_surface_info;
+    CHECK(SbBlitterGetSurfaceInfo(offscreen_render.surface,
+                                  &offscreen_surface_info));
 
     // Now blit our offscreen surface to our main render target with opacity
     // applied.
@@ -156,13 +161,15 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         context_,
         SbBlitterColorFromRGBA(255, 255, 255, static_cast<int>(255 * opacity)));
     SbBlitterBlitRectToRect(
-        context_, offscreen_surface,
-        SbBlitterMakeRect(0, 0, output_rect.width(), output_rect.height()),
-        SbBlitterMakeRect(output_rect.x(), output_rect.y(), output_rect.width(),
-                          output_rect.height()));
+        context_, offscreen_render.surface,
+        SbBlitterMakeRect(0, 0, offscreen_surface_info.width,
+                          offscreen_surface_info.height),
+        SbBlitterMakeRect(
+            offscreen_render.position.x(), offscreen_render.position.y(),
+            offscreen_surface_info.width, offscreen_surface_info.height));
 
     // Destroy our temporary offscreeen surface now that we are done with it.
-    SbBlitterDestroySurface(offscreen_surface);
+    SbBlitterDestroySurface(offscreen_render.surface);
   }
 }
 
@@ -399,59 +406,22 @@ void RenderTreeNodeVisitor::BoundsStack::UpdateContext() {
   SbBlitterSetScissor(context_, RectToBlitterRect(bounds_.top()));
 }
 
-RenderTreeNodeVisitor::SubRenderBounds
-RenderTreeNodeVisitor::GetSubRenderBounds(render_tree::Node* node) {
-  SubRenderBounds ret;
-
-  // First get the absolute bounding box of our subtree.
-  RectF transformed_sub_bounds = transform_.TransformRect(node->GetBounds());
-  Rect integer_transformed_sub_bounds = math::RoundOut(transformed_sub_bounds);
-
-  // To avoid rendering anything we don't need to render, intersect the
-  // bounding box with our current viewport bounds, and then round the result
-  // out to get integers so that we can fit it within a surface with integer
-  // dimensions.
-  ret.output_bounds =
-      math::IntersectRects(integer_transformed_sub_bounds, bounds_stack_.Top());
-
-  // Now determine the sub transform that should be used when rendering the
-  // sub render tree to an offscreen surface.
-  float sub_translate_x =
-      -(integer_transformed_sub_bounds.origin().x() - transform_.translate.x());
-  // Make sure that we take into account that the output surface bounds may have
-  // had its origin adjusted when intersecting it with the viewport rectangle,
-  // and we must account for that when positioning the offscreen render.
-  float clipped_difference_x = ret.output_bounds.origin().x() -
-                               integer_transformed_sub_bounds.origin().x();
-  if (clipped_difference_x > 0) {
-    sub_translate_x -= clipped_difference_x;
-  }
-
-  // Apply the same operations as above for the y axis.
-  float sub_translate_y =
-      -(integer_transformed_sub_bounds.origin().y() - transform_.translate.y());
-  float clipped_difference_y = ret.output_bounds.origin().y() -
-                               integer_transformed_sub_bounds.origin().y();
-  if (clipped_difference_y > 0) {
-    sub_translate_y -= clipped_difference_y;
-  }
-
-  ret.sub_transform =
-      Transform(transform_.scale, Vector2dF(sub_translate_x, sub_translate_y));
-  return ret;
-}
-
 void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
     render_tree::Node* node) {
-  SubRenderBounds sub_render_bounds(GetSubRenderBounds(node));
-  if (sub_render_bounds.output_bounds.IsEmpty()) {
+  common::OffscreenRenderCoordinateMapping coord_mapping =
+      common::GetOffscreenRenderCoordinateMapping(
+          node->GetBounds(), transform_.ToMatrix(), bounds_stack_.Top());
+  if (coord_mapping.output_bounds.IsEmpty()) {
     // There's nothing to render if the bounds are 0.
     return;
   }
+  DCHECK((TranslateMatrix(coord_mapping.output_pre_translate) *
+          transform_.ToMatrix() * ScaleMatrix(coord_mapping.output_post_scale))
+             .IsNear(math::Matrix3F::Identity(), 0.001f));
 
   SkImageInfo output_image_info = SkImageInfo::MakeN32(
-      sub_render_bounds.output_bounds.width(),
-      sub_render_bounds.output_bounds.height(), kPremul_SkAlphaType);
+      coord_mapping.output_bounds.width(), coord_mapping.output_bounds.height(),
+      kPremul_SkAlphaType);
 
   // Allocate the pixels for the output image.
   SbBlitterPixelDataFormat blitter_pixel_data_format =
@@ -459,8 +429,8 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   DCHECK(SbBlitterIsPixelFormatSupportedByPixelData(device_,
                                                     blitter_pixel_data_format));
   SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-      device_, sub_render_bounds.output_bounds.width(),
-      sub_render_bounds.output_bounds.height(), blitter_pixel_data_format);
+      device_, coord_mapping.output_bounds.width(),
+      coord_mapping.output_bounds.height(), blitter_pixel_data_format);
   CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
   SkBitmap bitmap;
@@ -473,14 +443,15 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   SkCanvas canvas(bitmap);
   canvas.clear(SkColorSetARGB(0, 0, 0, 0));
 
+  Transform sub_render_transform(coord_mapping.sub_render_transform);
+
   // Now setup our canvas so that the render tree will be rendered to the top
   // left corner instead of at node->GetBounds().origin().
-  canvas.translate(sub_render_bounds.sub_transform.translate.x(),
-                   sub_render_bounds.sub_transform.translate.y());
+  canvas.translate(sub_render_transform.translate.x(),
+                   sub_render_transform.translate.y());
   // And finally set the scale on our target canvas to match that of the current
   // |transform_|.
-  canvas.scale(sub_render_bounds.sub_transform.scale.x(),
-               sub_render_bounds.sub_transform.scale.y());
+  canvas.scale(sub_render_transform.scale.x(), sub_render_transform.scale.y());
 
   // Use the Skia software rasterizer to render our subtree.
   software_rasterizer_->Submit(node, &canvas);
@@ -494,25 +465,32 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   SbBlitterSetModulateBlitsWithColor(context_, false);
   SbBlitterBlitRectToRect(
       context_, surface,
-      SbBlitterMakeRect(0, 0, sub_render_bounds.output_bounds.width(),
-                        sub_render_bounds.output_bounds.height()),
-      RectToBlitterRect(sub_render_bounds.output_bounds));
+      SbBlitterMakeRect(0, 0, coord_mapping.output_bounds.width(),
+                        coord_mapping.output_bounds.height()),
+      RectToBlitterRect(coord_mapping.output_bounds));
 
   // Clean up our temporary surface.
   SbBlitterDestroySurface(surface);
 }
 
-SbBlitterSurface RenderTreeNodeVisitor::RenderToOffscreenSurface(
-    render_tree::Node* node) {
-  SubRenderBounds sub_render_bounds(GetSubRenderBounds(node));
-  if (sub_render_bounds.output_bounds.IsEmpty()) {
+RenderTreeNodeVisitor::OffscreenRender
+RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
+  common::OffscreenRenderCoordinateMapping coord_mapping =
+      common::GetOffscreenRenderCoordinateMapping(
+          node->GetBounds(), transform_.ToMatrix(), bounds_stack_.Top());
+  if (coord_mapping.output_bounds.IsEmpty()) {
     // There's nothing to render if the bounds are 0.
-    return kSbBlitterInvalidSurface;
+    OffscreenRender ret;
+    ret.surface = kSbBlitterInvalidSurface;
+    return ret;
   }
+  DCHECK((TranslateMatrix(coord_mapping.output_pre_translate) *
+          transform_.ToMatrix() * ScaleMatrix(coord_mapping.output_post_scale))
+             .IsNear(math::Matrix3F::Identity(), 0.001f));
 
   SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
-      device_, sub_render_bounds.output_bounds.width(),
-      sub_render_bounds.output_bounds.height(), kSbBlitterSurfaceFormatRGBA8);
+      device_, coord_mapping.output_bounds.width(),
+      coord_mapping.output_bounds.height(), kSbBlitterSurfaceFormatRGBA8);
   SbBlitterRenderTarget render_target =
       SbBlitterGetRenderTargetFromSurface(surface);
 
@@ -523,14 +501,13 @@ SbBlitterSurface RenderTreeNodeVisitor::RenderToOffscreenSurface(
   SbBlitterSetBlending(context_, false);
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
   SbBlitterFillRect(
-      context_,
-      RectToBlitterRect(Rect(sub_render_bounds.output_bounds.size())));
+      context_, RectToBlitterRect(Rect(coord_mapping.output_bounds.size())));
 
   // Render to the sub-surface.
   RenderTreeNodeVisitor sub_visitor(device_, context_, render_target,
-                                    sub_render_bounds.output_bounds.size(),
+                                    coord_mapping.output_bounds.size(),
                                     software_rasterizer_);
-  sub_visitor.transform_ = sub_render_bounds.sub_transform;
+  sub_visitor.transform_ = Transform(coord_mapping.sub_render_transform);
   node->Accept(&sub_visitor);
 
   // Restore our original render target.
@@ -539,7 +516,12 @@ SbBlitterSurface RenderTreeNodeVisitor::RenderToOffscreenSurface(
   // render targets.
   bounds_stack_.UpdateContext();
 
-  return surface;
+  OffscreenRender ret;
+  ret.position.SetPoint(coord_mapping.output_bounds.x(),
+                        coord_mapping.output_bounds.y());
+  ret.surface = surface;
+
+  return ret;
 }
 
 }  // namespace blitter
