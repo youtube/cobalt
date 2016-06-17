@@ -230,7 +230,6 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
-  web_module_options_.csp_enforcement_mode = dom::kCspEnforcementDisable;
   web_module_options_.csp_insecure_allowed_token =
       dom::CspDelegateFactory::GetInsecureAllowedToken();
 #endif
