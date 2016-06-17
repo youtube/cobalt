@@ -18,12 +18,22 @@
 #define COBALT_MATH_TRANSFORM_2D_H_
 
 #include "cobalt/math/matrix3_f.h"
+#include "cobalt/math/vector2d_f.h"
 
 namespace cobalt {
 namespace math {
 
 cobalt::math::Matrix3F TranslateMatrix(float x, float y);
+inline cobalt::math::Matrix3F TranslateMatrix(
+    const math::Vector2dF& translate) {
+  return TranslateMatrix(translate.x(), translate.y());
+}
+
 cobalt::math::Matrix3F ScaleMatrix(float x_scale, float y_scale);
+inline cobalt::math::Matrix3F ScaleMatrix(const math::Vector2dF& scale) {
+  return ScaleMatrix(scale.x(), scale.y());
+}
+
 cobalt::math::Matrix3F ScaleMatrix(float scale);
 cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians);
 
