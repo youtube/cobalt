@@ -324,6 +324,14 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREADS."
 #endif
 
+#if !defined(SB_MAX_THREAD_LOCAL_KEYS)
+#error "Your platform must define SB_MAX_THREAD_LOCAL_KEYS."
+#endif
+
+#if !defined(SB_MAX_THREAD_NAME_LENGTH)
+#error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
+#endif
+
 #if !SB_HAS(DECODER) && !SB_HAS(PLAYER)
 #error "Your platform must have either a decoder or a player (or both)."
 #endif
