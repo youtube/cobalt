@@ -608,6 +608,9 @@
                 'filters/shell_raw_vp9_decoder_ps4.cc',
                 'filters/shell_raw_vp9_decoder_ps4.h',
               ],
+              'dependencies' : [
+                '<(DEPTH)/third_party/libvpx_gpu/libvpx_gpu.gyp:libvpx_gpu',
+              ],
             }],
             ['target_arch=="xb1" or target_arch=="xb360"', {
               'sources/': [
