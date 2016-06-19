@@ -14,6 +14,7 @@
 
 #include "starboard/string.h"
 
+#include <string.h>  // Non-standard, required for some platforms.
 #include <strings.h>
 
 int SbStringCompareNoCase(const char* string1, const char* string2) {
