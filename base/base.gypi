@@ -621,8 +621,6 @@
               'message_pump_io_starboard.h',
               'message_pump_ui_starboard.cc',
               'message_pump_ui_starboard.h',
-              'object_watcher_shell.cc',
-              'object_watcher_shell.h',
               'optional.cc',
               'optional.h',
               'optional_internal.h',
