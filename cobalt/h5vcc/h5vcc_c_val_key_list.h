@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,36 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc.h"
+#ifndef COBALT_H5VCC_H5VCC_C_VAL_KEY_LIST_H_
+#define COBALT_H5VCC_H5VCC_C_VAL_KEY_LIST_H_
+
+#include <string>
+#include <vector>
+
+#include "base/optional.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vcc::H5vcc(const Settings& settings) {
-  account_info_ = new H5vccAccountInfo(settings.account_manager);
-  audio_config_array_ = new H5vccAudioConfigArray();
-  c_val_ = new H5vccCVal();
-  runtime_ = new H5vccRuntime(settings.event_dispatcher);
-  settings_ = new H5vccSettings(settings.media_module);
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
-}
+class H5vccCValKeyList : public script::Wrappable {
+ public:
+  H5vccCValKeyList();
+
+  base::optional<std::string> Item(uint32 item);
+  uint32 length();
+
+  void AppendKey(const std::string& key);
+
+  DEFINE_WRAPPABLE_TYPE(H5vccCValKeyList);
+
+ private:
+  std::vector<std::string> keys_;
+
+  DISALLOW_COPY_AND_ASSIGN(H5vccCValKeyList);
+};
 
 }  // namespace h5vcc
 }  // namespace cobalt
+
+#endif  // COBALT_H5VCC_H5VCC_C_VAL_KEY_LIST_H_

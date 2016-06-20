@@ -20,6 +20,7 @@
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
+#include "cobalt/h5vcc/h5vcc_c_val.h"
 #include "cobalt/h5vcc/h5vcc_runtime.h"
 #include "cobalt/h5vcc/h5vcc_settings.h"
 #include "cobalt/h5vcc/h5vcc_storage.h"
@@ -52,6 +53,7 @@ class H5vcc : public script::Wrappable {
   }
   const scoped_refptr<H5vccRuntime>& runtime() const { return runtime_; }
   const scoped_refptr<H5vccSettings>& settings() const { return settings_; }
+  const scoped_refptr<H5vccCVal>& c_val() const { return c_val_; }
   const scoped_refptr<H5vccStorage>& storage() const { return storage_; }
   const scoped_refptr<H5vccSystem>& system() const { return system_; }
 
@@ -60,6 +62,7 @@ class H5vcc : public script::Wrappable {
  private:
   scoped_refptr<H5vccAccountInfo> account_info_;
   scoped_refptr<H5vccAudioConfigArray> audio_config_array_;
+  scoped_refptr<H5vccCVal> c_val_;
   scoped_refptr<H5vccRuntime> runtime_;
   scoped_refptr<H5vccSettings> settings_;
   scoped_refptr<H5vccStorage> storage_;
