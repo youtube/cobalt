@@ -23,8 +23,7 @@
 #ifndef BASE_STRING_PIECE_H_
 #define BASE_STRING_PIECE_H_
 
-#include <stddef.h>
-
+#include <algorithm>
 #include <iosfwd>
 #include <string>
 #include <stddef.h>
@@ -424,7 +423,7 @@ namespace BASE_HASH_NAMESPACE {
 #if (!defined(OS_STARBOARD) && defined(COMPILER_GCC) &&                 \
         !(defined(__LB_SHELL__) && !defined(__LB_LINUX__))) ||          \
     (defined(OS_STARBOARD) &&                                           \
-        defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE)
+        !(defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE))
 
 template<>
 struct hash<base::StringPiece> {
@@ -442,7 +441,7 @@ struct hash<base::StringPiece16> {
 #elif (!defined(OS_STARBOARD) && \
           (defined(COMPILER_MSVC) || defined(__LB_SHELL__))) ||         \
       (defined(OS_STARBOARD) &&                                         \
-          defined(SB_HAS_HASH_VALUE) && !SB_HAS_HASH_VALUE)
+          defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE)
 
 inline size_t hash_value(const base::StringPiece& sp) {
   HASH_STRING_PIECE(base::StringPiece, sp);
