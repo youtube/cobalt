@@ -25,6 +25,7 @@ typedef HANDLE MutexHandle;
 #endif
 #include <time.h>
 #elif defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/eztime_poem.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
