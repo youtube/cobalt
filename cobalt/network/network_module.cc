@@ -66,7 +66,9 @@ NetworkModule::~NetworkModule() {
 
   // This will run the above task, and then stop the thread.
   thread_.reset(NULL);
+#if !defined(OS_STARBOARD)
   object_watch_multiplexer_.reset(NULL);
+#endif
   network_system_.reset(NULL);
 }
 
@@ -88,7 +90,9 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
 
 void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
+#if !defined(OS_STARBOARD)
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
+#endif
   network_system_ = NetworkSystem::Create(event_dispatcher);
   http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
       options_.preferred_language, "utf-8",
