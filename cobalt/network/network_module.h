@@ -20,7 +20,9 @@
 #include <string>
 
 #include "base/message_loop_proxy.h"
+#if !defined(OS_STARBOARD)
 #include "base/object_watcher_shell.h"
+#endif
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/network/cobalt_net_log.h"
@@ -111,7 +113,9 @@ class NetworkModule {
 
   storage::StorageManager* storage_manager_;
   scoped_ptr<base::Thread> thread_;
+#if !defined(OS_STARBOARD)
   scoped_ptr<base::ObjectWatchMultiplexer> object_watch_multiplexer_;
+#endif
   scoped_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
   scoped_ptr<NetworkDelegate> network_delegate_;
