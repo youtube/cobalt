@@ -9,6 +9,7 @@
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
+#include "base/threading/platform_thread.h"
 
 namespace base {
 
@@ -49,6 +50,8 @@ class BASE_EXPORT MessageLoopProxyImpl : public MessageLoopProxy {
                       const base::Closure& task,
                       base::TimeDelta delay,
                       bool nestable);
+
+  PlatformThreadId thread_id_;
 
   // The lock that protects access to target_message_loop_.
   mutable base::Lock message_loop_lock_;
