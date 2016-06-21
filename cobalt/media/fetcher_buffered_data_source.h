@@ -84,6 +84,8 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
                               scoped_ptr<std::string> download_data) OVERRIDE;
   void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
 
+  // This function can be posted to |message_loop_| to destroy a fetcher on it.
+  void DestroyFetcher(scoped_ptr<net::URLFetcher> fetcher);
   void CreateNewFetcher();
   void Read_Locked(uint64 position, uint64 size, uint8* data,
                    const ReadCB& read_cb);

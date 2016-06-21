@@ -28,16 +28,6 @@
 namespace cobalt {
 namespace media {
 
-namespace {
-
-// This function can be posted to a message loop to destroy a fetcher on the
-// particular message loop.
-void DestroyFetcher(scoped_ptr<net::URLFetcher> fetcher) {
-  fetcher.reset();  // Explicitly destroy the fetcher.
-}
-
-}  // namespace
-
 FetcherBufferedDataSource::FetcherBufferedDataSource(
     const scoped_refptr<base::MessageLoopProxy>& message_loop, const GURL& url,
     const csp::SecurityCallback& security_callback,
@@ -60,11 +50,7 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
   DCHECK(network_module);
 }
 
-FetcherBufferedDataSource::~FetcherBufferedDataSource() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-
-  fetcher_.reset();
-}
+FetcherBufferedDataSource::~FetcherBufferedDataSource() { DCHECK(!fetcher_); }
 
 void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
                                      const ReadCB& read_cb) {
@@ -85,6 +71,7 @@ void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
     }
     // From this moment on, any call to Read() should be treated as an error.
     error_occured_ = true;
+    DestroyFetcher(fetcher_.Pass());
   }
 
   // We cannot post the callback using the MessageLoop as we share the
@@ -192,11 +179,8 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
 
   if (size == 0) {
     // The server side doesn't support range request.  Delete the fetcher to
-    // stop the current request.  Note that we cannot delete the fetcher inside
-    // this callback because the caller (the Fetcher) may still use its member
-    // after this function returns.
-    message_loop_->PostTask(
-        FROM_HERE, base::Bind(DestroyFetcher, base::Passed(&fetcher_)));
+    // stop the current request.
+    DestroyFetcher(fetcher_.Pass());
     ProcessPendingRead_Locked();
     return;
   }
@@ -267,6 +251,17 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   ProcessPendingRead_Locked();
 }
 
+void FetcherBufferedDataSource::DestroyFetcher(
+    scoped_ptr<net::URLFetcher> fetcher) {
+  if (fetcher && !message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&FetcherBufferedDataSource::DestroyFetcher, this,
+                              base::Passed(&fetcher)));
+    return;
+  }
+  // Do nothing as |fetcher| will destroy itself.
+}
+
 void FetcherBufferedDataSource::CreateNewFetcher() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -274,8 +269,9 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
   DCHECK_GE(static_cast<int64>(last_request_offset_), 0);
   DCHECK_GE(static_cast<int64>(last_request_size_), 0);
 
-  if (!security_callback_.is_null() && !security_callback_.Run(url_, false)) {
-    // Blocked.
+  // Check if there was an error or if the request is blocked by csp.
+  if (error_occured_ ||
+      !security_callback_.is_null() && !security_callback_.Run(url_, false)) {
     error_occured_ = true;
     if (!pending_read_cb_.is_null()) {
       base::ResetAndReturn(&pending_read_cb_).Run(-1);
@@ -383,8 +379,7 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
     last_request_offset_ = buffer_offset_ + buffer_.GetLength();
   }
 
-  message_loop_->PostTask(FROM_HERE,
-                          base::Bind(DestroyFetcher, base::Passed(&fetcher_)));
+  DestroyFetcher(fetcher_.Pass());
   message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&FetcherBufferedDataSource::CreateNewFetcher, this));
