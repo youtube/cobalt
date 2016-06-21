@@ -18,30 +18,30 @@
 
 #include "base/compiler_specific.h"
 #include "base/debug/trace_event_impl.h"
+#include "base/message_loop.h"
 #include "cobalt/trace_event/scoped_event_parser_trace.h"
 
 namespace cobalt {
 namespace browser {
 namespace {
 
-  // Name of the channel to listen for trace commands from the debug console.
-  const char kTraceCommandChannel[] = "trace";
+// Name of the channel to listen for trace commands from the debug console.
+const char kTraceCommandChannel[] = "trace";
 
-  // Help strings for the trace command channel.
-  const char kTraceCommandShortHelp[] = "Starts/stops execution tracing.";
-  const char kTraceCommandLongHelp[] =
-      "If a trace is currently running, stops it and saves the result; "
-      "otherwise starts a new trace.";
+// Help strings for the trace command channel.
+const char kTraceCommandShortHelp[] = "Starts/stops execution tracing.";
+const char kTraceCommandLongHelp[] =
+    "If a trace is currently running, stops it and saves the result; "
+    "otherwise starts a new trace.";
 
-  // Name of the command to start / stop tracing after key event.
-  const char kKeyTraceCommand[] = "key_trace";
+// Name of the command to start / stop tracing after key event.
+const char kKeyTraceCommand[] = "key_trace";
 
-  // Help strings for the key trace command.
-  const char kKeyTraceCommandShortHelp[] =
-      "Starts/stops tracing after key event";
-  const char kKeyTraceCommandLongHelp[] =
-      "Switches the flag of whether we start a new tracing after each key "
-      "event.";
+// Help strings for the key trace command.
+const char kKeyTraceCommandShortHelp[] = "Starts/stops tracing after key event";
+const char kKeyTraceCommandLongHelp[] =
+    "Switches the flag of whether we start a new tracing after each key "
+    "event.";
 
 }  // namespace
 
@@ -49,16 +49,17 @@ bool TraceManager::IsTracing() {
   return base::debug::TraceLog::GetInstance()->IsEnabled();
 }
 
-TraceManager::TraceManager():
-    ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
-        kTraceCommandChannel,
-        base::Bind(&TraceManager::OnTraceMessage, base::Unretained(this)),
-        kTraceCommandShortHelp, kTraceCommandLongHelp)),
-    ALLOW_THIS_IN_INITIALIZER_LIST(key_trace_command_handler_(
-        kKeyTraceCommand,
-        base::Bind(&TraceManager::OnKeyTraceMessage, base::Unretained(this)),
-        kKeyTraceCommandShortHelp, kKeyTraceCommandLongHelp)),
-    key_tracing_enabled_(false) {}
+TraceManager::TraceManager()
+    : self_message_loop_(MessageLoop::current()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
+          kTraceCommandChannel,
+          base::Bind(&TraceManager::OnTraceMessage, base::Unretained(this)),
+          kTraceCommandShortHelp, kTraceCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(key_trace_command_handler_(
+          kKeyTraceCommand,
+          base::Bind(&TraceManager::OnKeyTraceMessage, base::Unretained(this)),
+          kKeyTraceCommandShortHelp, kKeyTraceCommandLongHelp)),
+      key_tracing_enabled_(false) {}
 
 void TraceManager::OnKeyEventProduced() {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -75,7 +76,14 @@ void TraceManager::OnKeyEventProduced() {
   }
 }
 
-void TraceManager::OnTraceMessage(const std::string& /* message */) {
+void TraceManager::OnTraceMessage(const std::string& message) {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(FROM_HERE,
+                                 base::Bind(&TraceManager::OnTraceMessage,
+                                            base::Unretained(this), message));
+    return;
+  }
+
   DCHECK(thread_checker_.CalledOnValidThread());
 
   static const char* kOutputTraceFilename = "triggered_trace.json";
@@ -96,7 +104,14 @@ void TraceManager::OnTraceMessage(const std::string& /* message */) {
   }
 }
 
-void TraceManager::OnKeyTraceMessage(const std::string& /* message */) {
+void TraceManager::OnKeyTraceMessage(const std::string& message) {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(FROM_HERE,
+                                 base::Bind(&TraceManager::OnKeyTraceMessage,
+                                            base::Unretained(this), message));
+    return;
+  }
+
   DCHECK(thread_checker_.CalledOnValidThread());
 
   key_tracing_enabled_ = !key_tracing_enabled_;

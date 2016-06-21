@@ -54,6 +54,9 @@ class TraceManager {
                         scoped_refptr<trace_event::EventParser::ScopedEvent> >
       StartTimeToEventMap;
 
+  // The message loop on which we'll do all our work.
+  MessageLoop* const self_message_loop_;
+
   // Command handler object for trace command from the debug console.
   base::ConsoleCommandManager::CommandHandler trace_command_handler_;
   // Command handler object for key trace command from the debug console.
