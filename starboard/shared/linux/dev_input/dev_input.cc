@@ -206,16 +206,25 @@ SbKey KeyCodeToSbKey(uint16_t code) {
       return kSbKeyZ;
 
     case KEY_0:
+      return kSbKey0;
     case KEY_1:
+      return kSbKey1;
     case KEY_2:
+      return kSbKey2;
     case KEY_3:
+      return kSbKey3;
     case KEY_4:
+      return kSbKey4;
     case KEY_5:
+      return kSbKey5;
     case KEY_6:
+      return kSbKey6;
     case KEY_7:
+      return kSbKey7;
     case KEY_8:
+      return kSbKey8;
     case KEY_9:
-      return static_cast<SbKey>(kSbKey0 + (code - KEY_0));
+      return kSbKey9;
 
     case KEY_NUMERIC_0:
     case KEY_NUMERIC_1:
@@ -230,16 +239,25 @@ SbKey KeyCodeToSbKey(uint16_t code) {
       return static_cast<SbKey>(kSbKey0 + (code - KEY_NUMERIC_0));
 
     case KEY_KP0:
+      return kSbKeyNumpad0;
     case KEY_KP1:
+      return kSbKeyNumpad1;
     case KEY_KP2:
+      return kSbKeyNumpad2;
     case KEY_KP3:
+      return kSbKeyNumpad3;
     case KEY_KP4:
+      return kSbKeyNumpad4;
     case KEY_KP5:
+      return kSbKeyNumpad5;
     case KEY_KP6:
+      return kSbKeyNumpad6;
     case KEY_KP7:
+      return kSbKeyNumpad7;
     case KEY_KP8:
+      return kSbKeyNumpad8;
     case KEY_KP9:
-      return static_cast<SbKey>(kSbKeyNumpad0 + (code - KEY_KP0));
+      return kSbKeyNumpad9;
 
     case KEY_KPASTERISK:
       return kSbKeyMultiply;
