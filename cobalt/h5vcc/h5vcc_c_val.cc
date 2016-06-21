@@ -27,7 +27,6 @@ H5vccCVal::H5vccCVal() {}
 
 scoped_refptr<H5vccCValKeyList> H5vccCVal::Keys() {
   scoped_refptr<H5vccCValKeyList> key_list(new H5vccCValKeyList);
-#if defined(ENABLE_DEBUG_CONSOLE)
   typedef std::set<std::string> CValKeySet;
   CValKeySet key_set =
       base::ConsoleValueManager::GetInstance()->GetOrderedCValNames();
@@ -35,19 +34,12 @@ scoped_refptr<H5vccCValKeyList> H5vccCVal::Keys() {
        key_iter != key_set.end(); ++key_iter) {
     key_list->AppendKey(*key_iter);
   }
-#endif
   return key_list;
 }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
 base::optional<std::string> H5vccCVal::GetValue(const std::string& name) {
   return base::ConsoleValueManager::GetInstance()->GetValueAsString(name);
 }
-#else
-base::optional<std::string> H5vccCVal::GetValue(const std::string& /*name*/) {
-  return base::nullopt;
-}
-#endif
 
 }  // namespace h5vcc
 }  // namespace cobalt
