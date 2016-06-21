@@ -25,7 +25,7 @@
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
       ],
