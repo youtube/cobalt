@@ -271,7 +271,7 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
 
   // Check if there was an error or if the request is blocked by csp.
   if (error_occured_ ||
-      !security_callback_.is_null() && !security_callback_.Run(url_, false)) {
+      (!security_callback_.is_null() && !security_callback_.Run(url_, false))) {
     error_occured_ = true;
     if (!pending_read_cb_.is_null()) {
       base::ResetAndReturn(&pending_read_cb_).Run(-1);
