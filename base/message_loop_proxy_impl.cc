@@ -27,14 +27,7 @@ bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
 }
 
 bool MessageLoopProxyImpl::RunsTasksOnCurrentThread() const {
-  // We shouldn't use MessageLoop::current() since it uses LazyInstance which
-  // may be deleted by ~AtExitManager when a WorkerPool thread calls this
-  // function.
-  // http://crbug.com/63678
-  base::ThreadRestrictions::ScopedAllowSingleton allow_singleton;
-  AutoLock lock(message_loop_lock_);
-  return (target_message_loop_ &&
-          (MessageLoop::current() == target_message_loop_));
+  return thread_id_ == PlatformThread::CurrentId();
 }
 
 // MessageLoop::DestructionObserver implementation
@@ -64,8 +57,8 @@ void MessageLoopProxyImpl::OnDestruct() const {
 }
 
 MessageLoopProxyImpl::MessageLoopProxyImpl()
-    : target_message_loop_(MessageLoop::current()) {
-}
+    : thread_id_(PlatformThread::CurrentId()),
+      target_message_loop_(MessageLoop::current()) {}
 
 bool MessageLoopProxyImpl::PostTaskHelper(
     const tracked_objects::Location& from_here, const base::Closure& task,
