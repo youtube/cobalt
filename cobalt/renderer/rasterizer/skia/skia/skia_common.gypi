@@ -53,7 +53,7 @@
         ],
       },
       'dependencies': [
-        '<(DEPTH)/cobalt/renderer/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
       ],
     }, {
       'variables': {
