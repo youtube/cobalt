@@ -21,8 +21,8 @@
 #include <string>
 
 #include "base/time.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/base/console_commands.h"
-#include "cobalt/base/console_values.h"
 #include "cobalt/renderer/smoothed_value.h"
 #include "cobalt/renderer/submission.h"
 
@@ -164,8 +164,8 @@ class SubmissionQueue {
   // increasing.
   base::optional<base::TimeTicks> last_now_;
 
-  base::CVal<float> to_submission_time_in_ms_cval_;
-  base::CVal<size_t> queue_size_;
+  base::DebugCVal<float> to_submission_time_in_ms_cval_;
+  base::DebugCVal<size_t> queue_size_;
 };
 
 }  // namespace renderer
