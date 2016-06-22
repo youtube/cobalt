@@ -29,23 +29,6 @@ TEST(SbConditionVariableDestroyTest, SunnyDayAutoInit) {
   EXPECT_TRUE(SbConditionVariableDestroy(&condition));
 }
 
-TEST(SbConditionVariableDestroyTest, RainyDayWithWaiters) {
-  WaiterContext context;
-
-  SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                   true, NULL, WaiterEntryPoint, &context);
-  context.WaitForReturnSignal();
-
-  // We won't be able to destroy it if it has waiters.
-  EXPECT_FALSE(SbConditionVariableDestroy(&context.condition));
-
-  // Signal the condition to make the thread wake up and exit.
-  EXPECT_TRUE(SbConditionVariableSignal(&context.condition));
-
-  // Now we wait for the thread to exit.
-  EXPECT_TRUE(SbThreadJoin(thread, NULL));
-}
-
 TEST(SbConditionVariableDestroyTest, RainyDayNull) {
   EXPECT_FALSE(SbConditionVariableDestroy(NULL));
 }
