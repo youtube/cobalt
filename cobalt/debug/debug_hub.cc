@@ -21,8 +21,8 @@
 #include <set>
 
 #include "base/compiler_specific.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/base/console_commands.h"
-#include "cobalt/base/console_values.h"
 #include "cobalt/base/source_location.h"
 
 namespace cobalt {
@@ -103,7 +103,7 @@ void DebugHub::SetLogMessageCallback(const LogMessageCallbackArg& callback) {
 // support return of a string array.
 std::string DebugHub::GetConsoleValueNames() const {
   std::string ret = "";
-  base::ConsoleValueManager* cvm = base::ConsoleValueManager::GetInstance();
+  base::CValManager* cvm = base::CValManager::GetInstance();
   DCHECK(cvm);
 
   if (cvm) {
@@ -123,7 +123,7 @@ std::string DebugHub::GetConsoleValueNames() const {
 
 std::string DebugHub::GetConsoleValue(const std::string& name) const {
   std::string ret = "<undefined>";
-  base::ConsoleValueManager* cvm = base::ConsoleValueManager::GetInstance();
+  base::CValManager* cvm = base::CValManager::GetInstance();
   DCHECK(cvm);
 
   if (cvm) {

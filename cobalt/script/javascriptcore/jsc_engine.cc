@@ -20,7 +20,7 @@
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
-#include "cobalt/base/console_values.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
@@ -64,8 +64,8 @@ class JSCEngineStats {
   }
 
   base::Lock lock_;
-  base::CVal<size_t> js_memory_;
-  base::CVal<size_t> js_engine_count_;
+  base::DebugCVal<size_t> js_memory_;
+  base::DebugCVal<size_t> js_engine_count_;
   scoped_ptr<base::PollerWithThread> poller_;
 };
 

@@ -29,7 +29,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/base/console_values.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -450,8 +450,8 @@ class ResourceCache {
 
   base::ThreadChecker resource_cache_thread_checker_;
 
-  base::CVal<uint32> size_in_bytes_;
-  base::CVal<uint32> capacity_in_bytes_;
+  base::DebugCVal<uint32> size_in_bytes_;
+  base::DebugCVal<uint32> capacity_in_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };

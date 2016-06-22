@@ -24,7 +24,7 @@
 #include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
-#include "cobalt/base/console_values.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/debug_server.h"
 #include "net/base/stream_listen_socket.h"
@@ -91,7 +91,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
   scoped_ptr<DebugClient> debug_client_;
 
   int websocket_id_;
-  base::CVal<std::string> local_address_;
+  base::DebugCVal<std::string> local_address_;
   FilePath content_root_dir_;
 };
 
