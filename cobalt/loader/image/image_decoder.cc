@@ -86,8 +86,7 @@ LoadResponseType ImageDecoder::OnResponseStarted(
 
   std::string mime_style;
   bool success = headers->GetMimeType(&mime_style);
-  DCHECK(success);
-  if (!net::IsSupportedImageMimeType(mime_style)) {
+  if (!success || !net::IsSupportedImageMimeType(mime_style)) {
     state_ = kNotApplicable;
     CacheMessage(&failure_message_, "Not an image mime type.");
   }

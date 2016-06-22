@@ -226,6 +226,30 @@ TEST(ImageDecoderTest, DecodeNonImageType) {
   EXPECT_FALSE(image_decoder.Image());
 }
 
+TEST(ImageDecoderTest, DecodeNoContentType) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithFailure("Not an image mime type.");
+
+  const char kHTMLHeaders[] = {
+      "HTTP/1.1 200 OK\0"
+      "Expires: Wed, 20 Apr 2016 19:33:44 GMT\0"
+      "Date: Wed, 20 Apr 2016 18:33:44 GMT\0"
+      "Server: gws\0"
+      "Accept-Ranges: none\0"
+      "Cache-Control: private, max-age=0\0"};
+  scoped_refptr<net::HttpResponseHeaders> headers(new net::HttpResponseHeaders(
+      std::string(kHTMLHeaders, kHTMLHeaders + sizeof(kHTMLHeaders))));
+
+  const char kContent[] = {
+      "<!DOCTYPE html><html><head></head><body></body></html>"};
+
+  image_decoder.OnResponseStarted(NULL, headers);
+  image_decoder.DecodeChunk(kContent, sizeof(kContent));
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
+
 TEST(ImageDecoderTest, DecodeImageWithNoContent) {
   MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithFailure(
