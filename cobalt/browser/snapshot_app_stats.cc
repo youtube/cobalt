@@ -20,7 +20,7 @@
 #include "base/command_line.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
-#include "cobalt/base/console_values.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
 #include "cobalt/browser/switches.h"
@@ -86,7 +86,7 @@ typedef std::map<std::string, std::string> CValsMap;
 
 // Returns all CVals along with their values.
 CValsMap GetAllCValValues() {
-  base::ConsoleValueManager* cvm = base::ConsoleValueManager::GetInstance();
+  base::CValManager* cvm = base::CValManager::GetInstance();
   std::set<std::string> cvals = cvm->GetOrderedCValNames();
   CValsMap cvals_with_values;
 
