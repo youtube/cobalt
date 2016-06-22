@@ -61,7 +61,8 @@ SB_EXPORT bool SbConditionVariableCreate(SbConditionVariable* out_condition,
 
 // Destroys a condition variable, returning whether the destruction was
 // successful. The condition variable specified by |condition| is
-// invalidated.
+// invalidated. Behavior is undefined if other threads are currently waiting
+// on this condition variable.
 SB_EXPORT bool SbConditionVariableDestroy(SbConditionVariable* condition);
 
 // Waits for |condition|, releasing the held lock |mutex|, blocking

@@ -62,9 +62,6 @@ TEST(SbConditionVariableWaitTest, SunnyDay) {
     context.WaitForReturnSignal();
   }
 
-  // We won't be able to destroy it if it has waiters.
-  EXPECT_FALSE(SbConditionVariableDestroy(&context.condition));
-
   // Signal the conditions to make the thread wake up and exit.
   EXPECT_TRUE(SbConditionVariableBroadcast(&context.condition));
 
