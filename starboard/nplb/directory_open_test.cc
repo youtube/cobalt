@@ -51,7 +51,7 @@ TEST(SbDirectoryOpenTest, ManySunnyDay) {
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
-  const int kMany = 256;
+  const int kMany = SB_FILE_MAX_OPEN;
   SbDirectory directories[kMany] = {0};
 
   for (int i = 0; i < SB_ARRAY_SIZE_INT(directories); ++i) {
