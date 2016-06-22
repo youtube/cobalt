@@ -22,6 +22,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
       ],
     },
     {
