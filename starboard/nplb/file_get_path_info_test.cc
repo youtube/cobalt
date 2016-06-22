@@ -26,7 +26,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbFileGetInfoTest, InvalidFileErrors) {
+TEST(SbFileGetPathInfoTest, InvalidFileErrors) {
   SbFileInfo info = {0};
   bool result = SbFileGetPathInfo(NULL, &info);
   EXPECT_FALSE(result);
@@ -44,7 +44,7 @@ TEST(SbFileGetInfoTest, InvalidFileErrors) {
   EXPECT_FALSE(result);
 }
 
-TEST(SbFileGetInfoTest, WorksOnARegularFile) {
+TEST(SbFileGetPathInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
   // in extra sensitivity to make flakiness more apparent.
   const int kTrials = 100;
@@ -70,7 +70,7 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
   }
 }
 
-TEST(SbFileGetInfoTest, WorksOnADirectory) {
+TEST(SbFileGetPathInfoTest, WorksOnADirectory) {
   char path[SB_FILE_MAX_PATH] = {0};
   bool result =
       SbSystemGetPath(kSbSystemPathTempDirectory, path, SB_FILE_MAX_PATH);
