@@ -62,7 +62,7 @@ std::string ScopedRandomFile::MakeRandomFilename() {
   }
 
   std::ostringstream filename_stream;
-  filename_stream << path << "/SbFileOpenTest.File_"
+  filename_stream << path << "/ScopedRandomFile.File_"
                   << SbSystemGetRandomUInt64();
   return filename_stream.str();
 }
