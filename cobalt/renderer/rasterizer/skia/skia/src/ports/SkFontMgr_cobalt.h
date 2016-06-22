@@ -23,7 +23,7 @@
 #include <utility>
 
 #include "base/hash_tables.h"
-#include "cobalt/base/console_values.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "SkFontHost.h"
