@@ -26,6 +26,7 @@ void SbEventHandle(const SbEvent* event) {
       SB_DLOG(INFO) << __FUNCTION__ << ": START";
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       SbWindow window = SbWindowCreate(NULL);
+      SB_CHECK(SbWindowIsValid(window));
       break;
     }
     case kSbEventTypeInput: {

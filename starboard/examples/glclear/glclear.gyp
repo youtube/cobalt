@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,19 +15,24 @@
 {
   'targets': [
     {
-      'target_name': 'examples',
+      'target_name': 'starboard_glclear_example',
+      'type': 'executable',
+      'sources': [
+        'main.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+      ],
+    },
+    {
+      'target_name': 'starboard_glclear_example_deploy',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/starboard/examples/blitter/blitter.gyp:starboard_blitter_example',
-        '<(DEPTH)/starboard/examples/window/window.gyp:starboard_window_example',
+        'starboard_glclear_example',
       ],
-      'conditions': [
-        ['gl_type != "none"', {
-          'dependencies': [
-            '<(DEPTH)/starboard/examples/glclear/glclear.gyp:starboard_glclear_example',
-          ],
-        }],
-      ],
+      'variables': {
+        'executable_name': 'starboard_glclear_example',
+      },
     },
   ],
 }
