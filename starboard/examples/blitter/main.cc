@@ -132,7 +132,7 @@ Application::Application() {
   options.size.width = 1920;
   options.size.height = 1080;
   window_ = SbWindowCreate(NULL);
-  SB_DCHECK(SbWindowIsValid(window_));
+  SB_CHECK(SbWindowIsValid(window_));
 
   // We start by constructing a SbBlitterDevice which represents the connection
   // to the hardware blitting device (e.g. a GPU).
@@ -180,9 +180,7 @@ Application::Application() {
   // draw state for us.
   context_ = SbBlitterCreateContext(device_);
 
-  // Schedule the first scene render (which will schedule itself to run again
-  // and again).
-  SbEventSchedule(&Application::RenderSceneEventCallback, this, 0);
+  RenderScene();
 }
 
 Application::~Application() {
