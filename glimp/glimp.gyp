@@ -24,8 +24,8 @@
       ],
 
       'direct_dependent_settings': {
-        'include_dirs': [
-          '<(DEPTH)/glimp/include',
+        'includes': [
+          'glimp_settings.gypi',
         ],
       },
     },
