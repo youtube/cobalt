@@ -74,15 +74,6 @@
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
           ],
         }],
-        # Explicitly include glimp on the PS3 only.
-        # TODO(***REMOVED***): This can be removed when the PS3 uses glimp by default,
-        #               as glimp will then be depended upon by the renderer
-        #               gyp target on PS3.
-        ['target_arch=="ps3"', {
-          'dependencies': [
-            '<(DEPTH)/glimp/glimp.gyp:*',
-          ],
-        }],
       ],
     },
   ],
