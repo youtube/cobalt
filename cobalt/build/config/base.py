@@ -23,8 +23,15 @@ import os
 import gyp_utils
 
 
+class Configs(object):
+  """Strings representing valid build configurations."""
+  DEBUG = 'debug'
+  DEVEL = 'devel'
+  GOLD = 'gold'
+  QA = 'qa'
+
 # Represents all valid build configurations.
-VALID_BUILD_CONFIGS = ['debug', 'devel', 'qa', 'gold']
+VALID_BUILD_CONFIGS = [Configs.DEBUG, Configs.DEVEL, Configs.QA, Configs.GOLD]
 
 
 # Represents all supported platforms, uniquified and sorted.
