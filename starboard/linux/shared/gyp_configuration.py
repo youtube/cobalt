@@ -15,6 +15,7 @@
 
 import os
 
+from config.base import Configs
 import config.starboard
 import gyp_utils
 
@@ -22,7 +23,7 @@ import gyp_utils
 class PlatformConfig(config.starboard.PlatformConfigStarboard):
   """Starboard Linux platform configuration."""
 
-  def __init__(self, platform):
+  def __init__(self, platform, asan_enabled_by_default=True):
     super(PlatformConfig, self).__init__(platform)
 
     gyp_utils.CheckClangVersion()
@@ -31,6 +32,8 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     # There's no need to modify the compiler binary names if goma is set up
     # correctly in the PATH.
     gyp_utils.FindAndInitGoma()
+
+    self.asan_default = 1 if asan_enabled_by_default else 0
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -41,20 +44,16 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
   def GetVariables(self, configuration):
     variables = super(PlatformConfig, self).GetVariables(configuration)
+    use_tsan = int(os.environ.get('USE_TSAN', 0))
+    # Enable ASAN by default for debug and devel builds only if USE_TSAN was not
+    # set to 1 in the environment.
+    use_asan_default = self.asan_default if not use_tsan and configuration in (
+        Configs.DEBUG, Configs.DEVEL) else 0
     variables.update({
         'clang': 1,
-        'use_asan': int(os.environ.get('USE_ASAN', 0)),
-        'use_tsan': int(os.environ.get('USE_TSAN', 0)),
+        'use_asan': int(os.environ.get('USE_ASAN', use_asan_default)),
+        'use_tsan': use_tsan,
     })
-
-    if int(os.environ.get('USE_FUZZING', 0)):
-      # Build configuration for fuzz testing.
-      variables['use_asan'] = 1
-      variables['use_tsan'] = 0
-      # Disable code that tries to bind ports. The machines that run fuzz
-      # testing may not permit that, and we don't handle it gracefully.
-      variables['in_app_dial'] = 0
-      variables['enable_remote_debugging'] = 0
 
     if variables.get('use_asan') == 1 and variables.get('use_tsan') == 1:
       raise RuntimeError('ASAN and TSAN are mutually exclusive')
