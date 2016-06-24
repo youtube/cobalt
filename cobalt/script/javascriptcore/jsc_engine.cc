@@ -31,8 +31,13 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
 namespace {
+
+#if defined(__LB_SHELL__FOR_RELEASE__)
+const int kPollerPeriodMs = 2000;
+#else  // #if defined(__LB_SHELL__FOR_RELEASE__)
+const int kPollerPeriodMs = 20;
+#endif  // #if defined(__LB_SHELL__FOR_RELEASE__)
 
 class JSCEngineStats {
  public:
@@ -64,8 +69,8 @@ class JSCEngineStats {
   }
 
   base::Lock lock_;
-  base::DebugCVal<size_t> js_memory_;
-  base::DebugCVal<size_t> js_engine_count_;
+  base::PublicCVal<size_t> js_memory_;
+  base::PublicCVal<size_t> js_engine_count_;
   scoped_ptr<base::PollerWithThread> poller_;
 };
 
@@ -76,24 +81,19 @@ JSCEngineStats::JSCEngineStats()
                        "Total JavaScript engine registered.") {
   poller_.reset(new base::PollerWithThread(
       base::Bind(&JSCEngineStats::Update, base::Unretained(this)),
-      base::TimeDelta::FromMilliseconds(20)));
+      base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
 }
 
 }  // namespace
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
 JSCEngine::JSCEngine() {
   global_data_ = JSC::JSGlobalData::create(JSC::LargeHeap);
-#if !defined(__LB_SHELL__FOR_RELEASE__)
   JSCEngineStats::GetInstance()->JSCEngineCreated();
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 }
 
 JSCEngine::~JSCEngine() {
   DCHECK(thread_checker_.CalledOnValidThread());
-#if !defined(__LB_SHELL__FOR_RELEASE__)
   JSCEngineStats::GetInstance()->JSCEngineDestroyed();
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
   script_object_registry_.ClearEntries();
 }
 

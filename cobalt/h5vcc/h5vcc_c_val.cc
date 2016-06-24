@@ -28,8 +28,7 @@ H5vccCVal::H5vccCVal() {}
 scoped_refptr<H5vccCValKeyList> H5vccCVal::Keys() {
   scoped_refptr<H5vccCValKeyList> key_list(new H5vccCValKeyList);
   typedef std::set<std::string> CValKeySet;
-  CValKeySet key_set =
-      base::CValManager::GetInstance()->GetOrderedCValNames();
+  CValKeySet key_set = base::CValManager::GetInstance()->GetOrderedCValNames();
   for (CValKeySet::iterator key_iter = key_set.begin();
        key_iter != key_set.end(); ++key_iter) {
     key_list->AppendKey(*key_iter);
