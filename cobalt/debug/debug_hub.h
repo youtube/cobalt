@@ -31,7 +31,6 @@
 #include "cobalt/base/log_message_handler.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/debug/debugger.h"
-#include "cobalt/debug/system_stats_tracker.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
@@ -141,9 +140,6 @@ class DebugHub : public script::Wrappable {
 
   // The JavaScript callback to forward log messages to.
   base::LogMessageHandler::CallbackId log_message_handler_callback_id_;
-
-  // Maintains a collection of CVals continuously updated with system stats.
-  SystemStatsTracker system_stats_tracker;
 
   // Interface to the JavaScript debugger client.
   scoped_refptr<Debugger> debugger_;
