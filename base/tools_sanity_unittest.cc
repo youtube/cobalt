@@ -86,13 +86,6 @@ void MakeSomeErrors(char *ptr, size_t size) {
 
 }  // namespace
 
-// A memory leak detector should report an error in this test.
-TEST(ToolsSanityTest, MemoryLeak) {
-  // Without the |volatile|, clang optimizes away the next two lines.
-  int* volatile leak = new int[256];  // Leak some memory intentionally.
-  leak[4] = 1;  // Make sure the allocated memory is used.
-}
-
 #if defined(ADDRESS_SANITIZER) && \
   (defined(OS_IOS) || defined(__LB_SHELL__) || defined(OS_STARBOARD))
 // Because iOS doesn't support death tests, each of the following tests will
@@ -100,14 +93,23 @@ TEST(ToolsSanityTest, MemoryLeak) {
 #define MAYBE_AccessesToNewMemory DISABLED_AccessesToNewMemory
 #define MAYBE_AccessesToMallocMemory DISABLED_AccessesToMallocMemory
 #define MAYBE_ArrayDeletedWithoutBraces DISABLED_ArrayDeletedWithoutBraces
+#define MAYBE_MemoryLeak DISABLED_MemoryLeak
 #define MAYBE_SingleElementDeletedWithBraces \
     DISABLED_SingleElementDeletedWithBraces
 #else
 #define MAYBE_AccessesToNewMemory AccessesToNewMemory
 #define MAYBE_AccessesToMallocMemory AccessesToMallocMemory
 #define MAYBE_ArrayDeletedWithoutBraces ArrayDeletedWithoutBraces
+#define MAYBE_MemoryLeak MemoryLeak
 #define MAYBE_SingleElementDeletedWithBraces SingleElementDeletedWithBraces
 #endif
+// A memory leak detector should report an error in this test.
+TEST(ToolsSanityTest, MAYBE_MemoryLeak) {
+  // Without the |volatile|, clang optimizes away the next two lines.
+  int* volatile leak = new int[256];  // Leak some memory intentionally.
+  leak[4] = 1;  // Make sure the allocated memory is used.
+}
+
 TEST(ToolsSanityTest, MAYBE_AccessesToNewMemory) {
   char *foo = new char[10];
   MakeSomeErrors(foo, 10);

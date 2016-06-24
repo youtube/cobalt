@@ -11,7 +11,22 @@
 
 namespace tracked_objects {
 
-TEST(TrackedTimeTest, TrackedTimerMilliseconds) {
+class TrackedTimeTest : public testing::Test {
+ protected:
+  TrackedTimeTest() {
+    // On entry, leak any database structures in case they are still in use by
+    // prior threads.
+    ThreadData::ShutdownSingleThreadedCleanup(true);
+  }
+
+  virtual ~TrackedTimeTest() {
+    // We should not need to leak any structures we create, since we are
+    // single threaded, and carefully accounting for items.
+    ThreadData::ShutdownSingleThreadedCleanup(false);
+  }
+};
+
+TEST_F(TrackedTimeTest, TrackedTimerMilliseconds) {
   // First make sure we basicallly transfer simple milliseconds values as
   // expected.  Most critically, things should not become null.
   int32 kSomeMilliseconds = 243;  // Some example times.
@@ -32,7 +47,7 @@ TEST(TrackedTimeTest, TrackedTimerMilliseconds) {
   EXPECT_EQ(kSomeMilliseconds, (wrapped_big - TrackedTime()).InMilliseconds());
 }
 
-TEST(TrackedTimeTest, TrackedTimerDuration) {
+TEST_F(TrackedTimeTest, TrackedTimerDuration) {
   int kFirstMilliseconds = 793;
   int kSecondMilliseconds = 14889;
 
@@ -46,7 +61,7 @@ TEST(TrackedTimeTest, TrackedTimerDuration) {
   EXPECT_EQ(kFirstMilliseconds + kSecondMilliseconds, sum.InMilliseconds());
 }
 
-TEST(TrackedTimeTest, TrackedTimerVsTimeTicks) {
+TEST_F(TrackedTimeTest, TrackedTimerVsTimeTicks) {
   // Make sure that our 32 bit timer is aligned with the TimeTicks() timer.
 
   // First get a 64 bit timer (which should not be null).
@@ -67,7 +82,7 @@ TEST(TrackedTimeTest, TrackedTimerVsTimeTicks) {
   EXPECT_GE(0, after.InMilliseconds());
 }
 
-TEST(TrackedTimeTest, TrackedTimerDisabled) {
+TEST_F(TrackedTimeTest, TrackedTimerDisabled) {
   // Check to be sure disabling the collection of data induces a null time
   // (which we know will return much faster).
   if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
@@ -81,7 +96,7 @@ TEST(TrackedTimeTest, TrackedTimerDisabled) {
   EXPECT_TRUE(track_now.is_null());
 }
 
-TEST(TrackedTimeTest, TrackedTimerEnabled) {
+TEST_F(TrackedTimeTest, TrackedTimerEnabled) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
       ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;

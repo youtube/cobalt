@@ -95,8 +95,6 @@ void PlatformThread::SetName(const char* name) {
   // have to cast away const because ThreadLocalPointer does not support const
   // void*
   current_thread_name.Pointer()->Set(const_cast<char*>(name));
-  tracked_objects::ThreadData::InitializeThreadContext(name);
-
   SbThreadSetName(name);
 }
 
