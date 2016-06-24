@@ -63,8 +63,8 @@ void CValManager::UnregisterCVal(const CValDetail::CValBase* cval) {
 }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-void CValManager::PushValueChangedEvent(
-    const CValDetail::CValBase* cval, const CValGenericValue& value) {
+void CValManager::PushValueChangedEvent(const CValDetail::CValBase* cval,
+                                        const CValGenericValue& value) {
   base::AutoLock auto_lock(hooks_lock_);
 
   // Iterate through the hooks sending each of them the value changed event.
@@ -94,9 +94,8 @@ CValManager::OnChangedHook::~OnChangedHook() {
 }
 #else   // ENABLE_DEBUG_CONSOLE
 // Value change events only occur when the debug console is enabled.
-void CValManager::PushValueChangedEvent(
-    const CValDetail::CValBase* /*cval*/,
-    const CValGenericValue& /*value*/) {}
+void CValManager::PushValueChangedEvent(const CValDetail::CValBase* /*cval*/,
+                                        const CValGenericValue& /*value*/) {}
 
 CValManager::OnChangedHook::OnChangedHook() {}
 
@@ -116,8 +115,8 @@ std::set<std::string> CValManager::GetOrderedCValNames() {
   return ret;
 }
 
-optional<std::string> CValManager::GetCValStringValue(
-    const std::string& name, bool pretty) {
+optional<std::string> CValManager::GetCValStringValue(const std::string& name,
+                                                      bool pretty) {
   base::AutoLock auto_lock(cvals_lock_);
 
   // Return the value of a CVal, if it exists.  If it does not exist,
@@ -131,8 +130,7 @@ optional<std::string> CValManager::GetCValStringValue(
   }
 }
 
-optional<std::string> CValManager::GetValueAsString(
-    const std::string& name) {
+optional<std::string> CValManager::GetValueAsString(const std::string& name) {
   return GetCValStringValue(name, false);
 }
 
