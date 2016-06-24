@@ -61,13 +61,17 @@ static SB_C_INLINE bool SbUserIsValid(SbUser user) {
 
 // Gets a list of up to |users_size| signed-in users, placing the results in
 // |out_users|, and returning the number of actual users signed in, whether
-// greater or less than |users_size|.
+// greater or less than |users_size|. It is expected that there will be a unique
+// SbUser per signed in user, and that the referenced objects will persist for
+// the lifetime of the app.
 SB_EXPORT int SbUserGetSignedIn(SbUser* out_users, int users_size);
 
 // Gets the current primary user, if any. This is the user that is determined,
 // in a platform specific way, to be the primary user controlling the
 // application. This may be because that user launched the app, or using
-// whatever criteria is appropriate for the platform.
+// whatever criteria is appropriate for the platform. It is expected that there
+// will be a unique SbUser per signed in user, and that the referenced objects
+// will persist for the lifetime of the app.
 SB_EXPORT SbUser SbUserGetCurrent();
 
 // Returns whether |user| is age-restricted according to the platform's age
