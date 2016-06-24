@@ -792,7 +792,7 @@ void LogMessage::Init(const char* file, int line) {
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (log_timestamp) {
 #if defined(OS_STARBOARD)
-    time_t t = EzTimeTGetNow(NULL);
+    EzTimeT t = EzTimeTGetNow(NULL);
     struct EzTimeExploded local_time = {0};
     EzTimeTExplodeLocal(&t, &local_time);
     struct EzTimeExploded* tm_time = &local_time;
