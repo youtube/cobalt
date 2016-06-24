@@ -17,6 +17,8 @@
 #ifndef GLIMP_GLES_BUFFER_IMPL_H_
 #define GLIMP_GLES_BUFFER_IMPL_H_
 
+#include <KHR/khrplatform.h>
+
 namespace glimp {
 namespace gles {
 

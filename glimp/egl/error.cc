@@ -41,7 +41,7 @@ EGLint GetError() {
     // https://www.khronos.org/registry/egl/sdk/docs/man/html/eglGetError.xhtml
     return EGL_SUCCESS;
   }
-  return reinterpret_cast<EGLint>(local_value);
+  return static_cast<EGLint>(reinterpret_cast<uintptr_t>(local_value));
 }
 
 void SetError(EGLint error) {
