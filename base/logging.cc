@@ -25,7 +25,7 @@ typedef HANDLE MutexHandle;
 #endif
 #include <time.h>
 #elif defined(OS_STARBOARD)
-#include "starboard/client_porting/poem/eztime_poem.h"
+#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
@@ -791,6 +791,12 @@ void LogMessage::Init(const char* file, int line) {
   if (log_thread_id)
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (log_timestamp) {
+#if defined(OS_STARBOARD)
+    time_t t = EzTimeTGetNow(NULL);
+    struct EzTimeExploded local_time = {0};
+    EzTimeTExplodeLocal(&t, &local_time);
+    struct EzTimeExploded* tm_time = &local_time;
+#else
     time_t t = time(NULL);
     struct tm local_time = {0};
 #if _MSC_VER >= 1400
@@ -799,6 +805,7 @@ void LogMessage::Init(const char* file, int line) {
     localtime_r(&t, &local_time);
 #endif
     struct tm* tm_time = &local_time;
+#endif
     stream_ << std::setfill('0')
             << std::setw(2) << 1 + tm_time->tm_mon
             << std::setw(2) << tm_time->tm_mday
