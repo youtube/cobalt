@@ -348,25 +348,9 @@ optional<T> make_optional(const T& value) {
 
 }  // namespace base
 
-// The PS3 does not properly support std::hash, and so struct hash cannot
-// be specialized.
-#if !defined(__LB_PS3__)
-
 namespace BASE_HASH_NAMESPACE {
 
-#if defined(COMPILER_MSVC)
-
-template <typename T>
-inline size_t hash_value(const base::optional<T>& value) {
-  if (!value) {
-    return 0;
-  } else {
-    return hash_value(value.value());
-  }
-}
-
-#else
-
+#if defined(BASE_HASH_USE_HASH_STRUCT)
 template <typename T>
 struct hash<base::optional<T> > {
  public:
@@ -382,11 +366,18 @@ struct hash<base::optional<T> > {
   hash<T> value_hash_;
 };
 
-#endif
+#else
+template <typename T>
+inline size_t hash_value(const base::optional<T>& value) {
+  if (!value) {
+    return 0;
+  } else {
+    return hash_value(value.value());
+  }
+}
 
+#endif  // defined(BASE_HASH_USE_HASH_STRUCT)
 }  // namespace BASE_HASH_NAMESPACE
-
-#endif
 
 namespace std {
 
