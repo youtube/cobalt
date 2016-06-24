@@ -232,7 +232,7 @@ static int GetRunningOnValgrind(void) {
 #ifdef RUNNING_ON_VALGRIND
   if (RUNNING_ON_VALGRIND) return 1;
 #endif
-#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
+#if defined(__LB_SHELL__) || defined(STARBOARD)
   return 0;
 #else
 
