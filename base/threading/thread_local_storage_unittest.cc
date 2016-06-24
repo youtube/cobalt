@@ -77,6 +77,7 @@ TEST(ThreadLocalStorageTest, Basics) {
   slot.Set(reinterpret_cast<void*>(123));
   int value = reinterpret_cast<intptr_t>(slot.Get());
   EXPECT_EQ(value, 123);
+  slot.Free();
 }
 
 #if defined(THREAD_SANITIZER)

@@ -491,6 +491,7 @@ class BASE_EXPORT ThreadData {
   FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, MinimalStartupShutdown);
   FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, TinyStartupShutdown);
   FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, ParentChildTest);
+  friend class TrackedTimeTest;
 
   typedef std::map<const BirthOnThread*, int> BirthCountMap;
 
