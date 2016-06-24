@@ -43,8 +43,11 @@
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
 #if defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+#include "lbshell/src/lb_memory_manager.h"
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 #include "lbshell/src/lb_memory_pages.h"
-#endif
+#endif  // defined(__LB_SHELL__)
 
 namespace cobalt {
 namespace browser {
@@ -52,6 +55,8 @@ namespace browser {
 namespace {
 const int kDefaultViewportWidth = 1920;
 const int kDefaultViewportHeight = 1080;
+
+const int kStatUpdatePeriodMs = 1000;
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
@@ -206,7 +211,7 @@ base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
 
 // Static user logs
 ssize_t Application::available_memory_ = 0;
-int64 Application::lifetime_in_milliseconds_ = 0;
+int64 Application::lifetime_in_ms_ = 0;
 
 Application::AppStatus Application::app_status_ =
     Application::kUninitializedAppStatus;
@@ -222,7 +227,7 @@ Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       start_time_(base::TimeTicks::Now()),
-      user_log_update_timer_(true, true) {
+      stats_update_timer_(true, true) {
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -230,6 +235,10 @@ Application::Application(const base::Closure& quit_closure)
   application_event_thread_checker_.DetachFromThread();
 
   RegisterUserLogs();
+
+  stats_update_timer_.Start(
+      FROM_HERE, base::TimeDelta::FromMilliseconds(kStatUpdatePeriodMs),
+      base::Bind(&Application::UpdatePeriodicStats, base::Unretained(this)));
 
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
@@ -511,6 +520,19 @@ void Application::WebModuleRecreated() {
 #endif
 }
 
+Application::CValStats::CValStats()
+    : free_memory("Memory.CPU.Free", 0,
+                  "Total free application memory remaining."),
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+      used_memory("Memory.CPU.Used", 0,
+                  "Total memory allocated via the app's allocators."),
+      exe_memory("Memory.CPU.Exe", 0,
+                 "Total memory occupied by the size of the executable."),
+#endif
+      app_lifetime_in_ms("Cobalt.Lifetime", 0,
+                         "Application lifetime in milliseconds.") {
+}
+
 void Application::RegisterUserLogs() {
   if (base::UserLog::IsRegistrationSupported()) {
     base::UserLog::Register(
@@ -522,8 +544,7 @@ void Application::RegisterUserLogs() {
                             "AvailableMemory", &available_memory_,
                             sizeof(available_memory_));
     base::UserLog::Register(base::UserLog::kAppLifetimeIndex, "Lifetime(ms)",
-                            &lifetime_in_milliseconds_,
-                            sizeof(lifetime_in_milliseconds_));
+                            &lifetime_in_ms_, sizeof(lifetime_in_ms_));
     base::UserLog::Register(base::UserLog::kAppStatusIndex, "AppStatus",
                             &app_status_, sizeof(app_status_));
     base::UserLog::Register(base::UserLog::kAppSuspendCountIndex, "SuspendCnt",
@@ -539,12 +560,6 @@ void Application::RegisterUserLogs() {
     base::UserLog::Register(base::UserLog::kNetworkDisconnectCountIndex,
                             "DisconnectCnt", &network_disconnect_count_,
                             sizeof(network_disconnect_count_));
-
-    user_log_update_timer_.Start(
-        FROM_HERE,
-        base::TimeDelta::FromMilliseconds(1000),
-        base::Bind(&Application::UpdatePeriodicUserLogData,
-                   base::Unretained(this)));
   }
 }
 
@@ -562,12 +577,35 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
   }
 }
 
-void Application::UpdatePeriodicUserLogData() {
+void Application::UpdatePeriodicStats() {
 #if defined(__LB_SHELL__)
-  available_memory_ = lb_get_unallocated_memory();
+  bool memory_stats_updated = false;
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  if (LB::Memory::IsCountEnabled()) {
+    memory_stats_updated = true;
+
+    LB::Memory::Info memory_info;
+    lb_memory_get_info(&memory_info);
+
+    available_memory_ = memory_info.free_memory;
+    c_val_stats_.free_memory = static_cast<size_t>(memory_info.free_memory);
+    c_val_stats_.used_memory =
+        static_cast<size_t>(memory_info.application_memory);
+    c_val_stats_.exe_memory = static_cast<size_t>(memory_info.executable_size);
+  }
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+  // If the memory stats have not been updated yet, then simply use the
+  // unallocated memory as the available memory.
+  if (!memory_stats_updated) {
+    available_memory_ = lb_get_unallocated_memory();
+    c_val_stats_.free_memory = static_cast<size_t>(available_memory_);
+  }
+#elif defined(OS_STARBOARD)
+// TODO(***REMOVED***): Need to expose memory tracking through starboard.
 #endif
-  lifetime_in_milliseconds_ =
-      (base::TimeTicks::Now() - start_time_).InMilliseconds();
+
+  lifetime_in_ms_ = (base::TimeTicks::Now() - start_time_).InMilliseconds();
+  c_val_stats_.app_lifetime_in_ms = lifetime_in_ms_;
 }
 
 }  // namespace browser

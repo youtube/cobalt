@@ -53,8 +53,6 @@
         'render_overlay.h',
         'runtime_component.cc',
         'runtime_component.h',
-        'system_stats_tracker.cc',
-        'system_stats_tracker.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
