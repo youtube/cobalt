@@ -17,6 +17,8 @@
 #ifndef GLIMP_SHADERS_HASH_GLSL_SOURCE_H_
 #define GLIMP_SHADERS_HASH_GLSL_SOURCE_H_
 
+#include <KHR/khrplatform.h>
+
 namespace glimp {
 namespace shaders {
 

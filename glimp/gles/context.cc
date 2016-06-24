@@ -1750,7 +1750,7 @@ void Context::VertexAttribPointer(GLuint indx,
 
   vertex_attrib_map_[indx] =
       VertexAttributeArray(size, vertex_attribute_type, normalized, stride,
-                           reinterpret_cast<int>(ptr));
+                           static_cast<int>(reinterpret_cast<uintptr_t>(ptr)));
   if (enabled_vertex_attribs_.find(indx) != enabled_vertex_attribs_.end()) {
     enabled_vertex_attribs_dirty_ = true;
   }
