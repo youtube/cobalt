@@ -77,7 +77,7 @@ TEST(SbSocketBindTest, RainyDayBadInterface) {
   const char* kTestHostName = "www.yahoo.com";
   SbSocketResolution* resolution =
       SbSocketResolve(kTestHostName, kSbSocketResolveFilterIpv4);
-  EXPECT_NE(kNull, resolution);
+  ASSERT_NE(kNull, resolution);
   EXPECT_LT(0, resolution->address_count);
   EXPECT_EQ(kSbSocketErrorFailed,
             SbSocketBind(server_socket, &resolution->addresses[0]));
