@@ -262,8 +262,7 @@ class CValSpecificValue : public CValGenericValue {
   explicit CValSpecificValue(const T& value)
       : CValGenericValue(Traits<T>::kTypeVal, &value_), value_(value) {}
   CValSpecificValue(const CValSpecificValue<T>& other)
-      : CValGenericValue(Traits<T>::kTypeVal, &value_),
-        value_(other.value_) {}
+      : CValGenericValue(Traits<T>::kTypeVal, &value_), value_(other.value_) {}
   virtual ~CValSpecificValue() {}
 
   std::string AsString() const { return ValToString(value_); }
