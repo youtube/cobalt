@@ -131,6 +131,8 @@ TEST(PlatformFile, DeleteOpenFile) {
   base::ClosePlatformFile(file);
   base::ClosePlatformFile(same_file);
   EXPECT_FALSE(file_util::PathExists(file_path));
+#else
+  base::ClosePlatformFile(file);
 #endif
 }
 
