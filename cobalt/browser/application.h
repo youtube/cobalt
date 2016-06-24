@@ -122,13 +122,27 @@ class Application {
     kConnectedNetworkStatus,
   };
 
-  // User log related
+  // Stats related
+
+  struct CValStats {
+    CValStats();
+
+    base::PublicCVal<size_t> free_memory;
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+    base::PublicCVal<size_t> used_memory;
+    base::PublicCVal<size_t> exe_memory;
+#endif
+
+    base::PublicCVal<int64_t> app_lifetime_in_ms;
+  };
+
   void RegisterUserLogs();
   void UpdateAndMaybeRegisterUserAgent();
-  void UpdatePeriodicUserLogData();
+
+  void UpdatePeriodicStats();
 
   static ssize_t available_memory_;
-  static int64 lifetime_in_milliseconds_;
+  static int64 lifetime_in_ms_;
 
   static AppStatus app_status_;
   static int app_suspend_count_;
@@ -138,7 +152,9 @@ class Application {
   static int network_connect_count_;
   static int network_disconnect_count_;
 
-  base::Timer user_log_update_timer_;
+  CValStats c_val_stats_;
+
+  base::Timer stats_update_timer_;
 };
 
 // Factory method for creating an application.  It should be implemented
