@@ -17,6 +17,8 @@
 #ifndef GLIMP_GLES_UNIQUE_ID_GENERATOR_H_
 #define GLIMP_GLES_UNIQUE_ID_GENERATOR_H_
 
+#include <KHR/khrplatform.h>
+
 #include <vector>
 
 namespace glimp {
