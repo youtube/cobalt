@@ -378,5 +378,20 @@
         },
       ],
     }],
+    ['cobalt==1', {
+      'targets': [
+        {
+          'target_name': 'crypto_unittests_deploy',
+          'type': 'none',
+          'dependencies': [
+            'crypto_unittests',
+          ],
+          'variables': {
+            'executable_name': 'crypto_unittests',
+          },
+          'includes': [ '../cobalt/build/deploy.gypi' ],
+        },
+      ],
+    }],
   ],
 }
