@@ -147,7 +147,10 @@ void ShellAudioDecoderImpl::Read(const AudioDecoder::ReadCB& read_cb) {
     TRACE_EVENT1("media_stack",
                  "ShellAudioDecoderImpl::Read() deliver audio data.",
                  "timestamp", buffer->GetTimestamp().InMicroseconds());
-    read_cb.Run(kOk, buffer);
+
+    Buffers buffers;
+    buffers.push_back(buffer);
+    read_cb.Run(kOk, buffers);
   }
 
   TryToReadFromDemuxerStream();
@@ -299,7 +302,7 @@ void ShellAudioDecoderImpl::OnDemuxerRead(
     DCHECK_EQ(status, DemuxerStream::kAborted);
     // We are seeking or stopping, fulfill any outstanding callbacks.
     if (!read_cb_.is_null()) {
-      base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
+      base::ResetAndReturn(&read_cb_).Run(kAborted, Buffers());
     }
     if (!reset_cb_.is_null()) {
       Reset(base::ResetAndReturn(&reset_cb_));
@@ -359,7 +362,10 @@ void ShellAudioDecoderImpl::OnBufferDecoded(
     TRACE_EVENT1("media_stack",
                  "ShellAudioDecoderImpl::OnBufferDecoded() deliver audio data.",
                  "timestamp", buffer->GetTimestamp().InMicroseconds());
-    base::ResetAndReturn(&read_cb_).Run(kOk, buffer);
+
+    Buffers buffers;
+    buffers.push_back(buffer);
+    base::ResetAndReturn(&read_cb_).Run(kOk, buffers);
   }
 
   if (reset_cb_.is_null()) {

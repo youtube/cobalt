@@ -357,19 +357,23 @@ void ShellAudioRendererImpl::SetVolume(float volume) {
 
 void ShellAudioRendererImpl::DecodedAudioReady(
     AudioDecoder::Status status,
-    const scoped_refptr<Buffer>& buffer) {
+    const AudioDecoder::Buffers& buffers) {
   TRACE_EVENT1("media_stack", "ShellAudioRendererImpl::DecodedAudioReady()",
                "status", status);
   DCHECK(message_loop_->BelongsToCurrentThread());
+  // ShellAudioRendererImpl doesn't support decoding output of more than one
+  // buffer.
+  DCHECK_LE(buffers.size(), 1);
   DCHECK(!decode_complete_);
   DCHECK_NE(decoded_audio_bus_, (AudioBus*)NULL);
 
   if (status == AudioDecoder::kOk) {
-    if (!buffer) {
-      DLOG(WARNING) << "got NULL buffer from decoder";
+    if (buffers.empty()) {
+      DLOG(WARNING) << "got empty buffers from decoder";
     } else if (state_ == kStopped) {
       DLOG(WARNING) << "enqueue after stop.";
     } else {
+      scoped_refptr<Buffer> buffer = buffers[0];
       if (buffer->IsEndOfStream()) {
         if (end_of_stream_state_ == kWaitingForEOS)
           end_of_stream_state_ = kReceivedEOS;
