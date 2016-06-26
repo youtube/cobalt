@@ -67,15 +67,18 @@ void VideoDecoderSelector::SelectVideoDecoder(
     return;
   }
 
+#if defined(COBALT)
+  DecryptingVideoDecoderInitDone(DECODER_ERROR_NOT_SUPPORTED);
+#else   // defined(COBALT)
   video_decoder_ = new DecryptingVideoDecoder(message_loop_,
                                               set_decryptor_ready_cb_);
-
   video_decoder_->Initialize(
       input_stream_,
       BindToCurrentLoop(base::Bind(
           &VideoDecoderSelector::DecryptingVideoDecoderInitDone,
           weak_ptr_factory_.GetWeakPtr())),
       statistics_cb_);
+#endif  // defined(COBALT)
 }
 
 void VideoDecoderSelector::DecryptingVideoDecoderInitDone(
