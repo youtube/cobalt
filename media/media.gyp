@@ -665,6 +665,12 @@
                 'player/web_media_player_proxy.cc',
                 'player/web_media_player_proxy.h',
               ],
+              'sources!': [
+                'filters/decrypting_audio_decoder.cc',
+                'filters/decrypting_audio_decoder.h',
+                'filters/decrypting_video_decoder.cc',
+                'filters/decrypting_video_decoder.h',
+              ],
             }],
           ],
         }, {  # OS != "lb_shell" and OS != "starboard"

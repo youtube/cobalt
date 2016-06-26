@@ -125,7 +125,7 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   virtual void SinkUnderflow() OVERRIDE;
 
   void DecodedAudioReady(AudioDecoder::Status status,
-                         const scoped_refptr<Buffer>& buffer);
+                         const AudioDecoder::Buffers& buffers);
 
   void OnDecoderSelected(
       scoped_ptr<AudioDecoderSelector> decoder_selector,

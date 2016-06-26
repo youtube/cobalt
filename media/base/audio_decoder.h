@@ -5,6 +5,8 @@
 #ifndef MEDIA_BASE_AUDIO_DECODER_H_
 #define MEDIA_BASE_AUDIO_DECODER_H_
 
+#include <vector>
+
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/channel_layout.h"
@@ -25,6 +27,7 @@ class MEDIA_EXPORT AudioDecoder
     kAborted,
     kDecodeError,
   };
+  typedef std::vector<scoped_refptr<Buffer> > Buffers;
 
   // Initialize an AudioDecoder with the given DemuxerStream, executing the
   // callback upon completion.
@@ -43,7 +46,16 @@ class MEDIA_EXPORT AudioDecoder
   // indicate the end of the stream. A NULL buffer pointer indicates an aborted
   // Read(). This can happen if the DemuxerStream gets flushed and doesn't have
   // any more data to return.
+#if !defined(COBALT)
   typedef base::Callback<void(Status, const scoped_refptr<Buffer>&)> ReadCB;
+#else   // !defined(COBALT)
+  // This is a variant of the above callback that can pass multiple decoded
+  // audio buffers at once.  Non-empty sample buffers will contain decoded audio
+  // data or may indicate the end of the stream.  Empty buffers indicate an
+  // aborted Read(). This can happen if the DemuxerStream gets flushed and
+  // doesn't have any more data to return.
+  typedef base::Callback<void(Status, const Buffers&)> ReadCB;
+#endif  // !defined(COBALT)
   virtual void Read(const ReadCB& read_cb) = 0;
 
   // Reset decoder state, dropping any queued encoded data.
