@@ -148,6 +148,8 @@ class EventTarget : public script::Wrappable,
     EventListenerInfo(base::Token type, const EventTarget* const event_target,
                       const EventListenerScriptObject& listener,
                       bool use_capture, EventListener::Type listener_type);
+    ~EventListenerInfo();
+
     base::Token type;
     script::ScriptObject<EventListener>::Reference listener;
     bool use_capture;
