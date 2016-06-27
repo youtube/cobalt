@@ -34,7 +34,6 @@ const char* kTestHostName = "www.yahoo.com";
 TEST(SbSocketResolveTest, SunnyDay) {
   SbSocketResolution* resolution = SbSocketResolve(kTestHostName, 0);
   ASSERT_NE(kNull, resolution);
-  EXPECT_EQ(kNull, resolution->canonical_name);
   EXPECT_LT(0, resolution->address_count);
   EXPECT_NE(kNull, resolution->addresses);
   for (int i = 0; i < resolution->address_count; ++i) {
@@ -48,20 +47,10 @@ TEST(SbSocketResolveTest, SunnyDay) {
   SbSocketFreeResolution(resolution);
 }
 
-TEST(SbSocketResolveTest, SunnyDayCanonicalName) {
-  SbSocketResolution* resolution =
-      SbSocketResolve(kTestHostName, kSbSocketResolveFilterCanonicalName);
-  ASSERT_NE(kNull, resolution);
-  ASSERT_NE(kNull, resolution->canonical_name);
-  EXPECT_LT(0, SbStringGetLength(resolution->canonical_name));
-  SbSocketFreeResolution(resolution);
-}
-
 TEST(SbSocketResolveTest, SunnyDayIpv4) {
   SbSocketResolution* resolution =
       SbSocketResolve(kTestHostName, kSbSocketResolveFilterIpv4);
   ASSERT_NE(kNull, resolution);
-  EXPECT_EQ(kNull, resolution->canonical_name);
   EXPECT_LT(0, resolution->address_count);
   EXPECT_NE(kNull, resolution->addresses);
   for (int i = 0; i < resolution->address_count; ++i) {
@@ -71,11 +60,11 @@ TEST(SbSocketResolveTest, SunnyDayIpv4) {
   SbSocketFreeResolution(resolution);
 }
 
+#if SB_HAS(IPV6)
 TEST(SbSocketResolveTest, SunnyDayIpv6) {
   SbSocketResolution* resolution =
       SbSocketResolve(kTestHostName, kSbSocketResolveFilterIpv6);
   ASSERT_NE(kNull, resolution);
-  EXPECT_EQ(kNull, resolution->canonical_name);
   EXPECT_LT(0, resolution->address_count);
   EXPECT_NE(kNull, resolution->addresses);
   for (int i = 0; i < resolution->address_count; ++i) {
@@ -84,6 +73,7 @@ TEST(SbSocketResolveTest, SunnyDayIpv6) {
   }
   SbSocketFreeResolution(resolution);
 }
+#endif
 
 TEST(SbSocketResolveTest, IgnoreExtraBits) {
   // Even with this extra bit set, the resolution should come out the same.
@@ -91,8 +81,6 @@ TEST(SbSocketResolveTest, IgnoreExtraBits) {
   SbSocketResolution* resolution2 = SbSocketResolve(kTestHostName, 0);
   ASSERT_NE(kNull, resolution1);
   ASSERT_NE(kNull, resolution2);
-  EXPECT_EQ(kNull, resolution1->canonical_name);
-  EXPECT_EQ(kNull, resolution2->canonical_name);
   EXPECT_LT(0, resolution2->address_count);
   EXPECT_EQ(resolution2->address_count, resolution1->address_count);
   EXPECT_NE(kNull, resolution1->addresses);

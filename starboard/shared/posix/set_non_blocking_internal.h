@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#ifndef STARBOARD_SHARED_POSIX_SET_NON_BLOCKING_INTERNAL_H_
+#define STARBOARD_SHARED_POSIX_SET_NON_BLOCKING_INTERNAL_H_
 
-#include "starboard/log.h"
+#include "starboard/shared/internal_only.h"
 
-void SbSocketFreeResolution(SbSocketResolution* resolution) {
-  if (!resolution) {
-    return;
-  }
+namespace starboard {
+namespace shared {
+namespace posix {
 
-  if (resolution->addresses) {
-    delete[] resolution->addresses;
-  }
+// Makes the socket file descriptor non-blocking.
+bool SetNonBlocking(int socket_fd);
 
-  delete resolution;
-}
+}  // namespace posix
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_POSIX_SET_NON_BLOCKING_INTERNAL_H_

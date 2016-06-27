@@ -89,9 +89,6 @@ typedef enum SbSocketResolveFilter {
 
   // Include Ipv6 addresses.
   kSbSocketResolveFilterIpv6 = 1 << 1,
-
-  // Get the canonical name.
-  kSbSocketResolveFilterCanonicalName = 1 << 2,
 } SbSocketResolveFilter;
 
 // A representation of any possible supported address type.
@@ -111,9 +108,6 @@ typedef struct SbSocketAddress {
 
 // The result of a host name resolution.
 typedef struct SbSocketResolution {
-  // The canonical name of the hostname resolution, if applicable.
-  const char* canonical_name;
-
   // An array of addresses associated with the host name.
   SbSocketAddress* addresses;
 

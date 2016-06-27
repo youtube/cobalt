@@ -51,6 +51,7 @@ TEST(SbSocketBindTest, RainyDayNullNull) {
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(kSbSocketInvalid, NULL));
 }
 
+#if SB_HAS(IPV6)
 TEST(SbSocketBindTest, RainyDayWrongAddressType) {
   SbSocket server_socket = CreateServerTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(server_socket));
@@ -66,6 +67,7 @@ TEST(SbSocketBindTest, RainyDayWrongAddressType) {
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
+#endif
 
 TEST(SbSocketBindTest, RainyDayBadInterface) {
   SbSocket server_socket = CreateServerTcpIpv4Socket();
