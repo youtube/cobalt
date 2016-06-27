@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/socket_internal.h"

@@ -388,6 +388,11 @@
 // value leads to more stable fps but also causes the app to use more memory.
 #define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
 
+// --- Network Configuration -------------------------------------------------
+
+// Specifies whether this platform supports IPV6.
+#define SB_HAS_IPV6 1
+
 // --- Tuneable Parameters ---------------------------------------------------
 
 // Specifies the network receive buffer size.
