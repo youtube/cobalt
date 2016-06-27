@@ -20,7 +20,6 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/socket_internal.h"
-#include "starboard/string.h"
 
 namespace sbposix = starboard::shared::posix;
 
@@ -41,11 +40,6 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
   }
 
   hints.ai_flags = AI_ADDRCONFIG;
-  bool get_canonical = (filters & kSbSocketResolveFilterCanonicalName);
-  if (get_canonical) {
-    hints.ai_flags |= AI_CANONNAME;
-  }
-
   hints.ai_socktype = SOCK_STREAM;
 
   // Actually make the call to get the data.
@@ -60,14 +54,6 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
   }
 
   SbSocketResolution* result = new SbSocketResolution();
-  if (get_canonical && ai->ai_canonname) {
-    int name_size = SbStringGetLength(ai->ai_canonname) + 1;
-    char* name = new char[name_size];
-    SbStringCopy(name, ai->ai_canonname, name_size);
-    result->canonical_name = name;
-  } else {
-    result->canonical_name = NULL;
-  }
 
   // Translate all the sockaddrs.
   sbposix::SockAddr* sock_addrs = new sbposix::SockAddr[address_count];

@@ -21,6 +21,7 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
+#include "starboard/shared/posix/set_non_blocking_internal.h"
 #include "starboard/shared/posix/socket_internal.h"
 
 namespace sbposix = starboard::shared::posix;

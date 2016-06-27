@@ -168,6 +168,7 @@
         '<(DEPTH)/starboard/shared/posix/log_format.cc',
         '<(DEPTH)/starboard/shared/posix/log_is_tty.cc',
         '<(DEPTH)/starboard/shared/posix/log_raw.cc',
+        '<(DEPTH)/starboard/shared/posix/set_non_blocking_internal.cc',
         '<(DEPTH)/starboard/shared/posix/socket_accept.cc',
         '<(DEPTH)/starboard/shared/posix/socket_bind.cc',
         '<(DEPTH)/starboard/shared/posix/socket_clear_last_error.cc',

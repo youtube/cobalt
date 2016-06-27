@@ -15,7 +15,6 @@
 #include "starboard/shared/posix/socket_internal.h"
 
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -28,11 +27,13 @@ namespace posix {
 
 namespace {
 const socklen_t kAddressLengthIpv4 = 4;
-const socklen_t kAddressLengthIpv6 = 16;
 const socklen_t kAddressStructLengthIpv4 =
     static_cast<socklen_t>(sizeof(struct sockaddr_in));
+#if SB_HAS(IPV6)
+const socklen_t kAddressLengthIpv6 = 16;
 const socklen_t kAddressStructLengthIpv6 =
     static_cast<socklen_t>(sizeof(struct sockaddr_in6));
+#endif
 }
 
 SbSocketError TranslateSocketErrno(int error) {
@@ -100,11 +101,6 @@ bool SetIntegerSocketOption(SbSocket socket,
   return true;
 }
 
-bool SetNonBlocking(int socket_fd) {
-  int flags = fcntl(socket_fd, F_GETFL, 0);
-  return !(flags < 0 || fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK) == -1);
-}
-
 bool SockAddr::FromSbSocketAddress(const SbSocketAddress* address) {
   if (!address) {
     return false;
@@ -121,6 +117,7 @@ bool SockAddr::FromSbSocketAddress(const SbSocketAddress* address) {
       SbMemoryCopy(&addr->sin_addr, address->address, kAddressLengthIpv4);
       break;
     }
+#if SB_HAS(IPV6)
     case kSbSocketAddressTypeIpv6: {
       struct sockaddr_in6* addr6 = sockaddr_in6();
       length = kAddressStructLengthIpv6;
@@ -130,6 +127,7 @@ bool SockAddr::FromSbSocketAddress(const SbSocketAddress* address) {
       SbMemoryCopy(&addr6->sin6_addr, address->address, kAddressLengthIpv6);
       break;
     }
+#endif
     default:
       SB_NOTREACHED() << "Unrecognized address type: " << address->type;
       return false;
@@ -144,8 +142,12 @@ bool SockAddr::ToSbSocketAddress(SbSocketAddress* out_address) const {
   }
 
   // Check that we have been properly initialized.
+#if SB_HAS(IPV6)
   SB_DCHECK(length == kAddressStructLengthIpv4 ||
             length == kAddressStructLengthIpv6);
+#else
+  SB_DCHECK(length == kAddressStructLengthIpv4);
+#endif
 
   if (family() == AF_INET) {
     const struct sockaddr_in* addr = sockaddr_in();
@@ -160,6 +162,7 @@ bool SockAddr::ToSbSocketAddress(SbSocketAddress* out_address) const {
     return true;
   }
 
+#if SB_HAS(IPV6)
   if (family() == AF_INET6) {
     const struct sockaddr_in6* addr6 = sockaddr_in6();
     if (length < kAddressStructLengthIpv6) {
@@ -172,6 +175,7 @@ bool SockAddr::ToSbSocketAddress(SbSocketAddress* out_address) const {
     out_address->type = kSbSocketAddressTypeIpv6;
     return true;
   }
+#endif
 
   SB_NOTREACHED() << "Unrecognized address family: " << family();
   return false;
@@ -189,12 +193,14 @@ bool SockAddr::FromSockaddr(const struct sockaddr* sock_addr) {
     *sockaddr_in() = *addr;
     length = static_cast<socklen_t>(sizeof(*addr));
     return true;
+#if SB_HAS(IPV6)
   } else if (family == AF_INET6) {
     const struct sockaddr_in6* addr =
         reinterpret_cast<const struct sockaddr_in6*>(sock_addr);
     *sockaddr_in6() = *addr;
     length = static_cast<socklen_t>(sizeof(*addr));
     return true;
+#endif
   }
 
   SB_DLOG(WARNING) << "Unrecognized address family: " << family;
