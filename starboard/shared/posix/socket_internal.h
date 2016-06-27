@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_POSIX_SOCKET_H_
-#define STARBOARD_SHARED_POSIX_SOCKET_H_
+#ifndef STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
+#define STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
 
 #include <errno.h>
 #include <netinet/in.h>
@@ -72,9 +72,6 @@ bool SetIntegerSocketOption(SbSocket socket,
                             const char* option_name,
                             int value);
 
-// Makes the socket file descriptor non-blocking.
-bool SetNonBlocking(int socket_fd);
-
 // A helper class for converting back and forth from sockaddrs, ugh.
 class SockAddr {
  public:
@@ -132,4 +129,4 @@ class SockAddr {
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_POSIX_SOCKET_H_
+#endif  // STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
