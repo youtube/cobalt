@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#include "starboard/shared/posix/set_non_blocking_internal.h"
 
-#include "starboard/log.h"
+#include <fcntl.h>
 
-void SbSocketFreeResolution(SbSocketResolution* resolution) {
-  if (!resolution) {
-    return;
-  }
+namespace starboard {
+namespace shared {
+namespace posix {
 
-  if (resolution->addresses) {
-    delete[] resolution->addresses;
-  }
-
-  delete resolution;
+bool SetNonBlocking(int socket_fd) {
+  int flags = fcntl(socket_fd, F_GETFL, 0);
+  return !(flags < 0 || fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK) == -1);
 }
+
+}  // namespace posix
+}  // namespace shared
+}  // namespace starboard
