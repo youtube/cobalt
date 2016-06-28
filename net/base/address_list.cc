@@ -63,9 +63,6 @@ AddressList AddressList::CreateFromSbSocketResolution(
     const SbSocketResolution* resolution) {
   DCHECK(resolution);
   AddressList list;
-  if (resolution->canonical_name) {
-    list.set_canonical_name(std::string(resolution->canonical_name));
-  }
 
   for (int i = 0; i < resolution->address_count; ++i) {
     IPEndPoint end_point;
