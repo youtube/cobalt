@@ -61,12 +61,14 @@ bool Display::ChooseConfig(const EGLint* attrib_list,
       FilterConfigs(impl_->GetSupportedConfigs(), attribs);
   SortConfigs(attribs, &configs_vector);
 
-  *num_config = std::min(config_size, static_cast<int>(configs_vector.size()));
-
   if (configs) {
+    *num_config =
+        std::min(config_size, static_cast<int>(configs_vector.size()));
     for (int i = 0; i < *num_config; ++i) {
       configs[i] = ToEGLConfig(configs_vector[i]);
     }
+  } else {
+    *num_config = static_cast<int>(configs_vector.size());
   }
 
   return true;
