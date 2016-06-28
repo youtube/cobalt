@@ -67,9 +67,9 @@ void AudioDecoderSelector::SelectAudioDecoder(
     return;
   }
 
-#if defined(COBALT)
+#if defined(COBALT) || defined(__LB_SHELL__)
   DecryptingAudioDecoderInitDone(DECODER_ERROR_NOT_SUPPORTED);
-#else   // defined(COBALT)
+#else   // defined(COBALT) || defined(__LB_SHELL__)
   audio_decoder_ = new DecryptingAudioDecoder(message_loop_,
                                               set_decryptor_ready_cb_);
 
@@ -79,7 +79,7 @@ void AudioDecoderSelector::SelectAudioDecoder(
           &AudioDecoderSelector::DecryptingAudioDecoderInitDone,
           weak_ptr_factory_.GetWeakPtr())),
       statistics_cb_);
-#endif  // defined(COBALT)
+#endif  // defined(COBALT) || defined(__LB_SHELL__)
 }
 
 void AudioDecoderSelector::DecryptingAudioDecoderInitDone(

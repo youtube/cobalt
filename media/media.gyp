@@ -531,6 +531,8 @@
             ['exclude', 'filters/audio_renderer'],
             # but re-use various other parts of the stack
             ['include', 'filters/chunk_demuxer'],
+            ['exclude', 'filters/decrypting_audio_decoder'],
+            ['exclude', 'filters/decrypting_video_decoder'],
             # we stream from network only
             ['exclude', 'filters/file_data_source'],
             # gpu-based decoding is interesting, perhaps explore further
