@@ -2208,6 +2208,7 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
   return true;
 }
 
+#if !defined(OS_STARBOARD)
 const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                        socklen_t address_len) {
   if (address->sa_family == AF_INET) {
@@ -2234,6 +2235,7 @@ int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
     return -1;
   return base::NetToHost16(*port_field);
 }
+#endif
 
 bool IsLocalhost(const std::string& host) {
   if (host == "localhost" ||

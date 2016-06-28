@@ -35,7 +35,9 @@ class NET_EXPORT IPEndPoint {
   AddressFamily GetFamily() const;
 
   // Returns the sockaddr family of the address, AF_INET or AF_INET6.
+#if !defined(OS_STARBOARD)
   int GetSockAddrFamily() const;
+#endif
 
 #if defined(OS_STARBOARD)
   static IPEndPoint GetForAllInterfaces(int port);

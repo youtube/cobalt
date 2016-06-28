@@ -16,6 +16,8 @@
 #ifndef BASE_OBJECT_WATCHER_SHELL_H_
 #define BASE_OBJECT_WATCHER_SHELL_H_
 
+#if defined(__LB_SHELL__)
+
 #include <sys/poll.h>
 
 #include <map>
@@ -154,4 +156,5 @@ class BASE_EXPORT ObjectWatcher : public MessageLoop::DestructionObserver {
 
 }  // namespace base
 
+#endif  // defined(__LB_SHELL__)
 #endif  // BASE_OBJECT_WATCHER_SHELL_H_

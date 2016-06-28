@@ -24,10 +24,16 @@ const uint8 SOCKS5ClientSocket::kSOCKS5Version = 0x05;
 const uint8 SOCKS5ClientSocket::kTunnelCommand = 0x01;
 const uint8 SOCKS5ClientSocket::kNullByte = 0x00;
 
+#if !defined(OS_STARBOARD)
 COMPILE_ASSERT(sizeof(struct in_addr) == 4, incorrect_system_size_of_IPv4);
 #if defined(IN6ADDR_ANY_INIT)
 COMPILE_ASSERT(sizeof(struct in6_addr) == 16, incorrect_system_size_of_IPv6);
 #endif
+#endif
+COMPILE_ASSERT(net::kIPv4AddressSize == 4,
+               incorrect_system_size_of_IPv4_constant);
+COMPILE_ASSERT(net::kIPv6AddressSize == 16,
+               incorrect_system_size_of_IPv6_constant);
 
 SOCKS5ClientSocket::SOCKS5ClientSocket(
     ClientSocketHandle* transport_socket,
@@ -483,10 +489,10 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
     if (address_type == kEndPointDomain)
       read_header_size += static_cast<uint8>(buffer_[4]);
     else if (address_type == kEndPointResolvedIPv4)
-      read_header_size += sizeof(struct in_addr) - 1;
+      read_header_size += net::kIPv4AddressSize - 1;
 #if defined(IN6ADDR_ANY_INIT)
     else if (address_type == kEndPointResolvedIPv6)
-      read_header_size += sizeof(struct in6_addr) - 1;
+      read_header_size += net::kIPv6AddressSize - 1;
 #endif
     else {
       net_log_.AddEvent(NetLog::TYPE_SOCKS_UNKNOWN_ADDRESS_TYPE,
