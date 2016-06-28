@@ -17,6 +17,5 @@
 
 int main(int argc, char** argv) {
   starboard::stub::ApplicationStub application;
-  int result = application.Run(argc, argv);
-  return result;
+  return application.Run(argc, argv);
 }
