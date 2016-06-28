@@ -56,29 +56,31 @@
         'common_clang_flags': [
           '-Werror',
           '-fcolor-diagnostics',
+          # Default visibility to hidden, to enable dead stripping.
+          '-fvisibility=hidden',
+          # Warn for implicit type conversions that may change a value.
+          '-Wconversion',
+          '-Wno-c++11-compat',
+          # This (rightfully) complains about 'override', which we use
+          # heavily.
+          '-Wno-c++11-extensions',
+          # Warns on switches on enums that cover all enum values but
+          # also contain a default: branch. Chrome is full of that.
+          '-Wno-covered-switch-default',
+          # protobuf uses hash_map.
+          '-Wno-deprecated',
           '-fno-exceptions',
+          # Don't warn about the "struct foo f = {0};" initialization pattern.
+          '-Wno-missing-field-initializers',
+          # Do not warn for implicit sign conversions.
+          '-Wno-sign-conversion',
           '-fno-strict-aliasing',  # See http://crbug.com/32204
           # TODO(pkasting): In C++11 this is legal, so this should be
           # removed when we change to that.  (This is also why we don't
           # bother fixing all these cases today.)
           '-Wno-unnamed-type-template-args',
-          # This (rightfully) complains about 'override', which we use
-          # heavily.
-          '-Wno-c++11-extensions',
-          '-Wno-c++11-compat',
-          # Warns on switches on enums that cover all enum values but
-          # also contain a default: branch. Chrome is full of that.
-          '-Wno-covered-switch-default',
           # Triggered by the COMPILE_ASSERT macro.
           '-Wno-unused-local-typedef',
-          # Don't warn about the "struct foo f = {0};" initialization pattern.
-          '-Wno-missing-field-initializers',
-          # Default visibility to hidden, to enable dead stripping.
-          '-fvisibility=hidden',
-          # Warn for implicit type conversions that may change a value.
-          '-Wconversion',
-          # Do not warn for implicit sign conversions.
-          '-Wno-sign-conversion',
         ],
       }],
       ['cobalt_fastbuild==0', {
@@ -95,24 +97,6 @@
           '-gline-tables-only',
         ],
       }],
-      ['use_asan==0', {
-        'linker_flags': [
-          # We don't wrap these symbols, but this ensures that they aren't
-          # linked in. We do have to allow them to linked in when using ASAN, as
-          # it needs to use its own version of these allocators in the Starboard
-          # implementation.
-          '-Wl,--wrap=malloc',
-          '-Wl,--wrap=calloc',
-          '-Wl,--wrap=realloc',
-          '-Wl,--wrap=memalign',
-          '-Wl,--wrap=reallocalign',
-          '-Wl,--wrap=free',
-          '-Wl,--wrap=strdup',
-          '-Wl,--wrap=malloc_usable_size',
-          '-Wl,--wrap=malloc_stats_fast',
-          '-Wl,--wrap=__cxa_demangle',
-        ],
-      }],
     ],
   },
 
@@ -120,19 +104,19 @@
     'defines': [
       '__STDC_FORMAT_MACROS', # so that we get PRI*
       # Enable GNU extensions to get prototypes like ffsl.
-      '_GNU_SOURCE=1',
+      #'_GNU_SOURCE=1',
     ],
     'cflags_c': [
       # Limit to C99. This allows stub to be a canary build for any
       # C11 features that are not supported on some platforms' compilers.
-      '-std=c99',
+      #'-std=c99',
     ],
     'cflags_cc': [
       # Limit to gnu++98. This allows stub to be a canary build for any
       # C++11 features that are not supported on some platforms' compilers.
       # We do allow ourselves GNU extensions, which are assumed to exist
       # by Chromium code.
-      '-std=gnu++98',
+      #'-std=gnu++98',
     ],
     'default_configuration': 'stub_debug',
     'configurations': {
