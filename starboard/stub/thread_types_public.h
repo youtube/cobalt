@@ -17,36 +17,6 @@
 #ifndef STARBOARD_STUB_THREAD_TYPES_PUBLIC_H_
 #define STARBOARD_STUB_THREAD_TYPES_PUBLIC_H_
 
-// --- SbConditionVariable ---
-
-// Transparent Condition Variable handle.
-typedef void* SbConditionVariable;
-
-// Condition Variable static initializer.
-#define SB_CONDITION_VARIABLE_INITIALIZER NULL
-
-// --- SbMutex ---
-
-// Transparent Mutex handle.
-typedef void* SbMutex;
-
-// Mutex static initializer.
-#define SB_MUTEX_INITIALIZER NULL
-
-// --- SbOnce ---
-
-// Transparent Once control handle.
-typedef void* SbOnceControl;
-
-// Once static initializer.
-#define SB_ONCE_INITIALIZER NULL
-
-// --- SbThread ---
-
-// Transparent pthread handle.
-typedef void* SbThread;
-
-// Well-defined constant value to mean "no thread handle."
-#define kSbThreadInvalid (SbThread) - 1
+#include "starboard/shared/stub/thread_types_public.h"
 
 #endif  // STARBOARD_STUB_THREAD_TYPES_PUBLIC_H_
