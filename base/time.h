@@ -261,7 +261,7 @@ class BASE_EXPORT Time {
   };
 
   // Contains the NULL time. Use Time::Now() to get the current time.
-  explicit Time() : us_(0) {
+  Time() : us_(0) {
   }
 
   // Returns true if the time object has not been initialized.
