@@ -22,24 +22,6 @@ namespace {
 static const char* kCanonicalHostname = "canonical.bar.com";
 
 #if defined(OS_STARBOARD)
-TEST(AddressListTest, CanonicalHostname) {
-  // Create an SbSocketResolution with a canonical name.
-  // The contents of resolution do not matter for this test,
-  // so just zero-ing them out for consistency.
-  SbSocketResolution resolution = {0};
-  resolution.canonical_name = kCanonicalHostname;
-
-  // Copy the addrinfo struct into an AddressList object and
-  // make sure it seems correct.
-  AddressList addrlist1 =
-      AddressList::CreateFromSbSocketResolution(&resolution);
-  EXPECT_EQ(kCanonicalHostname, addrlist1.canonical_name());
-
-  // Copy the AddressList to another one.
-  AddressList addrlist2 = addrlist1;
-  EXPECT_EQ(kCanonicalHostname, addrlist2.canonical_name());
-}
-
 TEST(AddressListTest, CreateFromSbSocketResolution) {
   // Create an 4-element addrinfo.
   const unsigned kNumElements = 4;

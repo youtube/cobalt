@@ -151,9 +151,6 @@ int SystemHostResolverProc(const std::string& host,
       break;
   }
 
-  if (host_resolver_flags & HOST_RESOLVER_CANONNAME)
-    filter |= kSbSocketResolveFilterCanonicalName;
-
   SbSocketResolution* resolution = SbSocketResolve(host.c_str(), filter);
   if (!resolution)
     return ERR_NAME_RESOLUTION_FAILED;
