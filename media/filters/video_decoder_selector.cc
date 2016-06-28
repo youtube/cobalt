@@ -67,9 +67,9 @@ void VideoDecoderSelector::SelectVideoDecoder(
     return;
   }
 
-#if defined(COBALT)
+#if defined(COBALT) || defined(__LB_SHELL__)
   DecryptingVideoDecoderInitDone(DECODER_ERROR_NOT_SUPPORTED);
-#else   // defined(COBALT)
+#else   // defined(COBALT) || defined(__LB_SHELL__)
   video_decoder_ = new DecryptingVideoDecoder(message_loop_,
                                               set_decryptor_ready_cb_);
   video_decoder_->Initialize(
@@ -78,7 +78,7 @@ void VideoDecoderSelector::SelectVideoDecoder(
           &VideoDecoderSelector::DecryptingVideoDecoderInitDone,
           weak_ptr_factory_.GetWeakPtr())),
       statistics_cb_);
-#endif  // defined(COBALT)
+#endif  // defined(COBALT) || defined(__LB_SHELL__)
 }
 
 void VideoDecoderSelector::DecryptingVideoDecoderInitDone(
