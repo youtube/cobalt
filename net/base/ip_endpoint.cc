@@ -51,7 +51,7 @@ AddressFamily IPEndPoint::GetFamily() const {
       return ADDRESS_FAMILY_UNSPECIFIED;
   }
 }
-
+#if !defined(OS_STARBOARD)
 int IPEndPoint::GetSockAddrFamily() const {
   switch (address_.size()) {
     case kIPv4AddressSize:
@@ -63,6 +63,7 @@ int IPEndPoint::GetSockAddrFamily() const {
       return AF_UNSPEC;
   }
 }
+#endif  // defined(OS_STARBOARD)
 
 #if defined(OS_STARBOARD)
 // static
