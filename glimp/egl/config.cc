@@ -26,11 +26,20 @@ namespace egl {
 namespace {
 bool AttributeKeyAndValueAreValid(int key, int value) {
   switch (key) {
-    // First deal with the trivial keys where all values are valid.
+    // Deal with the size keys where all values are valid.
     case EGL_RED_SIZE:
     case EGL_GREEN_SIZE:
     case EGL_BLUE_SIZE:
     case EGL_ALPHA_SIZE:
+    case EGL_BUFFER_SIZE:
+    case EGL_LUMINANCE_SIZE:
+    case EGL_STENCIL_SIZE: {
+      return true;
+    }
+
+    // Deal with the mask keys where all values are valid.
+    case EGL_CONFORMANT:
+    case EGL_RENDERABLE_TYPE:
     case EGL_SURFACE_TYPE: {
       return true;
     }
@@ -41,6 +50,16 @@ bool AttributeKeyAndValueAreValid(int key, int value) {
         case EGL_DONT_CARE:
         case EGL_TRUE:
         case EGL_FALSE: {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    case EGL_COLOR_BUFFER_TYPE: {
+      switch (value) {
+        case EGL_RGB_BUFFER:
+        case EGL_LUMINANCE_BUFFER: {
           return true;
         }
       }
@@ -77,15 +96,19 @@ bool ConfigMatchesAttribute(const Config& config, int key, int value) {
     case EGL_RED_SIZE:
     case EGL_GREEN_SIZE:
     case EGL_BLUE_SIZE:
-    case EGL_ALPHA_SIZE: {
+    case EGL_ALPHA_SIZE:
+    case EGL_BUFFER_SIZE:
+    case EGL_LUMINANCE_SIZE:
+    case EGL_STENCIL_SIZE: {
       // We match if our config's bit depth is greater than or equal to the
       // requested value.
       return config.find(key)->second >= value;
     }
 
+    case EGL_CONFORMANT:
+    case EGL_RENDERABLE_TYPE:
     case EGL_SURFACE_TYPE: {
-      // We match if our config's surface type bit mask includes the requested
-      // bit mask.
+      // We match if our config's bit mask includes the requested bit mask.
       return (config.find(key)->second & value) == value;
     }
 
@@ -93,6 +116,11 @@ bool ConfigMatchesAttribute(const Config& config, int key, int value) {
       // Our config matches booleans if the requested boolean is not true, or
       // else if the config's corresponding boolean is also true.
       return value != EGL_TRUE || config.find(key)->second == EGL_TRUE;
+    }
+
+    case EGL_COLOR_BUFFER_TYPE: {
+      // We match if our config value matches the requested value exactly.
+      return config.find(key)->second == value;
     }
   }
 

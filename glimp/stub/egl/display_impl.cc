@@ -61,6 +61,12 @@ void DisplayImplStub::InitializeSupportedConfigs() {
   (*config)[EGL_GREEN_SIZE] = 8;
   (*config)[EGL_BLUE_SIZE] = 8;
   (*config)[EGL_ALPHA_SIZE] = 8;
+  (*config)[EGL_BUFFER_SIZE] = 32;
+  (*config)[EGL_LUMINANCE_SIZE] = 0;
+  (*config)[EGL_STENCIL_SIZE] = 0;
+  (*config)[EGL_COLOR_BUFFER_TYPE] = EGL_RGB_BUFFER;
+  (*config)[EGL_CONFORMANT] = EGL_OPENGL_ES2_BIT;
+  (*config)[EGL_RENDERABLE_TYPE] = EGL_OPENGL_ES2_BIT;
   (*config)[EGL_SURFACE_TYPE] = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
   (*config)[EGL_BIND_TO_TEXTURE_RGBA] = EGL_TRUE;
 
@@ -75,6 +81,9 @@ nb::scoped_ptr<SurfaceImpl> DisplayImplStub::CreateWindowSurface(
   SB_DCHECK(config->find(EGL_GREEN_SIZE)->second == 8);
   SB_DCHECK(config->find(EGL_BLUE_SIZE)->second == 8);
   SB_DCHECK(config->find(EGL_ALPHA_SIZE)->second == 8);
+  SB_DCHECK(config->find(EGL_BUFFER_SIZE)->second == 32);
+  SB_DCHECK(config->find(EGL_LUMINANCE_SIZE)->second == 0);
+  SB_DCHECK(config->find(EGL_COLOR_BUFFER_TYPE)->second == EGL_RGB_BUFFER);
   return nb::scoped_ptr<SurfaceImpl>(new WindowSurfaceImplStub());
 }
 
@@ -85,6 +94,9 @@ nb::scoped_ptr<SurfaceImpl> DisplayImplStub::CreatePbufferSurface(
   SB_DCHECK(config->find(EGL_GREEN_SIZE)->second == 8);
   SB_DCHECK(config->find(EGL_BLUE_SIZE)->second == 8);
   SB_DCHECK(config->find(EGL_ALPHA_SIZE)->second == 8);
+  SB_DCHECK(config->find(EGL_BUFFER_SIZE)->second == 32);
+  SB_DCHECK(config->find(EGL_LUMINANCE_SIZE)->second == 0);
+  SB_DCHECK(config->find(EGL_COLOR_BUFFER_TYPE)->second == EGL_RGB_BUFFER);
   return nb::scoped_ptr<SurfaceImpl>(new PbufferSurfaceImplStub(
       attributes.find(EGL_WIDTH)->second, attributes.find(EGL_HEIGHT)->second));
 }
