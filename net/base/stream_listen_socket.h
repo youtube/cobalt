@@ -37,6 +37,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/message_loop.h"
 #include "net/base/net_export.h"
 #include "net/base/stream_listen_socket.h"
 

@@ -416,8 +416,8 @@ BASE_EXPORT extern void PrintTo(const FilePath& path, std::ostream* out);
 // Provide a hash function so that hash_sets and maps can contain FilePath
 // objects.
 namespace BASE_HASH_NAMESPACE {
-#if defined(COMPILER_GCC) && !defined(__LB_PS3__)
 
+#if defined(BASE_HASH_USE_HASH_STRUCT)
 template<>
 struct hash<FilePath> {
   size_t operator()(const FilePath& f) const {
@@ -425,13 +425,12 @@ struct hash<FilePath> {
   }
 };
 
-#elif defined(COMPILER_MSVC) || defined(__LB_PS3__)
-
+#else
 inline size_t hash_value(const FilePath& f) {
   return hash_value(f.value());
 }
 
-#endif  // COMPILER
+#endif  // defined(BASE_HASH_USE_HASH_STRUCT)
 
 }  // namespace BASE_HASH_NAMESPACE
 

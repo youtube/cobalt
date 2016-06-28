@@ -19,11 +19,13 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 
+#if !defined(OS_STARBOARD)
 #if !defined(OS_ANDROID)
 #include <ifaddrs.h>
 #endif
 #include <net/if.h>
 #include <netinet/in.h>
+#endif
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
