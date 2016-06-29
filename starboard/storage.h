@@ -17,6 +17,9 @@
 // platforms have different mechanisms for this kind of storage, so this API
 // exists to allow a client application to access this kind of storage.
 
+// Only a single open record can exist for each user. Attempting to open a
+// second record for a user will result in undefined behavior.
+
 // These APIs are NOT expected to be thread-safe, so either call them from a
 // single thread, or perform proper synchronization around all calls.
 
