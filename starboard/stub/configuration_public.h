@@ -398,6 +398,11 @@
 // Specifies the network receive buffer size.
 #define SB_NETWORK_RECEIVE_BUFFER_SIZE (16 * 1024)
 
+// --- User Configuration ----------------------------------------------------
+
+// The maximum number of users that can be signed in at the same time.
+#define SB_USER_MAX_SIGNED_IN 1
+
 // --- Platform Specific Audits ----------------------------------------------
 
 #if !defined(__GNUC__)
