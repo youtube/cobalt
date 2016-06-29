@@ -81,41 +81,15 @@
     ['OS=="starboard"', {
       'targets': [
         {
-          # All working starboard targets, not including tests, for the
-          # QA and GOLD builds on the buildbot.
-          'target_name': 'starboard_working',
-          'type': 'none',
-          'dependencies': [
-            '<(DEPTH)/base/base.gyp:base',
-            '<(DEPTH)/cobalt/browser/cobalt.gyp:cobalt',
-            '<(DEPTH)/cobalt/fonts/freetype2/freetype2.gyp:freetype2',
-            '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
-            '<(DEPTH)/crypto/crypto.gyp:crypto',
-            '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
-            '<(DEPTH)/media/media.gyp:media',
-            '<(DEPTH)/net/net.gyp:net',
-            '<(DEPTH)/sql/sql.gyp:sql',
-            '<(DEPTH)/starboard/examples/examples.gyp:*',
-            '<(DEPTH)/starboard/starboard.gyp:starboard',
-            '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
-            '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
-            '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
-            '<(DEPTH)/third_party/sqlite/sqlite.gyp:sqlite',
-            '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
-          ],
-        },
-        {
-          # All working starboard targets, including tests, for the
-          # Debug and Devel builds on the buildbot.
-          'target_name': 'starboard_working_tests',
+          # Subset of targets for a platform whose port is in progress.
+          'target_name': 'in_progress_targets',
           'type': 'none',
           'dependencies': [
             '<(DEPTH)/base/base.gyp:base_unittests',
             '<(DEPTH)/crypto/crypto.gyp:crypto_unittests',
             '<(DEPTH)/net/net.gyp:net_unittests',
             '<(DEPTH)/sql/sql.gyp:sql_unittests',
-            '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
-            'starboard_working',
+            '<(DEPTH)/starboard/nplb/nplb.gyp:nplb',
           ],
         },
       ],
