@@ -72,29 +72,39 @@ bool PropagateBackgroundStyleAndTestIfChanged(
   return false;
 }
 
-scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
+InitialContainingBlockCreationResults CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSComputedStyleData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider, StatTracker* stat_tracker) {
   TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
 
+  InitialContainingBlockCreationResults results;
+  results.background_style_source = NULL;
+
   // Propagate the computed background style of the <html> or <body> element
   // to the given style for the initial containing block.
   //   https://www.w3.org/TR/css3-background/#body-background
   if (!PropagateBackgroundStyleAndTestIfChanged(
           document->html(), initial_containing_block_style)) {
-    PropagateBackgroundStyleAndTestIfChanged(
-        document->body(), initial_containing_block_style);
+    if (PropagateBackgroundStyleAndTestIfChanged(
+            document->body(), initial_containing_block_style)) {
+      results.background_style_source = document->body().get();
+    }
+  } else {
+    results.background_style_source = document->html().get();
   }
 
   scoped_refptr<cssom::CSSComputedStyleDeclaration> initial_style_state =
       new cssom::CSSComputedStyleDeclaration();
   initial_style_state->set_data(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
-  return make_scoped_refptr(new BlockLevelBlockContainerBox(
+
+  results.box = make_scoped_refptr(new BlockLevelBlockContainerBox(
       initial_style_state, kLeftToRightBaseDirection, used_style_provider,
       stat_tracker));
+
+  return results;
 }
 
 }  // namespace layout

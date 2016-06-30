@@ -65,14 +65,7 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   // Create a dummy EGLSurface object to be assigned as the target surface
   // when we need to make OpenGL calls that do not depend on a surface (e.g.
   // creating a texture).
-  EGLint null_surface_attrib_list[] = {
-      EGL_WIDTH, 1,
-      EGL_HEIGHT, 1,
-      EGL_NONE,
-  };
-  null_surface_ =
-      eglCreatePbufferSurface(display, config, null_surface_attrib_list);
-  CHECK_EQ(EGL_SUCCESS, eglGetError());
+  null_surface_ = new PBufferRenderTargetEGL(display, config, math::Size(1, 1));
 
   ScopedMakeCurrent scoped_current_context(this);
 
@@ -101,8 +94,7 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   scoped_refptr<PBufferRenderTargetEGL> render_target_egl = make_scoped_refptr(
       base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get()));
   {
-    ScopedMakeCurrent scoped_make_current(this,
-                                          render_target_egl->GetSurface());
+    ScopedMakeCurrent scoped_make_current(this, render_target_egl);
 
     // Create a 2-pixel texture and then immediately blit it to our 2-pixel
     // framebuffer render target.
@@ -232,15 +224,22 @@ GraphicsContextEGL::~GraphicsContextEGL() {
 
   ReleaseCurrentContext();
 
-  EGL_CALL(eglDestroySurface(display_, null_surface_));
+  null_surface_ = NULL;
+
   EGL_CALL(eglDestroyContext(display_, context_));
 }
 
-void GraphicsContextEGL::MakeCurrentWithSurface(EGLSurface surface) {
+void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
   DCHECK_NE(EGL_NO_SURFACE, surface) <<
       "Use ReleaseCurrentContext().";
 
-  EGL_CALL(eglMakeCurrent(display_, surface, surface, context_));
+  EGLSurface egl_surface = surface->GetSurface();
+  EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+
+  if (surface->IsWindowRenderTarget() && !surface->has_been_made_current()) {
+    SecurityClear();
+  }
+  surface->set_has_been_made_current();
 
   is_current_ = true;
   current_surface_ = surface;
@@ -254,6 +253,7 @@ void GraphicsContextEGL::ReleaseCurrentContext() {
   EGL_CALL(eglMakeCurrent(
       display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
+  current_surface_ = NULL;
   is_current_ = false;
 }
 
@@ -387,11 +387,23 @@ void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
   GL_CALL(glUseProgram(0));
 }
 
-void GraphicsContextEGL::SwapBuffers(EGLSurface surface) {
+void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::SwapBuffers()");
 
   GL_CALL(glFlush());
-  EGL_CALL(eglSwapBuffers(display_, surface));
+  EGL_CALL(eglSwapBuffers(display_, surface->GetSurface()));
+
+  surface->increment_swap_count();
+  if (surface->IsWindowRenderTarget() && surface->swap_count() <= 2) {
+    SecurityClear();
+  }
+}
+
+void GraphicsContextEGL::SecurityClear() {
+  // Clear the screen to a color that is bright and gross to exagerate that this
+  // is a problem if it is witnessed.
+  GL_CALL(glClearColor(1.0f, 0.4f, 1.0f, 1.0f));
+  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
 }
 
 }  // namespace backend
