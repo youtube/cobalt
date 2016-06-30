@@ -29,7 +29,8 @@ namespace browser {
 // otherwise (e.g. in release builds) a stub implementation is used.
 class RenderTreeCombiner {
  public:
-  explicit RenderTreeCombiner(renderer::Pipeline* renderer_pipeline);
+  explicit RenderTreeCombiner(renderer::Pipeline* renderer_pipeline,
+                              const math::Size& viewport_size);
   ~RenderTreeCombiner();
 
   // Update the main web module render tree.
@@ -61,6 +62,9 @@ class RenderTreeCombiner {
   // Local reference to the render pipeline, so we can submit the combined tree.
   // Reference counted pointer not necessary here.
   renderer::Pipeline* renderer_pipeline_;
+
+  // The size of the output viewport.
+  math::Size viewport_size_;
 
   // Local references to the main and debug console render trees/animation maps
   // so we can combine them.

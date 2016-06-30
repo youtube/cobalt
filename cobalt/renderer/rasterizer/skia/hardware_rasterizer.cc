@@ -165,7 +165,7 @@ void SkiaHardwareRasterizer::Impl::Submit(
           render_target.get());
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
-      graphics_context_, render_target_egl->GetSurface());
+      graphics_context_, render_target_egl);
 
   // First reset the graphics context state for the pending render tree
   // draw calls, in case we have modified state in between.
@@ -206,7 +206,7 @@ void SkiaHardwareRasterizer::Impl::Submit(
     canvas->flush();
   }
 
-  graphics_context_->SwapBuffers(render_target_egl->GetSurface());
+  graphics_context_->SwapBuffers(render_target_egl);
 }
 
 render_tree::ResourceProvider*

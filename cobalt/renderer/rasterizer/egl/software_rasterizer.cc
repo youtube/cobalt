@@ -86,10 +86,10 @@ void SoftwareRasterizer::Submit(
           render_target.get());
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
-      context_, render_target_egl->GetSurface());
+      context_, render_target_egl);
 
   context_->Blit(output_texture->gl_handle(), 0, 0, width, height);
-  context_->SwapBuffers(render_target_egl->GetSurface());
+  context_->SwapBuffers(render_target_egl);
 }
 
 render_tree::ResourceProvider* SoftwareRasterizer::GetResourceProvider() {

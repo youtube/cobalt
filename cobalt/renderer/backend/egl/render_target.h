@@ -27,6 +27,8 @@ namespace backend {
 
 class RenderTargetEGL : public RenderTarget {
  public:
+  RenderTargetEGL() : swap_count_(0), has_been_made_current_(false) {}
+
   // An EGLSurface is needed for the EGL function eglMakeCurrent() which
   // associates a render target with a rendering context.
   virtual EGLSurface GetSurface() const = 0;
@@ -36,8 +38,19 @@ class RenderTargetEGL : public RenderTarget {
   // referenced by OpenGL by binding framebuffer 0.
   intptr_t GetPlatformHandle() OVERRIDE { return 0; }
 
+  virtual bool IsWindowRenderTarget() const { return false; }
+
+  int64 swap_count() { return swap_count_; }
+  void increment_swap_count() { ++swap_count_; }
+
+  bool has_been_made_current() const { return has_been_made_current_; }
+  void set_has_been_made_current() { has_been_made_current_ = true; }
+
  protected:
   virtual ~RenderTargetEGL() {}
+
+  int64 swap_count_;
+  bool has_been_made_current_;
 };
 
 }  // namespace backend

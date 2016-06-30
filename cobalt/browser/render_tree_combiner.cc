@@ -17,13 +17,17 @@
 #include "cobalt/browser/render_tree_combiner.h"
 
 #include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/rect_node.h"
 
 namespace cobalt {
 namespace browser {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline)
-    : render_debug_console_(true), renderer_pipeline_(renderer_pipeline) {}
+RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline,
+                                       const math::Size& viewport_size)
+    : render_debug_console_(true),
+      renderer_pipeline_(renderer_pipeline),
+      viewport_size_(viewport_size) {}
 
 RenderTreeCombiner::~RenderTreeCombiner() {}
 
@@ -60,15 +64,30 @@ void RenderTreeCombiner::SubmitToRenderer() {
 
       renderer_pipeline_->Submit(combined_submission);
     } else {
-      renderer_pipeline_->Submit(*debug_console_render_tree_);
+      // If we are rendering the debug console by itself, give it a solid black
+      // background to it.
+      render_tree::CompositionNode::Builder builder;
+      builder.AddChild(new render_tree::RectNode(
+          math::RectF(viewport_size_),
+          scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+              render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))));
+      builder.AddChild(debug_console_render_tree_->render_tree);
+
+      renderer::Submission combined_submission(*debug_console_render_tree_);
+      combined_submission.render_tree =
+          new render_tree::CompositionNode(builder);
+      renderer_pipeline_->Submit(combined_submission);
     }
   } else if (main_render_tree_) {
     renderer_pipeline_->Submit(*main_render_tree_);
   }
 }
 #else   // ENABLE_DEBUG_CONSOLE
-RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline)
-    : renderer_pipeline_(renderer_pipeline) {}
+RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline,
+                                       const math::Size& viewport_size)
+    : renderer_pipeline_(renderer_pipeline) {
+  UNREFERENCED_PARAMETER(viewport_size);
+}
 
 RenderTreeCombiner::~RenderTreeCombiner() {}
 
