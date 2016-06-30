@@ -27,8 +27,8 @@ namespace layout {
 ContainerBox::ContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    UsedStyleProvider* used_style_provider)
-    : Box(css_computed_style_declaration, used_style_provider),
+    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker)
+    : Box(css_computed_style_declaration, used_style_provider, stat_tracker),
       update_size_results_valid_(false),
       are_bidi_levels_runs_split_(false) {}
 

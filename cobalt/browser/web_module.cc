@@ -308,8 +308,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(!error_callback_.is_null());
 
   layout_manager_.reset(new layout::LayoutManager(
-      window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
-                                base::Unretained(this)),
+      name_, window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
+                                       base::Unretained(this)),
       data.options.layout_trigger, data.layout_refresh_rate,
       data.network_module->preferred_language()));
   DCHECK(layout_manager_);
