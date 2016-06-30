@@ -31,9 +31,20 @@ namespace layout {
 // of the viewport and is anchored at the canvas origin.
 //   https://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 
+struct InitialContainingBlockCreationResults {
+  // Created initial containing block box results.
+  scoped_refptr<BlockLevelBlockContainerBox> box;
+
+  // The initial containing block may have its background style propagated into
+  // it from the HTML or BODY element.  This value will point to which element
+  // the value was propagated from, or it will be NULL if no style was
+  // propagated.
+  dom::HTMLElement* background_style_source;
+};
+
 // This creates the initial containing block after adding background color
 // and image to the initial style, when needed.
-scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
+InitialContainingBlockCreationResults CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSComputedStyleData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,

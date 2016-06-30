@@ -50,11 +50,14 @@ class HardwareRasterizer::Impl {
 
   skia::SkiaSoftwareRasterizer software_rasterizer_;
   scoped_ptr<render_tree::ResourceProvider> resource_provider_;
+
+  int64 submit_count_;
 };
 
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
-          graphics_context)) {
+          graphics_context)),
+      submit_count_(0) {
   resource_provider_ = scoped_ptr<render_tree::ResourceProvider>(
       new ResourceProvider(context_->GetSbBlitterDevice(),
                            software_rasterizer_.GetResourceProvider()));
@@ -80,7 +83,11 @@ void HardwareRasterizer::Impl::Submit(
                                  render_target_blitter->GetSbRenderTarget()));
 
   // Clear the background before proceeding if the clear option is set.
-  if (options & Rasterizer::kSubmitOptions_Clear) {
+  // We also clear if this is one of the first 3 submits.  This is for security
+  // purposes, so that despite the Blitter API implementation, we ensure that
+  // if the output buffer is not completely rendered to, data from a previous
+  // process cannot leak in.
+  if (options & Rasterizer::kSubmitOptions_Clear || submit_count_ < 3) {
     CHECK(SbBlitterSetBlending(context, false));
     CHECK(SbBlitterSetColor(context, SbBlitterColorFromRGBA(0, 0, 0, 0)));
     CHECK(SbBlitterFillRect(context, SbBlitterMakeRect(0, 0, width, height)));
@@ -100,6 +107,8 @@ void HardwareRasterizer::Impl::Submit(
   // Finally flip the surface to make visible the rendered results.
   CHECK(SbBlitterFlushContext(context));
   render_target_blitter->Flip();
+
+  ++submit_count_;
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
