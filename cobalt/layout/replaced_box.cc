@@ -73,8 +73,8 @@ ReplacedBox::ReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_width,
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
-    UsedStyleProvider* used_style_provider)
-    : Box(css_computed_style_declaration, used_style_provider),
+    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker)
+    : Box(css_computed_style_declaration, used_style_provider, stat_tracker),
       maybe_intrinsic_width_(maybe_intrinsic_width),
       maybe_intrinsic_height_(maybe_intrinsic_height),
       // Like Chromium, we assume that an element must always have an intrinsic

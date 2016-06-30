@@ -25,8 +25,10 @@ namespace layout {
 BlockContainerBox::BlockContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    BaseDirection base_direction, UsedStyleProvider* used_style_provider)
-    : ContainerBox(css_computed_style_declaration, used_style_provider),
+    BaseDirection base_direction, UsedStyleProvider* used_style_provider,
+    StatTracker* stat_tracker)
+    : ContainerBox(css_computed_style_declaration, used_style_provider,
+                   stat_tracker),
       base_direction_(base_direction) {}
 
 BlockContainerBox::~BlockContainerBox() {}

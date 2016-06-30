@@ -29,10 +29,10 @@ InlineLevelReplacedBox::InlineLevelReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_width,
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
-    UsedStyleProvider* used_style_provider)
+    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb, paragraph,
                   text_position, maybe_intrinsic_width, maybe_intrinsic_height,
-                  maybe_intrinsic_ratio, used_style_provider),
+                  maybe_intrinsic_ratio, used_style_provider, stat_tracker),
       is_hidden_by_ellipsis_(false) {}
 
 Box::Level InlineLevelReplacedBox::GetLevel() const { return kInlineLevel; }
