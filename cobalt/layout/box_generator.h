@@ -49,6 +49,22 @@ class UsedStyleProvider;
 // As a side-effect, computed styles of visited HTML elements are updated.
 class BoxGenerator : public dom::NodeVisitor {
  public:
+  struct Context {
+    Context(UsedStyleProvider* used_style_provider,
+            icu::BreakIterator* line_break_iterator,
+            icu::BreakIterator* character_break_iterator,
+            StatTracker* stat_tracker)
+        : used_style_provider(used_style_provider),
+          line_break_iterator(line_break_iterator),
+          character_break_iterator(character_break_iterator),
+          stat_tracker(stat_tracker) {}
+
+    UsedStyleProvider* used_style_provider;
+    icu::BreakIterator* line_break_iterator;
+    icu::BreakIterator* character_break_iterator;
+    StatTracker* stat_tracker;
+  };
+
   BoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                    parent_css_computed_style_declaration,
                // Parent animations are passed separately in order to enable
@@ -59,11 +75,7 @@ class BoxGenerator : public dom::NodeVisitor {
                // b/27440572.
                const scoped_refptr<const web_animations::AnimationSet>&
                    parent_animations,
-               UsedStyleProvider* used_style_provider,
-               StatTracker* stat_tracker,
-               icu::BreakIterator* line_break_iterator,
-               icu::BreakIterator* character_break_iterator,
-               scoped_refptr<Paragraph>* paragraph);
+               scoped_refptr<Paragraph>* paragraph, const Context& context);
   ~BoxGenerator();
 
   void Visit(dom::CDATASection* cdata_section) OVERRIDE;
@@ -87,11 +99,8 @@ class BoxGenerator : public dom::NodeVisitor {
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       parent_css_computed_style_declaration_;
   const scoped_refptr<const web_animations::AnimationSet>& parent_animations_;
-  UsedStyleProvider* const used_style_provider_;
-  StatTracker* const stat_tracker_;
-  icu::BreakIterator* const line_break_iterator_;
-  icu::BreakIterator* const character_break_iterator_;
   scoped_refptr<Paragraph>* paragraph_;
+  const Context& context_;
   scoped_refptr<dom::HTMLElement> generating_html_element_;
 
   // The result of a box generator is zero or more root boxes.

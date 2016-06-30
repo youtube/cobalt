@@ -81,8 +81,9 @@ void UpdateComputedStylesAndLayoutBoxTree(
         (*initial_containing_block)
             ->css_computed_style_declaration()
             ->animations(),
-        used_style_provider, stat_tracker, line_break_iterator,
-        character_break_iterator, &(scoped_paragraph.get()));
+        &(scoped_paragraph.get()),
+        BoxGenerator::Context(used_style_provider, line_break_iterator,
+                              character_break_iterator, stat_tracker));
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
