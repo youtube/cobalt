@@ -65,9 +65,11 @@ void UpdateComputedStylesAndLayoutBoxTree(
   document->UpdateComputedStyles();
 
   // Create initial containing block.
-  *initial_containing_block =
-      CreateInitialContainingBlock(document->initial_computed_style(), document,
-                                   used_style_provider, stat_tracker);
+  InitialContainingBlockCreationResults
+      initial_containing_block_creation_results = CreateInitialContainingBlock(
+          document->initial_computed_style(), document, used_style_provider,
+          stat_tracker);
+  *initial_containing_block = initial_containing_block_creation_results.box;
 
   // Generate boxes.
   {
@@ -76,8 +78,10 @@ void UpdateComputedStylesAndLayoutBoxTree(
         new Paragraph(locale, (*initial_containing_block)->GetBaseDirection(),
                       Paragraph::DirectionalEmbeddingStack(),
                       line_break_iterator, character_break_iterator));
-    BoxGenerator::Context context(used_style_provider, line_break_iterator,
-                                  character_break_iterator, stat_tracker);
+    BoxGenerator::Context context(
+        used_style_provider, line_break_iterator, character_break_iterator,
+        stat_tracker,
+        initial_containing_block_creation_results.background_style_source);
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),
         (*initial_containing_block)

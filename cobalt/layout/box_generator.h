@@ -53,16 +53,24 @@ class BoxGenerator : public dom::NodeVisitor {
     Context(UsedStyleProvider* used_style_provider,
             icu::BreakIterator* line_break_iterator,
             icu::BreakIterator* character_break_iterator,
-            StatTracker* stat_tracker)
+            StatTracker* stat_tracker,
+            dom::HTMLElement* ignore_background_element)
         : used_style_provider(used_style_provider),
           line_break_iterator(line_break_iterator),
           character_break_iterator(character_break_iterator),
-          stat_tracker(stat_tracker) {}
+          stat_tracker(stat_tracker),
+          ignore_background_element(ignore_background_element) {}
 
     UsedStyleProvider* used_style_provider;
     icu::BreakIterator* line_break_iterator;
     icu::BreakIterator* character_break_iterator;
     StatTracker* stat_tracker;
+
+    // The HTML and BODY tags may have had their background style properties
+    // propagated up to the initial containing block.  If so, we should not
+    // re-use those properties on that element.  This value will track that
+    // element.
+    dom::HTMLElement* ignore_background_element;
   };
 
   BoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
