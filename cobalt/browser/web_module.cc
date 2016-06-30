@@ -29,6 +29,7 @@
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/layout/stat_tracker.h"
 #include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
@@ -151,6 +152,13 @@ class WebModule::Impl {
   // Interface between LocalStorage and the Storage Manager.
   scoped_ptr<dom::LocalStorageDatabase> local_storage_database_;
 
+  // Stats for layout. The stats are stored here and not in the layout manager
+  // because DOM-related objects store references to Layout boxes, meaning that
+  // layout stats must live longer than any DOM-related objects. Resultantly,
+  // the layout stat tracker must have a longer lifespan than the
+  // JavaScriptEngine (which has references to DOM objects).
+  scoped_ptr<layout::StatTracker> layout_stat_tracker_;
+
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
 
@@ -257,6 +265,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new dom::LocalStorageDatabase(data.network_module->storage_manager()));
   DCHECK(local_storage_database_);
 
+  layout_stat_tracker_.reset(new layout::StatTracker(name_));
+  DCHECK(layout_stat_tracker_);
+
   javascript_engine_ = script::JavaScriptEngine::CreateEngine();
   DCHECK(javascript_engine_);
 
@@ -308,10 +319,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(!error_callback_.is_null());
 
   layout_manager_.reset(new layout::LayoutManager(
-      name_, window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
-                                       base::Unretained(this)),
+      window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
+                                base::Unretained(this)),
       data.options.layout_trigger, data.layout_refresh_rate,
-      data.network_module->preferred_language()));
+      data.network_module->preferred_language(), layout_stat_tracker_.get()));
   DCHECK(layout_manager_);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -365,6 +376,7 @@ WebModule::Impl::~Impl() {
   execution_state_.reset();
   global_object_proxy_ = NULL;
   javascript_engine_.reset();
+  layout_stat_tracker_.reset();
   local_storage_database_.reset();
   remote_typeface_cache_.reset();
   image_cache_.reset();

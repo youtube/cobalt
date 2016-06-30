@@ -29,7 +29,6 @@
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
-#include "cobalt/layout/stat_tracker.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
 #include "third_party/icu/public/common/unicode/locid.h"
 
@@ -38,10 +37,10 @@ namespace layout {
 
 class LayoutManager::Impl : public dom::DocumentObserver {
  public:
-  Impl(const std::string& name, const scoped_refptr<dom::Window>& window,
+  Impl(const scoped_refptr<dom::Window>& window,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
        LayoutTrigger layout_trigger, float layout_refresh_rate,
-       const std::string& language);
+       const std::string& language, StatTracker* stat_tracker);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -62,7 +61,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   const scoped_refptr<dom::Window> window_;
   const icu::Locale locale_;
   const scoped_ptr<UsedStyleProvider> used_style_provider_;
-  const scoped_ptr<StatTracker> stat_tracker_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const LayoutTrigger layout_trigger_;
 
@@ -80,8 +78,9 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   scoped_ptr<icu::BreakIterator> character_break_iterator_;
 
   base::Timer layout_timer_;
-
   float layout_refresh_rate_;
+
+  StatTracker* const stat_tracker_;
 
   // The initial containing block is kept until the next layout, so that
   // the box tree remains valid.
@@ -91,21 +90,21 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 };
 
 LayoutManager::Impl::Impl(
-    const std::string& name, const scoped_refptr<dom::Window>& window,
+    const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     LayoutTrigger layout_trigger, float layout_refresh_rate,
-    const std::string& language)
+    const std::string& language, StatTracker* stat_tracker)
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
       used_style_provider_(
           new UsedStyleProvider(window->html_element_context()->image_cache(),
                                 window->document()->font_cache())),
-      stat_tracker_(new StatTracker(name)),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
       layout_dirty_(true),
       layout_timer_(true, true, true),
-      layout_refresh_rate_(layout_refresh_rate) {
+      layout_refresh_rate_(layout_refresh_rate),
+      stat_tracker_(stat_tracker) {
   window_->document()->AddObserver(this);
   window_->SetSynchronousLayoutCallback(
       base::Bind(&Impl::DoSynchronousLayout, base::Unretained(this)));
@@ -164,9 +163,9 @@ void LayoutManager::Impl::OnMutation() {
 void LayoutManager::Impl::DoSynchronousLayout() {
   TRACE_EVENT0("cobalt::layout", "LayoutManager::Impl::DoSynchronousLayout()");
   layout::UpdateComputedStylesAndLayoutBoxTree(
-      locale_, window_->document(), used_style_provider_.get(),
-      stat_tracker_.get(), line_break_iterator_.get(),
-      character_break_iterator_.get(), &initial_containing_block_);
+      locale_, window_->document(), used_style_provider_.get(), stat_tracker_,
+      line_break_iterator_.get(), character_break_iterator_.get(),
+      &initial_containing_block_);
 }
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -243,9 +242,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 
     RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
-        locale_, window_->document(), used_style_provider_.get(),
-        stat_tracker_.get(), line_break_iterator_.get(),
-        character_break_iterator_.get(), &initial_containing_block_);
+        locale_, window_->document(), used_style_provider_.get(), stat_tracker_,
+        line_break_iterator_.get(), character_break_iterator_.get(),
+        &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
 #if defined(ENABLE_TEST_RUNNER)
     if (layout_trigger_ == kTestRunnerMode &&
@@ -269,12 +268,12 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 }
 
 LayoutManager::LayoutManager(
-    const std::string& name, const scoped_refptr<dom::Window>& window,
+    const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     LayoutTrigger layout_trigger, float layout_refresh_rate,
-    const std::string& language)
-    : impl_(new Impl(name, window, on_render_tree_produced, layout_trigger,
-                     layout_refresh_rate, language)) {}
+    const std::string& language, StatTracker* stat_tracker)
+    : impl_(new Impl(window, on_render_tree_produced, layout_trigger,
+                     layout_refresh_rate, language, stat_tracker)) {}
 
 LayoutManager::~LayoutManager() {}
 
