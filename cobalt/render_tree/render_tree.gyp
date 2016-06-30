@@ -33,6 +33,7 @@
         'color_rgba.h',
         'composition_node.cc',
         'composition_node.h',
+        'dump_render_tree_to_string.cc',
         'filter_node.cc',
         'filter_node.h',
         'font.h',
