@@ -74,6 +74,8 @@
         'rect_layout_unit.h',
         'size_layout_unit.cc',
         'size_layout_unit.h',
+        'stat_tracker.cc',
+        'stat_tracker.h',
         'text_box.cc',
         'text_box.h',
         'transition_render_tree_animations.h',

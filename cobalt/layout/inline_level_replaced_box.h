@@ -41,7 +41,7 @@ class InlineLevelReplacedBox : public ReplacedBox {
       const base::optional<LayoutUnit>& maybe_intrinsic_width,
       const base::optional<LayoutUnit>& maybe_intrinsic_height,
       const base::optional<float>& maybe_intrinsic_ratio,
-      UsedStyleProvider* used_style_provider);
+      UsedStyleProvider* used_style_provider, StatTracker* stat_tracker);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;

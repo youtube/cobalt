@@ -65,7 +65,8 @@ class LayoutManager {
 #endif  // ENABLE_TEST_RUNNER
   };
 
-  LayoutManager(const scoped_refptr<dom::Window>& window,
+  LayoutManager(const std::string& name,
+                const scoped_refptr<dom::Window>& window,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
                 LayoutTrigger layout_trigger, float layout_refresh_rate,
                 const std::string& language);

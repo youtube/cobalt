@@ -33,6 +33,7 @@
 #include "cobalt/layout/line_wrapping.h"
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
+#include "cobalt/layout/stat_tracker.h"
 #include "cobalt/layout/vector2d_layout_unit.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
@@ -111,7 +112,7 @@ class Box : public base::RefCounted<Box> {
 
   Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
-      UsedStyleProvider* used_style_provider);
+      UsedStyleProvider* used_style_provider, StatTracker* stat_tracker);
   virtual ~Box();
 
   // Computed style contains CSS values from the last stage of processing
@@ -472,6 +473,8 @@ class Box : public base::RefCounted<Box> {
     return used_style_provider_;
   }
 
+  StatTracker* stat_tracker() const { return stat_tracker_; }
+
   // Updates used values of "width", "height", and "margin" properties based on
   // https://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins and
   // https://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
@@ -640,6 +643,7 @@ class Box : public base::RefCounted<Box> {
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
   UsedStyleProvider* const used_style_provider_;
+  StatTracker* const stat_tracker_;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   std::string generating_html_;

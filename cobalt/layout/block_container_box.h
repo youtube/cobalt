@@ -44,7 +44,8 @@ class BlockContainerBox : public ContainerBox {
   BlockContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                         css_computed_style_declaration,
                     BaseDirection base_direction,
-                    UsedStyleProvider* used_style_provider);
+                    UsedStyleProvider* used_style_provider,
+                    StatTracker* stat_tracker);
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.

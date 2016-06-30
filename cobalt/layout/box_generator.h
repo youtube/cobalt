@@ -35,6 +35,7 @@ namespace layout {
 
 class Box;
 class Paragraph;
+class StatTracker;
 class UsedStyleProvider;
 
 // In the visual formatting model, each element in the document tree generates
@@ -59,6 +60,7 @@ class BoxGenerator : public dom::NodeVisitor {
                const scoped_refptr<const web_animations::AnimationSet>&
                    parent_animations,
                UsedStyleProvider* used_style_provider,
+               StatTracker* stat_tracker,
                icu::BreakIterator* line_break_iterator,
                icu::BreakIterator* character_break_iterator,
                scoped_refptr<Paragraph>* paragraph);
@@ -86,6 +88,7 @@ class BoxGenerator : public dom::NodeVisitor {
       parent_css_computed_style_declaration_;
   const scoped_refptr<const web_animations::AnimationSet>& parent_animations_;
   UsedStyleProvider* const used_style_provider_;
+  StatTracker* const stat_tracker_;
   icu::BreakIterator* const line_break_iterator_;
   icu::BreakIterator* const character_break_iterator_;
   scoped_refptr<Paragraph>* paragraph_;
