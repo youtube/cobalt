@@ -16,8 +16,15 @@
 
 #include "cobalt/renderer/pipeline.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
+#include "base/file_path.h"
+#include "base/file_util.h"
+#include "base/path_service.h"
+#include "cobalt/base/cobalt_paths.h"
+#include "cobalt/render_tree/dump_render_tree_to_string.h"
 
 using cobalt::render_tree::Node;
 using cobalt::render_tree::animations::NodeAnimationsMap;
@@ -58,7 +65,18 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       render_target_(render_target),
       graphics_context_(graphics_context),
       rasterizer_thread_("Rasterizer"),
-      submission_disposal_thread_("Rasterizer Submission Disposal") {
+      submission_disposal_thread_("Rasterizer Submission Disposal")
+#if defined(ENABLE_DEBUG_CONSOLE)
+      ,
+      ALLOW_THIS_IN_INITIALIZER_LIST(dump_current_render_tree_command_handler_(
+          "dump_render_tree", base::Bind(&Pipeline::OnDumpCurrentRenderTree,
+                                         base::Unretained(this)),
+          "Dumps the current render tree to text.",
+          "Dumps the current render tree either to the console if no parameter "
+          "is specified, or to a file with the specified filename relative to "
+          "the debug output folder."))
+#endif
+{
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
@@ -261,6 +279,44 @@ void Pipeline::ShutdownRasterizerThread() {
   // Finally, destroy the rasterizer.
   rasterizer_.reset();
 }
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
+  if (MessageLoop::current() != rasterizer_thread_.message_loop()) {
+    rasterizer_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&Pipeline::OnDumpCurrentRenderTree,
+                              base::Unretained(this), message));
+    return;
+  }
+
+  if (!rasterize_timer_) {
+    LOG(INFO) << "No render tree available yet.";
+    return;
+  }
+
+  // Grab the most recent submission, animate it, and then dump the results to
+  // text.
+  Submission submission =
+      submission_queue_->GetCurrentSubmission(base::TimeTicks::Now());
+
+  scoped_refptr<Node> animated_render_tree = submission.animations->Apply(
+      submission.render_tree, submission.time_offset);
+
+  std::string tree_dump =
+      render_tree::DumpRenderTreeToString(animated_render_tree);
+  if (message.empty() || message == "undefined") {
+    // If no filename was specified, send output to the console.
+    LOG(INFO) << tree_dump.c_str();
+  } else {
+    // If a filename was specified, dump the output to that file.
+    FilePath out_dir;
+    PathService::Get(paths::DIR_COBALT_DEBUG_OUT, &out_dir);
+
+    file_util::WriteFile(out_dir.Append(message), tree_dump.c_str(),
+                         tree_dump.length());
+  }
+}
+#endif  // #if defined(ENABLE_DEBUG_CONSOLE)
 
 }  // namespace renderer
 }  // namespace cobalt

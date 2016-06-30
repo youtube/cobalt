@@ -17,6 +17,8 @@
 #ifndef COBALT_RENDERER_PIPELINE_H_
 #define COBALT_RENDERER_PIPELINE_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
@@ -118,6 +120,10 @@ class Pipeline {
   // needs to be shutdown from there.
   void ShutdownRasterizerThread();
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+  void OnDumpCurrentRenderTree(const std::string&);
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
   base::WaitableEvent rasterizer_created_event_;
 
   // The render_target that all submitted render trees will be rasterized to.
@@ -151,6 +157,12 @@ class Pipeline {
   // Manages a queue of render tree submissions that are to be rendered in
   // the future.
   base::optional<SubmissionQueue> submission_queue_;
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // Dumps the current render tree to the console.
+  base::ConsoleCommandManager::CommandHandler
+      dump_current_render_tree_command_handler_;
+#endif
 };
 
 }  // namespace renderer
