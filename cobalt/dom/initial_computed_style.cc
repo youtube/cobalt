@@ -28,11 +28,8 @@ scoped_refptr<cssom::CSSComputedStyleData> CreateInitialComputedStyle(
   scoped_refptr<cssom::CSSComputedStyleData>
       initial_containing_block_computed_style =
           new cssom::CSSComputedStyleData();
-  // Although the specification is silent about that, we override the otherwise
-  // transparent background color of the initial containing block to ensure that
-  // we always fill the entire viewport.
   initial_containing_block_computed_style->set_background_color(
-      new cssom::RGBAColorValue(0xffffffff));
+      new cssom::RGBAColorValue(0x00000000));
   initial_containing_block_computed_style->set_display(
       cssom::KeywordValue::GetBlock());
   initial_containing_block_computed_style->set_width(new cssom::LengthValue(

@@ -33,6 +33,8 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
 
   EGLSurface GetSurface() const OVERRIDE;
 
+  bool IsWindowRenderTarget() const OVERRIDE { return true; }
+
  private:
   ~DisplayRenderTargetEGL() OVERRIDE;
 

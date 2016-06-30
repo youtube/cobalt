@@ -68,7 +68,8 @@ class GraphicsContextEGL : public GraphicsContext {
           previous_current_surface_(graphics_context_->current_surface_) {
       graphics_context_->MakeCurrent();
     }
-    ScopedMakeCurrent(GraphicsContextEGL* graphics_context, EGLSurface surface)
+    ScopedMakeCurrent(GraphicsContextEGL* graphics_context,
+                      RenderTargetEGL* surface)
         : graphics_context_(graphics_context),
           was_current_(graphics_context_->is_current_),
           previous_current_surface_(graphics_context_->current_surface_) {
@@ -85,7 +86,7 @@ class GraphicsContextEGL : public GraphicsContext {
    private:
     GraphicsContextEGL* graphics_context_;
     bool was_current_;
-    EGLSurface previous_current_surface_;
+    RenderTargetEGL* previous_current_surface_;
   };
 
   // Helper methods to make this context current and associate it with
@@ -93,7 +94,7 @@ class GraphicsContextEGL : public GraphicsContext {
   // associated with a surface.  For all functionality (e.g. texture creation)
   // that is provided but does not require a surface binding, null_surface_ is
   // specified as a surface.
-  void MakeCurrentWithSurface(EGLSurface surface);
+  void MakeCurrentWithSurface(RenderTargetEGL* surface);
 
   // Alternatively, this call can be made to make the context current along
   // with a null surface.  You would be interested in this method if you don't
@@ -101,7 +102,7 @@ class GraphicsContextEGL : public GraphicsContext {
   void MakeCurrent();
   void ReleaseCurrentContext();
 
-  void SwapBuffers(EGLSurface surface);
+  void SwapBuffers(RenderTargetEGL* surface);
 
   void Blit(GLuint texture, int x, int y, int width, int height);
 
@@ -115,6 +116,16 @@ class GraphicsContextEGL : public GraphicsContext {
   // support the Frame::BlitToRenderTarget() functionality.
   void SetupBlitObjects();
 
+  // Clear render target.  For security reasons, we clear the display buffer
+  // before rendering to it for the first 3 swaps.  This way if the application
+  // does not fill the frame (presumably by accident), this clear color will
+  // appear and not data that was left in the buffer from a previous process
+  // that could be a security risk.  This is meant to act as a layer of
+  // security, other layers are 1) The graphics driver should not let our
+  // process access data from other processes in the first place and 2) The
+  // application should completely cover the screen when it is rendered.
+  void SecurityClear();
+
   EGLDisplay display_;
 
   // The EGL/OpenGL ES context hosted by this GraphicsContextEGL object.
@@ -124,12 +135,12 @@ class GraphicsContextEGL : public GraphicsContext {
   // Keep track of whether this context has been set to current or not, and
   // if so what surface was associated with it.
   bool is_current_;
-  EGLSurface current_surface_;
+  scoped_refptr<RenderTargetEGL> current_surface_;
 
   // A dummy surface that is made current when we wish to execute OpenGL ES
   // commands that don't actually involve a surface in any way (e.g. texture
   // creation).
-  EGLSurface null_surface_;
+  scoped_refptr<RenderTargetEGL> null_surface_;
 
   // Cache whether or not BGRA texture format is supported by the underlying
   // OpenGL ES implementation.

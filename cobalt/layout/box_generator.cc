@@ -784,10 +784,34 @@ void BoxGenerator::AppendPseudoElementToLine(
   }
 }
 
+namespace {
+scoped_refptr<cssom::CSSComputedStyleDeclaration> StripBackground(
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>& style) {
+  scoped_refptr<cssom::CSSComputedStyleDeclaration> new_style(
+      new cssom::CSSComputedStyleDeclaration());
+  new_style->set_animations(style->animations());
+
+  scoped_refptr<cssom::CSSComputedStyleData> new_data(
+      new cssom::CSSComputedStyleData());
+  new_data->AssignFrom(*style->data());
+  new_data->SetPropertyValue(cssom::kBackgroundColorProperty, NULL);
+  new_data->SetPropertyValue(cssom::kBackgroundImageProperty, NULL);
+  new_style->set_data(new_data);
+
+  return new_style;
+}
+}  // namespace
+
 void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
+  const scoped_refptr<cssom::CSSComputedStyleDeclaration>& element_style(
+      html_element->css_computed_style_declaration());
+
   ContainerBoxGenerator container_box_generator(
       html_element->directionality(),
-      html_element->css_computed_style_declaration(), paragraph_, context_);
+      html_element == context_->ignore_background_element
+          ? StripBackground(element_style)
+          : element_style,
+      paragraph_, context_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_refptr<ContainerBox> container_box_before_split =
       container_box_generator.container_box();
