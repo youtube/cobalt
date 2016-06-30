@@ -70,18 +70,12 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_css_computed_style_declaration,
     const scoped_refptr<const web_animations::AnimationSet>& parent_animations,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker,
-    icu::BreakIterator* line_break_iterator,
-    icu::BreakIterator* character_break_iterator,
-    scoped_refptr<Paragraph>* paragraph)
+    scoped_refptr<Paragraph>* paragraph, const Context& context)
     : parent_css_computed_style_declaration_(
           parent_css_computed_style_declaration),
       parent_animations_(parent_animations),
-      used_style_provider_(used_style_provider),
-      stat_tracker_(stat_tracker),
-      line_break_iterator_(line_break_iterator),
-      character_break_iterator_(character_break_iterator),
-      paragraph_(paragraph) {}
+      paragraph_(paragraph),
+      context_(context) {}
 
 BoxGenerator::~BoxGenerator() {
   if (generating_html_element_) {
@@ -157,8 +151,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
                        const base::optional<LayoutUnit>& maybe_intrinsic_width,
                        const base::optional<LayoutUnit>& maybe_intrinsic_height,
                        const base::optional<float>& maybe_intrinsic_ratio,
-                       UsedStyleProvider* used_style_provider,
-                       StatTracker* stat_tracker)
+                       const BoxGenerator::Context& context)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
         paragraph_(paragraph),
@@ -166,8 +159,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         maybe_intrinsic_width_(maybe_intrinsic_width),
         maybe_intrinsic_height_(maybe_intrinsic_height),
         maybe_intrinsic_ratio_(maybe_intrinsic_ratio),
-        used_style_provider_(used_style_provider),
-        stat_tracker_(stat_tracker) {}
+        context_(context) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
@@ -182,8 +174,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const base::optional<LayoutUnit> maybe_intrinsic_width_;
   const base::optional<LayoutUnit> maybe_intrinsic_height_;
   const base::optional<float> maybe_intrinsic_ratio_;
-  UsedStyleProvider* const used_style_provider_;
-  StatTracker* const stat_tracker_;
+  const BoxGenerator::Context& context_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
 };
@@ -196,7 +187,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       replaced_box_ = make_scoped_refptr(new BlockLevelReplacedBox(
           css_computed_style_declaration_, replace_image_cb_, paragraph_,
           text_position_, maybe_intrinsic_width_, maybe_intrinsic_height_,
-          maybe_intrinsic_ratio_, used_style_provider_, stat_tracker_));
+          maybe_intrinsic_ratio_, context_.used_style_provider,
+          context_.stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
     // between inline replaced elements and inline-block replaced elements
@@ -207,7 +199,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       replaced_box_ = make_scoped_refptr(new InlineLevelReplacedBox(
           css_computed_style_declaration_, replace_image_cb_, paragraph_,
           text_position_, maybe_intrinsic_width_, maybe_intrinsic_height_,
-          maybe_intrinsic_ratio_, used_style_provider_, stat_tracker_));
+          maybe_intrinsic_ratio_, context_.used_style_provider,
+          context_.stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -289,7 +282,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
           ? base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider())
           : ReplacedBox::ReplaceImageCB(),
       *paragraph_, text_position, base::nullopt, base::nullopt, base::nullopt,
-      used_style_provider_, stat_tracker_);
+      context_);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
@@ -326,7 +319,7 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
 
   scoped_refptr<TextBox> br_text_box = new TextBox(
       br_element->css_computed_style_declaration(), *paragraph_, text_position,
-      text_position, true, used_style_provider_, stat_tracker_);
+      text_position, true, context_.used_style_provider, context_.stat_tracker);
 
   // Add a line feed code point to the paragraph to signify the new line for
   // the line breaking and bidirectional algorithms.
@@ -351,17 +344,11 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   ContainerBoxGenerator(dom::Directionality directionality,
                         const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                             css_computed_style_declaration,
-                        UsedStyleProvider* used_style_provider,
-                        StatTracker* stat_tracker,
-                        icu::BreakIterator* line_break_iterator,
-                        icu::BreakIterator* character_break_iterator,
-                        scoped_refptr<Paragraph>* paragraph)
+                        scoped_refptr<Paragraph>* paragraph,
+                        const BoxGenerator::Context& context)
       : directionality_(directionality),
         css_computed_style_declaration_(css_computed_style_declaration),
-        used_style_provider_(used_style_provider),
-        stat_tracker_(stat_tracker),
-        line_break_iterator_(line_break_iterator),
-        character_break_iterator_(character_break_iterator),
+        context_(context),
         has_scoped_directional_embedding_(false),
         paragraph_(paragraph),
         paragraph_scoped_(false) {}
@@ -377,10 +364,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const dom::Directionality directionality_;
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
-  UsedStyleProvider* const used_style_provider_;
-  StatTracker* const stat_tracker_;
-  icu::BreakIterator* const line_break_iterator_;
-  icu::BreakIterator* const character_break_iterator_;
+  const BoxGenerator::Context& context_;
 
   // If a directional embedding was added to the paragraph by this container box
   // and needs to be popped in the destructor:
@@ -415,7 +399,7 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
       *paragraph_ = new Paragraph(
           prior_paragraph_->GetLocale(), prior_paragraph_->GetBaseDirection(),
           prior_paragraph_->GetDirectionalEmbeddingStack(),
-          line_break_iterator_, character_break_iterator_);
+          context_.line_break_iterator, context_.character_break_iterator);
     } else {
       *paragraph_ = prior_paragraph_;
     }
@@ -435,7 +419,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 
       container_box_ = make_scoped_refptr(new BlockLevelBlockContainerBox(
           css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
-          used_style_provider_, stat_tracker_));
+          context_.used_style_provider, context_.stat_tracker));
       break;
     // Generate one or more inline boxes. Note that more inline boxes may be
     // generated when the original inline box is split due to participation
@@ -471,9 +455,9 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
         (*paragraph_)->AppendCodePoint(Paragraph::kNoBreakSpaceCodePoint);
       }
 
-      container_box_ = make_scoped_refptr(
-          new InlineContainerBox(css_computed_style_declaration_,
-                                 used_style_provider_, stat_tracker_));
+      container_box_ = make_scoped_refptr(new InlineContainerBox(
+          css_computed_style_declaration_, context_.used_style_provider,
+          context_.stat_tracker));
       break;
     // Generate an inline-level block container box. The inside of
     // an inline-block is formatted as a block box, and the element itself
@@ -498,7 +482,8 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 
       container_box_ = make_scoped_refptr(new InlineLevelBlockContainerBox(
           css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
-          prior_paragraph, text_position, used_style_provider_, stat_tracker_));
+          prior_paragraph, text_position, context_.used_style_provider,
+          context_.stat_tracker));
     } break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -583,7 +568,8 @@ void ContainerBoxGenerator::CreateScopedParagraph(
 
   *paragraph_ = new Paragraph(prior_paragraph_->GetLocale(), base_direction,
                               Paragraph::DirectionalEmbeddingStack(),
-                              line_break_iterator_, character_break_iterator_);
+                              context_.line_break_iterator,
+                              context_.character_break_iterator);
 }
 
 }  // namespace
@@ -737,9 +723,7 @@ void BoxGenerator::AppendPseudoElementToLine(
   if (pseudo_element) {
     ContainerBoxGenerator pseudo_element_box_generator(
         dom::kNoExplicitDirectionality,
-        pseudo_element->css_computed_style_declaration(), used_style_provider_,
-        stat_tracker_, line_break_iterator_, character_break_iterator_,
-        paragraph_);
+        pseudo_element->css_computed_style_declaration(), paragraph_, context_);
     pseudo_element->computed_style()->display()->Accept(
         &pseudo_element_box_generator);
     scoped_refptr<ContainerBox> pseudo_element_box =
@@ -782,8 +766,7 @@ void BoxGenerator::AppendPseudoElementToLine(
             pseudo_element->css_computed_style_declaration(),
             use_html_element_animations ? html_element->animations()
                                         : pseudo_element->animations(),
-            used_style_provider_, stat_tracker_, line_break_iterator_,
-            character_break_iterator_, paragraph_);
+            paragraph_, context_);
         child_node->Accept(&child_box_generator);
         const Boxes& child_boxes = child_box_generator.boxes();
         for (Boxes::const_iterator child_box_iterator = child_boxes.begin();
@@ -803,9 +786,7 @@ void BoxGenerator::AppendPseudoElementToLine(
 void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   ContainerBoxGenerator container_box_generator(
       html_element->directionality(),
-      html_element->css_computed_style_declaration(), used_style_provider_,
-      stat_tracker_, line_break_iterator_, character_break_iterator_,
-      paragraph_);
+      html_element->css_computed_style_declaration(), paragraph_, context_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_refptr<ContainerBox> container_box_before_split =
       container_box_generator.container_box();
@@ -832,8 +813,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     BoxGenerator child_box_generator(
         html_element->css_computed_style_declaration(),
         html_element->css_computed_style_declaration()->animations(),
-        used_style_provider_, stat_tracker_, line_break_iterator_,
-        character_break_iterator_, paragraph_);
+        paragraph_, context_);
     child_node->Accept(&child_box_generator);
     const Boxes& child_boxes = child_box_generator.boxes();
     for (Boxes::const_iterator child_box_iterator = child_boxes.begin();
@@ -942,10 +922,10 @@ void BoxGenerator::Visit(dom::Text* text) {
         (*paragraph_)->AppendUtf8String(modifiable_text, transform);
     int32 text_end_position = (*paragraph_)->GetTextEndPosition();
 
-    boxes_.push_back(new TextBox(css_computed_style_declaration, *paragraph_,
-                                 text_start_position, text_end_position,
-                                 generates_newline, used_style_provider_,
-                                 stat_tracker_));
+    boxes_.push_back(
+        new TextBox(css_computed_style_declaration, *paragraph_,
+                    text_start_position, text_end_position, generates_newline,
+                    context_.used_style_provider, context_.stat_tracker));
 
     // Newline sequences should be transformed into a preserved line feed.
     //   https://www.w3.org/TR/css3-text/#line-break-transform
