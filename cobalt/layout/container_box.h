@@ -33,7 +33,8 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
  public:
   ContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                    css_computed_style_declaration,
-               UsedStyleProvider* used_style_provider);
+               UsedStyleProvider* used_style_provider,
+               StatTracker* stat_tracker);
   ~ContainerBox() OVERRIDE;
 
   // Attempts to add a child box and takes the ownership if succeeded. Returns
