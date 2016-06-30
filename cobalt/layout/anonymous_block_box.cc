@@ -29,9 +29,10 @@ namespace layout {
 AnonymousBlockBox::AnonymousBlockBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    BaseDirection base_direction, UsedStyleProvider* used_style_provider)
+    BaseDirection base_direction, UsedStyleProvider* used_style_provider,
+    StatTracker* stat_tracker)
     : BlockContainerBox(css_computed_style_declaration, base_direction,
-                        used_style_provider),
+                        used_style_provider, stat_tracker),
       used_font_(used_style_provider->GetUsedFontList(
           css_computed_style_declaration->data()->font_family(),
           css_computed_style_declaration->data()->font_size(),

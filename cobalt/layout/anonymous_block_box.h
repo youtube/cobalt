@@ -36,7 +36,8 @@ class AnonymousBlockBox : public BlockContainerBox {
   AnonymousBlockBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                         css_computed_style_declaration,
                     BaseDirection base_direction,
-                    UsedStyleProvider* used_style_provider);
+                    UsedStyleProvider* used_style_provider,
+                    StatTracker* stat_tracker);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;

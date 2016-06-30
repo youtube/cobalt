@@ -76,7 +76,7 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSComputedStyleData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider) {
+    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker) {
   TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
 
   // Propagate the computed background style of the <html> or <body> element
@@ -93,7 +93,8 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   initial_style_state->set_data(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
   return make_scoped_refptr(new BlockLevelBlockContainerBox(
-      initial_style_state, kLeftToRightBaseDirection, used_style_provider));
+      initial_style_state, kLeftToRightBaseDirection, used_style_provider,
+      stat_tracker));
 }
 
 }  // namespace layout

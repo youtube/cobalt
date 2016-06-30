@@ -51,7 +51,7 @@ class ScopedParagraph {
 
 void UpdateComputedStylesAndLayoutBoxTree(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider,
+    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
@@ -65,8 +65,9 @@ void UpdateComputedStylesAndLayoutBoxTree(
   document->UpdateComputedStyles();
 
   // Create initial containing block.
-  *initial_containing_block = CreateInitialContainingBlock(
-      document->initial_computed_style(), document, used_style_provider);
+  *initial_containing_block =
+      CreateInitialContainingBlock(document->initial_computed_style(), document,
+                                   used_style_provider, stat_tracker);
 
   // Generate boxes.
   {
@@ -80,8 +81,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
         (*initial_containing_block)
             ->css_computed_style_declaration()
             ->animations(),
-        used_style_provider, line_break_iterator, character_break_iterator,
-        &(scoped_paragraph.get()));
+        used_style_provider, stat_tracker, line_break_iterator,
+        character_break_iterator, &(scoped_paragraph.get()));
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
@@ -121,13 +122,13 @@ void UpdateComputedStylesAndLayoutBoxTree(
 
 RenderTreeWithAnimations Layout(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider,
+    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
   UpdateComputedStylesAndLayoutBoxTree(
-      locale, document, used_style_provider, line_break_iterator,
+      locale, document, used_style_provider, stat_tracker, line_break_iterator,
       character_break_iterator, initial_containing_block);
 
   // Add to render tree.

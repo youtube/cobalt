@@ -40,7 +40,8 @@ class InlineContainerBox : public ContainerBox {
  public:
   InlineContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                          css_computed_style_declaration,
-                     UsedStyleProvider* used_style_provider);
+                     UsedStyleProvider* used_style_provider,
+                     StatTracker* stat_tracker);
   ~InlineContainerBox() OVERRIDE;
 
   // From |Box|.

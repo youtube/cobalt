@@ -28,8 +28,9 @@ namespace layout {
 InlineContainerBox::InlineContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    UsedStyleProvider* used_style_provider)
-    : ContainerBox(css_computed_style_declaration, used_style_provider),
+    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker)
+    : ContainerBox(css_computed_style_declaration, used_style_provider,
+                   stat_tracker),
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
       has_leading_white_space_(false),
@@ -75,7 +76,7 @@ bool InlineContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
 
 scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   scoped_refptr<InlineContainerBox> box_after_split(new InlineContainerBox(
-      css_computed_style_declaration(), used_style_provider()));
+      css_computed_style_declaration(), used_style_provider(), stat_tracker()));
   // When an inline box is split, margins, borders, and padding have no visual
   // effect where the split occurs.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
@@ -614,7 +615,7 @@ void InlineContainerBox::SplitAtIterator(
 
   // Move the children after the split into a new box.
   scoped_refptr<InlineContainerBox> box_after_split(new InlineContainerBox(
-      css_computed_style_declaration(), used_style_provider()));
+      css_computed_style_declaration(), used_style_provider(), stat_tracker()));
 
   // Update the split sibling links.
   box_after_split->split_sibling_ = split_sibling_;
