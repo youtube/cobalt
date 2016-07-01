@@ -18,7 +18,6 @@
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
-#include <malloc.h>
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
