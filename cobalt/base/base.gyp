@@ -54,6 +54,8 @@
         'reuse_allocator.h',
         'sanitizer_options.cc',
         'source_location.h',
+        'stop_watch.cc',
+        'stop_watch.h',
         'token.cc',
         'token.h',
         'tokens.cc',
