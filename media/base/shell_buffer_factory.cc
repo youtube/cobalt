@@ -16,8 +16,6 @@
 
 #include "media/base/shell_buffer_factory.h"
 
-#include <malloc.h>  // for memalign
-
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
