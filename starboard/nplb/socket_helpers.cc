@@ -234,7 +234,7 @@ ConnectedTrio CreateAndConnect(int port, SbTime timeout) {
   SbSocket listen_socket = CreateListeningTcpIpv4Socket(port);
   if (!SbSocketIsValid(listen_socket)) {
     ADD_FAILURE() << "Could not create listen socket.";
-    return {kSbSocketInvalid, kSbSocketInvalid, kSbSocketInvalid};
+    return ConnectedTrio();
   }
 
   // Create a new socket to connect to the listening socket.
@@ -242,7 +242,7 @@ ConnectedTrio CreateAndConnect(int port, SbTime timeout) {
   if (!SbSocketIsValid(client_socket)) {
     ADD_FAILURE() << "Could not create client socket.";
     EXPECT_TRUE(SbSocketDestroy(listen_socket));
-    return {kSbSocketInvalid, kSbSocketInvalid, kSbSocketInvalid};
+    return ConnectedTrio();
   }
 
   // Spin until the accept happens (or we get impatient).
@@ -252,10 +252,10 @@ ConnectedTrio CreateAndConnect(int port, SbTime timeout) {
     ADD_FAILURE() << "Failed to accept within " << timeout;
     EXPECT_TRUE(SbSocketDestroy(listen_socket));
     EXPECT_TRUE(SbSocketDestroy(client_socket));
-    return {kSbSocketInvalid, kSbSocketInvalid, kSbSocketInvalid};
+    return ConnectedTrio();
   }
 
-  return {listen_socket, client_socket, server_socket};
+  return ConnectedTrio(listen_socket, client_socket, server_socket);
 }
 
 SbTimeMonotonic TimedWait(SbSocketWaiter waiter) {

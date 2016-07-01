@@ -83,6 +83,16 @@ bool ReadBySpinning(SbSocket socket,
                     SbTime timeout);
 
 typedef struct ConnectedTrio {
+  ConnectedTrio()
+      : listen_socket(kSbSocketInvalid),
+        client_socket(kSbSocketInvalid),
+        server_socket(kSbSocketInvalid) {}
+  ConnectedTrio(SbSocket listen_socket,
+                SbSocket client_socket,
+                SbSocket server_socket)
+      : listen_socket(listen_socket),
+        client_socket(client_socket),
+        server_socket(server_socket) {}
   SbSocket listen_socket;
   SbSocket client_socket;
   SbSocket server_socket;
