@@ -51,8 +51,6 @@ const char kObject[] = "object";
 const char kReason[] = "reason";
 const char kScopeChain[] = "scopeChain";
 const char kScriptId[] = "scriptId";
-const char kStartColumn[] = "startColumn";
-const char kStartLine[] = "startLine";
 const char kState[] = "state";
 const char kThis[] = "this";
 const char kType[] = "type";
@@ -340,16 +338,6 @@ void JavaScriptDebuggerComponent::HandleScriptEvent(
   if (error_message) {
     DCHECK_EQ(method, kScriptFailedToParse);
     params->SetString(kErrorMessage, error_message.value());
-  }
-  base::optional<int> start_line = source_provider->GetStartLine();
-  if (start_line) {
-    DCHECK_GE(start_line.value(), 1);
-    params->SetInteger(kStartLine, start_line.value());
-  }
-  base::optional<int> start_column = source_provider->GetStartColumn();
-  if (start_column) {
-    DCHECK_GE(start_column.value(), 1);
-    params->SetInteger(kStartColumn, start_column.value());
   }
   connector_->SendEvent(method, params.Pass());
 
