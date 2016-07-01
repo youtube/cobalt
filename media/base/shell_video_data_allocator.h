@@ -18,6 +18,7 @@
 #define MEDIA_BASE_SHELL_VIDEO_DATA_ALLOCATOR_H_
 
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/video_frame.h"
 
@@ -48,7 +49,6 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
               int decoded_height,
               const gfx::Rect& visible_rect);
 
-#if defined(__LB_PS4__)
     // Create with data pointer to individual planes. All pointers should be in
     // the same memory block controlled by the accompanied FrameBuffer passed to
     // CreateYV12Frame. The decoded size and visible rect are assumed to be the
@@ -60,12 +60,26 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
               uint8* y_data,
               uint8* u_data,
               uint8* v_data);
-    int y_pitch() const { return y_pitch_; }
-    int uv_pitch() const { return uv_pitch_; }
-    uint8* y_data() const { return y_data_; }
-    uint8* u_data() const { return u_data_; }
-    uint8* v_data() const { return v_data_; }
-#endif  // defined(__LB_PS4__)
+    int y_pitch() const {
+      DCHECK_NE(y_pitch_, 0);
+      return y_pitch_;
+    }
+    int uv_pitch() const {
+      DCHECK_NE(uv_pitch_, 0);
+      return uv_pitch_;
+    }
+    uint8* y_data() const {
+      DCHECK(y_data_);
+      return y_data_;
+    }
+    uint8* u_data() const {
+      DCHECK(u_data_);
+      return u_data_;
+    }
+    uint8* v_data() const {
+      DCHECK(v_data_);
+      return v_data_;
+    }
 
     int decoded_width() const { return decoded_width_; }
     int decoded_height() const { return decoded_height_; }
@@ -75,18 +89,15 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
     int decoded_width_;
     int decoded_height_;
 
-#if defined(__LB_PS4__)
+    gfx::Rect visible_rect_;
+
     int y_pitch_;
     int uv_pitch_;
     uint8* y_data_;
     uint8* u_data_;
     uint8* v_data_;
-#endif  // defined(__LB_PS4__)
-
-    gfx::Rect visible_rect_;
   };
 
-#if defined(__LB_PS4__)
   // Only used on PS4 for its hardware AVC decoder.
   class NV12Param {
    public:
@@ -106,7 +117,6 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
     int y_pitch_;
     gfx::Rect visible_rect_;
   };
-#endif  // defined(__LB_PS4__)
 
   ShellVideoDataAllocator() {}
 
@@ -117,14 +127,19 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
       const scoped_refptr<FrameBuffer>& frame_buffer,
       const YV12Param& param,
       const base::TimeDelta& timestamp) = 0;
-#if defined(__LB_PS4__)
+
   // The system AVC decoder on PS4 only supports NV12 output. They are perfectly
   // aligned for rendering as texture though.
   virtual scoped_refptr<VideoFrame> CreateNV12Frame(
       const scoped_refptr<FrameBuffer>& frame_buffer,
       const NV12Param& param,
-      const base::TimeDelta& timestamp) = 0;
-#endif  // defined(__LB_PS4__)
+      const base::TimeDelta& timestamp) {
+    UNREFERENCED_PARAMETER(frame_buffer);
+    UNREFERENCED_PARAMETER(param);
+    UNREFERENCED_PARAMETER(timestamp);
+    NOTREACHED();
+    return NULL;
+  }
 
   // Return a video frame filled with RGBA zero on platforms that require punch
   // out.  Return NULL otherwise.

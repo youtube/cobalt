@@ -25,9 +25,12 @@ ShellVideoDataAllocator::YV12Param::YV12Param(int decoded_width,
                                               const gfx::Rect& visible_rect)
     : decoded_width_(decoded_width),
       decoded_height_(decoded_height),
-      visible_rect_(visible_rect) {}
-
-#if defined(__LB_PS4__)
+      visible_rect_(visible_rect),
+      y_pitch_(0),
+      uv_pitch_(0),
+      y_data_(NULL),
+      u_data_(NULL),
+      v_data_(NULL) {}
 
 ShellVideoDataAllocator::YV12Param::YV12Param(int width,
                                               int height,
@@ -38,12 +41,12 @@ ShellVideoDataAllocator::YV12Param::YV12Param(int width,
                                               uint8* v_data)
     : decoded_width_(width),
       decoded_height_(height),
+      visible_rect_(0, 0, width, height),
       y_pitch_(y_pitch),
       uv_pitch_(uv_pitch),
       y_data_(y_data),
       u_data_(u_data),
-      v_data_(v_data),
-      visible_rect_(0, 0, width, height) {
+      v_data_(v_data) {
   DCHECK_NE(y_pitch_, 0);
   DCHECK_NE(uv_pitch_, 0);
   DCHECK(y_data_);
@@ -59,7 +62,5 @@ ShellVideoDataAllocator::NV12Param::NV12Param(int width,
       decoded_height_(height),
       y_pitch_(y_pitch),
       visible_rect_(visible_rect) {}
-
-#endif  // defined(__LB_PS4__)
 
 }  // namespace media
