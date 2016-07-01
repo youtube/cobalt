@@ -127,9 +127,15 @@ struct AlreadyReadyContext {
         a_read_result(false),
         b_result(false) {}
   ~AlreadyReadyContext() {
-    EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
-    EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
-    EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
+    if (SbSocketIsValid(trio.listen_socket)) {
+      EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
+    }
+    if (SbSocketIsValid(trio.server_socket)) {
+      EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
+    }
+    if (SbSocketIsValid(trio.client_socket)) {
+      EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
+    }
     EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
   }
 
