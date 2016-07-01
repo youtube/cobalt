@@ -185,11 +185,11 @@ Here's a quick and dirty guide to get to build the code on Linux.
   4. Remove bison-3 and install bison-2.7, or just make sure that bison-2.7 is
      before bison-3 on your `$PATH`. (NOTE: We plan on moving to bison-3 in the
      future.)
-  5. (From this directory) run `cobalt/build/gyp_cobalt -C Debug linux`
+  5. (From this directory) run `cobalt/build/gyp_cobalt -C debug linux-x64x11`
   6. If you get a "clang not found" error, add the path to Cobalt's clang to
      your `$PATH` and rerun `gyp_cobalt` as above. For example:
      `/path/to/cobalt/src/third_party/llvm-build/Release+Asserts/bin`
-  7. Run `ninja -C out/Linux_Debug cobalt`
+  7. Run `ninja -C out/linux-x64x11_debug cobalt`
   8. Run `out/Linux_Debug/cobalt --url=<url>`
       * If you want to use `http` instead of `https`, you must pass the
         `--allow_http` flag to the Cobalt command-line.
