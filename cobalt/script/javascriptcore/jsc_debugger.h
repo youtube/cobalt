@@ -17,6 +17,7 @@
 #define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_DEBUGGER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/threading/thread_checker.h"
@@ -61,6 +62,8 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
   void Detach() OVERRIDE;
   void Pause() OVERRIDE;
   void Resume() OVERRIDE;
+  void SetBreakpoint(const std::string& script_id, int line_number,
+                     int column_number) OVERRIDE;
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) OVERRIDE;
   void StepInto() OVERRIDE;
@@ -104,6 +107,20 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
                           int column_number) OVERRIDE;
 
  private:
+  // Physical breakpoint corresponding to a specific source location.
+  // TODO(***REMOVED***): Include other attributes, e.g. condition.
+  struct Breakpoint {
+    Breakpoint(intptr_t source_id, int line_number, int column_number)
+        : source_id(source_id),
+          line_number(line_number),
+          column_number(column_number) {}
+    intptr_t source_id;
+    int line_number;
+    int column_number;
+  };
+
+  typedef std::vector<Breakpoint> BreakpointVector;
+
   // Sets the |is_paused_| member of the debugger while in scope, unsets it
   // on destruction.
   class ScopedPausedState {
@@ -134,6 +151,10 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
   void SendPausedEvent(const JSC::DebuggerCallFrame& call_frame);
   void SendResumedEvent();
 
+  // Whether any of the currently active breakpoints matches the current
+  // source location.
+  bool IsBreakpointAtCurrentLocation() const;
+
   base::ThreadChecker thread_checker_;
   GlobalObjectProxy* global_object_proxy_;
 
@@ -158,6 +179,9 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
 
   // Whether script execution is currently paused.
   bool is_paused_;
+
+  // Currently active breakpoints.
+  BreakpointVector breakpoints_;
 };
 
 }  // namespace javascriptcore
