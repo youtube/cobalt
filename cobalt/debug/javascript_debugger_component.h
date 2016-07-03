@@ -18,6 +18,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
@@ -47,8 +48,37 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
       scoped_ptr<script::SourceProvider> source_provider) OVERRIDE;
 
  private:
-  // Type to store a map of SourceProvider pointers, keyed by string ID.
+  // Map of SourceProvider pointers, keyed by string ID.
   typedef std::map<std::string, script::SourceProvider*> SourceProviderMap;
+
+  // Logical breakpoint. A logical breakpoint exists independently of any
+  // particular script, and will be checked each time a new script is parsed.
+  // It can even correspond to multiple physical breakpoints, at least once we
+  // support url regexes.
+  struct Breakpoint {
+    Breakpoint() : line_number(0), column_number(0) {}
+    Breakpoint(const std::string& url, int line_number, int column_number)
+        : url(url), line_number(line_number), column_number(column_number) {}
+    std::string url;
+    int line_number;
+    int column_number;
+    std::string condition;
+  };
+
+  // Script location, corresponding to physical breakpoint, etc.
+  struct ScriptLocation {
+    ScriptLocation(const std::string script_id, int line_number,
+                   int column_number)
+        : script_id(script_id),
+          line_number(line_number),
+          column_number(column_number) {}
+    std::string script_id;
+    int line_number;
+    int column_number;
+  };
+
+  // Map of logical breakpoints, keyed by a string ID.
+  typedef std::map<std::string, Breakpoint> BreakpointMap;
 
   JSONObject Enable(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);
@@ -59,6 +89,7 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
   // Code execution control commands.
   JSONObject Pause(const JSONObject& params);
   JSONObject Resume(const JSONObject& params);
+  JSONObject SetBreakpointByUrl(const JSONObject& params);
   JSONObject SetPauseOnExceptions(const JSONObject& params);
   JSONObject StepInto(const JSONObject& params);
   JSONObject StepOut(const JSONObject& params);
@@ -85,6 +116,11 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
   void HandleScriptEvent(const std::string& method,
                          scoped_ptr<script::SourceProvider> source_provider);
 
+  // Resolves a logical breakpoint into an array of source locations, one for
+  // each matching script.
+  void ResolveBreakpoint(const Breakpoint& breakpoint,
+                         std::vector<ScriptLocation>* locations);
+
   // Sends a Debugger.paused event to the clients with call stack data.
   void SendPausedEvent(scoped_ptr<script::CallFrame> call_frame);
 
@@ -97,6 +133,9 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
   // Map of source providers with scoped deleter to clean up on destruction.
   SourceProviderMap source_providers_;
   STLValueDeleter<SourceProviderMap> source_providers_deleter_;
+
+  // Map of logical breakpoints.
+  BreakpointMap breakpoints_;
 };
 
 }  // namespace debug

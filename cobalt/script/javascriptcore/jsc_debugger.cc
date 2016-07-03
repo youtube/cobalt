@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascriptcore/jsc_call_frame.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
@@ -93,6 +94,15 @@ void GatherSourceProviders(JSC::JSGlobalObject* global_object,
   JSC::JSGlobalData& global_data = global_object->globalData();
   global_data.heap.objectSpace().forEachLiveCell(gatherer_functor);
 }
+
+intptr_t StringToIntptr(const std::string& input) {
+  COMPILE_ASSERT(sizeof(int64) >= sizeof(intptr_t),
+                 int64_not_big_enough_to_store_intptr_t);
+  int64 as_int64 = 0;
+  bool did_convert = base::StringToInt64(input, &as_int64);
+  DCHECK(did_convert);
+  return static_cast<intptr_t>(as_int64);
+}
 }  // namespace
 
 JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
@@ -138,6 +148,15 @@ void JSCDebugger::Pause() {
 void JSCDebugger::Resume() {
   pause_on_next_statement_ = false;
   pause_on_call_frame_ = NULL;
+}
+
+void JSCDebugger::SetBreakpoint(const std::string& script_id, int line_number,
+                                int column_number) {
+  // Convert the string script_id used by devtools into the intptr_t source_id
+  // used internally.
+  intptr_t source_id = StringToIntptr(script_id);
+
+  breakpoints_.push_back(Breakpoint(source_id, line_number, column_number));
 }
 
 script::ScriptDebugger::PauseOnExceptionsState
@@ -288,10 +307,10 @@ void JSCDebugger::UpdateCallFrame(const JSC::DebuggerCallFrame& call_frame) {
 
 void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
   // Determine whether we should pause.
-  // TODO(***REMOVED***): More to handle here: exceptions, breakpoints, etc.
   bool will_pause = pause_on_next_statement_;
   will_pause |=
       pause_on_call_frame_ && pause_on_call_frame_ == call_frame.callFrame();
+  will_pause |= IsBreakpointAtCurrentLocation();
 
   if (!will_pause) {
     return;
@@ -304,6 +323,19 @@ void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
   delegate_->OnScriptDebuggerPause(scoped_ptr<CallFrame>(
       new JSCCallFrame(call_frame, current_source_id_, current_line_number_,
                        current_column_number_)));
+}
+
+bool JSCDebugger::IsBreakpointAtCurrentLocation() const {
+  for (BreakpointVector::const_iterator it = breakpoints_.begin();
+       it != breakpoints_.end(); ++it) {
+    if (it->source_id == current_source_id_ &&
+        it->line_number == current_line_number_ &&
+        (it->column_number == 0 ||
+         it->column_number == current_column_number_)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace javascriptcore
