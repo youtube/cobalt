@@ -90,9 +90,10 @@ class ScriptDebugger {
   // actual blocking of the thread in an engine-independent way.
   virtual void Pause() = 0;
   virtual void Resume() = 0;
-  // Returns the previous state.
+  virtual void SetBreakpoint(const std::string& script_id, int line_number,
+                             int column_number) = 0;
   virtual PauseOnExceptionsState SetPauseOnExceptions(
-      PauseOnExceptionsState state) = 0;
+      PauseOnExceptionsState state) = 0;  // Returns the previous state.
   virtual void StepInto() = 0;
   virtual void StepOut() = 0;
   virtual void StepOver() = 0;

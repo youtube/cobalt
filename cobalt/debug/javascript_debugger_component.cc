@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/optional.h"
+#include "base/stringprintf.h"
 #include "base/values.h"
 
 namespace cobalt {
@@ -33,6 +34,7 @@ const char kEnable[] = "Debugger.enable";
 const char kGetScriptSource[] = "Debugger.getScriptSource";
 const char kPause[] = "Debugger.pause";
 const char kResume[] = "Debugger.resume";
+const char kSetBreakpointByUrl[] = "Debugger.setBreakpointByUrl";
 const char kSetPauseOnExceptions[] = "Debugger.setPauseOnExceptions";
 const char kStepInto[] = "Debugger.stepInto";
 const char kStepOut[] = "Debugger.stepOut";
@@ -41,9 +43,11 @@ const char kStepOver[] = "Debugger.stepOver";
 // Parameter names.
 const char kCallFrameId[] = "callFrameId";
 const char kCallFrames[] = "callFrames";
+const char kColumnNumber[] = "columnNumber";
 const char kErrorLine[] = "errorLine";
 const char kErrorMessage[] = "errorMessage";
 const char kFunctionName[] = "functionName";
+const char kLineNumber[] = "lineNumber";
 const char kLocationColumnNumber[] = "location.columnNumber";
 const char kLocationLineNumber[] = "location.lineNumber";
 const char kLocationScriptId[] = "location.scriptId";
@@ -60,6 +64,8 @@ const char kUrl[] = "url";
 const char kDebugCommand[] = "debugCommand";
 
 // Result parameters.
+const char kBreakpointId[] = "result.breakpointId";
+const char kLocations[] = "result.locations";
 const char kScriptSource[] = "result.scriptSource";
 
 // Events.
@@ -67,6 +73,15 @@ const char kPaused[] = "Debugger.paused";
 const char kResumed[] = "Debugger.resumed";
 const char kScriptFailedToParse[] = "Debugger.scriptFailedToParse";
 const char kScriptParsed[] = "Debugger.scriptParsed";
+
+// Construct a unique breakpoint id from url and source location.
+// Use the same format as Chrome.
+std::string BreakpointId(const std::string url, int line_number,
+                         int column_number) {
+  return base::StringPrintf("%s:%d:%d", url.c_str(), line_number,
+                            column_number);
+}
+
 }  // namespace
 
 JavaScriptDebuggerComponent::JavaScriptDebuggerComponent(
@@ -91,6 +106,10 @@ JavaScriptDebuggerComponent::JavaScriptDebuggerComponent(
   connector_->AddCommand(kStepInto,
                          base::Bind(&JavaScriptDebuggerComponent::StepInto,
                                     base::Unretained(this)));
+  connector_->AddCommand(
+      kSetBreakpointByUrl,
+      base::Bind(&JavaScriptDebuggerComponent::SetBreakpointByUrl,
+                 base::Unretained(this)));
   connector_->AddCommand(
       kSetPauseOnExceptions,
       base::Bind(&JavaScriptDebuggerComponent::SetPauseOnExceptions,
@@ -157,6 +176,58 @@ JSONObject JavaScriptDebuggerComponent::Resume(const JSONObject& params) {
   connector_->script_debugger()->Resume();
   connector_->server()->SetPaused(false);
   return JSONObject(new base::DictionaryValue());
+}
+
+JSONObject JavaScriptDebuggerComponent::SetBreakpointByUrl(
+    const JSONObject& params) {
+  DCHECK(connector_->script_debugger());
+  DCHECK(connector_->server());
+
+  std::string url;
+  bool got_url = params->GetString(kUrl, &url);
+  if (!got_url) {
+    return connector_->ErrorResponse("Breakpoint URL must be specified.");
+  }
+
+  // TODO(***REMOVED***): Should also handle setting of breakpoint by urlRegex
+
+  int line_number;
+  bool got_line_number = params->GetInteger(kLineNumber, &line_number);
+  if (!got_line_number) {
+    return connector_->ErrorResponse("Line number must be specified.");
+  }
+  // If no column number is specified, just default to 0.
+  int column_number = 0;
+  params->GetInteger(kColumnNumber, &column_number);
+
+  // TODO(***REMOVED***): Should also handle condition and isAntibreakpoint.
+
+  // Create a new logical breakpoint and store it in our map.
+  const std::string breakpoint_id =
+      BreakpointId(url, line_number, column_number);
+  Breakpoint breakpoint(url, line_number, column_number);
+  breakpoints_[breakpoint_id] = breakpoint;
+
+  // Check the logical breakpoint against all currently loaded source providers
+  // and get an array of matching breakpoint locations.
+  std::vector<ScriptLocation> locations;
+  ResolveBreakpoint(breakpoint, &locations);
+
+  // Construct a result object from the logical breakpoint id and resolved
+  // source locations.
+  JSONObject result(new base::DictionaryValue());
+  result->SetString(kBreakpointId, breakpoint_id);
+  JSONList location_objects(new base::ListValue());
+  for (std::vector<ScriptLocation>::const_iterator it = locations.begin();
+       it != locations.end(); ++it) {
+    JSONObject location(new base::DictionaryValue());
+    location->SetString(kScriptId, it->script_id);
+    location->SetInteger(kLineNumber, it->line_number);
+    location->SetInteger(kColumnNumber, it->column_number);
+    location_objects->Append(location.release());
+  }
+  result->Set(kLocations, location_objects.release());
+  return result.Pass();
 }
 
 JSONObject JavaScriptDebuggerComponent::SetPauseOnExceptions(
@@ -350,6 +421,23 @@ void JavaScriptDebuggerComponent::HandleScriptEvent(
     delete it->second;
   }
   source_providers_[script_id] = source_provider.release();
+}
+
+void JavaScriptDebuggerComponent::ResolveBreakpoint(
+    const Breakpoint& breakpoint, std::vector<ScriptLocation>* locations) {
+  for (SourceProviderMap::iterator it = source_providers_.begin();
+       it != source_providers_.end(); ++it) {
+    script::SourceProvider* script = it->second;
+    if (script->GetUrl() == breakpoint.url) {
+      connector_->script_debugger()->SetBreakpoint(
+          script->GetScriptId(),
+          breakpoint.line_number + script->GetStartLine().value_or(1),
+          breakpoint.column_number);
+      locations->push_back(ScriptLocation(script->GetScriptId(),
+                                          breakpoint.line_number,
+                                          breakpoint.column_number));
+    }
+  }
 }
 
 void JavaScriptDebuggerComponent::SendPausedEvent(
