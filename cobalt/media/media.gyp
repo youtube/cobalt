@@ -40,9 +40,9 @@
       'conditions': [
         ['OS=="starboard"', {
           'sources': [
-            'media_module_starboard.cc',
-            'shell_media_platform_starboard.cc',
-            'shell_media_platform_starboard.h',
+            'media_module_<(starboard_media_platform).cc',
+            'shell_media_platform_<(starboard_media_platform).cc',
+            'shell_media_platform_<(starboard_media_platform).h',
           ],
         }],
         ['OS=="lb_shell"', {
