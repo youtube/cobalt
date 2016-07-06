@@ -18,8 +18,6 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/shell_media_platform.h"
-#include "media/base/shell_video_data_allocator.h"
 #include "media/base/video_util.h"
 #include "media/filters/shell_ffmpeg.h"
 
@@ -143,7 +141,7 @@ scoped_refptr<FrameBuffer> ConvertFrameBuffer(
 // that the input stream is always correct.
 class ShellRawVideoDecoderLinux : public ShellRawVideoDecoder {
  public:
-  ShellRawVideoDecoderLinux();
+  explicit ShellRawVideoDecoderLinux(ShellVideoDataAllocator* allocator);
   ~ShellRawVideoDecoderLinux();
 
   virtual void Decode(const scoped_refptr<DecoderBuffer>& buffer,
@@ -156,6 +154,7 @@ class ShellRawVideoDecoderLinux : public ShellRawVideoDecoder {
   static int GetVideoBuffer(AVCodecContext* codec_context, AVFrame* frame);
   static void ReleaseVideoBuffer(AVCodecContext*, AVFrame* frame);
 
+  ShellVideoDataAllocator* allocator_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
   gfx::Size natural_size_;
@@ -163,8 +162,9 @@ class ShellRawVideoDecoderLinux : public ShellRawVideoDecoder {
   DISALLOW_COPY_AND_ASSIGN(ShellRawVideoDecoderLinux);
 };
 
-ShellRawVideoDecoderLinux::ShellRawVideoDecoderLinux()
-    : codec_context_(NULL), av_frame_(NULL) {
+ShellRawVideoDecoderLinux::ShellRawVideoDecoderLinux(
+    ShellVideoDataAllocator* allocator)
+    : allocator_(allocator), codec_context_(NULL), av_frame_(NULL) {
   EnsureFfmpegInitialized();
 }
 
@@ -215,10 +215,6 @@ void ShellRawVideoDecoderLinux::Decode(
       static_cast<FrameBuffer*>(av_frame_->opaque);
   DCHECK(frame_buffer);
 
-  ShellVideoDataAllocator* allocator =
-      ShellMediaPlatform::Instance()->GetVideoDataAllocator();
-  DCHECK(allocator);
-
   TimeDelta timestamp = TimeDelta::FromMilliseconds(av_frame_->pkt_pts);
   // TODO(***REMOVED***): Currently the Linux egl backend doesn't support texture
   // with pitch different than its width.  So we create a new video frame whose
@@ -237,7 +233,7 @@ void ShellRawVideoDecoderLinux::Decode(
   scoped_refptr<FrameBuffer> converted_frame_buffer =
       ConvertFrameBuffer(frame_buffer, av_frame_->width, av_frame_->height);
   scoped_refptr<VideoFrame> frame =
-      allocator->CreateYV12Frame(converted_frame_buffer, param, timestamp);
+      allocator_->CreateYV12Frame(converted_frame_buffer, param, timestamp);
 
   decode_cb.Run(FRAME_DECODED, frame);
 }
@@ -327,15 +323,12 @@ int ShellRawVideoDecoderLinux::GetVideoBuffer(AVCodecContext* codec_context,
     return AVERROR(EINVAL);
   }
 
-  ShellVideoDataAllocator* allocator =
-      ShellMediaPlatform::Instance()->GetVideoDataAllocator();
-  DCHECK(allocator);
   // Align to kPlatformAlignment * 2 as we will divide the y_stride by 2 for u
   // and v planes.
   size_t y_stride = AlignUp(size.width(), kPlatformAlignment * 2);
   size_t uv_stride = y_stride / 2;
   size_t aligned_height = AlignUp(size.height(), kPlatformAlignment * 2);
-  scoped_refptr<FrameBuffer> frame_buffer = allocator->AllocateFrameBuffer(
+  scoped_refptr<FrameBuffer> frame_buffer = allocator_->AllocateFrameBuffer(
       GetYV12SizeInBytes(y_stride, aligned_height), kPlatformAlignment);
 
   // y plane
@@ -379,12 +372,15 @@ void ShellRawVideoDecoderLinux::ReleaseVideoBuffer(AVCodecContext*,
 }  // namespace
 
 scoped_ptr<ShellRawVideoDecoder> CreateShellRawVideoDecoderLinux(
+    ShellVideoDataAllocator* allocator,
     const VideoDecoderConfig& config,
     Decryptor* decryptor,
     bool was_encrypted) {
+  DCHECK(allocator);
   DCHECK_EQ(config.codec(), kCodecH264) << "Video codec " << config.codec()
                                         << " is not supported.";
-  scoped_ptr<ShellRawVideoDecoder> decoder(new ShellRawVideoDecoderLinux);
+  scoped_ptr<ShellRawVideoDecoder> decoder(
+      new ShellRawVideoDecoderLinux(allocator));
   if (decoder->UpdateConfig(config))
     return decoder.Pass();
   return scoped_ptr<ShellRawVideoDecoder>();

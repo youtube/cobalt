@@ -453,8 +453,6 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
 
   scoped_ptr<SerialRunner> pending_callbacks_;
 
-  base::Callback<base::TimeDelta()> media_time_cb_;
-
   base::ThreadChecker thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineImpl);

@@ -60,14 +60,14 @@ bool ValidateConfig(const AudioDecoderConfig& config) {
 //
 ShellAudioDecoderImpl::ShellAudioDecoderImpl(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const ShellRawAudioDecoder::Creator& raw_audio_decoder_creator)
+    ShellRawAudioDecoderFactory* raw_audio_decoder_factory)
     : message_loop_(message_loop),
-      raw_audio_decoder_creator_(raw_audio_decoder_creator),
+      raw_audio_decoder_factory_(raw_audio_decoder_factory),
       demuxer_read_and_decode_in_progress_(false),
       samples_per_second_(0),
       num_channels_(0) {
   DCHECK(message_loop_);
-  DCHECK(!raw_audio_decoder_creator_.is_null());
+  DCHECK(raw_audio_decoder_factory);
 }
 
 ShellAudioDecoderImpl::~ShellAudioDecoderImpl() {
@@ -113,7 +113,7 @@ void ShellAudioDecoderImpl::Initialize(
 
   LOG(INFO) << "Configuration at Start: "
             << demuxer_stream_->audio_decoder_config().AsHumanReadableString();
-  raw_decoder_ = raw_audio_decoder_creator_.Run(config);
+  raw_decoder_ = raw_audio_decoder_factory_->Create(config);
 
   if (!raw_decoder_) {
     status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);

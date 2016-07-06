@@ -61,6 +61,7 @@
 #include "media/base/message_loop_factory.h"
 #include "media/base/pipeline.h"
 #include "media/base/ranges.h"
+#include "media/base/shell_video_frame_provider.h"
 #include "media/player/crypto/key_systems.h"
 #include "media/player/crypto/proxy_decryptor.h"
 #include "media/player/web_media_player.h"
@@ -113,6 +114,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerImpl(
       WebMediaPlayerClient* client,
       WebMediaPlayerDelegate* delegate,
+      const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
       scoped_ptr<FilterCollection> collection,
       const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
       scoped_ptr<MessageLoopFactory> message_loop_factory,
@@ -174,9 +176,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   unsigned GetAudioDecodedByteCount() const OVERRIDE;
   unsigned GetVideoDecodedByteCount() const OVERRIDE;
 
-  // TODO(***REMOVED***) : Investigate if we should make ShellVideoFrameProvider
-  // into a non-singleton class to support play back multiple videos
-  // concurrently.
   scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE;
   // TODO(***REMOVED***) : Remove Get/PutCurrentFrame.
   scoped_refptr<VideoFrame> GetCurrentFrame() OVERRIDE;
@@ -341,6 +340,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   WebMediaPlayerClient* client_;
   WebMediaPlayerDelegate* delegate_;
+  scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
@@ -370,6 +370,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // started; prevents us from spuriously logging errors that are transient or
   // unimportant.
   bool suppress_destruction_errors_;
+
+  base::Callback<base::TimeDelta()> media_time_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };

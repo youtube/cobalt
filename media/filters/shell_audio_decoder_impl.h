@@ -44,8 +44,6 @@ class ShellRawAudioDecoder {
   };
   typedef media::DecoderBuffer DecoderBuffer;
   typedef media::AudioDecoderConfig AudioDecoderConfig;
-  typedef base::Callback<scoped_ptr<ShellRawAudioDecoder>(
-      const AudioDecoderConfig& config)> Creator;
   typedef base::Callback<void(DecodeStatus,
                               const scoped_refptr<DecoderBuffer>&)> DecodeCB;
 
@@ -61,6 +59,14 @@ class ShellRawAudioDecoder {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ShellRawAudioDecoder);
+};
+
+class ShellRawAudioDecoderFactory {
+ public:
+  virtual ~ShellRawAudioDecoderFactory() {}
+
+  virtual scoped_ptr<ShellRawAudioDecoder> Create(
+      const AudioDecoderConfig& config) = 0;
 };
 
 // The audio decoder mainly has two features:
@@ -85,7 +91,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public AudioDecoder {
  public:
   ShellAudioDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
-      const ShellRawAudioDecoder::Creator& raw_audio_decoder_creator);
+      ShellRawAudioDecoderFactory* raw_audio_decoder_factory);
   ~ShellAudioDecoderImpl() OVERRIDE;
 
  private:
@@ -110,7 +116,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public AudioDecoder {
 
   // The message loop that all functions run on to avoid explicit sync.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
-  ShellRawAudioDecoder::Creator raw_audio_decoder_creator_;
+  ShellRawAudioDecoderFactory* raw_audio_decoder_factory_;
   scoped_refptr<DemuxerStream> demuxer_stream_;
   StatisticsCB statistics_cb_;
 

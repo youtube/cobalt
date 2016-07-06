@@ -23,8 +23,6 @@
 #include "media/base/filter_collection.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
-#include "media/base/shell_media_platform.h"
-#include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/shell_demuxer.h"
@@ -118,6 +116,7 @@ static void LogMediaSourceError(const scoped_refptr<MediaLog>& media_log,
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     WebMediaPlayerClient* client,
     WebMediaPlayerDelegate* delegate,
+    const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
     scoped_ptr<FilterCollection> collection,
     const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
     scoped_ptr<MessageLoopFactory> message_loop_factory,
@@ -129,6 +128,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       message_loop_factory_(message_loop_factory.Pass()),
       client_(client),
       delegate_(delegate),
+      video_frame_provider_(video_frame_provider),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
       media_log_(media_log),
       incremented_externally_allocated_memory_(false),
@@ -136,9 +136,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false) {
-  DCHECK_EQ(filter_collection_->GetAudioDecoders()->size(), 1);
-  DCHECK_EQ(filter_collection_->GetVideoDecoders()->size(), 1);
-
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
 
@@ -175,6 +172,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       audio_renderer_sink, set_decryptor_ready_cb, pipeline_message_loop));
 #endif  // defined(COBALT_USE_PUNCHOUT)
 
+  if (video_frame_provider_) {
+    media_time_cb_ = base::Bind(&Pipeline::GetMediaTime, pipeline_);
+    video_frame_provider_->RegisterMediaTimeCB(media_time_cb_);
+  }
   if (delegate_) {
     delegate_->RegisterPlayer(this);
   }
@@ -185,6 +186,12 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
 
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
+  }
+
+  if (video_frame_provider_) {
+    DCHECK(!media_time_cb_.is_null());
+    video_frame_provider_->UnregisterMediaTimeCB(media_time_cb_);
+    media_time_cb_.Reset();
   }
 
 #if defined(__LB_ANDROID__)
@@ -579,14 +586,12 @@ unsigned WebMediaPlayerImpl::GetVideoDecodedByteCount() const {
 
 scoped_refptr<ShellVideoFrameProvider>
 WebMediaPlayerImpl::GetVideoFrameProvider() {
-  return ShellMediaPlatform::Instance()->GetVideoFrameProvider();
+  return video_frame_provider_;
 }
 
 scoped_refptr<VideoFrame> WebMediaPlayerImpl::GetCurrentFrame() {
-  ShellVideoFrameProvider* frame_provider =
-      ShellMediaPlatform::Instance()->GetVideoFrameProvider();
-  if (frame_provider) {
-    return frame_provider->GetCurrentFrame();
+  if (video_frame_provider_) {
+    return video_frame_provider_->GetCurrentFrame();
   }
 #if defined(COBALT_USE_PUNCHOUT)
   // We want to give proxy_ a chance to produce a valid frame before returning
