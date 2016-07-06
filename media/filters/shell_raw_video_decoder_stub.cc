@@ -17,9 +17,6 @@
 #include "media/filters/shell_raw_video_decoder_stub.h"
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "media/base/shell_media_platform.h"
-#include "media/base/shell_video_data_allocator.h"
 
 namespace media {
 
@@ -30,13 +27,15 @@ typedef ShellVideoDataAllocator::YV12Param YV12Param;
 
 class ShellRawVideoDecoderStub : public ShellRawVideoDecoder {
  public:
-  ShellRawVideoDecoderStub() {}
+  explicit ShellRawVideoDecoderStub(ShellVideoDataAllocator* allocator)
+      : allocator_(allocator) {}
   void Decode(const scoped_refptr<DecoderBuffer>& buffer,
               const DecodeCB& decode_cb) OVERRIDE;
   bool Flush() OVERRIDE;
   bool UpdateConfig(const VideoDecoderConfig& config) OVERRIDE;
 
  private:
+  ShellVideoDataAllocator* allocator_;
   gfx::Size natural_size_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellRawVideoDecoderStub);
@@ -49,17 +48,14 @@ void ShellRawVideoDecoderStub::Decode(
     decode_cb.Run(FRAME_DECODED, VideoFrame::CreateEmptyFrame());
     return;
   }
-  ShellVideoDataAllocator* allocator =
-      ShellMediaPlatform::Instance()->GetVideoDataAllocator();
-  DCHECK(allocator);
 
   size_t yuv_size = natural_size_.width() * natural_size_.height() * 3 / 2;
   scoped_refptr<FrameBuffer> frame_buffer =
-      allocator->AllocateFrameBuffer(yuv_size, 1);
+      allocator_->AllocateFrameBuffer(yuv_size, 1);
   YV12Param param(natural_size_.width(), natural_size_.height(),
                   gfx::Rect(natural_size_));
   scoped_refptr<VideoFrame> frame =
-      allocator->CreateYV12Frame(frame_buffer, param, buffer->GetTimestamp());
+      allocator_->CreateYV12Frame(frame_buffer, param, buffer->GetTimestamp());
   decode_cb.Run(FRAME_DECODED, frame);
 }
 
@@ -75,10 +71,13 @@ bool ShellRawVideoDecoderStub::UpdateConfig(const VideoDecoderConfig& config) {
 }  // namespace
 
 scoped_ptr<ShellRawVideoDecoder> CreateShellRawVideoDecoderStub(
+    ShellVideoDataAllocator* allocator,
     const VideoDecoderConfig& config,
     Decryptor* decryptor,
     bool was_encrypted) {
-  scoped_ptr<ShellRawVideoDecoder> decoder(new ShellRawVideoDecoderStub);
+  DCHECK(allocator);
+  scoped_ptr<ShellRawVideoDecoder> decoder(
+      new ShellRawVideoDecoderStub(allocator));
   if (decoder->UpdateConfig(config))
     return decoder.Pass();
   return scoped_ptr<ShellRawVideoDecoder>();

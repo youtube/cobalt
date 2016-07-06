@@ -55,13 +55,6 @@ class MEDIA_EXPORT ShellMediaPlatform {
   virtual size_t GetSourceBufferStreamAudioMemoryLimit() const = 0;
   virtual size_t GetSourceBufferStreamVideoMemoryLimit() const = 0;
 
-  // TODO(***REMOVED***) : Make this pure virtual once all non-MS platforms are
-  //                   using ShellVideoDataAllocator.
-  virtual ShellVideoDataAllocator* GetVideoDataAllocator() {
-    NOTREACHED();
-    return NULL;
-  }
-
   virtual scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() {
     return NULL;
   }

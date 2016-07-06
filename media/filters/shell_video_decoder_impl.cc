@@ -40,11 +40,13 @@ namespace media {
 
 ShellVideoDecoderImpl::ShellVideoDecoderImpl(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const ShellRawVideoDecoder::Creator& raw_video_decoder_creator)
+    ShellRawVideoDecoderFactory* raw_video_decoder_factory)
     : state_(kUninitialized),
       media_pipeline_message_loop_(message_loop),
-      raw_video_decoder_creator_(raw_video_decoder_creator),
-      decoder_thread_("Video Decoder") {}
+      raw_video_decoder_factory_(raw_video_decoder_factory),
+      decoder_thread_("Video Decoder") {
+  DCHECK(raw_video_decoder_factory_);
+}
 
 ShellVideoDecoderImpl::~ShellVideoDecoderImpl() {}
 
@@ -69,7 +71,7 @@ void ShellVideoDecoderImpl::Initialize(
   DLOG(INFO) << "Configuration at Start: "
              << decoder_config.AsHumanReadableString();
 
-  raw_decoder_ = raw_video_decoder_creator_.Run(
+  raw_decoder_ = raw_video_decoder_factory_->Create(
       decoder_config, demuxer_stream_->GetDecryptor(),
       demuxer_stream_->StreamWasEncrypted());
 

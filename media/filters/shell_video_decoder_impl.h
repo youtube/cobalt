@@ -41,10 +41,6 @@ class ShellRawVideoDecoder {
   typedef media::DecoderBuffer DecoderBuffer;
   typedef media::VideoDecoderConfig VideoDecoderConfig;
   typedef media::VideoFrame VideoFrame;
-  typedef base::Callback<scoped_ptr<ShellRawVideoDecoder>(
-      const VideoDecoderConfig& config,
-      Decryptor* decryptor,
-      bool was_encrypted)> Creator;
   typedef base::Callback<void(DecodeStatus, const scoped_refptr<VideoFrame>&)>
       DecodeCB;
 
@@ -62,11 +58,21 @@ class ShellRawVideoDecoder {
   DISALLOW_COPY_AND_ASSIGN(ShellRawVideoDecoder);
 };
 
+class ShellRawVideoDecoderFactory {
+ public:
+  virtual ~ShellRawVideoDecoderFactory() {}
+
+  virtual scoped_ptr<ShellRawVideoDecoder> Create(
+      const VideoDecoderConfig& config,
+      Decryptor* decryptor,
+      bool was_encrypted) = 0;
+};
+
 class MEDIA_EXPORT ShellVideoDecoderImpl : public VideoDecoder {
  public:
   ShellVideoDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
-      const ShellRawVideoDecoder::Creator& raw_video_decoder_creator);
+      ShellRawVideoDecoderFactory* raw_video_decoder_factory);
   ~ShellVideoDecoderImpl() OVERRIDE;
 
   // ShellVideoDecoder implementation.
@@ -105,7 +111,7 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public VideoDecoder {
 
   DecoderState state_;
   scoped_refptr<base::MessageLoopProxy> media_pipeline_message_loop_;
-  ShellRawVideoDecoder::Creator raw_video_decoder_creator_;
+  ShellRawVideoDecoderFactory* raw_video_decoder_factory_;
   scoped_refptr<DemuxerStream> demuxer_stream_;
   ReadCB read_cb_;
   base::Closure reset_cb_;

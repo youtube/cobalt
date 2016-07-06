@@ -17,12 +17,12 @@
 #include "media/base/shell_video_frame_provider.h"
 
 #include "base/logging.h"
-#include "media/base/shell_media_platform.h"
 
 namespace media {
 
-ShellVideoFrameProvider::ShellVideoFrameProvider()
-    : has_consumed_frames_(false) {
+ShellVideoFrameProvider::ShellVideoFrameProvider(
+    scoped_refptr<VideoFrame> punch_out)
+    : punch_out_(punch_out), has_consumed_frames_(false) {
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   dropped_frames_ = 0;
   max_delay_in_microseconds_ = 0;
@@ -48,11 +48,8 @@ void ShellVideoFrameProvider::UnregisterMediaTimeCB(
 }
 
 const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
-  scoped_refptr<VideoFrame> punch_out = ShellMediaPlatform::Instance()
-                                            ->GetVideoDataAllocator()
-                                            ->GetPunchOutFrame();
-  if (punch_out) {
-    current_frame_ = punch_out;
+  if (punch_out_) {
+    current_frame_ = punch_out_;
     return current_frame_;
   }
 

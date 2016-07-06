@@ -17,11 +17,14 @@
 #ifndef MEDIA_FILTERS_SHELL_RAW_VIDEO_DECODER_STUB_H_
 #define MEDIA_FILTERS_SHELL_RAW_VIDEO_DECODER_STUB_H_
 
+#include "base/memory/scoped_ptr.h"
+#include "media/base/shell_video_data_allocator.h"
 #include "media/filters/shell_video_decoder_impl.h"
 
 namespace media {
 
 scoped_ptr<ShellRawVideoDecoder> CreateShellRawVideoDecoderStub(
+    ShellVideoDataAllocator* allocator,
     const VideoDecoderConfig& config,
     Decryptor* decryptor,
     bool was_encrypted);
