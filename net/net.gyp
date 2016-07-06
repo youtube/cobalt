@@ -2378,6 +2378,21 @@
     },
   ],
   'conditions': [
+    ['cobalt==1', {
+      'targets': [
+        {
+          'target_name': 'net_unittests_deploy',
+          'type': 'none',
+          'dependencies': [
+            'net_unittests',
+          ],
+          'variables': {
+            'executable_name': 'net_unittests',
+          },
+          'includes': [ '../cobalt/build/deploy.gypi' ],
+        },
+      ],
+    }],
     ['use_v8_in_net == 1', {
       'targets': [
         {

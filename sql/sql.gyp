@@ -99,5 +99,20 @@
         },
       ],
     }],
+    ['cobalt==1', {
+      'targets': [
+        {
+          'target_name': 'sql_unittests_deploy',
+          'type': 'none',
+          'dependencies': [
+            'sql_unittests',
+          ],
+          'variables': {
+            'executable_name': 'sql_unittests',
+          },
+          'includes': [ '../cobalt/build/deploy.gypi' ],
+        },
+      ],
+    }],
   ],
 }
