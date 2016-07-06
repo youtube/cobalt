@@ -75,7 +75,7 @@ class BoxGenerator : public dom::NodeVisitor {
                // b/27440572.
                const scoped_refptr<const web_animations::AnimationSet>&
                    parent_animations,
-               scoped_refptr<Paragraph>* paragraph, const Context& context);
+               scoped_refptr<Paragraph>* paragraph, const Context* context);
   ~BoxGenerator();
 
   void Visit(dom::CDATASection* cdata_section) OVERRIDE;
@@ -100,7 +100,7 @@ class BoxGenerator : public dom::NodeVisitor {
       parent_css_computed_style_declaration_;
   const scoped_refptr<const web_animations::AnimationSet>& parent_animations_;
   scoped_refptr<Paragraph>* paragraph_;
-  const Context& context_;
+  const Context* context_;
   scoped_refptr<dom::HTMLElement> generating_html_element_;
 
   // The result of a box generator is zero or more root boxes.

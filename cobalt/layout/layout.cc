@@ -76,14 +76,14 @@ void UpdateComputedStylesAndLayoutBoxTree(
         new Paragraph(locale, (*initial_containing_block)->GetBaseDirection(),
                       Paragraph::DirectionalEmbeddingStack(),
                       line_break_iterator, character_break_iterator));
+    BoxGenerator::Context context(used_style_provider, line_break_iterator,
+                                  character_break_iterator, stat_tracker);
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),
         (*initial_containing_block)
             ->css_computed_style_declaration()
             ->animations(),
-        &(scoped_paragraph.get()),
-        BoxGenerator::Context(used_style_provider, line_break_iterator,
-                              character_break_iterator, stat_tracker));
+        &(scoped_paragraph.get()), &context);
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
