@@ -192,8 +192,8 @@ void Application::RenderScene() {
   glEnable(GL_SCISSOR_TEST);
 
   float radian = 2 * M_PI * frame_ / 600.0f;
-  int offset_x = 300 * sin(radian);
-  int offset_y = 300 * cos(radian);
+  int offset_x = egl_surface_height_ * sin(radian) / 3.6;
+  int offset_y = egl_surface_height_ * cos(radian) / 3.6;
 
   int block_width = egl_surface_width_ / 16;
   int block_height = egl_surface_height_ / 9;
