@@ -152,7 +152,7 @@ void DebugTreePrinter::Visit(TextNode* text) {
 }
 
 void DebugTreePrinter::AddIndentString() {
-  result_ << std::string(indent_ * 2, ' ');
+  result_ << std::string(static_cast<size_t>(indent_) * 2, ' ');
 }
 
 void DebugTreePrinter::AddNodeInfoString(Node* node) {
