@@ -43,9 +43,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
   size_t GetSourceBufferStreamVideoMemoryLimit() const OVERRIDE {
     return SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT;
   }
-  ShellVideoDataAllocator* GetVideoDataAllocator() OVERRIDE {
-    return &video_data_allocator_;
-  }
   scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE {
     return video_frame_provider_;
   }

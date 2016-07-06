@@ -39,8 +39,8 @@ using ::media::MessageLoopFactory;
 
 class MediaModuleStarboard : public MediaModule {
  public:
-  explicit MediaModuleStarboard(
-      render_tree::ResourceProvider* resource_provider, const Options& options)
+  MediaModuleStarboard(render_tree::ResourceProvider* resource_provider,
+                       const Options& options)
       : options_(options), media_platform_(resource_provider) {}
 
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
@@ -49,14 +49,6 @@ class MediaModuleStarboard : public MediaModule {
     scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
         message_loop_factory->GetMessageLoop(MessageLoopFactory::kPipeline);
     scoped_ptr<FilterCollection> filter_collection(new FilterCollection);
-    filter_collection->GetAudioDecoders()->push_back(
-        new ::media::ShellAudioDecoderImpl(
-            pipeline_message_loop,
-            base::Bind(&::media::CreateShellRawAudioDecoderStub)));
-    filter_collection->GetVideoDecoders()->push_back(
-        new ::media::ShellVideoDecoderImpl(
-            pipeline_message_loop,
-            base::Bind(&::media::CreateShellRawVideoDecoderStub)));
 
     ::media::ShellAudioStreamer* streamer = NULL;
     if (options_.use_null_audio_streamer) {
@@ -67,9 +59,9 @@ class MediaModuleStarboard : public MediaModule {
       streamer = ::media::ShellAudioStreamer::Instance();
     }
     return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
-        client, this, filter_collection.Pass(),
-        new ::media::ShellAudioSink(streamer), message_loop_factory.Pass(),
-        new ::media::MediaLog));
+        client, this, media_platform_.GetVideoFrameProvider(),
+        filter_collection.Pass(), new ::media::ShellAudioSink(streamer),
+        message_loop_factory.Pass(), new ::media::MediaLog));
   }
 
  private:
