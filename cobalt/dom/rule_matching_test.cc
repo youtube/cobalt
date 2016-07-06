@@ -24,6 +24,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
@@ -42,8 +43,10 @@ class RuleMatchingTest : public ::testing::Test {
   RuleMatchingTest()
       : css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
+        dom_stat_tracker_(new DomStatTracker("RuleMatchingTest")),
         html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
-                              NULL, NULL, NULL, NULL, NULL, ""),
+                              NULL, NULL, NULL, NULL, NULL,
+                              dom_stat_tracker_.get(), ""),
         document_(new Document(&html_element_context_)),
         root_(document_->CreateElement("html")->AsHTMLElement()) {
     document_->AppendChild(root_);
@@ -55,6 +58,7 @@ class RuleMatchingTest : public ::testing::Test {
 
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
+  scoped_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   scoped_refptr<HTMLElement> root_;

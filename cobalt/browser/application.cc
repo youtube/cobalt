@@ -279,6 +279,9 @@ Application::Application(const base::Closure& quit_closure)
   options.web_module_recreated_callback =
       base::Bind(&Application::WebModuleRecreated, base::Unretained(this));
 
+  // The main web module's stat tracker tracks event stats.
+  options.web_module_options.track_event_stats = true;
+
   math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
 
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)

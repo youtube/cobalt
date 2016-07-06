@@ -17,8 +17,8 @@
 #include "cobalt/dom/attr.h"
 
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/named_node_map.h"
-#include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -26,7 +26,7 @@ namespace dom {
 Attr::Attr(const std::string& name, const std::string& value,
            const scoped_refptr<const NamedNodeMap>& container)
     : name_(name), value_(value), container_(container) {
-  Stats::GetInstance()->Add(this);
+  GlobalStats::GetInstance()->Add(this);
 }
 
 void Attr::set_value(const std::string& value) {
@@ -51,7 +51,7 @@ const std::string& Attr::node_value() const {
   return value_;
 }
 
-Attr::~Attr() { Stats::GetInstance()->Remove(this); }
+Attr::~Attr() { GlobalStats::GetInstance()->Remove(this); }
 
 scoped_refptr<const NamedNodeMap> Attr::container() const { return container_; }
 

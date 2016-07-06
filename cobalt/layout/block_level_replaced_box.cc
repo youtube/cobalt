@@ -29,10 +29,12 @@ BlockLevelReplacedBox::BlockLevelReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_width,
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker)
+    UsedStyleProvider* used_style_provider,
+    LayoutStatTracker* layout_stat_tracker)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb, paragraph,
                   text_position, maybe_intrinsic_width, maybe_intrinsic_height,
-                  maybe_intrinsic_ratio, used_style_provider, stat_tracker) {}
+                  maybe_intrinsic_ratio, used_style_provider,
+                  layout_stat_tracker) {}
 
 Box::Level BlockLevelReplacedBox::GetLevel() const { return kBlockLevel; }
 

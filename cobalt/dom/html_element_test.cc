@@ -26,6 +26,7 @@
 #include "cobalt/cssom/testing/mock_css_parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect_list.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -105,8 +106,9 @@ scoped_refptr<HTMLElement> GetFirstChildAtDepth(
 class HTMLElementTest : public ::testing::Test {
  protected:
   HTMLElementTest()
-      : html_element_context_(NULL, &css_parser_, NULL, NULL, NULL, NULL, NULL,
-                              NULL, NULL, ""),
+      : dom_stat_tracker_(new DomStatTracker("HTMLElementTest")),
+        html_element_context_(NULL, &css_parser_, NULL, NULL, NULL, NULL, NULL,
+                              NULL, NULL, dom_stat_tracker_.get(), ""),
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementTest() OVERRIDE {}
 
@@ -116,6 +118,7 @@ class HTMLElementTest : public ::testing::Test {
       const char* null_terminated_element_names[]);
 
   cssom::testing::MockCSSParser css_parser_;
+  scoped_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   MessageLoop message_loop_;

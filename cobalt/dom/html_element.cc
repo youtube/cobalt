@@ -654,14 +654,17 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           animations_adapter_(new DOMAnimatable(this))),
       css_animations_(&animations_adapter_),
-      matching_rules_valid_(false) {
+      matching_rules_valid_(false),
+      dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
   ++(non_trivial_static_fields.Get().html_element_count_log.count);
+  dom_stat_tracker_->OnHtmlElementCreated();
 }
 
 HTMLElement::~HTMLElement() {
   --(non_trivial_static_fields.Get().html_element_count_log.count);
+  dom_stat_tracker_->OnHtmlElementDestroyed();
 }
 
 void HTMLElement::CopyDirectionality(const HTMLElement& other) {
@@ -780,8 +783,11 @@ void HTMLElement::UpdateComputedStyle(
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
 
+  dom_stat_tracker_->OnUpdateComputedStyle();
+
   // Update matching rules if necessary.
   if (!matching_rules_valid_) {
+    dom_stat_tracker_->OnUpdateMatchingRules();
     UpdateMatchingRules(this);
     matching_rules_valid_ = true;
   }

@@ -45,7 +45,7 @@ class BlockContainerBox : public ContainerBox {
                         css_computed_style_declaration,
                     BaseDirection base_direction,
                     UsedStyleProvider* used_style_provider,
-                    StatTracker* stat_tracker);
+                    LayoutStatTracker* layout_stat_tracker);
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.

@@ -18,7 +18,7 @@
 
 #include "base/string_util.h"
 #include "cobalt/dom/element.h"
-#include "cobalt/dom/stats.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -128,7 +128,7 @@ base::optional<std::string> TryConvertPropertyNameToAttributeName(
 
 DOMStringMap::DOMStringMap(const scoped_refptr<Element>& element)
     : element_(element) {
-  Stats::GetInstance()->Add(this);
+  GlobalStats::GetInstance()->Add(this);
 }
 
 base::optional<std::string> DOMStringMap::AnonymousNamedGetter(
@@ -180,7 +180,7 @@ void DOMStringMap::EnumerateNamedProperties(
   }
 }
 
-DOMStringMap::~DOMStringMap() { Stats::GetInstance()->Remove(this); }
+DOMStringMap::~DOMStringMap() { GlobalStats::GetInstance()->Remove(this); }
 
 }  // namespace dom
 }  // namespace cobalt

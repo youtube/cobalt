@@ -53,7 +53,8 @@ struct RenderTreeWithAnimations {
 // Update the computed styles, then generate and layout the box tree.
 void UpdateComputedStylesAndLayoutBoxTree(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker,
+    UsedStyleProvider* used_style_provider,
+    LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
@@ -63,7 +64,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
 // result of recursive layout of the given HTML element.
 RenderTreeWithAnimations Layout(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker,
+    UsedStyleProvider* used_style_provider,
+    LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
