@@ -6,11 +6,7 @@
 // event-config.h depending on your platform.
 
 #if defined(STARBOARD)
-#if defined(SB_LIBEVENT_LINUX)
-#include "linux/event-config.h"
-#else
-#error "No Starboard libevent configuration!"
-#endif
+#include "starboard/event-config.h"
 #elif defined(__APPLE__)
 #include "mac/event-config.h"
 #elif defined(ANDROID) || defined(__LB_ANDROID__)
