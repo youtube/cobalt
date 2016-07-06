@@ -27,6 +27,8 @@ class PlatformConfigStarboard(base.PlatformConfigBase):
 
   def GetVariables(self, config):
     return {
+        # Used by cobalt/media/media.gyp to pick the right media platform.
+        'starboard_media_platform': 'starboard',
         # Cobalt uses OpenSSL on all platforms.
         'use_openssl': 1,
         # Cobalt relies on the Starboard implementation for DRM on all Starboard
