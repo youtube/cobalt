@@ -53,7 +53,9 @@
 #include <sys/timeb.h>
 #endif
 #include <stdio.h>
+#ifndef STARBOARD
 #include <signal.h>
+#endif
 
 #include <sys/queue.h>
 #include "event.h"
@@ -64,7 +66,9 @@
 int
 evutil_socketpair(int family, int type, int protocol, int fd[2])
 {
-#ifndef WIN32
+#ifdef STARBOARD
+	return -1;
+#elif !defined(WIN32)
 	return socketpair(family, type, protocol, fd);
 #else
 	/* This code is originally from Tor.  Used with permission. */
