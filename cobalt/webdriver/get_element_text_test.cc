@@ -20,6 +20,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_parser.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_div_element.h"
@@ -40,8 +41,9 @@ class GetElementTextTest : public ::testing::Test {
  protected:
   GetElementTextTest()
       : css_parser_(css_parser::Parser::Create()),
+        dom_stat_tracker_(new dom::DomStatTracker("GetElementTextTest")),
         html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
-                              NULL, NULL, NULL, "") {}
+                              NULL, NULL, NULL, dom_stat_tracker_.get(), "") {}
 
   void SetUp() OVERRIDE {
     dom::Document::Options options;
@@ -73,6 +75,7 @@ class GetElementTextTest : public ::testing::Test {
   }
 
   scoped_ptr<css_parser::Parser> css_parser_;
+  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;
   scoped_refptr<dom::HTMLDivElement> div_;

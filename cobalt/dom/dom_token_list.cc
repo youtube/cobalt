@@ -19,7 +19,7 @@
 #include <algorithm>
 
 #include "base/string_split.h"
-#include "cobalt/dom/stats.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -35,7 +35,7 @@ DOMTokenList::DOMTokenList(Element* element, const std::string& attr_name)
   // and it is not likely to be used anywhere else. Therefore DCHECK is used to
   // guarantee attr_name is always "class".
   DCHECK_EQ(attr_name, "class");
-  Stats::GetInstance()->Add(this);
+  GlobalStats::GetInstance()->Add(this);
 }
 
 // Algorithm for length:
@@ -201,7 +201,7 @@ bool DOMTokenList::ContainsValid(base::Token valid_token) const {
   return false;
 }
 
-DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
+DOMTokenList::~DOMTokenList() { GlobalStats::GetInstance()->Remove(this); }
 
 // Algorithm for RunUpdateSteps:
 //   https://www.w3.org/TR/dom/#concept-dtl-update

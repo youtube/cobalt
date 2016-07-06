@@ -48,7 +48,8 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSComputedStyleData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker);
+    UsedStyleProvider* used_style_provider,
+    LayoutStatTracker* layout_stat_tracker);
 
 }  // namespace layout
 }  // namespace cobalt

@@ -18,7 +18,7 @@
 
 #include <algorithm>
 
-#include "cobalt/dom/stats.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace xhr {
@@ -39,35 +39,35 @@ COMPILE_ASSERT(sizeof(char) == 1, char_should_occupy_one_byte);
 }  // namespace
 
 XhrResponseData::XhrResponseData() {
-  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
 XhrResponseData::~XhrResponseData() {
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
 }
 
 void XhrResponseData::Clear() {
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
   // Use swap to force free the memory allocated.
   std::string dummy;
   data_.swap(dummy);
-  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
 void XhrResponseData::Reserve(size_t new_capacity_bytes) {
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
   data_.reserve(new_capacity_bytes);
-  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
 void XhrResponseData::Append(const uint8* source_data, size_t size_bytes) {
   if (size_bytes == 0) {
     return;
   }
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
   data_.resize(data_.size() + size_bytes);
   memcpy(&data_[data_.size() - size_bytes], source_data, size_bytes);
-  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
 const uint8* XhrResponseData::data() const {

@@ -21,7 +21,7 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/stats.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -213,11 +213,11 @@ EventTarget::EventListenerInfo::EventListenerInfo(
       listener(event_target, listener),
       use_capture(use_capture),
       listener_type(listener_type) {
-  Stats::GetInstance()->AddEventListener();
+  GlobalStats::GetInstance()->AddEventListener();
 }
 
 EventTarget::EventListenerInfo::~EventListenerInfo() {
-  Stats::GetInstance()->RemoveEventListener();
+  GlobalStats::GetInstance()->RemoveEventListener();
 }
 
 }  // namespace dom

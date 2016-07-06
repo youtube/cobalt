@@ -37,7 +37,7 @@ class AnonymousBlockBox : public BlockContainerBox {
                         css_computed_style_declaration,
                     BaseDirection base_direction,
                     UsedStyleProvider* used_style_provider,
-                    StatTracker* stat_tracker);
+                    LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;

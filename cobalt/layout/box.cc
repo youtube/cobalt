@@ -60,15 +60,16 @@ namespace layout {
 
 Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
              css_computed_style_declaration,
-         UsedStyleProvider* used_style_provider, StatTracker* stat_tracker)
+         UsedStyleProvider* used_style_provider,
+         LayoutStatTracker* layout_stat_tracker)
     : css_computed_style_declaration_(css_computed_style_declaration),
       used_style_provider_(used_style_provider),
-      stat_tracker_(stat_tracker),
+      layout_stat_tracker_(layout_stat_tracker),
       parent_(NULL) {
   DCHECK(animations());
   DCHECK(used_style_provider_);
 
-  stat_tracker_->OnBoxCreated();
+  layout_stat_tracker_->OnBoxCreated();
 
 #ifdef _DEBUG
   margin_box_offset_from_containing_block_.SetVector(LayoutUnit(),
@@ -86,7 +87,7 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 #endif  // _DEBUG
 }
 
-Box::~Box() { stat_tracker_->OnBoxDestroyed(); }
+Box::~Box() { layout_stat_tracker_->OnBoxDestroyed(); }
 
 bool Box::IsPositioned() const {
   return computed_style()->position() != cssom::KeywordValue::GetStatic();

@@ -20,7 +20,7 @@
 
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
-#include "cobalt/dom/stats.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -28,7 +28,7 @@ namespace dom {
 NamedNodeMap::NamedNodeMap(const scoped_refptr<Element>& element)
     : element_(element) {
   ConstructProxyAttributes();
-  Stats::GetInstance()->Add(this);
+  GlobalStats::GetInstance()->Add(this);
 }
 
 unsigned int NamedNodeMap::length() const {
@@ -153,7 +153,7 @@ void NamedNodeMap::RemoveAttributeInternal(const std::string& name) {
 
 scoped_refptr<Element> NamedNodeMap::element() const { return element_; }
 
-NamedNodeMap::~NamedNodeMap() { Stats::GetInstance()->Remove(this); }
+NamedNodeMap::~NamedNodeMap() { GlobalStats::GetInstance()->Remove(this); }
 
 void NamedNodeMap::ConstructProxyAttributes() {
   // Construct the attribute name vector.

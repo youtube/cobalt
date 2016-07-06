@@ -23,6 +23,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_parser.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_collection.h"
@@ -54,13 +55,13 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
         image_cache_(loader::image::CreateImageCache(
             "WebdriverTest.ImageCache", kImageCacheCapacity,
             resource_provider_stub_.get(), &fetcher_factory_)),
-        html_element_context_(&fetcher_factory_, css_parser_.get(),
-                              dom_parser_.get(),
-                              NULL /* web_media_player_factory */,
-                              &script_runner_, NULL /* media_source_registry */,
-                              resource_provider_stub_.get(), image_cache_.get(),
-                              NULL /* remote_font_cache */, "" /* language */) {
-  }
+        dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
+        html_element_context_(
+            &fetcher_factory_, css_parser_.get(), dom_parser_.get(),
+            NULL /* web_media_player_factory */, &script_runner_,
+            NULL /* media_source_registry */, resource_provider_stub_.get(),
+            image_cache_.get(), NULL /* remote_font_cache */,
+            dom_stat_tracker_.get(), "" /* language */) {}
 
   void SetUp() OVERRIDE {
     // Load the document in a nested message loop.
@@ -91,6 +92,7 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
   scoped_ptr<dom_parser::Parser> dom_parser_;
   scoped_ptr<render_tree::ResourceProviderStub> resource_provider_stub_;
   scoped_ptr<loader::image::ImageCache> image_cache_;
+  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;
   scoped_ptr<loader::Loader> document_loader_;
