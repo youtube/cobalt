@@ -43,6 +43,8 @@
         'url_handler.h',
         'web_module.cc',
         'web_module.h',
+        'web_module_stat_tracker.cc',
+        'web_module_stat_tracker.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/account/account.gyp:account',

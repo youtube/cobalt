@@ -32,7 +32,7 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
       BaseDirection base_direction, UsedStyleProvider* used_style_provider,
-      StatTracker* stat_tracker);
+      LayoutStatTracker* layout_stat_tracker);
 
   // From |ContainerBox|.
   bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
@@ -71,7 +71,7 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
       BaseDirection base_direction, UsedStyleProvider* used_style_provider,
-      StatTracker* stat_tracker);
+      LayoutStatTracker* layout_stat_tracker);
   ~BlockLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.
@@ -102,7 +102,7 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
           css_computed_style_declaration,
       BaseDirection base_direction, const scoped_refptr<Paragraph>& paragraph,
       int32 text_position, UsedStyleProvider* used_style_provider,
-      StatTracker* stat_tracker);
+      LayoutStatTracker* layout_stat_tracker);
   ~InlineLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.

@@ -23,7 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/layout/stat_tracker.h"
+#include "cobalt/layout/layout_stat_tracker.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
@@ -69,7 +69,8 @@ class LayoutManager {
   LayoutManager(const scoped_refptr<dom::Window>& window,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
                 LayoutTrigger layout_trigger, float layout_refresh_rate,
-                const std::string& language, StatTracker* stat_tracker);
+                const std::string& language,
+                LayoutStatTracker* layout_stat_tracker);
   ~LayoutManager();
 
  private:

@@ -69,7 +69,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ExecutionState* execution_state,
                script::ScriptRunner* script_runner,
-               MediaSource::Registry* media_source_registry, const GURL& url,
+               MediaSource::Registry* media_source_registry,
+               DomStatTracker* dom_stat_tracker, const GURL& url,
                const std::string& user_agent, const std::string& language,
                const base::Callback<void(const GURL&)> navigation_callback,
                const base::Callback<void(const std::string&)>& error_callback,
@@ -84,7 +85,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       html_element_context_(new HTMLElementContext(
           fetcher_factory, css_parser, dom_parser, web_media_player_factory,
           script_runner, media_source_registry, resource_provider, image_cache,
-          remote_typeface_cache, language)),
+          remote_typeface_cache, dom_stat_tracker, language)),
       performance_(new Performance(new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
@@ -280,6 +281,11 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
   if (event->type() == base::Tokens::keydown() ||
       event->type() == base::Tokens::keypress() ||
       event->type() == base::Tokens::keyup()) {
+    base::StopWatch stop_watch_inject_event(
+        DomStatTracker::kStopWatchTypeInjectEvent,
+        base::StopWatch::kAutoStartOn,
+        html_element_context_->dom_stat_tracker());
+
     // Event.target:focused element processing the key event or if no element
     // focused, then the body element if available, otherwise the root element.
     //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown

@@ -18,8 +18,8 @@
 
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -59,8 +59,8 @@ class NodeDispatchEventTest : public ::testing::Test {
 
 NodeDispatchEventTest::NodeDispatchEventTest()
     : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, "") {
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+                            NULL, NULL, "") {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 
   document_ = new Document(&html_element_context_);
 
@@ -93,7 +93,7 @@ NodeDispatchEventTest::~NodeDispatchEventTest() {
 
   document_ = NULL;
 
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
 //////////////////////////////////////////////////////////////////////////

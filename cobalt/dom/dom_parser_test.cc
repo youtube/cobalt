@@ -49,7 +49,7 @@ DOMParserTest::DOMParserTest()
           NULL /* web_media_player_factory */, &stub_script_runner_,
           NULL /* media_source_registry */, NULL /* resource_provider */,
           NULL /* image_cache */, NULL /* remote_typeface_cache */,
-          "" /* language */),
+          NULL /* dom_stat_tracker */, "" /* language */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
 
 TEST_F(DOMParserTest, ParsesXML) {

@@ -16,13 +16,13 @@
 
 #include "cobalt/dom/node_list.h"
 
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/node.h"
-#include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace dom {
 
-NodeList::NodeList() { Stats::GetInstance()->Add(this); }
+NodeList::NodeList() { GlobalStats::GetInstance()->Add(this); }
 
 uint32 NodeList::length() { return static_cast<uint32>(collection_.size()); }
 
@@ -39,7 +39,7 @@ void NodeList::AppendNode(const scoped_refptr<Node>& node) {
   collection_.push_back(node);
 }
 
-NodeList::~NodeList() { Stats::GetInstance()->Remove(this); }
+NodeList::~NodeList() { GlobalStats::GetInstance()->Remove(this); }
 
 }  // namespace dom
 }  // namespace cobalt

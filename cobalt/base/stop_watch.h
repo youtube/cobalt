@@ -46,6 +46,9 @@ class StopWatch {
 };
 
 class StopWatchOwner {
+ protected:
+  virtual ~StopWatchOwner() {}
+
  private:
   virtual bool IsStopWatchEnabled(int id) const = 0;
   virtual void OnStopWatchStopped(int id, int64 time_elapsed) = 0;

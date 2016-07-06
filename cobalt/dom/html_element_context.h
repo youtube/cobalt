@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -48,6 +49,7 @@ class HTMLElementContext {
                      render_tree::ResourceProvider* resource_provider,
                      loader::image::ImageCache* image_cache,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
+                     DomStatTracker* dom_stat_tracker,
                      const std::string& language);
   ~HTMLElementContext();
 
@@ -76,6 +78,8 @@ class HTMLElementContext {
     return remote_typeface_cache_;
   }
 
+  DomStatTracker* dom_stat_tracker() { return dom_stat_tracker_; }
+
   const std::string& language() const { return language_; }
 
   base::Thread* sync_load_thread() { return &sync_load_thread_; }
@@ -94,6 +98,7 @@ class HTMLElementContext {
   render_tree::ResourceProvider* resource_provider_;
   loader::image::ImageCache* const image_cache_;
   loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
+  DomStatTracker* const dom_stat_tracker_;
   const std::string language_;
 
   base::Thread sync_load_thread_;

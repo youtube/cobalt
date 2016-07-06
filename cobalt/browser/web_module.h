@@ -93,7 +93,8 @@ class WebModule {
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           image_cache_capacity(kImageCacheCapacity),
           csp_enforcement_mode(dom::kCspEnforcementEnable),
-          csp_insecure_allowed_token(0) {}
+          csp_insecure_allowed_token(0),
+          track_event_stats(false) {}
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -139,6 +140,9 @@ class WebModule {
 
     // Token obtained from CSP to allow creation of insecure delegates.
     int csp_insecure_allowed_token;
+
+    // Whether or not the web module's stat tracker should track event stats.
+    bool track_event_stats;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
