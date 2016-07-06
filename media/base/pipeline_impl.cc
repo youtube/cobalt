@@ -98,27 +98,9 @@ PipelineImpl::PipelineImpl(
       media_log_->CreatePipelineStateChangedEvent(GetStateString(kCreated)));
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::PIPELINE_CREATED));
-
-#if defined(__LB_SHELL__) || defined(COBALT)
-  if (ShellMediaPlatform::Instance()->GetVideoFrameProvider()) {
-    media_time_cb_ =
-        base::Bind(&PipelineImpl::GetMediaTime, base::Unretained(this));
-    ShellMediaPlatform::Instance()
-        ->GetVideoFrameProvider()
-        ->RegisterMediaTimeCB(media_time_cb_);
-  }
-#endif  // defined(__LB_SHELL__) || defined(COBALT)
 }
 
 PipelineImpl::~PipelineImpl() {
-#if defined(__LB_SHELL__) || defined(COBALT)
-  if (ShellMediaPlatform::Instance()->GetVideoFrameProvider()) {
-    DCHECK(!media_time_cb_.is_null());
-    ShellMediaPlatform::Instance()
-        ->GetVideoFrameProvider()
-        ->UnregisterMediaTimeCB(media_time_cb_);
-  }
-#endif  // defined(__LB_SHELL__) || defined(COBALT)
   // TODO(scherkus): Reenable after figuring out why this is firing, see
   // http://crbug.com/148405
 #if 0
@@ -140,6 +122,9 @@ void PipelineImpl::Start(scoped_ptr<FilterCollection> collection,
                          const PipelineStatusCB& seek_cb,
                          const BufferingStateCB& buffering_state_cb,
                          const base::Closure& duration_change_cb) {
+  DCHECK_EQ(collection->GetAudioDecoders()->size(), 1);
+  DCHECK_EQ(collection->GetVideoDecoders()->size(), 1);
+
   base::AutoLock auto_lock(lock_);
   CHECK(!running_) << "Media pipeline is already running";
   DCHECK(!buffering_state_cb.is_null());

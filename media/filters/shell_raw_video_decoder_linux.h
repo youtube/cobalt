@@ -17,11 +17,15 @@
 #ifndef MEDIA_FILTERS_SHELL_RAW_VIDEO_DECODER_LINUX_H_
 #define MEDIA_FILTERS_SHELL_RAW_VIDEO_DECODER_LINUX_H_
 
+#include "base/memory/scoped_ptr.h"
+#include "media/base/shell_video_data_allocator.h"
+#include "media/base/video_decoder_config.h"
 #include "media/filters/shell_video_decoder_impl.h"
 
 namespace media {
 
 scoped_ptr<ShellRawVideoDecoder> CreateShellRawVideoDecoderLinux(
+    ShellVideoDataAllocator* allocator,
     const VideoDecoderConfig& config,
     Decryptor* decryptor,
     bool was_encrypted);

@@ -36,7 +36,7 @@ namespace media {
 class ShellVideoFrameProvider
     : public base::RefCountedThreadSafe<ShellVideoFrameProvider> {
  public:
-  ShellVideoFrameProvider();
+  explicit ShellVideoFrameProvider(scoped_refptr<VideoFrame> punch_out = NULL);
 
   typedef base::Callback<base::TimeDelta()> MediaTimeCB;
   // This class uses the media time to decide which frame is current.  It
@@ -66,6 +66,8 @@ class ShellVideoFrameProvider
 
  private:
   base::TimeDelta GetMediaTime_Locked() const;
+
+  scoped_refptr<VideoFrame> punch_out_;
 
   mutable base::Lock frames_lock_;
   MediaTimeCB media_time_cb_;
