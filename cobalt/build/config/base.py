@@ -84,11 +84,7 @@ class PlatformConfigBase(object):
   def GetVariables(self, config):
     """Returns a dict of GYP variables for the given configuration."""
     _ = config
-    variables = {
-      # Used by cobalt/media/media.gyp to pick the right media platform.
-      'starboard_media_platform': 'starboard',
-    }
-    return variables
+    return {}
 
   def GetGeneratorVariables(self, config):
     """Returns a dict of generator variables for the given configuration."""
