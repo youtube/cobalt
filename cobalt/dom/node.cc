@@ -29,13 +29,13 @@
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/node_list_live.h"
 #include "cobalt/dom/rule_matching.h"
-#include "cobalt/dom/stats.h"
 #include "cobalt/dom/text.h"
 
 namespace cobalt {
@@ -396,7 +396,7 @@ Node::Node(Document* document)
       node_generation_(kInitialNodeGeneration) {
   DCHECK(node_document_);
   ++(node_count_log.Get().count);
-  Stats::GetInstance()->Add(this);
+  GlobalStats::GetInstance()->Add(this);
 }
 
 Node::~Node() {
@@ -406,7 +406,7 @@ Node::~Node() {
     node = node->previous_sibling_;
   }
   --(node_count_log.Get().count);
-  Stats::GetInstance()->Remove(this);
+  GlobalStats::GetInstance()->Remove(this);
 }
 
 void Node::OnInsertedIntoDocument() {

@@ -23,7 +23,9 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_head_element.h"
@@ -31,7 +33,6 @@
 #include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node_list.h"
-#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/text.h"
@@ -57,18 +58,20 @@ class DocumentTest : public ::testing::Test {
   ~DocumentTest() OVERRIDE;
 
   scoped_ptr<css_parser::Parser> css_parser_;
+  scoped_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
 };
 
 DocumentTest::DocumentTest()
     : css_parser_(css_parser::Parser::Create()),
+      dom_stat_tracker_(new DomStatTracker("DocumentTest")),
       html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, "") {
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+                            NULL, NULL, NULL, dom_stat_tracker_.get(), "") {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
 DocumentTest::~DocumentTest() {
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
 //////////////////////////////////////////////////////////////////////////

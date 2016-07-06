@@ -76,7 +76,8 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSComputedStyleData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker) {
+    UsedStyleProvider* used_style_provider,
+    LayoutStatTracker* layout_stat_tracker) {
   TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
 
   InitialContainingBlockCreationResults results;
@@ -102,7 +103,7 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
 
   results.box = make_scoped_refptr(new BlockLevelBlockContainerBox(
       initial_style_state, kLeftToRightBaseDirection, used_style_provider,
-      stat_tracker));
+      layout_stat_tracker));
 
   return results;
 }

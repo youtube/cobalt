@@ -22,8 +22,8 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/dom/stats.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -40,14 +40,14 @@ class DOMTokenListTest : public ::testing::Test {
 
 DOMTokenListTest::DOMTokenListTest()
     : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, "") {
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+                            NULL, NULL, "") {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);
 }
 
 DOMTokenListTest::~DOMTokenListTest() {
   document_ = NULL;
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
 TEST_F(DOMTokenListTest, DOMTokenListShouldBeAlive) {

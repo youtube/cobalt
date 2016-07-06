@@ -18,8 +18,8 @@
 
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -42,14 +42,14 @@ class CommentTest : public ::testing::Test {
 
 CommentTest::CommentTest()
     : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, "") {
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+                            NULL, NULL, "") {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);
 }
 
 CommentTest::~CommentTest() {
   document_ = NULL;
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -520,6 +520,10 @@ void Document::UpdateComputedStyles() {
 
   if (is_computed_style_dirty_) {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateComputedStyles);
+    base::StopWatch stop_watch_update_compute_style(
+        DomStatTracker::kStopWatchTypeUpdateComputedStyle,
+        base::StopWatch::kAutoStartOn,
+        html_element_context_->dom_stat_tracker());
 
     // Determine the official time that this style change event took place. This
     // is needed (as opposed to repeatedly calling base::Time::Now()) because

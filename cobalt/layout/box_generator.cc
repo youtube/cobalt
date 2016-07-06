@@ -188,7 +188,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, paragraph_,
           text_position_, maybe_intrinsic_width_, maybe_intrinsic_height_,
           maybe_intrinsic_ratio_, context_->used_style_provider,
-          context_->stat_tracker));
+          context_->layout_stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
     // between inline replaced elements and inline-block replaced elements
@@ -200,7 +200,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, paragraph_,
           text_position_, maybe_intrinsic_width_, maybe_intrinsic_height_,
           maybe_intrinsic_ratio_, context_->used_style_provider,
-          context_->stat_tracker));
+          context_->layout_stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -320,7 +320,7 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
   scoped_refptr<TextBox> br_text_box =
       new TextBox(br_element->css_computed_style_declaration(), *paragraph_,
                   text_position, text_position, true,
-                  context_->used_style_provider, context_->stat_tracker);
+                  context_->used_style_provider, context_->layout_stat_tracker);
 
   // Add a line feed code point to the paragraph to signify the new line for
   // the line breaking and bidirectional algorithms.
@@ -420,7 +420,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 
       container_box_ = make_scoped_refptr(new BlockLevelBlockContainerBox(
           css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
-          context_->used_style_provider, context_->stat_tracker));
+          context_->used_style_provider, context_->layout_stat_tracker));
       break;
     // Generate one or more inline boxes. Note that more inline boxes may be
     // generated when the original inline box is split due to participation
@@ -458,7 +458,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 
       container_box_ = make_scoped_refptr(new InlineContainerBox(
           css_computed_style_declaration_, context_->used_style_provider,
-          context_->stat_tracker));
+          context_->layout_stat_tracker));
       break;
     // Generate an inline-level block container box. The inside of
     // an inline-block is formatted as a block box, and the element itself
@@ -484,7 +484,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       container_box_ = make_scoped_refptr(new InlineLevelBlockContainerBox(
           css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
           prior_paragraph, text_position, context_->used_style_provider,
-          context_->stat_tracker));
+          context_->layout_stat_tracker));
     } break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -947,10 +947,10 @@ void BoxGenerator::Visit(dom::Text* text) {
         (*paragraph_)->AppendUtf8String(modifiable_text, transform);
     int32 text_end_position = (*paragraph_)->GetTextEndPosition();
 
-    boxes_.push_back(
-        new TextBox(css_computed_style_declaration, *paragraph_,
-                    text_start_position, text_end_position, generates_newline,
-                    context_->used_style_provider, context_->stat_tracker));
+    boxes_.push_back(new TextBox(
+        css_computed_style_declaration, *paragraph_, text_start_position,
+        text_end_position, generates_newline, context_->used_style_provider,
+        context_->layout_stat_tracker));
 
     // Newline sequences should be transformed into a preserved line feed.
     //   https://www.w3.org/TR/css3-text/#line-break-transform

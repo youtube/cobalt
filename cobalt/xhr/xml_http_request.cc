@@ -26,8 +26,8 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/progress_event.h"
-#include "cobalt/dom/stats.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/xml_decoder.h"
@@ -165,7 +165,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       upload_complete_(false),
       did_add_ref_(false) {
   DCHECK(settings_);
-  dom::Stats::GetInstance()->Add(this);
+  dom::GlobalStats::GetInstance()->Add(this);
   xhr_id_ = ++s_xhr_sequence_num_;
 }
 
@@ -676,7 +676,7 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
 
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  dom::Stats::GetInstance()->Remove(this);
+  dom::GlobalStats::GetInstance()->Remove(this);
 }
 
 dom::CspDelegate* XMLHttpRequest::csp_delegate() const {

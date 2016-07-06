@@ -39,8 +39,9 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                  int32 text_start_position, int32 text_end_position,
                  bool has_trailing_line_break,
                  UsedStyleProvider* used_style_provider,
-                 StatTracker* stat_tracker)
-    : Box(css_computed_style_declaration, used_style_provider, stat_tracker),
+                 LayoutStatTracker* layout_stat_tracker)
+    : Box(css_computed_style_declaration, used_style_provider,
+          layout_stat_tracker),
       paragraph_(paragraph),
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
@@ -629,7 +630,7 @@ void TextBox::SplitAtPosition(int32 split_start_position) {
   scoped_refptr<TextBox> box_after_split(new TextBox(
       css_computed_style_declaration(), paragraph_, split_start_position,
       split_end_position, has_trailing_line_break_, used_style_provider(),
-      stat_tracker()));
+      layout_stat_tracker()));
 
   // Update the split sibling links.
   box_after_split->split_sibling_ = split_sibling_;

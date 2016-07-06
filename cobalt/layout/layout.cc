@@ -17,6 +17,7 @@
 #include "cobalt/layout/layout.h"
 
 #include "base/debug/trace_event.h"
+#include "cobalt/base/stop_watch.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/document.h"
@@ -51,7 +52,8 @@ class ScopedParagraph {
 
 void UpdateComputedStylesAndLayoutBoxTree(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker,
+    UsedStyleProvider* used_style_provider,
+    LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
@@ -64,23 +66,31 @@ void UpdateComputedStylesAndLayoutBoxTree(
   // Update the computed style of all elements in the DOM, if necessary.
   document->UpdateComputedStyles();
 
+  base::StopWatch stop_watch_layout_box_tree(
+      LayoutStatTracker::kStopWatchTypeLayoutBoxTree,
+      base::StopWatch::kAutoStartOn, layout_stat_tracker);
+
   // Create initial containing block.
   InitialContainingBlockCreationResults
       initial_containing_block_creation_results = CreateInitialContainingBlock(
           document->initial_computed_style(), document, used_style_provider,
-          stat_tracker);
+          layout_stat_tracker);
   *initial_containing_block = initial_containing_block_creation_results.box;
 
   // Generate boxes.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
+    base::StopWatch stop_watch_box_generation(
+        LayoutStatTracker::kStopWatchTypeBoxGeneration,
+        base::StopWatch::kAutoStartOn, layout_stat_tracker);
+
     ScopedParagraph scoped_paragraph(
         new Paragraph(locale, (*initial_containing_block)->GetBaseDirection(),
                       Paragraph::DirectionalEmbeddingStack(),
                       line_break_iterator, character_break_iterator));
     BoxGenerator::Context context(
         used_style_provider, line_break_iterator, character_break_iterator,
-        stat_tracker,
+        layout_stat_tracker,
         initial_containing_block_creation_results.background_style_source);
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),
@@ -119,6 +129,10 @@ void UpdateComputedStylesAndLayoutBoxTree(
   // Layout.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateUsedSizes);
+    base::StopWatch stop_watch_update_used_sizes(
+        LayoutStatTracker::kStopWatchTypeUpdateUsedSizes,
+        base::StopWatch::kAutoStartOn, layout_stat_tracker);
+
     (*initial_containing_block)->set_left(LayoutUnit());
     (*initial_containing_block)->set_top(LayoutUnit());
     (*initial_containing_block)->UpdateSize(LayoutParams());
@@ -127,14 +141,15 @@ void UpdateComputedStylesAndLayoutBoxTree(
 
 RenderTreeWithAnimations Layout(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider, StatTracker* stat_tracker,
+    UsedStyleProvider* used_style_provider,
+    LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
   UpdateComputedStylesAndLayoutBoxTree(
-      locale, document, used_style_provider, stat_tracker, line_break_iterator,
-      character_break_iterator, initial_containing_block);
+      locale, document, used_style_provider, layout_stat_tracker,
+      line_break_iterator, character_break_iterator, initial_containing_block);
 
   // Add to render tree.
   render_tree::animations::NodeAnimationsMap::Builder
@@ -142,6 +157,10 @@ RenderTreeWithAnimations Layout(
   render_tree::CompositionNode::Builder render_tree_root_builder;
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatRenderAndAnimate);
+    base::StopWatch stop_watch_render_and_animate(
+        LayoutStatTracker::kStopWatchTypeRenderAndAnimate,
+        base::StopWatch::kAutoStartOn, layout_stat_tracker);
+
     (*initial_containing_block)
         ->RenderAndAnimate(&render_tree_root_builder,
                            &node_animations_map_builder, math::Vector2dF(0, 0));
