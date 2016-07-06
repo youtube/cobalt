@@ -39,24 +39,34 @@
             # SbSocketWaiter API. This means the Libevent is below the Starboard
             # platform abstraction line.
             [ 'OS == "starboard"', {
+              'sources': [ 'epoll.c' ],
+              'sources!': [
+                'buffer.c',
+                'evbuffer.c',
+                'evdns.c',
+                'event_tagging.c',
+                'evrpc.c',
+                'http.c',
+                'poll.c',
+                'select.c',
+                'signal.c',
+                'strlcpy.c',
+              ],
+              'include_dirs': [ 'starboard' ],
               'conditions': [
                 [ 'target_os == "linux"', {
-                  'defines': [
-                    'SB_LIBEVENT_LINUX',
-                  ],
-                  'direct_dependent_settings': {
-                    'defines': [
-                      'SB_LIBEVENT_LINUX',
-                    ],
-                  },
-                  'sources': [ 'epoll.c', 'epoll_sub.c' ],
-                  'include_dirs': [ 'linux' ],
+                  'sources': [ 'epoll_sub.c' ],
+                  'include_dirs': [ 'starboard/linux' ],
                   'link_settings': {
                     'libraries': [
                       '-lrt',
                     ],
                   },
                 }],
+                [ 'target_os == "orbis"', {
+                  'include_dirs': [ 'starboard/ps4' ],
+                  }
+                ]
               ],
             }],
             # libevent has platform-specific implementation files.  Since its

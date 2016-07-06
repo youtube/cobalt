@@ -46,7 +46,9 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
+#ifndef STARBOARD
 #include <signal.h>
+#endif
 #include <string.h>
 #include <assert.h>
 #include <time.h>
@@ -106,7 +108,9 @@ static const struct eventop *eventops[] = {
 
 /* Global state */
 struct event_base *current_base = NULL;
+#ifndef STARBOARD
 extern struct event_base *evsignal_base;
+#endif
 static int use_monotonic;
 
 /* Prototypes */
@@ -180,9 +184,10 @@ event_base_new(void)
 	
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
+#ifndef STARBOARD
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
-	
+#endif
 	base->evbase = NULL;
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		base->evsel = eventops[i];
@@ -276,6 +281,7 @@ event_reinit(struct event_base *base)
 	if (!evsel->need_reinit)
 		return (0);
 
+#ifndef STARBOARD
 	/* prevent internal delete */
 	if (base->sig.ev_signal_added) {
 		/* we cannot call event_del here because the base has
@@ -287,7 +293,7 @@ event_reinit(struct event_base *base)
 			    EVLIST_ACTIVE);
 		base->sig.ev_signal_added = 0;
 	}
-	
+#endif
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);
 	evbase = base->evbase = evsel->init(base);
@@ -473,8 +479,10 @@ event_base_loop(struct event_base *base, int flags)
 	/* clear time cache */
 	base->tv_cache.tv_sec = 0;
 
+#ifndef STARBOARD
 	if (base->sig.ev_signal_added)
 		evsignal_base = base;
+#endif
 	done = 0;
 	while (!done) {
 		/* Terminate the loop if we have been asked to */
@@ -573,9 +581,11 @@ event_base_once(struct event_base *base, int fd, short events,
 	struct timeval etv;
 	int res;
 
+#ifndef STARBOARD
 	/* We cannot support signals that just fire once */
 	if (events & EV_SIGNAL)
 		return (-1);
+#endif
 
 	if ((eonce = calloc(1, sizeof(struct event_once))) == NULL)
 		return (-1);

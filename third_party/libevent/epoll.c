@@ -30,15 +30,17 @@
 
 #include <stdint.h>
 #include <sys/types.h>
-#include <sys/resource.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
-#include <sys/epoll.h>
+#ifndef STARBOARD
 #include <signal.h>
+#include <sys/epoll.h>
+#include <sys/resource.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,8 +52,14 @@
 
 #include "event.h"
 #include "event-internal.h"
+#ifndef STARBOARD
 #include "evsignal.h"
+#endif
 #include "log.h"
+
+#ifdef STARBOARD
+#include "epoll-internal.h"
+#endif
 
 /* due to limitations in the epoll interface, we need to keep track of
  * all file descriptors outself.
@@ -146,7 +154,9 @@ epoll_init(struct event_base *base)
 	}
 	epollop->nfds = INITIAL_NFILES;
 
+#ifndef STARBOARD
 	evsignal_init(base);
+#endif
 
 	return (epollop);
 }
@@ -203,10 +213,14 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			return (-1);
 		}
 
+#ifndef STARBOARD
 		evsignal_process(base);
+#endif
 		return (0);
+#ifndef STARBOARD
 	} else if (base->sig.evsignal_caught) {
 		evsignal_process(base);
+#endif
 	}
 
 	event_debug(("%s: epoll_wait reports %d", __func__, res));
@@ -264,12 +278,14 @@ static int
 epoll_add(void *arg, struct event *ev)
 {
 	struct epollop *epollop = arg;
-	struct epoll_event epev = {0, {0}};
+	struct epoll_event epev = {0};
 	struct evepoll *evep;
 	int fd, op, events;
 
+#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL)
 		return (evsignal_add(ev));
+#endif
 
 	fd = ev->ev_fd;
 	if (fd >= epollop->nfds) {
@@ -312,13 +328,15 @@ static int
 epoll_del(void *arg, struct event *ev)
 {
 	struct epollop *epollop = arg;
-	struct epoll_event epev = {0, {0}};
+	struct epoll_event epev = {0};
 	struct evepoll *evep;
 	int fd, events, op;
 	int needwritedelete = 1, needreaddelete = 1;
 
+#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL)
 		return (evsignal_del(ev));
+#endif
 
 	fd = ev->ev_fd;
 	if (fd >= epollop->nfds)
@@ -353,7 +371,11 @@ epoll_del(void *arg, struct event *ev)
 	if (needwritedelete)
 		evep->evwrite = NULL;
 
+#ifdef STARBOARD
+	if (epoll_ctl_del(epollop->epfd, op, fd, &epev) == -1)
+#else
 	if (epoll_ctl(epollop->epfd, op, fd, &epev) == -1)
+#endif
 		return (-1);
 
 	return (0);
@@ -364,7 +386,9 @@ epoll_dealloc(struct event_base *base, void *arg)
 {
 	struct epollop *epollop = arg;
 
+#ifndef STARBOARD
 	evsignal_dealloc(base);
+#endif
 	if (epollop->fds)
 		free(epollop->fds);
 	if (epollop->events)
