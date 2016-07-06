@@ -29,11 +29,11 @@
 #include "cobalt/dom/node.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/insets_layout_unit.h"
+#include "cobalt/layout/layout_stat_tracker.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/line_wrapping.h"
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
-#include "cobalt/layout/stat_tracker.h"
 #include "cobalt/layout/vector2d_layout_unit.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
@@ -112,7 +112,8 @@ class Box : public base::RefCounted<Box> {
 
   Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
-      UsedStyleProvider* used_style_provider, StatTracker* stat_tracker);
+      UsedStyleProvider* used_style_provider,
+      LayoutStatTracker* layout_stat_tracker);
   virtual ~Box();
 
   // Computed style contains CSS values from the last stage of processing
@@ -473,7 +474,9 @@ class Box : public base::RefCounted<Box> {
     return used_style_provider_;
   }
 
-  StatTracker* stat_tracker() const { return stat_tracker_; }
+  LayoutStatTracker* layout_stat_tracker() const {
+    return layout_stat_tracker_;
+  }
 
   // Updates used values of "width", "height", and "margin" properties based on
   // https://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins and
@@ -637,13 +640,12 @@ class Box : public base::RefCounted<Box> {
       const math::Vector2dF& border_node_offset) const;
 
   // The css_computed_style_declaration_ member references the
-  // cssom::CSSComputedStyleDeclaration
-  // object owned
-  // by the HTML Element from which this box is derived.
+  // cssom::CSSComputedStyleDeclaration object owned by the HTML Element from
+  // which this box is derived.
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
   UsedStyleProvider* const used_style_provider_;
-  StatTracker* const stat_tracker_;
+  LayoutStatTracker* const layout_stat_tracker_;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   std::string generating_html_;

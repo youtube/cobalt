@@ -47,7 +47,7 @@ class ReplacedBox : public Box {
               const base::optional<LayoutUnit>& maybe_intrinsic_height,
               const base::optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider,
-              StatTracker* stat_tracker);
+              LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
   WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,

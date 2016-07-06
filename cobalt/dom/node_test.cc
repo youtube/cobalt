@@ -20,9 +20,9 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/node_list.h"
-#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -75,13 +75,13 @@ class NodeTest : public ::testing::Test {
 };
 
 NodeTest::NodeTest() {
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(NULL);
 }
 
 NodeTest::~NodeTest() {
   document_ = NULL;
-  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
 //////////////////////////////////////////////////////////////////////////

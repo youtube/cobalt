@@ -29,6 +29,7 @@
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/csp_delegate_type.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
@@ -92,7 +93,8 @@ class Window : public EventTarget {
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,
          script::ScriptRunner* script_runner,
-         MediaSource::Registry* media_source_registry, const GURL& url,
+         MediaSource::Registry* media_source_registry,
+         DomStatTracker* dom_stat_tracker, const GURL& url,
          const std::string& user_agent, const std::string& language,
          const base::Callback<void(const GURL&)> navigation_callback,
          const base::Callback<void(const std::string&)>& error_callback,

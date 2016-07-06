@@ -25,11 +25,11 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/debug/debug_server_module.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/h5vcc/h5vcc.h"
-#include "cobalt/layout/stat_tracker.h"
 #include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
@@ -152,12 +152,9 @@ class WebModule::Impl {
   // Interface between LocalStorage and the Storage Manager.
   scoped_ptr<dom::LocalStorageDatabase> local_storage_database_;
 
-  // Stats for layout. The stats are stored here and not in the layout manager
-  // because DOM-related objects store references to Layout boxes, meaning that
-  // layout stats must live longer than any DOM-related objects. Resultantly,
-  // the layout stat tracker must have a longer lifespan than the
-  // JavaScriptEngine (which has references to DOM objects).
-  scoped_ptr<layout::StatTracker> layout_stat_tracker_;
+  // Stats for the web module. Both the dom stat tracker and layout stat
+  // tracker are contained within it.
+  scoped_ptr<browser::WebModuleStatTracker> web_module_stat_tracker_;
 
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
@@ -265,8 +262,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new dom::LocalStorageDatabase(data.network_module->storage_manager()));
   DCHECK(local_storage_database_);
 
-  layout_stat_tracker_.reset(new layout::StatTracker(name_));
-  DCHECK(layout_stat_tracker_);
+  web_module_stat_tracker_.reset(
+      new browser::WebModuleStatTracker(name_, data.options.track_event_stats));
+  DCHECK(web_module_stat_tracker_);
 
   javascript_engine_ = script::JavaScriptEngine::CreateEngine();
   DCHECK(javascript_engine_);
@@ -289,7 +287,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
       data.resource_provider, image_cache_.get(), remote_typeface_cache_.get(),
       local_storage_database_.get(), data.media_module, execution_state_.get(),
-      script_runner_.get(), media_source_registry_.get(), data.initial_url,
+      script_runner_.get(), media_source_registry_.get(),
+      web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
       data.network_module->preferred_language(),
       data.options.navigation_callback,
@@ -322,7 +321,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
                                 base::Unretained(this)),
       data.options.layout_trigger, data.layout_refresh_rate,
-      data.network_module->preferred_language(), layout_stat_tracker_.get()));
+      data.network_module->preferred_language(),
+      web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -376,7 +376,7 @@ WebModule::Impl::~Impl() {
   execution_state_.reset();
   global_object_proxy_ = NULL;
   javascript_engine_.reset();
-  layout_stat_tracker_.reset();
+  web_module_stat_tracker_.reset();
   local_storage_database_.reset();
   remote_typeface_cache_.reset();
   image_cache_.reset();
@@ -396,6 +396,10 @@ void WebModule::Impl::InjectKeyboardEvent(
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event));
 
+  // Give the stat tracker a chance to start tracking the event before it is
+  // injected.
+  web_module_stat_tracker_->OnInjectEvent(keyboard_event);
+
   window_->InjectEvent(keyboard_event);
 }
 
@@ -411,6 +415,11 @@ void WebModule::Impl::ExecuteJavascript(
 
 void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
+  // Notify the stat tracker that a render tree has been produced. This signals
+  // the end of previous event tracking, and triggers flushing of periodic
+  // counts.
+  web_module_stat_tracker_->OnRenderTreeProduced();
+
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
 #if defined(ENABLE_DEBUG_CONSOLE)

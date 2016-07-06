@@ -17,6 +17,7 @@
 #include "cobalt/dom/node_list_live.h"
 
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,12 +28,14 @@ namespace dom {
 class NodeListLiveTest : public ::testing::Test {
  protected:
   NodeListLiveTest()
-      : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, ""),
+      : dom_stat_tracker_("NodeListLiveTest"),
+        html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              NULL, &dom_stat_tracker_, ""),
         document_(new Document(&html_element_context_)) {}
 
   ~NodeListLiveTest() OVERRIDE {}
 
+  DomStatTracker dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };

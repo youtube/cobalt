@@ -40,7 +40,8 @@ class TextBox : public Box {
               css_computed_style_declaration,
           const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
           int32 text_end_position, bool triggers_line_break,
-          UsedStyleProvider* used_style_provider, StatTracker* stat_tracker);
+          UsedStyleProvider* used_style_provider,
+          LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
