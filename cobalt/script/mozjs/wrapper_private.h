@@ -41,6 +41,14 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
     DCHECK_EQ(JS_GetPrivate(wrapper), private_data);
   }
 
+  template <typename T>
+  static T* GetWrappable(JS::HandleObject wrapper) {
+    WrapperPrivate* private_data =
+        static_cast<WrapperPrivate*>(JS_GetPrivate(wrapper));
+    DCHECK(private_data);
+    return base::polymorphic_downcast<T*>(private_data->wrappable_.get());
+  }
+
   static void Finalizer(JSFreeOp* /* free_op */, JSObject* object) {
     WrapperPrivate* wrapper_private =
         reinterpret_cast<WrapperPrivate*>(JS_GetPrivate(object));

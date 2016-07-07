@@ -26,6 +26,7 @@
 {% endblock includes %}
 
 {% block using_directives %}
+{{ super() }}
 using cobalt::script::javascriptcore::GetCallableForCallbackInterface;
 using cobalt::script::javascriptcore::JSCGlobalObject;
 using cobalt::script::javascriptcore::JSCExceptionState;
