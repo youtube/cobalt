@@ -55,6 +55,11 @@ static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
   return ((uintptr_t)memory) % alignment == 0;
 }
 
+// Rounds |size| up to SB_MEMORY_PAGE_SIZE.
+static SB_C_FORCE_INLINE size_t SbMemoryAlignToPageSize(size_t size) {
+  return (size + SB_MEMORY_PAGE_SIZE - 1) & ~(SB_MEMORY_PAGE_SIZE - 1);
+}
+
 static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
                                                         void* address) {
   if (SB_UNLIKELY(requested_bytes > 0 && address == NULL)) {
