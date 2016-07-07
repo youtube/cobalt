@@ -71,6 +71,8 @@
       'conditions': [
         ['OS=="starboard"', {
           'dependencies': [
+            '<(DEPTH)/nb/nb.gyp:nb_test',
+            '<(DEPTH)/nb/nb.gyp:reuse_allocator_benchmark',
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
           ],
         }],
