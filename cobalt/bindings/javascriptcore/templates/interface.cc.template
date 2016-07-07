@@ -31,6 +31,7 @@
 {% if named_property_getter %}
 #include "cobalt/script/javascriptcore/jsc_property_enumerator.h"
 {% endif %}
+#include "cobalt/script/javascriptcore/type_traits.h"
 #include "cobalt/script/javascriptcore/util/binding_helpers.h"
 #include "cobalt/script/javascriptcore/util/exception_helpers.h"
 #include "third_party/WebKit/Source/JavaScriptCore/interpreter/Interpreter.h"
@@ -71,6 +72,7 @@ using cobalt::script::javascriptcore::JSObjectToWrappable;
 using cobalt::script::javascriptcore::ScriptObjectRegistry;
 using cobalt::script::javascriptcore::ToJSValue;
 using cobalt::script::javascriptcore::ToWTFString;
+using cobalt::script::javascriptcore::TypeTraits;
 using cobalt::script::javascriptcore::PrototypeBase;
 using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::WrapperBase;

@@ -45,10 +45,12 @@ SHARED_TEMPLATES_DIR = os.path.abspath(os.path.join(module_path, 'templates'))
 
 
 def initialize_jinja_env(cache_dir, templates_dir):
+  """Initialize the Jinja2 environment."""
   assert os.path.isabs(templates_dir)
   assert os.path.isabs(SHARED_TEMPLATES_DIR)
   jinja_env = jinja2.Environment(
       loader=jinja2.FileSystemLoader([templates_dir, SHARED_TEMPLATES_DIR]),
+      extensions=['jinja2.ext.do'],  # do statement
       # Bytecode cache is not concurrency-safe unless pre-cached:
       # if pre-cached this is read-only, but writing creates a race condition.
       bytecode_cache=jinja2.FileSystemBytecodeCache(cache_dir),
@@ -284,7 +286,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
                                                 cpp_template_filename,
                                                 template_context)
     header_path, cc_path = self.output_paths(template_context['binding_class'])
-    return ((header_path, header_text), (cc_path, cc_text),)
+    return ((header_path, header_text),
+            (cc_path, cc_text),)
 
   def generate_dictionary_code(self, definitions, dictionary_name, dictionary):
     raise NotImplementedError('Dictionaries not implemented')
@@ -429,8 +432,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
             'conditional': self.interfaces_info[interface_name]['conditional'],
         })
 
-    context['implementation_includes'] = sorted((interface[
-        'include'] for interface in referenced_interfaces))
+    context['implementation_includes'] = sorted(
+        (interface['include'] for interface in referenced_interfaces))
     context['header_includes'] = sorted(header_includes)
     context['attributes'] = [a for a in attributes if not a['is_static']]
     context['static_attributes'] = [a for a in attributes if a['is_static']]
@@ -476,8 +479,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         interface, get_named_property_deleter(interface))
 
     context['supports_indexed_properties'] = (
-        context['indexed_property_getter'] or context[
-            'indexed_property_setter'])
+        context['indexed_property_getter'] or
+        context['indexed_property_setter'])
     context['supports_named_properties'] = (context['named_property_setter'] or
                                             context['named_property_getter'] or
                                             context['named_property_deleter'])

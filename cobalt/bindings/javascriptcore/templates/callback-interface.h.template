@@ -53,15 +53,13 @@ class {{binding_class}} : public {{impl_class}} {
 }  // namespace {{component}}
 {% endfor %}
 namespace script {
-namespace javascriptcore {
-// Explicit instantiation of JSCCallbackInterfaceTraits struct so we can infer
+// Explicit instantiation of CallbackInterfaceTraits struct so we can infer
 // the type of the generated class from the type of the callback interface.
 template<>
-struct JSCCallbackInterfaceTraits<{{fully_qualified_impl_class}}> {
+struct CallbackInterfaceTraits<{{fully_qualified_impl_class}}> {
   typedef {{fully_qualified_binding_class}} JSCCallbackInterfaceClass;
 };
 
-}  // namespace javascriptcore
 }  // namespace script
 }  // namespace cobalt
 {% endblock implementation %}
