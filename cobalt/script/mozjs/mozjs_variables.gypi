@@ -30,6 +30,7 @@
           '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.h.template',
+          '<(DEPTH)/cobalt/bindings/mozjs/templates/macros.cc.template',
         ],
         'engine_bindings_scripts': [
           '<(DEPTH)/cobalt/bindings/mozjs/code_generator.py',

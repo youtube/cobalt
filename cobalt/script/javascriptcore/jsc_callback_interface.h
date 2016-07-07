@@ -17,6 +17,7 @@
 #ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_INTERFACE_H_
 #define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_INTERFACE_H_
 
+#include "cobalt/script/callback_interface_traits.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/interpreter/CallFrame.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/CallData.h"
@@ -26,13 +27,6 @@
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
-
-// Declare the JSCCallbackInterfaceTraits template struct here. In the generated
-// header file for each callback interface there will be an explicit
-// instantiation of this template struct which will allow us to infer the type
-// of the generated class from the base callback interface type.
-template <typename CallbackInterface>
-struct JSCCallbackInterfaceTraits {};
 
 // Helper class to get the actual callable object from a JSObject.
 JSC::CallType GetCallableForCallbackInterface(

@@ -26,5 +26,13 @@ class {{binding_class}} { };
 {% for component in components %}
 }  // namespace {{component}}
 {% endfor %}
+namespace script {
+// Explicit instantiation of CallbackInterfaceTraits struct so we can infer
+// the type of the generated class from the type of the callback interface.
+template<>
+struct CallbackInterfaceTraits<{{fully_qualified_impl_class}}> {
+  typedef {{fully_qualified_binding_class}} MozjsCallbackInterfaceClass;
+};
+}  // namespace script
 }  // namespace cobalt
 {% endblock implementation %}
