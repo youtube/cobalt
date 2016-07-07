@@ -21,8 +21,6 @@
       'product_name': 'cobalt_base',
       'type': 'static_library',
       'sources': [
-        'allocator.h',
-        'allocator_decorator.h',
         'clock.h',
         'cobalt_paths.h',
         'compiler.h',
@@ -35,7 +33,6 @@
         'event.h',
         'event_dispatcher.cc',
         'event_dispatcher.h',
-        'fixed_no_free_allocator.h',
         'init_cobalt.cc',
         'init_cobalt.h',
         'localized_strings.cc',
@@ -44,14 +41,9 @@
         'log_message_handler.h',
         'math.cc',
         'math.h',
-        'memory_pool.cc',
-        'memory_pool.h',
-        'pointer_arithmetic.h',
         'poller.h',
         'polymorphic_downcast.h',
         'polymorphic_equatable.h',
-        'reuse_allocator.cc',
-        'reuse_allocator.h',
         'sanitizer_options.cc',
         'source_location.h',
         'stop_watch.cc',
@@ -95,8 +87,6 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'c_val_test.cc',
-        'fixed_no_free_allocator_test.cc',
-        'reuse_allocator_test.cc',
         'token_test.cc',
       ],
       'dependencies': [
@@ -114,40 +104,6 @@
       ],
       'variables': {
         'executable_name': 'base_test',
-      },
-      'includes': [ '../build/deploy.gypi' ],
-    },
-
-    {
-      'target_name': 'reuse_allocator_benchmark',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'reuse_allocator_benchmark.cc',
-      ],
-      'dependencies': [
-        'base',
-      ],
-      'actions': [
-        {
-          'action_name': 'reuse_allocator_benchmark_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/base/testdata/',
-            ],
-            'output_dir': 'cobalt/base/testdata',
-          },
-          'includes': ['../build/copy_test_data.gypi'],
-        }
-      ],
-    },
-    {
-      'target_name': 'reuse_allocator_benchmark_deploy',
-      'type': 'none',
-      'dependencies': [
-        'reuse_allocator_benchmark',
-      ],
-      'variables': {
-        'executable_name': 'reuse_allocator_benchmark',
       },
       'includes': [ '../build/deploy.gypi' ],
     },

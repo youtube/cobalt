@@ -44,6 +44,9 @@
             'shell_media_platform_<(starboard_media_platform).cc',
             'shell_media_platform_<(starboard_media_platform).h',
           ],
+          'dependencies': [
+            '<(DEPTH)/nb/nb.gyp:nb',
+          ],
         }],
         ['OS=="lb_shell"', {
           'sources': [
@@ -58,6 +61,9 @@
           'sources': [
             'shell_media_platform_ps3.cc',
             'shell_media_platform_ps3.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/nb/nb.gyp:nb',
           ],
         }],
       ],

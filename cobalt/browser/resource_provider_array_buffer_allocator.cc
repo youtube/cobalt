@@ -26,9 +26,9 @@ ResourceProviderArrayBufferAllocator::ResourceProviderArrayBufferAllocator(
   DCHECK(gpu_memory_buffer_space_);
   DCHECK(gpu_memory_buffer_space_->GetMemory());
 
-  gpu_memory_pool_.reset(new base::MemoryPool(
-      "Memory.ArrayBuffer.GPU", gpu_memory_buffer_space_->GetMemory(),
-      gpu_memory_buffer_space_->GetSizeInBytes()));
+  gpu_memory_pool_.reset(new nb::MemoryPool(
+      gpu_memory_buffer_space_->GetMemory(),
+      gpu_memory_buffer_space_->GetSizeInBytes(), true /* thread_safe */));
 }
 
 void* ResourceProviderArrayBufferAllocator::Allocate(size_t size) {

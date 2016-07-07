@@ -75,6 +75,11 @@
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
         }],
+        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
+          'dependencies': [
+            '<(DEPTH)/nb/nb.gyp:nb',
+          ],
+        }],
       ],
     },
 
