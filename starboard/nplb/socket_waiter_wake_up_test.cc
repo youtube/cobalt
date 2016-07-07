@@ -21,7 +21,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const SbTime kTimeout = kSbTimeSecond / 50;
 const int kMultiple = 5;
 const int kTrials = 8;
 
