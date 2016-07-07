@@ -121,6 +121,7 @@ v8.log
 /media/yuv_convert_simd_x86.xml
 /metro_driver
 /native_client
+/nb
 /net/Debug
 /net/Release
 /net/testserver.log
