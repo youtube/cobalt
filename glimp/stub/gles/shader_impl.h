@@ -21,8 +21,8 @@
 
 #include "glimp/gles/shader_impl.h"
 #include "glimp/gles/uniform_info.h"
-#include "glimp/nb/ref_counted.h"
 #include "glimp/shaders/glsl_shader_map_helpers.h"
+#include "nb/ref_counted.h"
 #include "starboard/log.h"
 
 namespace glimp {

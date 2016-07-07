@@ -20,7 +20,7 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/renderbuffer.h"
 #include "glimp/gles/texture.h"
-#include "glimp/nb/ref_counted.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {

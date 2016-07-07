@@ -23,7 +23,7 @@
 
 #include "glimp/egl/attrib_map.h"
 #include "glimp/egl/surface_impl.h"
-#include "glimp/nb/scoped_ptr.h"
+#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {

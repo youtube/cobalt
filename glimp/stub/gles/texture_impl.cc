@@ -19,9 +19,9 @@
 #include <algorithm>
 
 #include "glimp/gles/convert_pixel_data.h"
-#include "glimp/nb/polymorphic_downcast.h"
 #include "glimp/stub/egl/pbuffer_surface_impl.h"
 #include "glimp/stub/gles/buffer_impl.h"
+#include "nb/polymorphic_downcast.h"
 #include "starboard/memory.h"
 
 namespace glimp {

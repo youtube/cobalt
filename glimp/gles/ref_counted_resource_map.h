@@ -20,7 +20,7 @@
 #include <map>
 
 #include "glimp/gles/unique_id_generator.h"
-#include "glimp/nb/ref_counted.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {

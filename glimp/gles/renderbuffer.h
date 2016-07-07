@@ -19,7 +19,7 @@
 
 #include <GLES3/gl3.h>
 
-#include "glimp/nb/ref_counted.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {
