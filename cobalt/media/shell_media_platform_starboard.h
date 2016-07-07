@@ -22,10 +22,10 @@
 #include "base/compiler_specific.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/base/memory_pool.h"
 #include "cobalt/media/shell_video_data_allocator_common.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "media/base/shell_video_frame_provider.h"
+#include "nb/memory_pool.h"
 
 namespace media {
 
@@ -59,12 +59,12 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
  private:
   // Optional GPU Memory buffer pool, for buffer offloading.
   scoped_ptr<cobalt::render_tree::RawImageMemory> gpu_memory_buffer_space_;
-  scoped_ptr<base::MemoryPool> gpu_memory_pool_;
+  scoped_ptr<nb::MemoryPool> gpu_memory_pool_;
 
   // Main Memory buffer pool.
   scoped_ptr_malloc<uint8, base::ScopedPtrAlignedFree>
       main_memory_buffer_space_;
-  scoped_ptr<base::MemoryPool> main_memory_pool_;
+  scoped_ptr<nb::MemoryPool> main_memory_pool_;
 
   ShellVideoDataAllocatorCommon video_data_allocator_;
   scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;

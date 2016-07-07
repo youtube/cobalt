@@ -55,18 +55,18 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
     DCHECK(gpu_memory_buffer_space_->GetMemory());
     DCHECK_GE(gpu_memory_buffer_space_->GetSizeInBytes(),
               kGPUMemoryBufferBudget);
-    gpu_memory_pool_.reset(new base::MemoryPool(
-        "Memory.Media.MediaSource.GPU", gpu_memory_buffer_space_->GetMemory(),
-        gpu_memory_buffer_space_->GetSizeInBytes()));
+    gpu_memory_pool_.reset(new nb::MemoryPool(
+        gpu_memory_buffer_space_->GetMemory(),
+        gpu_memory_buffer_space_->GetSizeInBytes(), true /* thread_safe */));
   }
 
   DCHECK_LE(0, kMainMemoryBufferBudget > 0);
   main_memory_buffer_space_.reset(static_cast<uint8*>(
       base::AlignedAlloc(kMainMemoryBufferBudget, kMediaBufferAlignment)));
   DCHECK(main_memory_buffer_space_);
-  main_memory_pool_.reset(new base::MemoryPool("Memory.Media.MediaSource.CPU",
-                                               main_memory_buffer_space_.get(),
-                                               kMainMemoryBufferBudget));
+  main_memory_pool_.reset(new nb::MemoryPool(main_memory_buffer_space_.get(),
+                                             kMainMemoryBufferBudget,
+                                             true /* thread_safe */));
 
   ShellBufferFactory::Initialize();
   ShellAudioStreamer::Initialize();
@@ -109,7 +109,7 @@ ShellMediaPlatformStarboard::ProcessBeforeLeavingDemuxer(
   if (!cached_buffer) return buffer;
   return new ShellCachedDecoderBuffer(
       buffer, cached_buffer,
-      base::Bind(&base::MemoryPool::Free,
+      base::Bind(&nb::MemoryPool::Free,
                  base::Unretained(main_memory_pool_.get())));
 }
 
