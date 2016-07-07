@@ -60,7 +60,7 @@ TEST(SbSocketWaiterAddTest, SunnyDayMany) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  const int kMany = 128;
+  const int kMany = SB_FILE_MAX_OPEN;
   SbSocket sockets[kMany] = {0};
   for (int i = 0; i < kMany; ++i) {
     sockets[i] = SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
