@@ -323,6 +323,9 @@
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
 
+// Specifies whether this platform supports pipe.
+#define SB_HAS_PIPE 1
+
 // --- Tuneable Parameters ---------------------------------------------------
 
 // Specifies the network receive buffer size.

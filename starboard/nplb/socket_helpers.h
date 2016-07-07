@@ -23,6 +23,8 @@
 namespace starboard {
 namespace nplb {
 
+const SbTime kTimeout = kSbTimeSecond / 8;
+
 // Creates a plain TCP/IPv4 socket.
 static inline SbSocket CreateTcpIpv4Socket() {
   return SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
@@ -120,7 +122,7 @@ static inline void WaitShouldBlockBetween(SbSocketWaiter waiter,
 
 // Waits on the given waiter, and checks that it did not block for very long.
 static inline void WaitShouldNotBlock(SbSocketWaiter waiter) {
-  WaitShouldBlockBetween(waiter, 0, kSbTimeSecond / 50);
+  WaitShouldBlockBetween(waiter, 0, kTimeout);
 }
 
 // Waits on the given waiter, and checks that it did not block for the given
