@@ -19,6 +19,8 @@
 
 #include <map>
 
+#include "starboard/types.h"
+
 namespace glimp {
 namespace shaders {
 

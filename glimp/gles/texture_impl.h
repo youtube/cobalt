@@ -21,8 +21,8 @@
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/shader.h"
-#include "glimp/nb/rect.h"
-#include "glimp/nb/ref_counted.h"
+#include "nb/rect.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {

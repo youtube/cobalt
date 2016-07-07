@@ -22,8 +22,8 @@
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/shader.h"
 #include "glimp/gles/uniform_info.h"
-#include "glimp/nb/ref_counted.h"
 #include "glimp/stub/gles/shader_impl.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {

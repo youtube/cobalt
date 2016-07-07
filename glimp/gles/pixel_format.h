@@ -18,8 +18,8 @@
 #define GLIMP_GLES_PIXEL_FORMAT_H_
 
 #include "glimp/gles/buffer_impl.h"
-#include "glimp/nb/ref_counted.h"
-#include "glimp/nb/scoped_ptr.h"
+#include "nb/ref_counted.h"
+#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {

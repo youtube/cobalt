@@ -31,8 +31,8 @@
 #include "glimp/gles/resource_manager.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
-#include "glimp/nb/ref_counted.h"
-#include "glimp/nb/scoped_ptr.h"
+#include "nb/ref_counted.h"
+#include "nb/scoped_ptr.h"
 #include "starboard/thread.h"
 
 namespace glimp {
