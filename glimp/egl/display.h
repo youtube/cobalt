@@ -22,7 +22,7 @@
 #include "glimp/egl/config.h"
 #include "glimp/egl/display_impl.h"
 #include "glimp/gles/context.h"
-#include "glimp/nb/scoped_ptr.h"
+#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {

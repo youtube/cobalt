@@ -33,7 +33,7 @@
 #include "glimp/gles/shader_impl.h"
 #include "glimp/gles/texture_impl.h"
 #include "glimp/gles/vertex_attribute.h"
-#include "glimp/nb/scoped_ptr.h"
+#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {

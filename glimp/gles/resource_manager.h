@@ -24,7 +24,7 @@
 #include "glimp/gles/renderbuffer.h"
 #include "glimp/gles/shader.h"
 #include "glimp/gles/texture.h"
-#include "glimp/nb/ref_counted.h"
+#include "nb/ref_counted.h"
 #include "starboard/mutex.h"
 
 namespace glimp {

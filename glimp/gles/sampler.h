@@ -17,7 +17,7 @@
 #ifndef GLIMP_GLES_SAMPLER_H_
 #define GLIMP_GLES_SAMPLER_H_
 
-#include "glimp/nb/ref_counted.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {
