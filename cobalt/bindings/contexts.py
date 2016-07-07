@@ -116,8 +116,7 @@ def idl_type_to_cobalt_type(idl_type):
   elif idl_type.is_string_type:
     cobalt_type = 'std::string'
   elif idl_type.is_callback_interface:
-    cobalt_type = 'JSCCallbackInterfaceHolder<%s>' % get_interface_name(
-        idl_type)
+    cobalt_type = 'CallbackInterfaceTraits<%s >' % get_interface_name(idl_type)
   elif idl_type.is_interface_type:
     cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
   elif idl_type.is_union_type:
@@ -125,7 +124,7 @@ def idl_type_to_cobalt_type(idl_type):
   elif idl_type.name == 'void':
     cobalt_type = 'void'
   elif is_object_type(idl_type):
-    cobalt_type = 'JSCObjectHandleHolder'
+    cobalt_type = 'OpaqueHandle'
 
   assert cobalt_type, 'Unsupported idl_type %s' % idl_type
 
@@ -138,8 +137,8 @@ def idl_type_to_cobalt_type(idl_type):
 def typed_object_to_cobalt_type(interface, typed_object):
   """Map type of IDL TypedObject to C++ type."""
   if typed_object.idl_type.is_callback_function:
-    cobalt_type = 'JSCCallbackFunctionHolder<%s>' % '::'.join((
-        interface.name, get_interface_name(typed_object.idl_type)))
+    cobalt_type = interface.name + '::' + get_interface_name(
+        typed_object.idl_type)
   elif typed_object.idl_type.is_enum:
     cobalt_type = '%s::%s' % (interface.name,
                               get_interface_name(typed_object.idl_type))
@@ -320,8 +319,8 @@ def attribute_context(interface, attribute, definitions):
         'PutForwards must be declared on a property of interface type.')
     assert attribute.is_read_only, (
         'PutForwards must be on a readonly attribute.')
-    forwarded_interface = definitions.interfaces[
-        get_interface_name(attribute.idl_type)]
+    forwarded_interface = definitions.interfaces[get_interface_name(
+        attribute.idl_type)]
     matching_attributes = [a for a in forwarded_interface.attributes
                            if a.name == forwarded_attribute_name]
     assert len(matching_attributes) == 1

@@ -32,7 +32,7 @@ namespace javascriptcore {
 template <typename CallbackInterface>
 class JSCCallbackInterfaceHolder : public ScriptObject<CallbackInterface> {
  public:
-  typedef typename JSCCallbackInterfaceTraits<
+  typedef typename CallbackInterfaceTraits<
       CallbackInterface>::JSCCallbackInterfaceClass JSCCallbackInterface;
   typedef ScriptObject<CallbackInterface> BaseClass;
 

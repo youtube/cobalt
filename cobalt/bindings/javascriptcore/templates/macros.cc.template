@@ -25,23 +25,24 @@
 {% if loop.first %}
   // Non-optional arguments
 {% endif %}
-  {{argument.type}} {{argument.name}};
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
 {% endfor %}
 {% for argument in optional_arguments if argument.default_value %}
 {% if loop.first %}
   // Optional arguments with default values
 {% endif %}
-  {{argument.type}} {{argument.name}} = {{argument.default_value}};
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}} =
+      {{argument.default_value}};
 {% endfor %}
 {% for argument in optional_arguments if not argument.default_value %}
 {% if loop.first %}
   // Optional arguments
 {% endif %}
-  {{argument.type}} {{argument.name}};
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
 {% endfor %}
 {% if variadic_argument %}
   // Variadic argument
-  {{variadic_argument.type}} {{variadic_argument.name}};
+  TypeTraits<{{variadic_argument.type}} >::ConversionType {{variadic_argument.name}};
 {% endif -%}
 
 {% for argument in non_optional_arguments %}
@@ -199,7 +200,7 @@
 
 {% call(arguments_list) extract_arguments(operation) %}
 {% call(arguments_list) add_extra_arguments('global_object', arguments_list, operation) %}
-{{ operation.type + ' return_value = ' if operation.type != 'void'}}
+{{ 'TypeTraits<%s >::ReturnType return_value = '|format(operation.type) if operation.type != 'void'}}
 {{- call_function("impl", impl_class, operation.name, arguments_list, operation.is_static) -}};
 {% if operation.raises_exception %}
 if (exception_state.is_exception_set()) {
@@ -292,7 +293,7 @@ return JSC::JSValue::encode({{'ToJSValue(global_object, return_value)' if operat
                                 "forwarded_" + cobalt_impl) }}
   }
 {% else %} {#- if attribute.put_forwards #}
-  {{attribute.type}} cobalt_value;
+  TypeTraits<{{attribute.type}} >::ConversionType cobalt_value;
 {% if attribute.is_event_listener %}
   ToEventListenerAttribute(exec_state, value, {{attribute.conversion_flags}},
       &exception_state, this_object, &cobalt_value);

@@ -266,7 +266,7 @@ inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
   if (!callback_interface) {
     return JSC::jsNull();
   }
-  typedef typename JSCCallbackInterfaceTraits<T>::JSCCallbackInterfaceClass
+  typedef typename CallbackInterfaceTraits<T>::JSCCallbackInterfaceClass
       JSCCallbackInterfaceClass;
   // Downcast to JSCCallbackInterfaceHolder
   const JSCCallbackInterfaceHolder<T>* jsc_callback_interface_holder =
@@ -490,7 +490,7 @@ template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         int conversion_flags, ExceptionState* out_exception,
                         JSCCallbackInterfaceHolder<T>* out_callback_interface) {
-  typedef typename JSCCallbackInterfaceTraits<T>::JSCCallbackInterfaceClass
+  typedef typename CallbackInterfaceTraits<T>::JSCCallbackInterfaceClass
       JSCCallbackInterfaceClass;
   DCHECK_EQ(conversion_flags & ~kConversionFlagsCallbackFunction, 0)
       << "No conversion flags supported.";
