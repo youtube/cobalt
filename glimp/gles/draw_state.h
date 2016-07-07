@@ -28,8 +28,8 @@
 #include "glimp/gles/program.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
-#include "glimp/nb/rect.h"
-#include "glimp/nb/ref_counted.h"
+#include "nb/rect.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {

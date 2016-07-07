@@ -20,8 +20,8 @@
 #include <GLES3/gl3.h>
 
 #include "glimp/gles/buffer_impl.h"
-#include "glimp/nb/ref_counted.h"
-#include "glimp/nb/scoped_ptr.h"
+#include "nb/ref_counted.h"
+#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {

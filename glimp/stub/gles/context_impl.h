@@ -21,8 +21,8 @@
 #include "glimp/gles/context_impl.h"
 #include "glimp/gles/draw_state.h"
 #include "glimp/gles/index_data_type.h"
-#include "glimp/nb/scoped_ptr.h"
 #include "glimp/shaders/glsl_shader_map_helpers.h"
+#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {

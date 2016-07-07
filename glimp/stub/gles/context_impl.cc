@@ -19,14 +19,14 @@
 #include <algorithm>
 #include <vector>
 
-#include "glimp/nb/polymorphic_downcast.h"
-#include "glimp/nb/rect.h"
 #include "glimp/stub/egl/surface_impl.h"
 #include "glimp/stub/gles/buffer_impl.h"
 #include "glimp/stub/gles/program_impl.h"
 #include "glimp/stub/gles/shader_impl.h"
 #include "glimp/stub/gles/texture_impl.h"
 #include "glimp/tracing/tracing.h"
+#include "nb/polymorphic_downcast.h"
+#include "nb/rect.h"
 
 namespace glimp {
 namespace gles {

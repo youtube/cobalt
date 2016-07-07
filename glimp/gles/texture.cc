@@ -16,8 +16,8 @@
 
 #include "glimp/gles/texture.h"
 
-#include "glimp/nb/pointer_arithmetic.h"
-#include "glimp/nb/rect.h"
+#include "nb/pointer_arithmetic.h"
+#include "nb/rect.h"
 
 namespace glimp {
 namespace gles {
