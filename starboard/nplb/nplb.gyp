@@ -107,6 +107,7 @@
         'log_raw_test.cc',
         'log_test.cc',
         'main.cc',
+        'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
         'memory_compare_test.cc',
