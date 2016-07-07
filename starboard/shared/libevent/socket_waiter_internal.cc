@@ -24,24 +24,88 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
+#include "starboard/shared/posix/set_non_blocking_internal.h"
 #include "starboard/shared/posix/socket_internal.h"
 #include "starboard/shared/posix/time_internal.h"
-#include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "third_party/libevent/event.h"
 
-namespace {
-int SetNonBlocking(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1)
-    flags = 0;
-  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
+namespace sbposix = starboard::shared::posix;
 
+namespace {
 // We do this because it's our style to use explicitly-sized ints when not just
 // using int, but libevent uses shorts explicitly in its interface.
 SB_COMPILE_ASSERT(sizeof(int16_t) == sizeof(short),  // NOLINT[runtime/int]
                   Short_is_not_int16);
+
+SbSocketAddress GetIpv4Localhost() {
+  SbSocketAddress address = {0};
+  address.type = kSbSocketAddressTypeIpv4;
+  address.port = 0;
+  address.address[0] = 127;
+  address.address[3] = 1;
+  return address;
+}
+
+SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  while (true) {
+    SbSocket accepted_socket = SbSocketAccept(server_socket);
+    if (SbSocketIsValid(accepted_socket)) {
+      return accepted_socket;
+    }
+
+    // If we didn't get a socket, it should be pending.
+    SB_DCHECK(SbSocketGetLastError(server_socket) == kSbSocketPending);
+
+    // Check if we have passed our timeout.
+    if (SbTimeGetMonotonicNow() - start >= timeout) {
+      break;
+    }
+
+    // Just being polite.
+    SbThreadYield();
+  }
+
+  return kSbSocketInvalid;
+}
+
+void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
+  int result;
+  SbSocketError sb_socket_result;
+  const SbTimeMonotonic kTimeout = kSbTimeSecond / 15;
+  SbSocketAddress address = GetIpv4Localhost();
+
+  // Setup a listening socket.
+  SbSocket listen_socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+  SB_DCHECK(SbSocketIsValid(listen_socket));
+  result = SbSocketSetReuseAddress(listen_socket, true);
+  SB_DCHECK(result);
+  sb_socket_result = SbSocketBind(listen_socket, &address);
+  SB_DCHECK(sb_socket_result == kSbSocketOk);
+  sb_socket_result = SbSocketListen(listen_socket);
+  SB_DCHECK(sb_socket_result == kSbSocketOk);
+  // Update the address after a free port has been assigned.
+  SbSocketGetLocalAddress(listen_socket, &address);
+
+  // Create a new socket to connect to the listening socket.
+  *client_socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+  SB_DCHECK(SbSocketIsValid(*client_socket));
+  // This connect will probably return pending, but we'll assume it will connect
+  // eventually.
+  sb_socket_result = SbSocketConnect(*client_socket, &address);
+  SB_DCHECK(sb_socket_result == kSbSocketOk ||
+            sb_socket_result == kSbSocketPending);
+
+  // Spin until the accept happens (or we get impatient).
+  *server_socket = AcceptBySpinning(listen_socket, kTimeout);
+  SB_DCHECK(SbSocketIsValid(*server_socket));
+
+  result = SbSocketDestroy(listen_socket);
+  SB_DCHECK(result);
+}
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
@@ -49,17 +113,24 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
       base_(event_base_new()),
       waiting_(false),
       woken_up_(false) {
+#if SB_HAS(PIPE)
   int fds[2];
   int result = pipe(fds);
   SB_DCHECK(result == 0);
 
   wakeup_read_fd_ = fds[0];
-  result = SetNonBlocking(wakeup_read_fd_);
-  SB_DCHECK(result == 0);
+  result = sbposix::SetNonBlocking(wakeup_read_fd_);
+  SB_DCHECK(result);
 
   wakeup_write_fd_ = fds[1];
-  result = SetNonBlocking(wakeup_write_fd_);
-  SB_DCHECK(result == 0);
+  result = sbposix::SetNonBlocking(wakeup_write_fd_);
+  SB_DCHECK(result);
+#else
+  GetSocketPipe(&client_socket_, &server_socket_);
+
+  wakeup_read_fd_ = client_socket_->socket_fd;
+  wakeup_write_fd_ = server_socket_->socket_fd;
+#endif
 
   event_set(&wakeup_event_, wakeup_read_fd_, EV_READ | EV_PERSIST,
             &SbSocketWaiterPrivate::LibeventWakeUpCallback, this);
@@ -75,11 +146,16 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
     Remove(waitee->socket);
   }
 
-  close(wakeup_read_fd_);
-  close(wakeup_write_fd_);
-
   event_del(&wakeup_event_);
   event_base_free(base_);
+
+#if SB_HAS(PIPE)
+  close(wakeup_read_fd_);
+  close(wakeup_write_fd_);
+#else
+  SbSocketDestroy(server_socket_);
+  SbSocketDestroy(client_socket_);
+#endif
 }
 
 bool SbSocketWaiterPrivate::Add(SbSocket socket,
