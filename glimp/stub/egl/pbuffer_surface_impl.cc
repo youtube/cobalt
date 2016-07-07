@@ -18,7 +18,7 @@
 
 #include <algorithm>
 
-#include "glimp/nb/pointer_arithmetic.h"
+#include "nb/pointer_arithmetic.h"
 
 namespace glimp {
 namespace egl {

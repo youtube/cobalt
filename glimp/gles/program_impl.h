@@ -20,7 +20,7 @@
 #include <string>
 
 #include "glimp/gles/shader.h"
-#include "glimp/nb/ref_counted.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {

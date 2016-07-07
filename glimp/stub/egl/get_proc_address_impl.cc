@@ -18,8 +18,8 @@
 
 #include "glimp/egl/display_registry.h"
 #include "glimp/egl/scoped_egl_lock.h"
-#include "glimp/nb/polymorphic_downcast.h"
 #include "glimp/stub/egl/display_impl.h"
+#include "nb/polymorphic_downcast.h"
 #include "starboard/string.h"
 
 namespace glimp {

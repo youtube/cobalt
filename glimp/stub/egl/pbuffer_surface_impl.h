@@ -19,8 +19,8 @@
 
 #include <KHR/khrplatform.h>
 
-#include "glimp/nb/ref_counted.h"
 #include "glimp/stub/egl/surface_impl.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace egl {

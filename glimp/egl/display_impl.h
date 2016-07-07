@@ -25,7 +25,7 @@
 #include "glimp/egl/config.h"
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
-#include "glimp/nb/scoped_ptr.h"
+#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {

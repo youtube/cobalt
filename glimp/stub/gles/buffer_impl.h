@@ -18,7 +18,7 @@
 #define GLIMP_STUB_GLES_BUFFER_IMPL_H_
 
 #include "glimp/gles/buffer_impl.h"
-#include "glimp/nb/ref_counted.h"
+#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {
