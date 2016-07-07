@@ -112,7 +112,12 @@
 #include "cobalt/bindings/testing/union_types_interface.h"
 #include "cobalt/bindings/testing/window.h"
 
+#include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/wrapper_factory.h"
+#include "cobalt/script/mozjs/wrapper_private.h"
+#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsfriendapi.h"
 
 namespace {
 using cobalt::bindings::testing::Window;
@@ -219,12 +224,192 @@ using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptObject;
 using cobalt::script::Wrappable;
 
+using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
+using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::WrapperFactory;
+using cobalt::script::Wrappable;
 }  // namespace
 
 namespace cobalt {
 namespace bindings {
 namespace testing {
+
+namespace {
+
+InterfaceData* CreateCachedInterfaceData() {
+  InterfaceData* interface_data = new InterfaceData();
+  memset(&interface_data->instance_class_definition, 0,
+         sizeof(interface_data->instance_class_definition));
+  memset(&interface_data->prototype_class_definition, 0,
+         sizeof(interface_data->prototype_class_definition));
+  memset(&interface_data->interface_object_class_definition, 0,
+         sizeof(interface_data->interface_object_class_definition));
+
+  JSClass* instance_class = &interface_data->instance_class_definition;
+  const int kGlobalFlags = JSCLASS_GLOBAL_FLAGS;
+  instance_class->name = "MozjsWindow";
+  instance_class->flags = kGlobalFlags | JSCLASS_HAS_PRIVATE;
+  instance_class->addProperty = JS_PropertyStub;
+  instance_class->delProperty = JS_DeletePropertyStub;
+  instance_class->getProperty = JS_PropertyStub;
+  instance_class->setProperty = JS_StrictPropertyStub;
+  instance_class->enumerate = JS_EnumerateStub;
+  instance_class->resolve = JS_ResolveStub;
+  instance_class->convert = JS_ConvertStub;
+  // Function to be called before on object of this class is garbage collected.
+  instance_class->finalize = &WrapperPrivate::Finalizer;
+
+  JSClass* prototype_class = &interface_data->prototype_class_definition;
+  prototype_class->name = "MozjsWindowPrototype";
+  prototype_class->flags = 0;
+  prototype_class->addProperty = JS_PropertyStub;
+  prototype_class->delProperty = JS_DeletePropertyStub;
+  prototype_class->getProperty = JS_PropertyStub;
+  prototype_class->setProperty = JS_StrictPropertyStub;
+  prototype_class->enumerate = JS_EnumerateStub;
+  prototype_class->resolve = JS_ResolveStub;
+  prototype_class->convert = JS_ConvertStub;
+
+  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  interface_object_class->name = "MozjsWindowConstructor";
+  interface_object_class->flags = 0;
+  interface_object_class->addProperty = JS_PropertyStub;
+  interface_object_class->delProperty = JS_DeletePropertyStub;
+  interface_object_class->getProperty = JS_PropertyStub;
+  interface_object_class->setProperty = JS_StrictPropertyStub;
+  interface_object_class->enumerate = JS_EnumerateStub;
+  interface_object_class->resolve = JS_ResolveStub;
+  interface_object_class->convert = JS_ConvertStub;
+  return interface_data;
+}
+
+void InitializePrototypeAndInterfaceObject(
+    InterfaceData* interface_data, JSContext* context) {
+  DCHECK(!interface_data->prototype);
+  DCHECK(!interface_data->interface_object);
+
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  JS::RootedObject global_object(context, global_object_proxy->global_object());
+  DCHECK(global_object);
+  JS::RootedObject parent_prototype(
+      context, bindings::testing::MozjsGlobalInterfaceParent::GetPrototype(context));
+  DCHECK(parent_prototype);
+  // Create the Prototype object.
+  interface_data->prototype = JS_NewObjectWithGivenProto(
+      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+
+  JS::RootedObject function_prototype(context, JS_GetFunctionPrototype(context, global_object));
+  DCHECK(function_prototype);
+  // Create the Interface object.
+  interface_data->interface_object = JS_NewObjectWithGivenProto(
+      context, &interface_data->interface_object_class_definition, function_prototype, NULL);
+
+  // Add the InterfaceObject.name property.
+  JS::RootedObject rooted_interface_object(context, interface_data->interface_object);
+  JS::RootedValue name_value(context);
+  const char name[] = "Window";
+  name_value.setString(JS_NewStringCopyZ(context, "Window"));
+  bool success =
+      JS_DefineProperty(context, rooted_interface_object, "name", name_value,
+                        JS_PropertyStub, JS_StrictPropertyStub,
+                        JSPROP_READONLY);
+  DCHECK(success);
+
+  // Set the Prototype.constructor and Constructor.prototype properties.
+  DCHECK(interface_data->interface_object);
+  DCHECK(interface_data->prototype);
+  JS::RootedObject rooted_prototype(context, interface_data->prototype);
+  success = JS_LinkConstructorAndPrototype(
+      context,
+      rooted_interface_object,
+      rooted_prototype);
+  DCHECK(success);
+}
+
+
+const JSPropertySpec interface_object_properties[] = {
+  JS_PS_END
+};
+
+InterfaceData* GetInterfaceData(JSContext* context) {
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  // Use the address of the properties definition for this interface as a
+  // unique key for looking up the InterfaceData for this interface.
+  intptr_t key = reinterpret_cast<intptr_t>(&interface_object_properties);
+  InterfaceData* interface_data = global_object_proxy->GetInterfaceData(key);
+  if (!interface_data) {
+    interface_data = CreateCachedInterfaceData();
+    DCHECK(interface_data);
+    global_object_proxy->CacheInterfaceData(key, interface_data);
+    DCHECK_EQ(interface_data, global_object_proxy->GetInterfaceData(key));
+  }
+  return interface_data;
+}
+
+}  // namespace
+
+JSObject* MozjsWindow::CreateInstance(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  InterfaceData* interface_data = GetInterfaceData(context);
+  JS::RootedObject global_object(
+      context, JS_NewGlobalObject(context,
+                                  &interface_data->instance_class_definition,
+                                  NULL));
+  DCHECK(global_object);
+
+  // Initialize standard JS constructors prototypes and top-level functions such
+  // as Object, isNan, etc.
+  JSAutoCompartment auto_compartment(context, global_object);
+  bool success = JS_InitStandardClasses(context, global_object);
+
+  JS::RootedObject parent_prototype(context, JS_GetObjectPrototype(context, global_object));
+
+  // Set the global object pointer, so we can access the standard classes such
+  // as the base Object prototype when looking up our prototype.
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  global_object_proxy->SetGlobalObject(global_object);
+
+  JS::RootedObject prototype(context, MozjsWindow::GetPrototype(context));
+  DCHECK(prototype);
+  JS_SetPrototype(context, global_object, prototype);
+
+  // Add own properties.
+  success = JS_DefineProperties(context, global_object, interface_object_properties);
+  DCHECK(success);
+
+  WrapperPrivate::AddPrivateData(global_object, wrappable);
+
+  return global_object;
+}
+
+// static
+JSObject* MozjsWindow::GetPrototype(JSContext* context) {
+  InterfaceData* interface_data = GetInterfaceData(context);
+  if (!interface_data->prototype) {
+    // Create new prototype that has all the props and methods
+    InitializePrototypeAndInterfaceObject(interface_data, context);
+  }
+  DCHECK(interface_data->prototype);
+  return interface_data->prototype;
+}
+
+// static
+JSObject* MozjsWindow::GetInterfaceObject(JSContext* context) {
+  InterfaceData* interface_data = GetInterfaceData(context);
+  if (!interface_data->interface_object) {
+    InitializePrototypeAndInterfaceObject(interface_data, context);
+  }
+  DCHECK(interface_data->interface_object);
+  return interface_data->interface_object;
+}
+
+
+namespace {
+}  // namespace
 
 
 }  // namespace testing
@@ -238,7 +423,143 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
     EnvironmentSettings* environment_settings) {
   MozjsGlobalObjectProxy* mozjs_global_object_proxy =
       base::polymorphic_downcast<MozjsGlobalObjectProxy*>(this);
-  mozjs_global_object_proxy->CreateGlobalObject();
+  JSContext* context = mozjs_global_object_proxy->context();
+
+  JSAutoRequest auto_request(context);
+  MozjsWindow::CreateInstance(context, global_interface);
+
+  WrapperFactory* wrapper_factory = mozjs_global_object_proxy->wrapper_factory();
+  wrapper_factory->RegisterWrappableType(
+      AnonymousIndexedGetterInterface::AnonymousIndexedGetterInterfaceWrappableType(),
+      base::Bind(MozjsAnonymousIndexedGetterInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      AnonymousNamedGetterInterface::AnonymousNamedGetterInterfaceWrappableType(),
+      base::Bind(MozjsAnonymousNamedGetterInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      AnonymousNamedIndexedGetterInterface::AnonymousNamedIndexedGetterInterfaceWrappableType(),
+      base::Bind(MozjsAnonymousNamedIndexedGetterInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ArbitraryInterface::ArbitraryInterfaceWrappableType(),
+      base::Bind(MozjsArbitraryInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      BaseInterface::BaseInterfaceWrappableType(),
+      base::Bind(MozjsBaseInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      BooleanTypeTestInterface::BooleanTypeTestInterfaceWrappableType(),
+      base::Bind(MozjsBooleanTypeTestInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      CallbackFunctionInterface::CallbackFunctionInterfaceWrappableType(),
+      base::Bind(MozjsCallbackFunctionInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      CallbackInterfaceInterface::CallbackInterfaceInterfaceWrappableType(),
+      base::Bind(MozjsCallbackInterfaceInterface::CreateInstance));
+#if defined(ENABLE_CONDITIONAL_INTERFACE)
+  wrapper_factory->RegisterWrappableType(
+      ConditionalInterface::ConditionalInterfaceWrappableType(),
+      base::Bind(MozjsConditionalInterface::CreateInstance));
+#endif  // defined(ENABLE_CONDITIONAL_INTERFACE)
+  wrapper_factory->RegisterWrappableType(
+      ConstantsInterface::ConstantsInterfaceWrappableType(),
+      base::Bind(MozjsConstantsInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ConstructorInterface::ConstructorInterfaceWrappableType(),
+      base::Bind(MozjsConstructorInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ConstructorWithArgumentsInterface::ConstructorWithArgumentsInterfaceWrappableType(),
+      base::Bind(MozjsConstructorWithArgumentsInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      DOMStringTestInterface::DOMStringTestInterfaceWrappableType(),
+      base::Bind(MozjsDOMStringTestInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      DerivedGetterSetterInterface::DerivedGetterSetterInterfaceWrappableType(),
+      base::Bind(MozjsDerivedGetterSetterInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      DerivedInterface::DerivedInterfaceWrappableType(),
+      base::Bind(MozjsDerivedInterface::CreateInstance));
+#if defined(NO_ENABLE_CONDITIONAL_INTERFACE)
+  wrapper_factory->RegisterWrappableType(
+      DisabledInterface::DisabledInterfaceWrappableType(),
+      base::Bind(MozjsDisabledInterface::CreateInstance));
+#endif  // defined(NO_ENABLE_CONDITIONAL_INTERFACE)
+  wrapper_factory->RegisterWrappableType(
+      EnumerationInterface::EnumerationInterfaceWrappableType(),
+      base::Bind(MozjsEnumerationInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ExceptionObjectInterface::ExceptionObjectInterfaceWrappableType(),
+      base::Bind(MozjsExceptionObjectInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ExceptionsInterface::ExceptionsInterfaceWrappableType(),
+      base::Bind(MozjsExceptionsInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ExtendedIDLAttributesInterface::ExtendedIDLAttributesInterfaceWrappableType(),
+      base::Bind(MozjsExtendedIDLAttributesInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      GetOpaqueRootInterface::GetOpaqueRootInterfaceWrappableType(),
+      base::Bind(MozjsGetOpaqueRootInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      GlobalInterfaceParent::GlobalInterfaceParentWrappableType(),
+      base::Bind(MozjsGlobalInterfaceParent::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ImplementedInterface::ImplementedInterfaceWrappableType(),
+      base::Bind(MozjsImplementedInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      IndexedGetterInterface::IndexedGetterInterfaceWrappableType(),
+      base::Bind(MozjsIndexedGetterInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      InterfaceWithUnsupportedProperties::InterfaceWithUnsupportedPropertiesWrappableType(),
+      base::Bind(MozjsInterfaceWithUnsupportedProperties::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NamedConstructorInterface::NamedConstructorInterfaceWrappableType(),
+      base::Bind(MozjsNamedConstructorInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NamedGetterInterface::NamedGetterInterfaceWrappableType(),
+      base::Bind(MozjsNamedGetterInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NamedIndexedGetterInterface::NamedIndexedGetterInterfaceWrappableType(),
+      base::Bind(MozjsNamedIndexedGetterInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NestedPutForwardsInterface::NestedPutForwardsInterfaceWrappableType(),
+      base::Bind(MozjsNestedPutForwardsInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NoConstructorInterface::NoConstructorInterfaceWrappableType(),
+      base::Bind(MozjsNoConstructorInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NoInterfaceObjectInterface::NoInterfaceObjectInterfaceWrappableType(),
+      base::Bind(MozjsNoInterfaceObjectInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NullableTypesTestInterface::NullableTypesTestInterfaceWrappableType(),
+      base::Bind(MozjsNullableTypesTestInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      NumericTypesTestInterface::NumericTypesTestInterfaceWrappableType(),
+      base::Bind(MozjsNumericTypesTestInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      ObjectTypeBindingsInterface::ObjectTypeBindingsInterfaceWrappableType(),
+      base::Bind(MozjsObjectTypeBindingsInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      OperationsTestInterface::OperationsTestInterfaceWrappableType(),
+      base::Bind(MozjsOperationsTestInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      PutForwardsInterface::PutForwardsInterfaceWrappableType(),
+      base::Bind(MozjsPutForwardsInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      StaticPropertiesInterface::StaticPropertiesInterfaceWrappableType(),
+      base::Bind(MozjsStaticPropertiesInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      StringifierAnonymousOperationInterface::StringifierAnonymousOperationInterfaceWrappableType(),
+      base::Bind(MozjsStringifierAnonymousOperationInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      StringifierAttributeInterface::StringifierAttributeInterfaceWrappableType(),
+      base::Bind(MozjsStringifierAttributeInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      StringifierOperationInterface::StringifierOperationInterfaceWrappableType(),
+      base::Bind(MozjsStringifierOperationInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      TargetInterface::TargetInterfaceWrappableType(),
+      base::Bind(MozjsTargetInterface::CreateInstance));
+  wrapper_factory->RegisterWrappableType(
+      UnionTypesInterface::UnionTypesInterfaceWrappableType(),
+      base::Bind(MozjsUnionTypesInterface::CreateInstance));
+
 }
 
 // MSVS compiler does not need this explicit instantiation, and generates a
