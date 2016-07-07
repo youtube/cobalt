@@ -29,11 +29,19 @@
 #include "MozjsBaseInterface.h"
 #include "cobalt/bindings/testing/derived_interface.h"
 
+#include "third_party/mozjs/js/src/jsapi.h"
+
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class MozjsDerivedInterface { };
+class MozjsDerivedInterface {
+ public:
+  static JSObject* CreateInstance(JSContext* context,
+      const scoped_refptr<script::Wrappable>& wrappable);
+  static JSObject* GetPrototype(JSContext* context);
+  static JSObject* GetInterfaceObject(JSContext* context);
+};
 
 }  // namespace bindings
 }  // namespace testing

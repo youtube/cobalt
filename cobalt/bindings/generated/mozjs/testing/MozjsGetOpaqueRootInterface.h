@@ -28,11 +28,19 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/bindings/testing/get_opaque_root_interface.h"
 
+#include "third_party/mozjs/js/src/jsapi.h"
+
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class MozjsGetOpaqueRootInterface { };
+class MozjsGetOpaqueRootInterface {
+ public:
+  static JSObject* CreateInstance(JSContext* context,
+      const scoped_refptr<script::Wrappable>& wrappable);
+  static JSObject* GetPrototype(JSContext* context);
+  static JSObject* GetInterfaceObject(JSContext* context);
+};
 
 }  // namespace bindings
 }  // namespace testing
