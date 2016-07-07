@@ -28,12 +28,8 @@ namespace {
 
 int32_t s_tracked_page_count = 0;
 
-size_t AlignToPageSize(size_t byte_count) {
-  return (byte_count + SB_MEMORY_PAGE_SIZE - 1) & ~(SB_MEMORY_PAGE_SIZE - 1);
-}
-
 int32_t GetPageCount(size_t byte_count) {
-  return static_cast<int32_t>(AlignToPageSize(byte_count) /
+  return static_cast<int32_t>(SbMemoryAlignToPageSize(byte_count) /
                               SB_MEMORY_PAGE_SIZE);
 }
 
