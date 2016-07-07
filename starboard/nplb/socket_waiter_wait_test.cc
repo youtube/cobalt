@@ -25,9 +25,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// We want to make sure we aren't stuck too long in Wait().
-const SbTime kTimeout = kSbTimeSecond / 50;
-
 struct CallbackValues {
   int count;
   SbSocketWaiter waiter;
