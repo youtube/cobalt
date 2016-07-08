@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(***REMOVED***): Figure out how to gracefully use symbolize given where it has
+// TODO: Figure out how to gracefully use symbolize given where it has
 // been placed in the source tree. What follows is an ungraceful use.
 
 #include "starboard/system.h"

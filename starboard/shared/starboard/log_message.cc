@@ -86,7 +86,7 @@ std::ostream& operator<<(std::ostream& out, const Stack& stack_token) {
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr) {
   // We don't have any good cross-platform wide character to UTF8 converter at
   // this level in the stack, so just throwing out non-ASCII characters.
-  // TODO(***REMOVED***): Convert to UTF8.
+  // TODO: Convert to UTF8.
   size_t len = wcslen(wstr);
   char* buffer = new char[len + 1];
   size_t pos = 0;
