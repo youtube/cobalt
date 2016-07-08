@@ -26,6 +26,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
+#include "cobalt/base/c_val_time_interval_timer.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -157,6 +158,11 @@ class Pipeline {
   // Manages a queue of render tree submissions that are to be rendered in
   // the future.
   base::optional<SubmissionQueue> submission_queue_;
+
+  // Timers for tracking how frequently |RasterizeCurrentTree| is called and
+  // the amount of time spent in |RasterizeCurrentTree| each call.
+  base::CValTimeIntervalTimer rasterize_current_tree_interval_timer_;
+  base::CValTimeIntervalTimer rasterize_current_tree_timer_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.
