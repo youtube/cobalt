@@ -11,7 +11,7 @@
 namespace base {
 
 // A thread-safe circular buffer implementation.
-// TODO(xiaomings): Returns the size in Read(), Peek(), and Skip() as a return
+// TODO: Returns the size in Read(), Peek(), and Skip() as a return
 // value.
 class BASE_EXPORT CircularBufferShell {
  public:
@@ -45,7 +45,7 @@ class BASE_EXPORT CircularBufferShell {
   // Writes the given data into the circular buffer. Returns false if the buffer
   // could not be expanded to hold the new data. If returning false,
   // bytes_written will not be set, and the buffer will remain unchanged.
-  // TODO(xiaomings): Remove bytes_written.  Because Write returns false when
+  // TODO: Remove bytes_written.  Because Write returns false when
   // the buffer cannot hold all data, bytes_written isn't useful here unless we
   // allow partial write.
   bool Write(const void* source, size_t length, size_t* bytes_written);

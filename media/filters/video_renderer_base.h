@@ -284,7 +284,7 @@ class MEDIA_EXPORT VideoRendererBase
   // The last natural size |size_changed_cb_| was called with.
   gfx::Size last_natural_size_;
 
-  // TODO(***REMOVED***): Investigate if we could move underflow logic into
+  // TODO: Investigate if we could move underflow logic into
   // ShellVideoFrameProvider.
   int maximum_frames_cached_;
 #if defined(__LB_SHELL__) || defined(COBALT)

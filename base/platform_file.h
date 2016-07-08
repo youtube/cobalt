@@ -54,7 +54,7 @@ enum PlatformFileFlags {
   PLATFORM_FILE_TEMPORARY = 1 << 10,       // Used on Windows only
   PLATFORM_FILE_HIDDEN = 1 << 11,          // Used on Windows only
 #if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
-  // TODO(iffy): Increase scope of elimination for Starboard.
+  // TODO: Increase scope of elimination for Starboard.
   PLATFORM_FILE_DELETE_ON_CLOSE = 1 << 12,
 #endif
   PLATFORM_FILE_WRITE_ATTRIBUTES = 1 << 13,  // Used on Windows only

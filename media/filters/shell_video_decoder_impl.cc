@@ -89,7 +89,7 @@ void ShellVideoDecoderImpl::Initialize(
   base::Thread::Options options;
 
 #if !defined(OS_STARBOARD)
-// TODO(***REMOVED***): Determine where to define thread constants in a Starboard
+// TODO: Determine where to define thread constants in a Starboard
 // world.
 #if defined(__LB_PS4__)
   options.stack_size = kMediaStackThreadStackSize;

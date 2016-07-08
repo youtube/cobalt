@@ -108,7 +108,7 @@
 #undef HAVE_LIBREADLINE
 
 /* Have compression library */
-/* NOTE(iffy): We actually do have this, but do not need the integration. */
+/* NOTE: We actually do have this, but do not need the integration. */
 #undef HAVE_LIBZ
 
 /* Define to 1 if you have the <limits.h> header file. */
@@ -250,7 +250,7 @@
 #undef HAVE_VSPRINTF
 
 /* Define to 1 if you have the <zlib.h> header file. */
-/* NOTE(iffy): We actually do have this, but do not need the integration. */
+/* NOTE: We actually do have this, but do not need the integration. */
 #undef HAVE_ZLIB_H
 
 /* Define to 1 if you have the `_stat' function. */

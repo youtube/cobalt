@@ -619,7 +619,7 @@ void WebMediaPlayerImpl::PutCurrentFrame(
   }
 }
 
-// TODO(***REMOVED***) : Eliminate the duplicated enums.
+// TODO: Eliminate the duplicated enums.
 #define COMPILE_ASSERT_MATCHING_STATUS_ENUM(player_name, chromium_name) \
   COMPILE_ASSERT(static_cast<int>(WebMediaPlayer::player_name) ==       \
                      static_cast<int>(ChunkDemuxer::chromium_name),     \
@@ -1016,7 +1016,7 @@ void WebMediaPlayerImpl::OnNeedKey(const std::string& key_system,
                          init_data_size);
 }
 
-// TODO(***REMOVED***) : Eliminate the duplicated enums.
+// TODO: Eliminate the duplicated enums.
 #define COMPILE_ASSERT_MATCHING_ENUM(name)                       \
   COMPILE_ASSERT(static_cast<int>(WebMediaPlayerClient::name) == \
                      static_cast<int>(Decryptor::name),          \

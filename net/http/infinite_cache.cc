@@ -1111,7 +1111,7 @@ InfiniteCache::~InfiniteCache() {
     return;
 
 #if defined(__LB_XB360__)
-  // NOTE(iffy): For some reason, the self-referential scoping doesn't compile
+  // NOTE: For some reason, the self-referential scoping doesn't compile
   // on Xbox 360. Here and elsewhere in this file.
   task_runner_->PostTask(FROM_HERE, base::Bind(&Worker::Cleanup, worker_));
 #else
