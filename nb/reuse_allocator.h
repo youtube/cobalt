@@ -17,13 +17,11 @@
 #ifndef NB_REUSE_ALLOCATOR_H_
 #define NB_REUSE_ALLOCATOR_H_
 
-#include <list>
 #include <map>
 #include <set>
 #include <vector>
 
 #include "nb/allocator.h"
-#include "starboard/types.h"
 
 namespace nb {
 
@@ -39,15 +37,15 @@ class ReuseAllocator : public Allocator {
 
   // Search free memory blocks for an existing one, and if none are large
   // enough, allocate a new one from no-free memory and return that.
-  void* Allocate(size_t size);
-  void* Allocate(size_t size, size_t alignment);
-  void* AllocateForAlignment(size_t size, size_t alignment);
+  void* Allocate(std::size_t size);
+  void* Allocate(std::size_t size, std::size_t alignment);
+  void* AllocateForAlignment(std::size_t size, std::size_t alignment);
 
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory);
 
-  size_t GetCapacity() const { return capacity_; }
-  size_t GetAllocated() const { return total_allocated_; }
+  std::size_t GetCapacity() const { return capacity_; }
+  std::size_t GetAllocated() const { return total_allocated_; }
 
   void PrintAllocations() const;
 
@@ -57,8 +55,8 @@ class ReuseAllocator : public Allocator {
   Allocator* fallback_allocator_;
 
   struct MemoryBlock {
-    uintptr_t address;
-    size_t size;
+    void* address;
+    std::size_t size;
     bool operator<(const MemoryBlock& other) const {
       return address < other.address;
     }
@@ -66,8 +64,8 @@ class ReuseAllocator : public Allocator {
   // Freelist sorted by address.
   typedef std::set<MemoryBlock> FreeBlockSet;
   // Map from pointers we returned to the user, back to memory blocks.
-  typedef std::map<uintptr_t, MemoryBlock> AllocatedBlockMap;
-  void AddFreeBlock(uintptr_t address, size_t size);
+  typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
+  void AddFreeBlock(void* address, std::size_t size);
   void RemoveFreeBlock(FreeBlockSet::iterator);
 
   FreeBlockSet free_blocks_;
@@ -78,10 +76,10 @@ class ReuseAllocator : public Allocator {
   std::vector<void*> fallback_allocations_;
 
   // How much we have allocated from the fallback allocator.
-  size_t capacity_;
+  std::size_t capacity_;
 
   // How much has been allocated from us.
-  size_t total_allocated_;
+  std::size_t total_allocated_;
 };
 
 }  // namespace nb
