@@ -29,7 +29,7 @@ Error MapSystemError(SbSystemError error) {
     DVLOG(2) << "Error (" << error << ") " << error_string;
   }
 
-  // TODO(iffy): Define standard Starboard error codes.
+  // TODO: Define standard Starboard error codes.
   if (error == 0)
     return OK;
 
@@ -40,7 +40,7 @@ Error MapSocketError(SbSocketError error) {
   if (error != kSbSocketOk)
     DVLOG(2) << "Error " << error;
 
-  // TODO(iffy): Define standard Starboard error codes.
+  // TODO: Define standard Starboard error codes.
   switch (error) {
     case kSbSocketOk:
       return OK;

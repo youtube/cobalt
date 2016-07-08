@@ -1010,14 +1010,14 @@ TEST_F(FilePathTest, CompareIgnoreCase) {
     // However, neither Windows nor Mac OSX converts these.
     // (or even have glyphs for <uppercase eszett>)
     { { FPL("\u00DF"),                       FPL("\u00DF") },               0},
-// TODO(maksym): Since Cobalt on Windows is compiled in POSIX emulation mode,
-//               strings are single-byte. Unicode characters cannot be
-//               represented in single-byte encoding, so tests below are doomed
-//               to fail. Re-enable tests after getting rid of POSIX emulation.
-// TODO(iffy): Starboard, the replacement for POSIX emulation, would like path
-//             encoding to be consistent across platforms in common code. Lowest
-//             common denominator suggests we should still use single-byte
-//             paths. The TODO is to discuss and act on these TODOs.
+// TODO: Since Cobalt on Windows is compiled in POSIX emulation mode, strings
+//       are single-byte. Unicode characters cannot be represented in
+//       single-byte encoding, so tests below are doomed to fail. Re-enable
+//       tests after getting rid of POSIX emulation.
+// TODO: Starboard, the replacement for POSIX emulation, would like path
+//       encoding to be consistent across platforms in common code. Lowest
+//       common denominator suggests we should still use single-byte paths. The
+//       TODO is to discuss and act on these TODOs.
 #if !defined(COBALT_WIN) && !defined(OS_STARBOARD)
     { { FPL("\u1E9E"),                       FPL("\u1E9E") },               0},
 #endif
