@@ -235,8 +235,8 @@ void ShellAudioRendererImpl::OnDecoderSelected(
   // extract configuration information from the demuxer
   ChannelLayout channel_layout = selected_decoder->channel_layout();
   int channels = ChannelLayoutToChannelCount(channel_layout);
-  // TODO(***REMOVED***) : Find a proper way to check native channel support here,
-  // including proper way to determinate if 5.1 or 7.1 is present.
+  // TODO: Find a proper way to check native channel support here, including
+  // proper way to determinate if 5.1 or 7.1 is present.
   if (channels != 1 && channels != 2 && channels != 6) {
     DLOG(WARNING) << "we only support 1, 2 and 6 channel audio";
     init_cb_.Run(DECODER_ERROR_NOT_SUPPORTED);
@@ -389,8 +389,8 @@ void ShellAudioRendererImpl::DecodedAudioReady(
         // other in the decoded buffer.
         int audio_bus_size_per_channel_in_bytes =
             buffer->GetDataSize() / decoded_audio_bus_->channels();
-        // TODO(***REMOVED***) : Change this to DCHECK_LE once we support Read with
-        //                   arbitrary size.
+        // TODO: Change this to DCHECK_LE once we support Read with arbitrary
+        // size.
         DCHECK_EQ(audio_bus_size_per_channel_in_bytes,
                   decoded_audio_bus_->frames() * sizeof(float));
         for (int i = 0; i < decoded_audio_bus_->channels(); ++i) {
@@ -493,9 +493,8 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
         }
         if (end_of_stream_state_ == kRenderedEOS) {
           const int bytes_per_sample = audio_parameters_.bits_per_sample() / 8;
-          // TODO(***REMOVED***) : Change this to DCHECK_LE and fill only
-          // kSamplesPerFrame instead of dest->frames() once we support
-          // Read with arbitrary size.
+          // TODO: Change this to DCHECK_LE and fill only kSamplesPerFrame
+          // instead of dest->frames() once we support Read with arbitrary size.
           DCHECK_EQ(mp4::AAC::kSamplesPerFrame * bytes_per_sample *
                         audio_parameters_.channels(),
                     dest->frames() * dest->channels() * sizeof(float));

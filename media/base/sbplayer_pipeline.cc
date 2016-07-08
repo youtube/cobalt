@@ -757,7 +757,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
     case kSbPlayerStateDestroyed:
       break;
     case kSbPlayerStateError:
-      // TODO(***REMOVED***): Handle error
+      // TODO: Handle error
       break;
   }
 }

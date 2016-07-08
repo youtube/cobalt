@@ -221,13 +221,13 @@ class WebMediaPlayerClient {
   virtual void TimeChanged() = 0;
   virtual void DurationChanged() = 0;
   virtual void PlaybackStateChanged() = 0;
-  // TODO(***REMOVED***) : Revisit the necessity of the following function.
+  // TODO: Revisit the necessity of the following function.
   virtual void SetOpaque(bool /* opaque */) {}
   virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
   virtual void SourceOpened() = 0;
   virtual std::string SourceURL() const = 0;
-  // TODO(***REMOVED***) : Make the EME related functions pure virtual again once
+  // TODO: Make the EME related functions pure virtual again once
   // we have proper EME implementation. Currently empty implementation are
   // provided to make media temporarily work.
   virtual void KeyAdded(const std::string& /* key_system */,
@@ -253,7 +253,7 @@ class WebMediaPlayerClient {
                          unsigned /* init_data_length */) {
     NOTIMPLEMENTED();
   }
-  // TODO(***REMOVED***) : Revisit the necessity of the following functions.
+  // TODO: Revisit the necessity of the following functions.
   virtual void CloseHelperPlugin() { NOTREACHED(); }
   virtual void DisableAcceleratedCompositing() {}
 

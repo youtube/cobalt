@@ -45,7 +45,7 @@ base::Thread* MessageLoopFactory::GetThread(Type type) {
 
   base::Thread* thread = new base::Thread(name);
   base::Thread::Options options;
-// TODO(***REMOVED***): Determine where to define thread constants in a Starboard
+// TODO: Determine where to define thread constants in a Starboard
 // world.
 #if !defined(OS_STARBOARD)
   if (type == kPipeline) {

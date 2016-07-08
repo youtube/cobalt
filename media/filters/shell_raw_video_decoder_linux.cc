@@ -137,7 +137,7 @@ scoped_refptr<FrameBuffer> ConvertFrameBuffer(
   return dest;
 }
 
-// TODO(***REMOVED***) : Make this decoder handle decoder errors. Now it assumes
+// TODO: Make this decoder handle decoder errors. Now it assumes
 // that the input stream is always correct.
 class ShellRawVideoDecoderLinux : public ShellRawVideoDecoder {
  public:
@@ -216,7 +216,7 @@ void ShellRawVideoDecoderLinux::Decode(
   DCHECK(frame_buffer);
 
   TimeDelta timestamp = TimeDelta::FromMilliseconds(av_frame_->pkt_pts);
-  // TODO(***REMOVED***): Currently the Linux egl backend doesn't support texture
+  // TODO: Currently the Linux egl backend doesn't support texture
   // with pitch different than its width.  So we create a new video frame whose
   // visible size is the same as its coded size to ensure that the underlying
   // texture has the same pitch as its width.  This makes code complex, though

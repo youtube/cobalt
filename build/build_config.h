@@ -213,7 +213,7 @@
 #define WCHAR_T_IS_UNSIGNED 0
 #endif
 
-// TODO(iffy): Worry about these defines if/when we need to support Android.
+// TODO: Worry about these defines if/when we need to support Android.
 #if defined(OS_ANDROID)
 // The compiler thinks std::string::const_iterator and "const char*" are
 // equivalent types.

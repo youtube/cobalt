@@ -21,7 +21,7 @@
 
 namespace media {
 
-// TODO(***REMOVED***) : Find a better home for CanPlayType.  I don't want to make
+// TODO: Find a better home for CanPlayType.  I don't want to make
 // it a member function of WebMediaPlayer because of:
 // 1. It is relatively complex.
 // 2. The HTMLMediaElement doesn't always hold a WebMediaPlayer instance while

@@ -27,7 +27,7 @@ int SysInfo::NumberOfProcessors() {
 
 // static
 int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
-  // TODO(iffy): This is referred to ONLY by disk_cache::BackendImpl, which I do
+  // TODO: This is referred to ONLY by disk_cache::BackendImpl, which I do
   // not think is currently used in Cobalt. There's no need to implement this
   // unless we want to use it for something. If not, we should remove the
   // reference to it, and this amazing implementation.

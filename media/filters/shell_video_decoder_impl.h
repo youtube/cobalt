@@ -118,8 +118,8 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public VideoDecoder {
 
   scoped_ptr<ShellRawVideoDecoder> raw_decoder_;
 
-  // TODO(***REMOVED***) : ensure the demuxer can handle multiple EOS requests
-  //                   then remove this hack.
+  // TODO: ensure the demuxer can handle multiple EOS requests then remove this
+  // hack.
   scoped_refptr<DecoderBuffer> eof_buffer_;
 
   scoped_refptr<DecoderBuffer> buffer_to_decode_;

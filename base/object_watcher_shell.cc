@@ -58,7 +58,7 @@ ObjectWatchMultiplexer::ObjectWatchMultiplexer()
     : base::SimpleThread(
         "ObjectWatchMultiplexer Thread",
         base::SimpleThread::Options(
-            // TODO(rjogrady): Pass these into ObjectWatchMultiplexer.
+            // TODO: Pass these into ObjectWatchMultiplexer.
             0 /* kObjectWatcherThreadStackSize */,
             kThreadPriority_Default /* kObjectWatcherThreadPriority */,
             kNoThreadAffinity /* kNetworkIOThreadAffinity */)),

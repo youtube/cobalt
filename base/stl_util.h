@@ -9,7 +9,7 @@
 
 #include <algorithm>
 #include <functional>
-#if defined(__LB_SHELL__)  // TODO:(iffy): Starboard?
+#if defined(__LB_SHELL__)  // TODO: Starboard?
 #include <iterator>
 #endif
 #include <string>

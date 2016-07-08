@@ -177,7 +177,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   unsigned GetVideoDecodedByteCount() const OVERRIDE;
 
   scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE;
-  // TODO(***REMOVED***) : Remove Get/PutCurrentFrame.
+  // TODO: Remove Get/PutCurrentFrame.
   scoped_refptr<VideoFrame> GetCurrentFrame() OVERRIDE;
   void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame) OVERRIDE;
 
