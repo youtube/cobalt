@@ -776,7 +776,7 @@ void ApplicationX11::WakeSystemEventWait() {
 }
 
 void ApplicationX11::EnsureX() {
-  // TODO(***REMOVED***): Consider thread-safety.
+  // TODO: Consider thread-safety.
   if (display_) {
     return;
   }
@@ -830,7 +830,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
 
     if (x_event->xclient.data.l[0] == wm_delete_atom_) {
       SB_DLOG(INFO) << "Received WM_DELETE_WINDOW message.";
-      // TODO(***REMOVED***): Expose this as an event to clients.
+      // TODO: Expose this as an event to clients.
       Stop(0);
       return NULL;
     }

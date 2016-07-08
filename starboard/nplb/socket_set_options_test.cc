@@ -38,7 +38,7 @@ TEST(SbSocketSetOptionsTest, TryThemAll) {
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
-// TODO(***REMOVED***): Come up with some way to test the effects of these options.
+// TODO: Come up with some way to test the effects of these options.
 
 }  // namespace
 }  // namespace nplb
