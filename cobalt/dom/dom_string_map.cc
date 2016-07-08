@@ -161,8 +161,8 @@ bool DOMStringMap::CanQueryNamedProperty(
     const std::string& property_name) const {
   base::optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
-  // TODO(***REMOVED***): Throw a SyntaxError if attribute name is invalid
-  //               when b/24373797 is fixed.
+  // TODO: Throw a SyntaxError if attribute name is invalid once getters and
+  // setters support throwing exceptions.
   return attribute_name && element_->HasAttribute(*attribute_name);
 }
 

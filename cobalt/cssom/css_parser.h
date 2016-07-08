@@ -48,12 +48,11 @@ class CSSParser {
   // (see http://dev.w3.org/csswg/css-syntax/#parser-entry-points):
   //
 
-  // TODO(***REMOVED***): Revisit the return values of below methods in case of
-  //               an error and match the behavior with appropriate
-  //               specifications. Currently some methods return
-  //               a default-constructed value even if an error occurred,
-  //               others return NULL, and some call sites are known to make
-  //               incorrect assumptions.
+  // TODO: Revisit the return values of below methods in case of an error and
+  //       match the behavior with appropriate specifications. Currently some
+  //       methods return a default-constructed value even if an error occurred,
+  //       others return NULL, and some call sites are known to make incorrect
+  //       assumptions.
 
   // Parses the entire stylesheet.
   // Always returns non-NULL style sheet, even if an error occurred.

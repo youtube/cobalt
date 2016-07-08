@@ -166,7 +166,7 @@ void MixAudioBuffer(const AudioNode::ChannelInterpretation& interpretation,
         kFivePointOneToMonoSpeaker, kFivePointOneToMonoDiscrete, interpretation,
         source, output_audio_data);
   } else {
-    // TODO(***REMOVED***): Implement the case which the number of channels do not
+    // TODO: Implement the case which the number of channels do not
     // match any of those basic speaker layouts. In this case, use "discrete"
     // channel layout.
     NOTREACHED() << "The combination of source channels: " << source->channels()
@@ -229,7 +229,7 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
 
   *silence = true;
 
-  // TODO(***REMOVED***): Consider computing computedNumberOfChannels and do up-mix or
+  // TODO: Consider computing computedNumberOfChannels and do up-mix or
   // down-mix base on computedNumberOfChannels. The current implementation
   // is based on the fact that the channelCountMode is max.
   DCHECK_EQ(owner_node_->channel_count_mode(), AudioNode::kMax);

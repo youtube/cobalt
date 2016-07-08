@@ -84,7 +84,7 @@ TEST_F(SourceListTest, BlobMatchingSelf) {
   EXPECT_TRUE(source_list.Matches(GURL("https://example.test/")));
   EXPECT_FALSE(source_list.Matches(GURL("blob:https://example.test/")));
 
-  // TODO(***REMOVED***): Blink has special code to permit this.
+  // TODO: Blink has special code to permit this.
   // EXPECT_TRUE(source_list.Matches(GURL("https://example.test/")));
   // EXPECT_TRUE(source_list.Matches(GURL("blob:https://example.test/")));
 }

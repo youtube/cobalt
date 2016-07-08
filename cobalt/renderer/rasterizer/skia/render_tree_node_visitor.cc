@@ -1222,14 +1222,13 @@ void RenderText(SkCanvas* render_target,
   TRACE_EVENT0("cobalt::renderer", "RenderText()");
 #endif
   if (blur_sigma > 20.0f) {
-    // TODO(***REMOVED***): We could easily switch to using a blur filter at this
-    //               point. Ideally we would just use a blur filter to do all
-    //               blurred text rendering.  Unfortunately, performance is
-    //               currently terrible when using blur filters.  Since we
-    //               don't use blur filters (instead the blur is rasterized into
-    //               the glyph atlas by software), we choose not to snap to
-    //               using them when the blur reaches a certain point to avoid
-    //               discontinuity in blur appearance and performance issues.
+    // TODO: We could easily switch to using a blur filter at this point.
+    //       Ideally we would just use a blur filter to do all blurred text
+    //       rendering. Unfortunately, performance is currently terrible when
+    //       using blur filters. Since we don't use blur filters (instead the
+    //       blur is rasterized into the glyph atlas by software), we choose not
+    //       to snap to using them when the blur reaches a certain point to
+    //       avoid discontinuity in blur appearance and performance issues.
     NOTIMPLEMENTED() << "Cobalt does not yet support text blurs with Gaussian "
                         "sigmas larger than 20.";
   } else {

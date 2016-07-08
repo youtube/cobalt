@@ -122,7 +122,7 @@ void TraceManager::OnKeyTraceMessage(const std::string& message) {
 void TraceManager::OnReceiveTraceEvent(
     const scoped_refptr<trace_event::EventParser::ScopedEvent>& event) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  // TODO(***REMOVED***): Generalize the following logic. Currently the criteria for
+  // TODO: Generalize the following logic. Currently the criteria for
   // interesting events are hardcoded.
   if (event->name() == "WebModule::InjectKeyboardEvent()" ||
       event->name() == "Layout") {

@@ -220,8 +220,7 @@ class ParserImpl {
   friend int yyparse(ParserImpl* parser_impl);
 };
 
-// TODO(***REMOVED***): Stop deduplicating warnings after cleaning up CSS in ***REMOVED***
-//               (b/24818136).
+// TODO: Stop deduplicating warnings after cleaning up CSS in ***REMOVED***.
 #ifdef __LB_SHELL__FORCE_LOGGING__
 namespace {
 
@@ -478,7 +477,7 @@ inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
   parser_impl->set_last_syntax_error_location(*source_location);
 }
 
-// TODO(***REMOVED***): Revisit after upgrading to Bison 3.
+// TODO: Revisit after upgrading to Bison 3.
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4242)  // possible loss of data

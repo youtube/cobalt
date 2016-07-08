@@ -44,7 +44,7 @@ scoped_ptr<base::Value> Cookie::ToValue(const Cookie& cookie) {
 }
 
 base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
-  // TODO(***REMOVED***): Malformed data should return an "unable to set cookie"
+  // TODO: Malformed data should return an "unable to set cookie"
   // error, but the current implementation will return "invalid parameter".
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {

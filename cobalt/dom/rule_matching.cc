@@ -366,7 +366,7 @@ void GatherCandidateNodesFromMap(
     cssom::CombinatorType combinator_type,
     const SelectorTree::SelectorTextToNodesMap& map, base::Token key,
     SelectorTree::NodeSet<kRuleMatchingNodeSetSize>* candidate_nodes) {
-  // TODO(***REMOVED***): The hit rate here is only ~20%, use a Token specific map
+  // TODO: The hit rate here is only ~20%, use a Token specific map
   // to pre-check if the key is in the map.
   SelectorTree::SelectorTextToNodesMap::const_iterator it = map.find(key);
   if (it != map.end()) {

@@ -111,7 +111,7 @@ ParserTest::ParserTest()
               Parser::kShort),
       source_location_("[object ParserTest]", 1, 1) {}
 
-// TODO(***REMOVED***): Test every reduction that has semantic action.
+// TODO: Test every reduction that has semantic action.
 
 TEST_F(ParserTest, ParsesEmptyInput) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
@@ -4274,7 +4274,7 @@ TEST_F(ParserTest, ParsesFontFamilyList) {
             font_family_list->get_item_modulo_size(2));
 }
 
-// TODO(***REMOVED***): Test negative length value.
+// TODO: Test negative length value.
 
 TEST_F(ParserTest, ParsesLengthPxUnit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
@@ -5124,9 +5124,9 @@ TEST_F(ParserTest, ParsesIsotropicScaleYTransform) {
   EXPECT_FLOAT_EQ(20.0, scale_function->y_factor());
 }
 
-// TODO(***REMOVED***): Test integers, including negative ones.
-// TODO(***REMOVED***): Test reals, including negative ones.
-// TODO(***REMOVED***): Test non-zero lengths without units.
+// TODO: Test integers, including negative ones.
+// TODO: Test reals, including negative ones.
+// TODO: Test non-zero lengths without units.
 
 TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
@@ -7968,7 +7968,7 @@ TEST_F(ParserTest, ParsesValidMediaQuery) {
                               source_location_)
           .get();
   ASSERT_TRUE(media_query.get());
-  // TODO(***REMOVED***): Update when media query serialization is implemented.
+  // TODO: Update when media query serialization is implemented.
   ASSERT_EQ(media_query->media_query(), "");
 }
 
@@ -7987,7 +7987,7 @@ TEST_F(ParserTest, ParsesValidMediaList) {
   ASSERT_TRUE(media_list.get());
   ASSERT_EQ(media_list->length(), 2);
 
-  // TODO(***REMOVED***): Update when media query serialization is implemented.
+  // TODO: Update when media query serialization is implemented.
   ASSERT_EQ(media_list->media_text(), ", ");
 }
 

@@ -26,7 +26,7 @@ namespace {
 // Libxml SAX handler.
 //   http://www.xmlsoft.org/html/libxml-tree.html#xmlSAXHandler
 
-// NOTE(***REMOVED***): Please read ***REMOVED***xxe before implementing handler fields such as
+// NOTE: Please read ***REMOVED***xxe before implementing handler fields such as
 // resolveEntity and entityDecl.
 htmlSAXHandler html_sax_handler = {
     NULL,           /* internalSubset */
@@ -136,7 +136,7 @@ void LibxmlHTMLParserWrapper::Finish() {
   }
 
   if (html_parser_context_) {
-    // TODO(***REMOVED***): The check on issue level is a workaround for the fact that
+    // TODO: The check on issue level is a workaround for the fact that
     // libxml doesn't recover fully from error related to encoding. See
     // b/27057101 for more detail.
     if (issue_level() <= kWarning) {

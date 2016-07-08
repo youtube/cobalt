@@ -302,7 +302,7 @@ void UsedBackgroundSizeScaleProvider::VisitPercentage(
   scale_ = frame_length_ * percentage->value() / image_length_;
 }
 
-// TODO(***REMOVED***): Factor in generic families.
+// TODO: Factor in generic families.
 //   https://www.w3.org/TR/css3-fonts/#font-family-prop
 class UsedFontFamilyProvider : public cssom::NotReachedPropertyValueVisitor {
  public:

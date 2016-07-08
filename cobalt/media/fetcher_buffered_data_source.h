@@ -34,7 +34,7 @@
 namespace cobalt {
 namespace media {
 
-// TODO(***REMOVED***): This class requires a large block of memory.  Consider to
+// TODO: This class requires a large block of memory.  Consider to
 // use ShellBufferFactory for its memory if possible to avoid possible OOM.
 
 // A BufferedDataSource based on URLFetcher that can be used to retrieve

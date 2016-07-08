@@ -82,7 +82,7 @@ struct NonTrivialStaticFields {
 
     for (int i = 0; i <= cssom::kMaxLonghandPropertyKey; ++i) {
       cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
-      // TODO(***REMOVED***): Only invalidate layout boxes when a property that is used
+      // TODO: Only invalidate layout boxes when a property that is used
       // for box generation is modified. We currently have to also invalidate
       // when any inheritable property is modified, because AnonymousBlockBox
       // and TextBox use GetComputedStyleOfAnonymousBox() to store a copy of
@@ -792,7 +792,7 @@ void HTMLElement::UpdateComputedStyle(
     matching_rules_valid_ = true;
   }
 
-  // TODO(***REMOVED***): It maybe helpful to generalize this mapping framework in the
+  // TODO: It maybe helpful to generalize this mapping framework in the
   // future to allow more data and context about where a cssom::PropertyValue
   // came from.
   cssom::GURLMap property_key_to_base_url_map;

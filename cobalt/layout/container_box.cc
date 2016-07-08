@@ -300,8 +300,8 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
     // 'right' becomes -'left'. If 'direction' of the containing block is 'rtl',
     // 'right' wins and 'left' is ignored.
 
-    // TODO(***REMOVED***): Take into account the value of the 'direction' property,
-    //               which doesn't exist at the time of this writing.
+    // TODO: Take into account the value of the 'direction' property, which
+    //       doesn't exist at the time of this writing.
     offset.set_x(*maybe_left);
   }
 

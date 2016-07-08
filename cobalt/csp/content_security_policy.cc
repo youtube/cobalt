@@ -502,7 +502,7 @@ bool ContentSecurityPolicy::AllowNavigateToSource(
     DLOG(ERROR) << "SetNavigationFallbackPolicy() was not called.";
     return false;
   }
-  // TODO(***REMOVED***): Re-enable respecting the navigation whitelist. b/27175038
+  // TODO: Re-enable respecting the navigation whitelist. b/27175038
   return navigation_policy_->AllowNavigateToSource(url, redirect_status,
                                                    reporting_status);
 }

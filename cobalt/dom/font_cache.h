@@ -270,7 +270,7 @@ class FontCache {
 
   render_tree::ResourceProvider* const resource_provider_;
 
-  // TODO(***REMOVED***): Explore eliminating the remote typeface cache and moving its
+  // TODO: Explore eliminating the remote typeface cache and moving its
   // logic into the font cache when the loader interface improves.
   loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
   const base::Closure external_typeface_load_event_callback_;

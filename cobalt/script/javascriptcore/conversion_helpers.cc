@@ -40,7 +40,7 @@ void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
                      std::string* out_string) {
   // By default null and undefined evaluate to the strings "null" and
   // "undefined" respectively.
-  // TODO(***REMOVED***): Optimize this.
+  // TODO: Optimize this.
   JSC::JSString* js_string = value.toString(exec_state);
   const WTF::String& wtf_string = js_string->value(exec_state);
   *out_string = FromWTFString(wtf_string);

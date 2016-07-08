@@ -113,8 +113,7 @@ class JSCNoConstructorInterface
 
 #ifdef __LB_SHELL__FORCE_LOGGING__
   struct NonTrivialStaticFields {
-    // TODO(***REMOVED***): Only log attempts of usage of unsupported Web APIs
-    //               (b/24548567).
+    // TODO: Only log attempts of usage of unsupported Web APIs.
     base::hash_set<std::string> properties_warned_about;
     base::Lock lock_;
   };

@@ -90,8 +90,8 @@ class MediaSource : public EventTarget {
   // Custom, not in any spec.
   //
   // The player is set when the media source is attached to a media element.
-  // TODO(***REMOVED***) : Invent a MediaSourceClient interface and make
-  //                   WebMediaPlayer inherit from it.
+  // TODO: Invent a MediaSourceClient interface and make WebMediaPlayer inherit
+  // from it.
   void SetPlayer(::media::WebMediaPlayer* player);
   void ScheduleEvent(base::Token event_name);
 

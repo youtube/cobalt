@@ -820,7 +820,7 @@ void CSSStyleDeclaration::set_text_align(
 
 std::string CSSStyleDeclaration::text_decoration(
     script::ExceptionState* /*exception_state*/) const {
-  // TODO(***REMOVED***): Redirect text decoration to text decoration line for now and
+  // TODO: Redirect text decoration to text decoration line for now and
   // change it when fully implement text decoration.
   return GetDeclaredPropertyValueStringByKey(kTextDecorationLineProperty);
 }
@@ -828,7 +828,7 @@ std::string CSSStyleDeclaration::text_decoration(
 void CSSStyleDeclaration::set_text_decoration(
     const std::string& text_decoration,
     script::ExceptionState* exception_state) {
-  // TODO(***REMOVED***): Redirect text decoration to text decoration line for now and
+  // TODO: Redirect text decoration to text decoration line for now and
   // change it when fully implement text decoration.
   SetPropertyValueStringByKey(kTextDecorationLineProperty, text_decoration,
                               exception_state);
