@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_object_proxy.h"
@@ -26,6 +27,17 @@
 #include "cobalt/script/source_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace testing {
+// Define a default gmock value for scoped_refptr<T> types. This must be
+// declared in gmock's namespace.
+template <typename T>
+class DefaultValue<scoped_refptr<T> > {
+ public:
+  static bool Exists() { return true; }
+  static scoped_refptr<T> Get() { return NULL; }
+};
+}  // namespace testing
 
 namespace cobalt {
 namespace bindings {
