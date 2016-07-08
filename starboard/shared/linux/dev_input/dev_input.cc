@@ -266,10 +266,12 @@ SbKey KeyCodeToSbKey(uint16_t code) {
     case KEY_KPSLASH:
       return kSbKeyDivide;
     case KEY_KPPLUS:
+    case KEY_EQUAL:
       return kSbKeyOemPlus;
     case KEY_COMMA:
       return kSbKeyOemComma;
     case KEY_KPMINUS:
+    case KEY_MINUS:
       return kSbKeyOemMinus;
     case KEY_DOT:
       return kSbKeyOemPeriod;
