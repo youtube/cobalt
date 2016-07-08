@@ -16,8 +16,6 @@
 
 #include "cobalt/renderer/pipeline.h"
 
-#include <string>
-
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/file_path.h"
@@ -48,6 +46,10 @@ const double kTimeToConvergeInMS = 500.0;
 // enough to support recursing on the render tree.
 const int kRendererThreadStackSize = 128 * 1024;
 
+// How frequently the CVal stats for rasterize current tree timing should
+// update. The time interval is in milliseconds.
+const int64 kRasterizeCurrentTreeTimerTimeIntervalInMs = 1000;
+
 void DestructSubmissionOnMessageLoop(MessageLoop* message_loop,
                                      scoped_ptr<Submission> submission) {
   TRACE_EVENT0("cobalt::renderer", "DestructSubmissionOnMessageLoop()");
@@ -65,7 +67,12 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       render_target_(render_target),
       graphics_context_(graphics_context),
       rasterizer_thread_("Rasterizer"),
-      submission_disposal_thread_("Rasterizer Submission Disposal")
+      submission_disposal_thread_("Rasterizer Submission Disposal"),
+      rasterize_current_tree_interval_timer_(
+          "Renderer.Rasterize.Time.Interval",
+          kRasterizeCurrentTreeTimerTimeIntervalInMs),
+      rasterize_current_tree_timer_("Renderer.Rasterize.Time.CurrentTree",
+                                    kRasterizeCurrentTreeTimerTimeIntervalInMs)
 #if defined(ENABLE_DEBUG_CONSOLE)
       ,
       ALLOW_THIS_IN_INITIALIZER_LIST(dump_current_render_tree_command_handler_(
@@ -97,7 +104,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
 Pipeline::~Pipeline() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::~Pipeline()");
 
-  // First we shutdown the submission queue.  We do this as a seperate step from
+  // First we shutdown the submission queue.  We do this as a separate step from
   // rasterizer shutdown because it may post messages back to the rasterizer
   // thread as it clears itself out (e.g. it may ask the rasterizer thread to
   // delete textures).  We wait for this shutdown to complete before proceeding
@@ -207,10 +214,15 @@ void Pipeline::RasterizeCurrentTree() {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
+  base::TimeTicks now = base::TimeTicks::Now();
+  rasterize_current_tree_interval_timer_.Start(now);
+  rasterize_current_tree_timer_.Start(now);
+
   // Rasterize the last submitted render tree.
   RasterizeSubmissionToRenderTarget(
-      submission_queue_->GetCurrentSubmission(base::TimeTicks::Now()),
-      render_target_);
+      submission_queue_->GetCurrentSubmission(now), render_target_);
+
+  rasterize_current_tree_timer_.Stop();
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
