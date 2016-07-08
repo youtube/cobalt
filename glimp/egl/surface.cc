@@ -172,8 +172,8 @@ bool AttributeKeyAndValueAreValid(int key, int value) {
 
   // If the switch statement didn't catch the key, this is an unknown
   // key.
-  // TODO(***REMOVED***): glimp doesn't support all values yet, and will return
-  //               false for keys that it doesn't support.
+  // TODO: glimp doesn't support all values yet, and will return false for keys
+  //       that it doesn't support.
   return false;
 }
 }  // namespace

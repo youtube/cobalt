@@ -192,11 +192,10 @@ GLenum Program::UpdateUniform(GLint location,
                               GLsizei elem_size,
                               const void* v,
                               UniformInfo::Type type) {
-  // TODO(***REMOVED***): It would be nice to be able to query the ProgramImpl object
-  //               for UniformInfo information so that we can check it against
-  //               incoming glUniform() calls to ensure consistency.  As it is
-  //               currently, we are defining this information through
-  //               these glUniform() calls.
+  // TODO: It would be nice to be able to query the ProgramImpl object for
+  //       UniformInfo information so that we can check it against incoming
+  //       glUniform() calls to ensure consistency.  As it is currently, we are
+  //       defining this information through these glUniform() calls.
   Uniform* uniform = FindOrMakeUniform(location);
   if (uniform == NULL) {
     return GL_INVALID_OPERATION;
