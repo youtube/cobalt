@@ -38,10 +38,9 @@ bool PathProviderStarboard(int key, FilePath *result) {
       return true;
 
     case base::DIR_SOURCE_ROOT:
-      // TODO(aabtop): When Cobalt's primary use-case ceases to be serving
-      //               web-pages locally, we should add a check here to ensure
-      //               that release builds do not try to access DIR_SOURCE_ROOT.
-      //               b/22359828
+      // TODO: When Cobalt's primary use-case ceases to be serving web-pages
+      //       locally, we should add a check here to ensure that release builds
+      //       do not try to access DIR_SOURCE_ROOT.  b/22359828
       SbSystemGetPath(kSbSystemPathSourceDirectory, path,
                       SB_ARRAY_SIZE_INT(path));
       *result = FilePath(path);
@@ -60,8 +59,7 @@ bool PathProviderStarboard(int key, FilePath *result) {
       return true;
 
     case base::DIR_HOME:
-      // TODO(iffy): Add a home directory to SbSystemPathId and get it from
-      // there.
+      // TODO: Add a home directory to SbSystemPathId and get it from there.
       return PathProviderStarboard(base::DIR_CACHE, result);
   }
 

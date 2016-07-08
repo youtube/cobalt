@@ -1170,7 +1170,7 @@ ZEXTERN int ZEXPORT uncompress OF((Bytef *dest,   uLongf *destLen,
 typedef voidp gzFile;       /* opaque gzip file descriptor */
 
 #if !defined(STARBOARD)
-/* NOTE(iffy): Disabled in Starboard because Cobalt doesn't use it, and I don't
+/* NOTE: Disabled in Starboard because Cobalt doesn't use it, and I don't
    want to port it. */
 
 ZEXTERN gzFile ZEXPORT gzopen OF((const char *path, const char *mode));

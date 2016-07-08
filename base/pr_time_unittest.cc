@@ -24,7 +24,7 @@ PRTime comparison_time_pdt = 1192477500 * Time::kMicrosecondsPerSecond;
 // Specialized test fixture allowing time strings without timezones to be
 // tested by comparing them to a known time in the local zone.
 class PRTimeTest : public testing::Test {
-  // TODO(iffy): This test breaks the platform seal by including time.h, and
+  // TODO: This test breaks the platform seal by including time.h, and
   // using that to check the NS PRTime code against. Do something else instead
   // that is more platform-abstracted.
 
