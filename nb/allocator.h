@@ -17,7 +17,10 @@
 #ifndef NB_ALLOCATOR_H_
 #define NB_ALLOCATOR_H_
 
-#include <stddef.h>
+// TODO: Include "starboard/types.h" once PS3 is ported to starboard.  Currently
+// including <vector> is used as a platform independent way to introduce
+// std::size_t.
+#include <vector>
 
 namespace nb {
 
@@ -33,11 +36,11 @@ class Allocator {
   // Allocates a range of memory of the given size, without any alignment
   // constraints.
   // Will return NULL if the allocation fails.
-  virtual void* Allocate(size_t size) = 0;
+  virtual void* Allocate(std::size_t size) = 0;
 
   // Allocates a range of memory of the given size with the given alignment.
   // Will return NULL if the allocation fails.
-  virtual void* Allocate(size_t size, size_t alignment) = 0;
+  virtual void* Allocate(std::size_t size, std::size_t alignment) = 0;
 
   // Allocates a range of memory of the given size for the given alignment.
   // Returns a pointer that may not be aligned but points to a memory area that
@@ -45,7 +48,8 @@ class Allocator {
   // alignment. It can allocate up to size + alignment - 1 bytes. This allows a
   // reuse allocator to use the padding area as a free block. Will return NULL
   // if the allocation fails.
-  virtual void* AllocateForAlignment(size_t size, size_t alignment) = 0;
+  virtual void* AllocateForAlignment(std::size_t size,
+                                     std::size_t alignment) = 0;
 
   // Frees memory previously allocated via any call to Allocate().
   virtual void Free(void* memory) = 0;
@@ -55,10 +59,13 @@ class Allocator {
   // capacity to grow and change over time.  It is also possible that due to,
   // say, fragmentation, an allocation may fail even if GetCapacity() reports
   // that enough space is available.
-  virtual size_t GetCapacity() const = 0;
+  virtual std::size_t GetCapacity() const = 0;
 
   // Returns the allocator's total memory currently allocated.
-  virtual size_t GetAllocated() const = 0;
+  virtual std::size_t GetAllocated() const = 0;
+
+  // Print information for all allocations.
+  virtual void PrintAllocations() const = 0;
 };
 
 }  // namespace nb

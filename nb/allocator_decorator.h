@@ -19,79 +19,33 @@
 
 #include "nb/allocator.h"
 #include "nb/scoped_ptr.h"
-#include "starboard/mutex.h"
 
 namespace nb {
 
-class ThreadSafe {
- public:
-  void Lock() { mutex_.Acquire(); }
-  void Unlock() { mutex_.Release(); }
-
- private:
-  starboard::Mutex mutex_;
-};
-
-class ThreadUnsafe {
- public:
-  void Lock() {}
-  void Unlock() {}
-};
-
-// Templatized class configured with an allocator behavior
-// and threading behavior.
+// Class that can be configured with an allocator behavior and threading
+// behavior.
 // Dispatches Allocate and Free calls to the internal implementation.
 // Threadsafe or not, depending on the LockTraits.
 // In non-release builds, provides a cval tracking heap size.
-template <typename LockTraits, typename AllocatorImpl>
 class AllocatorDecorator : public Allocator {
  public:
-  explicit AllocatorDecorator(scoped_ptr<AllocatorImpl> impl)
-      : impl_(impl.Pass()) {}
+  AllocatorDecorator(scoped_ptr<Allocator> impl, bool thread_safe);
+  ~AllocatorDecorator();
 
-  void* Allocate(size_t size) {
-    mutex_.Lock();
-    void* ret = impl_->AllocatorImpl::Allocate(size);
-    mutex_.Unlock();
-    return ret;
-  }
-  void* Allocate(size_t size, size_t alignment) {
-    mutex_.Lock();
-    void* ret = impl_->AllocatorImpl::Allocate(size, alignment);
-    mutex_.Unlock();
-    return ret;
-  }
-  void* AllocateForAlignment(size_t size, size_t alignment) {
-    mutex_.Lock();
-    void* ret = impl_->AllocatorImpl::AllocateForAlignment(size, alignment);
-    mutex_.Unlock();
-    return ret;
-  }
-  void Free(void* memory) {
-    mutex_.Lock();
-    impl_->AllocatorImpl::Free(memory);
-    mutex_.Unlock();
-  }
-  size_t GetCapacity() const {
-    mutex_.Lock();
-    size_t result = impl_->AllocatorImpl::GetCapacity();
-    mutex_.Unlock();
-    return result;
-  }
-  size_t GetAllocated() const {
-    mutex_.Lock();
-    size_t result = impl_->AllocatorImpl::GetAllocated();
-    mutex_.Unlock();
-    return result;
-  }
-
-  // Expose the internals if necessary.
-  AllocatorImpl* GetAllocatorImpl() { return impl_.get(); }
-  const AllocatorImpl* GetAllocatorImpl() const { return impl_.get(); }
+  void* Allocate(std::size_t size);
+  void* Allocate(std::size_t size, std::size_t alignment);
+  void* AllocateForAlignment(std::size_t size, std::size_t alignment);
+  void Free(void* memory);
+  std::size_t GetCapacity() const;
+  std::size_t GetAllocated() const;
+  void PrintAllocations() const;
 
  private:
-  mutable LockTraits mutex_;
-  scoped_ptr<AllocatorImpl> impl_;
+  class Lock;
+  class ScopedLock;
+
+  Lock* lock_;
+  scoped_ptr<Allocator> impl_;
 };
 
 }  // namespace nb

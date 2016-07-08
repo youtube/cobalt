@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "cobalt/base/fixed_no_free_allocator.h"
-#include "cobalt/base/pointer_arithmetic.h"
+#include "nb/fixed_no_free_allocator.h"
+
+#include "nb/pointer_arithmetic.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class FixedNoFreeAllocatorTest : public ::testing::Test {
@@ -23,13 +24,13 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
   FixedNoFreeAllocatorTest();
 
  protected:
-  static const size_t kAllocationSize = 8;
-  static const size_t kAllocationAlignment = 8;
-  static const size_t kMaxAllocations = 64;
-  static const size_t kBufferSize = kAllocationSize * kMaxAllocations;
+  static const std::size_t kAllocationSize = 8;
+  static const std::size_t kAllocationAlignment = 8;
+  static const std::size_t kMaxAllocations = 64;
+  static const std::size_t kBufferSize = kAllocationSize * kMaxAllocations;
 
   char buffer_[kBufferSize];
-  base::FixedNoFreeAllocator allocator_;
+  nb::FixedNoFreeAllocator allocator_;
 };
 
 FixedNoFreeAllocatorTest::FixedNoFreeAllocatorTest()
@@ -57,11 +58,11 @@ TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsProperly) {
     for (int j = 0; j < i; ++j) {
       EXPECT_NE(buffers[j], buffers[i]);
       if (buffers[j] < buffers[i]) {
-        EXPECT_LE(base::AsInteger(buffers[j]) + kAllocationSize,
-                  base::AsInteger(buffers[i]));
+        EXPECT_LE(nb::AsInteger(buffers[j]) + kAllocationSize,
+                  nb::AsInteger(buffers[i]));
       } else {
-        EXPECT_LE(base::AsInteger(buffers[i]) + kAllocationSize,
-                  base::AsInteger(buffers[j]));
+        EXPECT_LE(nb::AsInteger(buffers[i]) + kAllocationSize,
+                  nb::AsInteger(buffers[j]));
       }
     }
   }

@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-#include "base/memory/scoped_ptr.h"
-#include "cobalt/base/fixed_no_free_allocator.h"
-#include "cobalt/base/reuse_allocator.h"
+#include "nb/reuse_allocator.h"
+
+#include "nb/fixed_no_free_allocator.h"
+#include "nb/scoped_ptr.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
-inline bool IsAligned(void* ptr, size_t boundary) {
+inline bool IsAligned(void* ptr, std::size_t boundary) {
   uintptr_t ptr_as_int = reinterpret_cast<uintptr_t>(ptr);
   return ptr_as_int % boundary == 0;
 }
@@ -33,23 +35,23 @@ class ReuseAllocatorTest : public ::testing::Test {
   ReuseAllocatorTest() {
     buffer_.reset(new uint8_t[kBufferSize]);
     fallback_allocator_.reset(
-        new base::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
-    allocator_.reset(new base::ReuseAllocator(fallback_allocator_.get()));
+        new nb::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
+    allocator_.reset(new nb::ReuseAllocator(fallback_allocator_.get()));
   }
 
  protected:
-  scoped_array<uint8_t> buffer_;
-  scoped_ptr<base::FixedNoFreeAllocator> fallback_allocator_;
-  scoped_ptr<base::ReuseAllocator> allocator_;
+  nb::scoped_array<uint8_t> buffer_;
+  nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
+  nb::scoped_ptr<nb::ReuseAllocator> allocator_;
 };
 
 }  // namespace
 
 TEST_F(ReuseAllocatorTest, AlignmentCheck) {
-  const size_t kAlignments[] = {4, 16, 256, 32768};
-  const size_t kBlockSizes[] = {4, 97, 256, 65201};
-  for (int i = 0; i < arraysize(kAlignments); ++i) {
-    for (int j = 0; j < arraysize(kBlockSizes); ++j) {
+  const std::size_t kAlignments[] = {4, 16, 256, 32768};
+  const std::size_t kBlockSizes[] = {4, 97, 256, 65201};
+  for (int i = 0; i < SB_ARRAY_SIZE(kAlignments); ++i) {
+    for (int j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
       void* p = allocator_->Allocate(kBlockSizes[j], kAlignments[i]);
       // NOTE: Don't dereference p- this doesn't point anywhere valid.
       EXPECT_TRUE(p != NULL);
@@ -61,8 +63,8 @@ TEST_F(ReuseAllocatorTest, AlignmentCheck) {
 
 // Check that the reuse allocator actually merges adjacent free blocks.
 TEST_F(ReuseAllocatorTest, FreeBlockMergingLeft) {
-  const size_t kBlockSizes[] = {156, 202};
-  const size_t kAlignment = 4;
+  const std::size_t kBlockSizes[] = {156, 202};
+  const std::size_t kAlignment = 4;
   void* blocks[] = {NULL, NULL};
   blocks[0] = allocator_->Allocate(kBlockSizes[0], kAlignment);
   blocks[1] = allocator_->Allocate(kBlockSizes[1], kAlignment);
@@ -79,8 +81,8 @@ TEST_F(ReuseAllocatorTest, FreeBlockMergingLeft) {
 }
 
 TEST_F(ReuseAllocatorTest, FreeBlockMergingRight) {
-  const size_t kBlockSizes[] = {156, 202, 354};
-  const size_t kAlignment = 4;
+  const std::size_t kBlockSizes[] = {156, 202, 354};
+  const std::size_t kAlignment = 4;
   void* blocks[] = {NULL, NULL, NULL};
   blocks[0] = allocator_->Allocate(kBlockSizes[0], kAlignment);
   blocks[1] = allocator_->Allocate(kBlockSizes[1], kAlignment);
