@@ -1,0 +1,170 @@
+/*
+ * Copyright 2016 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#ifndef COBALT_BASE_C_VAL_TIME_INTERVAL_ENTRY_STATS_H_
+#define COBALT_BASE_C_VAL_TIME_INTERVAL_ENTRY_STATS_H_
+
+#include <cmath>
+#include <limits>
+#include <string>
+
+#include "base/logging.h"
+#include "base/stringprintf.h"
+#include "base/time.h"
+#include "cobalt/base/c_val.h"
+
+namespace base {
+
+// This class tracks entries over a specified time period. When the time period
+// has elapsed, the average, minimum, maximum, and standard deviation of that
+// time period are recorded with CVals, and the tracking resets for the next
+// time period.
+template <typename EntryType>
+class CValTimeIntervalEntryStats {
+ public:
+  CValTimeIntervalEntryStats(const std::string& name,
+                             int64 time_interval_in_ms);
+
+  void AddEntry(const EntryType& value);
+  void AddEntry(const EntryType& value, const base::TimeTicks& now);
+
+ private:
+  void AddToActiveEntryStats(const EntryType& value);
+  void ResetActiveEntryStats();
+
+  const int64 time_interval_in_ms_;
+
+  // CVals of the stats for the previously completed time interval.
+  base::PublicCVal<double> average_;
+  base::PublicCVal<EntryType> minimum_;
+  base::PublicCVal<EntryType> maximum_;
+  base::PublicCVal<double> standard_deviation_;
+
+  // Active time interval-related
+  base::TimeTicks active_start_time_;
+
+  // Variance calculations are based upon the following:
+  // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Computing_shifted_data
+  // Each value is shifted by an estimated mean when calculating the variance.
+  // This increases accuracy in cases where the variance is small but the values
+  // involved are extremely large.
+  // The following article provides a more detailed discussion on the topic:
+  // http://www.cs.yale.edu/publications/techreports/tr222.pdf
+  // During the first time interval, the initial entry acts as the estimated
+  // mean. All subsequent loops use the mean of the previous time interval.
+  double active_estimated_mean_;
+
+  // Stats updated with each new entry.
+  int64 active_count_;
+  double active_shifted_sum_;
+  double active_shifted_sum_squares_;
+  EntryType active_minimum_;
+  EntryType active_maximum_;
+};
+
+template <typename EntryType>
+CValTimeIntervalEntryStats<EntryType>::CValTimeIntervalEntryStats(
+    const std::string& name, int64 time_interval_in_ms)
+    : time_interval_in_ms_(time_interval_in_ms),
+      average_(StringPrintf("%s.Avg", name.c_str()), 0, "Average time."),
+      minimum_(StringPrintf("%s.Min", name.c_str()), 0, "Minimum time."),
+      maximum_(StringPrintf("%s.Max", name.c_str()), 0, "Maximum time."),
+      standard_deviation_(StringPrintf("%s.Std", name.c_str()), 0,
+                          "Standard deviation of times."),
+      active_estimated_mean_(0) {
+  ResetActiveEntryStats();
+}
+
+template <typename EntryType>
+void CValTimeIntervalEntryStats<EntryType>::AddEntry(const EntryType& value) {
+  base::TimeTicks now = base::TimeTicks::Now();
+  AddEntry(value, now);
+}
+
+template <typename EntryType>
+void CValTimeIntervalEntryStats<EntryType>::AddEntry(
+    const EntryType& value, const base::TimeTicks& now) {
+  // Check to see if the timer hasn't started yet. This happens when this is
+  // the first entry ever added. In this case, the timer is simply started and
+  // the estimated mean is set to the passed in value.
+  if (active_start_time_.is_null()) {
+    active_start_time_ = now;
+    active_estimated_mean_ = static_cast<double>(value);
+    // Otherwise, check for the time interval having ended. If it has, then the
+    // CVals are updated using the active stats, the active stats are reset, and
+    // the timer restarted.
+  } else if ((now - active_start_time_).InMilliseconds() >
+             time_interval_in_ms_) {
+    // The active count can never be 0 when a time interval has ended. There
+    // must always be at least one entry when the time is non-null.
+    DCHECK_GT(active_count_, 0);
+
+    double active_shifted_mean = active_shifted_sum_ / active_count_;
+    average_ = active_estimated_mean_ + active_shifted_mean;
+    // The equation comes from the following:
+    // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Computing_shifted_data
+    double variance =
+        (active_shifted_sum_squares_ -
+         ((active_shifted_sum_ * active_shifted_sum_) / active_count_)) /
+        active_count_;
+    DCHECK_GE(variance, 0);
+    standard_deviation_ = std::sqrt(variance);
+    minimum_ = active_minimum_;
+    maximum_ = active_maximum_;
+
+    // Prepare the active data for the next time interval, including updating
+    // the estimated mean with the calculated mean of the previous time
+    // interval.
+    active_start_time_ = now;
+    active_estimated_mean_ += active_shifted_mean;
+    ResetActiveEntryStats();
+  }
+
+  AddToActiveEntryStats(value);
+}
+
+template <typename EntryType>
+void CValTimeIntervalEntryStats<EntryType>::AddToActiveEntryStats(
+    const EntryType& value) {
+  ++active_count_;
+
+  double shifted_value_as_double =
+      static_cast<double>(value - active_estimated_mean_);
+  active_shifted_sum_ += shifted_value_as_double;
+  active_shifted_sum_squares_ +=
+      shifted_value_as_double * shifted_value_as_double;
+
+  if (value < active_minimum_) {
+    active_minimum_ = value;
+  }
+  if (value > active_maximum_) {
+    active_maximum_ = value;
+  }
+}
+
+template <typename EntryType>
+void CValTimeIntervalEntryStats<EntryType>::ResetActiveEntryStats() {
+  active_count_ = 0;
+
+  active_shifted_sum_ = 0;
+  active_shifted_sum_squares_ = 0;
+
+  active_minimum_ = std::numeric_limits<EntryType>::max();
+  active_maximum_ = std::numeric_limits<EntryType>::min();
+}
+
+}  // namespace base
+
+#endif  // COBALT_BASE_C_VAL_TIME_INTERVAL_ENTRY_STATS_H_
