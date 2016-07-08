@@ -3302,7 +3302,7 @@ border_property_list:
   }
   ;
 
-// TODO(***REMOVED***): Support border-image.
+// TODO: Support border-image.
 // The border can either be a predefined style (solid line, double line, dotted
 // line, pseudo-3D border, etc.) or it can be an image. In the former case,
 // various properties define the style ('border-style'), color ('border-color'),
@@ -4121,7 +4121,7 @@ text_decoration_line_property_value:
 
 // Text decoration is a shorthand for setting 'text-decoration-line',
 // 'text-decoration-color', and 'text-decoration-style' in one declaration.
-// TODO(***REMOVED***): Redirect text decoration to text decoration line for now and
+// TODO: Redirect text decoration to text decoration line for now and
 // change it when fully implement text decoration.
 //   https://www.w3.org/TR/css-text-decor-3/#text-decoration
 text_decoration_property_value: text_decoration_line_property_value;

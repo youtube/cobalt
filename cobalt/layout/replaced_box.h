@@ -34,7 +34,7 @@ namespace layout {
 // as an image retrieved from a callback passed into its ctor.
 //   https://www.w3.org/TR/html5/rendering.html#replaced-elements
 //
-// TODO(***REMOVED***): Make ReplacedBox support elements other than media element.
+// TODO: Make ReplacedBox support elements other than media element.
 class ReplacedBox : public Box {
  public:
   typedef base::Callback<scoped_refptr<render_tree::Image>()> ReplaceImageCB;
@@ -97,7 +97,7 @@ class ReplacedBox : public Box {
       const base::optional<LayoutUnit>& maybe_margin_left,
       const base::optional<LayoutUnit>& maybe_margin_right) = 0;
 
-  // TODO(***REMOVED***): Make private.
+  // TODO: Make private.
   const base::optional<LayoutUnit> maybe_intrinsic_width_;
   const base::optional<LayoutUnit> maybe_intrinsic_height_;
   const float intrinsic_ratio_;

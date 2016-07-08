@@ -84,7 +84,7 @@ WindowDriver* SessionDriver::GetWindow(const protocol::WindowId& window_id) {
 util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
   util::CommandResult<void> result = window_driver_->Navigate(url);
   if (result.is_success()) {
-    // TODO(***REMOVED***): Use timeout as specified by the webdriver client.
+    // TODO: Use timeout as specified by the webdriver client.
     wait_for_navigation_.Run(
         base::TimeDelta::FromSeconds(kPageLoadTimeoutInSeconds));
   }

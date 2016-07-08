@@ -29,7 +29,7 @@ namespace mozjs {
 
 // Holds a mapping between Wrappable types and base::Callbacks that create
 // new Wrapper objects corresponding to the Wrappable type.
-// TODO(***REMOVED***): Investigate whether shared functionality with the JSC
+// TODO: Investigate whether shared functionality with the JSC
 // version can be refactored out.
 class WrapperFactory : public Wrappable::CachedWrapperAccessor {
  public:

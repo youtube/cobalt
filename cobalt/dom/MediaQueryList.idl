@@ -19,5 +19,5 @@
 interface MediaQueryList {
   readonly attribute DOMString media;
   readonly attribute boolean matches;
-  // TODO(***REMOVED***): Add addListener()/removeListener().
+  // TODO: Add addListener()/removeListener().
 };

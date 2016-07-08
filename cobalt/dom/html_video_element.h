@@ -49,7 +49,7 @@ class HTMLVideoElement : public HTMLMediaElement {
   // From HTMLElement
   scoped_refptr<HTMLVideoElement> AsHTMLVideoElement() OVERRIDE { return this; }
 
-  // TODO(***REMOVED***): ShellVideoFrameProvider is guaranteed to be long live and
+  // TODO: ShellVideoFrameProvider is guaranteed to be long live and
   // thread safe. However, it is actually a singleton internally. We should find
   // a better way to support concurrent video playbacks.
   scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider();

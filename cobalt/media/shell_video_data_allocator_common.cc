@@ -76,7 +76,7 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   scoped_refptr<FrameBufferCommon> frame_buffer_common =
       base::polymorphic_downcast<FrameBufferCommon*>(frame_buffer.get());
 
-  // TODO(***REMOVED***): Ensure it work with visible_rect with non-zero left and
+  // TODO: Ensure it work with visible_rect with non-zero left and
   // top.  Note that simply add offset to the image buffer may cause alignment
   // issues.
   gfx::Size decoded_size(param.decoded_width(), param.decoded_height());

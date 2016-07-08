@@ -677,7 +677,7 @@ void DirectiveList::EnableInsecureRequestsUpgrade(const std::string& name,
   }
   upgrade_insecure_requests_ = true;
 
-  // TODO(***REMOVED***): Do something with this.
+  // TODO: Do something with this.
   NOTIMPLEMENTED() << "SetInsecureRequestsPolicy()";
 
   if (!value.empty()) {
@@ -851,7 +851,7 @@ void DirectiveList::AddDirective(const std::string& name,
   } else if (lower_name == ContentSecurityPolicy::kConnectSrc) {
     SetCSPDirective(name, value, &connect_src_);
   } else if (lower_name == ContentSecurityPolicy::kSandbox) {
-    // TODO(***REMOVED***): ApplySandboxPolicy().
+    // TODO: ApplySandboxPolicy().
     // ApplySandboxPolicy(name, value);
     NOTIMPLEMENTED() << ContentSecurityPolicy::kSandbox;
   } else if (lower_name == ContentSecurityPolicy::kReportURI) {
@@ -875,7 +875,7 @@ void DirectiveList::AddDirective(const std::string& name,
   } else if (lower_name == ContentSecurityPolicy::kManifestSrc) {
     SetCSPDirective(name, value, &manifest_src_);
   } else if (lower_name == ContentSecurityPolicy::kSuborigin) {
-    // TODO(***REMOVED***): ApplySuboriginPolicy.
+    // TODO: ApplySuboriginPolicy.
     // ApplySuboriginPolicy(name, value);
     NOTIMPLEMENTED() << ContentSecurityPolicy::kSuborigin;
   } else {

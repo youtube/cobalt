@@ -604,7 +604,7 @@ void Application::UpdatePeriodicStats() {
     c_val_stats_.free_memory = static_cast<size_t>(available_memory_);
   }
 #elif defined(OS_STARBOARD)
-// TODO(***REMOVED***): Need to expose memory tracking through starboard.
+// TODO: Need to expose memory tracking through starboard.
 #endif
 
   lifetime_in_ms_ = (base::TimeTicks::Now() - start_time_).InMilliseconds();

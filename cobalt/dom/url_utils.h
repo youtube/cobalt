@@ -27,7 +27,7 @@ namespace dom {
 
 // Utility methods and properties that help work with URL.
 //   https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-urlutils
-// NOTE(***REMOVED***): This interface has NoInterfaceObject prefix in IDL, therefore
+// NOTE: This interface has NoInterfaceObject prefix in IDL, therefore
 // it is not a wrappable. Other interfaces that implement it can own or inherit
 // from it to use it as a utility.
 // It is possible to make the URL invalid by using the setters. The user should

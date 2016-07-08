@@ -149,7 +149,7 @@ void DebugWebServer::OnHttpRequest(int connection_id,
   DCHECK(thread_checker_.CalledOnValidThread());
   DLOG(INFO) << "Got HTTP request: " << connection_id << ": " << info.path;
 
-  // TODO(***REMOVED***): Requests for / or /json (listing of discoverable pages)
+  // TODO: Requests for / or /json (listing of discoverable pages)
   // currently send static index pages. When the debugger has support to get
   // the current URL (and any other dynamic content), then the index pages
   // should be created dynamically from templates.

@@ -16,7 +16,7 @@
 
 // https://www.w3.org/TR/html5/embedded-content-0.html#the-img-element
 
-// TODO(***REMOVED***): Add the optional width and height parameters to the
+// TODO: Add the optional width and height parameters to the
 // constructor, as shown in the spec.
 [
   NamedConstructor=Image(),

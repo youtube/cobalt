@@ -42,7 +42,7 @@ namespace {
 // faster than the display's refresh rate, we set this to 60Hz.
 const float kLayoutMaxRefreshFrequencyInHz = 60.0f;
 
-// TODO(***REMOVED***): Subscribe to viewport size changes.
+// TODO: Subscribe to viewport size changes.
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
@@ -178,7 +178,7 @@ BrowserModule::BrowserModule(const GURL& url,
 
   // Always render the debug console. It will draw nothing if disabled.
   // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
-  // TODO(***REMOVED***) Render tree combiner should probably be refactored.
+  // TODO: Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
 
   // Synchronously construct our WebModule object.

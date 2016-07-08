@@ -96,7 +96,7 @@ void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
   bool is_sample_in_float = false;
   // If the WAV file is PCM format, it has two sub-chunks: first one is "fmt"
   // and the second one is "data".
-  // TODO(***REMOVED***): support the cases that the WAV file is non-PCM format and the
+  // TODO: support the cases that the WAV file is non-PCM format and the
   // WAV file is extensible format.
   for (int i = 0; i < 2; ++i) {
     // Sub chunk id.

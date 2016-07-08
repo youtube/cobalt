@@ -562,7 +562,7 @@ void ResourceCache<CacheType>::ReclaimMemory() {
         unreference_cached_resource_map_.begin()->second;
     uint32 first_resource_size = resource->GetEstimatedSizeInBytes();
     // Erase the earliest-inserted element.
-    // TODO(***REMOVED***): Erasing the earliest-inserted element could be a function
+    // TODO: Erasing the earliest-inserted element could be a function
     // in linked_hash_map. Adding this function and related unit test which are
     // tracked in b/23790397.
     unreference_cached_resource_map_.erase(

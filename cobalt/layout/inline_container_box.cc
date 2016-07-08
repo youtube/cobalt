@@ -82,7 +82,7 @@ scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   // When an inline box is split, margins, borders, and padding have no visual
   // effect where the split occurs.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  // TODO(***REMOVED***): Implement the above comment.
+  // TODO: Implement the above comment.
 
   return box_after_split;
 }
@@ -610,9 +610,8 @@ WrapResult InlineContainerBox::TryWrapAtIndex(
 
 void InlineContainerBox::SplitAtIterator(
     Boxes::const_iterator child_split_iterator) {
-  // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
-  //              have no visual effect where the split occurs.
-  //              Tracked in b/27134223.
+  // TODO: When an inline box is split, margins, borders, and padding
+  //       have no visual effect where the split occurs.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 
   // Move the children after the split into a new box.

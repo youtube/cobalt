@@ -85,7 +85,7 @@ int32 Paragraph::AppendUtf8String(const std::string& utf8_string,
 }
 
 int32 Paragraph::AppendCodePoint(CodePoint code_point) {
-  // TODO(***REMOVED***): Switch from appending directional embedding characters to
+  // TODO: Switch from appending directional embedding characters to
   // using directional isolate characters as soon as we upgrade to the latest
   // version of ICU. Our current version doesn't support them.
   int32 start_position = GetTextEndPosition();

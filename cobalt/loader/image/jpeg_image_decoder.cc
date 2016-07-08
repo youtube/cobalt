@@ -192,7 +192,7 @@ bool JPEGImageDecoder::StartDecompress() {
   // than one scan.
   info_.buffered_image = jpeg_has_multiple_scans(&info_);
 
-  // TODO(***REMOVED***): switch libjpeg version to support JCS_RGBA_8888 output.
+  // TODO: switch libjpeg version to support JCS_RGBA_8888 output.
   info_.out_color_space = JCS_RGB;
 
   // Compute output image dimensions
@@ -211,7 +211,7 @@ bool JPEGImageDecoder::StartDecompress() {
 // Progressive JPEG divides the file into a series of scans. It is starting with
 // a very low quality image, and then following scans gradually improve the
 // quality.
-// TODO(***REMOVED***): support displaying the low resolution image while decoding
+// TODO: support displaying the low resolution image while decoding
 // the progressive JPEG.
 bool JPEGImageDecoder::DecodeProgressiveJPEG() {
   int status;
@@ -304,7 +304,7 @@ bool JPEGImageDecoder::ReadLines() {
     // cases such as bottom of image, data source suspension, and operating
     // modes that emit multiple scanlines at a time. Image data should be
     // returned in top-to-bottom scanline order.
-    // TODO(***REMOVED***): Investigate the performance improvements by processing
+    // TODO: Investigate the performance improvements by processing
     // multiple pixel rows. It may have performance advantage to use values
     // larger than 1. For example, JPEG images often use 4:2:0 downsampling, and
     // in that case libjpeg needs to make an additional copy of half the image

@@ -54,7 +54,7 @@ void AudioBufferSourceNode::Start(double when, double offset,
   Start(when, offset, 0, exception_state);
 }
 
-// TODO(***REMOVED***): Fully implement start and stop method. The starting time is
+// TODO: Fully implement start and stop method. The starting time is
 // based on the current time of AudioContext. We only support start at 0
 // currently.
 void AudioBufferSourceNode::Start(double when, double offset, double duration,

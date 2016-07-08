@@ -54,7 +54,7 @@ void RenderTreeCombiner::SubmitToRenderer() {
           new render_tree::CompositionNode(builder);
 
       // Setup time to be based off of the main submitted tree only.
-      // TODO(***REMOVED***): Setup a "layers" interface on the Pipeline so that
+      // TODO: Setup a "layers" interface on the Pipeline so that
       // trees can be combined and animated there, properly.
       renderer::Submission combined_submission(*main_render_tree_);
       combined_submission.render_tree = combined_tree;

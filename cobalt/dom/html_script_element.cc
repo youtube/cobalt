@@ -499,7 +499,7 @@ void HTMLScriptElement::Execute(const std::string& content,
   // at the script element.
   // Otherwise, the script is internal; queue a task to fire a simple event
   // named load at the script element.
-  // TODO(***REMOVED***): Remove the firing of readystatechange once we support
+  // TODO: Remove the firing of readystatechange once we support
   // Promise. See b/25387308 for more details.
   if (is_external) {
     DispatchEvent(new Event(base::Tokens::load()));

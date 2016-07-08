@@ -366,7 +366,7 @@ bool LineBox::TryWrapOverflowingBoxAndMaybeAddSplitChild(
     UpdateSizePreservingTrailingWhiteSpace(child_box);
     BeginAddChildInternal(child_box);
 
-    // TODO(***REMOVED***): Enable this logic after implementing b/27134223.
+    // TODO: Enable this logic after implementing b/27134223.
     // if (wrap_opportunity_policy == kWrapAtPolicyLastOpportunityWithinWidth) {
     // If trailing white space is being collapsed, then the child box can
     // exceed the available width prior to white space being collapsed. So the
