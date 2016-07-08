@@ -108,7 +108,7 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
 
  private:
   // Physical breakpoint corresponding to a specific source location.
-  // TODO(***REMOVED***): Include other attributes, e.g. condition.
+  // TODO: Include other attributes, e.g. condition.
   struct Breakpoint {
     Breakpoint(intptr_t source_id, int line_number, int column_number)
         : source_id(source_id),

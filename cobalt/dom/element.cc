@@ -480,8 +480,8 @@ void Element::set_outer_html(const std::string& outer_html,
   parent->RemoveChild(this);
 
   // Use the DOM parser to parse the HTML input and generate children nodes.
-  // TODO(***REMOVED***): Replace "Element" in the source location with the name
-  //               of actual class, like "HTMLDivElement".
+  // TODO: Replace "Element" in the source location with the name of actual
+  // class, like "HTMLDivElement".
   Document* document = node_document();
   if (document) {
     document->html_element_context()->dom_parser()->ParseDocumentFragment(
@@ -567,7 +567,7 @@ std::string Element::GetDebugName() {
 }
 
 void Element::HTMLParseError(const std::string& error) {
-  // TODO(***REMOVED***): Report line / column number.
+  // TODO: Report line / column number.
   LOG(WARNING) << "Error when parsing inner HTML or outer HTML: " << error;
 }
 

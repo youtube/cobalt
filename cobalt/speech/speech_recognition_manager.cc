@@ -64,7 +64,7 @@ void SpeechRecognitionManager::OnDataReceived(scoped_ptr<AudioBus> audio_bus) {
     return;
   }
 
-  // TODO(***REMOVED***): Encode audio data, and then send it to recognizer. After
+  // TODO: Encode audio data, and then send it to recognizer. After
   // receiving the recognition result from recognizer, fire a speech recognition
   // event.
 }
@@ -78,7 +78,7 @@ void SpeechRecognitionManager::OnDataCompletion() {
     return;
   }
 
-  // TODO(***REMOVED***): Handle the case that no audio data would be received
+  // TODO: Handle the case that no audio data would be received
   // afterwards.
 }
 
@@ -90,7 +90,7 @@ void SpeechRecognitionManager::OnError() {
     return;
   }
 
-  // TODO(***REMOVED***): Handle the case that an error occurred.
+  // TODO: Handle the case that an error occurred.
 }
 
 }  // namespace speech

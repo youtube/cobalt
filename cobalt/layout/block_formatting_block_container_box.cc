@@ -93,8 +93,8 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
   // children, then create a new anonymous block box.
   if (anonymous_block_box == NULL ||
       anonymous_block_box->HasTrailingLineBreak()) {
-    // TODO(***REMOVED***): Determine which animations to propagate to the
-    //               anonymous block box, instead of none at all.
+    // TODO: Determine which animations to propagate to the anonymous block box,
+    //       instead of none at all.
     scoped_refptr<cssom::CSSComputedStyleDeclaration>
         css_computed_style_declaration =
             new cssom::CSSComputedStyleDeclaration();

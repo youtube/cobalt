@@ -43,7 +43,7 @@ class WebDriverServer : private net::HttpServer::Delegate {
   enum HttpMethod {
     kUnknownMethod,
     kGet,
-    // TODO(***REMOVED***): Support HEAD requests
+    // TODO: Support HEAD requests
     kPost,
     kDelete
   };
@@ -70,7 +70,7 @@ class WebDriverServer : private net::HttpServer::Delegate {
     virtual void InvalidCommandMethod(
         HttpMethod requested_method,
         const std::vector<HttpMethod>& allowed_methods) = 0;
-    // TODO(***REMOVED***): The message should be a list of the missing parameters.
+    // TODO: The message should be a list of the missing parameters.
     virtual void MissingCommandParameters(const std::string& message) = 0;
     virtual ~ResponseHandler() {}
   };

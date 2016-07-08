@@ -235,7 +235,7 @@ void TransitionSet::UpdateTransitionForProperty(
       // Check if there is an existing transition for this property and see
       // if it has completed yet.  If so, remove it from the list of
       // transformations.
-      // TODO(***REMOVED***): Fire off a transitionend event.
+      // TODO: Fire off a transitionend event.
       //   https://www.w3.org/TR/css3-transitions/#transitionend
       const Transition* transition =
           transitions_.GetTransitionForProperty(property);

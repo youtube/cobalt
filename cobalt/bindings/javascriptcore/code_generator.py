@@ -39,7 +39,7 @@ def calculate_jsc_lookup_size(num_properties):
   # (size_mask +1) + (num_properties - 1) entries, to account for properties[0]
   # getting assigned to a hash bucket, and the remaining N-1 properties getting
   # assigned to overflow entries.
-  # TODO(***REMOVED***): WebKit's bindings generation script calculates the actual
+  # TODO: WebKit's bindings generation script calculates the actual
   # required number of entries by duplicating the JSC::Lookup logic in the
   # script and determining the number of collisions. If we want to reduce the
   # number of entries allocated we can do something similar.

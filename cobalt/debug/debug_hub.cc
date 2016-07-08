@@ -98,9 +98,9 @@ void DebugHub::SetLogMessageCallback(const LogMessageCallbackArg& callback) {
       new LogMessageCallbackArg::Reference(this, callback));
 }
 
-// TODO(***REMOVED***) - This function should be modified to return an array of
-// strings instead of a single space-separated string, once the bindings
-// support return of a string array.
+// TODO: This function should be modified to return an array of strings instead
+// of a single space-separated string, once the bindings support return of a
+// string array.
 std::string DebugHub::GetConsoleValueNames() const {
   std::string ret = "";
   base::CValManager* cvm = base::CValManager::GetInstance();
@@ -139,9 +139,9 @@ int DebugHub::GetDebugConsoleMode() const {
   return get_hud_mode_callback_.Run();
 }
 
-// TODO(***REMOVED***) - This function should be modified to return an array of
-// strings instead of a single space-separated string, once the bindings
-// support return of a string array.
+// TODO: This function should be modified to return an array of strings instead
+// of a single space-separated string, once the bindings support return of a
+// string array.
 std::string DebugHub::GetCommandChannels() const {
   std::string result = "";
   base::ConsoleCommandManager* command_mananger =

@@ -53,7 +53,7 @@ class SelectorTree {
   // internal buffer whose size can be configured via template parameter.
   // After the internal buffer is used up the extra Nodes will be stored inside
   // the contained std::vector.
-  // TODO(***REMOVED***): Move this off to its own file if this can also be used by
+  // TODO: Move this off to its own file if this can also be used by
   // other code.
   template <size_t InternalCacheSize>
   class NodeSet {

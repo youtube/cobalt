@@ -642,7 +642,7 @@ void WebDriverModule::IgnoreCommand(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  // TODO(***REMOVED***): Hook up and implement timeouts.
+  // TODO: Hook up and implement timeouts.
   return result_handler->SendResult(
       protocol::SessionId(kWebDriverSessionId),
       protocol::Response::kSuccess,

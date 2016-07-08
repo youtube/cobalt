@@ -92,7 +92,7 @@ TEST_F(HTMLDecoderTest, CanParseEmptyDocument) {
   EXPECT_EQ("body", element->tag_name());
 }
 
-// TODO(***REMOVED***): Currently HTMLDecoder is using libxml2 SAX parser. It doesn't
+// TODO: Currently HTMLDecoder is using libxml2 SAX parser. It doesn't
 // correctly add the implied tags according to HTML5. Enable the disabled tests
 // after switching to new parser.
 TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyNulls) {

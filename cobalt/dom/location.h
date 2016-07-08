@@ -43,7 +43,7 @@ class Location : public script::Wrappable {
 
   // Web API: Location
   //
-  // NOTE(***REMOVED***): Assign is implemented using Replace, which means navigation
+  // NOTE: Assign is implemented using Replace, which means navigation
   // history is not preserved.
   void Assign(const std::string& url) { Replace(url); }
 

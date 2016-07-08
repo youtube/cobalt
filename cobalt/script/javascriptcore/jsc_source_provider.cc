@@ -59,13 +59,13 @@ JSCSourceProvider::JSCSourceProvider(JSC::SourceProvider* source_provider,
 JSCSourceProvider::~JSCSourceProvider() {}
 
 base::optional<int> JSCSourceProvider::GetEndColumn() {
-  // TODO(***REMOVED***): Work out how to get this from a JSC::SourceProvider.
+  // TODO: Work out how to get this from a JSC::SourceProvider.
   // Should be provided for inline scripts.
   return base::nullopt;
 }
 
 base::optional<int> JSCSourceProvider::GetEndLine() {
-  // TODO(***REMOVED***): Work out how to get this from a JSC::SourceProvider.
+  // TODO: Work out how to get this from a JSC::SourceProvider.
   // Should be provided for inline scripts.
   return base::nullopt;
 }
@@ -85,7 +85,7 @@ std::string JSCSourceProvider::GetScriptSource() {
 }
 
 base::optional<std::string> JSCSourceProvider::GetSourceMapUrl() {
-  // TODO(***REMOVED***): Determine if we need to support this, and if so, how.
+  // TODO: Determine if we need to support this, and if so, how.
   return base::nullopt;
 }
 

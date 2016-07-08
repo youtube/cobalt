@@ -1354,7 +1354,7 @@ TEST(CSSStyleDeclarationTest, CSSTextGetter) {
             "background-size: 50%; bottom: 16px !important;");
 }
 
-// TODO(***REMOVED***): Add GetPropertyValue tests, property getter tests and tests
+// TODO: Add GetPropertyValue tests, property getter tests and tests
 // that checking if the attributes' setter and the getter are consistent when
 // fully support converting PropertyValue to std::string.
 TEST(CSSStyleDeclarationTest, PropertyValueSetter) {

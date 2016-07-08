@@ -220,7 +220,7 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
 #else
   scoped_refptr<render_tree::Image> image = replace_image_cb.Run();
 
-  // TODO(***REMOVED***): Detect better when the intrinsic video size is used for the
+  // TODO: Detect better when the intrinsic video size is used for the
   //   node size, and trigger a re-layout from the media element when the size
   //   changes.
   if (image && 0 == destination_size.height()) {
@@ -275,7 +275,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
       computed_style(), layout_params.containing_block_size);
 
   if (IsAbsolutelyPositioned()) {
-    // TODO(***REMOVED***): Implement CSS section 10.3.8, see
+    // TODO: Implement CSS section 10.3.8, see
     // https://www.w3.org/TR/CSS21/visudet.html#abs-replaced-width.
     set_left(maybe_left.value_or(LayoutUnit()));
     set_top(maybe_top.value_or(LayoutUnit()));

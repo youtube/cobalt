@@ -46,7 +46,7 @@ class Attr : public script::Wrappable,
   // Web API: Attr
   const std::string& name() const { return name_; }
   const std::string& node_name() const {
-    // TODO(***REMOVED***): Report deprecated attribute.
+    // TODO: Report deprecated attribute.
     return name_;
   }
 

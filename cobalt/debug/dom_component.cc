@@ -154,7 +154,7 @@ JSONObject DOMComponent::HideHighlight(const JSONObject& params) {
 void DOMComponent::RenderHighlight(
     const scoped_refptr<dom::DOMRect>& bounding_rect,
     const base::DictionaryValue* highlight_config_value) {
-  // TODO(***REMOVED***): Should also render borders, etc.
+  // TODO: Should also render borders, etc.
 
   // Content color is optional in the parameters, so use a fallback.
   int r = 112;

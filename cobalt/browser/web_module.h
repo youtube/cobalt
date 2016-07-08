@@ -74,7 +74,7 @@ namespace browser {
 // accessed from only one thread.
 class WebModule {
  public:
-  // TODO(***REMOVED***): These numbers should be adjusted according to the size of
+  // TODO: These numbers should be adjusted according to the size of
   // client memory.
   static const uint32 kImageCacheCapacity = 64U * 1024 * 1024;
   static const uint32 kRemoteTypefaceCacheCapacity = 5U * 1024 * 1024;

@@ -27,7 +27,7 @@ namespace {
 // audio hardware is multi-channel. Max channel count is the maximum number of
 // channels that this hardware is capable of supporting. If this value is 0,
 // then this indicates that channel count may not be changed.
-// TODO(***REMOVED***): Get the actual maximum channel count that can be supported from
+// TODO: Get the actual maximum channel count that can be supported from
 // hardware. We only support up to two stereo channels for now.
 const uint32 kMaxChannelCount = 2;
 }  // namespace

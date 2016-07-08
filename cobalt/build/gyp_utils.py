@@ -119,7 +119,7 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
 
   logging.debug('Post data is %s', post_data)
   request = urllib2.Request(version_server, data=urllib.urlencode(post_data))
-  # TODO(***REMOVED***): retry on timeout.
+  # TODO: retry on timeout.
   try:
     response = urllib2.urlopen(request)
   except urllib2.HTTPError as e:
@@ -262,7 +262,7 @@ def GetConstantValue(file_path, constant_name):
 
 def GetStackSizeConstant(platform, constant_name):
   """Gets a constant value from lb_shell_constants.h."""
-  # TODO(***REMOVED***): This needs to be reimplemented if necessary. For now,
+  # TODO: This needs to be reimplemented if necessary. For now,
   # it'll return the default value.
   _, _ = platform, constant_name
   return 0

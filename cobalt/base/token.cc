@@ -27,12 +27,12 @@ namespace base {
 
 namespace {
 
-// TODO(***REMOVED***): Replace more potential strings with Token, like event names
-//                  and attribute names.
-// TODO(***REMOVED***): Turn kTagName of HTMLElements into Token.
-// TODO(***REMOVED***): Implement Token friendly containers.
-// TODO(***REMOVED***): Improve the internal storage of Token.  Possibly remove the
-//                  use of std::string and manage the buffer by ourselves.
+// TODO: Replace more potential strings with Token, like event names and
+//       attribute names.
+// TODO: Turn kTagName of HTMLElements into Token.
+// TODO: Implement Token friendly containers.
+// TODO: Improve the internal storage of Token.  Possibly remove the use of
+//       std::string and manage the buffer by ourselves.
 class TokenStorage {
  public:
   static TokenStorage* GetInstance() { return Singleton<TokenStorage>::get(); }

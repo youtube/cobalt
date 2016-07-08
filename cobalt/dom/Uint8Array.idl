@@ -30,7 +30,7 @@ interface Uint8Array : ArrayBufferView {
   getter octet get(unsigned long index);
   setter void set(unsigned long index, octet value);
 
-  // TODO(***REMOVED***): When arrays or sequences are supported, support them here.
+  // TODO: When arrays or sequences are supported, support them here.
   // void set(sequence<long> array, optional unsigned long offset);
 
   // Copy items into this array from source, starting at this[offset].

@@ -121,8 +121,8 @@ bool MediaFeature::CompareLengthValue(int length_in_pixels) {
   } else {
     LengthValue* specified_value =
         base::polymorphic_downcast<LengthValue*>(value_.get());
-    // TODO(***REMOVED***): Support 'em' units for media features.
-    //                https://www.w3.org/TR/css3-mediaqueries/#units
+    // TODO: Support 'em' units for media features.
+    // https://www.w3.org/TR/css3-mediaqueries/#units
     DCHECK_EQ(kPixelsUnit, specified_value->unit());
 
     switch (operator_) {
