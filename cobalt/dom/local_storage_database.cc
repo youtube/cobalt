@@ -81,7 +81,7 @@ void SqlReadValues(const std::string& id,
       "SELECT key, value FROM LocalStorageTable WHERE site_identifier = ?"));
   get_values.BindString(0, id);
   while (get_values.Step()) {
-    // TODO(***REMOVED***): In Steel, these were string16.
+    // TODO: In Steel, these were string16.
     std::string key(get_values.ColumnString(0));
     std::string value(get_values.ColumnString(1));
     values->insert(std::make_pair(key, value));

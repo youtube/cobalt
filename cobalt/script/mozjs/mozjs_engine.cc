@@ -30,7 +30,7 @@ const uint32_t kGarbageCollectionThresholdBytes = 8 * 1024 * 1024;
 }
 
 MozjsEngine::MozjsEngine() {
-  // TODO(***REMOVED***): Investigate the benefit of helper threads and things like
+  // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
   runtime_ =
       JS_NewRuntime(kGarbageCollectionThresholdBytes, JS_NO_HELPER_THREADS);

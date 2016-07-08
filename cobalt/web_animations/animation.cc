@@ -80,7 +80,7 @@ base::TimeDelta ScaleTime(const base::TimeDelta& time, double scale) {
 base::optional<base::TimeDelta>
 Animation::Data::ComputeLocalTimeFromTimelineTime(
     const base::optional<double>& timeline_time_in_milliseconds) const {
-  // TODO(***REMOVED***): Take into account the hold time.
+  // TODO: Take into account the hold time.
   if (!timeline_time_in_milliseconds || !start_time_) {
     return base::nullopt;
   }

@@ -251,8 +251,8 @@ class Document : public Node, public cssom::MutationObserver {
   void SignalOnLoadToObservers();
 
   // Must be called by all descendants of the document on their modification.
-  // TODO(***REMOVED***): Provide more granularity, model after mutation observers
-  //               (see https://www.w3.org/TR/dom/#mutation-observers).
+  // TODO: Provide more granularity, model after mutation observers
+  //       (see https://www.w3.org/TR/dom/#mutation-observers).
   void RecordMutation();
 
   // From cssom::MutationObserver.

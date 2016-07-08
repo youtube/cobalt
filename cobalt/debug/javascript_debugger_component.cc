@@ -189,7 +189,7 @@ JSONObject JavaScriptDebuggerComponent::SetBreakpointByUrl(
     return connector_->ErrorResponse("Breakpoint URL must be specified.");
   }
 
-  // TODO(***REMOVED***): Should also handle setting of breakpoint by urlRegex
+  // TODO: Should also handle setting of breakpoint by urlRegex
 
   int line_number;
   bool got_line_number = params->GetInteger(kLineNumber, &line_number);
@@ -200,7 +200,7 @@ JSONObject JavaScriptDebuggerComponent::SetBreakpointByUrl(
   int column_number = 0;
   params->GetInteger(kColumnNumber, &column_number);
 
-  // TODO(***REMOVED***): Should also handle condition and isAntibreakpoint.
+  // TODO: Should also handle condition and isAntibreakpoint.
 
   // Create a new logical breakpoint and store it in our map.
   const std::string breakpoint_id =

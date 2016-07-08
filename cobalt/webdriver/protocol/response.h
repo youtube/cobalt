@@ -79,7 +79,7 @@ class Response {
   // Create a JSON object that will be used as the response body for a failed
   // command:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Failed_Commands
-  // TODO(***REMOVED***): Add support for screenshot, stack trace, etc.
+  // TODO: Add support for screenshot, stack trace, etc.
   static scoped_ptr<base::Value> CreateErrorResponse(
       const std::string& message);
 

@@ -649,10 +649,9 @@ LayoutUnit BlockContainerBox::GetShrinkToFitWidth(
   // Do a preliminary layout using the available width as a containing block
   // width. See |InlineFormattingContext::EndUpdates()| for details.
   //
-  // TODO(***REMOVED***): Laying out the children twice has an exponential
-  //               worst-case complexity (because every child could lay out
-  //               itself twice as well). Figure out if there is a better
-  //               way.
+  // TODO: Laying out the children twice has an exponential worst-case
+  //       complexity (because every child could lay out itself twice as
+  //       well). Figure out if there is a better way.
   scoped_ptr<FormattingContext> formatting_context =
       UpdateRectOfInFlowChildBoxes(child_layout_params);
 
@@ -661,9 +660,8 @@ LayoutUnit BlockContainerBox::GetShrinkToFitWidth(
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#normal-block.
 //
-// TODO(***REMOVED***): Implement
-//               https://www.w3.org/TR/CSS21/visudet.html#block-root-margin when
-//               the margin collapsing is supported.
+// TODO: Implement https://www.w3.org/TR/CSS21/visudet.html#block-root-margin
+// when the margin collapsing is supported.
 void BlockContainerBox::UpdateHeightAssumingInFlowBox(
     const base::optional<LayoutUnit>& maybe_height,
     const base::optional<LayoutUnit>& maybe_margin_top,

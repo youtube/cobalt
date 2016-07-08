@@ -58,7 +58,7 @@ class TypedArray : public ArrayBufferView {
              const scoped_refptr<TypedArray>& other)
       : ArrayBufferView(other->buffer()->Slice(settings, 0)) {}
 
-  // TODO(***REMOVED***): Support constructors from Array types.
+  // TODO: Support constructors from Array types.
   // i.e. uint8[], float[], etc.
 
   // Create a view on top of the specified buffer.
@@ -158,7 +158,7 @@ class TypedArray : public ArrayBufferView {
       memcpy(&val, data() + index, sizeof(ElementType));
       return val;
     } else {
-      // TODO(***REMOVED***): an out of bounds index should return undefined.
+      // TODO: an out of bounds index should return undefined.
       DLOG(ERROR) << "index " << index << " out of range " << length();
       return 0;
     }

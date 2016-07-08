@@ -73,7 +73,7 @@ class SourceList {
   bool allow_inline_;
   bool allow_eval_;
   base::hash_set<std::string> nonces_;
-  // TODO(***REMOVED***): This is a hash_set in blink. Need to implement
+  // TODO: This is a hash_set in blink. Need to implement
   // a hash for HashValue.
   std::set<HashValue> hashes_;
   uint8 hash_algorithms_used_;

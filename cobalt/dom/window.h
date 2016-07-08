@@ -72,7 +72,7 @@ class WindowTimers;
 // The window object represents a window containing a DOM document.
 //   https://www.w3.org/TR/html5/browsers.html#the-window-object
 //
-// TODO(***REMOVED***): Properly handle viewport resolution change event.
+// TODO: Properly handle viewport resolution change event.
 class Window : public EventTarget {
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback

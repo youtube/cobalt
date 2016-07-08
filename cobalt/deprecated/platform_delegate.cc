@@ -48,7 +48,7 @@ bool PathProvider(int key, FilePath* result) {
       }
 
     case paths::DIR_COBALT_TEST_OUT:
-      // TODO(***REMOVED***): Create a special directory for tests.
+      // TODO: Create a special directory for tests.
       if (GetOrCreateDirectory(plat->logging_output_path())) {
         *result = FilePath(plat->logging_output_path());
         return true;

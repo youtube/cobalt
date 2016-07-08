@@ -53,7 +53,7 @@
     DOMString getAllResponseHeaders();
     [RaisesException] void overrideMimeType(DOMString mime_type);
     [RaisesException=Setter] attribute DOMString responseType;
-    // TODO(***REMOVED***): Use a union type for all the possible response types.
+    // TODO: Use a union type for all the possible response types.
     [RaisesException] readonly attribute (DOMString or ArrayBuffer) response;
     [RaisesException] readonly attribute DOMString responseText;
     [RaisesException] readonly attribute Document? responseXML;

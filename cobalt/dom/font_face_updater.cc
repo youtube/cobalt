@@ -45,7 +45,7 @@ namespace {
 
 // Visit a single font face rule, generating a FontFaceStyleSet::Entry from its
 // values and verifying that it is valid.
-// TODO(***REMOVED***): Handle unicode ranges.
+// TODO: Handle unicode ranges.
 class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit FontFaceProvider(const GURL& base_url) : base_url_(base_url) {}

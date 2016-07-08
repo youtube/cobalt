@@ -35,8 +35,8 @@ std::string OriginToDatabaseIdentifier(const GURL& url) {
   // e.g. https://www.youtube.com/tv should be converted to
   // https_www.youtube.com_0
 
-  // NOTE(***REMOVED***): WebCore passes the encoded host through
-  // FileSystem's encodeForFilename(). We assume our host will be well-formed.
+  // NOTE: WebCore passes the encoded host through FileSystem's
+  // encodeForFilename(). We assume our host will be well-formed.
   std::string encoded_host = url.HostNoBrackets();
   int port = url.IntPort();
   if (port == -1) {
@@ -72,7 +72,7 @@ base::optional<std::string> StorageArea::Key(int index) {
     return base::nullopt;
   }
   // Advance N elements to get to index.
-  // TODO(***REMOVED***): If this is called often, we should cache the iterator.
+  // TODO: If this is called often, we should cache the iterator.
   StorageMap::const_iterator it = storage_map_->begin();
   int count = 0;
   while (count < index) {
@@ -97,7 +97,7 @@ void StorageArea::SetItem(const std::string& key, const std::string& value) {
   Init();
 
   base::optional<std::string> old_value = GetItem(key);
-  // TODO(***REMOVED***): Implement quota handling.
+  // TODO: Implement quota handling.
   size_bytes_ +=
       static_cast<int>(value.length() - old_value.value_or("").length());
   (*storage_map_)[key] = value;

@@ -215,11 +215,11 @@ void DOMTokenList::RunUpdateSteps() const {
 
 bool DOMTokenList::IsTokenValid(const std::string& token) const {
   if (token.empty()) {
-    // TODO(***REMOVED***): Throw JS SyntaxError.
+    // TODO: Throw JS SyntaxError.
     return false;
   }
   if (token.find_first_of(" \n\t\r\f") != std::string::npos) {
-    // TODO(***REMOVED***): Throw JS InvalidCharacterError.
+    // TODO: Throw JS InvalidCharacterError.
     return false;
   }
   return true;

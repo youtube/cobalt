@@ -200,7 +200,7 @@ Capabilities Capabilities::CreateActualCapabilities() {
   // Set the capabilities that we know we support.
   capabilities.browser_name_ = "Cobalt";
   capabilities.version_ = COBALT_VERSION;
-  // TODO(***REMOVED***): Support platforms other than Linux.
+  // TODO: Support platforms other than Linux.
   capabilities.platform_ = "Linux";
   capabilities.javascript_enabled_ = true;
   capabilities.css_selectors_enabled_ = true;
@@ -208,7 +208,7 @@ Capabilities Capabilities::CreateActualCapabilities() {
 }
 
 bool Capabilities::AreCapabilitiesSupported() const {
-  // TODO(***REMOVED***): Check for unsupported capabilities.
+  // TODO: Check for unsupported capabilities.
   return true;
 }
 

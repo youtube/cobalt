@@ -41,7 +41,7 @@ scoped_refptr<CSSRule> CSSRuleList::Item(unsigned int index) const {
 
 unsigned int CSSRuleList::InsertRule(const std::string& rule,
                                      unsigned int index) {
-  // TODO(***REMOVED***): Currently we only support appending rule to the end of the
+  // TODO: Currently we only support appending rule to the end of the
   // rule list, which is the use case in performance spike and ***REMOVED***. Properly
   // implement insertion if necessary.
   DCHECK(parent_css_style_sheet_);
@@ -50,13 +50,13 @@ unsigned int CSSRuleList::InsertRule(const std::string& rule,
           rule, GetInlineSourceLocation());
 
   if (css_rule == NULL) {
-    // TODO(***REMOVED***): Throw a SyntaxError exception instead of logging.
+    // TODO: Throw a SyntaxError exception instead of logging.
     LOG(ERROR) << "SyntaxError";
     return 0;
   }
 
   if (index > css_rules_.size()) {
-    // TODO(***REMOVED***): Throw a IndexSizeError exception instead of logging.
+    // TODO: Throw a IndexSizeError exception instead of logging.
     LOG(ERROR) << "IndexSizeError";
     return 0;
   }

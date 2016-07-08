@@ -16,10 +16,9 @@
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animatable-interface
 
-// TODO(***REMOVED***): We would like to be able to pass Element and PseudoElements
-//               around as Animatable objects, but we don't currently have
-//               support in our parsing system to support multiple inheritance
-//               between IDL files in order to support this.  This IDL file
-//               exists currently as a placeholder for now, as the object
-//               is created and destroyed purely within C++ currently.
+// TODO: We would like to be able to pass Element and PseudoElements around as
+//       Animatable objects, but we don't currently have support in our parsing
+//       system to support multiple inheritance between IDL files in order to
+//       support this.  This IDL file exists currently as a placeholder for now,
+//       as the object is created and destroyed purely within C++ currently.
 interface Animatable {};

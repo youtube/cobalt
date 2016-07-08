@@ -210,7 +210,7 @@ class ComputedFontWeightProvider : public NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(ComputedFontWeightProvider);
 };
 
-// TODO(***REMOVED***): Support bolder and lighter. Match the weight with font face.
+// TODO: Support bolder and lighter. Match the weight with font face.
 // Quite often there are only a few weights available for a particular font
 // family. When a weight is specified for which no face exists, a face with a
 // nearby weight is used.
@@ -2745,7 +2745,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       // According to https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
       // "inline" and "inline-block" values of "display" become "block" if
       // "position" is "absolute" or "fixed".
-      // TODO(***REMOVED***): Modify this logic so that the original display value is
+      // TODO: Modify this logic so that the original display value is
       // not lost. Being unable to determine the original value breaks static
       // positioning of "inline" and "inline-block" values with absolute
       // positioning, because they are treated as block boxes but are supposed

@@ -636,9 +636,8 @@ void TextBox::SplitAtPosition(int32 split_start_position) {
   box_after_split->split_sibling_ = split_sibling_;
   split_sibling_ = box_after_split;
 
-  // TODO(***REMOVED***): Set the text width of the box after split to
-  //               |text_width_ - pre_split_width| to save a call
-  //               to Skia/HarfBuzz.
+  // TODO: Set the text width of the box after split to
+  //       |text_width_ - pre_split_width| to save a call to Skia/HarfBuzz.
 
   // Pass the trailing line break on to the sibling that retains the trailing
   // portion of the text and reset the value for this text box.

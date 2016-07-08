@@ -32,7 +32,7 @@ scoped_refptr<ArrayBufferView> Crypto::GetRandomValues(
   // with random values.
   uint32 kMaxArrayLengthInBytes = 65536;
   if (!array) {
-    // TODO(***REMOVED***) : Also throw exception if element type of the array is
+    // TODO: Also throw exception if element type of the array is
     // not one of the integer types.
     DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
     // Return value should be ignored.

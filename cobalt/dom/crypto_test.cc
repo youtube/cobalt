@@ -32,8 +32,8 @@ using testing::_;
 using testing::SaveArg;
 using testing::StrictMock;
 
-// TODO(***REMOVED***) : Test arrays in other integer types.
-// TODO(***REMOVED***) : Test arrays in float types.
+// TODO: Test arrays in other integer types.
+// TODO: Test arrays in float types.
 
 TEST(CryptoTest, GetRandomValues) {
   StrictMock<MockExceptionState> exception_state;

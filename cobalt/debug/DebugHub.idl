@@ -15,7 +15,7 @@
  */
 
 // Custom interface to access debugging functionalities.
-// TODO(***REMOVED***): provide link to design doc.
+// TODO: provide link to design doc.
 
 [
   Conditional=ENABLE_DEBUG_CONSOLE

@@ -115,7 +115,7 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   scoped_ptr<DebugClient> debug_client_;
 
   // This will be defined if there was an error since the last operation.
-  // TODO(***REMOVED***): Chrome implements similar functionality throughout the
+  // TODO: Chrome implements similar functionality throughout the
   // app using the chrome.runtime.lastError object. When we add support for
   // Cobalt's equivalent to the runtime extension API, we may wish to consider
   // using that and removing this attribute.

@@ -30,7 +30,7 @@ namespace mozjs {
 // multiple times so we wouldn't expect much performance improvement, but it
 // may be that the compiled script uses less memory than the raw script.
 //
-// TODO(***REMOVED***): Investigate if there are memory savings (or other benefits)
+// TODO: Investigate if there are memory savings (or other benefits)
 // to precompiling scripts before executing.
 class MozjsSourceCode : public SourceCode {
  public:

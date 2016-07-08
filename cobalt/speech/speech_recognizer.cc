@@ -60,7 +60,7 @@ void SpeechRecognizer::OnURLFetchDownloadData(
     const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
 
-  // TODO(***REMOVED***): process the download data.
+  // TODO: process the download data.
   NOTIMPLEMENTED();
 
   UNREFERENCED_PARAMETER(source);
@@ -80,7 +80,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config) {
   }
   started_ = true;
 
-  // TODO(***REMOVED***): set up url fetchers with this URLFetcherDelegate.
+  // TODO: set up url fetchers with this URLFetcherDelegate.
   NOTIMPLEMENTED();
 
   UNREFERENCED_PARAMETER(config);
@@ -95,7 +95,7 @@ void SpeechRecognizer::StopInternal() {
   }
   started_ = false;
 
-  // TODO(***REMOVED***): terminate url fetchers.
+  // TODO: terminate url fetchers.
   NOTIMPLEMENTED();
 }
 
@@ -103,7 +103,7 @@ void SpeechRecognizer::UploadAudioDataInternal(
     scoped_array<uint8> encoded_audio_data, size_t size, bool is_last_chunk) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
 
-  // TODO(***REMOVED***): upload encoded audio data chunk.
+  // TODO: upload encoded audio data chunk.
   NOTIMPLEMENTED();
 
   UNREFERENCED_PARAMETER(encoded_audio_data);

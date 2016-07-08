@@ -362,7 +362,7 @@ bool SourceList::ParseHash(const char* begin, const char* end,
   }
 
   // We accept base64url-encoded data here by normalizing it to base64.
-  // TODO(***REMOVED***): Blink has a NormalizeToBase64() step here.
+  // TODO: Blink has a NormalizeToBase64() step here.
   std::string hash_vector;
   base::Base64Decode(
       base::StringPiece(hash_begin, static_cast<size_t>(position - hash_begin)),

@@ -71,7 +71,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   // It may be that the Handler::OnError() callback  will result in
   // destroying |this|. The caller should return immediately after calling
   // this function.
-  // TODO(***REMOVED***): Fetchers should probably be refcounted so they can
+  // TODO: Fetchers should probably be refcounted so they can
   // guard against being destroyed by callbacks.
   ReturnWrapper HandleError(const std::string& error_message)
       WARN_UNUSED_RESULT;

@@ -150,7 +150,7 @@ bool CheckSameColor(const uint8* pixels, int width, int height,
 
 }  // namespace
 
-// TODO(***REMOVED***): Test special images like the image has gAMA chunk information,
+// TODO: Test special images like the image has gAMA chunk information,
 // pngs with 16 bit depth, and large pngs.
 
 TEST(ImageDecoderTest, DecodeImageWithContentLength0) {

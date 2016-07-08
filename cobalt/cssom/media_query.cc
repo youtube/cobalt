@@ -36,7 +36,7 @@ MediaQuery::MediaQuery(bool evaluated_media_type,
       media_features_(media_features.release()) {}
 
 std::string MediaQuery::media_query() {
-  // TODO(***REMOVED***): Implement serialization of MediaQuery.
+  // TODO: Implement serialization of MediaQuery.
   NOTIMPLEMENTED() << "Serialization of MediaQuery not implemented yet.";
   return "";
 }

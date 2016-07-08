@@ -53,7 +53,7 @@ scoped_refptr<Attr> NamedNodeMap::GetNamedItem(const std::string& name) const {
 scoped_refptr<Attr> NamedNodeMap::SetNamedItem(
     const scoped_refptr<Attr>& attribute) {
   if (!attribute) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
+    // TODO: Throw JS NotFoundError.
     return NULL;
   }
 
@@ -63,7 +63,7 @@ scoped_refptr<Attr> NamedNodeMap::SetNamedItem(
       return attribute;
     }
     // Attribute is already attached to a different NamedNodeMap.
-    // TODO(***REMOVED***): Throw JS InUseAttributeError.
+    // TODO: Throw JS InUseAttributeError.
     return NULL;
   }
 
@@ -90,7 +90,7 @@ scoped_refptr<Attr> NamedNodeMap::SetNamedItem(
 scoped_refptr<Attr> NamedNodeMap::RemoveNamedItem(const std::string& name) {
   ProxyAttributeMap::iterator iter = proxy_attributes_.find(name);
   if (iter == proxy_attributes_.end()) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
+    // TODO: Throw JS NotFoundError.
     return NULL;
   }
 

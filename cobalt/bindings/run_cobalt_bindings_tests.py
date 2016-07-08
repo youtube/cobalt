@@ -79,7 +79,7 @@ def main(argv):
       #   X is in core and Y is in modules
       # The following is invalid
       #   X is in modules and Y is in core
-      # TODO(***REMOVED***): Evaluate the usefulness of this distinction in Cobalt.
+      # TODO: Evaluate the usefulness of this distinction in Cobalt.
       # This promotes modularity, but necessarily introduces complexity.
       'component_directories': frozenset(['testing']),
       # These are IDL files that aren't built directly, but are used by their

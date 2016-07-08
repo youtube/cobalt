@@ -38,7 +38,7 @@
 namespace cobalt {
 namespace audio {
 
-// TODO(***REMOVED***): Remove this lock and synchronize the JavaScript calls with
+// TODO: Remove this lock and synchronize the JavaScript calls with
 // filling audio bus calls from ShellAudioStreamer.
 class AudioLock : public base::RefCountedThreadSafe<AudioLock> {
  public:

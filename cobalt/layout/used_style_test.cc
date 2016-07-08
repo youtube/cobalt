@@ -27,7 +27,7 @@
 namespace cobalt {
 namespace layout {
 
-// TODO(***REMOVED***): Add more tests for other style provider.
+// TODO: Add more tests for other style provider.
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
   scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
