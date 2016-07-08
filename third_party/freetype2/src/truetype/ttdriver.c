@@ -311,7 +311,7 @@
     {
       error = tt_size_reset( ttsize );
 #if defined(COBALT)
-      // TODO(jegray): Determine why disabling this line is necessary
+      // TODO: Determine why disabling this line is necessary
       // for subpixel rendering to work properly in Cobalt.
       //
       // Original CL introducing the line:

@@ -1464,7 +1464,7 @@
           CF2_Int  v;
 
 #if defined(COBALT)
-          // NOTE(jegray): This code is modified as a result of gcc processing
+          // NOTE: This code is modified as a result of gcc processing
           // the second cf2_buf_readByte before the first, causing the glyph
           // to fail.
           CF2_Int byte1 = cf2_buf_readByte( charstring );
@@ -1538,7 +1538,7 @@
             CF2_Fixed  v;
 
 #if defined(COBALT)
-            // NOTE(jegray): This code is modified as a result of gcc not
+            // NOTE: This code is modified as a result of gcc not
             // processing the cf2_buf_readByte's from left to right, causing
             // the glyph to fail.
             FT_UInt32 byte1 = (FT_UInt32)cf2_buf_readByte( charstring );
