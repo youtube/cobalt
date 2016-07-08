@@ -156,6 +156,36 @@ JSBool set_disabledProperty(
   return !exception_state.IsExceptionSet();
 }
 
+JSBool fcn_disabledFunction(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  DisabledInterface* impl =
+      WrapperPrivate::GetWrappable<DisabledInterface>(object);
+  impl->DisabledFunction();
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
@@ -165,6 +195,17 @@ const JSPropertySpec prototype_properties[] = {
       JSOP_WRAPPER(&set_disabledProperty),
   },
   JS_PS_END
+};
+
+const JSFunctionSpec prototype_functions[] = {
+  {
+      "disabledFunction",
+      JSOP_WRAPPER(&fcn_disabledFunction),
+      0,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  JS_FS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -190,7 +231,9 @@ void InitializePrototypeAndInterfaceObject(
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
-
+  success = JS_DefineFunctions(
+      context, interface_data->prototype, prototype_functions);
+  DCHECK(success);
 
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));

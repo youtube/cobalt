@@ -136,6 +136,99 @@ JSBool get_length(
   return !exception_state.IsExceptionSet();
 }
 
+JSBool fcn_indexedGetter(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<uint32_t >::ConversionType index;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0), &exception_state, &index);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  IndexedGetterInterface* impl =
+      WrapperPrivate::GetWrappable<IndexedGetterInterface>(object);
+  TypeTraits<uint32_t >::ReturnType value =
+      impl->IndexedGetter(index);
+  if (!exception_state.IsExceptionSet()) {
+    ToJSValue(value, &exception_state, &result_value);
+  }
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+JSBool fcn_indexedSetter(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 2;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<uint32_t >::ConversionType index;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0), &exception_state, &index);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  TypeTraits<uint32_t >::ConversionType value;
+  DCHECK_LT(1, args.length());
+  FromJSValue(context, args.handleAt(1), &exception_state, &value);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  IndexedGetterInterface* impl =
+      WrapperPrivate::GetWrappable<IndexedGetterInterface>(object);
+  impl->IndexedSetter(index, value);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   {  // Readonly attribute
@@ -145,6 +238,24 @@ const JSPropertySpec prototype_properties[] = {
       JSOP_NULLWRAPPER,
   },
   JS_PS_END
+};
+
+const JSFunctionSpec prototype_functions[] = {
+  {
+      "indexedGetter",
+      JSOP_WRAPPER(&fcn_indexedGetter),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "indexedSetter",
+      JSOP_WRAPPER(&fcn_indexedSetter),
+      2,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  JS_FS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -170,7 +281,9 @@ void InitializePrototypeAndInterfaceObject(
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
-
+  success = JS_DefineFunctions(
+      context, interface_data->prototype, prototype_functions);
+  DCHECK(success);
 
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
