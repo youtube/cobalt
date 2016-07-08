@@ -57,6 +57,7 @@ void TextureDataPBO::InitAndMapPBO() {
       GL_PIXEL_UNPACK_BUFFER, 0, data_size_, GL_MAP_WRITE_BIT |
                                                  GL_MAP_INVALIDATE_BUFFER_BIT |
                                                  GL_MAP_UNSYNCHRONIZED_BIT));
+  DCHECK(mapped_data_);
   DCHECK_EQ(GL_NO_ERROR, glGetError());
   GL_CALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
 }
