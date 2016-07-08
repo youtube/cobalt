@@ -52,6 +52,7 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
     EGLDisplay display, EGLConfig config, EGLNativeWindowType window_handle)
     : display_(display), config_(config), native_window_(window_handle) {
   surface_ = eglCreateWindowSurface(display_, config_, native_window_, NULL);
+  CHECK_EQ(EGL_SUCCESS, eglGetError());
 
   // Query and cache information about the surface now that we have created it.
   EGLint egl_surface_width;
