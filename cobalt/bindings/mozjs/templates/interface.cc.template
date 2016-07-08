@@ -124,7 +124,7 @@ JSBool get_{{attribute.idl_name}}(
   JS::RootedValue result_value(context);
 {{ call_cobalt_function(impl_class, attribute.type,
                         attribute.getter_function_name, [],
-                        attribute.raises_exception) }}
+                        attribute.raises_exception, attribute.call_with) }}
   if (!exception_state.IsExceptionSet()) {
     vp.set(result_value);
   }
@@ -146,7 +146,7 @@ JSBool set_{{attribute.idl_name}}(
   NOTIMPLEMENTED();
 {% else %}
 {{ call_cobalt_function(impl_class, "void", attribute.setter_function_name,
-                        ["value"], attribute.raises_exception) }}
+                        ["value"], attribute.raises_exception, attribute.call_with) }}
 {% endif %}
   return !exception_state.IsExceptionSet();
 }
@@ -155,6 +155,71 @@ JSBool set_{{attribute.idl_name}}(
 {% endif %}
 {% if attribute.conditional %}
 #endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
+
+{%- for operation in operations %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+JSBool fcn_{{operation.idl_name}}(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+{# TODO: Overload resolution. Just use first overload for now. #}
+{% set overload = operation.overloads[0] %}
+{# TODO: Optional and variadic arguments. #}
+{% if overload.arguments|selectattr('is_optional')|selectattr('is_variadic')|list|length == 0 %}
+{% if overload.arguments|length > 0 %}
+  const size_t kMinArguments = {{overload.arguments|length}};
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+{% endif %}
+{% for argument in overload.arguments %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
+  DCHECK_LT({{loop.index0}}, args.length());
+  FromJSValue(context, args.handleAt({{loop.index0}}), &exception_state, &{{argument.name}});
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+{% endfor %}
+{% set arguments = overload.arguments|map(attribute="name")|list %}
+{{ call_cobalt_function(impl_class, overload.type,
+                        overload.name, arguments,
+                        overload.raises_exception,
+                        overload.call_with) }}
+{% if operation.type != 'void' %}
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+{% endif %}
+  return !exception_state.IsExceptionSet();
+{% else %}
+  NOTIMPLEMENTED();
+  return false;
+{% endif %}
+}
+
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
 {% endif %}
 {% endfor %}
 
@@ -183,6 +248,25 @@ const JSPropertySpec prototype_properties[] = {
 {% endif %}
 {% endfor %}
   JS_PS_END
+};
+
+const JSFunctionSpec prototype_functions[] = {
+{% for operation in operations %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+  {
+      "{{ operation.idl_name }}",
+      JSOP_WRAPPER(&fcn_{{operation.idl_name}}),
+      {{ operation.length }},
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
+{% endif %}
+{% endfor %}
+  JS_FS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -227,7 +311,9 @@ void InitializePrototypeAndInterfaceObject(
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
-
+  success = JS_DefineFunctions(
+      context, interface_data->prototype, prototype_functions);
+  DCHECK(success);
 
 {% if has_interface_object %}
   JS::RootedObject function_prototype(
@@ -373,7 +459,9 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
   JSContext* context = mozjs_global_object_proxy->context();
 
   JSAutoRequest auto_request(context);
-  {{binding_class}}::CreateInstance(context, global_interface);
+  {{binding_class}}::CreateInstance(
+      context, global_interface);
+  mozjs_global_object_proxy->SetEnvironmentSettings(environment_settings);
 
   WrapperFactory* wrapper_factory = mozjs_global_object_proxy->wrapper_factory();
 {% for interface in all_interfaces %}

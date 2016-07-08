@@ -17,8 +17,10 @@
 interface OperationsTestInterface {
   void voidFunctionNoArgs();
   DOMString stringFunctionNoArgs();
+  long longFunctionNoArgs();
   ArbitraryInterface objectFunctionNoArgs();
   void voidFunctionStringArg(DOMString arg);
+  void voidFunctionLongArg(long arg);
   void voidFunctionObjectArg(ArbitraryInterface arg);
   void optionalArguments(long arg1, optional long arg2, optional long arg3);
   void optionalArgumentWithDefault(optional double arg1 = 2.718);
