@@ -17,7 +17,7 @@
 // doing a lot of work to replicate initialization-less synchronization
 // primitives.
 
-// TODO(***REMOVED***): Implement a cross-platform initless synchronization model, and
+// TODO: Implement a cross-platform initless synchronization model, and
 // then properly hide thread primitives. This could look like implementing our
 // own high-performance init-less lock (e.g. MCS or CLH) using the Atomics
 // abstraction, and use that on all platforms and hope really hard that we
@@ -58,4 +58,4 @@
 #error "SB_ONCE_INITIALIZER not defined by platform."
 #endif
 
-#endif  // STARBOARD_TYPES_H_
+#endif  // STARBOARD_THREAD_TYPES_H_

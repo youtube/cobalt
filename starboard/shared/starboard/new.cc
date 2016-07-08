@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(***REMOVED***): I believe this code will have to be linked into all DLLs on
+// TODO: I believe this code will have to be linked into all DLLs on
 // Windows. I think Starboard can do this through GYP when the time comes.
 
 #include "starboard/memory.h"

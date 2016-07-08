@@ -102,7 +102,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
   // The policy is not to add a socket to a waiter if it is registered with
   // another waiter.
 
-  // TODO(***REMOVED***): If anyone were to want to add a socket to a different waiter,
+  // TODO: If anyone were to want to add a socket to a different waiter,
   // it would probably be another thread, so doing this check without locking is
   // probably wrong. But, it is also a pain, and, at this precise moment, socket
   // access is all going to come from one I/O thread anyway, and there will only

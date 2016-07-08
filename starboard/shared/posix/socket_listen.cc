@@ -29,7 +29,7 @@ SbSocketError SbSocketListen(SbSocket socket) {
   }
 
   SB_DCHECK(socket->socket_fd >= 0);
-  // TODO(***REMOVED***): Determine if we need to specify a > 0 backlog. It can go up to
+  // TODO: Determine if we need to specify a > 0 backlog. It can go up to
   // SOMAXCONN according to the documentation. Several places in chromium
   // specify the literal "10" with the comment "maybe dont allow any backlog?"
   int result = listen(socket->socket_fd, 0);
