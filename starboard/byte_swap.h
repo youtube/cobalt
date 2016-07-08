@@ -49,7 +49,7 @@ extern "C" {
 #define SB_NET_TO_HOST_S64(x) SB_HOST_TO_NET_S64(x)
 #define SB_NET_TO_HOST_U64(x) SB_HOST_TO_NET_U64(x)
 
-// TODO(***REMOVED***): Determine if these need to be inlined for performance reasons,
+// TODO: Determine if these need to be inlined for performance reasons,
 // and then act on that determination somehow.
 
 // Unconditionally swaps the byte order in signed 16-bit |value|.

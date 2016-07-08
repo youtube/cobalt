@@ -18,7 +18,7 @@
 // only allow them in debug builds). Starboard ONLY supports non-blocking socket
 // I/O, so all sockets are non-blocking at creation time.
 //
-// TODO(***REMOVED***): For platforms that do not support sockets at all, they must
+// TODO: For platforms that do not support sockets at all, they must
 // support at least a high-level HTTP client API (to be defined later).
 
 #ifndef STARBOARD_SOCKET_H_
@@ -55,7 +55,7 @@ typedef enum SbSocketError {
 
   // The operation failed for some reason.
   //
-  // TODO(***REMOVED***): It's unclear if we actually care about why, so leaving the rest
+  // TODO: It's unclear if we actually care about why, so leaving the rest
   // of this enumeration blank until it becomes clear that we do.
   kSbSocketErrorFailed,
 } SbSocketError;
