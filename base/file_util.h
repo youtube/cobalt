@@ -120,7 +120,7 @@ BASE_EXPORT bool DeleteAfterReboot(const FilePath& path);
 #endif
 
 #if !defined(OS_STARBOARD)
-// NOTE(iffy): file_util::Move is used in a small number of places. We won't
+// NOTE: file_util::Move is used in a small number of places. We won't
 // implement it in Starboard for the time being, but we may bring it back if it
 // is is deemed necessary.
 
@@ -143,7 +143,7 @@ BASE_EXPORT bool ReplaceFile(const FilePath& from_path,
 BASE_EXPORT bool CopyFile(const FilePath& from_path, const FilePath& to_path);
 
 #if !defined(OS_STARBOARD)
-// NOTE(iffy): file_util::CopyDirectory is only referenced by disabled tests.
+// NOTE: file_util::CopyDirectory is only referenced by disabled tests.
 
 // Copies the given path, and optionally all subdirectories and their contents
 // as well.

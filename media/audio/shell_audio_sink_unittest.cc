@@ -26,7 +26,7 @@
 
 typedef media::ShellAudioStreamer::Config Config;
 
-// TODO(***REMOVED***): Add 32 bits per sample tests.
+// TODO: Add 32 bits per sample tests.
 
 namespace {
 

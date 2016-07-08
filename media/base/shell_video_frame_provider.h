@@ -27,7 +27,7 @@
 
 namespace media {
 
-// TODO(***REMOVED***) : Remove Shell prefix.
+// TODO: Remove Shell prefix.
 // The ShellVideoFrameProvider manages the backlog for video frames. It has the
 // following functionalities:
 // 1. It caches the video frames ready to be displayed.

@@ -113,7 +113,7 @@ bool CreateTemporaryDirInDirImpl(const FilePath &base_dir,
     }
   }
 
-  // NOTE(iffy): This is not as secure as mkdtemp, because it doesn't atomically
+  // NOTE: This is not as secure as mkdtemp, because it doesn't atomically
   // guarantee that there is no collision. But, with 8 X's it should be good
   // enough for our purposes.
   if (!file_util::CreateDirectory(sub_dir)) {
@@ -148,7 +148,7 @@ bool Delete(const FilePath &path, bool recursive) {
   std::stack<std::string> directories;
   directories.push(path.value());
 
-  // NOTE(iffy): Right now, for Linux, SbFileGetInfo does not follow
+  // NOTE: Right now, for Linux, SbFileGetInfo does not follow
   // symlinks. This is good for avoiding deleting through symlinks, but makes it
   // hard to use symlinks on platforms where they are supported. This seems
   // safest for the lowest-common-denominator approach of pretending symlinks
@@ -586,7 +586,7 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo> *entries,
     info.filename = FilePath(entry.name);
 
     FilePath full_name = source.Append(entry.name);
-    // TODO(iffy): Make sure this follows symlinks on relevant platforms.
+    // TODO: Make sure this follows symlinks on relevant platforms.
     if (!SbFileGetPathInfo(full_name.value().c_str(), &info.sb_info)) {
       DPLOG(ERROR) << "Couldn't SbFileGetInfo on " << full_name.value();
       memset(&info.sb_info, 0, sizeof(info.sb_info));

@@ -102,7 +102,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
-  // TODO(***REMOVED***): Consider move the following functions to private section.
+  // TODO: Consider move the following functions to private section.
 
   // Issues a task to the demuxer to identify the next buffer of provided type
   // in the stream, allocate memory to contain that buffer, download the bytes

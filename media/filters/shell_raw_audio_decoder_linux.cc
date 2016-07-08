@@ -340,7 +340,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
       queued_audio_.push_back(queue_entry);
     }
 
-    // TODO(***REMOVED***) : update statistics.
+    // TODO: update statistics.
   } while (packet.size > 0);
 }
 

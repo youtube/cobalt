@@ -259,7 +259,7 @@
 #  error "No configuration definition for Starboard ARCH + BITS."
 #endif
 
-// TODO(iffy): Base this off of Starboard configuration defines.
+// TODO: Base this off of Starboard configuration defines.
 #ifndef HAVE_LONG_LONG
 #define HAVE_LONG_LONG
 #endif
