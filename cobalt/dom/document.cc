@@ -177,7 +177,7 @@ scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
 
 scoped_refptr<Element> Document::CreateElementNS(
     const std::string& namespace_uri, const std::string& local_name) {
-  // TODO(***REMOVED***): Implement namespaces, if we actually need this.
+  // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED() << namespace_uri;
   return CreateElement(local_name);
 }
@@ -211,7 +211,7 @@ scoped_refptr<Event> Document::CreateEvent(
 scoped_refptr<Element> Document::GetElementById(const std::string& id) const {
   NodeDescendantsIterator iterator(this);
 
-  // TODO(***REMOVED***): Consider optimizing this method by replacing the linear
+  // TODO: Consider optimizing this method by replacing the linear
   // search with a constant time lookup.
   Node* child = iterator.First();
   while (child) {
@@ -256,7 +256,7 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
   // 1. If the new value is not a body or frameset element, then throw a
   //    HierarchyRequestError exception and abort these steps.
   if (body->tag_name() != HTMLBodyElement::kTagName) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return;
   }
 
@@ -277,7 +277,7 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
   //    the new value to the root element.
   scoped_refptr<HTMLHtmlElement> current_html = html();
   if (!current_html) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return;
   }
   if (current_body) {

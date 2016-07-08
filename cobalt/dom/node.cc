@@ -191,7 +191,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
 
   // Custom, not in any spec.
   if (!node || !child) {
-    // TODO(***REMOVED***): Throw JS ReferenceError.
+    // TODO: Throw JS ReferenceError.
     return NULL;
   }
   if (child == node) {
@@ -201,7 +201,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   // 1. If parent is not a Document, DocumentFragment, or Element node, throw a
   // "HierarchyRequestError".
   if (!IsDocument() && !IsElement()) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return NULL;
   }
 
@@ -210,7 +210,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   Node* ancestor = this;
   while (ancestor) {
     if (node == ancestor) {
-      // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+      // TODO: Throw JS HierarchyRequestError.
       return NULL;
     }
     ancestor = ancestor->parent_;
@@ -218,7 +218,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
 
   // 3. If child's parent is not parent, throw a "NotFoundError" exception.
   if (child->parent_ != this) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
+    // TODO: Throw JS NotFoundError.
     return NULL;
   }
 
@@ -227,7 +227,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   // Note: Since we support CDATASection, it is also included here, so the only
   // type that is excluded is document.
   if (node->IsDocument()) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return NULL;
   }
 
@@ -235,7 +235,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   // doctype and parent is not a document, throw a "HierarchyRequestError".
   if ((node->IsText() && IsDocument()) ||
       (node->IsDocumentType() && !IsDocument())) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return NULL;
   }
 
@@ -466,7 +466,7 @@ bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
   // 1. If parent is not a Document, DocumentFragment, or Element node, throw a
   // "HierarchyRequestError".
   if (!IsDocument() && !IsElement()) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return false;
   }
 
@@ -475,7 +475,7 @@ bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
   Node* ancestor = this;
   while (ancestor) {
     if (node == ancestor) {
-      // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+      // TODO: Throw JS HierarchyRequestError.
       return false;
     }
     ancestor = ancestor->parent_;
@@ -484,7 +484,7 @@ bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
   // 3. If child is not null and its parent is not parent, throw a
   // "NotFoundError" exception.
   if (child && child->parent_ != this) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
+    // TODO: Throw JS NotFoundError.
     return false;
   }
 
@@ -493,7 +493,7 @@ bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
   // Note: Since we support CDATASection, it is also included here, so the only
   // type that is excluded is document.
   if (node->IsDocument()) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return false;
   }
 
@@ -501,7 +501,7 @@ bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
   // doctype and parent is not a document, throw a "HierarchyRequestError".
   if ((node->IsText() && IsDocument()) ||
       (node->IsDocumentType() && !IsDocument())) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    // TODO: Throw JS HierarchyRequestError.
     return false;
   }
 
@@ -583,7 +583,7 @@ void Node::Insert(const scoped_refptr<Node>& node,
 scoped_refptr<Node> Node::PreRemove(const scoped_refptr<Node>& child) {
   // 1. If child's parent is not parent, throw a "NotFoundError" exception.
   if (!child || child->parent_ != this) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
+    // TODO: Throw JS NotFoundError.
     return NULL;
   }
 

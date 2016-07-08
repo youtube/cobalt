@@ -69,7 +69,7 @@ BakedAnimationSet::BakedAnimationSet(const BakedAnimationSet& rhs) {
 
 void BakedAnimationSet::Apply(const base::TimeDelta& timeline_time,
                               cssom::CSSComputedStyleData* in_out_style) const {
-  // TODO(***REMOVED***): Follow the proceedure for combining effects.
+  // TODO: Follow the proceedure for combining effects.
   //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#combining-effects
   for (AnimationList::const_iterator iter = animations_.begin();
        iter != animations_.end(); ++iter) {

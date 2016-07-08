@@ -70,7 +70,7 @@ void MediaList::AppendMedium(const std::string& medium) {
   scoped_refptr<MediaQuery> media_query =
       css_parser_->ParseMediaQuery(medium, GetInlineSourceLocation());
 
-  // TODO(***REMOVED***): Don't add the query if the same one already exists in the
+  // TODO: Don't add the query if the same one already exists in the
   // collection. See https://www.w3.org/TR/cssom/#medialist for details.
   media_queries_.push_back(media_query);
 }

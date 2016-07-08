@@ -98,7 +98,7 @@ int VirtualFile::Serialize(uint8* dest, bool dry_run) {
       WriteBuffer(cur_buffer, reinterpret_cast<const uint8*>(name_.c_str()),
                   static_cast<int>(name_length), dry_run);
 
-  // NOTE(***REMOVED***): Ensure the file size is 64-bit for compatibility
+  // NOTE: Ensure the file size is 64-bit for compatibility
   // with any existing serialized files.
   uint64 file_size = static_cast<uint64>(size_);
   // Write the file contents size

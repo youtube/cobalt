@@ -750,7 +750,7 @@ void BoxGenerator::AppendPseudoElementToLine(
         // the child text boxes to animate properly and fixes b/27413633, while
         // keeping the impact of the fix as small as possible to minimize the
         // risk of introducing new bugs.
-        // TODO(***REMOVED***): Remove this logic when support for inheriting
+        // TODO: Remove this logic when support for inheriting
         // animations on inherited properties is added. This is currently
         // tracked as b/27440572.
         bool use_html_element_animations =

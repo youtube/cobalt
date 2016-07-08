@@ -35,7 +35,7 @@
 namespace cobalt {
 namespace media {
 
-// TODO(***REMOVED***): Collapse MediaModule into ShellMediaPlatform.
+// TODO: Collapse MediaModule into ShellMediaPlatform.
 class MediaModule : public WebMediaPlayerFactory,
                     public ::media::WebMediaPlayerDelegate {
  public:
@@ -63,7 +63,7 @@ class MediaModule : public WebMediaPlayerFactory,
     return false;
   }
 
-  // TODO(***REMOVED***): Move the following methods into class like MediaModuleBase
+  // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.
   // WebMediaPlayerDelegate methods
   void RegisterPlayer(WebMediaPlayer* player) OVERRIDE {

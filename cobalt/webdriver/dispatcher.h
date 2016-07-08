@@ -36,7 +36,7 @@ namespace webdriver {
 // The WebDriverDispatcher maps URL paths to WebDriver command callbacks.
 // The Dispatcher will take care of a number of types of Invalid requests and
 // send a response to the server.
-// TODO(***REMOVED***): Refactor such that the Dispatcher can detect all kinds of
+// TODO: Refactor such that the Dispatcher can detect all kinds of
 //   invalid requests, such that the registered Callback for a given path will
 //   only be called for valid requests.
 // A registered URL can contain variable components, which are prefixed
@@ -91,7 +91,7 @@ class WebDriverDispatcher {
     // described here:
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Invalid_Requests
     //
-    // TODO(***REMOVED***): Invalid requests should be handled before calling the
+    // TODO: Invalid requests should be handled before calling the
     //   CommandCallback.
     virtual void SendInvalidRequestResponse(
         RequestError error, const std::string& error_string) = 0;

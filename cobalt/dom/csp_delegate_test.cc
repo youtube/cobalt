@@ -65,7 +65,7 @@ class CspDelegateTest : public ::testing::TestWithParam<ResourcePair> {
   StrictMock<MockViolationReporter>* mock_reporter_;
 };
 
-// TODO(***REMOVED***): Combine this with the one in xml_http_request_test.
+// TODO: Combine this with the one in xml_http_request_test.
 class ScopedLogInterceptor {
  public:
   explicit ScopedLogInterceptor(std::string* output)

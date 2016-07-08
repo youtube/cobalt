@@ -447,10 +447,10 @@ class Box : public base::RefCounted<Box> {
         static_cast<const Box*>(this)->GetStackingContext());
   }
 
-  // TODO(***REMOVED***): This only depends on the computed style, maybe this function
-  //               should move into a newly created CSSComputedStyleDeclaration
-  //               type?  This would apply to other values such as
-  //               IsPositioned().
+  // TODO: This only depends on the computed style, maybe this function should
+  //       move into a newly created CSSComputedStyleDeclaration type?  This
+  //       would apply to other values such as IsPositioned().
+  //
   // Returns the z-index of this box, based on its computed style.
   int GetZIndex() const;
 

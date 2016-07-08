@@ -26,7 +26,7 @@ namespace cssom {
 //   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 std::string CSSComputedStyleDeclaration::css_text(
     script::ExceptionState* /*exception_state*/) const {
-  // TODO(***REMOVED***): This should enumerate all supported properties, not just
+  // TODO: This should enumerate all supported properties, not just
   // the declared ones.
   NOTIMPLEMENTED();
   return data_ ? data_->SerializeCSSDeclarationBlock() : std::string();

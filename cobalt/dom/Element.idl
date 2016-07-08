@@ -21,7 +21,7 @@ interface Element : Node {
   attribute DOMString id;
   attribute DOMString className;
   [SameObject] readonly attribute DOMTokenList classList;
-  // TODO(***REMOVED***): Change to Attr[] when bindings for array are implemented and
+  // TODO: Change to Attr[] when bindings for array are implemented and
   // remove NamedNodeMap, which is a deprecated interface.
   [SameObject] readonly attribute NamedNodeMap attributes;
   DOMString? getAttribute(DOMString name);

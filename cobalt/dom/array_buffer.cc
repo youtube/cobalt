@@ -164,7 +164,7 @@ void ArrayBuffer::Cache::TryToOffload() {
 
 ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings, uint32 length)
     : data_(settings, length) {
-  // TODO(***REMOVED***): Once we can have a reliable way to pass the
+  // TODO: Once we can have a reliable way to pass the
   // EnvironmentSettings to HTMLMediaElement, we should make EnvironmentSettings
   // mandatory for creating ArrayBuffer in non-testing code.
   if (settings) {
@@ -177,7 +177,7 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings, uint32 length)
 ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
                          const uint8* data, uint32 length)
     : data_(settings, data, length) {
-  // TODO(***REMOVED***): Make EnvironmentSettings mandatory for creating
+  // TODO: Make EnvironmentSettings mandatory for creating
   // ArrayBuffer in non-testing code.
   if (settings) {
     DOMSettings* dom_settings =
@@ -191,7 +191,7 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
                          scoped_array<uint8> data, uint32 length)
     : data_(data.Pass(), length) {
   DCHECK_EQ(allocation_type, kFromHeap);
-  // TODO(***REMOVED***): Make EnvironmentSettings mandatory for creating
+  // TODO: Make EnvironmentSettings mandatory for creating
   // ArrayBuffer in non-testing code.
   if (settings) {
     DOMSettings* dom_settings =

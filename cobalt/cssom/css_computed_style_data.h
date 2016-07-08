@@ -75,7 +75,7 @@ class CSSComputedStyleData
   void SetPropertyValue(const PropertyKey key,
                         const scoped_refptr<PropertyValue>& value);
 
-  // TODO(***REMOVED***): Define types of the properties more precisely using
+  // TODO: Define types of the properties more precisely using
   // non-intrusive visitors, like boost::variant (which can serve as inspiration
   // for our own base::variant).
   //

@@ -430,9 +430,9 @@ void Box::RenderAndAnimate(
   // - border.
   //   https://www.w3.org/TR/CSS21/zindex.html
   //
-  // TODO(***REMOVED***): Fully implement the stacking algorithm:
-  //               https://www.w3.org/TR/CSS21/visuren.html#z-index and
-  //               https://www.w3.org/TR/CSS21/zindex.html.
+  // TODO: Fully implement the stacking algorithm:
+  //       https://www.w3.org/TR/CSS21/visuren.html#z-index and
+  //       https://www.w3.org/TR/CSS21/zindex.html.
 
   // When an element has visibility:hidden, the generated box is invisible
   // (fully transparent, nothing is drawn), but still affects layout.
@@ -969,9 +969,8 @@ void Box::RenderAndAnimateBackgroundColor(
       scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
       border_node_builder->AddChild(rect_node);
 
-      // TODO(***REMOVED***) Investigate if we could pass
-      // css_computed_style_declaration_ instead
-      // here.
+      // TODO: Investigate if we could pass css_computed_style_declaration_
+      // instead here.
       if (background_color_animated) {
         AddAnimations<RectNode>(
             base::Bind(&SetupBackgroundNodeFromStyle, rounded_corners),

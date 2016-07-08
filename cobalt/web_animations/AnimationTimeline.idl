@@ -19,8 +19,8 @@
 interface AnimationTimeline {
   readonly attribute double? currentTime;
 
-  // TODO(***REMOVED***): Uncomment when sequences are supported, and then remove
-  //               numAnimations, which is not in the specifications.
+  // TODO: Uncomment when sequences are supported, and then remove
+  //       numAnimations, which is not in the specifications.
   // sequence<Animation> getAnimations();
   readonly attribute unsigned long numAnimations;
 };

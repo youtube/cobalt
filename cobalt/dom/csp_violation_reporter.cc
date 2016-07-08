@@ -88,7 +88,7 @@ void GatherSecurityPolicyViolationEventData(
       StripUrlForUseInReport(document->url_as_gurl(), document->url_as_gurl());
   event_data->blocked_uri = StripUrlForUseInReport(document->url_as_gurl(),
                                                    violation_info.blocked_url);
-  // TODO(***REMOVED***): Implement Document referrer, if needed.
+  // TODO: Implement Document referrer, if needed.
   event_data->referrer = "";
   event_data->violated_directive = violation_info.directive_text;
   event_data->effective_directive = violation_info.effective_directive;
@@ -105,7 +105,7 @@ void GatherSecurityPolicyViolationEventData(
         document->url_as_gurl(), GURL(stack_trace[0].source_url));
   }
 
-  // TODO(***REMOVED***): Set the status code if the document origin is non-secure.
+  // TODO: Set the status code if the document origin is non-secure.
   event_data->status_code = 0;
 }
 

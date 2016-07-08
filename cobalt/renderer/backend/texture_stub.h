@@ -69,8 +69,8 @@ class RawTextureMemoryStub : public RawTextureMemory {
  private:
   size_t size_in_bytes_;
 
-  // TODO(***REMOVED***): Store memory using a EGL PBuffer object which provides the
-  //               implementation control over the memory.
+  // TODO: Store memory using a EGL PBuffer object which provides the
+  //       implementation control over the memory.
   scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> memory_;
 };
 

@@ -31,7 +31,7 @@ namespace internal {
 template <typename R>
 inline CallbackResult<R> ConvertReturnValue(JSC::ExecState* exec_state,
                                             JSC::JSValue jsvalue) {
-  // TODO(***REMOVED***): Pass conversion flags to callback function return value.
+  // TODO: Pass conversion flags to callback function return value.
   const int kConversionFlags = 0;
   CallbackResult<R> callback_result;
   LoggingExceptionState exception_state;

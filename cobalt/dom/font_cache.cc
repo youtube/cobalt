@@ -367,7 +367,7 @@ void FontCache::OnRemoteTypefaceLoadEvent(const GURL& url) {
       requested_remote_typeface_cache_.find(url);
   if (requested_remote_typeface_iterator !=
       requested_remote_typeface_cache_.end()) {
-    // NOTE(***REMOVED***): We can potentially track the exact font list fonts that are
+    // NOTE: We can potentially track the exact font list fonts that are
     // impacted by each load event and only reset them. However, as a result of
     // the minimal amount of processing required to update the loading status of
     // a font, the small number of fonts involved, and the fact that this is an

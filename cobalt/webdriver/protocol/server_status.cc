@@ -16,7 +16,7 @@
 
 #include "cobalt/webdriver/protocol/server_status.h"
 
-// TODO(***REMOVED***): Support running WebDriver on platforms other than Linux.
+// TODO: Support running WebDriver on platforms other than Linux.
 #include <sys/utsname.h>
 
 #include "cobalt/version.h"

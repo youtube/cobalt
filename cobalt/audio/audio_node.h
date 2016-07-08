@@ -110,7 +110,7 @@ class AudioNode : public dom::EventTarget {
   // Disconnects an AudioNode's output.
   void Disconnect(uint32 output, script::ExceptionState* exception_state);
 
-  // TODO(***REMOVED***): Support wrapping ShellAudioBus into another ShellAudioBus.
+  // TODO: Support wrapping ShellAudioBus into another ShellAudioBus.
   virtual scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
       int32 number_of_frames) = 0;
 

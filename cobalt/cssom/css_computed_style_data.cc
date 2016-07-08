@@ -288,7 +288,7 @@ std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {
   // lexicographical order, with the value being the resolved value.
   //   https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle
 
-  // TODO(***REMOVED***): Return the resolved value instead of the computed value. See
+  // TODO: Return the resolved value instead of the computed value. See
   // https://www.w3.org/TR/2013/WD-cssom-20131205/#resolved-value.
   std::string serialized_text;
   for (size_t index = 0; index <= kMaxLonghandPropertyKey; ++index) {

@@ -17,8 +17,8 @@
 // https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
 
 interface CSSKeyframeRule : CSSRule {
-  // TODO(***REMOVED***): keyText is not supposed to be read-only.  Remove this
-  //               modifier and implement a setter for keyText.
+  // TODO: keyText is not supposed to be read-only.  Remove this modifier and
+  //       implement a setter for keyText.
   readonly attribute DOMString keyText;
   readonly attribute CSSStyleDeclaration style;
 };

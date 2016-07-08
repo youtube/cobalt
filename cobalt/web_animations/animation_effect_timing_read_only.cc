@@ -263,7 +263,7 @@ base::optional<double> AnimationEffectTimingReadOnly::Data::
         const base::optional<base::TimeDelta>& transformed_time) const {
   if (!transformed_time) return base::nullopt;
   if (duration_ == base::TimeDelta()) {
-    // TODO(***REMOVED***): Support animations with iteration duration set to 0.
+    // TODO: Support animations with iteration duration set to 0.
     NOTIMPLEMENTED();
     return 0.0;
   } else {

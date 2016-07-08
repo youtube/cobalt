@@ -16,10 +16,10 @@
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-keyframeeffect-interfaces
 
-// TODO(***REMOVED***): Add support for the constructor when we wish to support the
-//               JavaScript Web Animations API.  For now, KeyframeEffectReadOnly
-//               objects will always be created in C++ (by the CSS Animations
-//               or CSS Transitions systems).
+// TODO: Add support for the constructor when we wish to support the JavaScript
+//       Web Animations API.  For now, KeyframeEffectReadOnly objects will
+//       always be created in C++ (by the CSS Animations or CSS Transitions
+//       systems).
 interface KeyframeEffectReadOnly : AnimationEffectReadOnly {
   readonly attribute Element? target;
 };

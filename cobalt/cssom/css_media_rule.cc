@@ -36,7 +36,7 @@ const scoped_refptr<MediaList>& CSSMediaRule::media() const {
 
 std::string CSSMediaRule::css_text(
     script::ExceptionState* /*exception_state*/) const {
-  // TODO(***REMOVED***): Serialize the media rule to implement css_text.
+  // TODO: Serialize the media rule to implement css_text.
   //   https://www.w3.org/TR/cssom/#dom-cssrule-csstext
   NOTIMPLEMENTED() << "CSSMediaRule serialization not implemented yet.";
   return "";
@@ -44,7 +44,7 @@ std::string CSSMediaRule::css_text(
 
 void CSSMediaRule::set_css_text(const std::string& /* css_text */,
                                 script::ExceptionState* /*exception_state*/) {
-  // TODO(***REMOVED***): Parse the given text into a new CSSMediaRule.
+  // TODO: Parse the given text into a new CSSMediaRule.
   if (parent_style_sheet()) {
     parent_style_sheet()->OnMediaRuleMutation();
   }

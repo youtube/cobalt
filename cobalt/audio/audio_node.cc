@@ -48,7 +48,7 @@ void AudioNode::set_channel_count(uint32 channel_count,
     return;
   }
 
-  // TODO(***REMOVED***): Check if this AudioNode is destination when setting the
+  // TODO: Check if this AudioNode is destination when setting the
   // channel count. If it is destination, channel count may be set to any
   // non-zero value less than or equal to max channel count of the destination.
   // An INDEX_SIZE_ERR exception MUST be thrown if this value is not within the
@@ -95,7 +95,7 @@ void AudioNode::Connect(const scoped_refptr<AudioNode>& destination,
     return;
   }
 
-  // TODO(***REMOVED***): Detect if there is a cycle when connecting an AudioNode to
+  // TODO: Detect if there is a cycle when connecting an AudioNode to
   // another AudioNode. A cycle is allowed only if there is at least one
   // DelayNode in the cycle or a NOT_SUPPORTED_ERR exception MUST be thrown.
   AudioNodeInput* input_node = destination->inputs_[input];

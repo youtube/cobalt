@@ -101,7 +101,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     }
   }
 
-  // TODO(***REMOVED***): Support Date, RegExp, DOMException, Error, ArrayBuffer
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer
   //     DataView, TypedArrayName, callback functions, dictionary, array type.
   //     and sequences if necessary.
 
@@ -270,7 +270,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     }
   }
 
-  // TODO(***REMOVED***): Support Date, RegExp, DOMException, Error, ArrayBuffer
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer
   //     DataView, TypedArrayName, callback functions, dictionary, array type.
   //     and sequences if necessary.
 
@@ -480,7 +480,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     }
   }
 
-  // TODO(***REMOVED***): Support Date, RegExp, DOMException, Error, ArrayBuffer
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer
   //     DataView, TypedArrayName, callback functions, dictionary, array type.
   //     and sequences if necessary.
 
