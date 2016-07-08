@@ -33,10 +33,39 @@ namespace {
 typedef InterfaceBindingsTest<OperationsTestInterface> OperationsBindingsTest;
 }  // namespace
 
+TEST_F(OperationsBindingsTest, OperationIsPrototypeProperty) {
+  std::string result;
+  EXPECT_TRUE(
+      EvaluateScript("test.hasOwnProperty(\"voidFunctionNoArgs\");", &result));
+  EXPECT_STREQ("false", result.c_str());
+
+  EXPECT_TRUE(EvaluateScript(
+      "Object.getPrototypeOf(test).hasOwnProperty(\"voidFunctionNoArgs\");",
+      &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(OperationsBindingsTest, LengthPropertyIsSet) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.voidFunctionNoArgs.length;", &result));
+  EXPECT_STREQ("0", result.c_str());
+
+  EXPECT_TRUE(EvaluateScript("test.voidFunctionStringArg.length;", &result));
+  EXPECT_STREQ("1", result.c_str());
+}
+
 TEST_F(OperationsBindingsTest, VoidFunction) {
   EXPECT_CALL(test_mock(), VoidFunctionNoArgs());
 
   EXPECT_TRUE(EvaluateScript("test.voidFunctionNoArgs();", NULL));
+}
+
+TEST_F(OperationsBindingsTest, LongFunction) {
+  EXPECT_CALL(test_mock(), LongFunctionNoArgs()).WillOnce(Return(5));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.longFunctionNoArgs();", &result));
+  EXPECT_STREQ("5", result.c_str());
 }
 
 TEST_F(OperationsBindingsTest, StringFunction) {
@@ -63,6 +92,11 @@ TEST_F(OperationsBindingsTest, VoidFunctionStringArg) {
   EXPECT_CALL(test_mock(), VoidFunctionStringArg("mock_value"));
   EXPECT_TRUE(
       EvaluateScript("test.voidFunctionStringArg(\"mock_value\");", NULL));
+}
+
+TEST_F(OperationsBindingsTest, VoidFunctionLongArg) {
+  EXPECT_CALL(test_mock(), VoidFunctionLongArg(42));
+  EXPECT_TRUE(EvaluateScript("test.voidFunctionLongArg(42);", NULL));
 }
 
 TEST_F(OperationsBindingsTest, VoidFunctionObjectArg) {
