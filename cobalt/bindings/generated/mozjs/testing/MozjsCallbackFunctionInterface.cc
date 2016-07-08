@@ -195,6 +195,216 @@ JSBool set_nullableCallbackAttribute(
   return !exception_state.IsExceptionSet();
 }
 
+JSBool fcn_takesFunctionThatReturnsString(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<CallbackFunctionInterface::FunctionThatReturnsString >::ConversionType cb;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0), &exception_state, &cb);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  CallbackFunctionInterface* impl =
+      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+  impl->TakesFunctionThatReturnsString(cb);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+JSBool fcn_takesFunctionWithNullableParameters(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<CallbackFunctionInterface::FunctionWithNullableParameters >::ConversionType cb;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0), &exception_state, &cb);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  CallbackFunctionInterface* impl =
+      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+  impl->TakesFunctionWithNullableParameters(cb);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+JSBool fcn_takesFunctionWithOneParameter(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<CallbackFunctionInterface::FunctionWithOneParameter >::ConversionType cb;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0), &exception_state, &cb);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  CallbackFunctionInterface* impl =
+      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+  impl->TakesFunctionWithOneParameter(cb);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+JSBool fcn_takesFunctionWithSeveralParameters(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<CallbackFunctionInterface::FunctionWithSeveralParameters >::ConversionType cb;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0), &exception_state, &cb);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  CallbackFunctionInterface* impl =
+      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+  impl->TakesFunctionWithSeveralParameters(cb);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+JSBool fcn_takesVoidFunction(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<CallbackFunctionInterface::VoidFunction >::ConversionType cb;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0), &exception_state, &cb);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+  CallbackFunctionInterface* impl =
+      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+  impl->TakesVoidFunction(cb);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
@@ -210,6 +420,45 @@ const JSPropertySpec prototype_properties[] = {
       JSOP_WRAPPER(&set_nullableCallbackAttribute),
   },
   JS_PS_END
+};
+
+const JSFunctionSpec prototype_functions[] = {
+  {
+      "takesFunctionThatReturnsString",
+      JSOP_WRAPPER(&fcn_takesFunctionThatReturnsString),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "takesFunctionWithNullableParameters",
+      JSOP_WRAPPER(&fcn_takesFunctionWithNullableParameters),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "takesFunctionWithOneParameter",
+      JSOP_WRAPPER(&fcn_takesFunctionWithOneParameter),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "takesFunctionWithSeveralParameters",
+      JSOP_WRAPPER(&fcn_takesFunctionWithSeveralParameters),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "takesVoidFunction",
+      JSOP_WRAPPER(&fcn_takesVoidFunction),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  JS_FS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -235,7 +484,9 @@ void InitializePrototypeAndInterfaceObject(
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
-
+  success = JS_DefineFunctions(
+      context, interface_data->prototype, prototype_functions);
+  DCHECK(success);
 
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));

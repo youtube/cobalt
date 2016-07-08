@@ -99,6 +99,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
+JSC::EncodedJSValue functionJSlongFunctionNoArgs(JSC::ExecState*);
 JSC::EncodedJSValue functionJSobjectFunctionNoArgs(JSC::ExecState*);
 JSC::EncodedJSValue functionJSoptionalArgumentWithDefault(JSC::ExecState*);
 JSC::EncodedJSValue functionJSoptionalArguments(JSC::ExecState*);
@@ -115,6 +116,7 @@ JSC::EncodedJSValue functionJSoverloadedNullable2(JSC::ExecState*);
 JSC::EncodedJSValue functionJSstringFunctionNoArgs(JSC::ExecState*);
 JSC::EncodedJSValue functionJSvariadicPrimitiveArguments(JSC::ExecState*);
 JSC::EncodedJSValue functionJSvariadicStringArgumentsAfterOptionalArgument(JSC::ExecState*);
+JSC::EncodedJSValue functionJSvoidFunctionLongArg(JSC::ExecState*);
 JSC::EncodedJSValue functionJSvoidFunctionNoArgs(JSC::ExecState*);
 JSC::EncodedJSValue functionJSvoidFunctionObjectArg(JSC::ExecState*);
 JSC::EncodedJSValue functionJSvoidFunctionStringArg(JSC::ExecState*);
@@ -352,6 +354,12 @@ class JSCOperationsTestInterface::Prototype : public PrototypeBase {
 };
 
 const JSC::HashTableValue JSCOperationsTestInterface::Prototype::property_table_values[] = {
+    { "longFunctionNoArgs",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSlongFunctionNoArgs),
+        static_cast<intptr_t>(0),
+        JSC::NoIntrinsic
+    },
     { "objectFunctionNoArgs",
         JSC::DontDelete | JSC::Function,
         reinterpret_cast<intptr_t>(functionJSobjectFunctionNoArgs),
@@ -406,6 +414,12 @@ const JSC::HashTableValue JSCOperationsTestInterface::Prototype::property_table_
         static_cast<intptr_t>(0),
         JSC::NoIntrinsic
     },
+    { "voidFunctionLongArg",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSvoidFunctionLongArg),
+        static_cast<intptr_t>(1),
+        JSC::NoIntrinsic
+    },
     { "voidFunctionNoArgs",
         JSC::DontDelete | JSC::Function,
         reinterpret_cast<intptr_t>(functionJSvoidFunctionNoArgs),
@@ -435,7 +449,7 @@ const JSC::HashTableValue JSCOperationsTestInterface::Prototype::property_table_
 
 // static
 const JSC::HashTable JSCOperationsTestInterface::Prototype::property_table_prototype = {
-    44,  // compactSize
+    46,  // compactSize
     31,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
@@ -714,6 +728,25 @@ bool JSCOperationsTestInterface::HasOwnPropertyOrPrototypeProperty(
 }
 
 namespace {
+
+JSC::EncodedJSValue functionJSlongFunctionNoArgs(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCOperationsTestInterface", "call longFunctionNoArgs");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  OperationsTestInterface* impl =
+      GetWrappableOrSetException<OperationsTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  TypeTraits<int32_t >::ReturnType return_value = impl->LongFunctionNoArgs();
+  return JSC::JSValue::encode(ToJSValue(global_object, return_value));
+
+}
 
 JSC::EncodedJSValue functionJSobjectFunctionNoArgs(
     JSC::ExecState* exec_state) {
@@ -1350,6 +1383,40 @@ JSC::EncodedJSValue functionJSvariadicStringArgumentsAfterOptionalArgument(
       NOTREACHED();
       return JSC::JSValue::encode(JSC::jsUndefined());
   }
+
+}
+
+JSC::EncodedJSValue functionJSvoidFunctionLongArg(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCOperationsTestInterface", "call voidFunctionLongArg");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  OperationsTestInterface* impl =
+      GetWrappableOrSetException<OperationsTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  const size_t kMinArguments = 1;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  impl->VoidFunctionLongArg(arg);
+  return JSC::JSValue::encode(JSC::jsUndefined());
 
 }
 

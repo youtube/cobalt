@@ -18,6 +18,7 @@
 #define COBALT_BINDINGS_TESTING_OPERATIONS_TEST_INTERFACE_H_
 
 #include <string>
+#include <vector>
 
 #include "base/lazy_instance.h"
 #include "base/optional.h"
@@ -38,9 +39,11 @@ class OperationsTestInterface : public script::Wrappable {
 
   MOCK_METHOD0(VoidFunctionNoArgs, void());
   MOCK_METHOD0(StringFunctionNoArgs, std::string());
+  MOCK_METHOD0(LongFunctionNoArgs, int32_t());
   MOCK_METHOD0(ObjectFunctionNoArgs, scoped_refptr<ArbitraryInterface>());
 
   MOCK_METHOD1(VoidFunctionStringArg, void(const std::string&));
+  MOCK_METHOD1(VoidFunctionLongArg, void(int32_t));
   MOCK_METHOD1(VoidFunctionObjectArg,
                void(const scoped_refptr<ArbitraryInterface>&));
 

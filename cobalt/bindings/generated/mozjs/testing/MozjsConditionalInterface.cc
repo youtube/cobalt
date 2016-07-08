@@ -197,6 +197,70 @@ JSBool set_disabledAttribute(
 }
 
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
+#if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
+JSBool fcn_disabledOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  ConditionalInterface* impl =
+      WrapperPrivate::GetWrappable<ConditionalInterface>(object);
+  impl->DisabledOperation();
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+#endif  // NO_ENABLE_CONDITIONAL_PROPERTY
+#if defined(ENABLE_CONDITIONAL_PROPERTY)
+JSBool fcn_enabledOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  ConditionalInterface* impl =
+      WrapperPrivate::GetWrappable<ConditionalInterface>(object);
+  impl->EnabledOperation();
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+#endif  // ENABLE_CONDITIONAL_PROPERTY
 
 const JSPropertySpec prototype_properties[] = {
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
@@ -216,6 +280,28 @@ const JSPropertySpec prototype_properties[] = {
   },
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
   JS_PS_END
+};
+
+const JSFunctionSpec prototype_functions[] = {
+#if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
+  {
+      "disabledOperation",
+      JSOP_WRAPPER(&fcn_disabledOperation),
+      0,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+#endif  // NO_ENABLE_CONDITIONAL_PROPERTY
+#if defined(ENABLE_CONDITIONAL_PROPERTY)
+  {
+      "enabledOperation",
+      JSOP_WRAPPER(&fcn_enabledOperation),
+      0,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+#endif  // ENABLE_CONDITIONAL_PROPERTY
+  JS_FS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -241,7 +327,9 @@ void InitializePrototypeAndInterfaceObject(
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
-
+  success = JS_DefineFunctions(
+      context, interface_data->prototype, prototype_functions);
+  DCHECK(success);
 
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
