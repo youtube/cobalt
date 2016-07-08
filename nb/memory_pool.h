@@ -17,9 +17,8 @@
 #ifndef NB_MEMORY_POOL_H_
 #define NB_MEMORY_POOL_H_
 
-#include "nb/scoped_ptr.h"
-
 #include "nb/allocator.h"
+#include "nb/allocator_decorator.h"
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/reuse_allocator.h"
 
@@ -30,22 +29,24 @@ namespace nb {
 // as necessary.
 class MemoryPool : public Allocator {
  public:
-  MemoryPool(void* buffer, size_t size);
+  MemoryPool(void* buffer, std::size_t size, bool thread_safe);
 
-  void* Allocate(size_t size) { return reuse_allocator_.Allocate(size); }
-  void* Allocate(size_t size, size_t alignment) {
+  void* Allocate(std::size_t size) { return reuse_allocator_.Allocate(size); }
+  void* Allocate(std::size_t size, std::size_t alignment) {
     return reuse_allocator_.Allocate(size, alignment);
   }
-  void* AllocateForAlignment(size_t size, size_t alignment) {
+  void* AllocateForAlignment(std::size_t size, std::size_t alignment) {
     return reuse_allocator_.AllocateForAlignment(size, alignment);
   }
   void Free(void* memory) { reuse_allocator_.Free(memory); }
-  size_t GetCapacity() const { return reuse_allocator_.GetCapacity(); }
-  size_t GetAllocated() const { return reuse_allocator_.GetAllocated(); }
+  std::size_t GetCapacity() const { return reuse_allocator_.GetCapacity(); }
+  std::size_t GetAllocated() const { return reuse_allocator_.GetAllocated(); }
 
-  size_t GetHighWaterMark() const { return no_free_allocator_.GetAllocated(); }
+  std::size_t GetHighWaterMark() const {
+    return no_free_allocator_.GetAllocated();
+  }
 
-  void PrintAllocations();
+  void PrintAllocations() const;
 
  private:
   // A budget of memory to be used by the memory pool.
@@ -54,7 +55,7 @@ class MemoryPool : public Allocator {
   // A reuse allocator that will be setup to fallback on the no free allocator
   // to expand its pool as memory is required for which there is no re-usable
   // space already.
-  ReuseAllocator reuse_allocator_;
+  AllocatorDecorator reuse_allocator_;
 };
 
 }  // namespace nb

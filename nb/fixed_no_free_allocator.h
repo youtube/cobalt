@@ -18,8 +18,6 @@
 #define NB_FIXED_NO_FREE_ALLOCATOR_H_
 
 #include "nb/allocator.h"
-#include "nb/pointer_arithmetic.h"
-#include "starboard/log.h"
 
 namespace nb {
 
@@ -36,52 +34,23 @@ namespace nb {
 // runs out of memory to recycle, it can fall back to this fallback allocator.
 // This makes sense if there's a finite area of memory dedicated to graphics
 // memory and we would like to wrap it in an allocator.
-
 class FixedNoFreeAllocator : public Allocator {
  public:
-  FixedNoFreeAllocator(void* memory_start, size_t memory_size)
-      : memory_start_(memory_start),
-        memory_end_(AsPointer(AsInteger(memory_start) + memory_size)) {
-    next_memory_ = AsInteger(memory_start_);
-  }
-  void* Allocate(size_t size) { return Allocate(size, 1, true); }
+  FixedNoFreeAllocator(void* memory_start, std::size_t memory_size);
+  void* Allocate(std::size_t size) { return Allocate(size, 1, true); }
 
-  void* Allocate(size_t size, size_t alignment) {
+  void* Allocate(std::size_t size, std::size_t alignment) {
     return Allocate(size, alignment, true);
   }
 
-  void* AllocateForAlignment(size_t size, size_t alignment) {
+  void* AllocateForAlignment(std::size_t size, std::size_t alignment) {
     return Allocate(size, alignment, false);
   }
-
-  void* Allocate(size_t size, size_t alignment, bool align_pointer) {
-    // Find the next aligned memory available.
-    uintptr_t aligned_next_memory = AlignUp<uintptr_t>(next_memory_, alignment);
-
-    if (aligned_next_memory + size > AsInteger(memory_end_)) {
-      // We don't have enough memory available to make this allocation.
-      return NULL;
-    }
-
-    void* memory_pointer =
-        AsPointer(align_pointer ? aligned_next_memory : next_memory_);
-    next_memory_ = aligned_next_memory + size;
-    return memory_pointer;
-  }
-
-  void Free(void* memory) {
-    // Nothing to do here besides ensure that the freed memory belongs to us.
-    SB_DCHECK(memory >= memory_start_);
-    SB_DCHECK(memory < memory_end_);
-  }
-
-  size_t GetCapacity() const {
-    return AsInteger(memory_end_) - AsInteger(memory_start_);
-  }
-
-  size_t GetAllocated() const {
-    return next_memory_ - AsInteger(memory_start_);
-  }
+  void* Allocate(std::size_t size, std::size_t alignment, bool align_pointer);
+  void Free(void* memory);
+  std::size_t GetCapacity() const;
+  std::size_t GetAllocated() const;
+  void PrintAllocations() const;
 
  private:
   // The start of our memory range, as passed in to the constructor.
@@ -91,7 +60,7 @@ class FixedNoFreeAllocator : public Allocator {
   const void* memory_end_;
 
   // The memory location that will be passed out upon the next allocation.
-  uintptr_t next_memory_;
+  void* next_memory_;
 };
 
 }  // namespace nb
