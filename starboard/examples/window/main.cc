@@ -35,9 +35,10 @@ void SbEventHandle(const SbEvent* event) {
                     << ", window=" << data->window
                     << ", device_type=" << data->device_type
                     << ", device_id=" << data->device_id
-                    << ", key=" << data->key << ", modifiers=0x" << std::hex
-                    << data->key_modifiers << ", location=" << std::dec
-                    << data->key_location;
+                    << ", key=" << data->key
+                    << ", character=" << data->character
+                    << ", modifiers=0x" << std::hex << data->key_modifiers
+                    << ", location=" << std::dec << data->key_location;
       break;
     }
     default:
