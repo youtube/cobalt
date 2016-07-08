@@ -22,7 +22,7 @@
 // now, via glimp.  Since most of Cobalt creates threads through pthreads, not
 // Starboard, we need to call these functions on newly created pthread-created
 // threads.
-// TODO(***REMOVED***): This file should ABSOLUTELY be removed as soon as the PS3 is
+// TODO: This file should ABSOLUTELY be removed as soon as the PS3 is
 //               fully up and running on Starboard.
 
 #ifdef __cplusplus

@@ -134,7 +134,7 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
 #if SB_IS(PLAYER_COMPOSITED)
 // A handle that can be used to compose a player's video output with other
 // composition layers.
-// TODO(***REMOVED***): Define a SbCompositor interface with a composition handle type.
+// TODO: Define a SbCompositor interface with a composition handle type.
 typedef uint32_t SbPlayerCompositionHandle;
 #endif
 
