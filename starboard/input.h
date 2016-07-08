@@ -140,6 +140,11 @@ typedef struct SbInputData {
   // to a single ID space, defined by the enum SbKey in key.h.
   SbKey key;
 
+  // The character that corresponds to the key. For an external keyboard, this
+  // character also depends on the language of keyboard type. Will be 0 if there
+  // is no corresponding character.
+  wchar_t character;
+
   // The location of the specified key, in cases where there are multiple
   // instances of the button on the keyboard. The "shift" key, for example.
   SbKeyLocation key_location;

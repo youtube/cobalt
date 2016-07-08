@@ -38,7 +38,7 @@ typedef enum SbKey {
   kSbKeyReturn = 0x0D,  // Return/Enter key
   kSbKeyShift = 0x10,
   kSbKeyControl = 0x11,
-  kSbKeyMenu = 0x12,
+  kSbKeyMenu = 0x12,  // Alt key
   kSbKeyPause = 0x13,
   kSbKeyCapital = 0x14,
   kSbKeyKana = 0x15,
