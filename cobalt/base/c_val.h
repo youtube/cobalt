@@ -211,6 +211,7 @@ std::string ValToPrettyString(const T& value) {
 
 }  // namespace CValDetail
 
+#if defined(ENABLE_DEBUG_CONSOLE)
 // This class is passed back to the CVal modified event handlers so that they
 // can examine the new CVal value.  This class knows its type, which can be
 // checked through GetType, and then the actual value can be retrieved by
@@ -274,6 +275,7 @@ class CValSpecificValue : public CValGenericValue {
 };
 
 }  // namespace CValDetail
+#endif  // ENABLE_DEBUG_CONSOLE
 
 // Manager class required for the CVal tracking system to function.
 // This class is designed to be a singleton, instanced only through the methods
@@ -284,6 +286,7 @@ class CValManager {
   // Method to get the singleton instance of this class.
   static CValManager* GetInstance();
 
+#if defined(ENABLE_DEBUG_CONSOLE)
   // In order for a system to receive notifications when a tracked CVal changes,
   // it should create a subclass of OnChangedHook with OnValueChanged. When
   // instantiated, OnChangedHook will be called whenever a CVal changes.
@@ -295,6 +298,7 @@ class CValManager {
     virtual void OnValueChanged(const std::string& name,
                                 const CValGenericValue& value) = 0;
   };
+#endif  // ENABLE_DEBUG_CONSOLE
 
   friend struct StaticMemorySingletonTraits<CValManager>;
 
@@ -322,10 +326,12 @@ class CValManager {
   void RegisterCVal(const CValDetail::CValBase* cval);
   void UnregisterCVal(const CValDetail::CValBase* cval);
 
+#if defined(ENABLE_DEBUG_CONSOLE)
   // Called whenever a CVal is modified, and does the work of notifying all
   // hooks.
   void PushValueChangedEvent(const CValDetail::CValBase* cval,
                              const CValGenericValue& value);
+#endif  // ENABLE_DEBUG_CONSOLE
 
   // Helper function to remove code duplication between GetValueAsString
   // and GetValueAsPrettyString.
@@ -335,10 +341,13 @@ class CValManager {
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Lock that protects against changes to hooks.
   base::Lock hooks_lock_;
-#endif
+#endif  // ENABLE_DEBUG_CONSOLE
 
   // Lock that protects against CVals being registered/deregistered.
   base::Lock cvals_lock_;
+
+  // Lock that synchronizes |value_| reads/writes.
+  base::Lock values_lock_;
 
   // The actual value registry, mapping CVal name to actual CVal object.
   typedef base::hash_map<std::string, const CValDetail::CValBase*> NameVarMap;
@@ -348,7 +357,7 @@ class CValManager {
   // The set of hooks that we should notify whenever a CVal is modified.
   typedef base::hash_set<OnChangedHook*> OnChangeHookSet;
   OnChangeHookSet* on_changed_hook_set_;
-#endif
+#endif  // ENABLE_DEBUG_CONSOLE
 
   template <typename T>
   friend class CValDetail::CValImpl;
@@ -394,56 +403,86 @@ class CValImpl : public CValBase {
   }
   virtual ~CValImpl() {
     if (registered_) {
-      CValManager* cvm = CValManager::GetInstance();
-      if (cvm) {
-        cvm->UnregisterCVal(this);
-      }
+      CValManager::GetInstance()->UnregisterCVal(this);
     }
   }
 
-  operator T() const { return value_; }
+  operator T() const {
+    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+    return value_;
+  }
 
   const CValImpl<T>& operator=(const T& rhs) {
-    if (value_ != rhs) {
-      value_ = rhs;
+    bool value_changed;
+    {
+      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+      value_changed = value_ != rhs;
+      if (value_changed) {
+        value_ = rhs;
+      }
+    }
+#if defined(ENABLE_DEBUG_CONSOLE)
+    if (value_changed) {
       OnValueChanged();
     }
-
+#endif  // ENABLE_DEBUG_CONSOLE
     return *this;
   }
 
   const CValImpl<T>& operator+=(const T& rhs) {
-    value_ += rhs;
+    {
+      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+      value_ += rhs;
+    }
+#if defined(ENABLE_DEBUG_CONSOLE)
     OnValueChanged();
+#endif  // ENABLE_DEBUG_CONSOLE
     return *this;
   }
 
   const CValImpl<T>& operator-=(const T& rhs) {
-    value_ -= rhs;
+    {
+      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+      value_ -= rhs;
+    }
+#if defined(ENABLE_DEBUG_CONSOLE)
     OnValueChanged();
+#endif  // ENABLE_DEBUG_CONSOLE
     return *this;
   }
 
   const CValImpl<T>& operator++() {
-    ++value_;
+    {
+      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+      ++value_;
+    }
+#if defined(ENABLE_DEBUG_CONSOLE)
     OnValueChanged();
+#endif  // ENABLE_DEBUG_CONSOLE
     return *this;
   }
 
   const CValImpl<T>& operator--() {
-    --value_;
+    {
+      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+      --value_;
+    }
+#if defined(ENABLE_DEBUG_CONSOLE)
     OnValueChanged();
+#endif  // ENABLE_DEBUG_CONSOLE
     return *this;
   }
 
   std::string GetValueAsString() const {
     // Can be called to get the value of a CVal without knowing the type first.
+    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
     return ValToString<T>(value_);
   }
 
   std::string GetValueAsPrettyString() const {
     // Similar to GetValueAsString(), but it will also format the string to
     // do things like make very large numbers more readable.
+    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
     return ValToPrettyString<T>(value_);
   }
 
@@ -455,9 +494,7 @@ class CValImpl : public CValBase {
 
   void RegisterWithManager() {
     if (!registered_) {
-      CValManager* cvm = CValManager::GetInstance();
-      DCHECK(cvm);
-      cvm->RegisterCVal(this);
+      CValManager::GetInstance()->RegisterCVal(this);
       registered_ = true;
     }
   }
@@ -465,13 +502,9 @@ class CValImpl : public CValBase {
 #if defined(ENABLE_DEBUG_CONSOLE)
   void OnValueChanged() {
     // Push the value changed event to all listeners.
-    CValManager* cvm = CValManager::GetInstance();
-    DCHECK(cvm);
-    cvm->PushValueChangedEvent(this, CValSpecificValue<T>(value_));
+    CValManager::GetInstance()->PushValueChangedEvent(
+        this, CValSpecificValue<T>(value_));
   }
-#else   // ENABLE_DEBUG_CONSOLE
-  // Value change events only occur when the debug console is enabled.
-  void OnValueChanged() {}
 #endif  // ENABLE_DEBUG_CONSOLE
 
   T value_;
