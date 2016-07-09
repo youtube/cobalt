@@ -92,14 +92,6 @@ CValManager::OnChangedHook::~OnChangedHook() {
   size_t values_erased ALLOW_UNUSED = cvm->on_changed_hook_set_->erase(this);
   DCHECK_EQ(values_erased, 1);
 }
-#else   // ENABLE_DEBUG_CONSOLE
-// Value change events only occur when the debug console is enabled.
-void CValManager::PushValueChangedEvent(const CValDetail::CValBase* /*cval*/,
-                                        const CValGenericValue& /*value*/) {}
-
-CValManager::OnChangedHook::OnChangedHook() {}
-
-CValManager::OnChangedHook::~OnChangedHook() {}
 #endif  // ENABLE_DEBUG_CONSOLE
 
 std::set<std::string> CValManager::GetOrderedCValNames() {
