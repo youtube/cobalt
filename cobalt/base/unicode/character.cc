@@ -164,8 +164,8 @@ bool ContainsComplexScript(const UChar* characters, unsigned len) {
 }
 
 bool TreatAsSpace(UChar32 c) {
-  return c == kSpaceCharacter || c == kTabulationCharacter ||
-         c == kNewlineCharacter || c == kFormFeedCharacter ||
+  return c == kSpaceCharacter || c == kHorizontalTabulationCharacter ||
+         c == kNewLineCharacter || c == kFormFeedCharacter ||
          c == kCarriageReturnCharacter || c == kNoBreakSpaceCharacter;
 }
 
@@ -201,7 +201,7 @@ bool TreatAsZeroWidthSpaceInComplexScript(UChar32 c) {
          || (c >= 0x7F && c < 0xA0)  // ASCII Delete .. No-break spaceCharacter
          || c == kZeroWidthSpaceCharacter ||
          (c >= kLeftToRightMarkCharacter && c <= kRightToLeftMarkCharacter) ||
-         (c >= kLeftToRightEmbedCharacter &&
+         (c >= kLeftToRightEmbeddingCharacter &&
           c <= kRightToLeftOverrideCharacter) ||
          c == kZeroWidthNoBreakSpaceCharacter ||
          c == kObjectReplacementCharacter || IsEmojiModifier(c);
