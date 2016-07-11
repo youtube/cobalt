@@ -51,9 +51,9 @@ class H5vcc : public script::Wrappable {
   const scoped_refptr<H5vccAudioConfigArray>& audio_config() {
     return audio_config_array_;
   }
+  const scoped_refptr<H5vccCVal>& c_val() const { return c_val_; }
   const scoped_refptr<H5vccRuntime>& runtime() const { return runtime_; }
   const scoped_refptr<H5vccSettings>& settings() const { return settings_; }
-  const scoped_refptr<H5vccCVal>& c_val() const { return c_val_; }
   const scoped_refptr<H5vccStorage>& storage() const { return storage_; }
   const scoped_refptr<H5vccSystem>& system() const { return system_; }
 
