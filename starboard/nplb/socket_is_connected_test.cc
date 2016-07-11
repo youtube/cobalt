@@ -28,9 +28,7 @@ TEST(SbSocketIsConnectedTest, RainyDayInvalidSocket) {
 }
 
 TEST(SbSocketIsConnectedTest, SunnyDay) {
-  const SbTime kTimeout = kSbTimeSecond / 15;
-
-  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }

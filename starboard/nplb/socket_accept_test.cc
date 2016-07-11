@@ -24,7 +24,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const SbTime kTimeout = kSbTimeSecond / 15;
 const int kPort = 2048;
 
 TEST(SbSocketAcceptTest, RainyDayNoConnection) {
@@ -37,7 +36,7 @@ TEST(SbSocketAcceptTest, RainyDayNoConnection) {
   // Don't create a socket to connect to it.
 
   // Spin briefly to ensure that it won't accept.
-  SbSocket accepted_socket = AcceptBySpinning(server_socket, kTimeout);
+  SbSocket accepted_socket = AcceptBySpinning(server_socket, kSocketTimeout);
   EXPECT_FALSE(SbSocketIsValid(accepted_socket))
       << "Accepted with no one connecting.";
 

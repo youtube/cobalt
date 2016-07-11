@@ -17,6 +17,10 @@
 // listening sockets, and some may not support any kind of sockets at all (or
 // only allow them in debug builds). Starboard ONLY supports non-blocking socket
 // I/O, so all sockets are non-blocking at creation time.
+// Note that, on some platforms, API calls on one end of a socket connection may
+// not be instantaneously aware of manipulations on the socket at the other end
+// of the connection, thus requiring use of either an SbSocketWaiter or
+// spin-polling.
 //
 // TODO: For platforms that do not support sockets at all, they must
 // support at least a high-level HTTP client API (to be defined later).
