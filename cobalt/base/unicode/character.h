@@ -31,7 +31,7 @@
 #ifndef COBALT_BASE_UNICODE_CHARACTER_H_
 #define COBALT_BASE_UNICODE_CHARACTER_H_
 
-#include "cobalt/base/unicode/character_names.h"
+#include "cobalt/base/unicode/character_values.h"
 
 #include "third_party/icu/public/common/unicode/uchar.h"
 
