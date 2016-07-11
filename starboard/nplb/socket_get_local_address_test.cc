@@ -83,9 +83,8 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
 
 TEST(SbSocketGetLocalAddressTest, SunnyDayConnected) {
   const int kPort = 2048;
-  const SbTimeMonotonic kTimeout = kSbTimeSecond / 15;
 
-  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }
