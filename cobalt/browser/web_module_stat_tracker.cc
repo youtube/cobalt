@@ -101,7 +101,7 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
       count_layout_boxes_destroyed(
           StringPrintf("%s.Count.Layout.BoxesDestroyed", name.c_str()), 0,
           "Number of boxes destroyed."),
-      time_total(StringPrintf("%s.Time.Total", name.c_str()), 0,
+      time_total(StringPrintf("%s.Time", name.c_str()), 0,
                  "Total time for event."),
       time_dom_inject_event(
           StringPrintf("%s.Time.DOM.InjectEvent", name.c_str()), 0,
@@ -110,12 +110,12 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
           StringPrintf("%s.Time.DOM.UpdateComputedStyle", name.c_str()), 0,
           "UpdateComputedStyle time for event."),
       time_layout_box_tree(StringPrintf("%s.Time.Layout.BoxTree", name.c_str()),
-                           0, "Layout time for event."),
+                           0, "Layout box tree time for event."),
       time_layout_box_generation(
-          StringPrintf("%s.Time.Layout.BoxGeneration", name.c_str()), 0,
+          StringPrintf("%s.Time.Layout.BoxTree.BoxGeneration", name.c_str()), 0,
           "BoxGeneration time for event."),
       time_layout_update_used_sizes(
-          StringPrintf("%s.Time.Layout.UpdateUsedSizes", name.c_str()), 0,
+          StringPrintf("%s.Time.Layout.BoxTree.UpdateUsedSizes", name.c_str()), 0,
           "UpdateUsedSizes time for event."),
       time_layout_render_and_animate(
           StringPrintf("%s.Time.Layout.RenderAndAnimate", name.c_str()), 0,
