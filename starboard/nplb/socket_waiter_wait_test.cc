@@ -62,7 +62,7 @@ TEST(SbSocketWaiterWaitTest, SunnyDay) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     ADD_FAILURE();
     return;
@@ -153,13 +153,15 @@ const int kPort = 2048;
 void* AlreadyReadyEntryPoint(void* param) {
   AlreadyReadyContext* context = reinterpret_cast<AlreadyReadyContext*>(param);
 
-  context->a_write_result = WriteBySpinning(
-      context->trio.server_socket, kAData, SB_ARRAY_SIZE_INT(kAData), kTimeout);
+  context->a_write_result =
+      WriteBySpinning(context->trio.server_socket, kAData,
+                      SB_ARRAY_SIZE_INT(kAData), kSocketTimeout);
   context->wrote_a_signal.Put();
 
   context->write_b_signal.Take();
-  context->b_result = WriteBySpinning(context->trio.server_socket, kBData,
-                                      SB_ARRAY_SIZE_INT(kBData), kTimeout);
+  context->b_result =
+      WriteBySpinning(context->trio.server_socket, kBData,
+                      SB_ARRAY_SIZE_INT(kBData), kSocketTimeout);
   context->wrote_b_signal.Put();
   return NULL;
 }
@@ -178,8 +180,9 @@ void AlreadyReadySocketWaiterCallback(SbSocketWaiter waiter,
   AlreadyReadyContext* context = reinterpret_cast<AlreadyReadyContext*>(param);
   // Read in the A data.
   char buffer[SB_ARRAY_SIZE_INT(kAData)];
-  context->a_read_result = ReadBySpinning(context->trio.client_socket, buffer,
-                                          SB_ARRAY_SIZE_INT(buffer), kTimeout);
+  context->a_read_result =
+      ReadBySpinning(context->trio.client_socket, buffer,
+                     SB_ARRAY_SIZE_INT(buffer), kSocketTimeout);
 
   // Tell the thread to write the B data now.
   context->write_b_signal.Put();
@@ -201,7 +204,7 @@ TEST(SbSocketWaiterWaitTest, SunnyDayAlreadyReady) {
   context.waiter = SbSocketWaiterCreate();
   ASSERT_TRUE(SbSocketWaiterIsValid(context.waiter));
 
-  context.trio = CreateAndConnect(kPort, kTimeout);
+  context.trio = CreateAndConnect(kPort, kSocketTimeout);
   ASSERT_TRUE(SbSocketIsValid(context.trio.server_socket));
 
   EXPECT_TRUE(SbSocketWaiterAdd(context.waiter, context.trio.client_socket,

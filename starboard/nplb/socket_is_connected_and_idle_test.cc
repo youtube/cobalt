@@ -15,6 +15,7 @@
 #include "starboard/log.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
+#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -28,9 +29,7 @@ TEST(SbSocketIsConnectedAndIdleTest, RainyDayInvalidSocket) {
 }
 
 TEST(SbSocketIsConnectedAndIdleTest, SunnyDay) {
-  const SbTimeMonotonic kTimeout = kSbTimeSecond / 15;
-
-  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }
@@ -41,11 +40,14 @@ TEST(SbSocketIsConnectedAndIdleTest, SunnyDay) {
 
   char buf[512] = {0};
   SbSocketSendTo(trio.server_socket, buf, sizeof(buf), NULL);
-  // Because I haven't called ReceiveFrom yet, this should stay false.
+  // Because I haven't called ReceiveFrom yet, this should stay false. The wait
+  // before the checking is for the delay on some platforms.
+  SbThreadSleep(kSocketTimeout);
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(trio.client_socket));
 
   // Should be the same in the other direction.
   SbSocketSendTo(trio.client_socket, buf, sizeof(buf), NULL);
+  SbThreadSleep(kSocketTimeout);
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(trio.server_socket));
 
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
@@ -59,6 +61,7 @@ TEST(SbSocketIsConnectedAndIdleTest, SunnyDayNotConnected) {
     return;
   }
 
+  SbThreadSleep(kSocketTimeout);
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(socket));
 
   EXPECT_TRUE(SbSocketDestroy(socket));
