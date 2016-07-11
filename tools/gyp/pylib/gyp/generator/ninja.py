@@ -1297,6 +1297,11 @@ class NinjaWriter:
     extension = spec.get('product_extension')
     if extension:
       extension = '.' + extension
+    elif self.toolset == 'host':
+      if is_linux:
+        extension = ''
+      elif is_windows:
+        extension = '.exe'
     else:
       extension = DEFAULT_EXTENSION.get(type, '')
 
