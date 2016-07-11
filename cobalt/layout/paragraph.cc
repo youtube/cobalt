@@ -17,7 +17,7 @@
 #include "cobalt/layout/paragraph.h"
 
 #include "base/i18n/char_iterator.h"
-#include "cobalt/base/unicode/character.h"
+#include "cobalt/base/unicode/character_values.h"
 
 #include "third_party/icu/public/common/unicode/ubidi.h"
 
@@ -56,9 +56,9 @@ Paragraph::Paragraph(
   DCHECK(unicode_text_.isEmpty());
   for (size_t i = 0; i < directional_embedding_stack_.size(); ++i) {
     if (directional_embedding_stack_[i] == kRightToLeftDirectionalEmbedding) {
-      unicode_text_ += base::unicode::kRightToLeftEmbedCharacter;
+      unicode_text_ += base::unicode::kRightToLeftEmbeddingCharacter;
     } else {
-      unicode_text_ += base::unicode::kLeftToRightEmbedCharacter;
+      unicode_text_ += base::unicode::kLeftToRightEmbeddingCharacter;
     }
   }
 }
@@ -100,10 +100,10 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
         // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
         directional_embedding_stack_.push_back(
             kLeftToRightDirectionalEmbedding);
-        unicode_text_ += base::unicode::kLeftToRightEmbedCharacter;
+        unicode_text_ += base::unicode::kLeftToRightEmbeddingCharacter;
         break;
       case kLineFeedCodePoint:
-        unicode_text_ += base::unicode::kNewlineCharacter;
+        unicode_text_ += base::unicode::kNewLineCharacter;
         break;
       case kNoBreakSpaceCodePoint:
         unicode_text_ += base::unicode::kNoBreakSpaceCharacter;
@@ -123,7 +123,7 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
         // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
         directional_embedding_stack_.push_back(
             kRightToLeftDirectionalEmbedding);
-        unicode_text_ += base::unicode::kRightToLeftEmbedCharacter;
+        unicode_text_ += base::unicode::kRightToLeftEmbeddingCharacter;
         break;
     }
   }

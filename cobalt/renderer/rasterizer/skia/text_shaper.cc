@@ -23,6 +23,7 @@
 #include "base/i18n/icu_string_conversions.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/unicode/character.h"
+#include "cobalt/base/unicode/character_values.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/harfbuzz_font.h"
 
@@ -204,7 +205,7 @@ bool TextShaper::CollectScriptRuns(const char16* text_buffer,
       // Normalize spaces within the current character, so that we are
       // guaranteed that they will map to a consistent font and glyph.
       next_character = base::unicode::NormalizeSpaces(iter.get());
-      if (next_character == kZeroWidthSpaceCharacter) {
+      if (next_character == base::unicode::kZeroWidthSpaceCharacter) {
         continue;
       }
 
@@ -410,13 +411,13 @@ void TextShaper::ShapeSimpleRun(const char16* text_buffer, size_t text_length,
     // If a space character is encountered, simply add to the width and continue
     // on. As an optimization, we don't add space character glyphs to the glyph
     // buffer.
-    if (character == kSpaceCharacter) {
+    if (character == base::unicode::kSpaceCharacter) {
       *total_width += font_provider->GetCharacterFont(character, &glyph)
                           ->GetGlyphWidth(glyph);
       continue;
       // If a zero width space character is encountered, simply continue on. It
       // doesn't impact the width or shaping data.
-    } else if (character == kZeroWidthSpaceCharacter) {
+    } else if (character == base::unicode::kZeroWidthSpaceCharacter) {
       continue;
     }
 
