@@ -48,6 +48,12 @@
             '<(DEPTH)/nb/nb.gyp:nb',
           ],
         }],
+        ['OS=="starboard" and target_arch == "ps4"', {
+          'sources': [
+            'decoder_working_memory_allocator_impl_ps4.cc',
+            'decoder_working_memory_allocator_impl_ps4.h',
+          ],
+        }],
         ['OS=="lb_shell"', {
           'sources': [
             'media_module_<(actual_target_arch).cc',
