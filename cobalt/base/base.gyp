@@ -58,7 +58,7 @@
         'type_id.h',
         'unicode/character.cc',
         'unicode/character.h',
-        'unicode/character_names.h',
+        'unicode/character_values.h',
         'unused.h',
         'user_log.cc',
         'user_log.h',
