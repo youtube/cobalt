@@ -61,11 +61,10 @@ int Transfer(SbSocket receive_socket,
 
 TEST(SbSocketReceiveFromTest, SunnyDay) {
   const int kPort = 2048;
-  const SbTime kTimeout = kSbTimeSecond / 15;
   const int kBufSize = 256 * 1024;
   const int kSockBufSize = kBufSize / 8;
 
-  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }

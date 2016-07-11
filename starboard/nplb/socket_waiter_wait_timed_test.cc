@@ -53,7 +53,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     ADD_FAILURE();
     return;
@@ -66,7 +66,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
       waiter, trio.client_socket, &values, &TestSocketWaiterCallback,
       kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
 
-  TimedWaitShouldNotBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kSocketTimeout);
 
   // Even though we waited for no time, we should have gotten this callback.
   EXPECT_EQ(1, values.count);  // Check that the callback was called once.
@@ -82,7 +82,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
                                 &TestSocketWaiterCallback,
                                 kSbSocketWaiterInterestRead, false));
 
-  TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kSocketTimeout);
 
   EXPECT_EQ(0, values.count);
 
@@ -93,7 +93,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
   delete[] send_buf;
   EXPECT_LT(0, bytes_sent);
 
-  TimedWaitShouldNotBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kSocketTimeout);
 
   EXPECT_EQ(1, values.count);
   EXPECT_EQ(waiter, values.waiter);
@@ -108,7 +108,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
 }
 
 TEST(SbSocketWaiterWaitTimedTest, RainyDayInvalidWaiter) {
-  TimedWaitShouldNotBlock(kSbSocketWaiterInvalid, kTimeout);
+  TimedWaitShouldNotBlock(kSbSocketWaiterInvalid, kSocketTimeout);
 }
 
 }  // namespace

@@ -32,7 +32,7 @@ void* WakeUpEntryPoint(void* context) {
 
 void* WakeUpSleepEntryPoint(void* context) {
   SbSocketWaiter waiter = reinterpret_cast<SbSocketWaiter>(context);
-  SbThreadSleep(kTimeout);
+  SbThreadSleep(kSocketTimeout);
   SbSocketWaiterWakeUp(waiter);
   return NULL;
 }
@@ -59,8 +59,8 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallWakesUp) {
 
   SbSocketWaiterWakeUp(waiter);
 
-  TimedWaitShouldNotBlock(waiter, kTimeout);
-  TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kSocketTimeout);
+  TimedWaitShouldBlock(waiter, kSocketTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -74,9 +74,9 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallWakesUpMultiply) {
   }
 
   for (int i = 0; i < kMultiple; ++i) {
-    TimedWaitShouldNotBlock(waiter, kTimeout);
+    TimedWaitShouldNotBlock(waiter, kSocketTimeout);
   }
-  TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kSocketTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -87,8 +87,8 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallFromOtherThreadWakesUp) {
 
   SpawnJoin(waiter, &WakeUpEntryPoint);
 
-  TimedWaitShouldNotBlock(waiter, kTimeout);
-  TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kSocketTimeout);
+  TimedWaitShouldBlock(waiter, kSocketTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -102,9 +102,9 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallFromOtherThreadWakesUpMultiply) {
   }
 
   for (int i = 0; i < kMultiple; ++i) {
-    TimedWaitShouldNotBlock(waiter, kTimeout);
+    TimedWaitShouldNotBlock(waiter, kSocketTimeout);
   }
-  TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kSocketTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -115,7 +115,7 @@ TEST(SbSocketWaiterWakeUpTest, CallFromOtherThreadWakesUp) {
     EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
     SbThread thread = Spawn(waiter, &WakeUpSleepEntryPoint);
-    WaitShouldBlockBetween(waiter, kTimeout, kTimeout * 2);
+    WaitShouldBlockBetween(waiter, kSocketTimeout, kSocketTimeout * 2);
     Join(thread);
 
     EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
