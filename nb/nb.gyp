@@ -47,6 +47,8 @@
       'conditions': [
         ['target_arch == "ps4"', {
           'sources': [
+            'kernel_contiguous_allocator_ps4.cc',
+            'kernel_contiguous_allocator_ps4.h',
             'kernel_no_free_allocator_ps4.cc',
             'kernel_no_free_allocator_ps4.h',
           ],
