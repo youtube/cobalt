@@ -34,8 +34,8 @@ class HTMLVideoElement;
 namespace layout {
 
 class Box;
+class LayoutStatTracker;
 class Paragraph;
-class StatTracker;
 class UsedStyleProvider;
 
 // In the visual formatting model, each element in the document tree generates
