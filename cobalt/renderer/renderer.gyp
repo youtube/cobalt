@@ -47,13 +47,14 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
       ],
       'conditions': [
-        ['force_software_rasterizer==1', {
+        ['rasterizer_type == "software"', {
           'defines': [
-            'COBALT_FORCE_SOFTWARE_RASTERIZER=1',
+            'COBALT_FORCE_SOFTWARE_RASTERIZER',
           ],
-        }, {
+        }],
+        ['rasterizer_type == "stub"', {
           'defines': [
-            'COBALT_FORCE_SOFTWARE_RASTERIZER=0',
+            'COBALT_FORCE_STUB_RASTERIZER',
           ],
         }],
         ['OS=="starboard"', {

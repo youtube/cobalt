@@ -17,9 +17,7 @@
 #ifndef COBALT_RENDERER_BACKEND_RENDER_TARGET_STUB_H_
 #define COBALT_RENDERER_BACKEND_RENDER_TARGET_STUB_H_
 
-#include "cobalt/renderer/backend/pixel_data_stub.h"
 #include "cobalt/renderer/backend/render_target.h"
-#include "cobalt/renderer/backend/surface_info.h"
 
 namespace cobalt {
 namespace renderer {
@@ -30,21 +28,16 @@ namespace backend {
 // if queried.
 class RenderTargetStub : public RenderTarget {
  public:
-  explicit RenderTargetStub(const SurfaceInfo& surface_info) :
-      pixel_data_(new PixelDataStub(surface_info)) {}
+  explicit RenderTargetStub(const math::Size& size) : size_(size) {}
 
-  const SurfaceInfo& GetSurfaceInfo() OVERRIDE {
-    return pixel_data_->surface_info();
-  }
-
-  const scoped_refptr<PixelDataStub>& pixel_data() const { return pixel_data_; }
+  const math::Size& GetSize() OVERRIDE { return size_; }
 
   intptr_t GetPlatformHandle() OVERRIDE { return 0; }
 
  private:
   ~RenderTargetStub() {}
 
-  scoped_refptr<PixelDataStub> pixel_data_;
+  math::Size size_;
 };
 
 }  // namespace backend
