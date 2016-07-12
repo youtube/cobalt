@@ -163,7 +163,9 @@ SB_EXPORT uint64_t SbSystemGetRandomUInt64();
 // generator, and doesn't require manual seeding.
 SB_EXPORT void SbSystemGetRandomData(void* out_buffer, int buffer_size);
 
-// Gets the last error produced by any Starboard call in the current thread.
+// Gets the last platform-specific error code produced by any Starboard call in
+// the current thread for diagnostic purposes. Semantic reactions to Starboard
+// function call results should be modeled explicitly.
 SB_EXPORT SbSystemError SbSystemGetLastError();
 
 // Clears the last error set by a Starboard call in the current thread.
