@@ -89,8 +89,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
                       Paragraph::DirectionalEmbeddingStack(),
                       line_break_iterator, character_break_iterator));
     BoxGenerator::Context context(
-        used_style_provider, line_break_iterator, character_break_iterator,
-        layout_stat_tracker,
+        used_style_provider, layout_stat_tracker, line_break_iterator,
+        character_break_iterator,
         initial_containing_block_creation_results.background_style_source);
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),
