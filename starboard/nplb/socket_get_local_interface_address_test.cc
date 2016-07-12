@@ -21,9 +21,12 @@ namespace nplb {
 namespace {
 
 TEST(SbSocketGetLocalInterfaceTest, SunnyDay) {
-  SbSocketAddress address = {0};
+  SbSocketAddress address;
+  // Initialize to something invalid.
+  SbMemorySet(&address, 0xFE, sizeof(address));
   EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
   EXPECT_EQ(0, address.port);
+  EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
   EXPECT_FALSE(IsUnspecified(&address));
   EXPECT_FALSE(IsLocalhost(&address));
 }
