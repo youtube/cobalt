@@ -20,6 +20,7 @@
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
+#include "cobalt/renderer/rasterizer/stub/rasterizer.h"
 
 namespace cobalt {
 namespace renderer {
@@ -27,6 +28,9 @@ namespace renderer {
 namespace {
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context) {
+#if COBALT_FORCE_STUB_RASTERIZER
+  return scoped_ptr<rasterizer::Rasterizer>(new rasterizer::stub::Rasterizer());
+#else
 #if SB_HAS(GLES2)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
@@ -47,6 +51,7 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #error "Either GLES2 or the Starboard Blitter API must be available."
   return scoped_ptr<rasterizer::Rasterizer>();
 #endif
+#endif  // #if COBALT_FORCE_STUB_RASTERIZER
 }
 }  // namespace
 

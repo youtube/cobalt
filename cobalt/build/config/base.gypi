@@ -43,10 +43,16 @@
     # assume some things, and it'll save us some configuration time.
     'target_os%': 'unknown',
 
-    # If true, will force render tree rasterization to occur via a software
-    # rasterizer.  Graphical APIs/hardware will only be used to send the final
-    # image to the display/output surface.
-    'force_software_rasterizer%': 0,
+    # Defines what kind of rasterizer will be used.  This can be adjusted to
+    # force a stub graphics implementation or software graphics implementation.
+    # It can be one of the following options:
+    #   'hardware' -- As much hardware acceleration of graphics commands as
+    #                 possible.
+    #   'software' -- Perform most rasterization using the CPU and only interact
+    #                 with the GPU to send the final image to the output window.
+    #   'stub'     -- Stub graphics rasterization.  A rasterizer object will
+    #                 still be available and valid, but it will do nothing.
+    'rasterizer_type%': 'hardware',
 
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
