@@ -36,6 +36,7 @@
 #include "cobalt/layout/inline_container_box.h"
 #include "cobalt/layout/inline_level_replaced_box.h"
 #include "cobalt/layout/layout_boxes.h"
+#include "cobalt/layout/layout_stat_tracker.h"
 #include "cobalt/layout/text_box.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/layout/white_space_processing.h"
