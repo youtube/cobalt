@@ -11,7 +11,7 @@
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 {
   'dependencies': [
-    '<(DEPTH)/cobalt/fonts/freetype2/freetype2.gyp:freetype2',
+    '<(DEPTH)/third_party/freetype2/freetype2_cobalt.gyp:freetype2',
     '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
     '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
     'skia_library_opts.gyp:skia_opts',
