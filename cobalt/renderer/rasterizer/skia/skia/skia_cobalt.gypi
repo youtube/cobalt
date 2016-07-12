@@ -10,7 +10,7 @@
   'dependencies': [
     '<(DEPTH)/base/base.gyp:base',
     '<(DEPTH)/cobalt/base/base.gyp:base',
-    '<(DEPTH)/cobalt/fonts/freetype2/freetype2.gyp:freetype2',
+    '<(DEPTH)/third_party/freetype2/freetype2_cobalt.gyp:freetype2',
     '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
     'skia_library',
   ],
