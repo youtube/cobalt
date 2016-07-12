@@ -30,8 +30,7 @@ namespace backend {
 class DisplayStub : public Display {
  public:
   DisplayStub()
-      : render_target_(new RenderTargetStub(
-            SurfaceInfo(math::Size(1920, 1080), SurfaceInfo::kFormatRGBA8))) {}
+      : render_target_(new RenderTargetStub(math::Size(1920, 1080))) {}
 
   // Return the stub render target.
   scoped_refptr<RenderTarget> GetRenderTarget() OVERRIDE {
