@@ -23,6 +23,7 @@
 #include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "SkData.h"
 #include "SkGraphics.h"
