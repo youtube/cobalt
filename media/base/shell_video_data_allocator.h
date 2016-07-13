@@ -119,6 +119,7 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
   };
 
   ShellVideoDataAllocator() {}
+  virtual ~ShellVideoDataAllocator() {}
 
   // Allocate a buffer to store the video frame to be decoded.
   virtual scoped_refptr<FrameBuffer> AllocateFrameBuffer(size_t size,
@@ -154,9 +155,6 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
   virtual void Release(ShellRawVideoDecoder* owner) {
     UNREFERENCED_PARAMETER(owner);
   }
-
- protected:
-  ~ShellVideoDataAllocator() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ShellVideoDataAllocator);
