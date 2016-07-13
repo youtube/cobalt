@@ -131,7 +131,7 @@ JSBool get_nullableBooleanProperty(
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->nullable_boolean_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -146,7 +146,7 @@ JSBool set_nullableBooleanProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<bool > >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -168,7 +168,7 @@ JSBool get_nullableNumericProperty(
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->nullable_numeric_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -183,7 +183,7 @@ JSBool set_nullableNumericProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<int32_t > >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -205,7 +205,7 @@ JSBool get_nullableStringProperty(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_string_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -220,7 +220,7 @@ JSBool set_nullableStringProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<std::string > >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -242,7 +242,7 @@ JSBool get_nullableObjectProperty(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->nullable_object_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -257,7 +257,7 @@ JSBool set_nullableObjectProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

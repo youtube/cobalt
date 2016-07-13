@@ -127,7 +127,7 @@ JSBool get_byteProperty(
   TypeTraits<int8_t >::ReturnType value =
       impl->byte_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -142,7 +142,7 @@ JSBool set_byteProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<int8_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -164,7 +164,7 @@ JSBool get_octetProperty(
   TypeTraits<uint8_t >::ReturnType value =
       impl->octet_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -179,7 +179,7 @@ JSBool set_octetProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<uint8_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -201,7 +201,7 @@ JSBool get_shortProperty(
   TypeTraits<int16_t >::ReturnType value =
       impl->short_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -216,7 +216,7 @@ JSBool set_shortProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<int16_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -238,7 +238,7 @@ JSBool get_unsignedShortProperty(
   TypeTraits<uint16_t >::ReturnType value =
       impl->unsigned_short_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -253,7 +253,7 @@ JSBool set_unsignedShortProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<uint16_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -275,7 +275,7 @@ JSBool get_longProperty(
   TypeTraits<int32_t >::ReturnType value =
       impl->long_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -290,7 +290,7 @@ JSBool set_longProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<int32_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -312,7 +312,7 @@ JSBool get_unsignedLongProperty(
   TypeTraits<uint32_t >::ReturnType value =
       impl->unsigned_long_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -327,7 +327,7 @@ JSBool set_unsignedLongProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<uint32_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -349,7 +349,7 @@ JSBool get_doubleProperty(
   TypeTraits<double >::ReturnType value =
       impl->double_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -364,7 +364,7 @@ JSBool set_doubleProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<double >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -386,7 +386,7 @@ JSBool get_unrestrictedDoubleProperty(
   TypeTraits<double >::ReturnType value =
       impl->unrestricted_double_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -401,7 +401,7 @@ JSBool set_unrestrictedDoubleProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<double >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

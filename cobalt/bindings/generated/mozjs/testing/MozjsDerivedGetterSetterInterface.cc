@@ -127,7 +127,7 @@ JSBool get_length(
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -146,7 +146,7 @@ JSBool get_propertyOnDerivedClass(
   TypeTraits<bool >::ReturnType value =
       impl->property_on_derived_class();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -161,7 +161,7 @@ JSBool set_propertyOnDerivedClass(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<bool >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
