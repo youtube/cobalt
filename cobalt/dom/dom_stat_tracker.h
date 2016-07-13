@@ -65,7 +65,7 @@ class DomStatTracker : public base::StopWatchOwner {
   void EnableStopWatches();
   void DisableStopWatches();
 
-  int64 GetStopWatchTypeTime(StopWatchType type) const;
+  int64 GetStopWatchTypeDuration(StopWatchType type) const;
 
  private:
   // From base::StopWatchOwner
@@ -82,10 +82,10 @@ class DomStatTracker : public base::StopWatchOwner {
   int update_matching_rules_count_;
   int update_computed_style_count_;
 
-  // Stop watch-related. The times are cleared after the CVals are updated in
-  // |FlushPeriodicTracking|.
+  // Stop watch-related. The durations are cleared after the CVals are updated
+  // in |FlushPeriodicTracking|.
   bool are_stop_watches_enabled_;
-  std::vector<int64> stop_watch_times_;
+  std::vector<int64> stop_watch_durations_;
 };
 
 }  // namespace dom

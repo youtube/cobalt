@@ -247,13 +247,13 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(fetcher_factory_);
 
   image_cache_ = loader::image::CreateImageCache(
-      base::StringPrintf("%s.ImageCache", name_.c_str()),
+      base::StringPrintf("Memory.%s.ImageCache", name_.c_str()),
       data.options.image_cache_capacity, data.resource_provider,
       fetcher_factory_.get());
   DCHECK(image_cache_);
 
   remote_typeface_cache_ = loader::font::CreateRemoteTypefaceCache(
-      base::StringPrintf("%s.RemoteTypefaceCache", name_.c_str()),
+      base::StringPrintf("Memory.%s.RemoteTypefaceCache", name_.c_str()),
       kRemoteTypefaceCacheCapacity, data.resource_provider,
       fetcher_factory_.get());
   DCHECK(remote_typeface_cache_);
