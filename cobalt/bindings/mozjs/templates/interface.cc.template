@@ -138,7 +138,7 @@ JSBool set_{{attribute.idl_name}}(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<{{attribute.type}} >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

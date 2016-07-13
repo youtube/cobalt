@@ -139,7 +139,7 @@ JSBool get_arbitraryObject(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->arbitrary_object();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -154,7 +154,7 @@ JSBool set_arbitraryObject(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -176,7 +176,7 @@ JSBool get_baseInterface(
   TypeTraits<scoped_refptr<BaseInterface> >::ReturnType value =
       impl->base_interface();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -195,7 +195,7 @@ JSBool get_derivedInterface(
   TypeTraits<scoped_refptr<DerivedInterface> >::ReturnType value =
       impl->derived_interface();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -210,7 +210,7 @@ JSBool set_derivedInterface(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<scoped_refptr<DerivedInterface> >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -232,7 +232,7 @@ JSBool get_objectProperty(
   TypeTraits<OpaqueHandle >::ReturnType value =
       impl->object_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -247,7 +247,7 @@ JSBool set_objectProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<OpaqueHandle >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
