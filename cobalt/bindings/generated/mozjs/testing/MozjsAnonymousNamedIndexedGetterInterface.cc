@@ -127,7 +127,7 @@ JSBool get_length(
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
