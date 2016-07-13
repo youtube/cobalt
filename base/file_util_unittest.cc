@@ -1780,9 +1780,13 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 #if defined(OS_WIN)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir\\tree\\likely\\doesnt\\exist\\"));
-#elif defined(OS_POSIX) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir/tree/likely/doesnt/exist/"));
+#elif defined(OS_STARBOARD)
+  // Directory depth is limited on certain platforms.
+  FilePath test_path =
+      test_root.Append(FILE_PATH_LITERAL("tree/likely/doesnt/exist/"));
 #endif
 
   EXPECT_FALSE(file_util::PathExists(test_path));
@@ -1802,8 +1806,8 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
   EXPECT_FALSE(file_util::PathExists(test_root));
   EXPECT_FALSE(file_util::PathExists(test_path));
 
-#if !defined(__LB_PS3__) && !defined(__LB_PS4__) && !defined(OS_STARBOARD)
-  // kCurrentDirectory is ".", and PS3&4 does NOT support relative paths.
+#if !defined(__LB_PS3__) && !defined(OS_STARBOARD)
+  // Starboard doesn't support relative paths.
 
   // Verify assumptions made by the Windows implementation:
   // 1. The current directory always exists.
@@ -1820,7 +1824,7 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 
   // Given these assumptions hold, it should be safe to
   // test that "creating" these directories succeeds.
-#if !defined(__LB_PS4__) && !defined(OS_STARBOARD)
+#if !defined(OS_STARBOARD)
   EXPECT_TRUE(file_util::CreateDirectory(
       FilePath(FilePath::kCurrentDirectory)));
 #endif
@@ -1864,12 +1868,15 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_EQ(f0.Next().value(), FILE_PATH_LITERAL(""));
 
   // Test an empty directory, non-recursively, including "..".
+#if !defined(OS_STARBOARD)
+  // Starboard doesn't support relative paths.
   file_util::FileEnumerator f0_dotdot(temp_dir_.path(), false,
       FILES_AND_DIRECTORIES | file_util::FileEnumerator::INCLUDE_DOT_DOT);
   EXPECT_EQ(temp_dir_.path().Append(FILE_PATH_LITERAL("..")).value(),
             f0_dotdot.Next().value());
   EXPECT_EQ(FILE_PATH_LITERAL(""),
             f0_dotdot.Next().value());
+#endif
 
   // create the directories
   FilePath dir1 = temp_dir_.path().Append(FILE_PATH_LITERAL("dir1"));
