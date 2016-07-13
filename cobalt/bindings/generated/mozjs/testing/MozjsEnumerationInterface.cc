@@ -129,7 +129,7 @@ JSBool get_enumProperty(
   TypeTraits<EnumerationInterface::TestEnum >::ReturnType value =
       impl->enum_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -144,7 +144,7 @@ JSBool set_enumProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<EnumerationInterface::TestEnum >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

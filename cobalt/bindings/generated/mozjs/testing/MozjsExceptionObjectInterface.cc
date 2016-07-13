@@ -127,7 +127,7 @@ JSBool get_error(
   TypeTraits<std::string >::ReturnType value =
       impl->error();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -146,7 +146,7 @@ JSBool get_message(
   TypeTraits<std::string >::ReturnType value =
       impl->message();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {

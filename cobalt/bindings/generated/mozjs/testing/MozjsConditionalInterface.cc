@@ -130,7 +130,7 @@ JSBool get_enabledAttribute(
   TypeTraits<int32_t >::ReturnType value =
       impl->enabled_attribute();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -145,7 +145,7 @@ JSBool set_enabledAttribute(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<int32_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -169,7 +169,7 @@ JSBool get_disabledAttribute(
   TypeTraits<int32_t >::ReturnType value =
       impl->disabled_attribute();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -184,7 +184,7 @@ JSBool set_disabledAttribute(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<int32_t >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

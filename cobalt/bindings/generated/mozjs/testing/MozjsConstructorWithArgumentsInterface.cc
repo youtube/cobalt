@@ -129,7 +129,7 @@ JSBool get_longArg(
   TypeTraits<int32_t >::ReturnType value =
       impl->long_arg();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -148,7 +148,7 @@ JSBool get_booleanArg(
   TypeTraits<bool >::ReturnType value =
       impl->boolean_arg();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -167,7 +167,7 @@ JSBool get_stringArg(
   TypeTraits<std::string >::ReturnType value =
       impl->string_arg();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {

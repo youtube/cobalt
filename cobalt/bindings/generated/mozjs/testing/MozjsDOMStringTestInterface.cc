@@ -127,7 +127,7 @@ JSBool get_property(
   TypeTraits<std::string >::ReturnType value =
       impl->property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -142,7 +142,7 @@ JSBool set_property(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<std::string >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -164,7 +164,7 @@ JSBool get_readOnlyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->read_only_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -183,7 +183,7 @@ JSBool get_nullIsEmptyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->null_is_empty_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -198,7 +198,7 @@ JSBool set_nullIsEmptyProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<std::string >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -220,7 +220,7 @@ JSBool get_undefinedIsEmptyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->undefined_is_empty_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -235,7 +235,7 @@ JSBool set_undefinedIsEmptyProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<std::string >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -257,7 +257,7 @@ JSBool get_nullableUndefinedIsEmptyProperty(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_undefined_is_empty_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -272,7 +272,7 @@ JSBool set_nullableUndefinedIsEmptyProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<std::string > >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
