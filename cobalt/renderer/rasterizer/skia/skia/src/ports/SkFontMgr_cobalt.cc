@@ -531,12 +531,12 @@ class SkFontMgrCVals {
  private:
   SkFontMgrCVals()
       : system_typeface_open_stream_cache_limit_in_bytes_(
-            "SystemFonts.Capacity",
+            "Memory.SystemTypeface.Capacity",
             SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT,
             "The capacity, in bytes, of the system fonts. Exceeding this "
             "results in *inactive* fonts being released."),
         system_typeface_open_stream_cache_size_in_bytes_(
-            "SystemFonts.Used", 0,
+            "Memory.SystemTypeface.Size", 0,
             "Total number of bytes currently used by the cache.") {}
 
   const base::PublicCVal<int32_t>
@@ -565,6 +565,9 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* directory, const SkTArray<SkString, true>& default_fonts)
     : default_family_(NULL),
       last_font_cache_purge_time_(base::TimeTicks::Now()) {
+  // Initialize the CVals
+  SkFontMgrCVals::GetInstance();
+
   SkTDArray<FontFamily*> font_families;
   SkFontConfigParser::GetFontFamilies(directory, &font_families);
   BuildNameToFamilyMap(directory, &font_families);
