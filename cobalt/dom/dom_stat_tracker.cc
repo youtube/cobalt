@@ -22,14 +22,15 @@ namespace cobalt {
 namespace dom {
 
 DomStatTracker::DomStatTracker(const std::string& name)
-    : total_html_elements_(StringPrintf("%s.DOM.HTMLElements", name.c_str()), 0,
-                           "Total number of HTML elements."),
+    : total_html_elements_(
+          StringPrintf("Count.%s.DOM.HtmlElement", name.c_str()), 0,
+          "Total number of HTML elements."),
       html_elements_created_count_(0),
       html_elements_destroyed_count_(0),
       update_matching_rules_count_(0),
       update_computed_style_count_(0),
       are_stop_watches_enabled_(false) {
-  stop_watch_times_.resize(kNumStopWatchTypes, 0);
+  stop_watch_durations_.resize(kNumStopWatchTypes, 0);
 }
 
 DomStatTracker::~DomStatTracker() {
@@ -51,7 +52,7 @@ void DomStatTracker::FlushPeriodicTracking() {
   update_computed_style_count_ = 0;
 
   for (size_t i = 0; i < kNumStopWatchTypes; ++i) {
-    stop_watch_times_[i] = 0;
+    stop_watch_durations_[i] = 0;
   }
 }
 
@@ -69,8 +70,8 @@ void DomStatTracker::EnableStopWatches() { are_stop_watches_enabled_ = true; }
 
 void DomStatTracker::DisableStopWatches() { are_stop_watches_enabled_ = false; }
 
-int64 DomStatTracker::GetStopWatchTypeTime(StopWatchType type) const {
-  return stop_watch_times_[type];
+int64 DomStatTracker::GetStopWatchTypeDuration(StopWatchType type) const {
+  return stop_watch_durations_[type];
 }
 
 bool DomStatTracker::IsStopWatchEnabled(int /*id*/) const {
@@ -78,7 +79,7 @@ bool DomStatTracker::IsStopWatchEnabled(int /*id*/) const {
 }
 
 void DomStatTracker::OnStopWatchStopped(int id, int64 time_elapsed) {
-  stop_watch_times_[static_cast<size_t>(id)] += time_elapsed;
+  stop_watch_durations_[static_cast<size_t>(id)] += time_elapsed;
 }
 
 }  // namespace dom

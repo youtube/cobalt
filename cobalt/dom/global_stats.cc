@@ -27,22 +27,24 @@ GlobalStats* GlobalStats::GetInstance() {
 }
 
 GlobalStats::GlobalStats()
-    : num_attrs("DOM.Attrs", 0, "Total number of currently active attributes."),
-      num_dom_string_maps("DOM.StringMaps", 0,
+    : num_attrs("Count.DOM.Attrs", 0,
+                "Total number of currently active attributes."),
+      num_dom_string_maps("Count.DOM.StringMaps", 0,
                           "Total number of currently active string maps."),
-      num_dom_token_lists("DOM.TokenLists", 0,
+      num_dom_token_lists("Count.DOM.TokenLists", 0,
                           "Total number of currently active token lists."),
-      num_event_listeners("DOM.EventListeners", 0,
+      num_event_listeners("Count.DOM.EventListeners", 0,
                           "Total number of currently active event listeners."),
       num_html_collections(
-          "DOM.HtmlCollections", 0,
+          "Count.DOM.HtmlCollections", 0,
           "Total number of currently active HTML collections."),
-      num_named_node_maps("DOM.NodeMaps", 0,
+      num_named_node_maps("Count.DOM.NodeMaps", 0,
                           "Total number of currently active node maps."),
-      num_nodes("DOM.Nodes", 0, "Total number of currently active nodes."),
-      num_node_lists("DOM.NodeLists", 0,
+      num_nodes("Count.DOM.Nodes", 0,
+                "Total number of currently active nodes."),
+      num_node_lists("Count.DOM.NodeLists", 0,
                      "Total number of currently active node lists."),
-      num_xhrs("DOM.XHR", 0, "Total number of currently active XHRs."),
+      num_xhrs("Count.XHR", 0, "Total number of currently active XHRs."),
       xhr_memory("Memory.XHR", 0, "Memory allocated by XHRs in bytes.") {}
 
 GlobalStats::~GlobalStats() {}

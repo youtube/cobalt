@@ -69,9 +69,9 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       rasterizer_thread_("Rasterizer"),
       submission_disposal_thread_("Rasterizer Submission Disposal"),
       rasterize_current_tree_interval_timer_(
-          "Renderer.Rasterize.Time.Interval",
+          "Renderer.Rasterize.Interval",
           kRasterizeCurrentTreeTimerTimeIntervalInMs),
-      rasterize_current_tree_timer_("Renderer.Rasterize.Time.CurrentTree",
+      rasterize_current_tree_timer_("Renderer.Rasterize.Duration",
                                     kRasterizeCurrentTreeTimerTimeIntervalInMs)
 #if defined(ENABLE_DEBUG_CONSOLE)
       ,

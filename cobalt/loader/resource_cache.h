@@ -469,7 +469,7 @@ ResourceCache<CacheType>::ResourceCache(
       cache_capacity_(cache_capacity),
       decoder_provider_(decoder_provider.release()),
       fetcher_factory_(fetcher_factory),
-      size_in_bytes_(base::StringPrintf("%s.Used", name_.c_str()), 0,
+      size_in_bytes_(base::StringPrintf("%s.Size", name_.c_str()), 0,
                      "Total number of bytes currently used by the cache."),
       capacity_in_bytes_(base::StringPrintf("%s.Capacity", name_.c_str()),
                          cache_capacity_,
