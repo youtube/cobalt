@@ -70,14 +70,14 @@ class JSCEngineStats {
 
   base::Lock lock_;
   base::PublicCVal<size_t> js_memory_;
-  base::PublicCVal<size_t> js_engine_count_;
+  base::DebugCVal<size_t> js_engine_count_;
   scoped_ptr<base::PollerWithThread> poller_;
 };
 
 JSCEngineStats::JSCEngineStats()
     : js_memory_("Memory.JS", 0,
                  "Total memory occupied by the JSC page allocator."),
-      js_engine_count_("JS.EngineCount", 0,
+      js_engine_count_("Count.JS.Engine", 0,
                        "Total JavaScript engine registered.") {
   poller_.reset(new base::PollerWithThread(
       base::Bind(&JSCEngineStats::Update, base::Unretained(this)),

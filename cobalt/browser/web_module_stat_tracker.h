@@ -78,14 +78,14 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     base::PublicCVal<int> count_layout_boxes_created;
     base::PublicCVal<int> count_layout_boxes_destroyed;
 
-    // Timing-related
-    base::PublicCVal<int64> time_total;
-    base::PublicCVal<int64> time_dom_inject_event;
-    base::PublicCVal<int64> time_dom_update_computed_style;
-    base::PublicCVal<int64> time_layout_box_tree;
-    base::PublicCVal<int64> time_layout_box_generation;
-    base::PublicCVal<int64> time_layout_update_used_sizes;
-    base::PublicCVal<int64> time_layout_render_and_animate;
+    // Duration-related
+    base::PublicCVal<int64> duration_total;
+    base::PublicCVal<int64> duration_dom_inject_event;
+    base::PublicCVal<int64> duration_dom_update_computed_style;
+    base::PublicCVal<int64> duration_layout_box_tree;
+    base::PublicCVal<int64> duration_layout_box_generation;
+    base::PublicCVal<int64> duration_layout_update_used_sizes;
+    base::PublicCVal<int64> duration_layout_render_and_animate;
   };
 
   // From base::StopWatchOwner
@@ -108,9 +108,9 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // Each individual |EventType| has its own entry in the vector.
   ScopedVector<EventStats> event_stats_;
 
-  // Stop- watch-related
+  // Stop watch-related
   std::vector<base::StopWatch> stop_watches_;
-  std::vector<int64> stop_watch_times_;
+  std::vector<int64> stop_watch_durations_;
 };
 
 }  // namespace browser

@@ -56,7 +56,7 @@ class LayoutStatTracker : public base::StopWatchOwner {
   void EnableStopWatches();
   void DisableStopWatches();
 
-  int64 GetStopWatchTypeTime(StopWatchType type) const;
+  int64 GetStopWatchTypeDuration(StopWatchType type) const;
 
  private:
   // From base::StopWatchOwner
@@ -71,10 +71,10 @@ class LayoutStatTracker : public base::StopWatchOwner {
   int boxes_created_count_;
   int boxes_destroyed_count_;
 
-  // Stop watch-related. The times are cleared after the CVals are updated in
-  // |FlushPeriodicTracking|.
+  // Stop watch-related. The durations are cleared after the CVals are updated
+  // in |FlushPeriodicTracking|.
   bool are_stop_watches_enabled_;
-  std::vector<int64> stop_watch_times_;
+  std::vector<int64> stop_watch_durations_;
 };
 
 }  // namespace layout
