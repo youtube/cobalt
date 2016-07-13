@@ -127,7 +127,7 @@ JSBool get_booleanProperty(
   TypeTraits<bool >::ReturnType value =
       impl->boolean_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(&result_value, value, &exception_state);
+    ToJSValue(value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -142,7 +142,7 @@ JSBool set_booleanProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<bool >::ConversionType value;
-  FromJSValue(&value, vp, &exception_state);
+  FromJSValue(context, vp, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
