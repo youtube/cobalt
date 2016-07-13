@@ -55,18 +55,18 @@ const int kSecondsToWait = 20;
 //   https://cs.***REMOVED***/#piper///depot/***REMOVED***/video/youtube/tv/steel/steel_stats/db.sql&cl=101617641
 
 const char* g_cvals_to_snapshot[] = {
-    "DOM.Nodes",
-    "DOM.TokenLists",
-    "DOM.XHR",
-    "MainWebModule.ImageCache.Used",
-    "MainWebModule.RemoteTypefaceCache.Used",
+    "Count.DOM.Nodes",
+    "Count.DOM.TokenLists",
+    "Count.XHR",
     "Memory.ArrayBuffer",
     "Memory.CPU.Exe",
     "Memory.CPU.Used",
-    "Memory.GraphicsPS3.Fixed.size",
+    "Memory.GraphicsPS3.Fixed.Size",
     "Memory.JS",
+    "Memory.MainWebModule.ImageCache.Size",
+    "Memory.MainWebModule.RemoteTypefaceCache.Size",
     "Memory.Media.AudioDecoder",
-    "Memory.Media.MediaSource.CPU.Fixed.capacity",
+    "Memory.Media.MediaSource.CPU.Fixed.Capacity",
     "Memory.Media.VideoDecoder",
     "Memory.XHR",
 };
