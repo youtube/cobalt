@@ -706,15 +706,23 @@
             '<(DEPTH)/starboard/starboard.gyp:starboard',
           ],
           'sources': [
-            'audio/shell_audio_streamer_starboard.cc',
-            'base/sbplayer_pipeline.cc',
             'base/shell_cached_decoder_buffer.cc',
             'base/shell_cached_decoder_buffer.h',
-            'crypto/starboard_decryptor.cc',
-            'crypto/starboard_decryptor.h',
           ],
-          'sources/': [
-            ['exclude', '^base/pipeline_impl.cc'],
+          'conditions': [
+            ['sb_media_platform == "starboard"', {
+              'sources': [
+                'audio/shell_audio_streamer_starboard.cc',
+                'base/sbplayer_pipeline.cc',
+                'crypto/starboard_decryptor.cc',
+                'crypto/starboard_decryptor.h',
+              ],
+              'sources/': [
+                ['exclude', '^base/pipeline_impl.cc'],
+                ['exclude', '^filters/shell_audio_renderer_impl.cc'],
+                ['exclude', '^filters/shell_video_renderer_impl.cc'],
+              ],
+            }],
           ],
         }],  # OS == "starboard"
         ['OS == "ios"', {

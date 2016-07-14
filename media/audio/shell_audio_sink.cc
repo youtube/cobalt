@@ -28,6 +28,10 @@
 #include "media/filters/shell_audio_renderer.h"
 #include "media/mp4/aac.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#endif  // defined(OS_STARBOARD)
+
 namespace {
 
 scoped_ptr_malloc<float, base::ScopedPtrAlignedFree> s_audio_sink_buffer;
@@ -254,7 +258,15 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     rebuffering_ = false;
   }
 
-#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_PS4__)
+#if defined(OS_STARBOARD)
+#if SB_IS(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
+
+#define MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK 1
+
+#endif  // SB_IS(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
+#endif  // #if defined(OS_STARBOARD)
+
+#if defined(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
   const size_t kUnderflowThreshold = mp4::AAC::kSamplesPerFrame / 2;
   if (*total_frames < kUnderflowThreshold) {
     if (!rebuffering_) {
@@ -266,7 +278,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   *offset_in_frame =
       output_frame_cursor_ % settings_.per_channel_frames(audio_bus_.get());
   return !PauseRequested();
-#else
+#else   // defined(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
   rebuffering_ = true;
   *offset_in_frame =
       output_frame_cursor_ % settings_.per_channel_frames(audio_bus_.get());
@@ -274,7 +286,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     return false;
   }
   return true;
-#endif
+#endif  // defined(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
 }
 
 void ShellAudioSink::ConsumeFrames(uint32_t frame_played) {

@@ -30,6 +30,10 @@
 #include "media/base/shell_media_platform.h"
 #endif
 
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#endif  // defined(OS_STARBOARD)
+
 using base::TimeDelta;
 
 namespace media {
@@ -62,8 +66,9 @@ struct SupportedTypeInfo {
   const CodecInfo** codecs;
 };
 
-#if defined(__LB_SHELL__)
-#if defined(__LB_PS4__)
+#if defined(__LB_SHELL__) || defined(COBALT)
+#if defined(OS_STARBOARD)
+#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
 
 static const CodecInfo kVP9CodecInfo = { "vp9", DemuxerStream::VIDEO };
 
@@ -72,8 +77,9 @@ static const CodecInfo* kVideoWebMCodecs[] = {
   NULL
 };
 
-#endif  // defined(__LB_PS4__)
-#else  // defined(__LB_SHELL__)
+#endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+#endif  // defined(OS_STARBOARD)
+#else   // defined(__LB_SHELL__) || defined(COBALT)
 
 static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
 static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
@@ -89,7 +95,7 @@ static const CodecInfo* kAudioWebMCodecs[] = {
   NULL
 };
 
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
 static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs) {
   return new WebMStreamParser();
@@ -128,16 +134,18 @@ static StreamParser* BuildMP4Parser(const std::vector<std::string>& codecs) {
 #endif
 
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
-#if defined(__LB_PS4__)
-  { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
-#endif
+#if defined(OS_STARBOARD)
+#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+    {"video/webm", &BuildWebMParser, kVideoWebMCodecs},
+#endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+#endif  // defined(OS_STARBOARD)
 #if !defined(__LB_SHELL__) && !defined(COBALT)
-  { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
+    {"audio/webm", &BuildWebMParser, kAudioWebMCodecs},
 #endif
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || \
     defined(__LB_SHELL__) || defined(COBALT)
-  { "video/mp4", &BuildMP4Parser, kVideoMP4Codecs },
-  { "audio/mp4", &BuildMP4Parser, kAudioMP4Codecs },
+    {"video/mp4", &BuildMP4Parser, kVideoMP4Codecs},
+    {"audio/mp4", &BuildMP4Parser, kAudioMP4Codecs},
 #endif
 };
 
