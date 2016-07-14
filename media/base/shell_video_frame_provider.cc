@@ -82,6 +82,9 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
     }
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
+    if (frames_.size() == 1) {
+      current_frame_ = frames_[0];
+    }
     frames_.erase(frames_.begin());
     has_consumed_frames_ = true;
   }

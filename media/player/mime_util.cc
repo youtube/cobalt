@@ -16,6 +16,10 @@
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#endif  // defined(OS_STARBOARD)
+
 using std::string;
 
 namespace {
@@ -278,15 +282,15 @@ static const char* const common_media_types[] = {
   "audio/x-wav",
 #else  // !defined(__LB_SHELL__) && !defined(COBALT)
 
-#if defined(__LB_ANDROID__) || defined(__LB_PS4__)
-  // WebM.
-  "video/webm",
-#endif  // defined(__LB_ANDROID__) || defined(__LB_PS4__)
+#if defined(OS_STARBOARD)
+#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+    // WebM.
+    "video/webm",
+#endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+#endif  // defined(OS_STARBOARD)
 
-  // currently lbshell supports flv and mp4
-  "video/mp4",
-  "audio/mp4",
-  "video/x-flv",
+    // currently lbshell supports flv and mp4
+    "video/mp4", "audio/mp4", "video/x-flv",
 #endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 };
 
@@ -322,15 +326,16 @@ static const char* const common_media_codecs[] = {
   "1"  // WAVE_FORMAT_PCM.
 #else  // !defined(__LB_SHELL__) && !defined(COBALT)
 
-#if defined(__LB_ANDROID__) || defined(__LB_PS4__)
-  "vp9",
-#endif  // defined(__LB_ANDROID__) || defined(__LB_PS4__)
+#if defined(OS_STARBOARD)
+#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+    "vp9",
+#endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+#endif  // defined(OS_STARBOARD)
 
-  "avc1",
-  "mp4a",
+    "avc1", "mp4a",
 
 #if defined(__LB_PS3__) || defined(__LB_PS4__) || defined(__LB_WIIU__)
-  "aac51",
+    "aac51",
 #endif  // defined(__LB_PS3__) || defined(__LB_PS4__) || defined(__LB_WIIU__)
 
 #endif  // !defined(__LB_SHELL__) && !defined(COBALT)
@@ -448,9 +453,9 @@ static const MediaFormatStrict format_codec_mappings[] = {
 #if defined(__LB_ANDROID__)  // Assume Android supports everything.
   { "video/webm", "vorbis,vp8,vp8.0,vp9" },
   { "audio/webm", "vorbis" },
-#elif defined(__LB_PS4__)  // PS4 only supports vp9.
-  { "video/webm", "vp9" },
-  { "audio/webm", "" },
+#elif defined(ENABLE_WEB_VP9)
+    {"video/webm", "vp9"},
+    {"audio/webm", ""},
 #elif defined(__LB_SHELL__) || defined(COBALT)
   // No other platforms support webm.
   { "video/webm", "" },

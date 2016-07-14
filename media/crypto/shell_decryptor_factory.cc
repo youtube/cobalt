@@ -18,6 +18,7 @@
 
 #if defined(OS_STARBOARD)
 #include "media/crypto/starboard_decryptor.h"
+#include "starboard/configuration.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #endif  // defined(OS_STARBOARD)
@@ -25,7 +26,14 @@
 namespace media {
 
 #if defined(OS_STARBOARD)
+#if SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
 
+#define USE_STARBOARD_DECRYPTOR 1
+
+#endif  // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
+#endif  // defined(OS_STARBOARD)
+
+#if defined(USE_STARBOARD_DECRYPTOR)
 // static
 bool ShellDecryptorFactory::Supports(const std::string& key_system) {
   // TODO: Hook up with codecs.
@@ -39,7 +47,7 @@ Decryptor* ShellDecryptorFactory::Create(const std::string& key_system,
   return new StarboardDecryptor(key_system.c_str(), client);
 }
 
-#else  // defined(OS_STARBOARD)
+#else  // defined(USE_STARBOARD_DECRYPTOR)
 
 // static
 ShellDecryptorFactory::DecryptorRegistry ShellDecryptorFactory::registry_;
@@ -66,6 +74,6 @@ void ShellDecryptorFactory::RegisterDecryptor(const std::string& key_system,
   registry_[key_system] = create_cb;
 }
 
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(USE_STARBOARD_DECRYPTOR)
 
 }  // namespace media

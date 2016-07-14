@@ -12,16 +12,8 @@
 #include "media/base/audio_bus.h"
 #include "media/base/media_export.h"
 
-#undef MEDIA_AUDIO_USE_SINK_UNDERFLOW
 #if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
-#if !SB_IS(UNDERFLOW_DETECTED_BY_AUDIO_RENDERER)
-#define MEDIA_AUDIO_USE_SINK_UNDERFLOW
-#endif  // !SB_IS(UNDERFLOW_DETECTED_BY_AUDIO_RENDERER)
-#else  // defined(OS_STARBOARD)
-#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_PS4__)
-#define MEDIA_AUDIO_USE_SINK_UNDERFLOW
-#endif
 #endif  // defined(OS_STARBOARD)
 
 namespace media {
@@ -52,13 +44,15 @@ class MEDIA_EXPORT AudioRendererSink
     // full and will not be requesting additional data until some is consumed.
     virtual void SinkFull() = 0;
 
-#if defined(MEDIA_AUDIO_USE_SINK_UNDERFLOW)
+#if defined(OS_STARBOARD)
+#if SB_IS(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
     // Callback from the sink to the renderer to indicate that it has not
     // enough data to continue playback without playing past the end of
     // buffered data.
     virtual void SinkUnderflow() = 0;
-#endif
-#endif
+#endif  // SB_IS(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
+#endif  // defined(OS_STARBOARD)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
    protected:
     virtual ~RenderCallback() {}
