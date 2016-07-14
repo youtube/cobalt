@@ -70,6 +70,9 @@
     # Halt execution on failure to allocate memory.
     'abort_on_allocation_failure%': 1,
 
+    # Used by cobalt/media/media.gyp to pick a proper media platform.
+    'sb_media_platform%': 'starboard',
+
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
 
