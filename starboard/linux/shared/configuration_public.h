@@ -303,6 +303,15 @@
 // media buffers being decoded when being stored in GPU.
 #define SB_MEDIA_GPU_BUFFER_BUDGET 0U
 
+// Specifies whether this platform has webm/vp9 support.  This should be set to
+// non-zero on platforms with webm/vp9 support.
+#define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0
+
+// Specifies the stack size for threads created inside media stack.  Set to 0 to
+// use the default thread stack size.  Set to non-zero to explicitly set the
+// stack size for media stack threads.
+#define SB_MEDIA_THREAD_STACK_SIZE 0U
+
 // --- Decoder-only Params ---
 
 // Specifies how media buffers must be aligned on this platform as some
