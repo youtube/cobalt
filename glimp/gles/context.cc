@@ -1715,6 +1715,8 @@ static VertexAttributeType VertexAttributeTypeFromGLEnum(GLenum type) {
       return kVertexAttributeTypeFixed;
     case GL_FLOAT:
       return kVertexAttributeTypeFloat;
+    case GL_HALF_FLOAT:
+      return kVertexAttributeTypeHalfFloat;
     default:
       return kVertexAttributeTypeInvalid;
   }
