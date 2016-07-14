@@ -26,6 +26,7 @@ enum VertexAttributeType {
   kVertexAttributeTypeUnsignedByte,
   kVertexAttributeTypeShort,
   kVertexAttributeTypeUnsignedShort,
+  kVertexAttributeTypeHalfFloat,
   kVertexAttributeTypeFloat,
   kVertexAttributeTypeFixed,
   kVertexAttributeTypeInvalid,
