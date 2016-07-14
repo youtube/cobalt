@@ -40,18 +40,20 @@
       'conditions': [
         ['OS=="starboard"', {
           'sources': [
-            'media_module_<(starboard_media_platform).cc',
-            'shell_media_platform_<(starboard_media_platform).cc',
-            'shell_media_platform_<(starboard_media_platform).h',
+            'media_module_<(sb_media_platform).cc',
+            'shell_media_platform_<(sb_media_platform).cc',
+            'shell_media_platform_<(sb_media_platform).h',
           ],
           'dependencies': [
             '<(DEPTH)/nb/nb.gyp:nb',
           ],
         }],
-        ['OS=="starboard" and target_arch == "ps4"', {
+        ['OS=="starboard" and sb_media_platform == "ps4"', {
           'sources': [
             'decoder_working_memory_allocator_impl_ps4.cc',
             'decoder_working_memory_allocator_impl_ps4.h',
+            'shell_video_data_allocator_stub.cc',
+            'shell_video_data_allocator_stub.h',
           ],
         }],
         ['OS=="lb_shell"', {
