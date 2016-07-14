@@ -54,5 +54,14 @@
         'STARBOARD_THREAD_TYPES_INCLUDE="<(starboard_path)/thread_types_public.h"',
       ],
     }],
+    ['sb_media_platform == "starboard"', {
+      'defines': [
+        'SB_GYP_CAN_MEDIA_USE_STARBOARD_PIPELINE=1',
+      ],
+    }, {
+      'defines': [
+        'SB_GYP_CAN_MEDIA_USE_STARBOARD_PIPELINE=0',
+      ],
+    }],
   ],
 }
