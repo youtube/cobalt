@@ -42,6 +42,14 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   std::string SourceURL() const OVERRIDE { return ""; }
 };
 
+WebMediaPlayerHelper::WebMediaPlayerHelper(MediaModule* media_module)
+    : client_(new WebMediaPlayerClientStub),
+      player_(media_module->CreateWebMediaPlayer(client_)) {
+  player_->SetRate(1.0);
+  player_->LoadMediaSource();
+  player_->Play();
+}
+
 WebMediaPlayerHelper::WebMediaPlayerHelper(
     MediaModule* media_module, loader::FetcherFactory* fetcher_factory,
     const GURL& video_url)

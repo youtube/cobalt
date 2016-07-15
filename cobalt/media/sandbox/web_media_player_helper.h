@@ -38,6 +38,7 @@ class WebMediaPlayerHelper {
   typedef ::media::VideoFrame VideoFrame;
   typedef ::media::WebMediaPlayer WebMediaPlayer;
 
+  explicit WebMediaPlayerHelper(MediaModule* media_module);
   WebMediaPlayerHelper(MediaModule* media_module,
                        loader::FetcherFactory* fetcher_factory,
                        const GURL& video_url);
@@ -45,6 +46,8 @@ class WebMediaPlayerHelper {
 
   scoped_refptr<VideoFrame> GetCurrentFrame() const;
   bool IsPlaybackFinished() const;
+
+  WebMediaPlayer* player() { return player_.get(); }
 
  private:
   class WebMediaPlayerClientStub;
