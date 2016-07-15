@@ -17,6 +17,7 @@
 #include "cobalt/media/media_module.h"
 
 #include "base/compiler_specific.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/media_module_stub.h"
 #include "media/audio/shell_audio_streamer.h"
 
@@ -26,9 +27,11 @@ namespace media {
 // There is no media stack on Windows and the XB1 media stack cannot be used
 // directly on Windows. So MediaModule on windows does nothing.
 scoped_ptr<MediaModule> MediaModule::Create(
-    render_tree::ResourceProvider* resource_provider,
-    const Options& /* options */) {
+    const math::Size& output_size,
+    render_tree::ResourceProvider* resource_provider, const Options& options) {
+  UNREFERENCED_PARAMETER(output_size);
   UNREFERENCED_PARAMETER(resource_provider);
+  UNREFERENCED_PARAMETER(options);
   return make_scoped_ptr(new MediaModuleStub);
 }
 
