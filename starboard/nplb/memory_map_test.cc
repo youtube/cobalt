@@ -25,27 +25,47 @@ const void* kFailed = SB_MEMORY_MAP_FAILED;
 
 TEST(SbMemoryMapTest, AllocatesNormally) {
   void* memory = SbMemoryMap(kSize, kSbMemoryMapProtectRead, "test");
-  EXPECT_NE(kFailed, memory);
+  ASSERT_NE(kFailed, memory);
   EXPECT_TRUE(SbMemoryUnmap(memory, kSize));
 }
 
 TEST(SbMemoryMapTest, AllocatesZero) {
   void* memory = SbMemoryMap(0, kSbMemoryMapProtectRead, "test");
-  EXPECT_EQ(kFailed, memory);
+  ASSERT_EQ(kFailed, memory);
   EXPECT_FALSE(SbMemoryUnmap(memory, 0));
 }
 
 TEST(SbMemoryMapTest, AllocatesOne) {
   void* memory = SbMemoryMap(1, kSbMemoryMapProtectRead, "test");
-  EXPECT_NE(kFailed, memory);
+  ASSERT_NE(kFailed, memory);
   EXPECT_TRUE(SbMemoryUnmap(memory, 1));
 }
 
 TEST(SbMemoryMapTest, AllocatesOnePage) {
   void* memory =
       SbMemoryMap(SB_MEMORY_PAGE_SIZE, kSbMemoryMapProtectRead, "test");
-  EXPECT_NE(kFailed, memory);
+  ASSERT_NE(kFailed, memory);
   EXPECT_TRUE(SbMemoryUnmap(memory, SB_MEMORY_PAGE_SIZE));
+}
+
+TEST(SbMemoryMapTest, DoesNotLeak) {
+  // Map 4x the amount of system memory (sequentially, not at once).
+  int64_t bytes_mapped = SbSystemGetTotalMemory() / 4;
+  for (int64_t total_bytes_mapped = 0;
+       total_bytes_mapped < SbSystemGetTotalMemory() * 4;
+       total_bytes_mapped += bytes_mapped) {
+    void* memory = SbMemoryMap(bytes_mapped, kSbMemoryMapProtectWrite, "test");
+    ASSERT_NE(kFailed, memory);
+
+    // Force page commit.
+    uint8_t* first_page = static_cast<uint8_t*>(memory);
+    for (uint8_t* page = first_page; page < first_page + bytes_mapped;
+         page += SB_MEMORY_PAGE_SIZE) {
+      *page = 0x55;
+    }
+
+    EXPECT_TRUE(SbMemoryUnmap(memory, bytes_mapped));
+  }
 }
 
 TEST(SbMemoryMapTest, CanReadWriteToResult) {
