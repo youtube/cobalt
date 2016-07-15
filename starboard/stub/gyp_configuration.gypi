@@ -18,6 +18,12 @@
 
     'enable_webdriver': '1',
 
+    # Use a stub rasterizer and graphical setup.
+    'rasterizer_type%': 'stub',
+
+    # No GL drivers available.
+    'gl_type%': 'none',
+
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
     'javascript_engine': 'javascriptcore',
