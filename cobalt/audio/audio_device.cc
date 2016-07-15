@@ -19,10 +19,10 @@
 #include "base/memory/scoped_ptr.h"
 #if defined(OS_STARBOARD)
 #include "starboard/audio_sink.h"
-#else  // defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#endif  // defined(OS_STARBOARD)
 #include "media/audio/audio_parameters.h"
 #include "media/audio/shell_audio_streamer.h"
-#endif  // defined(OS_STARBOARD)
 #include "media/base/audio_bus.h"
 
 namespace cobalt {
@@ -38,6 +38,12 @@ const int kStandardOutputSampleRate = 48000;
 }  // namespace
 
 #if defined(OS_STARBOARD)
+#if SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
+#define SB_USE_SB_AUDIO_SINK 1
+#endif  // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
+#endif  // defined(OS_STARBOARD)
+
+#if defined(SB_USE_SB_AUDIO_SINK)
 
 class AudioDevice::Impl {
  public:
@@ -184,7 +190,7 @@ void AudioDevice::Impl::FillOutputAudioBus() {
   }
 }
 
-#else  // defined(OS_STARBOARD)
+#else  // defined(SB_USE_SB_AUDIO_SINK)
 
 class AudioDevice::Impl : public ::media::ShellAudioStream {
  public:
@@ -346,7 +352,7 @@ void AudioDevice::Impl::FillOutputAudioBus() {
   audio_bus_.ZeroAllFrames();
 }
 
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(SB_USE_SB_AUDIO_SINK)
 
 // AudioDevice.
 AudioDevice::AudioDevice(int32 number_of_channels, RenderCallback* callback)
