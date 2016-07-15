@@ -100,7 +100,8 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
 #endif  // defined(ENABLE_COMMAND_LINE_SWITCHES)
 
   media_module_ =
-      MediaModule::Create(renderer_module_->pipeline()->GetResourceProvider(),
+      MediaModule::Create(renderer_module_->render_target()->GetSize(),
+                          renderer_module_->pipeline()->GetResourceProvider(),
                           media_module_options);
   SetupAndSubmitScene();
 }

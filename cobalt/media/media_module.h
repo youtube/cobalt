@@ -25,6 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/user_log.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -115,6 +116,7 @@ class MediaModule : public WebMediaPlayerFactory,
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
+      const math::Size& output_size,
       render_tree::ResourceProvider* resource_provider,
       const Options& options = Options());
 
