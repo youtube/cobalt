@@ -17,6 +17,8 @@
 #include "cobalt/media/media_module.h"
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/shell_media_platform_starboard.h"
 #include "media/audio/null_audio_streamer.h"
 #include "media/audio/shell_audio_sink.h"
@@ -72,7 +74,9 @@ class MediaModuleStarboard : public MediaModule {
 }  // namespace
 
 scoped_ptr<MediaModule> MediaModule::Create(
+    const math::Size& output_size,
     render_tree::ResourceProvider* resource_provider, const Options& options) {
+  UNREFERENCED_PARAMETER(output_size);
   return make_scoped_ptr<MediaModule>(
       new MediaModuleStarboard(resource_provider, options));
 }
