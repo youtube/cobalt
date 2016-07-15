@@ -21,7 +21,7 @@
 
   'variables': {
     'inputs_i18n':
-      '<!(find <(static_contents_source_dir)/i18n/platform/<(actual_target_arch)/*.xlb)',
+      '<!(find <(static_contents_source_dir)/i18n/platform/<(target_arch)/*.xlb)',
   },
 
   'copies': [

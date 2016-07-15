@@ -77,7 +77,7 @@
         '<(DEPTH)/base/base.gyp:base',
       ],
       'conditions': [
-        ['OS != "starboard"', {
+        ['OS != "starboard" or target_arch == "ps4"', {
           'includes': [
             'copy_i18n_data.gypi',
           ],
