@@ -42,6 +42,10 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
       const scoped_refptr<FrameBuffer>& frame_buffer, const YV12Param& param,
       const base::TimeDelta& timestamp) OVERRIDE;
 
+  scoped_refptr<VideoFrame> CreateNV12Frame(
+      const scoped_refptr<FrameBuffer>& frame_buffer, const NV12Param& param,
+      const base::TimeDelta& timestamp) OVERRIDE;
+
  private:
   typedef cobalt::render_tree::RawImageMemory RawImageMemory;
 
