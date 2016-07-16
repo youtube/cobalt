@@ -30,10 +30,10 @@ using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageData;
 using cobalt::render_tree::ImageDataDescriptor;
 using cobalt::render_tree::kAlphaFormatPremultiplied;
+using cobalt::render_tree::kAlphaFormatUnpremultiplied;
 using cobalt::render_tree::kPixelFormatRGBA8;
 using cobalt::render_tree::MultiPlaneImageDataDescriptor;
 using cobalt::render_tree::ResourceProvider;
-using cobalt::render_tree::kAlphaFormatUnpremultiplied;
 using cobalt::render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
 using cobalt::render_tree::kPixelFormatU8;
 using cobalt::render_tree::kPixelFormatV8;
@@ -93,17 +93,66 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   descriptor.AddPlane(
       offset, ImageDataDescriptor(visible_size, kPixelFormatY8,
                                   kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += decoded_size.width() * decoded_size.height();
+  offset += pitch_in_bytes * decoded_size.height();
   visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
   pitch_in_bytes /= 2;
   descriptor.AddPlane(
       offset, ImageDataDescriptor(visible_size, kPixelFormatU8,
                                   kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += decoded_size.width() / 2 * decoded_size.height() / 2;
+  offset += pitch_in_bytes * decoded_size.height() / 2;
   descriptor.AddPlane(
       offset, ImageDataDescriptor(visible_size, kPixelFormatV8,
                                   kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += decoded_size.width() / 2 * decoded_size.height() / 2;
+  offset += pitch_in_bytes * decoded_size.height() / 2;
+  CHECK_EQ(offset, param.decoded_width() * param.decoded_height() * 3 / 2);
+
+  scoped_refptr<Image> image =
+      resource_provider_->CreateMultiPlaneImageFromRawMemory(
+          frame_buffer_common->DetachRawImageMemory(), descriptor);
+
+  // The reference of the image is held by the closure that binds ReleaseImage,
+  // so it won't be freed before the ReleaseImage is called.
+  scoped_refptr<VideoFrame> video_frame = VideoFrame::WrapNativeTexture(
+      reinterpret_cast<uintptr_t>(image.get()), 0, visible_size,
+      param.visible_rect(), visible_size, timestamp, VideoFrame::ReadPixelsCB(),
+      base::Bind(ReleaseImage, image));
+  return video_frame;
+}
+
+scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
+    const scoped_refptr<FrameBuffer>& frame_buffer, const NV12Param& param,
+    const base::TimeDelta& timestamp) {
+  scoped_refptr<FrameBufferCommon> frame_buffer_common =
+      base::polymorphic_downcast<FrameBufferCommon*>(frame_buffer.get());
+
+  // TODO: Ensure it work with visible_rect with non-zero left and
+  // top.  Note that simply add offset to the image buffer may cause alignment
+  // issues.
+  gfx::Size decoded_size(param.decoded_width(), param.decoded_height());
+  gfx::Size visible_size(param.visible_rect().size());
+
+  intptr_t offset = 0;
+  int pitch_in_bytes = decoded_size.width();
+
+  DCHECK_EQ(pitch_in_bytes % 2, 0) << pitch_in_bytes << " has to be even.";
+
+  // Create image data descriptor for the frame in I420.
+  MultiPlaneImageDataDescriptor descriptor(
+      kMultiPlaneImageFormatYUV3PlaneBT709);
+  descriptor.AddPlane(
+      offset, ImageDataDescriptor(visible_size, kPixelFormatY8,
+                                  kAlphaFormatPremultiplied, pitch_in_bytes));
+  offset += pitch_in_bytes * decoded_size.height();
+  visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
+  pitch_in_bytes /= 2;
+  descriptor.AddPlane(
+      offset, ImageDataDescriptor(visible_size, kPixelFormatU8,
+                                  kAlphaFormatPremultiplied, pitch_in_bytes));
+  offset += pitch_in_bytes * decoded_size.height() / 2;
+  descriptor.AddPlane(
+      offset, ImageDataDescriptor(visible_size, kPixelFormatV8,
+                                  kAlphaFormatPremultiplied, pitch_in_bytes));
+  offset += pitch_in_bytes * decoded_size.height() / 2;
   CHECK_EQ(offset, param.decoded_width() * param.decoded_height() * 3 / 2);
 
   scoped_refptr<Image> image =
