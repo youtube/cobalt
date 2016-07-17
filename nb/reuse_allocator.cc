@@ -124,7 +124,6 @@ void* ReuseAllocator::Allocate(std::size_t size, std::size_t alignment) {
   alignment = AlignUp(alignment, kMinAlignment);
 
   // Worst case how much memory we need.
-  const std::size_t required_aligned_size = size + alignment;
   MemoryBlock allocated_block;
 
   // Start looking through the free list.
@@ -132,42 +131,24 @@ void* ReuseAllocator::Allocate(std::size_t size, std::size_t alignment) {
   for (FreeBlockSet::iterator it = free_blocks_.begin();
        it != free_blocks_.end(); ++it) {
     MemoryBlock block = *it;
-    if (block.size >= size) {
-      // Promising. Might be big enough.
-      if (IsAligned(AsInteger(block.address), alignment)) {
-        // Perfect. The block is big enough and aligned.
-        RemoveFreeBlock(it);
-        const std::size_t remaining_bytes = block.size - size;
-        if (remaining_bytes >= kMinBlockSizeBytes) {
-          // Insert a new free block with the leftover space.
-          AddFreeBlock(AsPointer(AsInteger(block.address) + size),
-                       remaining_bytes);
-          allocated_block.size = size;
-        } else {
-          allocated_block.size = block.size;
-        }
-        user_address = block.address;
-        allocated_block.address = block.address;
-        SB_DCHECK(allocated_block.size <= block.size);
-        break;
-      } else if (block.size >= required_aligned_size) {
-        // The block isn't aligned fully, but it's big enough.
-        // We'll waste some space due to alignment.
-        RemoveFreeBlock(it);
-        const std::size_t remaining_bytes = block.size - required_aligned_size;
-        if (remaining_bytes >= kMinBlockSizeBytes) {
-          AddFreeBlock(
-              AsPointer(AsInteger(block.address) + required_aligned_size),
-              remaining_bytes);
-          allocated_block.size = required_aligned_size;
-        } else {
-          allocated_block.size = block.size;
-        }
-        user_address = AlignUp(block.address, alignment);
-        allocated_block.address = block.address;
-        SB_DCHECK(allocated_block.size <= block.size);
-        break;
+    const std::size_t extra_bytes_for_alignment =
+        (alignment - AsInteger(block.address) % alignment) % alignment;
+    const std::size_t aligned_size = size + extra_bytes_for_alignment;
+    if (block.size >= aligned_size) {
+      // The block is big enough.  We may waste some space due to alignment.
+      RemoveFreeBlock(it);
+      const std::size_t remaining_bytes = block.size - aligned_size;
+      if (remaining_bytes >= kMinBlockSizeBytes) {
+        AddFreeBlock(AsPointer(AsInteger(block.address) + aligned_size),
+                     remaining_bytes);
+        allocated_block.size = aligned_size;
+      } else {
+        allocated_block.size = block.size;
       }
+      user_address = AlignUp(block.address, alignment);
+      allocated_block.address = block.address;
+      SB_DCHECK(allocated_block.size <= block.size);
+      break;
     }
   }
 
