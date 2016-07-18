@@ -36,9 +36,9 @@ namespace skia {
 
 // Implements skia-specific cache recording and playback surface management
 // in order to provide skia-support for the render tree surface caching system.
-class SurfaceCacheDelegate : public SurfaceCache::Delegate {
+class SurfaceCacheDelegate : public common::SurfaceCache::Delegate {
  private:
-  class CachedSurface : public SurfaceCache::CachedSurface {
+  class CachedSurface : public common::SurfaceCache::CachedSurface {
    public:
     CachedSurface(SkSurface* surface, const math::Vector2dF& output_post_scale,
                   const math::Vector2dF& output_pre_translate,
@@ -124,10 +124,10 @@ class SurfaceCacheDelegate : public SurfaceCache::Delegate {
   // when visiting a MatrixTransformNode.
   void UpdateCanvasScale();
 
-  void ApplySurface(SurfaceCache::CachedSurface* surface) OVERRIDE;
+  void ApplySurface(common::SurfaceCache::CachedSurface* surface) OVERRIDE;
   void StartRecording(const math::RectF& local_bounds) OVERRIDE;
-  SurfaceCache::CachedSurface* EndRecording() OVERRIDE;
-  void ReleaseSurface(SurfaceCache::CachedSurface* surface) OVERRIDE;
+  common::SurfaceCache::CachedSurface* EndRecording() OVERRIDE;
+  void ReleaseSurface(common::SurfaceCache::CachedSurface* surface) OVERRIDE;
   math::Size GetRenderSize(const math::SizeF& local_size) OVERRIDE;
   math::Size MaximumSurfaceSize() OVERRIDE;
 

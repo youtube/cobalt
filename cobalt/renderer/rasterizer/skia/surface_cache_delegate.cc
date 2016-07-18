@@ -63,7 +63,8 @@ void SurfaceCacheDelegate::OnToggleCacheHighlights(const std::string& message) {
 }
 #endif
 
-void SurfaceCacheDelegate::ApplySurface(SurfaceCache::CachedSurface* surface) {
+void SurfaceCacheDelegate::ApplySurface(
+    common::SurfaceCache::CachedSurface* surface) {
   TRACE_EVENT0("cobalt::renderer", "SurfaceCacheDelegate::ApplySurface()");
   CachedSurface* skia_surface =
       base::polymorphic_downcast<CachedSurface*>(surface);
@@ -161,7 +162,7 @@ void SurfaceCacheDelegate::StartRecording(const math::RectF& local_bounds) {
       CobaltMatrixToSkia(coord_mapping.sub_render_transform));
 }
 
-SurfaceCache::CachedSurface* SurfaceCacheDelegate::EndRecording() {
+common::SurfaceCache::CachedSurface* SurfaceCacheDelegate::EndRecording() {
   TRACE_EVENT0("cobalt::renderer", "SurfaceCacheDelegate::EndRecording()");
   DCHECK(recording_data_);
 
@@ -186,7 +187,7 @@ SurfaceCache::CachedSurface* SurfaceCacheDelegate::EndRecording() {
 }
 
 void SurfaceCacheDelegate::ReleaseSurface(
-    SurfaceCache::CachedSurface* surface) {
+    common::SurfaceCache::CachedSurface* surface) {
   TRACE_EVENT0("cobalt::renderer", "SurfaceCacheDelegate::ReleaseSurface()");
   delete surface;
 }

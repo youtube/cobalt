@@ -39,7 +39,8 @@ namespace blitter {
 // passed in given render target.
 class SoftwareRasterizer : public Rasterizer {
  public:
-  explicit SoftwareRasterizer(backend::GraphicsContext* context);
+  explicit SoftwareRasterizer(backend::GraphicsContext* context,
+                              int surface_cache_size);
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
