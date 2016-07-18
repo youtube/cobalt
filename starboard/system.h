@@ -135,6 +135,85 @@ typedef enum SbSystemCapabilityId {
   kSbSystemCapabilityReversedEnterAndBack,
 } SbSystemCapabilityId;
 
+// Enumeration of possible values for the |type| parameter passed to  the
+// |SbSystemRaisePlatformError| function.
+typedef enum SbSystemPlatformErrorType {
+  // Cobalt received a network connection error, or a network disconnection
+  // event.
+  kSbSystemPlatformErrorTypeConnectionError,
+
+  // The current user is not signed in (e.g. to PSN network).
+  kSbSystemPlatformErrorTypeUserSignedOut,
+
+  // The current user does not meet the age requirements to use the app.
+  kSbSystemPlatformErrorTypeUserAgeRestricted
+} SbSystemPlatformErrorType;
+
+// Possible responses for |SbSystemPlatformErrorCallback|.
+typedef enum SbSystemPlatformErrorResponse {
+  kSbSystemPlatformErrorResponsePositive,
+  kSbSystemPlatformErrorResponseNegative,
+  kSbSystemPlatformErrorResponseCancel
+} SbSystemPlatformErrorResponse;
+
+// Type of callback function that may be called in response to an error
+// notification from |SbSystemRaisePlatformError|. |response| is a code to
+// indicate the user's response, e.g. if the platform raised a dialog to notify
+// the user of the error. |user_data| is the opaque pointer that was passed to
+// the call to |SbSystemRaisePlatformError|.
+typedef void (*SbSystemPlatformErrorCallback)(
+    SbSystemPlatformErrorResponse response,
+    void* user_data);
+
+// Private structure used to represent a raised platform error.
+typedef struct SbSystemPlatformErrorPrivate SbSystemPlatformErrorPrivate;
+
+// Opaque handle returned by |SbSystemRaisePlatformError| that can be passed
+// to |SbSystemClearPlatformError|.
+typedef SbSystemPlatformErrorPrivate* SbSystemPlatformError;
+
+// Well-defined value for an invalid |SbSystemPlatformError|.
+#define kSbSystemPlatformErrorInvalid (SbSystemPlatformError) NULL
+
+// Checks whether a |SbSystemPlatformError| is valid.
+static SB_C_INLINE bool SbSystemPlatformErrorIsValid(
+    SbSystemPlatformError handle) {
+  return handle != kSbSystemPlatformErrorInvalid;
+}
+
+// Called by Cobalt to notify the platform that an error has occurred in the
+// application that may have to be handled by the platform. It is expected the
+// platform will notify the user of the error, and provide interaction if
+// required, for example by showing a dialog.
+//
+// |type| is one of the enumerated types above to define the error; |callback|
+// is a function that may be called by the platform to let the caller know the
+// user has reacted to the error; |user_data| is an opaque pointer that the
+// platform should pass as an argument to the callback, if called.
+// Returns a handle that may be used in a subsequent call to
+// |SbClearPlatformError|, for example to programatically dismiss a dialog that
+// may have been raised in response to the error. The lifetime of
+// the object referenced by the handle is until the user reacts to the error
+// or the error is dismissed by a call to |SbSystemClearPlatformError|,
+// whichever happens first. If the platform cannot respond to the error, then
+// this function should return |kSbSystemPlatformErrorInvalid|.
+//
+// This function may be called from any thread; it is the responsibility of the
+// platform to decide how to handle an error received while a previous error is
+// still pending - if only one error can be handled at a time, then the
+// platform may queue the second error or ignore it by returning
+// |kSbSystemPlatformErrorInvalid|.
+SB_EXPORT SbSystemPlatformError
+SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
+                           SbSystemPlatformErrorCallback callback,
+                           void* user_data);
+
+// Clears a platform error that was previously raised by a call to
+// |SbSystemRaisePlatformError|, specified by the handle that was returned by
+// that function. The platform may use this, for example, to close a dialog
+// that was opened in response to the error.
+SB_EXPORT void SbSystemClearPlatformError(SbSystemPlatformError handle);
+
 // Pointer to a function to compare two items, returning less than zero, zero,
 // or greater than zero depending on whether |a| is less than |b|, equal to |b|,
 // or greater than |b|, respectively (standard *cmp semantics).
