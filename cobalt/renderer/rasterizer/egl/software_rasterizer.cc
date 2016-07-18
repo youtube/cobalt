@@ -32,9 +32,11 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context)
+SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context,
+                                       int surface_cache_size)
     : context_(
-          base::polymorphic_downcast<backend::GraphicsContextEGL*>(context)) {}
+          base::polymorphic_downcast<backend::GraphicsContextEGL*>(context)),
+      skia_rasterizer_(surface_cache_size) {}
 
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,

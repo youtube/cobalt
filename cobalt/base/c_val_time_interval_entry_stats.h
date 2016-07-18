@@ -16,6 +16,7 @@
 #ifndef COBALT_BASE_C_VAL_TIME_INTERVAL_ENTRY_STATS_H_
 #define COBALT_BASE_C_VAL_TIME_INTERVAL_ENTRY_STATS_H_
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -120,7 +121,7 @@ void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
         (active_shifted_sum_squares_ -
          ((active_shifted_sum_ * active_shifted_sum_) / active_count_)) /
         active_count_;
-    DCHECK_GE(variance, 0);
+    variance = std::max(variance, 0.0);
     standard_deviation_ = std::sqrt(variance);
     minimum_ = active_minimum_;
     maximum_ = active_maximum_;

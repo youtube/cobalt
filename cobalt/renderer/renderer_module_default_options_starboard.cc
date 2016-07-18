@@ -28,23 +28,25 @@ namespace renderer {
 namespace {
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context) {
+  const size_t kSurfaceCacheCapacityInBytes = 0;
 #if COBALT_FORCE_STUB_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(new rasterizer::stub::Rasterizer());
 #else
 #if SB_HAS(GLES2)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
-      new rasterizer::egl::SoftwareRasterizer(graphics_context));
+      new rasterizer::egl::SoftwareRasterizer(graphics_context,
+                                              kSurfaceCacheCapacityInBytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::SkiaHardwareRasterizer(
-          graphics_context,
-          rasterizer::skia::SkiaHardwareRasterizer::kSurfaceCachingDisabled));
+          graphics_context, kSurfaceCacheCapacityInBytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #elif SB_HAS(BLITTER)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
-      new rasterizer::blitter::SoftwareRasterizer(graphics_context));
+      new rasterizer::blitter::SoftwareRasterizer(
+          graphics_context, kSurfaceCacheCapacityInBytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(graphics_context));

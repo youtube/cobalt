@@ -57,6 +57,7 @@ class HardwareRasterizer::Impl {
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
           graphics_context)),
+      software_rasterizer_(0),
       submit_count_(0) {
   resource_provider_ = scoped_ptr<render_tree::ResourceProvider>(
       new ResourceProvider(context_->GetSbBlitterDevice(),
