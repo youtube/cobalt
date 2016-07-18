@@ -18,6 +18,7 @@
 #define STARBOARD_FILE_H_
 
 #include "starboard/export.h"
+#include "starboard/log.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
@@ -180,5 +181,61 @@ SB_EXPORT int SbFileModeStringToFlags(const char* mode);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#ifdef __cplusplus
+namespace starboard {
+
+// A class that opens an SbFile in its constructor and closes it in its
+// destructor, so the file is open for the lifetime of the object. Member
+// functions call the corresponding SbFile function.
+class ScopedFile {
+ public:
+  ScopedFile(const char* path,
+             int flags,
+             bool* out_created,
+             SbFileError* out_error)
+      : file_(kSbFileInvalid) {
+    file_ = SbFileOpen(path, flags, out_created, out_error);
+  }
+
+  ScopedFile(const char* path, int flags, bool* out_created)
+      : file_(kSbFileInvalid) {
+    file_ = SbFileOpen(path, flags, out_created, NULL);
+  }
+
+  ScopedFile(const char* path, int flags) : file_(kSbFileInvalid) {
+    file_ = SbFileOpen(path, flags, NULL, NULL);
+  }
+
+  ~ScopedFile() { SbFileClose(file_); }
+
+  SbFile file() const { return file_; }
+
+  bool IsValid() const { return SbFileIsValid(file_); }
+
+  int64_t Seek(SbFileWhence whence, int64_t offset) const {
+    return SbFileSeek(file_, whence, offset);
+  }
+
+  int Read(char* data, int size) const { return SbFileRead(file_, data, size); }
+
+  int Write(const char* data, int size) const {
+    return SbFileWrite(file_, data, size);
+  }
+
+  bool Truncate(int64_t length) const { return SbFileTruncate(file_, length); }
+
+  bool Flush() const { return SbFileFlush(file_); }
+
+  bool GetInfo(SbFileInfo* out_info) const {
+    return SbFileGetInfo(file_, out_info);
+  }
+
+ private:
+  SbFile file_;
+};
+
+}  // namespace starboard
+#endif  // ifdef __cplusplus
 
 #endif  // STARBOARD_FILE_H_
