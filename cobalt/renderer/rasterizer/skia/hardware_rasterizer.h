@@ -35,16 +35,14 @@ namespace skia {
 // is to be called on.
 class SkiaHardwareRasterizer : public Rasterizer {
  public:
-  enum SurfaceCachingSwitch {
-    kSurfaceCachingEnabled,
-    kSurfaceCachingDisabled,
-  };
-
   // The passed in render target will be used to determine the dimensions of
   // the output.  The graphics context will be used to issue commands to the GPU
-  // to blit the final output to the render target.
+  // to blit the final output to the render target.  If |surface_cache_size| is
+  // non-zero, the rasterizer will set itself up with a surface cache such that
+  // expensive render tree nodes seen multiple times will get saved to offscreen
+  // surfaces.
   explicit SkiaHardwareRasterizer(backend::GraphicsContext* graphics_context,
-                                  SurfaceCachingSwitch surface_caching_switch);
+                                  int surface_cache_size);
   virtual ~SkiaHardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed

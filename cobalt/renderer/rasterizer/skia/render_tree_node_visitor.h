@@ -65,8 +65,8 @@ class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
   SkiaRenderTreeNodeVisitor(
       SkCanvas* render_target,
       const CreateScratchSurfaceFunction* create_scratch_surface_function,
-      SurfaceCacheDelegate* surface_cache_delegate, SurfaceCache* surface_cache,
-      Type visitor_type = kType_Normal);
+      SurfaceCacheDelegate* surface_cache_delegate,
+      common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
   void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
@@ -92,7 +92,7 @@ class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
   Type visitor_type_;
 
   SurfaceCacheDelegate* surface_cache_delegate_;
-  SurfaceCache* surface_cache_;
+  common::SurfaceCache* surface_cache_;
   base::optional<SurfaceCacheDelegate::ScopedContext>
       surface_cache_scoped_context_;
 

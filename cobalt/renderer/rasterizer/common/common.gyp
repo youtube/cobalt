@@ -20,6 +20,7 @@
 
       'sources': [
         'offscreen_render_coordinate_mapping.cc',
+        'streaming_best_fit_line.cc',
         'surface_cache.cc',
       ],
 

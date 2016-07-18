@@ -17,11 +17,10 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RASTERIZER_H_
 
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/backend/render_target.h"
-#include "cobalt/renderer/rasterizer/rasterizer.h"
 
 class SkCanvas;
 
@@ -38,7 +37,8 @@ namespace skia {
 // class can send the results to a display or render target.
 class SkiaSoftwareRasterizer {
  public:
-  SkiaSoftwareRasterizer();
+  explicit SkiaSoftwareRasterizer(int surface_cache_size);
+  ~SkiaSoftwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed
   // into the constructor.
@@ -48,7 +48,8 @@ class SkiaSoftwareRasterizer {
   render_tree::ResourceProvider* GetResourceProvider();
 
  private:
-  scoped_ptr<render_tree::ResourceProvider> resource_provider_;
+  class Impl;
+  scoped_ptr<Impl> impl_;
 };
 
 }  // namespace skia
