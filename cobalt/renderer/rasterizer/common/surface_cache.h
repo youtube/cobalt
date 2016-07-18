@@ -22,14 +22,15 @@
 
 #include "base/hash_tables.h"
 #include "base/time.h"
-#include "cobalt/base/c_val.h"
-#include "cobalt/math/exponential_moving_average.h"
+#include "cobalt/base/c_val_time_interval_entry_stats.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/node.h"
+#include "cobalt/renderer/rasterizer/common/streaming_best_fit_line.h"
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
+namespace common {
 
 // A SurfaceCache can be owned and used by a rasterizer in order to cache
 // surfaces representing sub-trees of a render tree as the rasterizer is
@@ -108,29 +109,21 @@ class SurfaceCache {
   // is already cached.
   struct NodeData {
     explicit NodeData(render_tree::Node* node)
-        : microseconds_per_pixel(-1.0f),
-          size_in_bytes(-1),
-          surface(NULL),
+        : surface(NULL),
           visited_this_frame(true),
           consecutive_frames_visited_(0),
           is_cache_candidate(false),
           node(node) {}
 
-    // Updates |microseconds_per_pixel| based on the values for |duration| and
-    // |render_size|.
-    void UpdateMicrosecondsPerPixel();
-    // Updates |size_in_bytes| based on the values for |render_size|.
-    void UpdateSizeInBytes();
+    // The size in bytes occupied by a cached surface representing this node.
+    int size_in_bytes() { return render_size.GetArea() * 4; }
 
     // Tracks how long it last took to render this node.
     base::TimeDelta duration;
+
     // Tracks the render size of this node, which may be different than
     // node->GetBounds() because of ancestor node transformations.
     math::Size render_size;
-    // How many microseconds are spent per pixel of this node, on average.
-    float microseconds_per_pixel;
-    // The size in bytes occupied by a cached surface representing this node.
-    int size_in_bytes;
 
     // If the surface is cached, this will point to the CachedSurface object
     // returned by the Delegate.  Otherwise, this will be null.
@@ -219,6 +212,7 @@ class SurfaceCache {
   // The Delegate is responsible for handling surface management.
   // |capcity_in_bytes| specifies the hard capacity of the surface cache.
   SurfaceCache(Delegate* delegate, size_t capacity_in_bytes);
+  ~SurfaceCache();
 
   // This should be called by clients (e.g. rasterizers) once per frame, to
   // reset the "seen" flags of the cache and determine what is eligible for
@@ -226,14 +220,16 @@ class SurfaceCache {
   void Frame();
 
  private:
-  class SortByDurationPerPixel;
-  class SortByDuration;
+  class SortByDurationDifferencePerPixel;
+  class SortByDurationDifference;
 
   // Returns true if it is possible to cache the specified node.
-  bool MeetsCachingCriteria(const NodeData& node_data) const;
+  bool MeetsCachingCriteria(const NodeData& node_data,
+                            const Line& apply_surface_time_model) const;
   // Returns true if the node should be purged from the cache despite the fact
   // that it continues to be seen.
-  bool MeetsCachePurgeCriteria(const NodeData& node_data) const;
+  bool MeetsCachePurgeCriteria(const NodeData& node_data,
+                               const Line& apply_surface_time_model) const;
 
   // Returns true if the specified node is in the cache.
   bool IsCached(const NodeData& node_data) const;
@@ -258,7 +254,17 @@ class SurfaceCache {
   NodeMap seen_;
 
   // Number of bytes occupied by cached surface pixel data.
-  base::CVal<int> total_used_bytes_;
+  int total_used_bytes_;
+
+  // CVals for introspection into cache details.
+  base::CValTimeIntervalEntryStats<int> total_used_bytes_cval_;
+  base::CValTimeIntervalEntryStats<float> apply_surface_duration_overhead_cval_;
+  base::CValTimeIntervalEntryStats<float>
+      apply_surface_duration_per_pixel_cval_;
+  int cached_surfaces_count_;
+  base::CValTimeIntervalEntryStats<float> cached_surfaces_count_cval_;
+  int surfaces_freed_this_frame_;
+  base::CValTimeIntervalEntryStats<float> surfaces_freed_per_frame_cval_;
 
   // Maximum number of bytes that can be occupied by cached surface pixel data.
   int capacity_in_bytes_;
@@ -272,7 +278,7 @@ class SurfaceCache {
 
   // The average duration for calls to Delegate::ApplySurface().  This is useful
   // when determining if it is worth it or not to cache a render tree.
-  math::ExponentialMovingAverage<int64> average_apply_surface_time_in_usecs_;
+  StreamingBestFitLine apply_surface_time_regressor_;
 
   // A locally saved value of the maximum surface size, as given by
   // Delegate::MaximumSurfaceSize().
@@ -280,9 +286,15 @@ class SurfaceCache {
 
   std::vector<NodeData*> to_purge_;
 
+  // Used temporarily in the scope of Frame(), but stored as a member to avoid
+  // reallocating storage for it.
+  std::vector<NodeData*> to_consider_for_cache_;
+  std::vector<NodeData*> to_add_;
+
   friend class Block;
 };
 
+}  // namespace common
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
