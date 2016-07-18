@@ -71,8 +71,8 @@ namespace skia {
 SkiaRenderTreeNodeVisitor::SkiaRenderTreeNodeVisitor(
     SkCanvas* render_target,
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
-    SurfaceCacheDelegate* surface_cache_delegate, SurfaceCache* surface_cache,
-    Type visitor_type)
+    SurfaceCacheDelegate* surface_cache_delegate,
+    common::SurfaceCache* surface_cache, Type visitor_type)
     : render_target_(render_target),
       create_scratch_surface_function_(create_scratch_surface_function),
       surface_cache_delegate_(surface_cache_delegate),
@@ -113,7 +113,7 @@ void SkiaRenderTreeNodeVisitor::Visit(
   TRACE_EVENT0("cobalt::renderer", "Visit(CompositionNode)");
 #endif
 
-  SurfaceCache::Block cache_block(surface_cache_, composition_node);
+  common::SurfaceCache::Block cache_block(surface_cache_, composition_node);
   if (cache_block.Cached()) return;
 
   const render_tree::CompositionNode::Children& children =
@@ -411,7 +411,7 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     filter_node->data().source->Accept(this);
     render_target_->restore();
   } else {
-    SurfaceCache::Block cache_block(surface_cache_, filter_node);
+    common::SurfaceCache::Block cache_block(surface_cache_, filter_node);
     if (cache_block.Cached()) return;
 
     RenderFilterViaOffscreenSurface(filter_node->data());
@@ -595,7 +595,8 @@ void SkiaRenderTreeNodeVisitor::Visit(
   TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransformNode)");
 #endif
 
-  SurfaceCache::Block cache_block(surface_cache_, matrix_transform_node);
+  common::SurfaceCache::Block cache_block(surface_cache_,
+                                          matrix_transform_node);
   if (cache_block.Cached()) return;
 
   // Concatenate the matrix transform to the render target and then continue
@@ -1200,7 +1201,7 @@ void SkiaRenderTreeNodeVisitor::Visit(
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(RectShadowNode)");
 #endif
-  SurfaceCache::Block cache_block(surface_cache_, rect_shadow_node);
+  common::SurfaceCache::Block cache_block(surface_cache_, rect_shadow_node);
   if (cache_block.Cached()) return;
 
   if (rect_shadow_node->data().rounded_corners) {
@@ -1262,7 +1263,7 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(TextNode)");
 #endif
-  SurfaceCache::Block cache_block(surface_cache_, text_node);
+  common::SurfaceCache::Block cache_block(surface_cache_, text_node);
   if (cache_block.Cached()) return;
 
   // If blur was used for any of the shadows, apply a little bit of blur
