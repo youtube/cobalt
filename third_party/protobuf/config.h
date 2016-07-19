@@ -94,7 +94,7 @@
 /* Enable classes using zlib compression. */
 #define HAVE_ZLIB 1
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #undef HAVE_HASH_MAP
 #undef HAVE_HASH_SET
 #endif
