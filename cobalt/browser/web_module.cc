@@ -542,7 +542,12 @@ WebModule::WebModule(
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
+#if defined(ADDRESS_SANITIZER)
+  // ASAN requires a much bigger stack size here.
+  const int kStackSize = 4096 * 1024;
+#else
   const int kStackSize = 256 * 1024;
+#endif
   thread_.StartWithOptions(
       base::Thread::Options(MessageLoop::TYPE_DEFAULT, kStackSize));
   DCHECK(message_loop());
