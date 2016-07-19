@@ -186,16 +186,27 @@ int AlsaWriteFrames(void* playback_handle,
 }
 
 int AlsaGetBufferedFrames(void* playback_handle) {
-  snd_pcm_sframes_t delay;
-  int error =
-      snd_pcm_delay(reinterpret_cast<snd_pcm_t*>(playback_handle), &delay);
-  ALSA_CHECK(error, snd_pcm_delay, -1);
-  if (delay < 0) {
-    SB_LOG(ERROR) << __FUNCTION__
-                  << ": snd_pcm_delay() failed with negative delay " << delay;
-    return -1;
+  int error;
+  snd_pcm_t* handle = reinterpret_cast<snd_pcm_t*>(playback_handle);
+  // snd_pcm_delay() isn't able to catch xrun, so we explicitly check for xrun.
+  if (snd_pcm_state(handle) == SND_PCM_STATE_XRUN) {
+    error = snd_pcm_prepare(handle);
+    ALSA_CHECK(error, snd_pcm_prepare, -1);
+    // The buffer has already been reset, so the delay is 0.
+    return 0;
   }
-  return delay;
+  snd_pcm_sframes_t delay;
+  error = snd_pcm_delay(handle, &delay);
+  if (error == 0) {
+    if (delay < 0) {
+      SB_LOG(ERROR) << __FUNCTION__
+                    << ": snd_pcm_delay() failed with negative delay " << delay;
+      return -1;
+    }
+    return delay;
+  }
+  ALSA_CHECK(error, snd_pcm_delay, -1);
+  return -1;
 }
 
 void AlsaCloseDevice(void* playback_handle) {
