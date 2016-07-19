@@ -332,11 +332,9 @@ static const char* const common_media_codecs[] = {
 #endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
 #endif  // defined(OS_STARBOARD)
 
-    "avc1", "mp4a",
-
-#if defined(__LB_PS3__) || defined(__LB_PS4__) || defined(__LB_WIIU__)
+    "avc1",
+    "mp4a",
     "aac51",
-#endif  // defined(__LB_PS3__) || defined(__LB_PS4__) || defined(__LB_WIIU__)
 
 #endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 };
