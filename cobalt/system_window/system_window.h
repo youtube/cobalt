@@ -46,21 +46,20 @@ class SystemWindow {
   // Type of callback to run when user closes a dialog.
   typedef base::Callback<void(DialogResponse response)> DialogCallback;
 
-  // Type to indicate dialog severity. May be used by the platform-specific
-  // implementation to control aspects of dialog presentation.
-  enum DialogSeverity { kDialogInfo, kDialogWarning, kDialogError };
+  // Enumeration of possible message codes for a dialog.
+  enum DialogMessageCode {
+    kDialogConnectionError,
+    kDialogUserSignedOut,
+    kDialogUserAgeRestricted
+  };
 
   // Options structure for dialog creation. It is expected that each platform
   // will implement a modal dialog with possible support for:
-  // A text message.
-  // An indication of severity: info, warning or error.
-  // 1-3 buttons, where usually 1 = OK, 2 = Yes/No, 3 = Yes/No/Cancel.
+  // A message code specifying the text to be displayed, which should be
+  // localized according to the platform.
   // A callback indicating the user's response: positive, negative or cancel.
   struct DialogOptions {
-    DialogOptions() : severity(kDialogInfo), num_buttons(1) {}
-    DialogSeverity severity;
-    int num_buttons;
-    std::string message;
+    DialogMessageCode message_code;
     DialogCallback callback;
   };
 
