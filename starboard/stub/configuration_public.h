@@ -300,14 +300,14 @@
 // it is up to the client to retain decoded frames and display them synchronized
 // with the audio. The decoder must be wired up to the DRM system such that it
 // accepts encrypted samples.
-#define SB_HAS_DECODER 1
+#define SB_HAS_DECODER 0
 
 // Specifies whether this platform has support for a decrypting elementary
 // stream player for at least AES128-CTR/H.264/AAC. A player is responsible for
 // ingesting an audio and video elementary stream, optionally-encrypted, and
 // ultimately producing synchronized audio/video. If a player is defined, it
 // must choose one of the supported composition methods below.
-#define SB_HAS_PLAYER 0
+#define SB_HAS_PLAYER 1
 
 // Specifies whether this platform's player will produce an OpenGL texture that
 // the client must draw every frame with its graphics rendering. It may be that
@@ -326,7 +326,7 @@
 // punch an alpha hole out of the graphics plane for video to show through.  In
 // this case, changing the video bounds must be tightly synchronized between the
 // player and the graphics plane.
-#define SB_IS_PLAYER_PUNCHED_OUT 0
+#define SB_IS_PLAYER_PUNCHED_OUT 1
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
