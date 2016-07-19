@@ -25,7 +25,7 @@ SystemWindow::~SystemWindow() {}
 
 void SystemWindow::ShowDialog(const SystemWindow::DialogOptions& options) {
   NOTIMPLEMENTED() << "System dialog not implemented on this platform";
-  DLOG(INFO) << "Message: " << options.message;
+  DLOG(INFO) << "Message code: " << options.message_code;
 }
 
 }  // namespace system_window
