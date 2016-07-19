@@ -23,7 +23,7 @@
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/window.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace system_window {
@@ -43,6 +43,12 @@ class SystemWindowStarboard : public SystemWindow {
   // Handles a single Starboard input event, dispatching any appropriate events.
   void HandleInputEvent(const SbInputData& data);
 
+  // Raises a system dialog.
+  void ShowDialog(const SystemWindow::DialogOptions& options) OVERRIDE;
+
+  // Called when the user closes the dialog.
+  void HandleDialogClose(SbSystemPlatformErrorResponse response);
+
  private:
   void UpdateModifiers(SbKey key, bool pressed);
   KeyboardEvent::Modifiers GetModifiers();
@@ -50,6 +56,9 @@ class SystemWindowStarboard : public SystemWindow {
   SbWindow window_;
 
   bool key_down_;
+
+  // The current dialog callback. Only one dialog may be open at a time.
+  DialogCallback current_dialog_callback_;
 };
 
 // The Starboard Event handler SbHandleEvent should call this function on
