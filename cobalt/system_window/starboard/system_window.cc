@@ -19,12 +19,19 @@
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/system_window/keyboard_event.h"
 #include "cobalt/system_window/starboard/system_window.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace system_window {
 
 namespace {
 SystemWindowStarboard* g_the_window = NULL;
+
+// Unbound callback handler for SbWindowShowDialog.
+void StarboardDialogCallback(SbSystemPlatformErrorResponse response) {
+  DCHECK(g_the_window);
+  g_the_window->HandleDialogClose(response);
+}
 }  // namespace
 
 SystemWindowStarboard::SystemWindowStarboard(
@@ -75,6 +82,60 @@ void SystemWindowStarboard::HandleInputEvent(const SbInputData& data) {
         new KeyboardEvent(KeyboardEvent::kKeyUp, key_code, data.key_modifiers,
                           false /* is_repeat */));
     event_dispatcher()->DispatchEvent(keyboard_event.PassAs<base::Event>());
+  }
+}
+
+void OnDialogClose(SbSystemPlatformErrorResponse response, void* user_data) {
+  DCHECK(user_data);
+  SystemWindowStarboard* system_window =
+      static_cast<SystemWindowStarboard*>(user_data);
+  system_window->HandleDialogClose(response);
+}
+
+void SystemWindowStarboard::ShowDialog(
+    const SystemWindow::DialogOptions& options) {
+  SbSystemPlatformErrorType error_type;
+  switch (options.message_code) {
+    case kDialogConnectionError:
+      error_type = kSbSystemPlatformErrorTypeConnectionError;
+      break;
+    case kDialogUserSignedOut:
+      error_type = kSbSystemPlatformErrorTypeUserSignedOut;
+      break;
+    case kDialogUserAgeRestricted:
+      error_type = kSbSystemPlatformErrorTypeUserAgeRestricted;
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+
+  SbSystemPlatformError handle =
+      SbSystemRaisePlatformError(error_type, OnDialogClose, this);
+  if (SbSystemPlatformErrorIsValid(handle)) {
+    current_dialog_callback_ = options.callback;
+  } else {
+    DLOG(WARNING) << "Failed to notify user of error: "
+                  << options.message_code;
+  }
+}
+
+void SystemWindowStarboard::HandleDialogClose(
+    SbSystemPlatformErrorResponse response) {
+  DCHECK(!current_dialog_callback_.is_null());
+  switch (response) {
+    case kSbSystemPlatformErrorResponsePositive:
+      current_dialog_callback_.Run(kDialogPositiveResponse);
+      break;
+    case kSbSystemPlatformErrorResponseNegative:
+      current_dialog_callback_.Run(kDialogNegativeResponse);
+      break;
+    case kSbSystemPlatformErrorResponseCancel:
+      current_dialog_callback_.Run(kDialogCancelResponse);
+      break;
+    default:
+      DLOG(WARNING) << "Unrecognized dialog response: " << response;
+      break;
   }
 }
 
