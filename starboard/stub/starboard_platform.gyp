@@ -170,6 +170,8 @@
         '<(DEPTH)/starboard/shared/stub/system_binary_search.cc',
         '<(DEPTH)/starboard/shared/stub/system_break_into_debugger.cc',
         '<(DEPTH)/starboard/shared/stub/system_clear_last_error.cc',
+        '<(DEPTH)/starboard/shared/stub/system_get_connection_type.cc',
+        '<(DEPTH)/starboard/shared/stub/system_get_device_type.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_error_string.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_last_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_locale_id.cc',
