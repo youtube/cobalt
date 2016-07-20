@@ -38,6 +38,9 @@
     # TODO: Remove after starboard.
     'actual_target_arch': '<(target_arch)',
 
+    # The target platform id as a string, like 'ps3', 'ps4', etc..
+    'sb_target_platform': '',
+
     # The operating system of the target, separate from the target_arch. In many
     # cases, an 'unknown' value is fine, but, if set to 'linux', then we can
     # assume some things, and it'll save us some configuration time.
