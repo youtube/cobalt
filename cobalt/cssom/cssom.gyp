@@ -242,7 +242,7 @@
       # Because we generate a header, we must set the hard_dependency flag.
       'hard_dependency': 1,
       'variables': {
-        'script_path': '<(DEPTH)/lbshell/build/generate_data_header.py',
+        'script_path': '<(DEPTH)/cobalt/build/generate_data_header.py',
         'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/cssom/embedded_resources.h',
         'input_directory': 'embedded_resources',
       },
