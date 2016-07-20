@@ -48,9 +48,12 @@ void BasicTest(SbSystemPropertyId id,
 }
 
 TEST(SbSystemGetPropertyTest, ReturnsRequired) {
+  BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
+  BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
   BasicTest(kSbSystemPropertyFriendlyName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyManufacturerName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
+  BasicTest(kSbSystemPropertyNetworkOperatorName, false, true, __LINE__);
   BasicTest(kSbSystemPropertyPlatformName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyPlatformUuid, true, true, __LINE__);
 }

@@ -36,7 +36,7 @@ typedef enum SbSystemPathId {
   kSbSystemPathContentDirectory,
 
   // Path to the directory that can be used as a local file cache, if
-  // avaialable.
+  // available.
   kSbSystemPathCacheDirectory,
 
   // Path to the directory where debug output (e.g. logs, trace output,
@@ -58,6 +58,14 @@ typedef enum SbSystemPathId {
 
 // System properties that can be queried for.
 typedef enum SbSystemPropertyId {
+  // The full model number of the main platform chipset, including any
+  // vendor-specific prefixes.
+  kSbSystemPropertyChipsetModelNumber,
+
+  // The production firmware version number which the device is currently
+  // running.
+  kSbSystemPropertyFirmwareVersion,
+
   // A friendly name for this actual device. It may include user-personalization
   // like "Upstairs Bedroom." It may be displayed to users as part of some kind
   // of device selection.
@@ -69,12 +77,54 @@ typedef enum SbSystemPropertyId {
   // The name of the device model.
   kSbSystemPropertyModelName,
 
+  // The name of the network operator that owns the target device.
+  kSbSystemPropertyNetworkOperatorName,
+
   // The name of this platform, suitable for inclusion in a User-Agent, say.
   kSbSystemPropertyPlatformName,
 
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
 } SbSystemPropertyId;
+
+// Enumeration of device types.
+typedef enum SbSystemDeviceType {
+  // Blue-ray Disc Player (BDP).
+  kSbSystemDeviceTypeBlueRayDiskPlayer,
+
+  // A relatively high-powered TV device used primarily for playing games.
+  kSbSystemDeviceTypeGameConsole,
+
+  // Over the top (OTT) devices stream content via the Internet over another
+  // type of network, e.g. cable or satellite.
+  kSbSystemDeviceTypeOverTheTopBox,
+
+  // Set top boxes (STBs) stream content primarily over cable or satellite.
+  // Some STBs can also stream OTT content via the Internet.
+  kSbSystemDeviceTypeSetTopBox,
+
+  // A Smart TV is a TV that can directly run applications that stream OTT
+  // content via the Internet.
+  kSbSystemDeviceTypeTV,
+
+  // Desktop PC.
+  kSbSystemDeviceTypeDesktopPC,
+
+  // Unknown device.
+  kSbSystemDeviceTypeUnknown,
+} SbSystemDeviceType;
+
+// Enumeration of network connection types.
+typedef enum SbSystemConnectionType {
+  // The system is on a wired connection.
+  kSbSystemConnectionTypeWired,
+
+  // The system is on a wireless connection.
+  kSbSystemConnectionTypeWireless,
+
+  // The system connection type is unknown.
+  kSbSystemConnectionTypeUnknown,
+} SbSystemConnectionType;
 
 // Runtime capabilities are boolean properties of a platform that can't be
 // determined at compile-time, and may vary from device to device, but will not
@@ -107,6 +157,15 @@ SB_EXPORT int SbSystemGetNumberOfProcessors();
 // process is sandboxed to a maximum allowable limit, it will return the lesser
 // of the physical and sandbox limits.
 SB_EXPORT int64_t SbSystemGetTotalMemory();
+
+// Returns the type of the device.
+SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
+
+// Returns whether the device is a TV device.
+SB_EXPORT bool SbSystemIsTvDeviceType(SbSystemDeviceType device_type);
+
+// Returns the device's current network connection type.
+SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
 
 // Gets the platform-defined system path specified by |path_id|, placing it as a
 // zero-terminated string into the user-allocated |out_path|, unless it is
