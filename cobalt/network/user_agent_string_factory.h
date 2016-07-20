@@ -43,6 +43,7 @@ class UserAgentStringFactory {
   std::string historic_platform_name_;
   std::string os_name_and_version_;
   std::string architecture_tokens_;
+  std::string starboard_version_;
 
   struct YouTubeTVInfo {
     enum DeviceType {
@@ -61,10 +62,10 @@ class UserAgentStringFactory {
 
     YouTubeTVInfo() : device_type(kInvalidDeviceType) {}
 
-    std::string network_operator;
+    base::optional<std::string> network_operator;
     DeviceType device_type;
-    std::string chipset_model_number;
-    std::string firmware_version;
+    base::optional<std::string> chipset_model_number;
+    base::optional<std::string> firmware_version;
     std::string brand;
     std::string model;
     base::optional<ConnectionType> connection_type;
