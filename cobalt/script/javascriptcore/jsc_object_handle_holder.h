@@ -36,13 +36,13 @@ class JSCObjectHandleHolder : public OpaqueHandleHolder {
       : object_handle_(handle),
         script_object_registry_(script_object_registry) {}
 
-  void RegisterOwner(const Wrappable* owner) OVERRIDE {
+  void RegisterOwner(Wrappable* owner) OVERRIDE {
     JSC::JSObject* object = js_object();
     JSC::validateCell(object);
     script_object_registry_->RegisterObjectOwner(owner, object);
   }
 
-  void DeregisterOwner(const Wrappable* owner) OVERRIDE {
+  void DeregisterOwner(Wrappable* owner) OVERRIDE {
     JSC::JSObject* object = js_object();
     // object may be in the process of being garbage collected, so do not
     // dereference it.

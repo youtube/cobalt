@@ -24,11 +24,17 @@
 #include "base/optional.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
+
+const char kNotNullableType[] = "Value is null but type is not nullable.";
+const char kNotObjectType[] = "Value is not an object.";
 
 // Flags that can be used as a bitmask for special conversion behaviour.
 enum ConversionFlags {
@@ -44,6 +50,9 @@ enum ConversionFlags {
   // Valid conversion flags for string types.
   kConversionFlagsString = kConversionFlagTreatNullAsEmptyString |
                            kConversionFlagTreatUndefinedAsEmptyString,
+
+  // Valid conversion flags for objects.
+  kConversionFlagsObject = kConversionFlagNullable,
 };
 
 // bool -> JSValue
@@ -171,35 +180,20 @@ inline void ToJSValue(JSContext* context, const std::string& in_string,
 }
 
 // JSValue -> std::string
-inline void FromJSValue(JSContext* context, JS::HandleValue value,
-                        int conversion_flags,
-                        MozjsExceptionState* exception_state,
-                        std::string* out_string) {
-  DCHECK_EQ(conversion_flags & ~kConversionFlagsString, 0)
-      << "Unexpected conversion flags found: ";
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, MozjsExceptionState* exception_state,
+                 std::string* out_string);
 
-  if (value.isNull() &&
-      conversion_flags & kConversionFlagTreatNullAsEmptyString) {
-    *out_string = "";
-    return;
-  }
+// OpaqueHandle -> JSValue
+void ToJSValue(JSContext* context,
+               const OpaqueHandleHolder* opaque_handle_holder,
+               MozjsExceptionState* exception_state,
+               JS::MutableHandleValue out_value);
 
-  if (value.isUndefined() &&
-      conversion_flags & kConversionFlagTreatUndefinedAsEmptyString) {
-    *out_string = "";
-    return;
-  }
-
-  JSString* string = JS_ValueToString(context, value);
-  if (!string) {
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        "Not supported type.");
-    return;
-  }
-
-  *out_string = std::string(JS_EncodeStringToUTF8(context, string),
-                            JS_GetStringEncodingLength(context, string));
-}
+// JSValue -> OpaqueHandle
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, MozjsExceptionState* exception_state,
+                 MozjsObjectHandle::HolderType* out_holder);
 
 // TODO: These will be removed once conversion for all types is implemented.
 template <typename T>

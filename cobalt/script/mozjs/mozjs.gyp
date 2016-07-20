@@ -18,11 +18,13 @@
       'target_name': 'engine',
       'type': 'static_library',
       'sources': [
+        'conversion_helpers.cc',
         'mozjs_engine.cc',
         'mozjs_exception_state.cc',
         'mozjs_global_object_proxy.cc',
         'mozjs_source_code.cc',
         'wrapper_factory.cc',
+        'wrapper_private.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/script/script.gyp:script',
