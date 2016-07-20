@@ -135,7 +135,7 @@ class AudioContext : public dom::EventTarget {
   struct DecodeCallbackInfo {
     DecodeCallbackInfo(script::EnvironmentSettings* settings,
                        const scoped_refptr<dom::ArrayBuffer>& data,
-                       const AudioContext* const audio_context,
+                       AudioContext* const audio_context,
                        const DecodeSuccessCallbackArg& success_handler)
         : env_settings(settings),
           audio_data(data),
@@ -143,7 +143,7 @@ class AudioContext : public dom::EventTarget {
 
     DecodeCallbackInfo(script::EnvironmentSettings* settings,
                        const scoped_refptr<dom::ArrayBuffer>& data,
-                       const AudioContext* const audio_context,
+                       AudioContext* const audio_context,
                        const DecodeSuccessCallbackArg& success_handler,
                        const DecodeErrorCallbackArg& error_handler)
         : env_settings(settings),

@@ -145,7 +145,7 @@ class EventTarget : public script::Wrappable,
 
  private:
   struct EventListenerInfo {
-    EventListenerInfo(base::Token type, const EventTarget* const event_target,
+    EventListenerInfo(base::Token type, EventTarget* const event_target,
                       const EventListenerScriptObject& listener,
                       bool use_capture, EventListener::Type listener_type);
     ~EventListenerInfo();

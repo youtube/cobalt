@@ -62,8 +62,7 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   // executed on as well as the callback itself.
   struct CommandCallbackInfo
       : public base::RefCountedThreadSafe<CommandCallbackInfo> {
-    CommandCallbackInfo(const Debugger* const debugger,
-                        const CommandCallbackArg& cb)
+    CommandCallbackInfo(Debugger* const debugger, const CommandCallbackArg& cb)
         : callback(debugger, cb),
           message_loop_proxy(base::MessageLoopProxy::current()) {}
     CommandCallbackArg::Reference callback;

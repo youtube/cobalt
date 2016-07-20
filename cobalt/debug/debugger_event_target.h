@@ -51,7 +51,7 @@ class DebuggerEventTarget : public script::Wrappable {
   // We store the message loop from which the listener was registered,
   // so we can run the callback on the same loop.
   struct ListenerInfo {
-    ListenerInfo(const DebuggerEventTarget* const debugger_event_target,
+    ListenerInfo(DebuggerEventTarget* const debugger_event_target,
                  const DebuggerEventCallbackArg& cb,
                  const scoped_refptr<base::MessageLoopProxy>& proxy)
         : callback(debugger_event_target, cb), message_loop_proxy(proxy) {}
