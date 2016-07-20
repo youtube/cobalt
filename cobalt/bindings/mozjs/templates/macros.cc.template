@@ -18,7 +18,7 @@
   TypeTraits<{{return_type}} >::ReturnType value =
       impl->{{function_name}}({{arguments|join(", ")}});
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 {%- endmacro %}
 

@@ -52,6 +52,11 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -129,7 +134,7 @@ JSBool get_longArg(
   TypeTraits<int32_t >::ReturnType value =
       impl->long_arg();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -148,7 +153,7 @@ JSBool get_booleanArg(
   TypeTraits<bool >::ReturnType value =
       impl->boolean_arg();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -167,7 +172,7 @@ JSBool get_stringArg(
   TypeTraits<std::string >::ReturnType value =
       impl->string_arg();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {

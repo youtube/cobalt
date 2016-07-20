@@ -236,6 +236,11 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -311,7 +316,7 @@ JSBool get_windowProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->window_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -326,7 +331,8 @@ JSBool set_windowProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<std::string >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
