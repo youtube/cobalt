@@ -34,6 +34,11 @@
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -138,7 +143,8 @@ JSBool set_{{attribute.idl_name}}(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<{{attribute.type}} >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -196,7 +202,8 @@ JSBool fcn_{{operation.idl_name}}(
 {% for argument in overload.arguments %}
   TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
   DCHECK_LT({{loop.index0}}, args.length());
-  FromJSValue(context, args.handleAt({{loop.index0}}), &exception_state, &{{argument.name}});
+  FromJSValue(context, args.handleAt({{loop.index0}}),
+      {{argument.conversion_flags}}, &exception_state, &{{argument.name}});
   if (exception_state.IsExceptionSet()) {
     return false;
   }
