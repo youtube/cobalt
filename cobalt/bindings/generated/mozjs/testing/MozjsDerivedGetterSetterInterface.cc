@@ -52,6 +52,11 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -127,7 +132,7 @@ JSBool get_length(
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -146,7 +151,7 @@ JSBool get_propertyOnDerivedClass(
   TypeTraits<bool >::ReturnType value =
       impl->property_on_derived_class();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -161,7 +166,8 @@ JSBool set_propertyOnDerivedClass(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<bool >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -200,7 +206,8 @@ JSBool fcn_derivedIndexedGetter(
   }
   TypeTraits<uint32_t >::ConversionType index;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &index);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &index);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -209,7 +216,7 @@ JSBool fcn_derivedIndexedGetter(
   TypeTraits<uint32_t >::ReturnType value =
       impl->DerivedIndexedGetter(index);
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -245,13 +252,15 @@ JSBool fcn_derivedIndexedSetter(
   }
   TypeTraits<uint32_t >::ConversionType index;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &index);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &index);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
   TypeTraits<uint32_t >::ConversionType value;
   DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1), &exception_state, &value);
+  FromJSValue(context, args.handleAt(1),
+      kNoConversionFlags, &exception_state, &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

@@ -56,6 +56,11 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -131,7 +136,7 @@ JSBool get_unionProperty(
   TypeTraits<script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ReturnType value =
       impl->union_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -146,7 +151,8 @@ JSBool set_unionProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -168,7 +174,7 @@ JSBool get_unionWithNullableMemberProperty(
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ReturnType value =
       impl->union_with_nullable_member_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -183,7 +189,8 @@ JSBool set_unionWithNullableMemberProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -205,7 +212,7 @@ JSBool get_nullableUnionProperty(
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ReturnType value =
       impl->nullable_union_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -220,7 +227,8 @@ JSBool set_nullableUnionProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

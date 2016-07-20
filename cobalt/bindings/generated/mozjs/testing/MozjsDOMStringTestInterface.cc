@@ -52,6 +52,11 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -127,7 +132,7 @@ JSBool get_property(
   TypeTraits<std::string >::ReturnType value =
       impl->property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -142,7 +147,8 @@ JSBool set_property(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<std::string >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -164,7 +170,7 @@ JSBool get_readOnlyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->read_only_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -183,7 +189,7 @@ JSBool get_nullIsEmptyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->null_is_empty_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -198,7 +204,8 @@ JSBool set_nullIsEmptyProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<std::string >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagTreatNullAsEmptyString), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -220,7 +227,7 @@ JSBool get_undefinedIsEmptyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->undefined_is_empty_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -235,7 +242,8 @@ JSBool set_undefinedIsEmptyProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<std::string >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagTreatUndefinedAsEmptyString), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -257,7 +265,7 @@ JSBool get_nullableUndefinedIsEmptyProperty(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_undefined_is_empty_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -272,7 +280,8 @@ JSBool set_nullableUndefinedIsEmptyProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<std::string > >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagNullable | kConversionFlagTreatUndefinedAsEmptyString), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
