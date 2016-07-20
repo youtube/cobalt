@@ -27,6 +27,8 @@
       'sources': [
         '<(DEPTH)/starboard/linux/shared/atomic_public.h',
         '<(DEPTH)/starboard/linux/shared/configuration_public.h',
+        '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
+        '<(DEPTH)/starboard/linux/shared/system_get_device_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_path.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_property.cc',
         '<(DEPTH)/starboard/linux/shared/system_has_capability.cc',
