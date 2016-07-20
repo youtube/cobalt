@@ -32,7 +32,7 @@ class WindowTimers {
  public:
   typedef script::CallbackFunction<void()> TimerCallback;
   typedef script::ScriptObject<TimerCallback> TimerCallbackArg;
-  explicit WindowTimers(const script::Wrappable* const owner)
+  explicit WindowTimers(script::Wrappable* const owner)
       : current_timer_index_(0), owner_(owner) {}
   ~WindowTimers() {}
 
@@ -47,8 +47,8 @@ class WindowTimers {
  private:
   class TimerInfo : public base::RefCounted<TimerInfo> {
    public:
-    TimerInfo(const script::Wrappable* const owner,
-              scoped_ptr<base::Timer> timer, const TimerCallbackArg& callback)
+    TimerInfo(script::Wrappable* const owner, scoped_ptr<base::Timer> timer,
+              const TimerCallbackArg& callback)
         : timer_(timer.release()), callback_(owner, callback) {}
 
     base::Timer* timer() { return timer_.get(); }
@@ -73,7 +73,7 @@ class WindowTimers {
 
   Timers timers_;
   int current_timer_index_;
-  const script::Wrappable* const owner_;
+  script::Wrappable* const owner_;
 
   DISALLOW_COPY_AND_ASSIGN(WindowTimers);
 };

@@ -53,7 +53,7 @@ class ScriptObject {
   // has been passed into the constructor.
   class Reference {
    public:
-    Reference(const Wrappable* wrappable, const ScriptObject& script_object)
+    Reference(Wrappable* wrappable, const ScriptObject& script_object)
         : owner_(wrappable), referenced_object_(script_object.MakeCopy()) {
       DCHECK(referenced_object_);
       referenced_object_->RegisterOwner(owner_);
@@ -71,7 +71,7 @@ class ScriptObject {
     ~Reference() { referenced_object_->DeregisterOwner(owner_); }
 
    private:
-    const Wrappable* const owner_;
+    Wrappable* const owner_;
     scoped_ptr<ScriptObject> referenced_object_;
 
     DISALLOW_COPY_AND_ASSIGN(Reference);
@@ -89,8 +89,8 @@ class ScriptObject {
  private:
   // Mark/unmark this Wrappable as owning a handle to the underlying JavaScript
   // object.
-  virtual void RegisterOwner(const Wrappable* owner) = 0;
-  virtual void DeregisterOwner(const Wrappable* owner) = 0;
+  virtual void RegisterOwner(Wrappable* owner) = 0;
+  virtual void DeregisterOwner(Wrappable* owner) = 0;
 
   // Return a pointer to the object that wraps the underlying JavaScript object.
   virtual const T* GetScriptObject() const = 0;
