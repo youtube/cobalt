@@ -123,6 +123,18 @@
     },
 
     {
+      'target_name': 'webdriver_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'webdriver_test',
+      ],
+      'variables': {
+        'executable_name': 'webdriver_test',
+      },
+      'includes': [ '../build/deploy.gypi' ],
+    },
+
+    {
       'target_name': 'copy_webdriver_data',
       'type': 'none',
       'copies': [
