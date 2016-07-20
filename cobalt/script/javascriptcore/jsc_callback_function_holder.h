@@ -44,13 +44,13 @@ class JSCCallbackFunctionHolder : public ScriptObject<CallbackFunction> {
     JSC::validateCell(jsc_callable_.value().callable());
   }
 
-  void RegisterOwner(const Wrappable* owner) OVERRIDE {
+  void RegisterOwner(Wrappable* owner) OVERRIDE {
     JSC::validateCell(jsc_callable_.value().callable());
     script_object_registry_->RegisterObjectOwner(
         owner, jsc_callable_.value().callable());
   }
 
-  void DeregisterOwner(const Wrappable* owner) OVERRIDE {
+  void DeregisterOwner(Wrappable* owner) OVERRIDE {
     // callable_ may be in the process of being garbage collected.
     script_object_registry_->DeregisterObjectOwner(
         owner, jsc_callable_.value().callable());

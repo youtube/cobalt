@@ -20,7 +20,7 @@
 #include "cobalt/script/callback_interface_traits.h"
 #include "cobalt/script/mozjs/mozjs_callback_function_holder.h"
 #include "cobalt/script/mozjs/mozjs_callback_interface_holder.h"
-#include "cobalt/script/mozjs/mozjs_object_handle_holder.h"
+#include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 

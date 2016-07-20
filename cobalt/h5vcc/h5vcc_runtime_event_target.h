@@ -44,7 +44,7 @@ class H5vccRuntimeEventTarget : public script::Wrappable {
   // We store the message loop from which the listener was registered,
   // so we can run the callback on the same loop.
   struct ListenerInfo {
-    ListenerInfo(const H5vccRuntimeEventTarget* const pause_event,
+    ListenerInfo(H5vccRuntimeEventTarget* const pause_event,
                  const H5vccRuntimeEventCallbackHolder& cb)
         : callback(pause_event, cb),
           message_loop(base::MessageLoopProxy::current()) {}

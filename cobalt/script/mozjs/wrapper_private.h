@@ -17,7 +17,10 @@
 #define COBALT_SCRIPT_MOZJS_WRAPPER_PRIVATE_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
@@ -34,12 +37,20 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   const scoped_refptr<Wrappable>& wrappable() const { return wrappable_; }
   JSObject* js_object() const { return wrapper_; }
 
+  // Add/Remove a reference to the object. The object will be visited during
+  // garbage collection.
+  void AddReferencedObject(JS::HandleObject referee);
+  void RemoveReferencedObject(JS::HandleObject referee);
+
+  // Create a new WrapperPrivate instance and associate it with the wrapper.
   static void AddPrivateData(JS::HandleObject wrapper,
-                             const scoped_refptr<Wrappable>& wrappable) {
-    WrapperPrivate* private_data = new WrapperPrivate(wrappable, wrapper);
-    JS_SetPrivate(wrapper, private_data);
-    DCHECK_EQ(JS_GetPrivate(wrapper), private_data);
-  }
+                             const scoped_refptr<Wrappable>& wrappable);
+
+  // Get the WrapperPrivate associated with the given Wrappable. A new JSObject
+  // and WrapperPrivate object may be created.
+  static WrapperPrivate* GetFromWrappable(
+      const scoped_refptr<Wrappable>& wrappable, JSContext* context,
+      WrapperFactory* wrapper_factory);
 
   template <typename T>
   static T* GetWrappable(JS::HandleObject wrapper) {
@@ -49,20 +60,21 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
     return base::polymorphic_downcast<T*>(private_data->wrappable_.get());
   }
 
-  static void Finalizer(JSFreeOp* /* free_op */, JSObject* object) {
-    WrapperPrivate* wrapper_private =
-        reinterpret_cast<WrapperPrivate*>(JS_GetPrivate(object));
-    DCHECK(wrapper_private);
-    delete wrapper_private;
-  }
+  // Called when the wrapper object is about to be deleted by the GC.
+  static void Finalizer(JSFreeOp* /* free_op */, JSObject* object);
+
+  // Trace callback called during garbage collection.
+  static void Trace(JSTracer* trace, JSObject* object);
 
  private:
+  typedef ScopedVector<JS::Heap<JSObject*> > ReferencedObjectVector;
   WrapperPrivate(const scoped_refptr<Wrappable>& wrappable,
                  JS::HandleObject wrapper)
       : wrappable_(wrappable), wrapper_(wrapper) {}
 
   scoped_refptr<Wrappable> wrappable_;
-  JSObject* wrapper_;
+  JS::Heap<JSObject*> wrapper_;
+  ReferencedObjectVector referenced_objects_;
 };
 
 }  // namespace mozjs

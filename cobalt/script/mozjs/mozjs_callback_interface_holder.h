@@ -31,9 +31,9 @@ class MozjsCallbackInterfaceHolder : public ScriptObject<CallbackInterface> {
       CallbackInterface>::MozjsCallbackInterfaceClass MozjsCallbackInterface;
   typedef ScriptObject<CallbackInterface> BaseClass;
 
-  void RegisterOwner(const Wrappable* owner) OVERRIDE { NOTIMPLEMENTED(); }
+  void RegisterOwner(Wrappable* owner) OVERRIDE { NOTIMPLEMENTED(); }
 
-  void DeregisterOwner(const Wrappable* owner) OVERRIDE { NOTIMPLEMENTED(); }
+  void DeregisterOwner(Wrappable* owner) OVERRIDE { NOTIMPLEMENTED(); }
 
   const CallbackInterface* GetScriptObject() const OVERRIDE {
     NOTIMPLEMENTED();

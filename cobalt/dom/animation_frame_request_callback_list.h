@@ -36,8 +36,7 @@ class AnimationFrameRequestCallbackList {
   typedef script::CallbackFunction<void(double)> FrameRequestCallback;
   typedef script::ScriptObject<FrameRequestCallback> FrameRequestCallbackArg;
 
-  explicit AnimationFrameRequestCallbackList(
-      const script::Wrappable* const owner)
+  explicit AnimationFrameRequestCallbackList(script::Wrappable* const owner)
       : owner_(owner) {}
 
   int32 RequestAnimationFrame(
@@ -52,7 +51,7 @@ class AnimationFrameRequestCallbackList {
   // We define a wrapper structure for the frame request so that we can
   // associate a "cancelled" flag with each callback.
   struct FrameRequestCallbackWithCancelledFlag {
-    FrameRequestCallbackWithCancelledFlag(const script::Wrappable* const owner,
+    FrameRequestCallbackWithCancelledFlag(script::Wrappable* const owner,
                                           const FrameRequestCallbackArg& cb)
         : callback(owner, cb), cancelled(false) {}
 
@@ -61,7 +60,7 @@ class AnimationFrameRequestCallbackList {
   };
   typedef ScopedVector<FrameRequestCallbackWithCancelledFlag> InternalList;
 
-  const script::Wrappable* const owner_;
+  script::Wrappable* const owner_;
   // Our list of frame request callbacks.
   InternalList frame_request_callbacks_;
 };

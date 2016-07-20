@@ -36,9 +36,9 @@
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
-#include "cobalt/script/mozjs/mozjs_object_handle_holder.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
+#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -109,6 +109,8 @@ InterfaceData* CreateCachedInterfaceData() {
   instance_class->convert = JS_ConvertStub;
   // Function to be called before on object of this class is garbage collected.
   instance_class->finalize = &WrapperPrivate::Finalizer;
+  // Called to trace objects that can be referenced from this object.
+  instance_class->trace = &WrapperPrivate::Trace;
 
   JSClass* prototype_class = &interface_data->prototype_class_definition;
   prototype_class->name = "MozjsObjectTypeBindingsInterfacePrototype";
