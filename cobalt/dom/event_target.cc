@@ -206,7 +206,7 @@ void EventTarget::AddEventListenerInternal(
 }
 
 EventTarget::EventListenerInfo::EventListenerInfo(
-    base::Token type, const EventTarget* const event_target,
+    base::Token type, EventTarget* const event_target,
     const EventListenerScriptObject& listener, bool use_capture,
     EventListener::Type listener_type)
     : type(type),

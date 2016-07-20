@@ -148,8 +148,8 @@ class FakeScriptObject : public script::ScriptObject<EventListener> {
   explicit FakeScriptObject(const MockEventListener* listener)
       : mock_listener_(listener) {}
 
-  void RegisterOwner(const script::Wrappable*) OVERRIDE {}
-  void DeregisterOwner(const script::Wrappable*) OVERRIDE {}
+  void RegisterOwner(script::Wrappable*) OVERRIDE {}
+  void DeregisterOwner(script::Wrappable*) OVERRIDE {}
   const EventListener* GetScriptObject(void) const OVERRIDE {
     return mock_listener_;
   }

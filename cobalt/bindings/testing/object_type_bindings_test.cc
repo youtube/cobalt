@@ -32,10 +32,10 @@ namespace bindings {
 namespace testing {
 
 namespace {
-class ObjectTypeBindingsTest
+class PlatformObjectBindingsTest
     : public InterfaceBindingsTest<ObjectTypeBindingsInterface> {
  public:
-  ObjectTypeBindingsTest()
+  PlatformObjectBindingsTest()
       : arbitrary_interface_(new StrictMock<ArbitraryInterface>()),
         base_interface_(new StrictMock<BaseInterface>()),
         derived_interface_(new StrictMock<DerivedInterface>()) {
@@ -52,9 +52,22 @@ class ObjectTypeBindingsTest
   const scoped_refptr<BaseInterface> base_interface_;
   const scoped_refptr<DerivedInterface> derived_interface_;
 };
+
+class UserObjectBindingsTest
+    : public InterfaceBindingsTest<ObjectTypeBindingsInterface> {
+ public:
+  UserObjectBindingsTest()
+      : arbitrary_interface_(new StrictMock<ArbitraryInterface>()) {
+    ON_CALL(test_mock(), arbitrary_object())
+        .WillByDefault(Return(arbitrary_interface_));
+  }
+
+ protected:
+  const scoped_refptr<ArbitraryInterface> arbitrary_interface_;
+};
 }  // namespace
 
-TEST_F(ObjectTypeBindingsTest, InstanceOfObject) {
+TEST_F(PlatformObjectBindingsTest, InstanceOfObject) {
   EXPECT_CALL(test_mock(), arbitrary_object());
 
   std::string result;
@@ -63,7 +76,7 @@ TEST_F(ObjectTypeBindingsTest, InstanceOfObject) {
   EXPECT_STREQ("true", result.c_str());
 }
 
-TEST_F(ObjectTypeBindingsTest, Prototype) {
+TEST_F(PlatformObjectBindingsTest, Prototype) {
   EXPECT_CALL(test_mock(), arbitrary_object());
 
   std::string result;
@@ -72,7 +85,7 @@ TEST_F(ObjectTypeBindingsTest, Prototype) {
   EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
 }
 
-TEST_F(ObjectTypeBindingsTest, PropertyIsOwnProperty) {
+TEST_F(PlatformObjectBindingsTest, PropertyIsOwnProperty) {
   EXPECT_CALL(test_mock(), arbitrary_object());
 
   std::string result;
@@ -81,7 +94,7 @@ TEST_F(ObjectTypeBindingsTest, PropertyIsOwnProperty) {
   EXPECT_STREQ("true", result.c_str());
 }
 
-TEST_F(ObjectTypeBindingsTest, MemberFunctionIsPrototypeProperty) {
+TEST_F(PlatformObjectBindingsTest, MemberFunctionIsPrototypeProperty) {
   EXPECT_CALL(test_mock(), arbitrary_object()).Times(3);
 
   std::string result;
@@ -100,7 +113,7 @@ TEST_F(ObjectTypeBindingsTest, MemberFunctionIsPrototypeProperty) {
   EXPECT_STREQ("true", result.c_str());
 }
 
-TEST_F(ObjectTypeBindingsTest, DerivedProto) {
+TEST_F(PlatformObjectBindingsTest, DerivedProto) {
   EXPECT_CALL(test_mock(), derived_interface());
 
   std::string result;
@@ -111,7 +124,7 @@ TEST_F(ObjectTypeBindingsTest, DerivedProto) {
   EXPECT_STREQ("true", result.c_str());
 }
 
-TEST_F(ObjectTypeBindingsTest, PropertyOnBaseClass) {
+TEST_F(PlatformObjectBindingsTest, PropertyOnBaseClass) {
   EXPECT_CALL(test_mock(), derived_interface());
   EXPECT_CALL(*derived_interface_, base_attribute())
       .WillOnce(Return("mock_value"));
@@ -121,14 +134,14 @@ TEST_F(ObjectTypeBindingsTest, PropertyOnBaseClass) {
   EXPECT_STREQ("mock_value", result.c_str());
 }
 
-TEST_F(ObjectTypeBindingsTest, OperationOnBaseClass) {
+TEST_F(PlatformObjectBindingsTest, OperationOnBaseClass) {
   EXPECT_CALL(test_mock(), derived_interface());
   EXPECT_CALL(*derived_interface_, BaseOperation());
 
   EXPECT_TRUE(EvaluateScript("test.derivedInterface.baseOperation();", NULL));
 }
 
-TEST_F(ObjectTypeBindingsTest, PropertyOnDerivedClass) {
+TEST_F(PlatformObjectBindingsTest, PropertyOnDerivedClass) {
   EXPECT_CALL(test_mock(), derived_interface());
   EXPECT_CALL(*derived_interface_, derived_attribute())
       .WillOnce(Return("mock_value"));
@@ -139,7 +152,7 @@ TEST_F(ObjectTypeBindingsTest, PropertyOnDerivedClass) {
   EXPECT_STREQ("mock_value", result.c_str());
 }
 
-TEST_F(ObjectTypeBindingsTest, OperationOnDerivedClass) {
+TEST_F(PlatformObjectBindingsTest, OperationOnDerivedClass) {
   EXPECT_CALL(test_mock(), derived_interface());
   EXPECT_CALL(*derived_interface_, DerivedOperation());
 
@@ -147,7 +160,7 @@ TEST_F(ObjectTypeBindingsTest, OperationOnDerivedClass) {
       EvaluateScript("test.derivedInterface.derivedOperation();", NULL));
 }
 
-TEST_F(ObjectTypeBindingsTest, ReturnDerivedClassWrapper) {
+TEST_F(PlatformObjectBindingsTest, ReturnDerivedClassWrapper) {
   ON_CALL(test_mock(), base_interface())
       .WillByDefault(Return(derived_interface_));
 
@@ -162,7 +175,7 @@ TEST_F(ObjectTypeBindingsTest, ReturnDerivedClassWrapper) {
   EXPECT_TRUE(EvaluateScript("test.baseInterface.derivedOperation();", NULL));
 }
 
-TEST_F(ObjectTypeBindingsTest, ReturnCorrectWrapperForObjectType) {
+TEST_F(PlatformObjectBindingsTest, ReturnCorrectWrapperForObjectType) {
   typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
   ObjectOwner object_owner(&test_mock());
 
@@ -182,7 +195,7 @@ TEST_F(ObjectTypeBindingsTest, ReturnCorrectWrapperForObjectType) {
                      NULL));
 }
 
-TEST_F(ObjectTypeBindingsTest, PassUserObjectforObjectType) {
+TEST_F(UserObjectBindingsTest, PassUserObjectforObjectType) {
   typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
   ObjectOwner object_owner(&test_mock());
 
@@ -197,7 +210,7 @@ TEST_F(ObjectTypeBindingsTest, PassUserObjectforObjectType) {
   EXPECT_TRUE(EvaluateScript("test.objectProperty === obj;", NULL));
 }
 
-TEST_F(ObjectTypeBindingsTest, NullObject) {
+TEST_F(UserObjectBindingsTest, NullObject) {
   typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
   ObjectOwner object_owner(&test_mock());
 
@@ -210,7 +223,7 @@ TEST_F(ObjectTypeBindingsTest, NullObject) {
   EXPECT_TRUE(EvaluateScript("test.objectProperty === null;", NULL));
 }
 
-TEST_F(ObjectTypeBindingsTest, NonObjectType) {
+TEST_F(UserObjectBindingsTest, NonObjectType) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.objectProperty = 5;", &result));
   EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
@@ -225,13 +238,13 @@ TEST_F(ObjectTypeBindingsTest, NonObjectType) {
   EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
 }
 
-TEST_F(ObjectTypeBindingsTest, SetNonObject) {
+TEST_F(UserObjectBindingsTest, SetNonObject) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.objectProperty = 5", &result));
   EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
 }
 
-TEST_F(ObjectTypeBindingsTest, SetWrongObjectType) {
+TEST_F(UserObjectBindingsTest, SetWrongObjectType) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.arbitraryObject = new Object()", &result));
   EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));

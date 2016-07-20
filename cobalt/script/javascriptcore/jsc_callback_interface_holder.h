@@ -42,7 +42,7 @@ class JSCCallbackInterfaceHolder : public ScriptObject<CallbackInterface> {
       : callback_interface_(callback_interface),
         script_object_registry_(script_object_registry) {}
 
-  void RegisterOwner(const Wrappable* owner) OVERRIDE {
+  void RegisterOwner(Wrappable* owner) OVERRIDE {
     DCHECK(callback_interface_);
     JSC::JSObject* implementing_object =
         callback_interface_->implementing_object();
@@ -50,7 +50,7 @@ class JSCCallbackInterfaceHolder : public ScriptObject<CallbackInterface> {
     script_object_registry_->RegisterObjectOwner(owner, implementing_object);
   }
 
-  void DeregisterOwner(const Wrappable* owner) OVERRIDE {
+  void DeregisterOwner(Wrappable* owner) OVERRIDE {
     // The implementing object may be NULL if it's been garbage collected. Still
     // call Deregister in this case.
     DCHECK(callback_interface_);
