@@ -74,6 +74,52 @@ TEST_F(DOMStringBindingsTest, SetUndefined) {
   EXPECT_STREQ("undefined", result.c_str());
 }
 
+TEST_F(DOMStringBindingsTest, SetBoolean) {
+  EXPECT_CALL(test_mock(), set_property("true"));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.property = true;", &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(DOMStringBindingsTest, SetNaN) {
+  EXPECT_CALL(test_mock(), set_property("NaN"));
+
+  EXPECT_TRUE(EvaluateScript("test.property = NaN;"));
+}
+
+TEST_F(DOMStringBindingsTest, SetPositiveZero) {
+  EXPECT_CALL(test_mock(), set_property("0"));
+
+  EXPECT_TRUE(EvaluateScript("test.property = +0;"));
+}
+
+TEST_F(DOMStringBindingsTest, SetNegativeZero) {
+  EXPECT_CALL(test_mock(), set_property("0"));
+
+  EXPECT_TRUE(EvaluateScript("test.property = -0;"));
+}
+
+TEST_F(DOMStringBindingsTest, SetNumber) {
+  EXPECT_CALL(test_mock(), set_property("50"));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.property = 50;", &result));
+  EXPECT_STREQ("50", result.c_str());
+}
+
+TEST_F(DOMStringBindingsTest, SetInfinity) {
+  EXPECT_CALL(test_mock(), set_property("Infinity"));
+
+  EXPECT_TRUE(EvaluateScript("test.property = Infinity;"));
+}
+
+TEST_F(DOMStringBindingsTest, SetNegativeInfinity) {
+  EXPECT_CALL(test_mock(), set_property("-Infinity"));
+
+  EXPECT_TRUE(EvaluateScript("test.property = -Infinity;"));
+}
+
 TEST_F(DOMStringBindingsTest, SetNullAsEmptyString) {
   EXPECT_CALL(test_mock(), set_null_is_empty_property(""));
   EXPECT_TRUE(EvaluateScript("test.nullIsEmptyProperty = null;", NULL));

@@ -56,6 +56,11 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -145,7 +150,7 @@ JSBool fcn_longFunctionNoArgs(
   TypeTraits<int32_t >::ReturnType value =
       impl->LongFunctionNoArgs();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -178,7 +183,7 @@ JSBool fcn_objectFunctionNoArgs(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->ObjectFunctionNoArgs();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -214,7 +219,8 @@ JSBool fcn_optionalArgumentWithDefault(
   }
   TypeTraits<double >::ConversionType arg1;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg1);
+  FromJSValue(context, args.handleAt(0),
+      (kConversionFlagRestricted), &exception_state, &arg1);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -256,19 +262,22 @@ JSBool fcn_optionalArguments(
   }
   TypeTraits<int32_t >::ConversionType arg1;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg1);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &arg1);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
   TypeTraits<int32_t >::ConversionType arg2;
   DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1), &exception_state, &arg2);
+  FromJSValue(context, args.handleAt(1),
+      kNoConversionFlags, &exception_state, &arg2);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
   TypeTraits<int32_t >::ConversionType arg3;
   DCHECK_LT(2, args.length());
-  FromJSValue(context, args.handleAt(2), &exception_state, &arg3);
+  FromJSValue(context, args.handleAt(2),
+      kNoConversionFlags, &exception_state, &arg3);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -310,13 +319,15 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
   }
   TypeTraits<base::optional<bool > >::ConversionType arg1;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg1);
+  FromJSValue(context, args.handleAt(0),
+      (kConversionFlagNullable), &exception_state, &arg1);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg2;
   DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1), &exception_state, &arg2);
+  FromJSValue(context, args.handleAt(1),
+      (kConversionFlagNullable), &exception_state, &arg2);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -388,7 +399,8 @@ JSBool fcn_overloadedNullable(
   }
   TypeTraits<int32_t >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -427,7 +439,7 @@ JSBool fcn_stringFunctionNoArgs(
   TypeTraits<std::string >::ReturnType value =
       impl->StringFunctionNoArgs();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -463,7 +475,8 @@ JSBool fcn_variadicPrimitiveArguments(
   }
   TypeTraits<std::vector<int32_t> >::ConversionType bools;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &bools);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &bools);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -505,13 +518,15 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
   }
   TypeTraits<bool >::ConversionType optional_arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &optional_arg);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &optional_arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
   TypeTraits<std::vector<std::string> >::ConversionType strings;
   DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1), &exception_state, &strings);
+  FromJSValue(context, args.handleAt(1),
+      kNoConversionFlags, &exception_state, &strings);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -553,7 +568,8 @@ JSBool fcn_voidFunctionLongArg(
   }
   TypeTraits<int32_t >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -625,7 +641,8 @@ JSBool fcn_voidFunctionObjectArg(
   }
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -667,7 +684,8 @@ JSBool fcn_voidFunctionStringArg(
   }
   TypeTraits<std::string >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }

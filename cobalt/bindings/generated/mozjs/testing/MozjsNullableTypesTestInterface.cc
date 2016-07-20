@@ -56,6 +56,11 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
@@ -131,7 +136,7 @@ JSBool get_nullableBooleanProperty(
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->nullable_boolean_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -146,7 +151,8 @@ JSBool set_nullableBooleanProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<bool > >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -168,7 +174,7 @@ JSBool get_nullableNumericProperty(
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->nullable_numeric_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -183,7 +189,8 @@ JSBool set_nullableNumericProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<int32_t > >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -205,7 +212,7 @@ JSBool get_nullableStringProperty(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_string_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -220,7 +227,8 @@ JSBool set_nullableStringProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<base::optional<std::string > >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -242,7 +250,7 @@ JSBool get_nullableObjectProperty(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->nullable_object_property();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -257,7 +265,8 @@ JSBool set_nullableObjectProperty(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
-  FromJSValue(context, vp, &exception_state, &value);
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -296,7 +305,8 @@ JSBool fcn_nullableBooleanArgument(
   }
   TypeTraits<base::optional<bool > >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      (kConversionFlagNullable), &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -335,7 +345,7 @@ JSBool fcn_nullableBooleanOperation(
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->NullableBooleanOperation();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -371,7 +381,8 @@ JSBool fcn_nullableNumericArgument(
   }
   TypeTraits<base::optional<int32_t > >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      (kConversionFlagNullable), &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -410,7 +421,7 @@ JSBool fcn_nullableNumericOperation(
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->NullableNumericOperation();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -446,7 +457,8 @@ JSBool fcn_nullableObjectArgument(
   }
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      (kConversionFlagNullable), &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -485,7 +497,7 @@ JSBool fcn_nullableObjectOperation(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->NullableObjectOperation();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
@@ -521,7 +533,8 @@ JSBool fcn_nullableStringArgument(
   }
   TypeTraits<base::optional<std::string > >::ConversionType arg;
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0), &exception_state, &arg);
+  FromJSValue(context, args.handleAt(0),
+      (kConversionFlagNullable), &exception_state, &arg);
   if (exception_state.IsExceptionSet()) {
     return false;
   }
@@ -560,7 +573,7 @@ JSBool fcn_nullableStringOperation(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->NullableStringOperation();
   if (!exception_state.IsExceptionSet()) {
-    ToJSValue(value, &exception_state, &result_value);
+    ToJSValue(context, value, &exception_state, &result_value);
   }
 
   if (!exception_state.IsExceptionSet()) {
