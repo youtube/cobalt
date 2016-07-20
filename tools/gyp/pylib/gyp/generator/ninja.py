@@ -186,7 +186,7 @@ class Target:
     # For bundles, the .TOC should be produced for the binary, not for
     # FinalOutput(). But the naive approach would put the TOC file into the
     # bundle, so don't do this for bundles for now.
-    if flavor in ['win', 'xb1', 'xb360', 'ps3'] or self.bundle:
+    if flavor in ['win', 'xb1', 'xb360', 'ps3', 'ps4'] or self.bundle:
       return False
     return self.type in ('shared_library', 'loadable_module')
 
@@ -1933,9 +1933,6 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
         description='PRX-EXPORT-PICKUP $out',
         command='$prx_export_pickup --output-src=$out $in')
 
-    elif flavor == 'ps4':
-      # TODO(***REMOVED***): PS4 SOLINK rule.
-      pass
     else:  # Assume it is a Linux platform
       # This allows targets that only need to depend on $lib's API to declare an
       # order-only dependency on $lib.TOC and avoid relinking such downstream
