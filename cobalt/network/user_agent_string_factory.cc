@@ -44,19 +44,36 @@ const char kBuildConfiguration[] = "gold";
 }  // namespace
 
 std::string UserAgentStringFactory::CreateUserAgentString() {
+  // Cobalt's user agent contains the following sections:
+  //   Mozilla/5.0 (ChromiumStylePlatform)
+  //   Cobalt/Version.BuildNumber-BuildConfiguration (unlike Gecko)
+  //   Starboard/APIVersion,
+  //   Device/FirmwareVersion (Brand, Model, ConnectionType)
+
+  //   Mozilla/5.0 (ChromiumStylePlatform)
   std::string user_agent =
-      base::StringPrintf("Mozilla/5.0 (%s) Cobalt/%s.%s-%s (unlike Gecko)",
-                         CreatePlatformString().c_str(), COBALT_VERSION,
-                         COBALT_BUILD_VERSION_NUMBER, kBuildConfiguration);
+      base::StringPrintf("Mozilla/5.0 (%s)", CreatePlatformString().c_str());
+
+  //   Cobalt/Version.BuildNumber-BuildConfiguration (unlike Gecko)
+  base::StringAppendF(&user_agent, " Cobalt/%s.%s-%s (unlike Gecko)",
+                      COBALT_VERSION, COBALT_BUILD_VERSION_NUMBER,
+                      kBuildConfiguration);
+
+  //   Starboard/APIVersion,
+  if (!starboard_version_.empty()) {
+    base::StringAppendF(&user_agent, " %s", starboard_version_.c_str());
+  }
+
+  //   Device/FirmwareVersion (Brand, Model, ConnectionType)
   if (youtube_tv_info_) {
-    base::StringAppendF(&user_agent, ", %s_%s_%s/%s (%s, %s, %s)",
-                        youtube_tv_info_->network_operator.c_str(),
-                        CreateDeviceTypeString().c_str(),
-                        youtube_tv_info_->chipset_model_number.c_str(),
-                        youtube_tv_info_->firmware_version.c_str(),
-                        youtube_tv_info_->brand.c_str(),
-                        youtube_tv_info_->model.c_str(),
-                        CreateConnectionTypeString().c_str());
+    base::StringAppendF(
+        &user_agent, ", %s_%s_%s/%s (%s, %s, %s)",
+        youtube_tv_info_->network_operator.value_or("").c_str(),
+        CreateDeviceTypeString().c_str(),
+        youtube_tv_info_->chipset_model_number.value_or("").c_str(),
+        youtube_tv_info_->firmware_version.value_or("").c_str(),
+        youtube_tv_info_->brand.c_str(), youtube_tv_info_->model.c_str(),
+        CreateConnectionTypeString().c_str());
   }
   return user_agent;
 }
