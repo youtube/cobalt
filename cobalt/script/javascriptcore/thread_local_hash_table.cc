@@ -35,6 +35,13 @@ ThreadLocalHashTable* ThreadLocalHashTable::GetInstance() {
 
 ThreadLocalHashTable::ThreadLocalHashTable() : slot_(SlotDestructor) {}
 
+ThreadLocalHashTable::~ThreadLocalHashTable() {
+  // If there is any data stored in our slot on this thread, destroy it now
+  // before freeing the slot itself, otherwise that data will be leaked.
+  SlotDestructor(slot_.Get());
+  slot_.Free();
+}
+
 JSC::HashTable* ThreadLocalHashTable::GetHashTable(
     const JSC::ClassInfo* class_info, const JSC::HashTable& prototype) {
   if (!slot_.Get()) {
