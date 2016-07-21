@@ -313,7 +313,6 @@ SB_EXPORT SbBlitterSwapChain
 SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device, SbWindow window);
 
 // Destroys |swap_chain|, cleaning up all resources associated with it.
-// |swap_chain| must have been created through |device|.
 // This function must be called on the same thread that called
 // SbBlitterCreateSwapChainFromWindow().
 // This function is not thread safe.
@@ -351,7 +350,7 @@ SbBlitterCreatePixelData(SbBlitterDevice device,
                          int height,
                          SbBlitterPixelDataFormat pixel_format);
 
-// Destroys the |pixel_data| object created through |device|.  Note that
+// Destroys the |pixel_data| object.  Note that
 // if SbBlitterCreateSurfaceFromPixelData() has been called on |pixel_data|
 // before, this function does not need to be and should not be called.
 // This function is thread safe.
@@ -410,7 +409,6 @@ SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
                                    SbBlitterSurfaceFormat surface_format);
 
 // Destroys |surface|, cleaning up all resources associated with it.
-// |surface| must have been created through |device|.
 // This function is not thread safe.
 // Returns whether the destruction succeeded.
 SB_EXPORT bool SbBlitterDestroySurface(SbBlitterSurface surface);
