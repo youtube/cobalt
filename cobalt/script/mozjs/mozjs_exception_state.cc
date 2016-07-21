@@ -25,6 +25,27 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
+namespace {
+std::string SimpleExceptionToString(ExceptionState::SimpleExceptionType type) {
+  switch (type) {
+    case ExceptionState::kError:
+      return "Error";
+    case ExceptionState::kTypeError:
+      return "TypeError";
+    case ExceptionState::kRangeError:
+      return "RangeError";
+    case ExceptionState::kReferenceError:
+      return "ReferenceError";
+    case ExceptionState::kSyntaxError:
+      return "SyntaxError";
+    case ExceptionState::kURIError:
+      return "URIError";
+  }
+  NOTREACHED();
+  return "";
+}
+}  // namespace
+
 void MozjsExceptionState::SetException(
     const scoped_refptr<ScriptException>& exception) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -34,7 +55,13 @@ void MozjsExceptionState::SetException(
 void MozjsExceptionState::SetSimpleException(
     SimpleExceptionType simple_exception, const std::string& message) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  NOTIMPLEMENTED();
+
+  std::stringstream stream;
+  stream << SimpleExceptionToString(simple_exception) << ": " << message;
+  // JS_ReportWarning first builds an error message from the given sprintf-style
+  // format string and any additional arguments passed after it. The resulting
+  // error message is passed to the context's JSErrorReporter callback.
+  JS_ReportWarning(context_, stream.str().c_str());
 }
 
 bool MozjsExceptionState::IsExceptionSet() {
