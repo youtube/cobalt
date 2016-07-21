@@ -48,8 +48,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  *out_string = std::string(JS_EncodeStringToUTF8(context, string),
-                            JS_GetStringEncodingLength(context, string));
+  *out_string = std::string(JS_EncodeStringToUTF8(context, string));
 }
 
 // OpaqueHandle -> JSValue
