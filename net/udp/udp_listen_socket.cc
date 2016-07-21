@@ -54,7 +54,6 @@ const int UDPListenSocket::kSocketError = kSbSocketErrorFailed;
 
 // 64kB is the max UDP packet size, but we don't need that
 // much for SSDP headers. We keep this 1024 - 1.
-// For more discussion, see b/8293419.
 const int kUdpMaxPacketSize = 1023;
 
 UDPListenSocket::UDPListenSocket(SocketDescriptor s,

@@ -1110,14 +1110,8 @@ InfiniteCache::~InfiniteCache() {
   if (!worker_)
     return;
 
-#if defined(__LB_XB360__)
-  // NOTE: For some reason, the self-referential scoping doesn't compile
-  // on Xbox 360. Here and elsewhere in this file.
-  task_runner_->PostTask(FROM_HERE, base::Bind(&Worker::Cleanup, worker_));
-#else
   task_runner_->PostTask(FROM_HERE,
                          base::Bind(&InfiniteCache::Worker::Cleanup, worker_));
-#endif
   worker_ = NULL;
 }
 
@@ -1128,13 +1122,9 @@ void InfiniteCache::Init(const FilePath& path) {
                      base::SequencedWorkerPool::CONTINUE_ON_SHUTDOWN);
 
   worker_ = new Worker();
-#if defined(__LB_XB360__)
-  task_runner_->PostTask(FROM_HERE, base::Bind(&Worker::Init, worker_, path));
-#else
   task_runner_->PostTask(FROM_HERE,
                          base::Bind(&InfiniteCache::Worker::Init, worker_,
                                     path));
-#endif
 
   timer_.Start(FROM_HERE, TimeDelta::FromMinutes(kTimerMinutes), this,
                &InfiniteCache::OnTimer);
@@ -1150,16 +1140,10 @@ int InfiniteCache::DeleteData(const CompletionCallback& callback) {
   if (!worker_)
     return OK;
   int* result = new int;
-#if defined(__LB_XB360__)
-  task_runner_->PostTaskAndReply(
-      FROM_HERE, base::Bind(&Worker::DeleteData, worker_, result),
-      base::Bind(&OnComplete, callback, base::Owned(result)));
-#else
   task_runner_->PostTaskAndReply(
       FROM_HERE, base::Bind(&InfiniteCache::Worker::DeleteData, worker_,
                             result),
       base::Bind(&OnComplete, callback, base::Owned(result)));
-#endif
   return ERR_IO_PENDING;
 }
 
@@ -1169,17 +1153,10 @@ int InfiniteCache::DeleteDataBetween(base::Time initial_time,
   if (!worker_)
     return OK;
   int* result = new int;
-#if defined(__LB_XB360__)
-  task_runner_->PostTaskAndReply(
-      FROM_HERE, base::Bind(&Worker::DeleteDataBetween, worker_,
-                            initial_time, end_time, result),
-      base::Bind(&OnComplete, callback, base::Owned(result)));
-#else
   task_runner_->PostTaskAndReply(
       FROM_HERE, base::Bind(&InfiniteCache::Worker::DeleteDataBetween, worker_,
                             initial_time, end_time, result),
       base::Bind(&OnComplete, callback, base::Owned(result)));
-#endif
   return ERR_IO_PENDING;
 }
 
@@ -1192,53 +1169,31 @@ void InfiniteCache::ProcessResource(
     scoped_ptr<InfiniteCacheTransaction::ResourceData> data) {
   if (!worker_)
     return;
-#if defined(__LB_XB360__)
-  task_runner_->PostTask(FROM_HERE,
-                         base::Bind(&Worker::Process, worker_,
-                                    base::Passed(&data)));
-#else
   task_runner_->PostTask(FROM_HERE,
                          base::Bind(&InfiniteCache::Worker::Process, worker_,
                                     base::Passed(&data)));
-#endif
 }
 
 void InfiniteCache::OnTimer() {
-#if defined(__LB_XB360__)
-  task_runner_->PostTask(FROM_HERE, base::Bind(&Worker::OnTimer, worker_));
-#else
   task_runner_->PostTask(FROM_HERE,
                          base::Bind(&InfiniteCache::Worker::OnTimer, worker_));
-#endif
 }
 
 int InfiniteCache::QueryItemsForTest(const CompletionCallback& callback) {
   DCHECK(worker_);
   int* result = new int;
-#if defined(__LB_XB360__)
-  task_runner_->PostTaskAndReply(
-      FROM_HERE, base::Bind(&Worker::Query, worker_, result),
-      base::Bind(&OnComplete, callback, base::Owned(result)));
-#else
   task_runner_->PostTaskAndReply(
       FROM_HERE, base::Bind(&InfiniteCache::Worker::Query, worker_, result),
       base::Bind(&OnComplete, callback, base::Owned(result)));
-#endif
   return net::ERR_IO_PENDING;
 }
 
 int InfiniteCache::FlushDataForTest(const CompletionCallback& callback) {
   DCHECK(worker_);
   int* result = new int;
-#if defined(__LB_XB360__)
-  task_runner_->PostTaskAndReply(
-      FROM_HERE, base::Bind(&Worker::Flush, worker_, result),
-      base::Bind(&OnComplete, callback, base::Owned(result)));
-#else
   task_runner_->PostTaskAndReply(
       FROM_HERE, base::Bind(&InfiniteCache::Worker::Flush, worker_, result),
       base::Bind(&OnComplete, callback, base::Owned(result)));
-#endif
   return net::ERR_IO_PENDING;
 }
 

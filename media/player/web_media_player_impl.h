@@ -76,12 +76,6 @@
 #endif  // SB_HAS(PLAYER)
 #endif  // defined(OS_STARBOARD)
 
-#if (defined(__LB_XB1__) && !defined(COBALT_WIN)) || defined(__LB_XB360__)
-#define COBALT_USE_PUNCHOUT
-#define COBALT_SKIP_SEEK_REQUEST_NEAR_END
-#endif  // (defined(__LB_XB1__) && !defined(COBALT_WIN)) ||
-        // defined(__LB_XB360__)
-
 namespace media {
 
 class AudioRendererSink;

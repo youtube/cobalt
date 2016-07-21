@@ -680,8 +680,6 @@ TEST_F(TransportSecurityStateTest, MAYBE_Preloaded) {
   EXPECT_TRUE(ShouldRedirect("www.gmail.com"));
   EXPECT_TRUE(ShouldRedirect("googlemail.com"));
   EXPECT_TRUE(ShouldRedirect("www.googlemail.com"));
-  EXPECT_TRUE(ShouldRedirect("googleplex.com"));
-  EXPECT_TRUE(ShouldRedirect("www.googleplex.com"));
   EXPECT_FALSE(HasState("m.gmail.com"));
   EXPECT_FALSE(HasState("m.googlemail.com"));
 
@@ -928,7 +926,6 @@ TEST_F(TransportSecurityStateTest, MAYBE_BuiltinCertPins) {
   EXPECT_TRUE(HasPins("ssl.gstatic.com"));
   EXPECT_FALSE(HasPins("www.gstatic.com"));
   EXPECT_TRUE(HasPins("ssl.google-analytics.com"));
-  EXPECT_TRUE(HasPins("www.googleplex.com"));
 
   // Disabled in order to help track down pinning failures --agl
   EXPECT_TRUE(HasPins("twitter.com"));

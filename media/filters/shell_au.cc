@@ -156,11 +156,7 @@ class ShellVideoAU : public media::ShellAU {
   bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) OVERRIDE;
   Type GetType() const OVERRIDE { return media::DemuxerStream::VIDEO; }
   bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
-#if defined(__LB_WIIU__)
-  bool AddPrepend() const OVERRIDE { return true; }
-#else
   bool AddPrepend() const OVERRIDE { return is_keyframe_; }
-#endif
   size_t GetSize() const OVERRIDE { return size_; }
   size_t GetMaxSize() const OVERRIDE {
     // TODO : This code is a proof of concept. It should be fixed

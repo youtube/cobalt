@@ -27,8 +27,6 @@ class MEDIA_EXPORT AudioBus {
   // We interleave our data already, but all data is floats, so we require that
   // no frame be smaller than 4 bytes.
   enum { kChannelAlignment = 4 };
-#elif defined(__LB_WIIU__)
-  enum { kChannelAlignment = 64 };
 #else
   // Guaranteed alignment of each channel's data; use 16-byte alignment for easy
   // SSE optimizations.

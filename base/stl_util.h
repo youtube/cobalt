@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Derived from google3/util/gtl/stl_util.h
-
 #ifndef BASE_STL_UTIL_H_
 #define BASE_STL_UTIL_H_
 

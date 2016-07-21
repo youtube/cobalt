@@ -1088,11 +1088,6 @@ class CppStyleTest(CppStyleTestBase):
                             'base/public/google.h'))
         self.assertEqual((True, ''),
                           f('base/google_unittest.cpp', 'base/google-inl.h'))
-        self.assertEqual((True, '/home/build/google3/'),
-                          f('/home/build/google3/base/google.cpp', 'base/google.h'))
-
-        self.assertEqual((False, ''),
-                          f('/home/build/google3/base/google.cpp', 'basu/google.h'))
         self.assertEqual((False, ''), f('a.cpp', 'b.h'))
 
     def test_cleanse_line(self):
