@@ -128,6 +128,10 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
 #else
   GetSocketPipe(&client_socket_, &server_socket_);
 
+  // Set TCP_NODELAY on the server socket, so it immediately sends its tiny
+  // payload without waiting for more data.
+  SbSocketSetTcpNoDelay(server_socket_, true);
+
   wakeup_read_fd_ = client_socket_->socket_fd;
   wakeup_write_fd_ = server_socket_->socket_fd;
 #endif
