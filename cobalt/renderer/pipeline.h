@@ -161,8 +161,9 @@ class Pipeline {
 
   // Timers for tracking how frequently |RasterizeCurrentTree| is called and
   // the amount of time spent in |RasterizeCurrentTree| each call.
-  base::CValTimeIntervalTimer rasterize_current_tree_interval_timer_;
-  base::CValTimeIntervalTimer rasterize_current_tree_timer_;
+  base::CValTimeIntervalTimer<base::CValPublic>
+      rasterize_current_tree_interval_timer_;
+  base::CValTimeIntervalTimer<base::CValPublic> rasterize_current_tree_timer_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.

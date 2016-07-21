@@ -40,10 +40,13 @@
 // name so that it can be looked up at run time.  Thus, you can only ever
 // have one CVal of the same name existing at a time.
 //
-// There are two variants of CVal, DebugCVal and PublicCVal. They are identical
-// when DebugCVals are enabled; however, when DebugCVals are disabled,
-// PublicCVal remains trackable through the CVal system, while DebugCVal stops
-// being trackable and behaves as similarly as possible to its underlying type.
+// CVal's take a Visibility template parameter.  There are two valid options for
+// it, CValDebug and CValPublic.  CValDebug is the default value.  They are
+// identical when ENABLE_DEBUG_C_VAL is defined; however, when
+// ENABLE_DEBUG_C_VAL is not defined, CVals with Visibility set to CValPublic
+// remain trackable through the CVal system, while CVals with Visibility set to
+// CValDebug stop being trackable and behave as similarly as possible to its
+// underlying type.
 
 // You can mark a variable:
 //
@@ -51,8 +54,11 @@
 //
 // as a CVal by wrapping the type with the CVal template type:
 //
-//   DebugCVal<int> memory_counter("Memory Counter", 0, "My memory counter");
-//   PublicCVal<int> memory_counter("Memory Counter", 0, "My memory counter");
+//   CVal<int> memory_counter("Memory Counter", 0, "My memory counter");
+//   CVal<int, CValDebug> memory_counter("Memory Counter", 0,
+//                                       "My memory counter");
+//   CVal<int, CValPublic> memory_counter("Memory Counter", 0,
+//                                        "My memory counter");
 //
 // The first constructor parameter is the name of the CVal, the second is the
 // initial value for the variable, and the third is the description.
@@ -561,47 +567,55 @@ class CValStub {
 
 }  // namespace CValDetail
 
+class CValPublic {};
+class CValDebug {};
+
+template <typename T, typename Visibility = CValDebug>
+class CVal {};
+
 template <typename T>
 #if defined(ENABLE_DEBUG_C_VAL)
-// When DebugCVal is enabled, DebugCVals are tracked through the CVal system.
-class DebugCVal : public CValDetail::CValImpl<T> {
+// When ENABLE_DEBUG_C_VAL is defined, CVals with Visibility set to CValDebug
+// are tracked through the CVal system.
+class CVal<T, CValDebug> : public CValDetail::CValImpl<T> {
   typedef CValDetail::CValImpl<T> CValParent;
 #else   // ENABLE_DEBUG_C_VAL
-// When DebugCVal is not enabled, DebugCVals are not tracked though the CVal
-// system, and will behave as similarly as possible to their underlying types.
-class DebugCVal : public CValDetail::CValStub<T> {
+// When ENABLE_DEBUG_C_VAL is not defined, CVals with Visibility set to
+// CValDebug are not tracked though the CVal system, and will behave as
+// similarly as possible to their underlying types.
+class CVal<T, CValDebug> : public CValDetail::CValStub<T> {
   typedef CValDetail::CValStub<T> CValParent;
 #endif  // ENABLE_DEBUG_C_VAL
 
  public:
-  DebugCVal(const std::string& name, const T& initial_value,
-            const std::string& description)
+  CVal(const std::string& name, const T& initial_value,
+       const std::string& description)
       : CValParent(name, initial_value, description) {}
 
-  DebugCVal(const std::string& name, const std::string& description)
+  CVal(const std::string& name, const std::string& description)
       : CValParent(name, description) {}
 
-  const DebugCVal& operator=(const T& rhs) {
+  const CVal& operator=(const T& rhs) {
     CValParent::operator=(rhs);
     return *this;
   }
 };
 
-// PublicCVals are always tracked though the CVal system, regardless of the
-// DebugCVal state.
+// CVals with visibility set to CValPublic are always tracked though the CVal
+// system, regardless of the ENABLE_DEBUG_C_VAL state.
 template <typename T>
-class PublicCVal : public CValDetail::CValImpl<T> {
+class CVal<T, CValPublic> : public CValDetail::CValImpl<T> {
   typedef CValDetail::CValImpl<T> CValParent;
 
  public:
-  PublicCVal(const std::string& name, const T& initial_value,
-             const std::string& description)
+  CVal(const std::string& name, const T& initial_value,
+       const std::string& description)
       : CValParent(name, initial_value, description) {}
 
-  PublicCVal(const std::string& name, const std::string& description)
+  CVal(const std::string& name, const std::string& description)
       : CValParent(name, description) {}
 
-  const PublicCVal& operator=(const T& rhs) {
+  const CVal& operator=(const T& rhs) {
     CValParent::operator=(rhs);
     return *this;
   }

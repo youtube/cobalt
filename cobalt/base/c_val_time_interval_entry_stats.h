@@ -31,7 +31,7 @@ namespace base {
 // has elapsed, the average, minimum, maximum, and standard deviation of that
 // time period are recorded with CVals, and the tracking resets for the next
 // time period.
-template <typename EntryType>
+template <typename EntryType, typename Visibility = CValDebug>
 class CValTimeIntervalEntryStats {
  public:
   CValTimeIntervalEntryStats(const std::string& name,
@@ -47,10 +47,10 @@ class CValTimeIntervalEntryStats {
   const int64 time_interval_in_ms_;
 
   // CVals of the stats for the previously completed time interval.
-  base::PublicCVal<double> average_;
-  base::PublicCVal<EntryType> minimum_;
-  base::PublicCVal<EntryType> maximum_;
-  base::PublicCVal<double> standard_deviation_;
+  base::CVal<double, Visibility> average_;
+  base::CVal<EntryType, Visibility> minimum_;
+  base::CVal<EntryType, Visibility> maximum_;
+  base::CVal<double, Visibility> standard_deviation_;
 
   // Active time interval-related
   base::TimeTicks active_start_time_;
@@ -74,8 +74,8 @@ class CValTimeIntervalEntryStats {
   EntryType active_maximum_;
 };
 
-template <typename EntryType>
-CValTimeIntervalEntryStats<EntryType>::CValTimeIntervalEntryStats(
+template <typename EntryType, typename Visibility>
+CValTimeIntervalEntryStats<EntryType, Visibility>::CValTimeIntervalEntryStats(
     const std::string& name, int64 time_interval_in_ms)
     : time_interval_in_ms_(time_interval_in_ms),
       average_(StringPrintf("%s.Avg", name.c_str()), 0, "Average time."),
@@ -87,14 +87,15 @@ CValTimeIntervalEntryStats<EntryType>::CValTimeIntervalEntryStats(
   ResetActiveEntryStats();
 }
 
-template <typename EntryType>
-void CValTimeIntervalEntryStats<EntryType>::AddEntry(const EntryType& value) {
+template <typename EntryType, typename Visibility>
+void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
+    const EntryType& value) {
   base::TimeTicks now = base::TimeTicks::Now();
   AddEntry(value, now);
 }
 
-template <typename EntryType>
-void CValTimeIntervalEntryStats<EntryType>::AddEntry(
+template <typename EntryType, typename Visibility>
+void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
     const EntryType& value, const base::TimeTicks& now) {
   // Check to see if the timer hasn't started yet. This happens when this is
   // the first entry ever added. In this case, the timer is simply started and
@@ -135,8 +136,8 @@ void CValTimeIntervalEntryStats<EntryType>::AddEntry(
   AddToActiveEntryStats(value);
 }
 
-template <typename EntryType>
-void CValTimeIntervalEntryStats<EntryType>::AddToActiveEntryStats(
+template <typename EntryType, typename Visibility>
+void CValTimeIntervalEntryStats<EntryType, Visibility>::AddToActiveEntryStats(
     const EntryType& value) {
   ++active_count_;
 
@@ -154,8 +155,9 @@ void CValTimeIntervalEntryStats<EntryType>::AddToActiveEntryStats(
   }
 }
 
-template <typename EntryType>
-void CValTimeIntervalEntryStats<EntryType>::ResetActiveEntryStats() {
+template <typename EntryType, typename Visibility>
+void CValTimeIntervalEntryStats<EntryType,
+                                Visibility>::ResetActiveEntryStats() {
   active_count_ = 0;
 
   active_shifted_sum_ = 0;

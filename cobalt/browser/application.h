@@ -127,13 +127,13 @@ class Application {
   struct CValStats {
     CValStats();
 
-    base::PublicCVal<size_t> free_memory;
+    base::CVal<size_t, base::CValPublic> free_memory;
 #if !defined(__LB_SHELL__FOR_RELEASE__)
-    base::PublicCVal<size_t> used_memory;
-    base::PublicCVal<size_t> exe_memory;
+    base::CVal<size_t, base::CValPublic> used_memory;
+    base::CVal<size_t, base::CValPublic> exe_memory;
 #endif
 
-    base::PublicCVal<int64_t> app_lifetime_in_ms;
+    base::CVal<int64_t, base::CValPublic> app_lifetime_in_ms;
   };
 
   void RegisterUserLogs();
