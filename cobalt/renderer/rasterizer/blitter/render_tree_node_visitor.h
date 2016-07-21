@@ -32,7 +32,11 @@
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
+#include "cobalt/renderer/rasterizer/blitter/render_state.h"
+#include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
+#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
+
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -49,9 +53,10 @@ namespace blitter {
 class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   RenderTreeNodeVisitor(SbBlitterDevice device, SbBlitterContext context,
-                        SbBlitterRenderTarget render_target,
-                        const math::Size& bounds,
-                        skia::SkiaSoftwareRasterizer* software_rasterizer);
+                        const RenderState& render_state,
+                        skia::SkiaSoftwareRasterizer* software_rasterizer,
+                        SurfaceCacheDelegate* surface_cache_delegate,
+                        common::SurfaceCache* surface_cache);
 
   void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
@@ -64,78 +69,15 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
-  // Keeps track of the current scale/offset transforms.  Note that while the
-  // render tree supports general affine transformations, the Starboard Blitter
-  // API only supports scale and translations, so we maintain only those.  If
-  // rotations are used, we will fallback to software rendering.
-  struct Transform {
-    Transform() : scale(1.0f, 1.0f), translate(0.0f, 0.0f) {}
-
-    explicit Transform(const math::Matrix3F& matrix)
-        : scale(matrix.Get(0, 0), matrix.Get(1, 1)),
-          translate(matrix.Get(0, 2), matrix.Get(1, 2)) {
-      // We cannot handle sheers and rotations.
-      DCHECK_EQ(0, matrix.Get(0, 1));
-      DCHECK_EQ(0, matrix.Get(1, 0));
-    }
-
-    Transform(const math::Vector2dF& scale, const math::Vector2dF& translate)
-        : scale(scale), translate(translate) {}
-
-    void ApplyOffset(const math::Vector2dF& offset) {
-      translate +=
-          math::Vector2dF(scale.x() * offset.x(), scale.y() * offset.y());
-    }
-    void ApplyScale(const math::Vector2dF& scale_mult) {
-      scale.Scale(scale_mult.x(), scale_mult.y());
-    }
-
-    math::RectF TransformRect(const math::RectF& rect) const;
-
-    math::Matrix3F ToMatrix() const {
-      return math::Matrix3F::FromValues(scale.x(), 0, translate.x(), 0,
-                                        scale.y(), translate.y(), 0, 0, 1);
-    }
-
-    math::Vector2dF scale;
-    math::Vector2dF translate;
-  };
-
-  // Helper class to manage the pushing and popping of rectangular bounding
-  // boxes.  This manages intersecting newly pushed bounding boxes with the
-  // existing stack of bounding boxes.
-  class BoundsStack {
-   public:
-    // Helper class to scope a pair of Push()/Pop() calls.
-    class ScopedPush {
-     public:
-      ScopedPush(BoundsStack* stack, const math::Rect& bounds) : stack_(stack) {
-        stack_->Push(bounds);
-      }
-      ~ScopedPush() { stack_->Pop(); }
-
-     private:
-      BoundsStack* stack_;
-    };
-
-    BoundsStack(SbBlitterContext context, const math::Rect& initial_bounds);
-    void Push(const math::Rect& bounds);
-    void Pop();
-
-    const math::Rect& Top() const { return bounds_.top(); }
-
-    // Updates the SbBlitterContext object with the current top of the stack.
-    void UpdateContext();
-
-   private:
-    SbBlitterContext context_;
-    std::stack<math::Rect> bounds_;
-  };
-
   // Can be called with any render tree node in order to invoke the Skia
   // software renderer to render to an offscreen surface which is then applied
   // to the render target via a Blitter API blit.
   void RenderWithSoftwareRenderer(render_tree::Node* node);
+
+  RenderState* SetRenderState(const RenderState& render_state) {
+    render_state_ = render_state;
+    return &render_state_;
+  }
 
   // Uses a Blitter API sub-visitor to render the provided render tree to a
   // offscreen SbBlitterSurface which is then returned.
@@ -151,12 +93,14 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   SbBlitterDevice device_;
   SbBlitterContext context_;
-  SbBlitterRenderTarget render_target_;
 
-  BoundsStack bounds_stack_;
+  // Keeps track of our current render target, transform and clip stack.
+  RenderState render_state_;
 
-  // The current transform state.
-  Transform transform_;
+  SurfaceCacheDelegate* surface_cache_delegate_;
+  common::SurfaceCache* surface_cache_;
+  base::optional<SurfaceCacheDelegate::ScopedContext>
+      surface_cache_scoped_context_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };
