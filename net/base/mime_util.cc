@@ -287,7 +287,7 @@ static const char* const common_media_types[] = {
   "video/webm",
 #endif  // defined(__LB_ANDROID__) || defined(__LB_PS4__)
 
-  // currently lbshell supports flv and mp4
+  // Currently Cobalt supports flv and mp4.
   "video/mp4",
   "audio/mp4",
   "video/x-flv",

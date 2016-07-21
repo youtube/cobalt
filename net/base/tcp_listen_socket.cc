@@ -105,14 +105,7 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
 #if defined(OS_POSIX)
     // Allow rapid reuse.
     static const int kOn = 1;
-#if defined(__LB_XB360__)
-    // setsockopt() is defined by winsockx.h to take a char * as the option
-    // value argument, and the compiler won't convert willy-nilly. This won't be
-    // a problem with Starboard.
-    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*)&kOn, sizeof(kOn));
-#else
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &kOn, sizeof(kOn));
-#endif
 #endif  // defined(OS_POSIX)
     sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -192,8 +185,7 @@ TCPListenSocketFactory::TCPListenSocketFactory(const string& ip, int port)
 
 TCPListenSocketFactory::~TCPListenSocketFactory() {}
 
-#if !defined(__LB_XB1__) && !defined(__LB_XB360__)
-// This symbol is implemented differently for XB1, in XB1's private sources.
+#if !defined(COBALT_WIN)
 scoped_refptr<StreamListenSocket> TCPListenSocketFactory::CreateAndListen(
     StreamListenSocket::Delegate* delegate) const {
   return TCPListenSocket::CreateAndListen(ip_, port_, delegate);

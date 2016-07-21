@@ -1021,18 +1021,11 @@ TEST_F(FilePathTest, CompareIgnoreCase) {
 #if !defined(COBALT_WIN) && !defined(OS_STARBOARD)
     { { FPL("\u1E9E"),                       FPL("\u1E9E") },               0},
 #endif
-// CompareIgnoreCase is tertiary.  These glyphs don't exist and on the
-// XBox One this comparison shows up in the opposite direction.
-#if defined (__LB_XB1__)
-#if !defined(COBALT_WIN) && !defined(OS_STARBOARD)
+// CompareIgnoreCase is tertiary.  These glyphs don't exist.
+#if !defined(COBALT) && !defined(OS_STARBOARD)
     { { FPL("\u00DF"),                       FPL("\u1E9E") },               1},
     { { FPL("SS"),                           FPL("\u00DF") },              -1},
     { { FPL("SS"),                           FPL("\u1E9E") },               1},
-#endif
-#else
-    { { FPL("\u00DF"),                       FPL("\u1E9E") },              -1},
-    { { FPL("SS"),                           FPL("\u00DF") },              -1},
-    { { FPL("SS"),                           FPL("\u1E9E") },              -1},
 #endif
 #if defined(OS_WIN) || defined(OS_MACOSX)
     // Umlauts A, O, U: direct comparison, and upper case vs. lower case

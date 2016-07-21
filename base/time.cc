@@ -16,10 +16,6 @@
 
 #include "base/logging.h"
 
-#if defined(__LB_PS4__)
-#include "lb_memory_debug_ps4.h"
-#endif
-
 namespace base {
 
 namespace {
@@ -211,20 +207,9 @@ bool Time::FromStringInternal(const char* time_string,
     return false;
 
   PRTime result_time = 0;
-
-#if defined(__LB_PS4__) && LB_ENABLE_MEMORY_DEBUGGING
-  // Temporary fix since CRT time functions modify the rbp register before
-  // making an allocation which can make backtrace fail.
-  // Sony is aware of this problem and looking into a fix:
-  // https://ps4.scedev.net/forums/thread/32698/
-  LB::Memory::EnableBacktraceOnCurrentThread(false);
-#endif
   PRStatus result = PR_ParseTimeString(time_string,
                                        is_local ? PR_FALSE : PR_TRUE,
                                        &result_time);
-#if defined(__LB_PS4__) && LB_ENABLE_MEMORY_DEBUGGING
-  LB::Memory::EnableBacktraceOnCurrentThread(true);
-#endif
   if (PR_SUCCESS != result)
     return false;
 

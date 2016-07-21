@@ -158,7 +158,7 @@ bool ReadFileToString(const FilePath& path, std::string* contents) {
     return false;
 
 #if defined(COBALT)
-  // Use a smaller buffer so we don't run out of stack space on PS3.
+  // Use a smaller buffer so we don't run out of stack space.
   const size_t kReadBufferSize = 1 << 12;
 #else
   const size_t kReadBufferSize = 1 << 16;
@@ -240,13 +240,10 @@ bool TouchFile(const FilePath& path,
                const base::Time& last_modified) {
   int flags = base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_WRITE_ATTRIBUTES;
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
-  // Windows passes FILE_WRITE_ATTRIBUTES to CreateFile when it wants to open
-  // a file to just change the attributes.  But there is no way to get that
-  // attribute to CreateFile when using open on XBox One.  That attribute gets
-  // dropped when calling through the CRT.
+#if defined(COBALT_WIN)
+  // Ensure that this makes it through to the CRT.
   flags |= base::PLATFORM_FILE_WRITE;
-#endif // __LB_XB1__ || __LB_XB360__
+#endif // COBALT_WIN
 
 #if defined(OS_WIN)
   // On Windows, FILE_FLAG_BACKUP_SEMANTICS is needed to open a directory.
