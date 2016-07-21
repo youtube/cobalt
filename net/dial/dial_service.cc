@@ -27,7 +27,7 @@
 namespace net {
 
 namespace {
-const char* kUdpServerAgent = "Steel/2.0 UPnP/1.1";
+const char* kUdpServerAgent = "Cobalt/2.0 UPnP/1.1";
 }  // namespace
 
 DialService::DialService() {

@@ -12,10 +12,12 @@
 namespace base {
 namespace {
 
-#if defined(__LB_PS3__) || defined(OS_STARBOARD)
-// The PS3's local time calculations always use the current daylight savings
-// time when exploding/unexploding time ticks, no matter what the time to
-// explode is.
+#if defined(__LB_SHELL__)
+
+// Some legacy platforms' local time calculations always use the current
+// Daylight Savings Time status when exploding/unexploding time ticks, no matter
+// what the time to explode is. On Starboard platforms, we use ICU instead as it
+// is platform-independent and considerably more correct.
 #define MAYBE_TimeFormatTimeOfDayDefault12h \
     DISABLED_TimeFormatTimeOfDayDefault12h
 #define MAYBE_TimeFormatTimeOfDayDefault24h \

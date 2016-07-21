@@ -20,7 +20,7 @@ namespace debug {
 
 namespace {
 
-#if !defined(__LB_XB1__)
+#if !defined(COBALT_WIN)
 // Previous unhandled filter. Will be called if not NULL when we intercept an
 // exception. Only used in unit tests.
 LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
@@ -33,7 +33,7 @@ long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
     return g_previous_filter(info);
   return EXCEPTION_CONTINUE_SEARCH;
 }
-#endif  // !defined(__LB_XB1__)
+#endif  // !defined(COBALT_WIN)
 
 // SymbolContext is a threadsafe singleton that wraps the DbgHelp Sym* family
 // of functions.  The Sym* family of functions may only be invoked by one
@@ -151,7 +151,7 @@ class SymbolContext {
 
 }  // namespace
 
-#if !defined(__LB_XB1__)
+#if !defined(COBALT_WIN)
 bool EnableInProcessStackDumping() {
   // Add stack dumping support on exception on windows. Similar to OS_POSIX
   // signal() handling in process_util_posix.cc.

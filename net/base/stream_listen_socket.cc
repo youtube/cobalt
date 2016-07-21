@@ -250,8 +250,8 @@ void StreamListenSocket::Read() {
     } else {
 #if defined(__LB_SHELL__)
       if (len < 0) {
-        // PS3 returns a negative error code for length instead of a simple -1.
-        // Thus, we must check it in the len < 0 case.
+        // Some platforms return a negative error code for length instead of a
+        // simple -1.  Thus, we must check it in the len < 0 case.
         if (!lb_net_would_block()) {
           Close();
         }

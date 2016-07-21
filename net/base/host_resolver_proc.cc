@@ -17,7 +17,7 @@
 #include "starboard/socket.h"
 #endif
 
-#if defined(OS_OPENBSD) || defined(__LB_WIIU__)
+#if defined(OS_OPENBSD)
 #define AI_ADDRCONFIG 0
 #endif
 
