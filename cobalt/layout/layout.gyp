@@ -78,7 +78,6 @@
         'size_layout_unit.h',
         'text_box.cc',
         'text_box.h',
-        'transition_render_tree_animations.h',
         'used_style.cc',
         'used_style.h',
         'vector2d_layout_unit.cc',
