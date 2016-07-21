@@ -47,7 +47,7 @@ TEST(CValTest, RegisterAndUnregisterCVal) {
   std::set<std::string>::size_type size = cval_names.size();
   EXPECT_EQ(size, 0);
   {
-    base::DebugCVal<int32_t> cval("S32", 0, "Test.");
+    base::CVal<int32_t> cval("S32", 0, "Test.");
     cval_names = cvm->GetOrderedCValNames();
     size = cval_names.size();
     EXPECT_EQ(size, 1);
@@ -60,7 +60,7 @@ TEST(CValTest, RegisterAndUnregisterCVal) {
 TEST(CValTest, RegisterAndPrintU32) {
   const std::string cval_name = "32-bit unsigned int";
   const uint32_t cval_value = std::numeric_limits<uint32_t>::max();
-  base::DebugCVal<uint32_t> cval(cval_name, cval_value, "Description.");
+  base::CVal<uint32_t> cval(cval_name, cval_value, "Description.");
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
@@ -70,7 +70,7 @@ TEST(CValTest, RegisterAndPrintU32) {
 TEST(CValTest, RegisterAndPrintU64) {
   const std::string cval_name = "64-bit unsigned int";
   const uint64_t cval_value = std::numeric_limits<uint64_t>::max();
-  base::DebugCVal<uint64_t> cval(cval_name, cval_value, "Description.");
+  base::CVal<uint64_t> cval(cval_name, cval_value, "Description.");
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
@@ -80,7 +80,7 @@ TEST(CValTest, RegisterAndPrintU64) {
 TEST(CValTest, RegisterAndPrintS32) {
   const std::string cval_name = "32-bit signed int";
   const int32_t cval_value = std::numeric_limits<int32_t>::min();
-  base::DebugCVal<int32_t> cval(cval_name, cval_value, "Description.");
+  base::CVal<int32_t> cval(cval_name, cval_value, "Description.");
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
@@ -90,7 +90,7 @@ TEST(CValTest, RegisterAndPrintS32) {
 TEST(CValTest, RegisterAndPrintS64) {
   const std::string cval_name = "64-bit signed int";
   const int64_t cval_value = std::numeric_limits<int64_t>::min();
-  base::DebugCVal<int64_t> cval(cval_name, cval_value, "Description.");
+  base::CVal<int64_t> cval(cval_name, cval_value, "Description.");
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
@@ -100,7 +100,7 @@ TEST(CValTest, RegisterAndPrintS64) {
 TEST(CValTest, RegisterAndPrintFloat) {
   const std::string cval_name = "float";
   const float cval_value = 3.14159f;
-  base::DebugCVal<float> cval(cval_name, cval_value, "Description.");
+  base::CVal<float> cval(cval_name, cval_value, "Description.");
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
@@ -110,7 +110,7 @@ TEST(CValTest, RegisterAndPrintFloat) {
 TEST(CValTest, RegisterAndPrintDouble) {
   const std::string cval_name = "double";
   const double cval_value = 3.14159;
-  base::DebugCVal<double> cval(cval_name, cval_value, "Description.");
+  base::CVal<double> cval(cval_name, cval_value, "Description.");
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
@@ -120,7 +120,7 @@ TEST(CValTest, RegisterAndPrintDouble) {
 TEST(CValTest, RegisterAndPrintString) {
   const std::string cval_name = "string";
   const std::string cval_value = "Hello Cobalt!";
-  base::DebugCVal<std::string> cval(cval_name, cval_value, "Description.");
+  base::CVal<std::string> cval(cval_name, cval_value, "Description.");
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
@@ -135,10 +135,10 @@ TEST(CValTest, GetOrderedCValNames) {
 
   const int num_cvals = 4;
   std::string names[num_cvals] = {"a", "aa", "b", "c"};
-  base::DebugCVal<int32_t> cval3(names[3], 0, "Test.");
-  base::DebugCVal<int32_t> cval1(names[1], 0, "Test.");
-  base::PublicCVal<int32_t> cval0(names[0], 0, "Test.");
-  base::PublicCVal<int32_t> cval2(names[2], 0, "Test.");
+  base::CVal<int32_t> cval3(names[3], 0, "Test.");
+  base::CVal<int32_t> cval1(names[1], 0, "Test.");
+  base::CVal<int32_t, base::CValPublic> cval0(names[0], 0, "Test.");
+  base::CVal<int32_t, base::CValPublic> cval2(names[2], 0, "Test.");
 
   cval_names = cvm->GetOrderedCValNames();
   size = cval_names.size();
@@ -170,7 +170,7 @@ TEST(CValTest, ValueChangedCallback) {
 
   base::CValManager* cvm = base::CValManager::GetInstance();
   EXPECT_TRUE(cvm);
-  base::DebugCVal<int32_t> cval("S32", 0, "Test.");
+  base::CVal<int32_t> cval("S32", 0, "Test.");
   TestOnChangedHook on_changed_hook;
   EXPECT_EQ(on_changed_hook.got_callback_, false);
   cval = 1;
@@ -178,7 +178,7 @@ TEST(CValTest, ValueChangedCallback) {
 }
 
 TEST(CValTest, HookReceiver) {
-  base::DebugCVal<int32_t> cval_a("cval_a", 10, "");
+  base::CVal<int32_t> cval_a("cval_a", 10, "");
 
   {
     class TestHook : public base::CValManager::OnChangedHook {
@@ -245,7 +245,7 @@ TEST(CValTest, HookReceiver) {
     };
     TestHook test_hook;
 
-    base::DebugCVal<std::string> cval_b("cval_b", "foo", "");
+    base::CVal<std::string> cval_b("cval_b", "foo", "");
     cval_b = "bar";
 
     EXPECT_EQ(test_hook.value_changed_count_, 1);
@@ -279,7 +279,7 @@ TEST(CValTest, NativeType) {
   };
   TestInt32Hook test_hook;
 
-  base::DebugCVal<int32_t> cv_int32_t("cv_int32_t", 10, "");
+  base::CVal<int32_t> cv_int32_t("cv_int32_t", 10, "");
   cv_int32_t = 15;
 
   EXPECT_EQ(test_hook.value_changed_count_, 1);

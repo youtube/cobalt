@@ -69,8 +69,8 @@ class JSCEngineStats {
   }
 
   base::Lock lock_;
-  base::PublicCVal<size_t> js_memory_;
-  base::DebugCVal<size_t> js_engine_count_;
+  base::CVal<size_t, base::CValPublic> js_memory_;
+  base::CVal<size_t> js_engine_count_;
   scoped_ptr<base::PollerWithThread> poller_;
 };
 

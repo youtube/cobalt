@@ -258,7 +258,7 @@ class SurfaceCache {
   NodeMap seen_;
 
   // Number of bytes occupied by cached surface pixel data.
-  base::DebugCVal<int> total_used_bytes_;
+  base::CVal<int> total_used_bytes_;
 
   // Maximum number of bytes that can be occupied by cached surface pixel data.
   int capacity_in_bytes_;

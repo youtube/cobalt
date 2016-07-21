@@ -29,7 +29,6 @@
         'c_val.cc',
         'c_val.h',
         'c_val_time_interval_entry_stats.h',
-        'c_val_time_interval_timer.cc',
         'c_val_time_interval_timer.h',
         'do_main.h',
         'do_main_starboard.h',

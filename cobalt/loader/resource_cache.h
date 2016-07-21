@@ -450,8 +450,8 @@ class ResourceCache {
 
   base::ThreadChecker resource_cache_thread_checker_;
 
-  base::PublicCVal<uint32> size_in_bytes_;
-  base::PublicCVal<uint32> capacity_in_bytes_;
+  base::CVal<uint32, base::CValPublic> size_in_bytes_;
+  base::CVal<uint32, base::CValPublic> capacity_in_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };
