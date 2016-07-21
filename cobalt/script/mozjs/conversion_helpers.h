@@ -168,7 +168,22 @@ inline void FromJSValue(
   DCHECK_EQ(conversion_flags & ~kConversionFlagsNumeric, 0)
       << "Unexpected conversion flags found.";
   DCHECK(out_number);
-  JS::ToNumber(context, value, out_number);
+  double double_value;
+  if (!JS::ToNumber(context, value, &double_value)) {
+    exception_state->SetSimpleException(
+        ExceptionState::kError,
+        "Cannot convert a JavaScript value to a number.");
+    return;
+  }
+
+  if (!mozilla::IsFinite(double_value) &&
+      (conversion_flags & kConversionFlagRestricted)) {
+    exception_state->SetSimpleException(ExceptionState::kTypeError,
+                                        "Non-finite floating-point value.");
+    return;
+  }
+
+  *out_number = double_value;
 }
 
 // std::string -> JSValue
