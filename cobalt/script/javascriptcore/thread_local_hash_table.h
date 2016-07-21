@@ -35,6 +35,7 @@ class ThreadLocalHashTable {
 
  private:
   ThreadLocalHashTable();
+  ~ThreadLocalHashTable();
   static void SlotDestructor(void* value);
 
   base::ThreadLocalStorage::Slot slot_;
