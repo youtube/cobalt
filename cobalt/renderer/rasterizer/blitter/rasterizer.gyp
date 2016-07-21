@@ -38,11 +38,14 @@
       'type': 'static_library',
 
       'sources': [
+        'cobalt_blitter_conversions.cc',
         'hardware_rasterizer.cc',
         'image.cc',
+        'render_state.cc',
         'render_tree_blitter_conversions.cc',
         'render_tree_node_visitor.cc',
         'resource_provider.cc',
+        'surface_cache_delegate.cc',
       ],
 
       'dependencies': [
