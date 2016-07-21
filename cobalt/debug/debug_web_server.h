@@ -91,7 +91,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
   scoped_ptr<DebugClient> debug_client_;
 
   int websocket_id_;
-  base::DebugCVal<std::string> local_address_;
+  base::CVal<std::string> local_address_;
   FilePath content_root_dir_;
 };
 

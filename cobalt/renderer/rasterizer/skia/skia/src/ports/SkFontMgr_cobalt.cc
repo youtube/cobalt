@@ -507,7 +507,7 @@ void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
 
 namespace {
 // Tracking of the cache limit and current cache size. These are stored as
-// base::PublicCVal, so that we can easily monitor the system font memory usage.
+// base::CVal, so that we can easily monitor the system font memory usage.
 // We have to put the CVals used by SkFontMgr_Cobalt into their own Singleton,
 // because Skia's lazy instance implementation does not guarantee that only one
 // SkFontMgr_Cobalt will be created at a time (see skia/src/core/SkLazyPtr.h),
@@ -519,12 +519,13 @@ class SkFontMgrCVals {
                      DefaultSingletonTraits<SkFontMgrCVals> >::get();
   }
 
-  const base::PublicCVal<int32_t>&
+  const base::CVal<int32_t, base::CValPublic>&
   system_typeface_open_stream_cache_limit_in_bytes() {
     return system_typeface_open_stream_cache_limit_in_bytes_;
   }
 
-  base::PublicCVal<int32_t>& system_typeface_open_stream_cache_size_in_bytes() {
+  base::CVal<int32_t, base::CValPublic>&
+  system_typeface_open_stream_cache_size_in_bytes() {
     return system_typeface_open_stream_cache_size_in_bytes_;
   }
 
@@ -539,9 +540,9 @@ class SkFontMgrCVals {
             "Memory.SystemTypeface.Size", 0,
             "Total number of bytes currently used by the cache.") {}
 
-  const base::PublicCVal<int32_t>
+  const base::CVal<int32_t, base::CValPublic>
       system_typeface_open_stream_cache_limit_in_bytes_;
-  mutable base::PublicCVal<int32_t>
+  mutable base::CVal<int32_t, base::CValPublic>
       system_typeface_open_stream_cache_size_in_bytes_;
 
   friend struct DefaultSingletonTraits<SkFontMgrCVals>;

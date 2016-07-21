@@ -64,7 +64,7 @@ class LayoutStatTracker : public base::StopWatchOwner {
   void OnStopWatchStopped(int id, int64 time_elapsed) OVERRIDE;
 
   // CVals. They are updated when the periodic counts are flushed.
-  base::PublicCVal<int> total_boxes_;
+  base::CVal<int, base::CValPublic> total_boxes_;
 
   // Periodic counts. The counts are cleared after the CVals are updated in
   // |FlushPeriodicTracking|.
