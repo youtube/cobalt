@@ -124,9 +124,6 @@ void SurfaceCacheDelegate::StartRecording(const math::RectF& local_bounds) {
   math::Matrix3F total_matrix = SkiaMatrixToCobalt(canvas_->getTotalMatrix()) *
                                 math::ScaleMatrix(inv_scale);
 
-  SkIRect canvas_boundsi;
-  canvas_->getClipDeviceBounds(&canvas_boundsi);
-
   // Figure where we should render to the offscreen surface and then how to map
   // that later to the onscreen surface when applying the cached surface.  We
   // ignore the viewport so that we cache all of partially on-screen surfaces.

@@ -16,12 +16,14 @@
 
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 
+#include "base/bind.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/renderer/rasterizer/blitter/cobalt_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/blitter/image.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
@@ -48,43 +50,34 @@ using render_tree::ColorRGBA;
 using render_tree::SolidColorBrush;
 using render_tree::ViewportFilter;
 
-namespace {
-int RoundToInt(float value) {
-  return static_cast<int>(std::floor(value + 0.5f));
-}
-
-math::Rect RectFToRect(const RectF& rectf) {
-  // We convert from floating point to integer in such a way that two boxes
-  // joined at the seams in float-space continue to be joined at the seams in
-  // integer-space.
-  int x = RoundToInt(rectf.x());
-  int y = RoundToInt(rectf.y());
-
-  return Rect(x, y, RoundToInt(rectf.right()) - x,
-              RoundToInt(rectf.bottom()) - y);
-}
-
-SbBlitterRect RectToBlitterRect(const Rect& rect) {
-  return SbBlitterMakeRect(rect.x(), rect.y(), rect.width(), rect.height());
-}
-
-SbBlitterRect RectFToBlitterRect(const RectF& rectf) {
-  return RectToBlitterRect(RectFToRect(rectf));
-}
-}  // namespace
-
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SbBlitterDevice device, SbBlitterContext context,
-    SbBlitterRenderTarget render_target, const Size& bounds,
-    skia::SkiaSoftwareRasterizer* software_rasterizer)
+    const RenderState& render_state,
+    skia::SkiaSoftwareRasterizer* software_rasterizer,
+    SurfaceCacheDelegate* surface_cache_delegate,
+    common::SurfaceCache* surface_cache)
     : software_rasterizer_(software_rasterizer),
       device_(device),
       context_(context),
-      render_target_(render_target),
-      bounds_stack_(context_, Rect(bounds)) {}
+      render_state_(render_state),
+      surface_cache_delegate_(surface_cache_delegate),
+      surface_cache_(surface_cache) {
+  DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
+  if (surface_cache_delegate_) {
+    // Update our surface cache delegate to point to this render tree node
+    // visitor and our canvas.
+    surface_cache_scoped_context_.emplace(
+        surface_cache_delegate_, &render_state_,
+        base::Bind(&RenderTreeNodeVisitor::SetRenderState,
+                   base::Unretained(this)));
+  }
+}
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
+  common::SurfaceCache::Block cache_block(surface_cache_, composition_node);
+  if (cache_block.Cached()) return;
+
   const render_tree::CompositionNode::Children& children =
       composition_node->data().children();
 
@@ -92,16 +85,16 @@ void RenderTreeNodeVisitor::Visit(
     return;
   }
 
-  transform_.ApplyOffset(composition_node->data().offset());
+  render_state_.transform.ApplyOffset(composition_node->data().offset());
   for (render_tree::CompositionNode::Children::const_iterator iter =
            children.begin();
        iter != children.end(); ++iter) {
-    if (transform_.TransformRect((*iter)->GetBounds())
-            .Intersects(RectF(bounds_stack_.Top()))) {
+    if (render_state_.transform.TransformRect((*iter)->GetBounds())
+            .Intersects(RectF(render_state_.bounds_stack.Top()))) {
       (*iter)->Accept(this);
     }
   }
-  transform_.ApplyOffset(-composition_node->data().offset());
+  render_state_.transform.ApplyOffset(-composition_node->data().offset());
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
@@ -126,9 +119,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       return;
     }
 
-    scoped_push.emplace(
-        &bounds_stack_,
-        RectFToRect(transform_.TransformRect(viewport_filter.viewport())));
+    scoped_push.emplace(&render_state_.bounds_stack,
+                        RectFToRect(render_state_.transform.TransformRect(
+                            viewport_filter.viewport())));
   }
 
   if (!filter_node->data().opacity_filter ||
@@ -217,12 +210,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   SbBlitterBlitRectToRectTiled(
       context_, blitter_image->surface(),
       RectFToBlitterRect(local_transform.TransformRect(RectF(image_size))),
-      RectFToBlitterRect(
-          transform_.TransformRect(image_node->data().destination_rect)));
+      RectFToBlitterRect(render_state_.transform.TransformRect(
+          image_node->data().destination_rect)));
 }
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
+  common::SurfaceCache::Block cache_block(surface_cache_,
+                                          matrix_transform_node);
+  if (cache_block.Cached()) return;
+
   const Matrix3F& transform = matrix_transform_node->data().transform;
 
   if (transform.Get(1, 0) != 0 || transform.Get(0, 1) != 0) {
@@ -232,22 +229,25 @@ void RenderTreeNodeVisitor::Visit(
     return;
   }
 
-  Transform old_transform(transform_);
+  Transform old_transform(render_state_.transform);
 
-  transform_.ApplyOffset(Vector2dF(transform.Get(0, 2), transform.Get(1, 2)));
-  transform_.ApplyScale(Vector2dF(transform.Get(0, 0), transform.Get(1, 1)));
+  render_state_.transform.ApplyOffset(
+      Vector2dF(transform.Get(0, 2), transform.Get(1, 2)));
+  render_state_.transform.ApplyScale(
+      Vector2dF(transform.Get(0, 0), transform.Get(1, 1)));
 
   matrix_transform_node->data().source->Accept(this);
 
-  transform_ = old_transform;
+  render_state_.transform = old_transform;
 }
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::PunchThroughVideoNode* punch_through_video_node) {
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
   SbBlitterSetBlending(context_, false);
-  SbBlitterFillRect(context_, RectFToBlitterRect(transform_.TransformRect(
-                                  punch_through_video_node->data().rect)));
+  SbBlitterFillRect(context_,
+                    RectFToBlitterRect(render_state_.transform.TransformRect(
+                        punch_through_video_node->data().rect)));
 }
 
 namespace {
@@ -329,7 +329,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   const RectF& transformed_rect =
-      transform_.TransformRect(rect_node->data().rect);
+      render_state_.transform.TransformRect(rect_node->data().rect);
 
   // Render the solid color fill, if a brush exists.
   if (rect_node->data().background_brush) {
@@ -353,10 +353,13 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     if (border.left.style != render_tree::kBorderStyleNone) {
       DCHECK_EQ(render_tree::kBorderStyleSolid, border.left.style);
 
-      float left_width = border.left.width * transform_.scale.x();
-      float right_width = border.right.width * transform_.scale.x();
-      float top_width = border.top.width * transform_.scale.y();
-      float bottom_width = border.bottom.width * transform_.scale.y();
+      float left_width =
+          border.left.width * render_state_.transform.scale().x();
+      float right_width =
+          border.right.width * render_state_.transform.scale().x();
+      float top_width = border.top.width * render_state_.transform.scale().y();
+      float bottom_width =
+          border.bottom.width * render_state_.transform.scale().y();
 
       RenderRectNodeBorder(context_, border.left.color, left_width, right_width,
                            top_width, bottom_width, transformed_rect);
@@ -373,54 +376,25 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   RenderWithSoftwareRenderer(text_node);
 }
 
-RectF RenderTreeNodeVisitor::Transform::TransformRect(const RectF& rect) const {
-  return RectF(rect.x() * scale.x() + translate.x(),
-               rect.y() * scale.y() + translate.y(), rect.width() * scale.x(),
-               rect.height() * scale.y());
-}
-
-RenderTreeNodeVisitor::BoundsStack::BoundsStack(
-    SbBlitterContext context, const math::Rect& initial_bounds)
-    : context_(context) {
-  bounds_.push(initial_bounds);
-  UpdateContext();
-}
-
-void RenderTreeNodeVisitor::BoundsStack::Push(const math::Rect& bounds) {
-  DCHECK_LE(1, bounds_.size())
-      << "The must always be at least an initial bounds on the stack.";
-
-  // Push onto the stack the rectangle that is the intersection with the current
-  // top of the stack and the rectangle being pushed.
-  bounds_.push(math::IntersectRects(bounds, bounds_.top()));
-  UpdateContext();
-}
-
-void RenderTreeNodeVisitor::BoundsStack::Pop() {
-  DCHECK_LT(1, bounds_.size()) << "Cannot pop the initial bounds.";
-  bounds_.pop();
-  UpdateContext();
-}
-
-void RenderTreeNodeVisitor::BoundsStack::UpdateContext() {
-  SbBlitterSetScissor(context_, RectToBlitterRect(bounds_.top()));
-}
-
 void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
     render_tree::Node* node) {
+  common::SurfaceCache::Block cache_block(surface_cache_, node);
+  if (cache_block.Cached()) return;
+
   common::OffscreenRenderCoordinateMapping coord_mapping =
       common::GetOffscreenRenderCoordinateMapping(
-          node->GetBounds(), transform_.ToMatrix(), bounds_stack_.Top());
+          node->GetBounds(), render_state_.transform.ToMatrix(),
+          render_state_.bounds_stack.Top());
   if (coord_mapping.output_bounds.IsEmpty()) {
     // There's nothing to render if the bounds are 0.
     return;
   }
 
   DCHECK_GE(0.001f, std::abs(1.0f -
-                             transform_.scale.x() *
+                             render_state_.transform.scale().x() *
                                  coord_mapping.output_post_scale.x()));
   DCHECK_GE(0.001f, std::abs(1.0f -
-                             transform_.scale.y() *
+                             render_state_.transform.scale().y() *
                                  coord_mapping.output_post_scale.y()));
 
   SkImageInfo output_image_info = SkImageInfo::MakeN32(
@@ -451,11 +425,12 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
 
   // Now setup our canvas so that the render tree will be rendered to the top
   // left corner instead of at node->GetBounds().origin().
-  canvas.translate(sub_render_transform.translate.x(),
-                   sub_render_transform.translate.y());
+  canvas.translate(sub_render_transform.translate().x(),
+                   sub_render_transform.translate().y());
   // And finally set the scale on our target canvas to match that of the current
-  // |transform_|.
-  canvas.scale(sub_render_transform.scale.x(), sub_render_transform.scale.y());
+  // |render_state_.transform|.
+  canvas.scale(sub_render_transform.scale().x(),
+               sub_render_transform.scale().y());
 
   // Use the Skia software rasterizer to render our subtree.
   software_rasterizer_->Submit(node, &canvas);
@@ -466,7 +441,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
 
   math::RectF output_rect = coord_mapping.output_bounds;
   output_rect.Offset(coord_mapping.output_pre_translate);
-  output_rect.Offset(transform_.translate);
+  output_rect.Offset(render_state_.transform.translate());
 
   // Finally blit the resulting surface to our actual render target.
   SbBlitterSetBlending(context_, true);
@@ -485,7 +460,8 @@ RenderTreeNodeVisitor::OffscreenRender
 RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
   common::OffscreenRenderCoordinateMapping coord_mapping =
       common::GetOffscreenRenderCoordinateMapping(
-          node->GetBounds(), transform_.ToMatrix(), bounds_stack_.Top());
+          node->GetBounds(), render_state_.transform.ToMatrix(),
+          render_state_.bounds_stack.Top());
   if (coord_mapping.output_bounds.IsEmpty()) {
     // There's nothing to render if the bounds are 0.
     OffscreenRender ret;
@@ -493,10 +469,10 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
     return ret;
   }
   DCHECK_GE(0.001f, std::abs(1.0f -
-                             transform_.scale.x() *
+                             render_state_.transform.scale().x() *
                                  coord_mapping.output_post_scale.x()));
   DCHECK_GE(0.001f, std::abs(1.0f -
-                             transform_.scale.y() *
+                             render_state_.transform.scale().y() *
                                  coord_mapping.output_post_scale.y()));
 
   SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
@@ -515,21 +491,23 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
       context_, RectToBlitterRect(Rect(coord_mapping.output_bounds.size())));
 
   // Render to the sub-surface.
-  RenderTreeNodeVisitor sub_visitor(device_, context_, render_target,
-                                    coord_mapping.output_bounds.size(),
-                                    software_rasterizer_);
-  sub_visitor.transform_ = Transform(coord_mapping.sub_render_transform);
+  RenderTreeNodeVisitor sub_visitor(
+      device_, context_,
+      RenderState(
+          render_target, Transform(coord_mapping.sub_render_transform),
+          BoundsStack(context_, Rect(coord_mapping.output_bounds.size()))),
+      software_rasterizer_, surface_cache_delegate_, surface_cache_);
   node->Accept(&sub_visitor);
 
   // Restore our original render target.
-  SbBlitterSetRenderTarget(context_, render_target_);
+  SbBlitterSetRenderTarget(context_, render_state_.render_target);
   // Restore our context's scissor rectangle to what it was before we switched
   // render targets.
-  bounds_stack_.UpdateContext();
+  render_state_.bounds_stack.UpdateContext();
 
   math::PointF output_point = coord_mapping.output_bounds.origin() +
                               coord_mapping.output_pre_translate +
-                              transform_.translate;
+                              render_state_.transform.translate();
 
   OffscreenRender ret;
   ret.position.SetPoint(output_point.x(), output_point.y());
