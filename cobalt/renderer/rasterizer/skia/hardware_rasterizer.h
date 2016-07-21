@@ -42,7 +42,7 @@ class SkiaHardwareRasterizer : public Rasterizer {
   // expensive render tree nodes seen multiple times will get saved to offscreen
   // surfaces.
   explicit SkiaHardwareRasterizer(backend::GraphicsContext* graphics_context,
-                                  int surface_cache_size);
+                                  int surface_cache_size_in_bytes);
   virtual ~SkiaHardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed

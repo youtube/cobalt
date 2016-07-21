@@ -36,7 +36,8 @@ namespace blitter {
 // cannot render.
 class HardwareRasterizer : public Rasterizer {
  public:
-  explicit HardwareRasterizer(backend::GraphicsContext* graphics_context);
+  explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
+                              int surface_cache_size_in_bytes);
   virtual ~HardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed

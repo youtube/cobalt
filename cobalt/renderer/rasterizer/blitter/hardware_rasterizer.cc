@@ -21,8 +21,11 @@
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
+#include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/blitter/resource_provider.h"
+#include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
+#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
 #if SB_HAS(BLITTER)
@@ -34,7 +37,8 @@ namespace blitter {
 
 class HardwareRasterizer::Impl {
  public:
-  explicit Impl(backend::GraphicsContext* graphics_context);
+  explicit Impl(backend::GraphicsContext* graphics_context,
+                int surface_cache_size_in_bytes);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -52,9 +56,13 @@ class HardwareRasterizer::Impl {
   scoped_ptr<render_tree::ResourceProvider> resource_provider_;
 
   int64 submit_count_;
+
+  base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
+  base::optional<common::SurfaceCache> surface_cache_;
 };
 
-HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
+HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                               int surface_cache_size_in_bytes)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
           graphics_context)),
       software_rasterizer_(0),
@@ -62,6 +70,14 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context)
   resource_provider_ = scoped_ptr<render_tree::ResourceProvider>(
       new ResourceProvider(context_->GetSbBlitterDevice(),
                            software_rasterizer_.GetResourceProvider()));
+
+  if (surface_cache_size_in_bytes > 0) {
+    surface_cache_delegate_.emplace(context_->GetSbBlitterDevice(),
+                                    context_->GetSbBlitterContext());
+
+    surface_cache_.emplace(&surface_cache_delegate_.value(),
+                           surface_cache_size_in_bytes);
+  }
 }
 
 HardwareRasterizer::Impl::~Impl() {}
@@ -83,6 +99,13 @@ void HardwareRasterizer::Impl::Submit(
   CHECK(SbBlitterSetRenderTarget(context,
                                  render_target_blitter->GetSbRenderTarget()));
 
+  // Update our surface cache to do per-frame calculations such as deciding
+  // which render tree nodes are candidates for caching in this upcoming
+  // frame.
+  if (surface_cache_) {
+    surface_cache_->Frame();
+  }
+
   // Clear the background before proceeding if the clear option is set.
   // We also clear if this is one of the first 3 submits.  This is for security
   // purposes, so that despite the Blitter API implementation, we ensure that
@@ -100,8 +123,12 @@ void HardwareRasterizer::Impl::Submit(
     // Visit the render tree with our Blitter API visitor.
     RenderTreeNodeVisitor visitor(
         context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
-        render_target_blitter->GetSbRenderTarget(),
-        render_target_blitter->GetSize(), &software_rasterizer_);
+        RenderState(render_target_blitter->GetSbRenderTarget(), Transform(),
+                    BoundsStack(context_->GetSbBlitterContext(),
+                                math::Rect(render_target_blitter->GetSize()))),
+        &software_rasterizer_,
+        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
+        surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
   }
 
@@ -117,8 +144,8 @@ render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
 }
 
 HardwareRasterizer::HardwareRasterizer(
-    backend::GraphicsContext* graphics_context)
-    : impl_(new Impl(graphics_context)) {}
+    backend::GraphicsContext* graphics_context, int surface_cache_size_in_bytes)
+    : impl_(new Impl(graphics_context, surface_cache_size_in_bytes)) {}
 
 HardwareRasterizer::~HardwareRasterizer() {}
 
