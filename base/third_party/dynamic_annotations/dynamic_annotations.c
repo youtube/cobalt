@@ -24,7 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(_MSC_VER) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+#if defined(_MSC_VER) && !defined(COBALT_WIN)
 # include <windows.h>
 #endif
 

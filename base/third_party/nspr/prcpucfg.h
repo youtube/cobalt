@@ -32,7 +32,7 @@
 
 #if defined(OS_STARBOARD)
 #include "base/third_party/nspr/prcpucfg_starboard.h"
-#elif defined(WIN32) || defined (__LB_XB1__) || defined(__LB_XB360__)
+#elif defined(WIN32) || defined (COBALT_WIN)
 #include "base/third_party/nspr/prcpucfg_win.h"
 #elif defined(__APPLE__)
 #include "base/third_party/nspr/prcpucfg_mac.h"

@@ -316,7 +316,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
       output = decoder_buffer_pool_.Allocate(buffer_size);
       DCHECK(output);
       // Interleave the planar samples to conform to the general decoder
-      // requirement. This should eventually be lifted as WiiU is also planar.
+      // requirement. This should eventually be lifted.
       ResampleToInterleavedFloat(
           codec_context_->sample_fmt, codec_context_->channel_layout,
           samples_per_second_, mp4::AAC::kSamplesPerFrame,

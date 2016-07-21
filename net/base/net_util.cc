@@ -1306,7 +1306,7 @@ int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
   return ioctlsocket(fd, FIONBIO, &no_block);
-#elif defined(__LB_XB1__) || defined(__LB_XB360__)
+#elif defined(COBALT_WIN)
   return -1;
 #elif defined(__LB_SHELL__) && !(defined(__LB_ANDROID__) || defined(__LB_LINUX__))
   int val = 1;

@@ -53,11 +53,11 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     if (au->AddPrepend())
       memcpy(prepend_buffer, video_prepend_, video_prepend_size_);
   } else if (au->GetType() == DemuxerStream::AUDIO) {
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
-    // We use raw AAC instead of ADTS on XB1.
+#if defined(COBALT_WIN)
+    // We use raw AAC instead of ADTS on these platforms.
     DCHECK(audio_prepend_.empty());
     return true;
-#endif                           // defined(__LB_XB1__) || defined(__LB_XB360__)
+#endif
     if (audio_prepend_.empty())  // valid ADTS header not available
       return false;
     // audio, need to copy ADTS header and then add buffer size
@@ -465,20 +465,20 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   audio_prepend_[4] = 0;
   audio_prepend_[5] &= 0x1f;
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
-  // We use raw AAC instead of ADTS on XB1.
+#if defined(COBALT_WIN)
+  // We use raw AAC instead of ADTS on these platforms.
   audio_prepend_.clear();
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
+#endif  // defined(COBALT_WIN)
 
   audio_config_.Initialize(kCodecAAC,
                            16,  // AAC is always 16 bit
                            aac.channel_layout(),
                            aac.GetOutputSamplesPerSecond(false),
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
+#if defined(COBALT_WIN)
                            &aac.raw_data().front(), aac.raw_data().size(),
-#else   // defined(__LB_XB1__) || defined(__LB_XB360__)
+#else  // defined(COBALT_WIN)
                            NULL, 0,
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
+#endif  // defined(COBALT_WIN)
                            false, false);
 }
 
@@ -486,11 +486,7 @@ size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
                                             bool is_keyframe) {
   size_t prepend_size = 0;
   if (type == DemuxerStream::VIDEO) {
-#if defined(__LB_WIIU__)
-    bool needs_prepend = true;
-#else
     bool needs_prepend = is_keyframe;
-#endif
     if (needs_prepend)
       prepend_size = video_prepend_size_;
   } else if (type == DemuxerStream::AUDIO) {

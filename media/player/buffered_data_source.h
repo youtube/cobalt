@@ -32,7 +32,7 @@ enum Preload {
   kPreloadAuto,
 };
 
-// TODO(***REMOVED***, b/21471585): Investigate if we still need BufferedDataSource.
+// TODO: Investigate if we still need BufferedDataSource.
 class BufferedDataSource : public DataSource {
  public:
   virtual void SetPreload(Preload preload) { UNREFERENCED_PARAMETER(preload); }

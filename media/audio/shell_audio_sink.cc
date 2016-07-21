@@ -236,9 +236,8 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     // rendered, negative number indicates an error.
     if (frames_rendered > 0) {
       // +ve value indicates number of samples in a successful read
-      // TODO: We cannot guarantee this on PS3 because of the
-      // resampler. Check if it is possible to move the resample into the
-      // streamer.
+      // TODO: We cannot guarantee this on platforms that use a resampler. Check
+      // if it is possible to move the resample into the streamer.
       // DCHECK_EQ(frames_rendered, mp4::AAC::kSamplesPerFrame);
       render_frame_cursor_ += frames_rendered;
       *total_frames += frames_rendered;

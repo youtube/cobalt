@@ -33,11 +33,7 @@ bool g_cleanup_timer_enabled = true;
 // Note: It's important to close idle sockets that have received data as soon
 // as possible because the received data may cause BSOD on Windows XP under
 // some conditions.  See http://crbug.com/4606.
-#if defined(__LB_WIIU__)
-const int kCleanupInterval = 3;
-#else
 const int kCleanupInterval = 10;  // DO NOT INCREASE THIS TIMEOUT.
-#endif
 
 // Indicate whether or not we should establish a new transport layer connection
 // after a certain timeout has passed without receiving an ACK.

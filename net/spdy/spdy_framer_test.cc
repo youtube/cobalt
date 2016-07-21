@@ -3088,8 +3088,8 @@ TEST_P(SpdyFramerTest, GetMinimumControlFrameSizeTest) {
             SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
                                                    SETTINGS));
 
-#if defined(__LB_PS3__)
-  // PS3 compile error: <function> declared using a type with no linkage,
+#if defined(__LB_SHELL__) || defined(COBALT)
+  // Compiler quirk: <function> declared using a type with no linkage,
   // must be defined in this translation unit
   unsigned int spdy_frame_header_size = SpdyFrame::kHeaderSize;
   EXPECT_EQ(spdy_frame_header_size,

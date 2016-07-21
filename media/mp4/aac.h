@@ -46,9 +46,9 @@ class MEDIA_EXPORT AAC {
   // unchanged.
   bool ConvertEsdsToADTS(std::vector<uint8>* buffer) const;
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
+#if defined(COBALT_WIN)
   const std::vector<uint8>& raw_data() const { return raw_data_; }
-#endif  // __LB_XB1__ || __LB_XB360__
+#endif  // COBALT_WIN
 
   // Size in bytes of the ADTS header added by ConvertEsdsToADTS().
   static const size_t kADTSHeaderSize = 7;
@@ -73,9 +73,9 @@ class MEDIA_EXPORT AAC {
   int extension_frequency_;
   ChannelLayout channel_layout_;
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
+#if defined(COBALT_WIN)
   std::vector<uint8> raw_data_;
-#endif  // __LB_XB1__ || __LB_XB360__
+#endif  // COBALT_WIN
 };
 
 }  // namespace mp4

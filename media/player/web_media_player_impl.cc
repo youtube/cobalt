@@ -54,11 +54,11 @@ const float kMaxRate = 16.0f;
 const char* kMediaEme = "Media.EME.";
 
 #if defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
-// On XB1 and XB360 the MediaEngine can hang if we keep seeking to a position
-// that is near the end of the video. So we ignore any seeks near the end of
-// stream position when the current playback position is also near the end of
-// the stream. In this case, "near the end of stream" means "position greater
-// than or equal to duration() - kEndOfStreamEpsilonInSeconds".
+// On some platforms, the underlying media player can hang if we keep seeking to
+// a position that is near the end of the video. So we ignore any seeks near the
+// end of stream position when the current playback position is also near the
+// end of the stream. In this case, "near the end of stream" means "position
+// greater than or equal to duration() - kEndOfStreamEpsilonInSeconds".
 const double kEndOfStreamEpsilonInSeconds = 2.;
 
 bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
@@ -161,9 +161,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   proxy_->set_frame_provider(video_renderer);
 
 #if defined(COBALT_USE_PUNCHOUT)
-  // The size passed to CreatePunchOutFrame is used to pass the natural size
-  // of the video to the pipeline. On XB1 the pipeline gets the natural size of
-  // the video from the MediaEngine so we set this to gfx::Size() to avoid
+  // The size passed to CreatePunchOutFrame is used to pass the natural size of
+  // the video to the pipeline. The pipeline already gets the natural size of
+  // the video from the underlying player so we set this to gfx::Size() to avoid
   // propagating the frame size through the media stack.
   punch_out_video_frame_ = VideoFrame::CreatePunchOutFrame(gfx::Size());
 #else   // defined(COBALT_USE_PUNCHOUT)

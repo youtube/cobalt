@@ -47,9 +47,6 @@ base::Thread* MessageLoopFactory::GetThread(Type type) {
   base::Thread::Options options;
 
   if (type == kPipeline) {
-#if defined(__LB_WIIU__)
-    options.affinity = LB::Platform::kMediaPipelineThreadAffinity;
-#endif
 #if defined(OS_STARBOARD) && defined(SB_MEDIA_THREAD_STACK_SIZE)
     options.stack_size = SB_MEDIA_THREAD_STACK_SIZE;
 #endif  // defined(OS_STARBOARD) && defined(SB_MEDIA_THREAD_STACK_SIZE)

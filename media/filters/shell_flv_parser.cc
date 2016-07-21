@@ -462,7 +462,7 @@ bool ShellFLVParser::ParseScriptDataObjectTag(uint8* tag,
 // string name 'onMetaData' followed by an anonymous object. In any event we
 // will scan the buffer looking only for the provided string, verify the next
 // bytes in the stream describe an AMF0 number, extract and return it.
-// b/8091962 is to replace this (brittle) code with a proper AMF0 parser.
+// TODO: Replace this (brittle) code with a proper AMF0 parser.
 bool ShellFLVParser::ExtractAMF0Number(scoped_refptr<ShellScopedArray> amf0,
                                        const char* name,
                                        double* number_out) {

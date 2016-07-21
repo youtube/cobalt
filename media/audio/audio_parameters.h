@@ -70,14 +70,6 @@ class MEDIA_EXPORT AudioParameters {
   int frames_per_buffer() const { return frames_per_buffer_; }
   int channels() const { return channels_; }
 
-#if defined(__LB_WIIU__)
-  bool output_to_tv() const { return output_to_tv_; }
-  bool output_to_gamepad() const { return output_to_gamepad_; }
-
-  void set_output_to_tv(bool output) { output_to_tv_ = output; }
-  void set_output_to_gamepad(bool output) { output_to_gamepad_ = output; }
-#endif
-
  private:
   Format format_;                 // Format of the stream.
   ChannelLayout channel_layout_;  // Order of surround sound channels.
@@ -87,11 +79,6 @@ class MEDIA_EXPORT AudioParameters {
 
   int channels_;                  // Number of channels. Value set based on
                                   // |channel_layout|.
-
-#if defined(__LB_WIIU__)
-  bool output_to_tv_;
-  bool output_to_gamepad_;
-#endif
 };
 
 // Comparison is useful when AudioParameters is used with std structures.
