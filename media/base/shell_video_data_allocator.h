@@ -52,7 +52,7 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
     // Create with data pointer to individual planes. All pointers should be in
     // the same memory block controlled by the accompanied FrameBuffer passed to
     // CreateYV12Frame. The decoded size and visible rect are assumed to be the
-    // same. It is only used on PS4 for decoding vp9 frames.
+    // same. It is only used for decoding vp9 frames.
     YV12Param(int width,
               int height,
               int y_pitch,
@@ -98,7 +98,8 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
     uint8* v_data_;
   };
 
-  // Only used on PS4 for its hardware AVC decoder.
+  // Only used for some platforms' hardware AVC decoder that only support NV12
+  // output.
   class NV12Param {
    public:
     NV12Param(int decoded_width,
@@ -129,7 +130,7 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
       const YV12Param& param,
       const base::TimeDelta& timestamp) = 0;
 
-  // The system AVC decoder on PS4 only supports NV12 output. They are perfectly
+  // Some hardware AVC decoders only support NV12 output. They are perfectly
   // aligned for rendering as texture though.
   virtual scoped_refptr<VideoFrame> CreateNV12Frame(
       const scoped_refptr<FrameBuffer>& frame_buffer,

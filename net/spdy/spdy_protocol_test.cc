@@ -40,8 +40,8 @@ INSTANTIATE_TEST_CASE_P(SpdyProtocolTests,
 
 // Test our protocol constants
 TEST_P(SpdyProtocolTest, ProtocolConstants) {
-#if defined(__LB_PS3__)
-  // PS3 compile error: <function> declared using a type with no linkage,
+#if defined(__LB_SHELL__) || defined(COBALT)
+  // Compiler quirk: <function> declared using a type with no linkage,
   // must be defined in this translation unit
   unsigned int spdy_frame_header_size = SpdyFrame::kHeaderSize;
   EXPECT_EQ(8u, spdy_frame_header_size);
@@ -49,8 +49,8 @@ TEST_P(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(8u, SpdyFrame::kHeaderSize);
 #endif
   EXPECT_EQ(8u, SpdyDataFrame::size());
-#if defined(__LB_PS3__)
-  // PS3 compile error: <function> declared using a type with no linkage,
+#if defined(__LB_SHELL__) || defined(COBALT)
+  // Compiler quirk: <function> declared using a type with no linkage,
   // must be defined in this translation unit
   unsigned int spdy_control_frame_header_size = SpdyFrame::kHeaderSize;
   EXPECT_EQ(8u, spdy_control_frame_header_size);

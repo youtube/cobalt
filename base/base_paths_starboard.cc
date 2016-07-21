@@ -24,39 +24,67 @@ namespace base {
 bool PathProviderStarboard(int key, FilePath *result) {
   char path[SB_FILE_MAX_PATH];
   switch (key) {
-    case base::FILE_EXE:
-      SbSystemGetPath(kSbSystemPathExecutableFile, path,
+    case base::FILE_EXE: {
+      bool success = SbSystemGetPath(kSbSystemPathExecutableFile, path,
                       SB_ARRAY_SIZE_INT(path));
-      *result = FilePath(path);
-      return true;
+      DCHECK(success);
+      if (success) {
+        *result = FilePath(path);
+        return true;
+      }
+      DLOG(ERROR) << "FILE_EXE not defined.";
+      return false;
+    }
 
     case base::DIR_EXE:
-    case base::DIR_MODULE:
-      SbSystemGetPath(kSbSystemPathContentDirectory, path,
-                      SB_ARRAY_SIZE_INT(path));
-      *result = FilePath(path);
-      return true;
+    case base::DIR_MODULE: {
+      bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path,
+                                     SB_ARRAY_SIZE_INT(path));
+      DCHECK(success);
+      if (success) {
+        *result = FilePath(path);
+        return true;
+      }
+      DLOG(ERROR) << "DIR_EXE/DIR_MODULE not defined.";
+      return false;
+    }
 
-    case base::DIR_SOURCE_ROOT:
-      // TODO: When Cobalt's primary use-case ceases to be serving web-pages
-      //       locally, we should add a check here to ensure that release builds
-      //       do not try to access DIR_SOURCE_ROOT.  b/22359828
-      SbSystemGetPath(kSbSystemPathSourceDirectory, path,
-                      SB_ARRAY_SIZE_INT(path));
-      *result = FilePath(path);
-      return true;
+#if defined(ENABLE_DIR_SOURCE_ROOT_ACCESS)
+    case base::DIR_SOURCE_ROOT: {
+      bool success = SbSystemGetPath(kSbSystemPathSourceDirectory, path,
+                                     SB_ARRAY_SIZE_INT(path));
+      DCHECK(success);
+      if (success) {
+        *result = FilePath(path);
+        return true;
+      }
+      DLOG(ERROR) << "DIR_SOURCE_ROOT not defined.";
+      return false;
+    }
+#endif  // ENABLE_DIR_SOURCE_ROOT_ACCESS
 
-    case base::DIR_CACHE:
-      SbSystemGetPath(kSbSystemPathCacheDirectory, path,
-                      SB_ARRAY_SIZE_INT(path));
-      *result = FilePath(path);
-      return true;
+    case base::DIR_CACHE: {
+      bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path,
+                                     SB_ARRAY_SIZE_INT(path));
+      if (success) {
+        *result = FilePath(path);
+        return true;
+      }
+      DLOG(INFO) << "DIR_CACHE not defined.";
+      return false;
+    }
 
-    case base::DIR_TEMP:
-      SbSystemGetPath(kSbSystemPathTempDirectory, path,
-                      SB_ARRAY_SIZE_INT(path));
-      *result = FilePath(path);
-      return true;
+    case base::DIR_TEMP: {
+      bool success = SbSystemGetPath(kSbSystemPathTempDirectory, path,
+                                     SB_ARRAY_SIZE_INT(path));
+      DCHECK(success);
+      if (success) {
+        *result = FilePath(path);
+        return true;
+      }
+      DLOG(ERROR) << "DIR_TEMP not defined.";
+      return false;
+    }
 
     case base::DIR_HOME:
       // TODO: Add a home directory to SbSystemPathId and get it from there.

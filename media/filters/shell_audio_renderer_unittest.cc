@@ -148,7 +148,7 @@ TEST_F(ShellAudioRendererTest, Initialize) {
 }
 
 TEST_F(ShellAudioRendererTest, StopImmediatelyAfterInitialize) {
-  // Not using InSequence here as the PS3 audio renderer may call init_cb after
+  // Not using InSequence here as the audio renderer may call init_cb after
   // stop_cb is called.
   InitializeWithoutWaitForPendingTasks();
   StopAndWaitForPendingTasks();

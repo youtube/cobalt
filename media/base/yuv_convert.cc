@@ -473,7 +473,7 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
     // For ARM and MIPS processors, always use C version.
     // TODO(hclam): Implement a NEON version.
     convert_proc = &ConvertRGB32ToYUV_C;
-#elif defined(__LB_PS3__) || defined(__LB_WIIU__)
+#elif defined(__LB_PS3__)
     // For these, always use C version.
     convert_proc = &ConvertRGB32ToYUV_C;
 #else

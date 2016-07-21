@@ -374,7 +374,7 @@ bool TCPClientSocketStarboard::WasEverUsed() const {
 }
 
 bool TCPClientSocketStarboard::UsingTCPFastOpen() const {
-  // not supported on PS3
+  // This is not supported on some platforms.
   return false;
 }
 
