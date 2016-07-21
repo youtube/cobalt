@@ -70,16 +70,16 @@ class GlobalStats {
   ~GlobalStats();
 
   // Number of live DOM objects.
-  base::DebugCVal<int> num_attrs;
-  base::DebugCVal<int> num_dom_string_maps;
-  base::DebugCVal<int> num_dom_token_lists;
-  base::PublicCVal<int> num_event_listeners;
-  base::DebugCVal<int> num_html_collections;
-  base::DebugCVal<int> num_named_node_maps;
-  base::PublicCVal<int> num_nodes;
-  base::DebugCVal<int> num_node_lists;
-  base::DebugCVal<int> num_xhrs;
-  base::DebugCVal<size_t> xhr_memory;
+  base::CVal<int> num_attrs;
+  base::CVal<int> num_dom_string_maps;
+  base::CVal<int> num_dom_token_lists;
+  base::CVal<int, base::CValPublic> num_event_listeners;
+  base::CVal<int> num_html_collections;
+  base::CVal<int> num_named_node_maps;
+  base::CVal<int, base::CValPublic> num_nodes;
+  base::CVal<int> num_node_lists;
+  base::CVal<int> num_xhrs;
+  base::CVal<size_t> xhr_memory;
 
   friend struct DefaultSingletonTraits<GlobalStats>;
   DISALLOW_COPY_AND_ASSIGN(GlobalStats);

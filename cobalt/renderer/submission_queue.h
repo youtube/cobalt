@@ -164,8 +164,8 @@ class SubmissionQueue {
   // increasing.
   base::optional<base::TimeTicks> last_now_;
 
-  base::DebugCVal<float> to_submission_time_in_ms_cval_;
-  base::DebugCVal<size_t> queue_size_;
+  base::CVal<float> to_submission_time_in_ms_cval_;
+  base::CVal<size_t> queue_size_;
 };
 
 }  // namespace renderer

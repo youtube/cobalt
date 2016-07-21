@@ -71,21 +71,21 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     explicit EventStats(const std::string& name);
 
     // Count-related
-    base::PublicCVal<int> count_dom_html_elements_created;
-    base::PublicCVal<int> count_dom_html_elements_destroyed;
-    base::PublicCVal<int> count_dom_update_matching_rules;
-    base::PublicCVal<int> count_dom_update_computed_style;
-    base::PublicCVal<int> count_layout_boxes_created;
-    base::PublicCVal<int> count_layout_boxes_destroyed;
+    base::CVal<int, base::CValPublic> count_dom_html_elements_created;
+    base::CVal<int, base::CValPublic> count_dom_html_elements_destroyed;
+    base::CVal<int, base::CValPublic> count_dom_update_matching_rules;
+    base::CVal<int, base::CValPublic> count_dom_update_computed_style;
+    base::CVal<int, base::CValPublic> count_layout_boxes_created;
+    base::CVal<int, base::CValPublic> count_layout_boxes_destroyed;
 
     // Duration-related
-    base::PublicCVal<int64> duration_total;
-    base::PublicCVal<int64> duration_dom_inject_event;
-    base::PublicCVal<int64> duration_dom_update_computed_style;
-    base::PublicCVal<int64> duration_layout_box_tree;
-    base::PublicCVal<int64> duration_layout_box_generation;
-    base::PublicCVal<int64> duration_layout_update_used_sizes;
-    base::PublicCVal<int64> duration_layout_render_and_animate;
+    base::CVal<int64, base::CValPublic> duration_total;
+    base::CVal<int64, base::CValPublic> duration_dom_inject_event;
+    base::CVal<int64, base::CValPublic> duration_dom_update_computed_style;
+    base::CVal<int64, base::CValPublic> duration_layout_box_tree;
+    base::CVal<int64, base::CValPublic> duration_layout_box_generation;
+    base::CVal<int64, base::CValPublic> duration_layout_update_used_sizes;
+    base::CVal<int64, base::CValPublic> duration_layout_render_and_animate;
   };
 
   // From base::StopWatchOwner

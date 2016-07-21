@@ -26,22 +26,40 @@ namespace base {
 // This class is a wrapper around |CValTimeIntervalEntryStats|.
 // |CValTimeIntervalTimer| calculates the time elapsed between calls to |Start|
 // and |Stop| and adds it as an entry to |CValTimeIntervalEntryStats|.
+template <typename Visibility = CValDebug>
 class CValTimeIntervalTimer {
  public:
-  CValTimeIntervalTimer(const std::string& name, int64 time_interval_in_ms);
+  CValTimeIntervalTimer(const std::string& name, int64 time_interval_in_ms)
+      : entry_stats_(name, time_interval_in_ms) {}
 
   // Start the timer. If the timer is currently running, it is stopped and
   // re-started. If no time is provided, then |base::TimeTicks::Now()| is used.
-  void Start();
-  void Start(const base::TimeTicks& now);
+  void Start() {
+    base::TimeTicks now = base::TimeTicks::Now();
+    Start(now);
+  }
+  void Start(const base::TimeTicks& now) {
+    Stop(now);
+    start_time_ = now;
+  }
 
   // Stop the timer. If it is not already started, then nothing happens. if no
   // time is provided, then |base::TimeTicks::Now()| is used.
-  void Stop();
-  void Stop(const base::TimeTicks& now);
+  void Stop() {
+    base::TimeTicks now = base::TimeTicks::Now();
+    Stop(now);
+  }
+  void Stop(const base::TimeTicks& now) {
+    if (start_time_.is_null()) {
+      return;
+    }
+
+    entry_stats_.AddEntry((now - start_time_).InMicroseconds(), now);
+    start_time_ = base::TimeTicks();
+  }
 
  private:
-  base::CValTimeIntervalEntryStats<int64> entry_stats_;
+  base::CValTimeIntervalEntryStats<int64, Visibility> entry_stats_;
   base::TimeTicks start_time_;
 };
 
