@@ -748,12 +748,11 @@ void BoxGenerator::AppendPseudoElementToLine(
         // own, but is directly inheriting a color property from its parent html
         // element, we use the parent's animations if the pseudo element has
         // none and the parent has only color property animations. This allows
-        // the child text boxes to animate properly and fixes b/27413633, while
+        // the child text boxes to animate properly and fixes bugs, while
         // keeping the impact of the fix as small as possible to minimize the
         // risk of introducing new bugs.
         // TODO: Remove this logic when support for inheriting
-        // animations on inherited properties is added. This is currently
-        // tracked as b/27440572.
+        // animations on inherited properties is added.
         bool use_html_element_animations =
             !pseudo_element->computed_style()->IsDeclared(
                 cssom::kColorProperty) &&

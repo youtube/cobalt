@@ -22,8 +22,8 @@ namespace dom {
 namespace keycode {
 
 // A standard set of key codes is needed to represent each possible input key,
-// so for the sake of compatibility with ***REMOVED***, we have to chosen to adopt
-// Chrome's implementation for the non-standardized platform-dependent
+// so for the sake of compatibility, we have to choose to adopt Chrome's
+// implementation for the non-standardized platform-dependent
 // KeyboardEvent.keyCode WebAPI, which happens to be the Windows virtual key
 // codes.
 // Windows virtual key codes doc:

@@ -76,10 +76,9 @@ class BoxGenerator : public dom::NodeVisitor {
                    parent_css_computed_style_declaration,
                // Parent animations are passed separately in order to enable
                // grandparent inheritance of color property animations when the
-               // parent is a pseudo element. This logic fixes b/27413633.
+               // parent is a pseudo element.
                // TODO: Remove this parameter when full support for
-               // animation inheritance is implemented. This is tracked as
-               // b/27440572.
+               // animation inheritance is implemented.
                const scoped_refptr<const web_animations::AnimationSet>&
                    parent_animations,
                scoped_refptr<Paragraph>* paragraph, const Context* context);

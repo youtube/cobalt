@@ -1,7 +1,4 @@
 <!DOCTYPE html>
-<!--
- | A repro case for b/27290784.
- -->
 <html>
 <head>
   <meta charset="utf-8">
@@ -19,9 +16,9 @@
   }
 
   // Wait for the font to load before taking a snapshot.
-  // TODO(***REMOVED***): This is very flaky, but we don't really have any other
-  //               way to wait for a font to load.  Because of this flakiness,
-  //               we do not automatically run this test.
+  // TODO: This is very flaky, but we don't really have any other way to wait
+  //       for a font to load.  Because of this flakiness, we do not
+  //       automatically run this test.
   window.setTimeout(function () {
     // First do a layout so that Cobalt knows the font is being used and that
     // it should start loading it.

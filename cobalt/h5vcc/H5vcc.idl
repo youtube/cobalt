@@ -15,12 +15,15 @@
  */
 
 // H5vcc stands for "HTML5 Video Container for Consoles".
+//
 // The H5vcc node acts as a Javascript namespace collecting various disparate
-// APIs which allow ***REMOVED*** to call non-standard native functions that we expose.
+// APIs which allow clients to call non-standard native functions that we
+// expose.
+//
 // For example we provide a h5vcc.storage.ClearCookies(), which can empty the
-// cookie jar in response to the user's request.
-// Other H5vcc modules expose audio capabilities about the platform, or
-// run an in-app DIAL server.
+// cookie jar in response to the user's request. Other H5vcc modules expose
+// audio capabilities about the platform, or run an in-app DIAL server.
+//
 // The H5vcc node should just be a collection of readonly sub-nodes.
 // This is created by the BrowserModule and passed directly to the Window
 // during construction.

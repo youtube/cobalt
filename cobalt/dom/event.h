@@ -34,7 +34,7 @@ class EventTarget;
 // pass information between them.
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-event
 //
-// TODO(b/19335817): We only support the attributes/methods that are in use.
+// TODO: We only support the attributes/methods that are in use.
 // We need to investigate the exact subset of them required in Cobalt.
 class Event : public script::Wrappable {
  public:

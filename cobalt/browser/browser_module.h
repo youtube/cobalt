@@ -195,7 +195,7 @@ class BrowserModule {
       scoped_ptr<webdriver::WindowDriver>* out_window_driver);
 #endif
 
-  // TODO(b/28051376):
+  // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
   //     own where it can ensure that its tasks are all resolved when it is
   //     destructed.

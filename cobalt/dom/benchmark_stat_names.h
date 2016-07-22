@@ -23,7 +23,7 @@ namespace dom {
 // These names are referenced by TRACE_EVENT calls within dom code, and
 // then also watched for by benchmarks testing that code.  Modifying these
 // names will typically also require modifying the database schema that
-// the benchmarks are uploaded to.  See ***REMOVED***steel-build-stats-doc.
+// the benchmarks are uploaded to.
 
 extern const char kBenchmarkStatUpdateComputedStyles[];
 extern const char kBenchmarkStatUpdateSelectorTree[];
