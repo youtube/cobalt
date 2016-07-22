@@ -48,11 +48,11 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     })
 
     if int(os.environ.get('USE_FUZZING', 0)):
-      # Build configuration for running clusterfuzz / ***REMOVED***.
+      # Build configuration for fuzz testing.
       variables['use_asan'] = 1
       variables['use_tsan'] = 0
-      # Disable code that tries to bind ports. The machines fuzzer runs on
-      # may not permit that, and we don't handle it gracefully.
+      # Disable code that tries to bind ports. The machines that run fuzz
+      # testing may not permit that, and we don't handle it gracefully.
       variables['in_app_dial'] = 0
       variables['enable_remote_debugging'] = 0
 
