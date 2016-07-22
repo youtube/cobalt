@@ -58,9 +58,9 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
     do {
       scoped_refptr<dom::DOMRect> dom_rect(new dom::DOMRect());
 
-      // TODO: Take transforms into account and recurse into anonymous
-      // block boxes. ***REMOVED*** currently doesn't rely on GetClientRects() to do
-      // that. Tracked in b/25983085.
+      // TODO: Take transforms into account and recurse into anonymous block
+      // boxes. Our current clients don't currently rely on GetClientRects() to
+      // do that.
 
       dom_rect->set_x(box->GetBorderBoxLeftEdge().toFloat());
       dom_rect->set_y(box->GetBorderBoxTopEdge().toFloat());

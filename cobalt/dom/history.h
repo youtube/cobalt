@@ -25,8 +25,7 @@ namespace dom {
 // The History object can be used to maintain browser session history.
 // https://www.w3.org/TR/html5/browsers.html#the-history-interface
 // https://www.w3.org/TR/html5/browsers.html#history-1
-// ***REMOVED*** does not use the History object, and so this implementation is
-// extremely basic.
+// This implementation is extremely basic.
 class History : public script::Wrappable {
  public:
   History();

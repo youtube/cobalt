@@ -32,7 +32,8 @@ namespace layout {
 
 class UsedStyleProvider;
 
-// Layout engine supports a subset of CSS as defined by ***REMOVED***cobalt-css.
+// Layout engine supports a subset of CSS.
+// TODO: Add markdown doc of supported CSS subset.
 //
 // Most of the code conforms to CSS Level 3 specifications, although the basic
 // box model is intentionally implemented after CSS 2.1

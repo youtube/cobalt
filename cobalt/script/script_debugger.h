@@ -32,7 +32,6 @@ class GlobalObjectProxy;
 // e.g. JSCDebugger.
 // Only pure virtual or static methods should be added to this class.
 // No data members should be added to this class.
-// https://engdoc.***REMOVED***/eng/doc/devguide/cpp/styleguide.shtml?cl=head#Interfaces
 class ScriptDebugger {
  public:
   // Ideally, we want the delegate to do as much as possible, as its

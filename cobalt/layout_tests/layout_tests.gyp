@@ -23,10 +23,10 @@
   # It uses the TestRunner interface to control when the snapshot is taken.
   'targets': [
     {
-      # TODO(***REMOVED***): Consider renaming the entire module to something like
-      #               "layout_snapshots" instead of "layout_tests", since
-      #               the module is home to more than just layout_tests (e.g.
-      #               layout_benchmarks also).
+      # TODO: Consider renaming the entire module to something like
+      #       "layout_snapshots" instead of "layout_tests", since the module is
+      #       home to more than just layout_tests (e.g.  layout_benchmarks
+      #       also).
       'target_name': 'layout_test_utils',
       'type': 'static_library',
       'sources': [

@@ -25,8 +25,8 @@ namespace {
 // Libxml SAX handler.
 //   http://www.xmlsoft.org/html/libxml-tree.html#xmlSAXHandler
 
-// NOTE: Please read ***REMOVED***xxe before implementing handler fields such as
-// resolveEntity and entityDecl.
+// NOTE: Please read about XXE attacks before implementing handler fields such
+// as resolveEntity and entityDecl.
 xmlSAXHandler xml_sax_handler = {
     NULL,           /* internalSubset */
     NULL,           /* isStandalone */
