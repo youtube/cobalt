@@ -30,8 +30,9 @@ class HTMLElement;
 class NodeList;
 class Node;
 
-// Only a subset of selectors is supported as specified here:
-//   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
+// Only a subset of selectors is supported.
+// TODO: Add markdown file with set of supported selectors.
+//
 // Those selectors that are supported are implemented after Selectors Level 4.
 //   https://www.w3.org/TR/selectors4/
 

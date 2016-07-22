@@ -2751,7 +2751,6 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       // positioning, because they are treated as block boxes but are supposed
       // to placed at the position they would be in the normal flow.
       // https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
-      // This is tracked as b/29370980.
       if ((*value == KeywordValue::GetInline() ||
            *value == KeywordValue::GetInlineBlock()) &&
           IsAbsolutelyPositioned()) {

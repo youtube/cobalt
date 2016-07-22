@@ -557,7 +557,7 @@ WebModule::WebModule(
                             construction_data));
 
   // Block this thread until the initialization is complete.
-  // TODO(b/28986973): Figure out why this is necessary.
+  // TODO: Figure out why this is necessary.
   // It would be preferable to return immediately and let the WebModule
   // continue in its own time, but without this wait there is a race condition
   // such that inline scripts may be executed before the document elements they

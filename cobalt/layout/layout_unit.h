@@ -30,7 +30,6 @@ namespace cobalt {
 namespace layout {
 
 // This is used to represent distances and positions during layout.
-// See ***REMOVED***cobalt-layout-units.
 class LayoutUnit {
  public:
   // The ratio of the LayoutUnit fixed point value to integers.

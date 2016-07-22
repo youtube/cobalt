@@ -47,7 +47,7 @@ namespace javascriptcore {
 // JavaScriptCore-specific implementation of a JavaScript debugger.
 // Uses multiple inheritance in accordance with the C++ style guide to extend
 // JSC::Debugger and implement ScriptDebugger.
-// https://engdoc.***REMOVED***/eng/doc/devguide/cpp/styleguide.shtml?cl=head#Multiple_Inheritance
+//
 // Only the ScriptDebugger is publicly exposed.
 // This class is not designed to be thread-safe - it is assumed that all
 // public methods will be run on the same message loop as the JavaScript

@@ -346,7 +346,7 @@ void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Document::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Document::Duplicate() const {
-  // Note: Documents should not be duplicated by ***REMOVED***, we just need to
+  // Note: Documents should not be duplicated by clients, we just need to
   // provide an implementation since Document inherits from Node.
   NOTIMPLEMENTED();
   return NULL;

@@ -18,8 +18,8 @@
 
 [NoInterfaceObject]
 interface WindowTimers {
-  // TODO(***REMOVED***, b/21560766, b/21560873): Change the following methods back to
-  // their original form in the spec, when "Function" and "any" are supported.
+  // TODO: Change the following methods back to their original form in the spec,
+  // when "Function" and "any" are supported.
   //   https://www.w3.org/TR/html5/webappapis.html#timers
   long setTimeout(TimerCallback handler, optional long timeout);
   void clearTimeout(long handle);

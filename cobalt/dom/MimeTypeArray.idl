@@ -18,8 +18,7 @@
 
 // A MimeTypeArray object represents the MIME types explicitly supported by
 // plugins supported by the user agent, each of which is represented by a
-// MimeType object. ***REMOVED*** does not use this interface, but stub support is
-// required for ads.
+// MimeType object. Currently only stub support is required.
 interface MimeTypeArray {
   readonly attribute long length;
 };

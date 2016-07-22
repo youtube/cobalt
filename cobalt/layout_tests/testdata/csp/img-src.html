@@ -36,7 +36,7 @@ div {
         }
       }
       images[i].onerror = function() {
-        // NOTE: This won't be called due to b/24882251.
+        // NOTE: This won't be called due to an outstanding bug.
         console.log('Error loading: ' + this.src);
       }
       images[i].src = urls[i];

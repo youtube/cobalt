@@ -41,9 +41,8 @@ scoped_refptr<CSSRule> CSSRuleList::Item(unsigned int index) const {
 
 unsigned int CSSRuleList::InsertRule(const std::string& rule,
                                      unsigned int index) {
-  // TODO: Currently we only support appending rule to the end of the
-  // rule list, which is the use case in performance spike and ***REMOVED***. Properly
-  // implement insertion if necessary.
+  // TODO: Currently we only support appending rule to the end of the rule
+  // list. Properly implement insertion if necessary.
   DCHECK(parent_css_style_sheet_);
   scoped_refptr<CSSRule> css_rule =
       parent_css_style_sheet_->css_parser()->ParseRule(

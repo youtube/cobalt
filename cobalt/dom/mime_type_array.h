@@ -24,8 +24,7 @@ namespace dom {
 
 // A MimeTypeArray object represents the MIME types explicitly supported by
 // plugins supported by the user agent, each of which is represented by a
-// MimeType object. ***REMOVED*** does not use this interface, but stub support is
-// required for ads.
+// MimeType object. Only stub support is currently required.
 // https://www.w3.org/html/wg/drafts/html/master/webappapis.html#mimetypearray
 class MimeTypeArray : public script::Wrappable {
  public:

@@ -49,7 +49,7 @@ GURL ResolveUrl(const char* arg) {
       FilePath content_path;
       PathService::Get(base::DIR_EXE, &content_path);
       DCHECK(content_path.IsAbsolute());
-      // TODO: Get the "real" exe path. b/27257060
+      // TODO: Get the "real" exe path.
       result = content_path.DirName().DirName().Append(result);
     }
     video_url = net::FilePathToFileURL(result);

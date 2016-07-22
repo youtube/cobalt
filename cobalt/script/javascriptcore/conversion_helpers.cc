@@ -58,7 +58,7 @@ JSC::JSValue TokenToJSValue(JSC::JSGlobalData* global_data,
 WTF::String ToWTFString(const std::string& utf8_string) {
   WTF::String wtf_string;
   // If the string is all ASCII, we can convert it using half the memory of
-  // the generalized conversion function. This is significant as ***REMOVED*** uses
+  // the generalized conversion function. This is significant as  uses
   // some huge ASCII-only source files (> 10M chars).
   if (IsStringASCII(utf8_string)) {
     wtf_string = WTF::String(utf8_string.c_str(), utf8_string.length());

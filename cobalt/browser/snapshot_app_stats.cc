@@ -32,27 +32,18 @@ namespace {
 const int kSecondsToWait = 20;
 
 // The list of CVals we are interested in reporting.
+//
 // Note that if you add an item to this list, you should also add a column
-// to the stats tracking table in the database.  You can add a column with the
-// following commands:
-//
-// > prodaccess
-// > /***REMOVED***/projects/speckle/mysql -S /cloudsql/carbon-airlock-95823:steel-build-statistics -u root SteelBuildStatistics
-// > ALTER TABLE SnapshotAppStats ADD COLUMN yourCvalName DECIMAL(20, 10);
-//
-// Where you would replace "yourCvalName" above with the name of the CVal except
-// with the dots removed and the cval name converted to camel case.  For
-// example, "DOM.TokenLists" would become "dOMTokenLists".
-//
-// You can examine the current database table here:
-//   https://***REMOVED***.***REMOVED***/#/table/google::youtube_steel.SnapshotAppStats/schema
+// to the stats tracking table in the database. Please see the document titled
+// "Adding a SnapshotAppStats column" on the Cobalt intranet home page for
+// examples on how to add a new column.
+
+// The naming convention for CVal columns in the database are the same as the
+// name of the CVal except with the dots removed and the CVal name converted to
+// camel case.  For example, "DOM.TokenLists" would become "dOMTokenLists".
 //
 // A document that explains how to modify the database in more detail can be
-// found here:
-//   https://docs.google.com/document/d/1N5us1taagC6wWonEDrMmvYeTj4MOfKPwVA8wJH9CMlw/edit
-//
-// Note that the database schema can be viewed from here:
-//   https://cs.***REMOVED***/#piper///depot/***REMOVED***/video/youtube/tv/steel/steel_stats/db.sql&cl=101617641
+// found called "Dashboard TDD" on the Cobalt intranet home page.
 
 const char* g_cvals_to_snapshot[] = {
     "Count.DOM.Nodes",

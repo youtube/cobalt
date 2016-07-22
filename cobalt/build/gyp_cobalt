@@ -229,7 +229,7 @@ class _GypRunner(object):
     # build file.
     gyp_includes = [
         os.path.join(SCRIPT_DIR, 'config', 'base.gypi'),
-        # TODO(***REMOVED***): Consider removing dependency on common.gypi
+        # TODO: Consider removing dependency on common.gypi
         # going forward by moving the required bits into config/base.gypi.
         os.path.join(source_tree_dir, 'build', 'common.gypi'),
     ]

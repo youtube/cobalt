@@ -31,7 +31,7 @@ namespace dom {
 class EventListener {
  public:
   // EventHandlers are implemented as EventListener?, so use this to
-  // differentiate between the two (b/21154386).
+  // differentiate between the two.
   enum Type {
     kAttribute,
     kNotAttribute,
