@@ -331,8 +331,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
                !skip_eos_append) {
       DCHECK_EQ(packet.size, 0);
       // Create an end of stream output buffer.
-      output = DecoderBuffer::CreateEOSBuffer(
-          output_timestamp_helper_->GetTimestamp());
+      output = DecoderBuffer::CreateEOSBuffer(kNoTimestamp());
     }
 
     if (output) {
