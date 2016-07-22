@@ -16,14 +16,15 @@
 #define STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_EXTERNAL_ACCESS_HACK_PUBLIC_H_
 
 // This file defines "backdoor" functions that allow external libraries access
-// to internal functions.  In particular, this is currently being used by
-// PS3 Cobalt to gain access to thread local storage thread initialization
-// and shutdown functions since the PS3 is only "kinda" using Starboard right
-// now, via glimp.  Since most of Cobalt creates threads through pthreads, not
-// Starboard, we need to call these functions on newly created pthread-created
-// threads.
-// TODO: This file should ABSOLUTELY be removed as soon as the PS3 is
-//               fully up and running on Starboard.
+// to internal functions.  In particular, this is currently being used by Cobalt
+// on some non-Starboard platforms to gain access to thread local storage thread
+// initialization and shutdown functions since some platforms are only "kinda"
+// using Starboard right now, via glimp.  Since most of non-Starboard Cobalt
+// creates threads through pthreads, not Starboard, we need to call these
+// functions on newly created pthread-created threads.
+
+// TODO: This file should ABSOLUTELY be removed as soon as all platforms are
+//       fully up and running on Starboard.
 
 #ifdef __cplusplus
 extern "C" {
