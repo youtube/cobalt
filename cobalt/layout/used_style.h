@@ -85,10 +85,10 @@ class UsedStyleProvider {
   dom::FontListKey font_list_key_;
 
   // The last_font member variables are used to speed up |GetUsedFontList()|.
-  // Around 85% of the time in ***REMOVED***, the current font list matches the last
-  // font list, so immediately comparing the current font list's properties
-  // against the last font list's properties, prior to updating the font list
-  // key and performing a font cache lookup, results in a significant
+  // Around 85% of the time in current clients, the current font list matches
+  // the last font list, so immediately comparing the current font list's
+  // properties against the last font list's properties, prior to updating the
+  // font list key and performing a font cache lookup, results in a significant
   // performance improvement.
   scoped_refptr<cssom::PropertyValue> last_font_family_refptr_;
   scoped_refptr<cssom::PropertyValue> last_font_style_refptr_;

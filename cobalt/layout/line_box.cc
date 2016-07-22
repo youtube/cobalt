@@ -164,7 +164,7 @@ void LineBox::BeginEstimateStaticPosition(Box* child_box) {
 
   switch (child_box->GetLevel()) {
     case Box::kInlineLevel:
-      // NOTE: This case is never reached as a result of b/29370980.
+      // NOTE: This case is never reached due to a bug.
       child_box->SetStaticPositionLeftFromParent(shrink_to_fit_width_);
       break;
     case Box::kBlockLevel:
@@ -366,7 +366,7 @@ bool LineBox::TryWrapOverflowingBoxAndMaybeAddSplitChild(
     UpdateSizePreservingTrailingWhiteSpace(child_box);
     BeginAddChildInternal(child_box);
 
-    // TODO: Enable this logic after implementing b/27134223.
+    // TODO: Enable this logic.
     // if (wrap_opportunity_policy == kWrapAtPolicyLastOpportunityWithinWidth) {
     // If trailing white space is being collapsed, then the child box can
     // exceed the available width prior to white space being collapsed. So the

@@ -31,7 +31,9 @@ namespace cobalt {
 namespace loader {
 
 // Loader class consists of a Fetcher and a Decoder, that loads and decodes a
-// resource respectively. See the Loader design doc under ***REMOVED***cobalt.
+// resource respectively. See the Loader design doc under the Cobalt intranet
+// home page.
+// TODO: Migrate Loader design doc to markdown in this directory.
 class Loader {
  public:
   // The construction of Loader initiates the loading. It takes the ownership

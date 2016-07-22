@@ -173,8 +173,8 @@ enum ImpactsBoxCrossReferences {
 };
 
 // NOTE: The array size of SmallMap and the decision to use std::map as the
-// underlying container type are based on extensive performance testing with
-// ***REMOVED***. Do not change these unless additional profiling data justifies it.
+// underlying container type are based on extensive performance testing. Do not
+// change these unless additional profiling data justifies it.
 typedef base::SmallMap<std::map<PropertyKey, GURL>, 1> GURLMap;
 
 const char* GetPropertyName(PropertyKey key);

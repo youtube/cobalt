@@ -49,7 +49,7 @@ std::string H5vccSystem::region() const {
 std::string H5vccSystem::version() const { return COBALT_VERSION; }
 
 // In the future some platforms may launch custom help dialogs.
-// return false to indicate ***REMOVED*** should launch their own dialog.
+// return false to indicate the client should launch their own dialog.
 bool H5vccSystem::TriggerHelp() const { return false; }
 
 }  // namespace h5vcc

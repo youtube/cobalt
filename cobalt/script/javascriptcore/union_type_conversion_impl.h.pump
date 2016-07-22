@@ -114,9 +114,9 @@ $for TYPE [[
 ]]
   }
 
-  // TODO(***REMOVED***): Support Date, RegExp, DOMException, Error, ArrayBuffer
-  //     DataView, TypedArrayName, callback functions, dictionary, array type.
-  //     and sequences if necessary.
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
+  //       TypedArrayName, callback functions, dictionary, array type.
+  //       And sequences if necessary.
 
   // 14. If V is a Boolean value, then:
   //   1. If types includes a boolean, then return the result of converting V

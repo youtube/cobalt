@@ -25,11 +25,11 @@ interface HTMLScriptElement : HTMLElement {
   attribute DOMString nonce;
 
   // This method is deprecated but it is needed to workaround for lack of
-  // Promise.  See b/25387308 for more details.
+  // Promise.
   attribute EventHandler onreadystatechange;
 };
 
-// TODO(b/21154386): The IDL defines EventHandler as a nullable callback
+// TODO: The IDL defines EventHandler as a nullable callback
 // function. Define it as a nullable EventListener for now until we can do
 // some refactoring to accept both in the EventTarget implementation.
 typedef EventListener? EventHandler;
