@@ -47,8 +47,8 @@ class Element : public Node {
  public:
   // NOTE1: The array size of base::SmallMap and the decision to use
   // base::hash_map as the underlying container type are based on extensive
-  // performance testing with ***REMOVED***. Do not change these unless additional
-  // profiling data justifies it.
+  // performance testing. Do not change these unless additional profiling data
+  // justifies it.
   // NOTE2: Using base::SmallMap rather than base::hash_map also results in
   // substantial memory gains when live videos are played. These videos trigger
   // the creation of XML documents with over 20k elements, of which over 99%

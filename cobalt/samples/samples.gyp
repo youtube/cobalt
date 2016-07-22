@@ -19,7 +19,6 @@
   'targets': [
     # Independent components should be broken into separate and testable
     # libraries.
-    # More info: ***REMOVED***tott/2014/06/episode-336-build-files-in-bathroom.html
     {
       'target_name': 'simple_example_lib',
       'type': 'static_library',

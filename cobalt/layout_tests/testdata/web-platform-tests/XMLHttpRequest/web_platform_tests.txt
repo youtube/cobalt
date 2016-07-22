@@ -19,7 +19,7 @@ abort-event-order.htm,PASS
 abort-upload-event-abort.htm,PASS
 abort-upload-event-loadend.htm,PASS
 anonymous-mode-unsupported.htm,PASS
-# Unsupported by XHR currently. b/25800310
+# Unsupported by XHR currently.
 data-uri.htm,FAIL
 event-abort.htm,PASS
 event-error.html,PASS
@@ -27,7 +27,7 @@ event-loadend.htm,PASS
 event-load.htm,PASS
 event-loadstart.htm,PASS
 event-progress.htm,PASS
-# b/26037221 - we intentionally fire multiple LOADING events.
+# We intentionally fire multiple LOADING events.
 event-readystatechange-loaded.htm,DISABLE
 event-timeout.htm,PASS
 event-upload-progress-crossorigin.sub.htm,PASS

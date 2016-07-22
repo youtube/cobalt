@@ -24,7 +24,7 @@ namespace dom {
 
 // A PluginArray object represents none, some, or all of the plugins supported
 // by the user agent, each of which is represented by a Plugin object.
-// ***REMOVED*** does not use this interface, but stub support is required for ads.
+// Only stub support is currently required.
 // https://www.w3.org/html/wg/drafts/html/master/webappapis.html#pluginarray
 class PluginArray : public script::Wrappable {
  public:

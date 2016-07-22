@@ -220,7 +220,7 @@ class ParserImpl {
   friend int yyparse(ParserImpl* parser_impl);
 };
 
-// TODO: Stop deduplicating warnings after cleaning up CSS in ***REMOVED***.
+// TODO: Stop deduplicating warnings.
 #ifdef __LB_SHELL__FORCE_LOGGING__
 namespace {
 

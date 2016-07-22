@@ -21,8 +21,8 @@
 // Document objects that share that top-level browsing context, with all the
 // entries that are current entries in their respective session histories
 // removed except for the current entry of the joint session history.
-// ***REMOVED*** does not use the History interface, just a stubbed implementation is
-// required. However, more support may be needed in the future for other clients.
+// Just a stubbed implementation is currently required. However, more support
+// may be needed in the future for other clients.
 interface History {
   readonly attribute long length;
 };

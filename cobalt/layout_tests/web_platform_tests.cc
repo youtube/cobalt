@@ -19,9 +19,11 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/message_loop.h"
 #include "base/run_loop.h"
+#include "base/string_util.h"
 #include "base/values.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/csp_delegate_factory.h"
@@ -262,11 +264,18 @@ TEST_P(WebPlatformTest, Run) {
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           "web-platform-test-server");
   if (test_server.empty()) {
-#if defined(__LB_PS3__)
-    test_server = "http://freedom.sbo.***REMOVED***:8000";
+    FilePath url_path = GetTestInputRootDirectory()
+                        .Append(FILE_PATH_LITERAL("web-platform-tests"));
+#if defined(COBALT_LINUX) || defined(COBALT_WIN)
+    // Get corp configuration.
+    url_path = url_path.Append(FILE_PATH_LITERAL("corp.url"));
 #else
-    test_server = "http://cobalt-build.***REMOVED***:8000";
+    // Get lab configuration.
+    url_path = url_path.Append(FILE_PATH_LITERAL("lab.url"));
 #endif
+    file_util::ReadFileToString(url_path, &test_server);
+    TrimWhitespaceASCII(test_server, TRIM_ALL, &test_server);
+    ASSERT_FALSE(test_server.empty());
   }
   GURL test_url = GURL(test_server).Resolve(GetParam().url);
 
