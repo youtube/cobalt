@@ -106,10 +106,7 @@
 // silence it.
 # include <windows.h>  // NOLINT
 
-#elif __LB_XB1__
-# include <windows.h>
-#elif __LB_XB360__
-# define GTEST_HAS_GETTIMEOFDAY_ 1
+#elif COBALT_WIN
 # include <windows.h>
 #else
 
