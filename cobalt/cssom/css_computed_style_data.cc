@@ -270,7 +270,8 @@ void CSSComputedStyleData::SetPropertyValue(
   if (value) {
     declared_properties_.set(key, true);
     declared_property_values_[key] = value;
-    has_inherited_properties_ |= GetPropertyInheritance(key) == kInheritedYes;
+    has_inherited_properties_ = has_inherited_properties_ ||
+                                GetPropertyInheritance(key) == kInheritedYes;
   } else if (declared_properties_[key]) {
     declared_properties_.set(key, false);
     declared_property_values_.erase(key);
