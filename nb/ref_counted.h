@@ -239,7 +239,7 @@ class scoped_refptr {
     return ptr_;
   }
 // The compiler requires an explicit * operator here.
-#if defined(__LB_PS3__) || defined(__LB_WIIU__)
+#if defined(__LB_PS3__)
   T& operator*() const {
     SB_DCHECK(ptr_ != NULL);
     return *ptr_;
