@@ -200,7 +200,7 @@ inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
                       MozjsExceptionState* exception_state,
                       JS::MutableHandleValue out_value) {
   if (!in_optional) {
-    out_value.set(JS::NullHandleValue);
+    out_value.setNull();
     return;
   }
   ToJSValue(context, in_optional.value(), exception_state, out_value);
@@ -212,9 +212,9 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags,
                         MozjsExceptionState* exception_state,
                         base::optional<T>* out_optional) {
-  if (value == JS::NullHandleValue) {
+  if (value.isNull()) {
     *out_optional = base::nullopt;
-  } else if (value == JS::UndefinedHandleValue) {
+  } else if (value.isUndefined()) {
     *out_optional = base::nullopt;
   } else {
     *out_optional = T();
@@ -227,6 +227,26 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, MozjsExceptionState* exception_state,
                  std::string* out_string);
+
+// JSValue -> optional<T>
+template <>
+inline void FromJSValue(JSContext* context, JS::HandleValue value,
+                        int conversion_flags,
+                        MozjsExceptionState* exception_state,
+                        base::optional<std::string>* out_optional) {
+  if (value.isNull()) {
+    *out_optional = base::nullopt;
+  } else if (value.isUndefined() &&
+             !(conversion_flags & kConversionFlagTreatUndefinedAsEmptyString)) {
+    // If TreatUndefinedAs=EmptyString is set, skip the default conversion
+    // of undefined to null.
+    *out_optional = base::nullopt;
+  } else {
+    *out_optional = std::string();
+    FromJSValue(context, value, conversion_flags & ~kConversionFlagNullable,
+                exception_state, &(out_optional->value()));
+  }
+}
 
 // OpaqueHandle -> JSValue
 void ToJSValue(JSContext* context,
