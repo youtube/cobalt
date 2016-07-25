@@ -17,9 +17,9 @@
 #ifndef NB_ALLOCATOR_H_
 #define NB_ALLOCATOR_H_
 
-// TODO: Include "starboard/types.h" once PS3 is ported to starboard.  Currently
-// including <vector> is used as a platform independent way to introduce
-// std::size_t.
+// TODO: Include "starboard/types.h" once legacy platforms are ported to
+// starboard.  Currently including <vector> is used as a platform independent
+// way to introduce std::size_t.
 #include <vector>
 
 namespace nb {
