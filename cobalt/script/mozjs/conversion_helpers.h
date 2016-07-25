@@ -194,6 +194,35 @@ inline void ToJSValue(JSContext* context, const std::string& in_string,
       JS_NewStringCopyN(context, in_string.c_str(), in_string.length())));
 }
 
+// optional<T> -> JSValue
+template <typename T>
+inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
+                      MozjsExceptionState* exception_state,
+                      JS::MutableHandleValue out_value) {
+  if (!in_optional) {
+    out_value.set(JS::NullHandleValue);
+    return;
+  }
+  ToJSValue(context, in_optional.value(), exception_state, out_value);
+}
+
+// JSValue -> optional<T>
+template <typename T>
+inline void FromJSValue(JSContext* context, JS::HandleValue value,
+                        int conversion_flags,
+                        MozjsExceptionState* exception_state,
+                        base::optional<T>* out_optional) {
+  if (value == JS::NullHandleValue) {
+    *out_optional = base::nullopt;
+  } else if (value == JS::UndefinedHandleValue) {
+    *out_optional = base::nullopt;
+  } else {
+    *out_optional = T();
+    FromJSValue(context, value, conversion_flags & ~kConversionFlagNullable,
+                exception_state, &(out_optional->value()));
+  }
+}
+
 // JSValue -> std::string
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, MozjsExceptionState* exception_state,
