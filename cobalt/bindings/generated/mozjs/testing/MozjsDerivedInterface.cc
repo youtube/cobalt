@@ -33,6 +33,7 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -62,6 +63,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -74,6 +76,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
+static base::LazyInstance<ProxyHandler> proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -129,8 +133,10 @@ JSBool get_derivedAttribute(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   DerivedInterface* impl =
-      WrapperPrivate::GetWrappable<DerivedInterface>(object);
+      wrapper_private->wrappable<DerivedInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->derived_attribute();
   if (!exception_state.IsExceptionSet()) {
@@ -162,8 +168,10 @@ JSBool fcn_derivedOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   DerivedInterface* impl =
-      WrapperPrivate::GetWrappable<DerivedInterface>(object);
+      wrapper_private->wrappable<DerivedInterface>().get();
   impl->DerivedOperation();
   result_value.set(JS::UndefinedHandleValue);
 
@@ -281,7 +289,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsDerivedInterface::CreateInstance(
+JSObject* MozjsDerivedInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -289,8 +297,11 @@ JSObject* MozjsDerivedInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 // static
