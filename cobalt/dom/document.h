@@ -327,6 +327,11 @@ class Document : public Node, public cssom::MutationObserver {
   // Animations, using all the style sheets in the document.
   void UpdateKeyframes();
 
+  // Returns whether the document is the active document shown in the window.
+  // TODO: Currently implemented by looking up whether viewport size is set,
+  // ideally it should depend on whether browser context exists.
+  bool IsActiveDocument() { return !!viewport_size_; }
+
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
   // Associated DOM implementation object.
