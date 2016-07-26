@@ -23,6 +23,7 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -44,6 +45,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -53,6 +55,8 @@ using cobalt::script::Wrappable;
 
 {% block implementation %}
 namespace {
+static base::LazyInstance<ProxyHandler> proxy_handler;
+
 {% for constant in constants %}
 JSBool get_{{constant.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
@@ -423,7 +427,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 {% if is_global_interface %}
-JSObject* {{binding_class}}::CreateInstance(
+JSObject* {{binding_class}}::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject global_object(
@@ -454,14 +458,16 @@ JSObject* {{binding_class}}::CreateInstance(
   success = JS_DefineProperties(context, global_object, own_properties);
   DCHECK(success);
 
-  WrapperPrivate::AddPrivateData(global_object, wrappable);
-
-  return global_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, global_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 {% else %}
 // static
-JSObject* {{binding_class}}::CreateInstance(
+JSObject* {{binding_class}}::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -469,8 +475,11 @@ JSObject* {{binding_class}}::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 {% endif %}
@@ -515,7 +524,7 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
   JSContext* context = mozjs_global_object_proxy->context();
 
   JSAutoRequest auto_request(context);
-  {{binding_class}}::CreateInstance(
+  {{binding_class}}::CreateProxy(
       context, global_interface);
   mozjs_global_object_proxy->SetEnvironmentSettings(environment_settings);
 
@@ -529,7 +538,7 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
   {% if interface.name != impl_class %}
   wrapper_factory->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
-      base::Bind(Mozjs{{interface.name}}::CreateInstance));
+      base::Bind(Mozjs{{interface.name}}::CreateProxy));
   {% endif %}
 {% if interface.conditional %}
 #endif  // defined({{interface.conditional}})

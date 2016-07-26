@@ -41,8 +41,9 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   void RegisterWrappableType(base::TypeId wrappable_type,
                              const CreateWrapperFunction& create_function);
 
-  // Gets the Wrapper object for this Wrappable. It may create a new Wrapper.
-  JSObject* GetWrapper(const scoped_refptr<Wrappable>& wrappable) const;
+  // Gets the Proxy for the Wrapper object for this Wrappable. It may create a
+  // new Wrapper and Proxy.
+  JSObject* GetWrapperProxy(const scoped_refptr<Wrappable>& wrappable) const;
 
   // Returns true if this JSObject is a Wrapper object.
   bool IsWrapper(JS::HandleObject wrapper) const;

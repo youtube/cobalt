@@ -34,8 +34,12 @@ namespace mozjs {
 // must be destroyed when its JSObject is garbage collected.
 class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  public:
-  const scoped_refptr<Wrappable>& wrappable() const { return wrappable_; }
-  JSObject* js_object() const { return wrapper_; }
+  template <typename T>
+  scoped_refptr<T> wrappable() const {
+    return base::polymorphic_downcast<T*>(wrappable_.get());
+  }
+
+  JSObject* js_object_proxy() const { return wrapper_proxy_; }
 
   // Add/Remove a reference to the object. The object will be visited during
   // garbage collection.
@@ -43,7 +47,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   void RemoveReferencedObject(JS::HandleObject referee);
 
   // Create a new WrapperPrivate instance and associate it with the wrapper.
-  static void AddPrivateData(JS::HandleObject wrapper,
+  static void AddPrivateData(JS::HandleObject wrapper_proxy,
                              const scoped_refptr<Wrappable>& wrappable);
 
   // Get the WrapperPrivate associated with the given Wrappable. A new JSObject
@@ -52,13 +56,17 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
       const scoped_refptr<Wrappable>& wrappable, JSContext* context,
       WrapperFactory* wrapper_factory);
 
-  template <typename T>
-  static T* GetWrappable(JS::HandleObject wrapper) {
-    WrapperPrivate* private_data =
-        static_cast<WrapperPrivate*>(JS_GetPrivate(wrapper));
-    DCHECK(private_data);
-    return base::polymorphic_downcast<T*>(private_data->wrappable_.get());
-  }
+  // Get the WrapperPrivate instance associated with this Wrapper object.
+  static WrapperPrivate* GetFromWrapperObject(JS::HandleObject object);
+
+  // Get the WrapperPrivate instance associated with the target of this proxy.
+  static WrapperPrivate* GetFromProxyObject(JSContext* context,
+                                            JS::HandleObject proxy_object);
+
+  // Get the WrapperPrivate instance associated with the object, which may
+  // be a proxy or a proxy target.
+  static WrapperPrivate* GetFromObject(JSContext* context,
+                                       JS::HandleObject object);
 
   // Called when the wrapper object is about to be deleted by the GC.
   static void Finalizer(JSFreeOp* /* free_op */, JSObject* object);
@@ -69,11 +77,10 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  private:
   typedef ScopedVector<JS::Heap<JSObject*> > ReferencedObjectVector;
   WrapperPrivate(const scoped_refptr<Wrappable>& wrappable,
-                 JS::HandleObject wrapper)
-      : wrappable_(wrappable), wrapper_(wrapper) {}
+                 JS::HandleObject wrapper_proxy);
 
   scoped_refptr<Wrappable> wrappable_;
-  JS::Heap<JSObject*> wrapper_;
+  JS::Heap<JSObject*> wrapper_proxy_;
   ReferencedObjectVector referenced_objects_;
 };
 

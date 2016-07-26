@@ -40,7 +40,7 @@ namespace testing {
 
 class MozjsDisabledInterface {
  public:
-  static JSObject* CreateInstance(JSContext* context,
+  static JSObject* CreateProxy(JSContext* context,
       const scoped_refptr<script::Wrappable>& wrappable);
   static JSObject* GetPrototype(JSContext* context);
   static JSObject* GetInterfaceObject(JSContext* context);
