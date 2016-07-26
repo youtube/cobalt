@@ -111,12 +111,15 @@ class SurfaceCache {
     explicit NodeData(render_tree::Node* node)
         : surface(NULL),
           visited_this_frame(true),
-          consecutive_frames_visited_(0),
+          consecutive_frames_visited(0),
           is_cache_candidate(false),
           node(node) {}
 
     // The size in bytes occupied by a cached surface representing this node.
     int size_in_bytes() { return render_size.GetArea() * 4; }
+
+    // Returns whether or not this node is cached or not.
+    bool cached() const { return surface != NULL; }
 
     // Tracks how long it last took to render this node.
     base::TimeDelta duration;
@@ -133,7 +136,7 @@ class SurfaceCache {
     bool visited_this_frame;
 
     // How many frames was this node visited consecutively?
-    int consecutive_frames_visited_;
+    int consecutive_frames_visited;
 
     // True if this node should be inserted into the cache next time it is
     // encountered.
@@ -222,6 +225,19 @@ class SurfaceCache {
  private:
   class SortByDurationDifferencePerPixel;
   class SortByDurationDifference;
+
+  // Helper function to determine which nodes within |nodes| would be best
+  // to cache, given that they fit within |cache_capacity|.  This method takes
+  // ownership of |nodes| and modifies it, so its contents may not remain intact
+  // after this call.  |apply_surface_time_model| is the model of how much time
+  // it takes to render a cached surface.  The resulting set of nodes that
+  // should be cached will be placed in the output parameter, |results|.  The
+  // return value is the total size of all cached nodes, and is guaranteed to
+  // be less than |cache_capacity|.
+  static int SelectNodesToCacheNextFrame(const Line& apply_surface_time_model,
+                                         int cache_capacity,
+                                         std::vector<NodeData*>* nodes,
+                                         std::vector<NodeData*>* results);
 
   // Returns true if it is possible to cache the specified node.
   bool MeetsCachingCriteria(const NodeData& node_data,
