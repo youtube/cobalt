@@ -28,6 +28,7 @@
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsproxy.h"
 
 namespace cobalt {
 namespace script {
@@ -274,7 +275,8 @@ inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
   JS::RootedObject object(
-      context, global_object_proxy->wrapper_factory()->GetWrapper(in_object));
+      context,
+      global_object_proxy->wrapper_factory()->GetWrapperProxy(in_object));
   DCHECK(object);
 
   out_value.set(OBJECT_TO_JSVAL(object));
@@ -304,15 +306,20 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
 
   DCHECK(js_object);
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-  if (global_object_proxy->wrapper_factory()->IsWrapper(js_object)) {
-    *out_object = WrapperPrivate::GetWrappable<T>(js_object);
-  } else {
-    // This is not a platform object. Return a type error.
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        kDoesNotImplementInterface);
+  if (js::IsProxy(js_object)) {
+    JS::RootedObject wrapper(context, js::GetProxyTargetObject(js_object));
+    MozjsGlobalObjectProxy* global_object_proxy =
+        static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+    if (global_object_proxy->wrapper_factory()->IsWrapper(wrapper)) {
+      WrapperPrivate* wrapper_private =
+          WrapperPrivate::GetFromWrapperObject(wrapper);
+      *out_object = wrapper_private->wrappable<T>();
+      return;
+    }
   }
+  // This is not a platform object. Return a type error.
+  exception_state->SetSimpleException(ExceptionState::kTypeError,
+                                      kDoesNotImplementInterface);
 }
 
 // TODO: These will be removed once conversion for all types is implemented.
