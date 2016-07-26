@@ -33,10 +33,12 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -63,6 +65,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
@@ -76,7 +79,142 @@ namespace bindings {
 namespace testing {
 
 namespace {
-static base::LazyInstance<ProxyHandler> proxy_handler;
+
+bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
+                              const std::string& property_name) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  return impl->CanQueryNamedProperty(property_name);
+}
+
+void EnumerateSupportedNames(JSContext* context, JS::HandleObject object,
+                             JS::AutoIdVector* properties) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  MozjsPropertyEnumerator enumerator(context, properties);
+  impl->EnumerateNamedProperties(&enumerator);
+}
+
+JSBool GetNamedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  std::string property_name;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
+              &property_name);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<std::string >::ReturnType value =
+      impl->NamedGetter(property_name);
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context, value, &exception_state, &result_value);
+  }
+
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool SetNamedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  std::string property_name;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
+              &property_name);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<std::string >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags,
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  impl->NamedSetter(property_name, value);
+  result_value.set(JS::UndefinedHandleValue);
+
+  return !exception_state.is_exception_set();
+}
+
+bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
+                         const std::string& property_name) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  impl->NamedDeleter(property_name);
+  result_value.set(JS::UndefinedHandleValue);
+
+  return !exception_state.is_exception_set();
+}
+
+class MozjsNamedGetterInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsNamedGetterInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsNamedGetterInterfaceHandler::named_property_hooks = {
+  IsSupportedNamedProperty,
+  EnumerateSupportedNames,
+  GetNamedProperty,
+  SetNamedProperty,
+  DeleteNamedProperty,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsNamedGetterInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsNamedGetterInterfaceHandler>
+    proxy_handler;
 
 
 InterfaceData* CreateCachedInterfaceData() {
@@ -115,7 +253,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "NamedGetterInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -130,9 +269,6 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_namedDeleter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -145,7 +281,13 @@ JSBool fcn_namedDeleter(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -160,10 +302,6 @@ JSBool fcn_namedDeleter(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  NamedGetterInterface* impl =
-      wrapper_private->wrappable<NamedGetterInterface>().get();
   impl->NamedDeleter(name);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -175,9 +313,6 @@ JSBool fcn_namedDeleter(
 
 JSBool fcn_namedGetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -190,7 +325,13 @@ JSBool fcn_namedGetter(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -205,10 +346,6 @@ JSBool fcn_namedGetter(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  NamedGetterInterface* impl =
-      wrapper_private->wrappable<NamedGetterInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->NamedGetter(name);
   if (!exception_state.is_exception_set()) {
@@ -223,9 +360,6 @@ JSBool fcn_namedGetter(
 
 JSBool fcn_namedSetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -238,7 +372,13 @@ JSBool fcn_namedSetter(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
@@ -260,10 +400,6 @@ JSBool fcn_namedSetter(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  NamedGetterInterface* impl =
-      wrapper_private->wrappable<NamedGetterInterface>().get();
   impl->NamedSetter(name, value);
   result_value.set(JS::UndefinedHandleValue);
 
