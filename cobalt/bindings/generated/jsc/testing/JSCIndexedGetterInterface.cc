@@ -99,6 +99,7 @@ JSC::JSValue getJSlength(
     JSC::ExecState* exec_state,
     JSC::JSValue slot_base,
     JSC::PropertyName property_name);
+JSC::EncodedJSValue functionJSindexedDeleter(JSC::ExecState*);
 JSC::EncodedJSValue functionJSindexedGetter(JSC::ExecState*);
 JSC::EncodedJSValue functionJSindexedSetter(JSC::ExecState*);
 JSC::JSValue IndexedPropertyGetter(JSC::ExecState* exec_state,
@@ -332,6 +333,12 @@ class JSCIndexedGetterInterface::Prototype : public PrototypeBase {
 };
 
 const JSC::HashTableValue JSCIndexedGetterInterface::Prototype::property_table_values[] = {
+    { "indexedDeleter",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSindexedDeleter),
+        static_cast<intptr_t>(1),
+        JSC::NoIntrinsic
+    },
     { "indexedGetter",
         JSC::DontDelete | JSC::Function,
         reinterpret_cast<intptr_t>(functionJSindexedGetter),
@@ -355,8 +362,8 @@ const JSC::HashTableValue JSCIndexedGetterInterface::Prototype::property_table_v
 
 // static
 const JSC::HashTable JSCIndexedGetterInterface::Prototype::property_table_prototype = {
-    10,  // compactSize
-    7,  // compactSizeMask
+    19,  // compactSize
+    15,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
 };  // JSCIndexedGetterInterface::Prototype::property_table_prototype
@@ -742,6 +749,40 @@ JSC::JSValue getJSlength(
       global_object,
       impl->length());
   return result;
+}
+
+JSC::EncodedJSValue functionJSindexedDeleter(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCIndexedGetterInterface", "call indexedDeleter");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  IndexedGetterInterface* impl =
+      GetWrappableOrSetException<IndexedGetterInterface>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  const size_t kMinArguments = 1;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<uint32_t >::ConversionType index;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &index);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  impl->IndexedDeleter(index);
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
 }
 
 JSC::EncodedJSValue functionJSindexedGetter(

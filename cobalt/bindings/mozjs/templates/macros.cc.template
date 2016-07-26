@@ -37,17 +37,31 @@
   result_value.set(JS::UndefinedHandleValue);
 {%- endmacro %}
 
+{% macro get_impl_class_instance(impl_class) %}
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  {{impl_class}}* impl =
+      wrapper_private->wrappable<{{impl_class}}>().get();
+{%- endmacro %}
+
+{% macro static_function_prologue() %}
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+{% endmacro %}
+
+{% macro nonstatic_function_prologue(impl_class) %}
+{{ static_function_prologue() }}
+{{ get_impl_class_instance(impl_class) }}
+{%- endmacro %}
+
+{#
+ # Call a function on an instance of a Cobalt platform object.
+ #}
 {% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments,
                               raises_exception, call_with, is_static) %}
 {% if call_with %}
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-{% endif %}
-{% if not is_static %}
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  {{impl_class}}* impl =
-      wrapper_private->wrappable<{{impl_class}}>().get();
 {% endif %}
 {% do arguments.append("&exception_state") if raises_exception %}
 {% do arguments.append("global_object_proxy->Get%s()"|format(call_with))
@@ -58,4 +72,4 @@
 {{ call_nonvoid_function(cobalt_type, function_name, arguments, impl_class,
                          is_static) }}
 {% endif %}
-{% endmacro %}
+{%- endmacro %}

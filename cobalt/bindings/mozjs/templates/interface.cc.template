@@ -14,6 +14,9 @@
  # limitations under the License.
  #}
 {% from 'macros.cc.template' import call_cobalt_function %}
+{% from 'macros.cc.template' import get_impl_class_instance %}
+{% from 'macros.cc.template' import nonstatic_function_prologue %}
+{% from 'macros.cc.template' import static_function_prologue %}
 {% extends "interface-base.cc.template" %}
 {% block includes %}
 {{ super() }}
@@ -23,10 +26,12 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 {% endblock includes %}
@@ -45,6 +50,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
@@ -55,7 +61,212 @@ using cobalt::script::Wrappable;
 
 {% block implementation %}
 namespace {
-static base::LazyInstance<ProxyHandler> proxy_handler;
+
+{% if named_property_getter %}
+bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
+                              const std::string& property_name) {
+{{ get_impl_class_instance(impl_class) }}
+  return impl->CanQueryNamedProperty(property_name);
+}
+
+void EnumerateSupportedNames(JSContext* context, JS::HandleObject object,
+                             JS::AutoIdVector* properties) {
+{{ get_impl_class_instance(impl_class) }}
+  MozjsPropertyEnumerator enumerator(context, properties);
+  impl->EnumerateNamedProperties(&enumerator);
+}
+
+JSBool GetNamedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  std::string property_name;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
+              &property_name);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+{{ call_cobalt_function(impl_class, named_property_getter.type,
+                        named_property_getter.name, ["property_name"],
+                        named_property_getter.raises_exception,
+                        named_property_getter.call_with) }}
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if named_property_setter %}
+JSBool SetNamedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  std::string property_name;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
+              &property_name);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<{{named_property_setter.type}} >::ConversionType value;
+  FromJSValue(context, vp, {{named_property_setter.conversion_flags}},
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{{ call_cobalt_function(impl_class, "void",
+                        named_property_setter.name, ["property_name", "value"],
+                        named_property_setter.raises_exception,
+                        named_property_setter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if named_property_deleter %}
+bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
+                         const std::string& property_name) {
+{{ nonstatic_function_prologue(impl_class) }}
+{{ call_cobalt_function(impl_class, "void",
+                        named_property_deleter.name, ["property_name"],
+                        named_property_deleter.raises_exception,
+                        named_property_deleter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if indexed_property_getter %}
+bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
+                              uint32_t index) {
+{{ get_impl_class_instance(impl_class) }}
+  return index < impl->length();
+}
+
+void EnumerateSupportedIndexes(JSContext* context, JS::HandleObject object,
+                               JS::AutoIdVector* properties) {
+{{ get_impl_class_instance(impl_class) }}
+  const uint32_t kNumIndexedProperties = impl->length();
+  for (uint32_t i = 0; i < kNumIndexedProperties; ++i) {
+    properties->append(INT_TO_JSID(i));
+  }
+}
+
+JSBool GetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+{{ call_cobalt_function(impl_class, indexed_property_getter.type,
+                        indexed_property_getter.name, ["index"],
+                        indexed_property_getter.raises_exception,
+                        indexed_property_getter.call_with) }}
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if indexed_property_setter %}
+JSBool SetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<{{indexed_property_setter.type}} >::ConversionType value;
+  FromJSValue(context, vp, {{indexed_property_setter.conversion_flags}},
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{{ call_cobalt_function(impl_class, "void",
+                        indexed_property_setter.name, ["index", "value"],
+                        indexed_property_setter.raises_exception,
+                        indexed_property_setter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if indexed_property_deleter %}
+bool DeleteIndexedProperty(
+    JSContext* context, JS::HandleObject object, uint32_t index) {
+{{ nonstatic_function_prologue(impl_class) }}
+{{ call_cobalt_function(impl_class, "void",
+                        indexed_property_deleter.name, ["index"],
+                        indexed_property_deleter.raises_exception,
+                        indexed_property_deleter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+class {{binding_class}}Handler : public ProxyHandler {
+ public:
+  {{binding_class}}Handler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+{{binding_class}}Handler::named_property_hooks = {
+  {{ "IsSupportedNamedProperty" if named_property_getter else "NULL" }},
+  {{ "EnumerateSupportedNames" if named_property_getter else "NULL" }},
+  {{ "GetNamedProperty" if named_property_getter else "NULL" }},
+  {{ "SetNamedProperty" if named_property_setter else "NULL" }},
+  {{ "DeleteNamedProperty" if named_property_deleter else "NULL" }},
+};
+ProxyHandler::IndexedPropertyHooks
+{{binding_class}}Handler::indexed_property_hooks = {
+  {{ "IsSupportedIndexProperty" if indexed_property_getter else "NULL" }},
+  {{ "EnumerateSupportedIndexes" if indexed_property_getter else "NULL" }},
+  {{ "GetIndexedProperty" if indexed_property_getter else "NULL" }},
+  {{ "SetIndexedProperty" if indexed_property_setter else "NULL" }},
+  {{ "DeleteIndexedProperty" if indexed_property_deleter else "NULL" }},
+};
+
+static base::LazyInstance<{{binding_class}}Handler>
+    proxy_handler;
 
 {% for constant in constants %}
 JSBool get_{{constant.idl_name}}(
@@ -81,6 +292,7 @@ JSBool get_{{constant.idl_name}}(
 {% endfor %}
 {% if constructor %}
 JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
+
 {% endif %}
 
 InterfaceData* CreateCachedInterfaceData() {
@@ -119,7 +331,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "{{interface_name}}Constructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -151,13 +364,16 @@ JSBool get_{{attribute.idl_name}}(
 
 {% else %}
 {% if attribute.is_static %}
-{% set getter_prefix = "static" %}
-{% endif %}
-JSBool {{getter_prefix}}get_{{attribute.idl_name}}(
+JSBool staticget_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
+{{ static_function_prologue() }}
+{% else %}
+JSBool get_{{attribute.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+{{ nonstatic_function_prologue(impl_class) }}
+{% endif %}
 {{ call_cobalt_function(impl_class, attribute.type,
                         attribute.getter_function_name, [],
                         attribute.raises_exception, attribute.call_with,
@@ -170,13 +386,16 @@ JSBool {{getter_prefix}}get_{{attribute.idl_name}}(
 
 {% if attribute.has_setter %}
 {% if attribute.is_static %}
-{% set setter_prefix = "static"%}
-{% endif %}
-JSBool {{setter_prefix}}set_{{attribute.idl_name}}(
+JSBool staticset_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
+{{ static_function_prologue() }}
+{% else %}
+JSBool set_{{attribute.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+{{ nonstatic_function_prologue(impl_class) }}
+{% endif %}
   TypeTraits<{{attribute.type}} >::ConversionType value;
   FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
               &value);
@@ -211,10 +430,9 @@ JSBool staticfcn_{{operation.idl_name}}(
 JSBool fcn_{{operation.idl_name}}(
 {% endif %}
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
-{% if not operation.is_static %}
+{% if operation.is_static %}
+{{ static_function_prologue() }}
+{% else %}
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -227,8 +445,8 @@ JSBool fcn_{{operation.idl_name}}(
     NOTREACHED();
     return false;
   }
+{{ nonstatic_function_prologue(impl_class) }}
 {% endif %}
-
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
 {# TODO: Overload resolution. Just use first overload for now. #}
 {% set overload = operation.overloads[0] %}

@@ -18,4 +18,5 @@ interface IndexedGetterInterface {
   readonly attribute unsigned long length;
   getter unsigned long indexedGetter(unsigned long index);
   setter void indexedSetter(unsigned long index, unsigned long value);
+  deleter void indexedDeleter(unsigned long index);
 };
