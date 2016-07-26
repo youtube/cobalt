@@ -33,6 +33,7 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -62,6 +63,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -74,6 +76,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
+static base::LazyInstance<ProxyHandler> proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -156,8 +160,10 @@ JSBool fcn_namedDeleter(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
-      WrapperPrivate::GetWrappable<NamedGetterInterface>(object);
+      wrapper_private->wrappable<NamedGetterInterface>().get();
   impl->NamedDeleter(name);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -199,8 +205,10 @@ JSBool fcn_namedGetter(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
-      WrapperPrivate::GetWrappable<NamedGetterInterface>(object);
+      wrapper_private->wrappable<NamedGetterInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->NamedGetter(name);
   if (!exception_state.IsExceptionSet()) {
@@ -252,8 +260,10 @@ JSBool fcn_namedSetter(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
-      WrapperPrivate::GetWrappable<NamedGetterInterface>(object);
+      wrapper_private->wrappable<NamedGetterInterface>().get();
   impl->NamedSetter(name, value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -379,7 +389,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsNamedGetterInterface::CreateInstance(
+JSObject* MozjsNamedGetterInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -387,8 +397,11 @@ JSObject* MozjsNamedGetterInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 // static

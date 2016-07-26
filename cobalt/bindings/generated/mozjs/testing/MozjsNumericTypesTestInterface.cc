@@ -33,6 +33,7 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -62,6 +63,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -74,6 +76,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
+static base::LazyInstance<ProxyHandler> proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -129,8 +133,10 @@ JSBool get_byteProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int8_t >::ReturnType value =
       impl->byte_property();
   if (!exception_state.IsExceptionSet()) {
@@ -154,8 +160,10 @@ JSBool set_byteProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_byte_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -167,8 +175,10 @@ JSBool get_octetProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint8_t >::ReturnType value =
       impl->octet_property();
   if (!exception_state.IsExceptionSet()) {
@@ -192,8 +202,10 @@ JSBool set_octetProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_octet_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -205,8 +217,10 @@ JSBool get_shortProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int16_t >::ReturnType value =
       impl->short_property();
   if (!exception_state.IsExceptionSet()) {
@@ -230,8 +244,10 @@ JSBool set_shortProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -243,8 +259,10 @@ JSBool get_unsignedShortProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint16_t >::ReturnType value =
       impl->unsigned_short_property();
   if (!exception_state.IsExceptionSet()) {
@@ -268,8 +286,10 @@ JSBool set_unsignedShortProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_unsigned_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -281,8 +301,10 @@ JSBool get_longProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int32_t >::ReturnType value =
       impl->long_property();
   if (!exception_state.IsExceptionSet()) {
@@ -306,8 +328,10 @@ JSBool set_longProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -319,8 +343,10 @@ JSBool get_unsignedLongProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->unsigned_long_property();
   if (!exception_state.IsExceptionSet()) {
@@ -344,8 +370,10 @@ JSBool set_unsignedLongProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_unsigned_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -357,8 +385,10 @@ JSBool get_doubleProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->double_property();
   if (!exception_state.IsExceptionSet()) {
@@ -382,8 +412,10 @@ JSBool set_doubleProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -395,8 +427,10 @@ JSBool get_unrestrictedDoubleProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->unrestricted_double_property();
   if (!exception_state.IsExceptionSet()) {
@@ -420,8 +454,10 @@ JSBool set_unrestrictedDoubleProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->set_unrestricted_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -460,8 +496,10 @@ JSBool fcn_byteArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->ByteArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -490,8 +528,10 @@ JSBool fcn_byteReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int8_t >::ReturnType value =
       impl->ByteReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -536,8 +576,10 @@ JSBool fcn_doubleArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->DoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -566,8 +608,10 @@ JSBool fcn_doubleReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->DoubleReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -612,8 +656,10 @@ JSBool fcn_longArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->LongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -642,8 +688,10 @@ JSBool fcn_longReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int32_t >::ReturnType value =
       impl->LongReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -688,8 +736,10 @@ JSBool fcn_octetArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->OctetArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -718,8 +768,10 @@ JSBool fcn_octetReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint8_t >::ReturnType value =
       impl->OctetReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -764,8 +816,10 @@ JSBool fcn_shortArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->ShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -794,8 +848,10 @@ JSBool fcn_shortReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int16_t >::ReturnType value =
       impl->ShortReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -840,8 +896,10 @@ JSBool fcn_unrestrictedDoubleArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->UnrestrictedDoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -870,8 +928,10 @@ JSBool fcn_unrestrictedDoubleReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->UnrestrictedDoubleReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -916,8 +976,10 @@ JSBool fcn_unsignedLongArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->UnsignedLongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -946,8 +1008,10 @@ JSBool fcn_unsignedLongReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->UnsignedLongReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -992,8 +1056,10 @@ JSBool fcn_unsignedShortArgumentOperation(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   impl->UnsignedShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -1022,8 +1088,10 @@ JSBool fcn_unsignedShortReturnOperation(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint16_t >::ReturnType value =
       impl->UnsignedShortReturnOperation();
   if (!exception_state.IsExceptionSet()) {
@@ -1291,7 +1359,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsNumericTypesTestInterface::CreateInstance(
+JSObject* MozjsNumericTypesTestInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -1299,8 +1367,11 @@ JSObject* MozjsNumericTypesTestInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 // static
