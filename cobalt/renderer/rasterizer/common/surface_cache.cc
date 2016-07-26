@@ -92,7 +92,7 @@ void SurfaceCache::Block::InitBlock() {
     }
   }
 
-  if (node_data_ && cache_->IsCached(*node_data_)) {
+  if (node_data_ && node_data_->cached()) {
     state_ = kStateAlreadyCached;
     {
       TRACE_EVENT0("cobalt::renderer", "SurfaceCache ApplySurface");
@@ -254,12 +254,6 @@ class SurfaceCache::SortByDurationDifferencePerPixel {
       : apply_surface_duration_model_(apply_surface_duration_model) {}
 
   bool operator()(const NodeData* lhs, const NodeData* rhs) const {
-    if (lhs->consecutive_frames_visited_ >= kConsecutiveFramesForPreference !=
-        rhs->consecutive_frames_visited_ >= kConsecutiveFramesForPreference) {
-      return lhs->consecutive_frames_visited_ >=
-             kConsecutiveFramesForPreference;
-    }
-
     float lhs_area = lhs->render_size.GetArea();
     float rhs_area = rhs->render_size.GetArea();
 
@@ -285,12 +279,6 @@ class SurfaceCache::SortByDurationDifference {
       : apply_surface_duration_model_(apply_surface_duration_model) {}
 
   bool operator()(const NodeData* lhs, const NodeData* rhs) const {
-    if (lhs->consecutive_frames_visited_ >= kConsecutiveFramesForPreference !=
-        rhs->consecutive_frames_visited_ >= kConsecutiveFramesForPreference) {
-      return lhs->consecutive_frames_visited_ >=
-             kConsecutiveFramesForPreference;
-    }
-
     return lhs->duration.InMicroseconds() -
                static_cast<int64>(apply_surface_duration_model_.value_at(
                    lhs->render_size.GetArea())) >
@@ -306,7 +294,7 @@ class SurfaceCache::SortByDurationDifference {
 void SurfaceCache::Frame() {
   TRACE_EVENT0("cobalt::renderer", "SurfaceCache::Frame()");
 
-  Line apply_surface_time_model(apply_surface_time_regressor_.line());
+  Line apply_surface_time_model(apply_surface_time_regressor_.best_estimate());
 
   // Update CVals.
   total_used_bytes_cval_.AddEntry(total_used_bytes_);
@@ -343,13 +331,14 @@ void SurfaceCache::Frame() {
       // We are re-determining which nodes are cache candidates now, so reset
       // the value determined last frame.
       node_data->is_cache_candidate = false;
+      ++node_data->consecutive_frames_visited;
 
       if (!node_data->visited_this_frame) {
         // If we did not visit this node last frame, remove it from the seen
         // list.
         RemoveFromSeen(current);
       } else {
-        if (IsCached(*node_data)) {
+        if (node_data->cached()) {
           if (MeetsCachePurgeCriteria(*node_data, apply_surface_time_model)) {
             // If a candidate no longer meets the requirements for staying
             // resident in the cache, mark it as removable and let it be freed
@@ -370,7 +359,6 @@ void SurfaceCache::Frame() {
 
         // Reset seen flags for the next frame.
         node_data->visited_this_frame = false;
-        ++node_data->consecutive_frames_visited_;
       }
     }
   }
@@ -387,25 +375,9 @@ void SurfaceCache::Frame() {
   // |to_consider_for_cache_| after it is sorted to have the largest
   // durations per pixel.  These are added to |to_add| until we run out of
   // cache capacity.
-  {
-    TRACE_EVENT0("cobalt::renderer", "Calculate to_add_");
-
-    to_add_.clear();
-    // Sort the list of items that are to be considered for caching ordered by
-    // duration per pixel, so that we make the most of our limited cache space.
-    std::sort(to_consider_for_cache_.begin(), to_consider_for_cache_.end(),
-              SortByDurationDifferencePerPixel(apply_surface_time_model));
-
-    for (size_t i = 0; i < to_consider_for_cache_.size(); ++i) {
-      NodeData* node_data = to_consider_for_cache_[i];
-      DCHECK(!IsCached(*node_data));
-      int size_in_bytes = node_data->size_in_bytes();
-      if (candidate_cache_size + size_in_bytes <= capacity_in_bytes_) {
-        candidate_cache_size += size_in_bytes;
-        to_add_.push_back(node_data);
-      }
-    }
-  }
+  candidate_cache_size += SelectNodesToCacheNextFrame(
+      apply_surface_time_model, capacity_in_bytes_ - candidate_cache_size,
+      &to_consider_for_cache_, &to_add_);
 
   {
     TRACE_EVENT0("cobalt::renderer", "Calculate cache candidates");
@@ -427,6 +399,88 @@ void SurfaceCache::Frame() {
   }
 }
 
+int SurfaceCache::SelectNodesToCacheNextFrame(
+    const Line& apply_surface_time_model, int cache_capacity,
+    std::vector<NodeData*>* nodes, std::vector<NodeData*>* results) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SurfaceCache::SelectNodesToCacheNextFrame()");
+
+  int candidate_cache_size = 0;
+
+  results->clear();
+
+  // Sort the list of items that are to be considered for caching ordered by
+  // duration per pixel, so that we make the most of our limited cache space.
+  std::sort(nodes->begin(), nodes->end(),
+            SortByDurationDifferencePerPixel(apply_surface_time_model));
+
+  // Iterate through each node in our sorted set of cacheable nodes and
+  // determine if we can host them in our cache or not.
+  for (size_t i = 0; i < nodes->size(); ++i) {
+    NodeData* node_data = (*nodes)[i];
+    DCHECK(!node_data->cached());
+
+    // For each node to consider, we add it to |results| if there is available
+    // cache capacity remaining.  If there is not, we walk backwards through our
+    // list of already accepted nodes (which are sorted by duration difference
+    // per pixel) and add up the duration difference (difference between
+    // drawing the node and rendering a cached surface of the same size).  As
+    // long as the duration difference gained by caching the current node
+    // exceeds the sum of duration differences that we are replacing, it would
+    // be better to perform that replacement.
+    int size_in_bytes = node_data->size_in_bytes();
+    base::TimeDelta duration_difference =
+        node_data->duration -
+        base::TimeDelta::FromMicroseconds(apply_surface_time_model.value_at(
+            node_data->render_size.GetArea()));
+
+    int replace_index = static_cast<int>(results->size());
+    int replace_size = 0;
+    base::TimeDelta replace_duration;
+    while (true) {
+      // Check if the node fits in the cache.
+      if (candidate_cache_size + size_in_bytes - replace_size <=
+          cache_capacity) {
+        // Adjust the cache size given the nodes we will remove from the cache
+        // to replace with this new node.
+        candidate_cache_size -= replace_size;
+        candidate_cache_size += size_in_bytes;
+        // Remove the replaced nodes (we may replace no nodes).
+        results->erase(results->begin() + replace_index, results->end());
+        // And add our new node.
+        results->push_back(node_data);
+        break;
+      }
+
+      // We were not able to fit in the cache, so see if we would be better
+      // off to remove one more item from the cache to be replaced with this
+      // node.
+      --replace_index;
+
+      // If we've run out of nodes to replace and there's still no space for
+      // this one, then this node simply won't fit in the cache and we're done.
+      if (replace_index < 0) {
+        break;
+      }
+
+      // Increase the sum of the duration differences that we are replacing and
+      // test that it's still less than the duration difference we would obtain
+      // by adding the new node.  If it is not still less, then it would not
+      // be better to replace those nodes with this one, so we're done.
+      replace_duration +=
+          (*results)[replace_index]->duration -
+          base::TimeDelta::FromMicroseconds(apply_surface_time_model.value_at(
+              (*results)[replace_index]->render_size.GetArea()));
+      if (replace_duration > duration_difference) {
+        break;
+      }
+      replace_size += (*results)[replace_index]->size_in_bytes();
+    }
+  }
+
+  return candidate_cache_size;
+}
+
 bool SurfaceCache::MeetsCachingCriteria(
     const NodeData& node_data, const Line& apply_surface_time_model) const {
   const math::SizeF& bounds = node_data.render_size;
@@ -434,7 +488,9 @@ bool SurfaceCache::MeetsCachingCriteria(
   // Only allow for caching nodes that take much longer to render than it takes
   // to apply a cached node, and also only allow caching nodes whose cached
   // surface is not larger than the maximum cached surface size.
-  return bounds.width() > 0 && bounds.height() > 0 &&
+  return node_data.consecutive_frames_visited >=
+             kConsecutiveFramesForPreference &&
+         bounds.width() > 0 && bounds.height() > 0 &&
          bounds.width() < (maximum_surface_size_.width() - 2) &&
          bounds.height() < (maximum_surface_size_.height() - 2) &&
          node_data.duration.InMicroseconds() >
@@ -451,10 +507,6 @@ bool SurfaceCache::MeetsCachePurgeCriteria(
   // stability in the cached nodes.
   return node_data.duration.InMicroseconds() <
          apply_surface_time_model.value_at(node_data.render_size.GetArea());
-}
-
-bool SurfaceCache::IsCached(const NodeData& node_data) const {
-  return node_data.surface != NULL;
 }
 
 bool SurfaceCache::IsCacheCandidate(const NodeData& node_data) const {
@@ -474,7 +526,7 @@ void SurfaceCache::SetCachedSurface(NodeData* node_data,
 void SurfaceCache::FreeCachedSurface(NodeData* to_free) {
   TRACE_EVENT0("cobalt::renderer", "SurfaceCache::FreeCachedSurface()");
   DCHECK_LE(0, total_used_bytes_ - to_free->size_in_bytes());
-  DCHECK(IsCached(*to_free));
+  DCHECK(to_free->cached());
 
   total_used_bytes_ -= to_free->size_in_bytes();
 
@@ -484,13 +536,13 @@ void SurfaceCache::FreeCachedSurface(NodeData* to_free) {
   ++surfaces_freed_this_frame_;
   --cached_surfaces_count_;
 
-  DCHECK(!IsCached(*to_free));
+  DCHECK(!to_free->cached());
 }
 
 void SurfaceCache::RemoveFromSeen(NodeMap::iterator to_remove) {
   DCHECK(to_remove != seen_.end());
 
-  if (IsCached(to_remove->second)) {
+  if (to_remove->second.cached()) {
     FreeCachedSurface(&to_remove->second);
 
     // Check the list of items to purge and remove it from there so that we

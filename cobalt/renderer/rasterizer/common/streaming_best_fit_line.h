@@ -72,7 +72,7 @@ class StreamingBestFitLine {
 
   // Returns our current best estimate at the line.  Note that we translate
   // the internally stored line angle back into slope.
-  Line line() const {
+  Line best_estimate() const {
     return Line(*y_intercept_.average(), tan(*line_angle_radians_.average()));
   }
 
