@@ -106,17 +106,19 @@ Document::Document(HTMLElementContext* html_element_context,
                  CspDelegate::kLocation));
 
   if (IsActiveDocument()) {
-    DCHECK(html_element_context_);
-    DCHECK(html_element_context_->remote_typeface_cache());
-    DCHECK(html_element_context_->image_cache());
+    if (html_element_context_ &&
+        html_element_context_->remote_typeface_cache()) {
+      html_element_context_->remote_typeface_cache()->set_security_callback(
+          base::Bind(&CspDelegate::CanLoad,
+                     base::Unretained(csp_delegate_.get()),
+                     CspDelegate::kFont));
+    }
 
-    html_element_context_->remote_typeface_cache()->set_security_callback(
-        base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-                   CspDelegate::kFont));
-
-    html_element_context_->image_cache()->set_security_callback(
-        base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-                   CspDelegate::kImage));
+    if (html_element_context_ && html_element_context_->image_cache()) {
+      html_element_context_->image_cache()->set_security_callback(base::Bind(
+          &CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+          CspDelegate::kImage));
+    }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
     partial_layout_is_enabled_ = true;
