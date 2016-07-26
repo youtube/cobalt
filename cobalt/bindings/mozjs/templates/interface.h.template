@@ -21,7 +21,7 @@
 {% block implementation %}
 class {{binding_class}} {
  public:
-  static JSObject* CreateInstance(JSContext* context,
+  static JSObject* CreateProxy(JSContext* context,
       const scoped_refptr<script::Wrappable>& wrappable);
   static JSObject* GetPrototype(JSContext* context);
 {% if has_interface_object %}

@@ -39,6 +39,7 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -74,6 +75,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -86,6 +88,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
+static base::LazyInstance<ProxyHandler> proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -141,8 +145,10 @@ JSBool get_arbitraryObject(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
-      WrapperPrivate::GetWrappable<ObjectTypeBindingsInterface>(object);
+      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->arbitrary_object();
   if (!exception_state.IsExceptionSet()) {
@@ -166,8 +172,10 @@ JSBool set_arbitraryObject(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
-      WrapperPrivate::GetWrappable<ObjectTypeBindingsInterface>(object);
+      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   impl->set_arbitrary_object(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -179,8 +187,10 @@ JSBool get_baseInterface(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
-      WrapperPrivate::GetWrappable<ObjectTypeBindingsInterface>(object);
+      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<scoped_refptr<BaseInterface> >::ReturnType value =
       impl->base_interface();
   if (!exception_state.IsExceptionSet()) {
@@ -198,8 +208,10 @@ JSBool get_derivedInterface(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
-      WrapperPrivate::GetWrappable<ObjectTypeBindingsInterface>(object);
+      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<scoped_refptr<DerivedInterface> >::ReturnType value =
       impl->derived_interface();
   if (!exception_state.IsExceptionSet()) {
@@ -223,8 +235,10 @@ JSBool set_derivedInterface(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
-      WrapperPrivate::GetWrappable<ObjectTypeBindingsInterface>(object);
+      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   impl->set_derived_interface(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -236,8 +250,10 @@ JSBool get_objectProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
-      WrapperPrivate::GetWrappable<ObjectTypeBindingsInterface>(object);
+      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<OpaqueHandle >::ReturnType value =
       impl->object_property();
   if (!exception_state.IsExceptionSet()) {
@@ -261,8 +277,10 @@ JSBool set_objectProperty(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
-      WrapperPrivate::GetWrappable<ObjectTypeBindingsInterface>(object);
+      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   impl->set_object_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -388,7 +406,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsObjectTypeBindingsInterface::CreateInstance(
+JSObject* MozjsObjectTypeBindingsInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -396,8 +414,11 @@ JSObject* MozjsObjectTypeBindingsInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 // static

@@ -20,6 +20,7 @@
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/mozjs_wrapper_handle.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "third_party/mozjs/js/src/jsproxy.h"
 
 namespace cobalt {
 namespace script {
@@ -34,23 +35,25 @@ void WrapperFactory::RegisterWrappableType(
       << "RegisterWrappableType registered for type more than once.";
 }
 
-JSObject* WrapperFactory::GetWrapper(
+JSObject* WrapperFactory::GetWrapperProxy(
     const scoped_refptr<Wrappable>& wrappable) const {
   if (!wrappable) {
     return NULL;
   }
 
-  JS::RootedObject wrapper(context_, MozjsWrapperHandle::GetJSObject(
-                                         GetCachedWrapper(wrappable.get())));
-  if (!wrapper) {
+  JS::RootedObject wrapper_proxy(
+      context_,
+      MozjsWrapperHandle::GetObjectProxy(GetCachedWrapper(wrappable.get())));
+  if (!wrapper_proxy) {
     scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
         CreateWrapper(wrappable);
     SetCachedWrapper(wrappable.get(), object_handle.Pass());
-    wrapper =
-        MozjsWrapperHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
+    wrapper_proxy =
+        MozjsWrapperHandle::GetObjectProxy(GetCachedWrapper(wrappable.get()));
   }
-  DCHECK(wrapper);
-  return wrapper;
+  DCHECK(wrapper_proxy);
+  DCHECK(js::IsProxy(wrapper_proxy));
+  return wrapper_proxy;
 }
 
 bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
@@ -65,9 +68,9 @@ scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     NOTREACHED();
     return scoped_ptr<Wrappable::WeakWrapperHandle>();
   }
-  JS::RootedObject new_object(context_, it->second.Run(context_, wrappable));
+  JS::RootedObject new_proxy(context_, it->second.Run(context_, wrappable));
   WrapperPrivate* wrapper_private =
-      reinterpret_cast<WrapperPrivate*>(JS_GetPrivate(new_object));
+      WrapperPrivate::GetFromProxyObject(context_, new_proxy);
   DCHECK(wrapper_private);
   return make_scoped_ptr<Wrappable::WeakWrapperHandle>(
       new MozjsWrapperHandle(wrapper_private));

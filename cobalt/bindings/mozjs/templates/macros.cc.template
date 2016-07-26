@@ -32,8 +32,10 @@
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
 {% endif %}
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   {{impl_class}}* impl =
-      WrapperPrivate::GetWrappable<{{impl_class}}>(object);
+      wrapper_private->wrappable<{{impl_class}}>().get();
 {% do arguments.append("&exception_state") if raises_exception %}
 {% do arguments.append("global_object_proxy->Get%s()"|format(call_with)) if call_with %}
 {% if cobalt_type == "void" %}

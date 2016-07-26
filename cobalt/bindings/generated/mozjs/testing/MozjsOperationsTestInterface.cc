@@ -35,6 +35,7 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -66,6 +67,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -78,6 +80,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
+static base::LazyInstance<ProxyHandler> proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -147,8 +151,10 @@ JSBool fcn_longFunctionNoArgs(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   TypeTraits<int32_t >::ReturnType value =
       impl->LongFunctionNoArgs();
   if (!exception_state.IsExceptionSet()) {
@@ -180,8 +186,10 @@ JSBool fcn_objectFunctionNoArgs(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->ObjectFunctionNoArgs();
   if (!exception_state.IsExceptionSet()) {
@@ -226,8 +234,10 @@ JSBool fcn_optionalArgumentWithDefault(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OptionalArgumentWithDefault(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -283,8 +293,10 @@ JSBool fcn_optionalArguments(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OptionalArguments(arg1, arg2, arg3);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -333,8 +345,10 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OptionalNullableArgumentsWithDefaults(arg1, arg2);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -363,8 +377,10 @@ JSBool fcn_overloadedFunction(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OverloadedFunction();
   result_value.set(JS::UndefinedHandleValue);
 
@@ -406,8 +422,10 @@ JSBool fcn_overloadedNullable(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OverloadedNullable(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -436,8 +454,10 @@ JSBool fcn_stringFunctionNoArgs(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->StringFunctionNoArgs();
   if (!exception_state.IsExceptionSet()) {
@@ -482,8 +502,10 @@ JSBool fcn_variadicPrimitiveArguments(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VariadicPrimitiveArguments(bools);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -532,8 +554,10 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VariadicStringArgumentsAfterOptionalArgument(optional_arg, strings);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -575,8 +599,10 @@ JSBool fcn_voidFunctionLongArg(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VoidFunctionLongArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -605,8 +631,10 @@ JSBool fcn_voidFunctionNoArgs(
   }
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VoidFunctionNoArgs();
   result_value.set(JS::UndefinedHandleValue);
 
@@ -648,8 +676,10 @@ JSBool fcn_voidFunctionObjectArg(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VoidFunctionObjectArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -691,8 +721,10 @@ JSBool fcn_voidFunctionStringArg(
   if (exception_state.IsExceptionSet()) {
     return false;
   }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VoidFunctionStringArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -895,7 +927,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsOperationsTestInterface::CreateInstance(
+JSObject* MozjsOperationsTestInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -903,8 +935,11 @@ JSObject* MozjsOperationsTestInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 // static
