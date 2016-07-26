@@ -29,6 +29,7 @@ class IndexedGetterInterface : public script::Wrappable {
   MOCK_METHOD0(length, uint32_t());
   MOCK_METHOD1(IndexedGetter, uint32_t(uint32_t));
   MOCK_METHOD2(IndexedSetter, void(uint32_t, uint32_t));
+  MOCK_METHOD1(IndexedDeleter, void(uint32_t));
 
   DEFINE_WRAPPABLE_TYPE(IndexedGetterInterface);
 };

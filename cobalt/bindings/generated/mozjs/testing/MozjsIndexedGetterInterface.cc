@@ -33,10 +33,12 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -63,6 +65,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
@@ -76,7 +79,142 @@ namespace bindings {
 namespace testing {
 
 namespace {
-static base::LazyInstance<ProxyHandler> proxy_handler;
+
+bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
+                              uint32_t index) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  IndexedGetterInterface* impl =
+      wrapper_private->wrappable<IndexedGetterInterface>().get();
+  return index < impl->length();
+}
+
+void EnumerateSupportedIndexes(JSContext* context, JS::HandleObject object,
+                               JS::AutoIdVector* properties) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  IndexedGetterInterface* impl =
+      wrapper_private->wrappable<IndexedGetterInterface>().get();
+  const uint32_t kNumIndexedProperties = impl->length();
+  for (uint32_t i = 0; i < kNumIndexedProperties; ++i) {
+    properties->append(INT_TO_JSID(i));
+  }
+}
+
+JSBool GetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  IndexedGetterInterface* impl =
+      wrapper_private->wrappable<IndexedGetterInterface>().get();
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<uint32_t >::ReturnType value =
+      impl->IndexedGetter(index);
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context, value, &exception_state, &result_value);
+  }
+
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool SetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  IndexedGetterInterface* impl =
+      wrapper_private->wrappable<IndexedGetterInterface>().get();
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<uint32_t >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags,
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  impl->IndexedSetter(index, value);
+  result_value.set(JS::UndefinedHandleValue);
+
+  return !exception_state.is_exception_set();
+}
+
+bool DeleteIndexedProperty(
+    JSContext* context, JS::HandleObject object, uint32_t index) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  IndexedGetterInterface* impl =
+      wrapper_private->wrappable<IndexedGetterInterface>().get();
+  impl->IndexedDeleter(index);
+  result_value.set(JS::UndefinedHandleValue);
+
+  return !exception_state.is_exception_set();
+}
+
+class MozjsIndexedGetterInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsIndexedGetterInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsIndexedGetterInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsIndexedGetterInterfaceHandler::indexed_property_hooks = {
+  IsSupportedIndexProperty,
+  EnumerateSupportedIndexes,
+  GetIndexedProperty,
+  SetIndexedProperty,
+  DeleteIndexedProperty,
+};
+
+static base::LazyInstance<MozjsIndexedGetterInterfaceHandler>
+    proxy_handler;
 
 
 InterfaceData* CreateCachedInterfaceData() {
@@ -115,7 +253,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "IndexedGetterInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -133,6 +272,7 @@ JSBool get_length(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   IndexedGetterInterface* impl =
@@ -149,11 +289,8 @@ JSBool get_length(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_indexedGetter(
+JSBool fcn_indexedDeleter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -166,7 +303,13 @@ JSBool fcn_indexedGetter(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  IndexedGetterInterface* impl =
+      wrapper_private->wrappable<IndexedGetterInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -181,10 +324,50 @@ JSBool fcn_indexedGetter(
   if (exception_state.is_exception_set()) {
     return false;
   }
+  impl->IndexedDeleter(index);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_indexedGetter(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   IndexedGetterInterface* impl =
       wrapper_private->wrappable<IndexedGetterInterface>().get();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<uint32_t >::ConversionType index;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0),
+      kNoConversionFlags, &exception_state, &index);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
   TypeTraits<uint32_t >::ReturnType value =
       impl->IndexedGetter(index);
   if (!exception_state.is_exception_set()) {
@@ -199,9 +382,6 @@ JSBool fcn_indexedGetter(
 
 JSBool fcn_indexedSetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -214,7 +394,13 @@ JSBool fcn_indexedSetter(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  IndexedGetterInterface* impl =
+      wrapper_private->wrappable<IndexedGetterInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
@@ -236,10 +422,6 @@ JSBool fcn_indexedSetter(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  IndexedGetterInterface* impl =
-      wrapper_private->wrappable<IndexedGetterInterface>().get();
   impl->IndexedSetter(index, value);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -261,6 +443,13 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
+  {
+      "indexedDeleter",
+      JSOP_WRAPPER(&fcn_indexedDeleter),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
   {
       "indexedGetter",
       JSOP_WRAPPER(&fcn_indexedGetter),

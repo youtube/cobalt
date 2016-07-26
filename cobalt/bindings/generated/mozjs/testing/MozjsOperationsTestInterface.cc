@@ -35,10 +35,12 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -67,6 +69,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
@@ -80,7 +83,36 @@ namespace bindings {
 namespace testing {
 
 namespace {
-static base::LazyInstance<ProxyHandler> proxy_handler;
+
+class MozjsOperationsTestInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsOperationsTestInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsOperationsTestInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsOperationsTestInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsOperationsTestInterfaceHandler>
+    proxy_handler;
 
 
 InterfaceData* CreateCachedInterfaceData() {
@@ -119,7 +151,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "OperationsTestInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -134,9 +167,6 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_longFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -149,12 +179,14 @@ JSBool fcn_longFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   TypeTraits<int32_t >::ReturnType value =
       impl->LongFunctionNoArgs();
   if (!exception_state.is_exception_set()) {
@@ -169,9 +201,6 @@ JSBool fcn_longFunctionNoArgs(
 
 JSBool fcn_objectFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -184,12 +213,14 @@ JSBool fcn_objectFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->ObjectFunctionNoArgs();
   if (!exception_state.is_exception_set()) {
@@ -204,9 +235,6 @@ JSBool fcn_objectFunctionNoArgs(
 
 JSBool fcn_optionalArgumentWithDefault(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -219,7 +247,13 @@ JSBool fcn_optionalArgumentWithDefault(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -234,10 +268,6 @@ JSBool fcn_optionalArgumentWithDefault(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OptionalArgumentWithDefault(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -249,9 +279,6 @@ JSBool fcn_optionalArgumentWithDefault(
 
 JSBool fcn_optionalArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -264,7 +291,13 @@ JSBool fcn_optionalArguments(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 3;
   if (args.length() < kMinArguments) {
@@ -293,10 +326,6 @@ JSBool fcn_optionalArguments(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OptionalArguments(arg1, arg2, arg3);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -308,9 +337,6 @@ JSBool fcn_optionalArguments(
 
 JSBool fcn_optionalNullableArgumentsWithDefaults(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -323,7 +349,13 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
@@ -345,10 +377,6 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OptionalNullableArgumentsWithDefaults(arg1, arg2);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -360,9 +388,6 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
 
 JSBool fcn_overloadedFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -375,12 +400,14 @@ JSBool fcn_overloadedFunction(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   impl->OverloadedFunction();
   result_value.set(JS::UndefinedHandleValue);
 
@@ -392,9 +419,6 @@ JSBool fcn_overloadedFunction(
 
 JSBool fcn_overloadedNullable(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -407,7 +431,13 @@ JSBool fcn_overloadedNullable(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -422,10 +452,6 @@ JSBool fcn_overloadedNullable(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->OverloadedNullable(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -437,9 +463,6 @@ JSBool fcn_overloadedNullable(
 
 JSBool fcn_stringFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -452,12 +475,14 @@ JSBool fcn_stringFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   TypeTraits<std::string >::ReturnType value =
       impl->StringFunctionNoArgs();
   if (!exception_state.is_exception_set()) {
@@ -472,9 +497,6 @@ JSBool fcn_stringFunctionNoArgs(
 
 JSBool fcn_variadicPrimitiveArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -487,7 +509,13 @@ JSBool fcn_variadicPrimitiveArguments(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -502,10 +530,6 @@ JSBool fcn_variadicPrimitiveArguments(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VariadicPrimitiveArguments(bools);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -517,9 +541,6 @@ JSBool fcn_variadicPrimitiveArguments(
 
 JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -532,7 +553,13 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
@@ -554,10 +581,6 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VariadicStringArgumentsAfterOptionalArgument(optional_arg, strings);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -569,9 +592,6 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
 
 JSBool fcn_voidFunctionLongArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -584,7 +604,13 @@ JSBool fcn_voidFunctionLongArg(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -599,10 +625,6 @@ JSBool fcn_voidFunctionLongArg(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VoidFunctionLongArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -614,9 +636,6 @@ JSBool fcn_voidFunctionLongArg(
 
 JSBool fcn_voidFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -629,12 +648,14 @@ JSBool fcn_voidFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   impl->VoidFunctionNoArgs();
   result_value.set(JS::UndefinedHandleValue);
 
@@ -646,9 +667,6 @@ JSBool fcn_voidFunctionNoArgs(
 
 JSBool fcn_voidFunctionObjectArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -661,7 +679,13 @@ JSBool fcn_voidFunctionObjectArg(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -676,10 +700,6 @@ JSBool fcn_voidFunctionObjectArg(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VoidFunctionObjectArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -691,9 +711,6 @@ JSBool fcn_voidFunctionObjectArg(
 
 JSBool fcn_voidFunctionStringArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -706,7 +723,13 @@ JSBool fcn_voidFunctionStringArg(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
@@ -721,10 +744,6 @@ JSBool fcn_voidFunctionStringArg(
   if (exception_state.is_exception_set()) {
     return false;
   }
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromObject(context, object);
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   impl->VoidFunctionStringArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
@@ -738,7 +757,6 @@ JSBool staticfcn_overloadedFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
