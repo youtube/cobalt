@@ -37,16 +37,19 @@ DOMParser::DOMParser(HTMLElementContext* html_element_context)
 
 scoped_refptr<Document> DOMParser::ParseFromString(const std::string& str,
                                                    const SupportedType& type) {
-  if (type == kTextHtml) {
-    return html_element_context_->dom_parser()->ParseDocument(
-        str, html_element_context_, GetInlineSourceLocation());
-  } else if (type == kTextXml || type == kApplicationXml ||
-             type == kApplicationXhtmlXml || type == kImageSvgXml) {
-    return html_element_context_->dom_parser()->ParseXMLDocument(
-        str, GetInlineSourceLocation());
-  } else {
-    NOTREACHED();
-    return NULL;
+  switch (type) {
+    case kTextHtml:
+      return html_element_context_->dom_parser()->ParseDocument(
+          str, html_element_context_, GetInlineSourceLocation());
+    case kTextXml:
+    case kApplicationXml:
+    case kApplicationXhtmlXml:
+    case kImageSvgXml:
+      return html_element_context_->dom_parser()->ParseXMLDocument(
+          str, GetInlineSourceLocation());
+    default:
+      NOTREACHED();
+      return NULL;
   }
 }
 

@@ -84,6 +84,10 @@ Document::Document(HTMLElementContext* html_element_context,
       user_agent_style_sheet_(options.user_agent_style_sheet) {
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
+  if (options.viewport_size) {
+    SetViewport(*options.viewport_size);
+  }
+
   scoped_ptr<CspViolationReporter> violation_reporter(
       new CspViolationReporter(this, options.post_sender));
   csp_delegate_ =
@@ -94,34 +98,33 @@ Document::Document(HTMLElementContext* html_element_context,
                    options.csp_insecure_allowed_token)
           .Pass();
 
+  cookie_jar_ = options.cookie_jar;
+
   location_ = new Location(
       options.url, options.hashchange_callback, options.navigation_callback,
       base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
                  CspDelegate::kLocation));
 
-  if (html_element_context_ && html_element_context_->remote_typeface_cache()) {
+  if (IsActiveDocument()) {
+    DCHECK(html_element_context_);
+    DCHECK(html_element_context_->remote_typeface_cache());
+    DCHECK(html_element_context_->image_cache());
+
     html_element_context_->remote_typeface_cache()->set_security_callback(
         base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
                    CspDelegate::kFont));
-  }
 
-  if (html_element_context_ && html_element_context_->image_cache()) {
     html_element_context_->image_cache()->set_security_callback(
         base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
                    CspDelegate::kImage));
-  }
-
-  if (options.viewport_size) {
-    SetViewport(*options.viewport_size);
-  }
-  cookie_jar_ = options.cookie_jar;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  partial_layout_is_enabled_ = true;
+    partial_layout_is_enabled_ = true;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-  // Sample the timeline upon initialization.
-  SampleTimelineTime();
+    // Sample the timeline upon initialization.
+    SampleTimelineTime();
+  }
 
   // Call OnInsertedIntoDocument() immediately to ensure that the Document
   // object itself is considered to be "in the document".
@@ -514,6 +517,8 @@ void UpdateSelectorTreeFromCSSStyleSheet(
 void Document::UpdateComputedStyles() {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
 
+  DCHECK(IsActiveDocument());
+
   UpdateSelectorTree();
   UpdateKeyframes();
   UpdateFontFaces();
@@ -624,13 +629,15 @@ void Document::UpdateSelectorTree() {
 void Document::DispatchOnLoadEvent() {
   TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
 
-  // Update the current timeline sample time and then update computed styles
-  // before dispatching the onload event.  This guarantees that computed styles
-  // have been calculated before JavaScript executes onload event handlers,
-  // which may wish to start a CSS Transition (requiring that computed values
-  // previously exist).
-  SampleTimelineTime();
-  UpdateComputedStyles();
+  if (IsActiveDocument()) {
+    // Update the current timeline sample time and then update computed styles
+    // before dispatching the onload event.  This guarantees that computed
+    // styles have been calculated before JavaScript executes onload event
+    // handlers, which may wish to start a CSS Transition (requiring that
+    // computed values previously exist).
+    SampleTimelineTime();
+    UpdateComputedStyles();
+  }
 
   // Dispatch the document's onload event.
   DispatchEvent(new Event(base::Tokens::load()));
