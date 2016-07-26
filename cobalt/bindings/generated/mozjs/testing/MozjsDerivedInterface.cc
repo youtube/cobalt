@@ -33,10 +33,12 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -63,6 +65,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
@@ -76,7 +79,36 @@ namespace bindings {
 namespace testing {
 
 namespace {
-static base::LazyInstance<ProxyHandler> proxy_handler;
+
+class MozjsDerivedInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsDerivedInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsDerivedInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsDerivedInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsDerivedInterfaceHandler>
+    proxy_handler;
 
 
 InterfaceData* CreateCachedInterfaceData() {
@@ -115,7 +147,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "DerivedInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -133,6 +166,7 @@ JSBool get_derivedAttribute(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   DerivedInterface* impl =
@@ -151,9 +185,6 @@ JSBool get_derivedAttribute(
 
 JSBool fcn_derivedOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -166,12 +197,14 @@ JSBool fcn_derivedOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   DerivedInterface* impl =
       wrapper_private->wrappable<DerivedInterface>().get();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   impl->DerivedOperation();
   result_value.set(JS::UndefinedHandleValue);
 

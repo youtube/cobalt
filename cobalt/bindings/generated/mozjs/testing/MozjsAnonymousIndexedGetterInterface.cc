@@ -33,10 +33,12 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -63,6 +65,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
@@ -76,7 +79,127 @@ namespace bindings {
 namespace testing {
 
 namespace {
-static base::LazyInstance<ProxyHandler> proxy_handler;
+
+bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
+                              uint32_t index) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  AnonymousIndexedGetterInterface* impl =
+      wrapper_private->wrappable<AnonymousIndexedGetterInterface>().get();
+  return index < impl->length();
+}
+
+void EnumerateSupportedIndexes(JSContext* context, JS::HandleObject object,
+                               JS::AutoIdVector* properties) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  AnonymousIndexedGetterInterface* impl =
+      wrapper_private->wrappable<AnonymousIndexedGetterInterface>().get();
+  const uint32_t kNumIndexedProperties = impl->length();
+  for (uint32_t i = 0; i < kNumIndexedProperties; ++i) {
+    properties->append(INT_TO_JSID(i));
+  }
+}
+
+JSBool GetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  AnonymousIndexedGetterInterface* impl =
+      wrapper_private->wrappable<AnonymousIndexedGetterInterface>().get();
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<uint32_t >::ReturnType value =
+      impl->AnonymousIndexedGetter(index);
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context, value, &exception_state, &result_value);
+  }
+
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool SetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  AnonymousIndexedGetterInterface* impl =
+      wrapper_private->wrappable<AnonymousIndexedGetterInterface>().get();
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<uint32_t >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags,
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  impl->AnonymousIndexedSetter(index, value);
+  result_value.set(JS::UndefinedHandleValue);
+
+  return !exception_state.is_exception_set();
+}
+
+class MozjsAnonymousIndexedGetterInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsAnonymousIndexedGetterInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsAnonymousIndexedGetterInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsAnonymousIndexedGetterInterfaceHandler::indexed_property_hooks = {
+  IsSupportedIndexProperty,
+  EnumerateSupportedIndexes,
+  GetIndexedProperty,
+  SetIndexedProperty,
+  NULL,
+};
+
+static base::LazyInstance<MozjsAnonymousIndexedGetterInterfaceHandler>
+    proxy_handler;
 
 
 InterfaceData* CreateCachedInterfaceData() {
@@ -115,7 +238,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "AnonymousIndexedGetterInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -133,6 +257,7 @@ JSBool get_length(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   AnonymousIndexedGetterInterface* impl =

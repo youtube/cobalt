@@ -33,10 +33,12 @@
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -63,6 +65,7 @@ using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
 using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
@@ -76,9 +79,39 @@ namespace bindings {
 namespace testing {
 
 namespace {
-static base::LazyInstance<ProxyHandler> proxy_handler;
+
+class MozjsNamedConstructorInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsNamedConstructorInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsNamedConstructorInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsNamedConstructorInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsNamedConstructorInterfaceHandler>
+    proxy_handler;
 
 JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -116,7 +149,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "NamedConstructorInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;

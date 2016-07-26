@@ -22,7 +22,9 @@
         'mozjs_engine.cc',
         'mozjs_exception_state.cc',
         'mozjs_global_object_proxy.cc',
+        'mozjs_property_enumerator.cc',
         'mozjs_source_code.cc',
+        'proxy_handler.cc',
         'wrapper_factory.cc',
         'wrapper_private.cc',
       ],
@@ -30,6 +32,12 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],
+      'all_dependent_settings': {
+        'defines': [
+          # SpiderMonkey bindings implements indexed deleters.
+          'ENGINE_SUPPORTS_INDEXED_DELETERS',
+        ],
+      },
     },
     {
       # Standalone executable for JS engine
