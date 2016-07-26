@@ -16,6 +16,10 @@
 #ifndef COBALT_SCRIPT_MOZJS_PROXY_HANDLER_H_
 #define COBALT_SCRIPT_MOZJS_PROXY_HANDLER_H_
 
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
 
@@ -35,20 +39,60 @@ namespace mozjs {
 // be called when getting, setting, deleting, etc. a property, but these do not
 // map well onto the Web IDL spec for implementing interfaces that support named
 // and indexed properties.
-// The traps on the js::BaseProxyHandler interface are at a much lower level and
-// allow for a cleaner and more conformant implementation.
 //
 // See third_party/mozjs/js/src/jsproxy.h for more details.
+//
+// ProxyHandler provides custom traps for getPropertyDescriptor, delete_, and
+// enumerate to implement interfaces that support named and indexed properties.
 class ProxyHandler : public js::DirectProxyHandler {
  public:
-  ProxyHandler() : js::DirectProxyHandler(NULL) {}
+  typedef bool (*IsSupportedIndexFunction)(JSContext*, JS::HandleObject,
+                                           uint32_t);
+  typedef bool (*IsSupportedNameFunction)(JSContext*, JS::HandleObject,
+                                          const std::string&);
+  typedef void (*EnumerateSupportedIndexesFunction)(JSContext*,
+                                                    JS::HandleObject,
+                                                    JS::AutoIdVector*);
+  typedef void (*EnumerateSupportedNamesFunction)(JSContext*, JS::HandleObject,
+                                                  JS::AutoIdVector*);
+  typedef bool (*IndexedDeleteFunction)(JSContext*, JS::HandleObject, uint32_t);
+  typedef bool (*NamedDeleteFunction)(JSContext*, JS::HandleObject,
+                                      const std::string&);
+
+  // Hooks for interfaces that support indexed properties.
+  struct IndexedPropertyHooks {
+    IsSupportedIndexFunction is_supported;
+    EnumerateSupportedIndexesFunction enumerate_supported;
+    JSPropertyOp getter;
+    JSStrictPropertyOp setter;
+    IndexedDeleteFunction deleter;
+  };
+
+  // Hooks for interfaces that support named properties.
+  struct NamedPropertyHooks {
+    IsSupportedNameFunction is_supported;
+    EnumerateSupportedNamesFunction enumerate_supported;
+    JSPropertyOp getter;
+    JSStrictPropertyOp setter;
+    NamedDeleteFunction deleter;
+  };
 
   static JSObject* NewProxy(JSContext* context, JSObject* object,
                             JSObject* prototype, JSObject* parent,
-                            ProxyHandler* handler) {
-    JS::RootedValue as_value(context, OBJECT_TO_JSVAL(object));
-    return js::NewProxyObject(context, handler, as_value, prototype, parent);
-  }
+                            ProxyHandler* handler);
+
+  // Construct a new ProxyHandler with the provided hooks.
+  ProxyHandler(const IndexedPropertyHooks& indexed_hooks,
+               const NamedPropertyHooks& named_hooks);
+
+  // Overridden fundamental traps.
+  bool getPropertyDescriptor(JSContext* context, JS::HandleObject proxy,
+                             JS::HandleId id, JSPropertyDescriptor* descriptor,
+                             unsigned flags) OVERRIDE;
+  bool delete_(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+               bool* succeeded) OVERRIDE;
+  bool enumerate(JSContext* context, JS::HandleObject proxy,
+                 JS::AutoIdVector& properties) OVERRIDE;  // NOLINT[runtime/references]
 
   // The derived traps in js::DirectProxyHandler are not implemented in terms of
   // the fundamental traps, where the traps in js::BaseProxyHandler are.
@@ -86,6 +130,31 @@ class ProxyHandler : public js::DirectProxyHandler {
                JS::MutableHandleValue vp) OVERRIDE {
     return js::BaseProxyHandler::iterate(context, proxy, flags, vp);
   }
+
+ private:
+  bool supports_named_properties() {
+    return named_property_hooks_.getter != NULL;
+  }
+
+  bool supports_indexed_properties() {
+    return indexed_property_hooks_.getter != NULL;
+  }
+
+  bool IsSupportedIndex(JSContext* context, JS::HandleObject object,
+                        uint32_t index);
+
+  bool IsSupportedName(JSContext* context, JS::HandleObject object,
+                       const std::string& name);
+
+  bool IsArrayIndexPropertyName(JSContext* context,
+                                JS::HandleValue property_value,
+                                uint32_t* out_index);
+
+  bool IsNamedPropertyVisible(JSContext* context, JS::HandleObject object,
+                              const std::string& property_name);
+
+  IndexedPropertyHooks indexed_property_hooks_;
+  NamedPropertyHooks named_property_hooks_;
 };
 
 }  // namespace mozjs
