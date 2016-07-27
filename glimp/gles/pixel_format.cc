@@ -27,12 +27,15 @@ const int kBytesPerPixel[] = {
     4,  // kPixelFormatARGB8
     4,  // kPixelFormatBGRA8
     2,  // kPixelFormatRGB565
+    2,  // kPixelFormatBA8
     1,  // kPixelFormatA8
 };
 
 }  // namespace
 
 int BytesPerPixel(PixelFormat format) {
+  SB_COMPILE_ASSERT(SB_ARRAY_SIZE(kBytesPerPixel) == kPixelFormatNumFormats,
+                    kBytesPerPixel_has_entries_for_each_enum_PixelFormat);
   return kBytesPerPixel[format];
 }
 
