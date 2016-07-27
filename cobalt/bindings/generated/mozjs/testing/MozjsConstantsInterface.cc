@@ -74,6 +74,35 @@ namespace bindings {
 namespace testing {
 
 namespace {
+JSBool get_INTEGER_CONSTANT(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  COMPILE_ASSERT(ConstantsInterface::kIntegerConstant == 5,
+                 ValueForConstantsInterface_kIntegerConstantDoesNotMatchIDL);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+  ToJSValue(context, 5, &exception_state, &result_value);
+  if (!exception_state.IsExceptionSet()) {
+     vp.set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+JSBool get_DOUBLE_CONSTANT(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  DCHECK_EQ(2.718, ConstantsInterface::kDoubleConstant) <<
+      "The value for ConstantsInterface::kDoubleConstant does not match "
+      "the value in the interface definition.";
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+  ToJSValue(context, 2.718, &exception_state, &result_value);
+  if (!exception_state.IsExceptionSet()) {
+     vp.set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -126,11 +155,39 @@ InterfaceData* CreateCachedInterfaceData() {
 
 
 const JSPropertySpec prototype_properties[] = {
+  {
+      "INTEGER_CONSTANT", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_INTEGER_CONSTANT),
+      JSOP_NULLWRAPPER,
+  },
+  {
+      "DOUBLE_CONSTANT", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_DOUBLE_CONSTANT),
+      JSOP_NULLWRAPPER,
+  },
   JS_PS_END
 };
 
 const JSFunctionSpec prototype_functions[] = {
   JS_FS_END
+};
+
+const JSPropertySpec interface_object_properties[] = {
+  {
+      "INTEGER_CONSTANT", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_INTEGER_CONSTANT),
+      JSOP_NULLWRAPPER,
+  },
+  {
+      "DOUBLE_CONSTANT", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_DOUBLE_CONSTANT),
+      JSOP_NULLWRAPPER,
+  },
+  JS_PS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -178,6 +235,11 @@ void InitializePrototypeAndInterfaceObject(
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
                         JSPROP_READONLY);
+  DCHECK(success);
+
+  // Define interface object properties (including constants).
+  success = JS_DefineProperties(context, rooted_interface_object,
+                                         interface_object_properties);
   DCHECK(success);
 
   // Set the Prototype.constructor and Constructor.prototype properties.
