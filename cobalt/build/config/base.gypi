@@ -33,7 +33,7 @@
     # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
     'host_os%': 'win',
     # The "real" target_arch that is used to select the correct delegate source.
-    # TODO(***REMOVED***): Investigate why adding % will break the build on platforms
+    # TODO: Investigate why adding % will break the build on platforms
     # other than Windows
     # TODO: Remove after starboard.
     'actual_target_arch': '<(target_arch)',
@@ -198,7 +198,7 @@
     'include_dirs': [ '<(DEPTH)' ],
     'libraries': [ '<@(platform_libraries)' ],
 
-    # TODO(***REMOVED***): This is needed to support the option to include
+    # TODO: This is needed to support the option to include
     # posix_emulation.h to all compiled source files. This dependency should
     # be refactored and removed.
     'include_dirs_target': [
@@ -252,7 +252,7 @@
       }]
     ],
 
-    # TODO(***REMOVED***): Revisit and remove unused configurations.
+    # TODO: Revisit and remove unused configurations.
     'configurations': {
       'debug_base': {
         'abstract': 1,
@@ -274,7 +274,7 @@
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
-          '__LB_SHELL__FORCE_LOGGING__',  # TODO(***REMOVED***): Rename to COBALT_LOGGING_ENABLED.
+          '__LB_SHELL__FORCE_LOGGING__',  # TODO: Rename to COBALT_LOGGING_ENABLED.
           'SK_DEVELOPER',
         ],
       }, # end of debug_base
