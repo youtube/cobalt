@@ -459,6 +459,10 @@ const JSFunctionSpec prototype_functions[] = {
   JS_FS_END
 };
 
+const JSPropertySpec interface_object_properties[] = {
+  JS_PS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -504,6 +508,11 @@ void InitializePrototypeAndInterfaceObject(
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
                         JSPROP_READONLY);
+  DCHECK(success);
+
+  // Define interface object properties (including constants).
+  success = JS_DefineProperties(context, rooted_interface_object,
+                                         interface_object_properties);
   DCHECK(success);
 
   // Set the Prototype.constructor and Constructor.prototype properties.
