@@ -44,6 +44,9 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   // Gets the Wrapper object for this Wrappable. It may create a new Wrapper.
   JSObject* GetWrapper(const scoped_refptr<Wrappable>& wrappable) const;
 
+  // Returns true if this JSObject is a Wrapper object.
+  bool IsWrapper(JS::HandleObject wrapper) const;
+
  private:
   scoped_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(
       const scoped_refptr<Wrappable>& wrappable) const;

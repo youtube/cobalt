@@ -35,6 +35,8 @@ namespace mozjs {
 
 const char kNotNullableType[] = "Value is null but type is not nullable.";
 const char kNotObjectType[] = "Value is not an object.";
+const char kDoesNotImplementInterface[] =
+    "Value does not implement the interface type.";
 
 // Flags that can be used as a bitmask for special conversion behaviour.
 enum ConversionFlags {
@@ -258,6 +260,60 @@ void ToJSValue(JSContext* context,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, MozjsExceptionState* exception_state,
                  MozjsObjectHandle::HolderType* out_holder);
+
+// object -> JSValue
+template <class T>
+inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
+                      MozjsExceptionState* exception_state,
+                      JS::MutableHandleValue out_value) {
+  if (!in_object) {
+    out_value.setNull();
+    return;
+  }
+
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  JS::RootedObject object(
+      context, global_object_proxy->wrapper_factory()->GetWrapper(in_object));
+  DCHECK(object);
+
+  out_value.set(OBJECT_TO_JSVAL(object));
+}
+
+// JSValue -> object
+template <class T>
+inline void FromJSValue(JSContext* context, JS::HandleValue value,
+                        int conversion_flags,
+                        MozjsExceptionState* exception_state,
+                        scoped_refptr<T>* out_object) {
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
+      << "Unexpected conversion flags found.";
+
+  JS::RootedObject js_object(context);
+  if (value.isNull() && !(conversion_flags & kConversionFlagNullable)) {
+    exception_state->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotNullableType);
+    return;
+  }
+
+  if (!JS_ValueToObject(context, value, js_object.address())) {
+    exception_state->SetSimpleException(
+        ExceptionState::kTypeError,
+        "Cannot convert a JavaScript value to an object.");
+    return;
+  }
+
+  DCHECK(js_object);
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  if (global_object_proxy->wrapper_factory()->IsWrapper(js_object)) {
+    *out_object = WrapperPrivate::GetWrappable<T>(js_object);
+  } else {
+    // This is not a platform object. Return a type error.
+    exception_state->SetSimpleException(ExceptionState::kTypeError,
+                                        kDoesNotImplementInterface);
+  }
+}
 
 // TODO: These will be removed once conversion for all types is implemented.
 template <typename T>
