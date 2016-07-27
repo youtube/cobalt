@@ -185,7 +185,7 @@ class MsvsSettings(object):
     vs_path = self.vs_version.Path()
     # Absolute paths in cygwin the path will start with /cygdrive/c/
     # The MS compiler tools need
-    # TODO(***REMOVED***) : this is getting generated from the vs install path
+    # TODO: this is getting generated from the vs install path
     # need to pass this in, or fix earlier in generation
     if sys.platform == 'cygwin':
       vs_path = cygpath.to_nt(vs_path)
@@ -859,7 +859,7 @@ def GenerateXB360EnvironmentFiles(toplevel_build_dir, generator_flags, open_out)
   compiler with an absolute path, instead preferring something like "cl.exe" in
   the rule which will then run whichever the environment setup has put in the
   path."""
-  # TODO(***REMOVED***): Switch to 'ppc' and hope havoc is not precipitated.
+  # TODO: Switch to 'ppc' and hope havoc is not precipitated.
   arch = 'x86'
 
   vs_args = [
