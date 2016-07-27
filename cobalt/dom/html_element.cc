@@ -890,8 +890,9 @@ void HTMLElement::UpdateComputedStyle(
             invalidate_sizes = true;
           }
           if (!invalidate_cross_references &&
-              NewComputedStyleInvalidatesCrossReferences(computed_style(),
-                                                         new_computed_style)) {
+              NewComputedStyleInvalidatesCrossReferences(
+                  pseudo_elements_[pseudo_element_type]->computed_style(),
+                  pseudo_element_computed_style)) {
             invalidate_cross_references = true;
           }
         }
