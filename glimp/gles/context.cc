@@ -1208,13 +1208,17 @@ bool TextureTypeIsValid(GLenum type) {
 //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
 // Note that glimp may not support all possible formats described above.
 PixelFormat PixelFormatFromGLTypeAndFormat(GLenum format, GLenum type) {
-  if (type == GL_UNSIGNED_BYTE && format == GL_RGBA) {
-    return kPixelFormatRGBA8;
-  } else if (type == GL_UNSIGNED_BYTE && format == GL_ALPHA) {
-    return kPixelFormatA8;
-  } else {
-    return kPixelFormatInvalid;
+  if (type == GL_UNSIGNED_BYTE) {
+    switch (format) {
+      case GL_RGBA:
+        return kPixelFormatRGBA8;
+      case GL_ALPHA:
+        return kPixelFormatA8;
+      case GL_LUMINANCE_ALPHA:
+        return kPixelFormatBA8;
+    }
   }
+  return kPixelFormatInvalid;
 }
 
 }  // namespace
