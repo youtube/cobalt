@@ -53,6 +53,28 @@ using cobalt::script::Wrappable;
 
 {% block implementation %}
 namespace {
+{% for constant in constants %}
+JSBool get_{{constant.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+{% if constant.can_use_compile_assert %}
+  COMPILE_ASSERT({{impl_class}}::{{constant.name}} == {{constant.value}},
+                 ValueFor{{impl_class}}_{{constant.name}}DoesNotMatchIDL);
+{% else %}
+  DCHECK_EQ({{constant.value}}, {{impl_class}}::{{constant.name}}) <<
+      "The value for {{impl_class}}::{{constant.name}} does not match "
+      "the value in the interface definition.";
+{% endif %}
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+  ToJSValue(context, {{constant.value}}, &exception_state, &result_value);
+  if (!exception_state.IsExceptionSet()) {
+     vp.set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+{% endfor %}
 {% if constructor %}
 JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
 {% endif %}
@@ -233,6 +255,14 @@ JSBool fcn_{{operation.idl_name}}(
 {% endfor %}
 
 const JSPropertySpec prototype_properties[] = {
+{% for constant in constants %}
+  {
+      "{{constant.idl_name}}", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_{{constant.idl_name}}),
+      JSOP_NULLWRAPPER,
+  },
+{% endfor %}
 {% for attribute in attributes if not attribute.is_constructor_attribute %}
 {% if attribute.conditional %}
 #if defined({{attribute.conditional}})
@@ -276,6 +306,18 @@ const JSFunctionSpec prototype_functions[] = {
 {% endif %}
 {% endfor %}
   JS_FS_END
+};
+
+const JSPropertySpec interface_object_properties[] = {
+{% for constant in constants %}
+  {
+      "{{constant.idl_name}}", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_{{constant.idl_name}}),
+      JSOP_NULLWRAPPER,
+  },
+{% endfor %}
+  JS_PS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -343,6 +385,11 @@ void InitializePrototypeAndInterfaceObject(
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
                         JSPROP_READONLY);
+  DCHECK(success);
+
+  // Define interface object properties (including constants).
+  success = JS_DefineProperties(context, rooted_interface_object,
+                                         interface_object_properties);
   DCHECK(success);
 
   // Set the Prototype.constructor and Constructor.prototype properties.
