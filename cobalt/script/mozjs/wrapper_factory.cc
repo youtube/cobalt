@@ -53,6 +53,10 @@ JSObject* WrapperFactory::GetWrapper(
   return wrapper;
 }
 
+bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
+  return JS_GetPrivate(wrapper) != NULL;
+}
+
 scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     const scoped_refptr<Wrappable>& wrappable) const {
   CreateWrapperHashMap::const_iterator it =
