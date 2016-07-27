@@ -133,6 +133,10 @@ const JSFunctionSpec prototype_functions[] = {
   JS_FS_END
 };
 
+const JSPropertySpec interface_object_properties[] = {
+  JS_PS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
