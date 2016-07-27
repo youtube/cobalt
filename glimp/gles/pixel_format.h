@@ -31,8 +31,10 @@ enum PixelFormat {
   kPixelFormatARGB8,
   kPixelFormatBGRA8,
   kPixelFormatRGB565,
+  kPixelFormatBA8,
   kPixelFormatA8,
   kPixelFormatInvalid,
+  kPixelFormatNumFormats = kPixelFormatInvalid
 };
 
 // Returns the number of bytes per pixel for a given PixelFormat.
