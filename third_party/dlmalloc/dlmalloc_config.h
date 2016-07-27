@@ -139,7 +139,7 @@
 #define ENOMEM 1
 
 // Compatibility patching back to LBShell names.
-// TODO(iffy): Collapse this out when LBShell is gone.
+// TODO: Collapse this out when LBShell is gone.
 #define lb_virtual_mem_t SbPageVirtualMemory
 #define lb_get_total_system_memory SbPageGetTotalPhysicalMemoryBytes
 #define lb_get_mmapped_bytes SbPageGetMappedBytes
