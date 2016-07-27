@@ -15,7 +15,6 @@
 # Platform specific configuration for Linux on Starboard.  Automatically
 # included by gyp_cobalt in all .gyp files by Cobalt together with base.gypi.
 #
-# TODO(***REMOVED***): Replace linux GYP configuration with this file.
 {
   'variables': {
     'target_arch%': 'x64',
