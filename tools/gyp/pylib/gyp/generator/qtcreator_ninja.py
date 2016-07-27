@@ -21,7 +21,7 @@ PROJECT_DIR_RELATIVE_TO_SOLUTION = 'qtcreator_projects'
 def RebaseRelativePaths(file_set, original_base, new_base):
   ret = set()
   for item in file_set:
-    # TODO(***REMOVED***): For now, ignore special vars like $PRODUCT_DIR.
+    # TODO: For now, ignore special vars like $PRODUCT_DIR.
     if '$' in item:
       continue
     ret.add(os.path.relpath(os.path.join(original_base, item), new_base))
@@ -63,7 +63,7 @@ def GenProject(project_def, proj_dir):
     for include_path in configuration['include_paths']:
       f.write('%s\n' % include_path)
 
-  # TODO(***REMOVED***): Use Jinja2 template engine to generate the project files.
+  # TODO: Use Jinja2 template engine to generate the project files.
   with open(basefilename + '.creator.shared', 'w') as f:
     f.write("""<!DOCTYPE QtCreatorProject>
       <qtcreator>
