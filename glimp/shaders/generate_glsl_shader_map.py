@@ -107,11 +107,38 @@ def GetGenerateMapFunctionString(hash_to_shader_map):
   for k, v in hash_to_shader_map.iteritems():
     input_file_variable_name = GetBasename(v)
     generate_map_function_string += (
-        '  (*out_map)[%d] = ShaderData(%s, sizeof(%s));\n' %
+        '  (*out_map)[%uU] = ShaderData(%s, sizeof(%s));\n' %
         (k, input_file_variable_name, input_file_variable_name))
 
-  generate_map_function_string += '}\n\n'
+  generate_map_function_string += '}'
   return generate_map_function_string
+
+
+
+def GetShaderNameFunctionString(hash_to_shader_map):
+  """Generate C++ code to retrieve the shader name from a GLSL hash.
+
+  Args:
+    hash_to_shader_map:
+      A dictionary where the keys are hashes and the values are
+      platform-specific shader filenames.
+  Returns:
+    A string of C++ code that defines a function that returns a string with the
+    corresponding shader name for the GLSL hash value passed as a parameter.
+  """
+
+  get_shader_name_function_string = (
+      'inline const char *GetShaderName(uint32_t hash_value) {\n'
+      '  switch(hash_value) {\n')
+
+  for k, v in hash_to_shader_map.iteritems():
+    input_file_variable_name = GetBasename(v)
+    get_shader_name_function_string += (
+        '    case %uU: return \"%s\";\n' %
+        (k, input_file_variable_name))
+
+  get_shader_name_function_string += '  }\n  return NULL;\n}'
+  return get_shader_name_function_string
 
 
 HEADER_FILE_TEMPLATE = """
@@ -129,6 +156,11 @@ namespace shaders {{
 
 {data_definitions}
 {generate_map_function}
+
+#if !defined(NDEBUG)
+{shader_name_function}
+#endif
+
 }}  // namespace shaders
 }}  // namespace glimp
 
@@ -153,7 +185,9 @@ def GenerateHeaderFileOutput(output_file_name, hash_to_shader_map):
             data_definitions = GetHeaderDataDefinitionString(
                                    hash_to_shader_map.values()),
             generate_map_function = GetGenerateMapFunctionString(
-                                        hash_to_shader_map)))
+                                        hash_to_shader_map),
+            shader_name_function = GetShaderNameFunctionString(
+                                       hash_to_shader_map)))
 
 
 def AssociateGLSLFilesWithPlatformFiles(all_shaders):
