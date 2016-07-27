@@ -566,7 +566,9 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* directory, const SkTArray<SkString, true>& default_fonts)
     : default_family_(NULL),
       last_font_cache_purge_time_(base::TimeTicks::Now()) {
-  // Initialize the CVals
+  // Ensure that both the CValManager and SkFontMgrCVals are initialized. The
+  // CValManager is created first as it must outlast the SkFontMgrCVals.
+  base::CValManager::GetInstance();
   SkFontMgrCVals::GetInstance();
 
   SkTDArray<FontFamily*> font_families;
