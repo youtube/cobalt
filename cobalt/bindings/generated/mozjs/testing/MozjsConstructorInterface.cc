@@ -87,7 +87,7 @@ InterfaceData* CreateCachedInterfaceData() {
 
   JSClass* instance_class = &interface_data->instance_class_definition;
   const int kGlobalFlags = 0;
-  instance_class->name = "MozjsConstructorInterface";
+  instance_class->name = "ConstructorInterface";
   instance_class->flags = kGlobalFlags | JSCLASS_HAS_PRIVATE;
   instance_class->addProperty = JS_PropertyStub;
   instance_class->delProperty = JS_DeletePropertyStub;
@@ -102,7 +102,7 @@ InterfaceData* CreateCachedInterfaceData() {
   instance_class->trace = &WrapperPrivate::Trace;
 
   JSClass* prototype_class = &interface_data->prototype_class_definition;
-  prototype_class->name = "MozjsConstructorInterfacePrototype";
+  prototype_class->name = "ConstructorInterfacePrototype";
   prototype_class->flags = 0;
   prototype_class->addProperty = JS_PropertyStub;
   prototype_class->delProperty = JS_DeletePropertyStub;
@@ -113,7 +113,7 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->convert = JS_ConvertStub;
 
   JSClass* interface_object_class = &interface_data->interface_object_class_definition;
-  interface_object_class->name = "MozjsConstructorInterfaceConstructor";
+  interface_object_class->name = "ConstructorInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
   interface_object_class->delProperty = JS_DeletePropertyStub;
