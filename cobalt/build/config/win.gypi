@@ -129,7 +129,7 @@
       },
       'VCLinkerTool': {
         'RandomizedBaseAddress': '2', # /DYNAMICBASE
-        # TODO(***REMOVED***): SubSystem is hardcoded in
+        # TODO: SubSystem is hardcoded in
         # win\sources_template.vcxproj. This will have the exe behave in the
         # expected way in MSVS: when it's run without debug (Ctrl+F5), it
         # will pause after finish; when debugging (F5) it will not pause
@@ -148,7 +148,7 @@
         'AdditionalOptions': [
           # Linking statically with C++/CX library is not recommended.
           # Since Windows is not a production platform, we don't care.
-          # TODO(***REMOVED***): Remove after removing ComponentExtensions
+          # TODO: Remove after removing ComponentExtensions
           '/ignore:4264',
         ],
       },
@@ -227,7 +227,7 @@
         ],
       }],
       ['cobalt_code==0', {
-        # TODO(***REMOVED***): Fix warnings below or disable them on per-module basis.
+        # TODO: Fix warnings below or disable them on per-module basis.
         'msvs_disabled_warnings': [
           4244, # Conversion from 'type1' to 'type2', possible loss of data.
           4996, # Using unsecure or deprecated version of a function.
@@ -246,7 +246,7 @@
             # Enables Native Code Analysis - a static code analysis by Microsoft.
             'EnablePREfast': '<(static_analysis)',
             'AdditionalOptions': [
-              # TODO(***REMOVED***): Enable SDL everywhere once C4996 warning is fixed.
+              # TODO: Enable SDL everywhere once C4996 warning is fixed.
               '/sdl', # Security Development Lifecycle checks.
             ],
           },
@@ -270,7 +270,7 @@
             ],
           },
         },
-        # TODO(***REMOVED***): For now, msvs_configuration_platform and
+        # TODO: For now, msvs_configuration_platform and
         # msvs_target_platform serve similar purposes. Investigate, if ever,
         # when porting to x86.
         'msvs_target_platform': 'x64',
