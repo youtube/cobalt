@@ -98,7 +98,7 @@ CValsMap GetAllCValValues() {
 void DoStatsSnapshot(cobalt::browser::Application* application) {
   Output("---Benchmark Results Start---\n");
   Output("{\n");
-  Output("  \"LiveKabukiAfter%dSecondsStatsSnapshot\": {\n", kSecondsToWait);
+  Output("  \"LiveYouTubeAfter%dSecondsStatsSnapshot\": {\n", kSecondsToWait);
 
   CValsMap cval_values = GetAllCValValues();
   bool have_printed_results = false;
