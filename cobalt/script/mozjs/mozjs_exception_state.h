@@ -28,15 +28,17 @@ namespace mozjs {
 
 class MozjsExceptionState : public ExceptionState {
  public:
-  explicit MozjsExceptionState(JSContext* context) : context_(context) {}
+  explicit MozjsExceptionState(JSContext* context)
+      : is_exception_set_(false), context_(context) {}
   // ExceptionState interface
   void SetException(const scoped_refptr<ScriptException>& exception) OVERRIDE;
   void SetSimpleException(SimpleExceptionType simple_exception,
                           const std::string& message) OVERRIDE;
 
-  bool IsExceptionSet();
+  bool is_exception_set() const { return is_exception_set_; }
 
  private:
+  bool is_exception_set_;
   JSContext* context_;
   base::ThreadChecker thread_checker_;
 };

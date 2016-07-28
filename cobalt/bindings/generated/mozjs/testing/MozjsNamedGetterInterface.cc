@@ -157,7 +157,7 @@ JSBool fcn_namedDeleter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &name);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -167,10 +167,10 @@ JSBool fcn_namedDeleter(
   impl->NamedDeleter(name);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_namedGetter(
@@ -202,7 +202,7 @@ JSBool fcn_namedGetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &name);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -211,14 +211,14 @@ JSBool fcn_namedGetter(
       wrapper_private->wrappable<NamedGetterInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->NamedGetter(name);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_namedSetter(
@@ -250,14 +250,14 @@ JSBool fcn_namedSetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &name);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<std::string >::ConversionType value;
   DCHECK_LT(1, args.length());
   FromJSValue(context, args.handleAt(1),
       kNoConversionFlags, &exception_state, &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -267,10 +267,10 @@ JSBool fcn_namedSetter(
   impl->NamedSetter(name, value);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

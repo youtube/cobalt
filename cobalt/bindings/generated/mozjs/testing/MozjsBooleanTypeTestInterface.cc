@@ -139,14 +139,14 @@ JSBool get_booleanProperty(
       wrapper_private->wrappable<BooleanTypeTestInterface>().get();
   TypeTraits<bool >::ReturnType value =
       impl->boolean_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_booleanProperty(
@@ -157,7 +157,7 @@ JSBool set_booleanProperty(
   TypeTraits<bool >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -167,7 +167,7 @@ JSBool set_booleanProperty(
   impl->set_boolean_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_booleanArgumentOperation(
@@ -199,7 +199,7 @@ JSBool fcn_booleanArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -209,10 +209,10 @@ JSBool fcn_booleanArgumentOperation(
   impl->BooleanArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_booleanReturnOperation(
@@ -240,14 +240,14 @@ JSBool fcn_booleanReturnOperation(
       wrapper_private->wrappable<BooleanTypeTestInterface>().get();
   TypeTraits<bool >::ReturnType value =
       impl->BooleanReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

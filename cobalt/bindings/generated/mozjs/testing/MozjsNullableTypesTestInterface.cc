@@ -143,14 +143,14 @@ JSBool get_nullableBooleanProperty(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->nullable_boolean_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableBooleanProperty(
@@ -161,7 +161,7 @@ JSBool set_nullableBooleanProperty(
   TypeTraits<base::optional<bool > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -171,7 +171,7 @@ JSBool set_nullableBooleanProperty(
   impl->set_nullable_boolean_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableNumericProperty(
@@ -185,14 +185,14 @@ JSBool get_nullableNumericProperty(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->nullable_numeric_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableNumericProperty(
@@ -203,7 +203,7 @@ JSBool set_nullableNumericProperty(
   TypeTraits<base::optional<int32_t > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -213,7 +213,7 @@ JSBool set_nullableNumericProperty(
   impl->set_nullable_numeric_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableStringProperty(
@@ -227,14 +227,14 @@ JSBool get_nullableStringProperty(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_string_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableStringProperty(
@@ -245,7 +245,7 @@ JSBool set_nullableStringProperty(
   TypeTraits<base::optional<std::string > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -255,7 +255,7 @@ JSBool set_nullableStringProperty(
   impl->set_nullable_string_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableObjectProperty(
@@ -269,14 +269,14 @@ JSBool get_nullableObjectProperty(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->nullable_object_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableObjectProperty(
@@ -287,7 +287,7 @@ JSBool set_nullableObjectProperty(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -297,7 +297,7 @@ JSBool set_nullableObjectProperty(
   impl->set_nullable_object_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableBooleanArgument(
@@ -329,7 +329,7 @@ JSBool fcn_nullableBooleanArgument(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -339,10 +339,10 @@ JSBool fcn_nullableBooleanArgument(
   impl->NullableBooleanArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableBooleanOperation(
@@ -370,14 +370,14 @@ JSBool fcn_nullableBooleanOperation(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->NullableBooleanOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableNumericArgument(
@@ -409,7 +409,7 @@ JSBool fcn_nullableNumericArgument(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -419,10 +419,10 @@ JSBool fcn_nullableNumericArgument(
   impl->NullableNumericArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableNumericOperation(
@@ -450,14 +450,14 @@ JSBool fcn_nullableNumericOperation(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->NullableNumericOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableObjectArgument(
@@ -489,7 +489,7 @@ JSBool fcn_nullableObjectArgument(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -499,10 +499,10 @@ JSBool fcn_nullableObjectArgument(
   impl->NullableObjectArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableObjectOperation(
@@ -530,14 +530,14 @@ JSBool fcn_nullableObjectOperation(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->NullableObjectOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableStringArgument(
@@ -569,7 +569,7 @@ JSBool fcn_nullableStringArgument(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -579,10 +579,10 @@ JSBool fcn_nullableStringArgument(
   impl->NullableStringArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableStringOperation(
@@ -610,14 +610,14 @@ JSBool fcn_nullableStringOperation(
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->NullableStringOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

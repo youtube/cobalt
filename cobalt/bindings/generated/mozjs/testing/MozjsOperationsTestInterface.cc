@@ -157,14 +157,14 @@ JSBool fcn_longFunctionNoArgs(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   TypeTraits<int32_t >::ReturnType value =
       impl->LongFunctionNoArgs();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_objectFunctionNoArgs(
@@ -192,14 +192,14 @@ JSBool fcn_objectFunctionNoArgs(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->ObjectFunctionNoArgs();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_optionalArgumentWithDefault(
@@ -231,7 +231,7 @@ JSBool fcn_optionalArgumentWithDefault(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       (kConversionFlagRestricted), &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -241,10 +241,10 @@ JSBool fcn_optionalArgumentWithDefault(
   impl->OptionalArgumentWithDefault(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_optionalArguments(
@@ -276,21 +276,21 @@ JSBool fcn_optionalArguments(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<int32_t >::ConversionType arg2;
   DCHECK_LT(1, args.length());
   FromJSValue(context, args.handleAt(1),
       kNoConversionFlags, &exception_state, &arg2);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<int32_t >::ConversionType arg3;
   DCHECK_LT(2, args.length());
   FromJSValue(context, args.handleAt(2),
       kNoConversionFlags, &exception_state, &arg3);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -300,10 +300,10 @@ JSBool fcn_optionalArguments(
   impl->OptionalArguments(arg1, arg2, arg3);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_optionalNullableArgumentsWithDefaults(
@@ -335,14 +335,14 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       (kConversionFlagNullable), &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg2;
   DCHECK_LT(1, args.length());
   FromJSValue(context, args.handleAt(1),
       (kConversionFlagNullable), &exception_state, &arg2);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -352,10 +352,10 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
   impl->OptionalNullableArgumentsWithDefaults(arg1, arg2);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_overloadedFunction(
@@ -384,10 +384,10 @@ JSBool fcn_overloadedFunction(
   impl->OverloadedFunction();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_overloadedNullable(
@@ -419,7 +419,7 @@ JSBool fcn_overloadedNullable(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -429,10 +429,10 @@ JSBool fcn_overloadedNullable(
   impl->OverloadedNullable(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_stringFunctionNoArgs(
@@ -460,14 +460,14 @@ JSBool fcn_stringFunctionNoArgs(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->StringFunctionNoArgs();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_variadicPrimitiveArguments(
@@ -499,7 +499,7 @@ JSBool fcn_variadicPrimitiveArguments(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &bools);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -509,10 +509,10 @@ JSBool fcn_variadicPrimitiveArguments(
   impl->VariadicPrimitiveArguments(bools);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
@@ -544,14 +544,14 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &optional_arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<std::vector<std::string> >::ConversionType strings;
   DCHECK_LT(1, args.length());
   FromJSValue(context, args.handleAt(1),
       kNoConversionFlags, &exception_state, &strings);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -561,10 +561,10 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
   impl->VariadicStringArgumentsAfterOptionalArgument(optional_arg, strings);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_voidFunctionLongArg(
@@ -596,7 +596,7 @@ JSBool fcn_voidFunctionLongArg(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -606,10 +606,10 @@ JSBool fcn_voidFunctionLongArg(
   impl->VoidFunctionLongArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_voidFunctionNoArgs(
@@ -638,10 +638,10 @@ JSBool fcn_voidFunctionNoArgs(
   impl->VoidFunctionNoArgs();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_voidFunctionObjectArg(
@@ -673,7 +673,7 @@ JSBool fcn_voidFunctionObjectArg(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -683,10 +683,10 @@ JSBool fcn_voidFunctionObjectArg(
   impl->VoidFunctionObjectArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_voidFunctionStringArg(
@@ -718,7 +718,7 @@ JSBool fcn_voidFunctionStringArg(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -728,10 +728,10 @@ JSBool fcn_voidFunctionStringArg(
   impl->VoidFunctionStringArg(arg);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
