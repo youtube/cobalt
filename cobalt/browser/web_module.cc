@@ -525,21 +525,6 @@ WebModule::WebModule(
       network_module, window_dimensions, resource_provider, layout_refresh_rate,
       options);
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kPartialLayout)) {
-    const std::string partial_layout_string =
-        command_line->GetSwitchValueASCII(browser::switches::kPartialLayout);
-    OnPartialLayoutConsoleCommandReceived(partial_layout_string);
-  }
-  partial_layout_command_handler_.reset(
-      new base::ConsoleCommandManager::CommandHandler(
-          browser::switches::kPartialLayout,
-          base::Bind(&WebModule::OnPartialLayoutConsoleCommandReceived,
-                     base::Unretained(this)),
-          kPartialLayoutCommandShortHelp, kPartialLayoutCommandLongHelp));
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
 #if defined(ADDRESS_SANITIZER)
@@ -567,6 +552,21 @@ WebModule::WebModule(
                            base::Bind(&base::WaitableEvent::Signal,
                                       base::Unretained(&is_initialized)));
   is_initialized.Wait();
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kPartialLayout)) {
+    const std::string partial_layout_string =
+        command_line->GetSwitchValueASCII(browser::switches::kPartialLayout);
+    OnPartialLayoutConsoleCommandReceived(partial_layout_string);
+  }
+  partial_layout_command_handler_.reset(
+      new base::ConsoleCommandManager::CommandHandler(
+          browser::switches::kPartialLayout,
+          base::Bind(&WebModule::OnPartialLayoutConsoleCommandReceived,
+                     base::Unretained(this)),
+          kPartialLayoutCommandShortHelp, kPartialLayoutCommandLongHelp));
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }
 
 WebModule::~WebModule() {
