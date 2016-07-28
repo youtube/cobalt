@@ -231,7 +231,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, MozjsExceptionState* exception_state,
                  std::string* out_string);
 
-// JSValue -> optional<T>
+// JSValue -> optional<std::string>
 template <>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags,
@@ -263,7 +263,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  MozjsObjectHandle::HolderType* out_holder);
 
 // object -> JSValue
-template <class T>
+template <typename T>
 inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
                       MozjsExceptionState* exception_state,
                       JS::MutableHandleValue out_value) {
@@ -283,28 +283,27 @@ inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
 }
 
 // JSValue -> object
-template <class T>
+template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags,
                         MozjsExceptionState* exception_state,
                         scoped_refptr<T>* out_object) {
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
-
   JS::RootedObject js_object(context);
-  if (value.isNull() && !(conversion_flags & kConversionFlagNullable)) {
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotNullableType);
+  if (value.isNull()) {
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      exception_state->SetSimpleException(ExceptionState::kTypeError,
+                                          kNotNullableType);
+    }
     return;
   }
-
   if (!JS_ValueToObject(context, value, js_object.address())) {
     exception_state->SetSimpleException(
         ExceptionState::kTypeError,
         "Cannot convert a JavaScript value to an object.");
     return;
   }
-
   DCHECK(js_object);
   if (js::IsProxy(js_object)) {
     JS::RootedObject wrapper(context, js::GetProxyTargetObject(js_object));
