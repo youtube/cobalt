@@ -91,7 +91,7 @@ bool PathProviderStarboard(int key, FilePath *result) {
       return PathProviderStarboard(base::DIR_CACHE, result);
   }
 
-  NOTREACHED() << "key = " << key;
+  DLOG(ERROR) << "Could not resolve path for key = " << key;
   return false;
 }
 
