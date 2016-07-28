@@ -1,0 +1,137 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$$ This should be no larger than MAX_ARITY in base/bind.h.pump.
+$var MAX_ARITY = 7
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
+
+#include "base/debug/trace_event.h"
+#include "base/logging.h"
+#include "cobalt/script/callback_function.h"
+#include "cobalt/script/javascriptcore/jsc_global_object.h"
+#include "cobalt/script/javascriptcore/util/exception_helpers.h"
+#include "cobalt/script/logging_exception_state.h"
+#include "cobalt/script/script_object.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
+
+// The JSCCallbackFunction type is used to represent IDL callback functions.
+// Create a new JSCCallbackFunction by specifying the base CallbackFunction
+// as a template parameter to the constructor.
+//
+// Constructor parameters:
+//     callable: A handle that keeps keeps alive the JSC::JSFunction that
+//         will be called when the callback is fired.
+//     callback: A base::Callback that will be executed when the Run(...)
+//         function is executed. It will take as parameters a JSC::JSFunction
+//         followed by any arguments that are defined on the callback type.
+
+namespace cobalt {
+namespace script {
+namespace javascriptcore {
+namespace internal {
+// Helper template functions for Callback functions' return values before being
+// returned to Cobalt.
+// Converts the return value from JavaScript into the correct Cobalt type, or
+// sets the exception bit if conversion fails.
+template <typename R>
+inline CallbackResult<R> ConvertReturnValue(JSC::ExecState* exec_state,
+                                            JSC::JSValue jsvalue);
+}
+// First, we forward declare the Callback class template. This informs the
+// compiler that the template only has 1 type parameter which is the base
+// CallbackFunction template class with parameters.
+//
+// See base/callback.h.pump for further discussion on this pattern.
+template <typename Sig>
+class JSCCallbackFunction;
+
+$range ARITY 0..MAX_ARITY
+$for ARITY [[
+$range ARG 1..ARITY
+
+
+$if ARITY == 0 [[
+template <typename R>
+class JSCCallbackFunction<R(void)>
+    : public CallbackFunction<R(void)> {
+]] $else [[
+template <typename R, $for ARG , [[typename A$(ARG)]]>
+class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
+    : public CallbackFunction<R($for ARG , [[A$(ARG)]])> {
+]]
+
+ public:
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) { DCHECK(callable_); }
+
+  CallbackResult<R> Run($for ARG , [[
+
+      typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
+      const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
+    DCHECK(callable_);
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    $for ARG [[args.append(ToJSValue(global_object, a$(ARG)));
+    ]]
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(callable_, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value, args);
+    CallbackResult<R> callback_result;
+    if (exec_state->hadException()) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(exec_state);
+
+      exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
+    }
+    return callback_result;
+  }
+
+  JSC::JSFunction* callable() const { return callable_; }
+
+ private:
+  JSC::JSFunction* callable_;
+};
+
+]]
+
+}  // namespace javascriptcore
+}  // namespace script
+}  // namespace cobalt
+
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_

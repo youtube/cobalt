@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | Absolutely positioned children of overflow: hidden.
+ | The children are positioned to the right.
+ |   https://www.w3.org/TR/CSS21/visufx.html
+ -->
+<head>
+  <style>
+    body {
+      font-family: Roboto;
+      font-size: 16px;
+    }
+
+    .overflow {
+      width: 8em;
+      height: 8em;
+      overflow: hidden;
+    }
+    .positioned {
+      color: #FFFFFF;
+      background: #00CC00;
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 10em;
+    }
+  </style>
+</head>
+<body>
+  <div class="overflow">
+    <div class="positioned">PASS</div>
+  </div>
+</body>
+</html>

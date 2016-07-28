@@ -1,0 +1,7 @@
+ninja-win.exe built with MSVC 2012
+from
+https://github.com/REDACTED/ninja/commit/1287257fe343c4b6b0f760308a7bec52d86b0edf
+
+ninja-linux built with gcc
+from
+https://github.com/REDACTED/ninja/commit/613d89893e56acc8c3670a66a33fcd2caf7d9050

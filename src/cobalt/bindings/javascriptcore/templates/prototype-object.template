@@ -1,0 +1,179 @@
+{#
+ # Copyright 2016 Google Inc. All Rights Reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+ # You may obtain a copy of the License at
+ #
+ #     http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS,
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ #}
+// Class that defines a JS Object representing this interface's prototype
+class {{binding_class}}::Prototype : public PrototypeBase {
+ public:
+  // Get the prototype. Will create a new prototype if necessary, otherwise it
+  // will return a cached prototype.
+  static JSC::JSObject* GetInstance(JSC::JSGlobalObject* global_object);
+  DECLARE_CLASSINFO();
+
+  // Needed when JSC::OverridesGetOwnPropertySlot StructureFlag is set
+  // Must be public so that it can be accessible from getStaticValueSlot<>.
+  static bool getOwnPropertySlot(JSC::JSCell*, JSC::ExecState*,
+                                 JSC::PropertyName,
+                                 JSC::PropertySlot&);
+
+ private:
+  typedef PrototypeBase BaseClass;
+
+  static const unsigned StructureFlags =
+      JSC::OverridesGetOwnPropertySlot |
+      BaseClass::StructureFlags;
+
+  Prototype(JSC::JSGlobalObject* global_object, JSC::Structure* structure)
+      : BaseClass(global_object, structure) { }
+
+{% if has_interface_object %}
+  static JSC::JSValue GetConstructor(JSC::ExecState* exec_state,
+      JSC::JSValue slot_base,
+      JSC::PropertyName property_name);
+{% endif %}
+  static const JSC::HashTable* GetPropertyTable(JSC::ExecState* exec_state);
+
+  static const JSC::HashTableValue property_table_values[];
+  static const JSC::HashTable property_table_prototype;
+};
+
+const JSC::HashTableValue {{binding_class}}::Prototype::property_table_values[] = {
+{% for operation in operations if not is_global_interface %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+    { "{{operation.idl_name}}",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJS{{operation.idl_name}}),
+        static_cast<intptr_t>({{operation.length}}),
+        JSC::NoIntrinsic
+    },
+{% if operation.conditional %}
+#endif  // defined({{operation.conditional}})
+{% endif %}
+{% endfor %}
+{% if stringifier %}
+    { "toString",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(StringifierJS),
+        static_cast<intptr_t>(0),
+        JSC::NoIntrinsic
+    },
+{% endif %}
+{% for constant in constants %}
+    { "{{constant.idl_name}}",
+        JSC::DontDelete | JSC::ReadOnly,
+        reinterpret_cast<intptr_t>(getJS{{constant.idl_name}}),
+        0,
+        JSC::NoIntrinsic
+    },
+{% endfor %}
+{% if has_interface_object %}
+    { "constructor",
+        JSC::DontDelete | JSC::DontEnum,
+        reinterpret_cast<intptr_t>({{binding_class}}::Prototype::GetConstructor),
+        static_cast<intptr_t>(0),
+        JSC::NoIntrinsic
+    },
+{% endif %}
+    { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
+};  // {{binding_class}}::Prototype::property_table_values
+
+// static
+const JSC::HashTable {{binding_class}}::Prototype::property_table_prototype = {
+{% set num_prototype_properties = constants|length %}
+{% if not is_global_interface %}
+{% set num_prototype_properties = num_prototype_properties + operations|length %}
+{% endif %}
+{% if has_interface_object %}
+{% set num_prototype_properties = num_prototype_properties + 1 %}
+{% endif %}
+{% if stringifier %}
+{% set num_prototype_properties = num_prototype_properties + 1 %}
+{% endif %}
+    {{ calculate_jsc_lookup_size(num_prototype_properties) }},  // compactSize
+    {{ calculate_jsc_lookup_size_mask(num_prototype_properties) }},  // compactSizeMask
+    property_table_values,
+    NULL  // table allocated at runtime
+};  // {{binding_class}}::Prototype::property_table_prototype
+
+// static
+const JSC::HashTable* {{binding_class}}::Prototype::GetPropertyTable(
+    JSC::ExecState* exec_state) {
+  return ThreadLocalHashTable::GetInstance()->GetHashTable(
+      {{binding_class}}::Prototype::s_classinfo(), property_table_prototype);
+}
+
+const JSC::ClassInfo {{binding_class}}::Prototype::s_info = {
+    "{{interface_name}}Prototype",  // className
+    BaseClass::s_classinfo(),  // parentClass
+    NULL,  // static hash-table of properties (not used)
+    GetPropertyTable,  // function pointer to get hash-table of properties
+    CREATE_METHOD_TABLE({{binding_class}}::Prototype)
+};  // {{binding_class}}::Prototype::s_info
+
+// Look up property slot for querying property values.
+bool {{binding_class}}::Prototype::getOwnPropertySlot(JSC::JSCell* cell,
+    JSC::ExecState* exec, JSC::PropertyName property_name,
+    JSC::PropertySlot& slot) {
+  Prototype* this_object = JSC::jsCast<Prototype*>(cell);
+  ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
+  return JSC::getStaticPropertySlot<Prototype, JSC::JSObject>(
+      exec, GetPropertyTable(exec), this_object, property_name, slot);
+}
+
+// static
+JSC::JSObject* {{binding_class}}::Prototype::GetInstance(
+    JSC::JSGlobalObject* base_global_object) {
+  JSCGlobalObject* global_object =
+      static_cast<JSCGlobalObject*>(base_global_object);
+  ASSERT_GC_OBJECT_INHERITS(global_object, JSCGlobalObject::s_classinfo());
+
+  // Try to get the cached prototype, and create a new one if needed.
+  JSC::JSObject* prototype = global_object->object_cache()->GetCachedPrototype(&s_info);
+  if (prototype == NULL) {
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSLockHolder lock(&global_data);
+
+{% if parent_interface %}
+    JSC::JSObject* parent_prototype =
+        {{parent_interface}}::GetPrototype(global_object);
+{% elif is_exception_interface %}
+    JSC::JSObject* parent_prototype = global_object->errorPrototype();
+{% else %}
+    JSC::JSObject* parent_prototype = global_object->objectPrototype();
+{% endif %}
+    JSC::TypeInfo type_info(JSC::ObjectType, StructureFlags);
+    JSC::Structure* structure = JSC::Structure::create(
+        global_data,
+        global_object,
+        JSC::JSValue(parent_prototype),
+        type_info,
+        &s_info);
+
+    // Create the new prototype object.
+    Prototype* new_prototype =
+        new (NotNull, JSC::allocateCell<Prototype>(
+            global_data.heap))
+        Prototype(global_object, structure);
+    new_prototype->finishCreation(global_data);
+    // Add the prototype to the cache.
+    global_object->object_cache()->CachePrototype(&s_info, new_prototype);
+    prototype = new_prototype;
+  }
+  DCHECK_EQ(global_object->object_cache()->GetCachedPrototype(&s_info), prototype);
+  return prototype;
+}
+
+// End of {{binding_class}}::Prototype class

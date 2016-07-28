@@ -1,0 +1,237 @@
+# HG changeset patch
+# User Nicholas Nethercote <nnethercote@mozilla.com>
+# Date 1383798497 -39600
+#      Thu Nov 07 15:28:17 2013 +1100
+# Node ID fcfdc49d52489b12a4e724ce52b2009ff32d8bc0
+# Parent 8aa6d9c79371db8e92214025cbfa5f116a607c07
+Bug 634417 - Remove inappropriate uses of vanilla malloc/calloc/realloc/free/strdup from SpiderMonkey.
+
+diff --git a/js/public/Utility.h b/js/public/Utility.h
+--- a/js/public/Utility.h
++++ b/js/public/Utility.h
+@@ -110,6 +110,8 @@ PrintBacktrace()
+         fprintf(stderr, "#%d %s\n", OOM_traceIdx, OOM_traceSymbols[OOM_traceIdx]);
+     }
+ 
++    // This must be free(), not js_free(), because backtrace_symbols()
++    // allocates with malloc().
+     free(OOM_traceSymbols);
+ }
+ 
+diff --git a/js/src/TraceLogging.cpp b/js/src/TraceLogging.cpp
+--- a/js/src/TraceLogging.cpp
++++ b/js/src/TraceLogging.cpp
+@@ -104,7 +104,7 @@ TraceLogging::~TraceLogging()
+ 
+     if (entries != NULL) {
+         flush();
+-        free(entries);
++        js_free(entries);
+         entries = NULL;
+     }
+ }
+@@ -112,7 +112,7 @@ TraceLogging::~TraceLogging()
+ void
+ TraceLogging::grow()
+ {
+-    Entry* nentries = (Entry*) realloc(entries, numEntries*2*sizeof(Entry));
++    Entry* nentries = (Entry*) js_realloc(entries, numEntries*2*sizeof(Entry));
+ 
+     // Allocating a bigger array failed.
+     // Keep using the current storage, but remove all entries by flushing them.
+@@ -132,7 +132,7 @@ TraceLogging::log(Type type, const char*
+ 
+     // Create array containing the entries if not existing.
+     if (entries == NULL) {
+-        entries = (Entry*) malloc(numEntries*sizeof(Entry));
++        entries = (Entry*) js_malloc(numEntries*sizeof(Entry));
+         if (entries == NULL)
+             return;
+     }
+@@ -214,7 +214,7 @@ TraceLogging::flush()
+         }
+ 
+         if (entries[i].file() != NULL) {
+-            free(entries[i].file());
++            js_free(entries[i].file());
+             entries[i].file_ = NULL;
+         }
+     }
+diff --git a/js/src/assembler/assembler/AssemblerBuffer.h b/js/src/assembler/assembler/AssemblerBuffer.h
+--- a/js/src/assembler/assembler/AssemblerBuffer.h
++++ b/js/src/assembler/assembler/AssemblerBuffer.h
+@@ -73,7 +73,7 @@ namespace JSC {
+         ~AssemblerBuffer()
+         {
+             if (m_buffer != m_inlineBuffer)
+-                free(m_buffer);
++                js_free(m_buffer);
+         }
+ 
+         void ensureSpace(int space)
+@@ -225,7 +225,7 @@ namespace JSC {
+             }
+ 
+             if (m_buffer == m_inlineBuffer) {
+-                newBuffer = static_cast<char*>(malloc(newCapacity));
++                newBuffer = static_cast<char*>(js_malloc(newCapacity));
+                 if (!newBuffer) {
+                     m_size = 0;
+                     m_oom = true;
+@@ -233,7 +233,7 @@ namespace JSC {
+                 }
+                 memcpy(newBuffer, m_buffer, m_size);
+             } else {
+-                newBuffer = static_cast<char*>(realloc(m_buffer, newCapacity));
++                newBuffer = static_cast<char*>(js_realloc(m_buffer, newCapacity));
+                 if (!newBuffer) {
+                     m_size = 0;
+                     m_oom = true;
+diff --git a/js/src/assembler/assembler/AssemblerBufferWithConstantPool.h b/js/src/assembler/assembler/AssemblerBufferWithConstantPool.h
+--- a/js/src/assembler/assembler/AssemblerBufferWithConstantPool.h
++++ b/js/src/assembler/assembler/AssemblerBufferWithConstantPool.h
+@@ -106,14 +106,14 @@ public:
+         , m_lastConstDelta(0)
+         , m_flushCount(0)
+     {
+-        m_pool = static_cast<uint32_t*>(malloc(maxPoolSize));
+-        m_mask = static_cast<char*>(malloc(maxPoolSize / sizeof(uint32_t)));
++        m_pool = static_cast<uint32_t*>(js_malloc(maxPoolSize));
++        m_mask = static_cast<char*>(js_malloc(maxPoolSize / sizeof(uint32_t)));
+     }
+ 
+     ~AssemblerBufferWithConstantPool()
+     {
+-        free(m_mask);
+-        free(m_pool);
++        js_free(m_mask);
++        js_free(m_pool);
+     }
+ 
+     void ensureSpace(int space)
+diff --git a/js/src/builtin/Profilers.cpp b/js/src/builtin/Profilers.cpp
+--- a/js/src/builtin/Profilers.cpp
++++ b/js/src/builtin/Profilers.cpp
+@@ -498,10 +498,15 @@ JSBool js_StartPerf()
+             flags = "--call-graph";
+         }
+ 
+-        // Split |flags| on spaces.  (Don't bother to free it -- we're going to
++        char *flags2 = (char *)js_malloc(strlen(flags) + 1);
++        if (!flags2)
++            return false;
++        strcpy(flags2, flags);
++
++        // Split |flags2| on spaces.  (Don't bother to free it -- we're going to
+         // exec anyway.)
+         char *toksave;
+-        char *tok = strtok_r(strdup(flags), " ", &toksave);
++        char *tok = strtok_r(flags2, " ", &toksave);
+         while (tok) {
+             args.append(tok);
+             tok = strtok_r(NULL, " ", &toksave);
+diff --git a/js/src/jit/AsmJS.cpp b/js/src/jit/AsmJS.cpp
+--- a/js/src/jit/AsmJS.cpp
++++ b/js/src/jit/AsmJS.cpp
+@@ -1172,7 +1172,7 @@ class MOZ_STACK_CLASS ModuleCompiler
+         JS_ASSERT(str);
+         JS_ASSERT(pn);
+         errorNode_ = pn;
+-        errorString_ = strdup(str);
++        errorString_ = js_strdup(cx_, str);
+         return false;
+     }
+ 
+diff --git a/js/src/jit/MIR.cpp b/js/src/jit/MIR.cpp
+--- a/js/src/jit/MIR.cpp
++++ b/js/src/jit/MIR.cpp
+@@ -642,7 +642,7 @@ MPhi::reserveLength(size_t length)
+ {
+     // Initializes a new MPhi to have an Operand vector of at least the given
+     // capacity. This permits use of addInput() instead of addInputSlow(), the
+-    // latter of which may call realloc().
++    // latter of which may call realloc_().
+     JS_ASSERT(numOperands() == 0);
+ #if DEBUG
+     capacity_ = length;
+@@ -788,7 +788,7 @@ MPhi::addInputSlow(MDefinition *ins, boo
+     uint32_t index = inputs_.length();
+     bool performingRealloc = !inputs_.canAppendWithoutRealloc(1);
+ 
+-    // Remove all MUses from all use lists, in case realloc() moves.
++    // Remove all MUses from all use lists, in case realloc_() moves.
+     if (performingRealloc) {
+         for (uint32_t i = 0; i < index; i++) {
+             MUse *use = &inputs_[i];
+diff --git a/js/src/jit/MIR.h b/js/src/jit/MIR.h
+--- a/js/src/jit/MIR.h
++++ b/js/src/jit/MIR.h
+@@ -3677,7 +3677,7 @@ class MPhi : public MDefinition, public 
+     // Use only if capacity has been reserved by reserveLength
+     void addInput(MDefinition *ins);
+ 
+-    // Appends a new input to the input vector. May call realloc().
++    // Appends a new input to the input vector. May call realloc_().
+     // Prefer reserveLength() and addInput() instead, where possible.
+     bool addInputSlow(MDefinition *ins, bool *ptypeChange = NULL);
+ 
+diff --git a/js/src/jsprf.cpp b/js/src/jsprf.cpp
+--- a/js/src/jsprf.cpp
++++ b/js/src/jsprf.cpp
+@@ -368,7 +368,7 @@ cvt_ws(SprintfState *ss, const jschar *w
+     int result;
+     /*
+      * Supply NULL as the JSContext; errors are not reported,
+-     * and malloc() is used to allocate the buffer buffer.
++     * and js_malloc() is used to allocate the buffer buffer.
+      */
+     if (ws) {
+         size_t wslen = js_strlen(ws);
+@@ -443,7 +443,7 @@ static struct NumArgState* BuildArgArray
+ 
+ 
+     if( number > NAS_DEFAULT_NUM ){
+-        nas = (struct NumArgState*)malloc( number * sizeof( struct NumArgState ) );
++        nas = (struct NumArgState*)js_malloc( number * sizeof( struct NumArgState ) );
+         if( !nas ){
+             *rv = -1;
+             return NULL;
+@@ -1038,7 +1038,7 @@ JS_PUBLIC_API(uint32_t) JS_vsxprintf(JSS
+ }
+ 
+ /*
+-** Stuff routine that automatically grows the malloc'd output buffer
++** Stuff routine that automatically grows the js_malloc'd output buffer
+ ** before it overflows.
+ */
+ static int GrowStuff(SprintfState *ss, const char *sp, uint32_t len)
+@@ -1075,7 +1075,7 @@ static int GrowStuff(SprintfState *ss, c
+ }
+ 
+ /*
+-** sprintf into a malloc'd buffer
++** sprintf into a js_malloc'd buffer
+ */
+ JS_PUBLIC_API(char *) JS_smprintf(const char *fmt, ...)
+ {
+diff --git a/js/src/shell/js.cpp b/js/src/shell/js.cpp
+--- a/js/src/shell/js.cpp
++++ b/js/src/shell/js.cpp
+@@ -284,7 +284,7 @@ GetLine(FILE *file, const char * prompt)
+         }
+         if (len + 1 == size) {
+             size = size * 2;
+-            char *tmp = (char *) realloc(buffer, size);
++            char *tmp = (char *) js_realloc(buffer, size);
+             if (!tmp) {
+                 free(buffer);
+                 return NULL;
+@@ -329,7 +329,7 @@ NewContextData()
+         return NULL;
+ 
+     JSShellContextData *data = (JSShellContextData *)
+-                               calloc(sizeof(JSShellContextData), 1);
++                               js_calloc(sizeof(JSShellContextData), 1);
+     if (!data)
+         return NULL;
+     data->startTime = PRMJ_Now();

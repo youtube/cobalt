@@ -1,0 +1,539 @@
+{#
+ # Copyright 2016 Google Inc. All Rights Reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+ # You may obtain a copy of the License at
+ #
+ #     http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS,
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ #}
+{% from 'macros.cc.template' import call_cobalt_function %}
+{% extends "interface-base.cc.template" %}
+{% block includes %}
+{{ super() }}
+#include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/conversion_helpers.h"
+#include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "cobalt/script/mozjs/mozjs_callback_function.h"
+#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/type_traits.h"
+#include "cobalt/script/mozjs/wrapper_factory.h"
+#include "cobalt/script/mozjs/wrapper_private.h"
+#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsfriendapi.h"
+{% endblock includes %}
+{% block using_directives %}
+{{ super() }}
+using cobalt::script::CallbackFunction;
+using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::kConversionFlagNullable;
+using cobalt::script::mozjs::kConversionFlagRestricted;
+using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kNoConversionFlags;
+using cobalt::script::mozjs::InterfaceData;
+using cobalt::script::mozjs::MozjsCallbackFunction;
+using cobalt::script::mozjs::MozjsExceptionState;
+using cobalt::script::mozjs::MozjsGlobalObjectProxy;
+using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::ToJSValue;
+using cobalt::script::mozjs::TypeTraits;
+using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::WrapperFactory;
+using cobalt::script::Wrappable;
+{% endblock using_directives %}
+
+{% block implementation %}
+namespace {
+{% for constant in constants %}
+JSBool get_{{constant.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+{% if constant.can_use_compile_assert %}
+  COMPILE_ASSERT({{impl_class}}::{{constant.name}} == {{constant.value}},
+                 ValueFor{{impl_class}}_{{constant.name}}DoesNotMatchIDL);
+{% else %}
+  DCHECK_EQ({{constant.value}}, {{impl_class}}::{{constant.name}}) <<
+      "The value for {{impl_class}}::{{constant.name}} does not match "
+      "the value in the interface definition.";
+{% endif %}
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+  ToJSValue(context, {{constant.value}}, &exception_state, &result_value);
+  if (!exception_state.IsExceptionSet()) {
+     vp.set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+{% endfor %}
+{% if constructor %}
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
+{% endif %}
+
+InterfaceData* CreateCachedInterfaceData() {
+  InterfaceData* interface_data = new InterfaceData();
+  memset(&interface_data->instance_class_definition, 0,
+         sizeof(interface_data->instance_class_definition));
+  memset(&interface_data->prototype_class_definition, 0,
+         sizeof(interface_data->prototype_class_definition));
+  memset(&interface_data->interface_object_class_definition, 0,
+         sizeof(interface_data->interface_object_class_definition));
+
+  JSClass* instance_class = &interface_data->instance_class_definition;
+  const int kGlobalFlags = {{"JSCLASS_GLOBAL_FLAGS" if is_global_interface else 0 }};
+  instance_class->name = "{{interface_name}}";
+  instance_class->flags = kGlobalFlags | JSCLASS_HAS_PRIVATE;
+  instance_class->addProperty = JS_PropertyStub;
+  instance_class->delProperty = JS_DeletePropertyStub;
+  instance_class->getProperty = JS_PropertyStub;
+  instance_class->setProperty = JS_StrictPropertyStub;
+  instance_class->enumerate = JS_EnumerateStub;
+  instance_class->resolve = JS_ResolveStub;
+  instance_class->convert = JS_ConvertStub;
+  // Function to be called before on object of this class is garbage collected.
+  instance_class->finalize = &WrapperPrivate::Finalizer;
+  // Called to trace objects that can be referenced from this object.
+  instance_class->trace = &WrapperPrivate::Trace;
+
+  JSClass* prototype_class = &interface_data->prototype_class_definition;
+  prototype_class->name = "{{interface_name}}Prototype";
+  prototype_class->flags = 0;
+  prototype_class->addProperty = JS_PropertyStub;
+  prototype_class->delProperty = JS_DeletePropertyStub;
+  prototype_class->getProperty = JS_PropertyStub;
+  prototype_class->setProperty = JS_StrictPropertyStub;
+  prototype_class->enumerate = JS_EnumerateStub;
+  prototype_class->resolve = JS_ResolveStub;
+  prototype_class->convert = JS_ConvertStub;
+
+  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  interface_object_class->name = "{{interface_name}}Constructor";
+  interface_object_class->flags = 0;
+  interface_object_class->addProperty = JS_PropertyStub;
+  interface_object_class->delProperty = JS_DeletePropertyStub;
+  interface_object_class->getProperty = JS_PropertyStub;
+  interface_object_class->setProperty = JS_StrictPropertyStub;
+  interface_object_class->enumerate = JS_EnumerateStub;
+  interface_object_class->resolve = JS_ResolveStub;
+  interface_object_class->convert = JS_ConvertStub;
+{% if constructor %}
+  interface_object_class->construct = Constructor;
+{% endif %}
+  return interface_data;
+}
+
+{% for attribute in attributes %}
+{% if attribute.conditional %}
+#if defined({{attribute.conditional}})
+{% endif %}
+{% if attribute.is_constructor_attribute %}
+JSBool get_{{attribute.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedObject interface_object(context,
+      Mozjs{{attribute.interface_name}}::GetInterfaceObject(context));
+  vp.set(JS::ObjectValue(*interface_object));
+  return true;
+}
+
+{% else %}
+JSBool get_{{attribute.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+{{ call_cobalt_function(impl_class, attribute.type,
+                        attribute.getter_function_name, [],
+                        attribute.raises_exception, attribute.call_with) }}
+  if (!exception_state.IsExceptionSet()) {
+    vp.set(result_value);
+  }
+  return !exception_state.IsExceptionSet();
+}
+
+{% if attribute.has_setter %}
+JSBool set_{{attribute.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+  TypeTraits<{{attribute.type}} >::ConversionType value;
+  FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
+              &value);
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+{% if attribute.put_forwards %}
+  NOTIMPLEMENTED();
+{% else %}
+{{ call_cobalt_function(impl_class, "void", attribute.setter_function_name,
+                        ["value"], attribute.raises_exception, attribute.call_with) }}
+{% endif %}
+  return !exception_state.IsExceptionSet();
+}
+
+{% endif %}
+{% endif %}
+{% if attribute.conditional %}
+#endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
+
+{%- for operation in operations %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+JSBool fcn_{{operation.idl_name}}(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+{# TODO: Overload resolution. Just use first overload for now. #}
+{% set overload = operation.overloads[0] %}
+{# TODO: Optional and variadic arguments. #}
+{% if overload.arguments|selectattr('is_optional')|selectattr('is_variadic')|list|length == 0 %}
+{% if overload.arguments|length > 0 %}
+  const size_t kMinArguments = {{overload.arguments|length}};
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+{% endif %}
+{% for argument in overload.arguments %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
+  DCHECK_LT({{loop.index0}}, args.length());
+  FromJSValue(context, args.handleAt({{loop.index0}}),
+      {{argument.conversion_flags}}, &exception_state, &{{argument.name}});
+  if (exception_state.IsExceptionSet()) {
+    return false;
+  }
+{% endfor %}
+{% set arguments = overload.arguments|map(attribute="name")|list %}
+{{ call_cobalt_function(impl_class, overload.type,
+                        overload.name, arguments,
+                        overload.raises_exception,
+                        overload.call_with) }}
+{% if operation.type != 'void' %}
+  if (!exception_state.IsExceptionSet()) {
+    args.rval().set(result_value);
+  }
+{% endif %}
+  return !exception_state.IsExceptionSet();
+{% else %}
+  NOTIMPLEMENTED();
+  return false;
+{% endif %}
+}
+
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
+{% endif %}
+{% endfor %}
+
+const JSPropertySpec prototype_properties[] = {
+{% for constant in constants %}
+  {
+      "{{constant.idl_name}}", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_{{constant.idl_name}}),
+      JSOP_NULLWRAPPER,
+  },
+{% endfor %}
+{% for attribute in attributes if not attribute.is_constructor_attribute %}
+{% if attribute.conditional %}
+#if defined({{attribute.conditional}})
+{% endif %}
+{% if attribute.has_setter %}
+  {  // Read/Write property
+      "{{attribute.idl_name}}", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_{{attribute.idl_name}}),
+      JSOP_WRAPPER(&set_{{attribute.idl_name}}),
+  },
+{% else %}
+  {  // Readonly attribute
+      "{{attribute.idl_name}}", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
+      JSOP_WRAPPER(&get_{{attribute.idl_name}}),
+      JSOP_NULLWRAPPER,
+  },
+{% endif %}
+{% if attribute.conditional %}
+#endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
+  JS_PS_END
+};
+
+const JSFunctionSpec prototype_functions[] = {
+{% for operation in operations %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+  {
+      "{{ operation.idl_name }}",
+      JSOP_WRAPPER(&fcn_{{operation.idl_name}}),
+      {{ operation.length }},
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
+{% endif %}
+{% endfor %}
+  JS_FS_END
+};
+
+const JSPropertySpec interface_object_properties[] = {
+{% for constant in constants %}
+  {
+      "{{constant.idl_name}}", 0,
+      JSPROP_PERMANENT | JSPROP_READONLY | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_{{constant.idl_name}}),
+      JSOP_NULLWRAPPER,
+  },
+{% endfor %}
+  JS_PS_END
+};
+
+const JSPropertySpec own_properties[] = {
+{% for attribute in attributes if attribute.is_constructor_attribute %}
+{% if attribute.conditional %}
+#if defined({{attribute.conditional}})
+{% endif %}
+  {  // Constructor attribute
+      "{{attribute.idl_name}}", 0,
+      JSPROP_SHARED,
+      JSOP_WRAPPER(&get_{{attribute.idl_name}}),
+      JSOP_NULLWRAPPER,
+  },
+{% if attribute.conditional %}
+#endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
+  JS_PS_END
+};
+
+void InitializePrototypeAndInterfaceObject(
+    InterfaceData* interface_data, JSContext* context) {
+  DCHECK(!interface_data->prototype);
+  DCHECK(!interface_data->interface_object);
+
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  JS::RootedObject global_object(context, global_object_proxy->global_object());
+  DCHECK(global_object);
+  {% if parent_interface %}
+  JS::RootedObject parent_prototype(
+      context, {{parent_interface}}::GetPrototype(context));
+  {% else %}
+  JS::RootedObject parent_prototype(
+      context, JS_GetObjectPrototype(context, global_object));
+  {% endif %}
+  DCHECK(parent_prototype);
+
+  // Create the Prototype object.
+  interface_data->prototype = JS_NewObjectWithGivenProto(
+      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+  bool success = JS_DefineProperties(
+      context, interface_data->prototype, prototype_properties);
+  DCHECK(success);
+  success = JS_DefineFunctions(
+      context, interface_data->prototype, prototype_functions);
+  DCHECK(success);
+
+{% if has_interface_object %}
+  JS::RootedObject function_prototype(
+      context, JS_GetFunctionPrototype(context, global_object));
+  DCHECK(function_prototype);
+  // Create the Interface object.
+  interface_data->interface_object = JS_NewObjectWithGivenProto(
+      context, &interface_data->interface_object_class_definition,
+      function_prototype, NULL);
+
+  // Add the InterfaceObject.name property.
+  JS::RootedObject rooted_interface_object(
+      context, interface_data->interface_object);
+  JS::RootedValue name_value(context);
+  const char name[] = "{{ named_constructor if named_constructor else interface.name }}";
+  name_value.setString(JS_NewStringCopyZ(context, "{{interface.name}}"));
+  success =
+      JS_DefineProperty(context, rooted_interface_object, "name", name_value,
+                        JS_PropertyStub, JS_StrictPropertyStub,
+                        JSPROP_READONLY);
+  DCHECK(success);
+
+  // Define interface object properties (including constants).
+  success = JS_DefineProperties(context, rooted_interface_object,
+                                         interface_object_properties);
+  DCHECK(success);
+
+  // Set the Prototype.constructor and Constructor.prototype properties.
+  DCHECK(interface_data->interface_object);
+  DCHECK(interface_data->prototype);
+  JS::RootedObject rooted_prototype(context, interface_data->prototype);
+  success = JS_LinkConstructorAndPrototype(
+      context,
+      rooted_interface_object,
+      rooted_prototype);
+  DCHECK(success);
+{% endif %}
+}
+
+InterfaceData* GetInterfaceData(JSContext* context) {
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  // Use the address of the properties definition for this interface as a
+  // unique key for looking up the InterfaceData for this interface.
+  intptr_t key = reinterpret_cast<intptr_t>(&own_properties);
+  InterfaceData* interface_data = global_object_proxy->GetInterfaceData(key);
+  if (!interface_data) {
+    interface_data = CreateCachedInterfaceData();
+    DCHECK(interface_data);
+    global_object_proxy->CacheInterfaceData(key, interface_data);
+    DCHECK_EQ(interface_data, global_object_proxy->GetInterfaceData(key));
+  }
+  return interface_data;
+}
+
+}  // namespace
+
+{% if is_global_interface %}
+JSObject* {{binding_class}}::CreateInstance(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  InterfaceData* interface_data = GetInterfaceData(context);
+  JS::RootedObject global_object(
+      context, JS_NewGlobalObject(context,
+                                  &interface_data->instance_class_definition,
+                                  NULL));
+  DCHECK(global_object);
+
+  // Initialize standard JS constructors prototypes and top-level functions such
+  // as Object, isNan, etc.
+  JSAutoCompartment auto_compartment(context, global_object);
+  bool success = JS_InitStandardClasses(context, global_object);
+
+  JS::RootedObject parent_prototype(
+      context, JS_GetObjectPrototype(context, global_object));
+
+  // Set the global object pointer, so we can access the standard classes such
+  // as the base Object prototype when looking up our prototype.
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  global_object_proxy->SetGlobalObject(global_object);
+
+  JS::RootedObject prototype(context, {{binding_class}}::GetPrototype(context));
+  DCHECK(prototype);
+  JS_SetPrototype(context, global_object, prototype);
+
+  // Add own properties.
+  success = JS_DefineProperties(context, global_object, own_properties);
+  DCHECK(success);
+
+  WrapperPrivate::AddPrivateData(global_object, wrappable);
+
+  return global_object;
+}
+
+{% else %}
+// static
+JSObject* {{binding_class}}::CreateInstance(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  InterfaceData* interface_data = GetInterfaceData(context);
+  JS::RootedObject prototype(context, GetPrototype(context));
+  DCHECK(prototype);
+  JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
+      context, &interface_data->instance_class_definition, prototype, NULL));
+  DCHECK(new_object);
+  WrapperPrivate::AddPrivateData(new_object, wrappable);
+  return new_object;
+}
+
+{% endif %}
+// static
+JSObject* {{binding_class}}::GetPrototype(JSContext* context) {
+  InterfaceData* interface_data = GetInterfaceData(context);
+  if (!interface_data->prototype) {
+    // Create new prototype that has all the props and methods
+    InitializePrototypeAndInterfaceObject(interface_data, context);
+  }
+  DCHECK(interface_data->prototype);
+  return interface_data->prototype;
+}
+
+{% if has_interface_object %}
+// static
+JSObject* {{binding_class}}::GetInterfaceObject(JSContext* context) {
+  InterfaceData* interface_data = GetInterfaceData(context);
+  if (!interface_data->interface_object) {
+    InitializePrototypeAndInterfaceObject(interface_data, context);
+  }
+  DCHECK(interface_data->interface_object);
+  return interface_data->interface_object;
+}
+
+{% endif %}
+
+namespace {
+{% if constructor %}
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
+  // TODO: Implement support for constructors.
+  NOTIMPLEMENTED();
+  return true;
+}
+{% endif %}
+}  // namespace
+
+{% endblock implementation %}
+{% block create_global_object_impl %}
+  MozjsGlobalObjectProxy* mozjs_global_object_proxy =
+      base::polymorphic_downcast<MozjsGlobalObjectProxy*>(this);
+  JSContext* context = mozjs_global_object_proxy->context();
+
+  JSAutoRequest auto_request(context);
+  {{binding_class}}::CreateInstance(
+      context, global_interface);
+  mozjs_global_object_proxy->SetEnvironmentSettings(environment_settings);
+
+  WrapperFactory* wrapper_factory = mozjs_global_object_proxy->wrapper_factory();
+{% for interface in all_interfaces %}
+{% if interface.conditional %}
+#if defined({{interface.conditional}})
+{% endif %}
+  {# Don't register a create method for the global interface, since we do not
+     create a wrapper for it directly. #}
+  {% if interface.name != impl_class %}
+  wrapper_factory->RegisterWrappableType(
+      {{interface.name}}::{{interface.name}}WrappableType(),
+      base::Bind(Mozjs{{interface.name}}::CreateInstance));
+  {% endif %}
+{% if interface.conditional %}
+#endif  // defined({{interface.conditional}})
+{% endif %}
+{% endfor %}
+
+{% endblock create_global_object_impl %}

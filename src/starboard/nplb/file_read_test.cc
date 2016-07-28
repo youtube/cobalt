@@ -1,0 +1,213 @@
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <string>
+
+#include "starboard/file.h"
+#include "starboard/nplb/file_helpers.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace nplb {
+namespace {
+
+const int kBufferLength = 16 * 1024;
+
+TEST(SbFileReadTest, InvalidFileErrors) {
+  char buffer[kBufferLength];
+  int result = SbFileRead(kSbFileInvalid, buffer, kBufferLength);
+  EXPECT_EQ(-1, result);
+}
+
+TEST(SbFileReadTest, BasicReading) {
+  // Create a pattern file that is not an even multiple of the buffer size, but
+  // is over several times the size of the buffer.
+  const int kFileSize = kBufferLength * 16 / 3;
+  ScopedRandomFile random_file(kFileSize);
+  const std::string& filename = random_file.filename();
+
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  ASSERT_TRUE(SbFileIsValid(file));
+
+  // Create a bigger buffer than necessary, so we can test the memory around the
+  // portion given to SbFileRead.
+  const int kRealBufferLength = kBufferLength * 2;
+  char real_buffer[kRealBufferLength] = {0};
+  const int kBufferOffset = kBufferLength / 2;
+  char* buffer = real_buffer + kBufferOffset;
+
+  // Initialize to some arbitrary pattern so we can verify it later.
+  for (int i = 0; i < kRealBufferLength; ++i) {
+    real_buffer[i] = '\xCD';
+  }
+
+  // Read and check the whole file.
+  int total = 0;
+  int previous_total = 0;
+  int max = 0;
+  while (true) {
+    int bytes_read = SbFileRead(file, buffer, kBufferLength);
+    if (bytes_read == 0) {
+      break;
+    }
+
+    // Check that we didn't read more than the buffer size.
+    EXPECT_GE(kBufferLength, bytes_read);
+
+    // Check that we didn't get an error.
+    EXPECT_LT(0, bytes_read);
+
+    // Do some accounting to check later.
+    previous_total = total;
+    total += bytes_read;
+    if (bytes_read > max) {
+      max = bytes_read;
+    }
+
+    ScopedRandomFile::ExpectPattern(previous_total, buffer, bytes_read,
+                                    __LINE__);
+  }
+
+  // Check that we read the whole file.
+  EXPECT_EQ(kFileSize, total);
+
+  // check that we didn't write over any other parts of the buffer.
+  for (int i = 0; i < kBufferOffset; ++i) {
+    EXPECT_EQ('\xCD', real_buffer[i]);
+  }
+
+  for (int i = kBufferOffset + max; i < kRealBufferLength; ++i) {
+    EXPECT_EQ('\xCD', real_buffer[i]);
+  }
+
+  bool result = SbFileClose(file);
+  EXPECT_TRUE(result);
+}
+
+TEST(SbFileReadTest, ReadPastEnd) {
+  const int kFileSize = kBufferLength;
+  ScopedRandomFile random_file(kFileSize);
+  const std::string& filename = random_file.filename();
+
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  ASSERT_TRUE(SbFileIsValid(file));
+
+  // Create a bigger buffer than necessary, so we can test the memory around the
+  // portion given to SbFileRead.
+  const int kRealBufferLength = kBufferLength * 2;
+  char real_buffer[kRealBufferLength] = {0};
+  const int kBufferOffset = kBufferLength / 2;
+  char* buffer = real_buffer + kBufferOffset;
+
+  // Initialize to some arbitrary pattern so we can verify it later.
+  for (int i = 0; i < kRealBufferLength; ++i) {
+    real_buffer[i] = '\xCD';
+  }
+
+  // Read off the end of the file.
+  int position = SbFileSeek(file, kSbFileFromEnd, 0);
+  EXPECT_EQ(kFileSize, position);
+  int bytes_read = SbFileRead(file, buffer, kBufferLength);
+  EXPECT_EQ(0, bytes_read);
+
+  for (int i = 0; i < kRealBufferLength; ++i) {
+    EXPECT_EQ('\xCD', real_buffer[i]);
+  }
+
+  bool result = SbFileClose(file);
+  EXPECT_TRUE(result);
+}
+
+TEST(SbFileReadTest, ReadZeroBytes) {
+  const int kFileSize = kBufferLength;
+  ScopedRandomFile random_file(kFileSize);
+  const std::string& filename = random_file.filename();
+
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  ASSERT_TRUE(SbFileIsValid(file));
+
+  // Create a bigger buffer than necessary, so we can test the memory around the
+  // portion given to SbFileRead.
+  const int kRealBufferLength = kBufferLength * 2;
+  char real_buffer[kRealBufferLength] = {0};
+  const int kBufferOffset = kBufferLength / 2;
+  char* buffer = real_buffer + kBufferOffset;
+
+  // Initialize to some arbitrary pattern so we can verify it later.
+  for (int i = 0; i < kRealBufferLength; ++i) {
+    real_buffer[i] = '\xCD';
+  }
+
+  // Read zero bytes.
+  for (int i = 0; i < 10; ++i) {
+    int bytes_read = SbFileRead(file, buffer, 0);
+    EXPECT_EQ(0, bytes_read);
+  }
+
+  for (int i = 0; i < kRealBufferLength; ++i) {
+    EXPECT_EQ('\xCD', real_buffer[i]);
+  }
+
+  bool result = SbFileClose(file);
+  EXPECT_TRUE(result);
+}
+
+TEST(SbFileReadTest, ReadFromMiddle) {
+  const int kFileSize = kBufferLength * 2;
+  ScopedRandomFile random_file(kFileSize);
+  const std::string& filename = random_file.filename();
+
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  ASSERT_TRUE(SbFileIsValid(file));
+
+  // Create a bigger buffer than necessary, so we can test the memory around the
+  // portion given to SbFileRead.
+  const int kRealBufferLength = kBufferLength * 2;
+  char real_buffer[kRealBufferLength] = {0};
+  const int kBufferOffset = kBufferLength / 2;
+  char* buffer = real_buffer + kBufferOffset;
+
+  // Initialize to some arbitrary pattern so we can verify it later.
+  for (int i = 0; i < kRealBufferLength; ++i) {
+    real_buffer[i] = '\xCD';
+  }
+
+  // Read from the middle of the file.
+  int position = SbFileSeek(file, kSbFileFromBegin, kFileSize / 4);
+  EXPECT_EQ(kFileSize / 4, position);
+  int bytes_read = SbFileRead(file, buffer, kBufferLength);
+  EXPECT_GE(kBufferLength, bytes_read);
+  EXPECT_LT(0, bytes_read);
+
+  ScopedRandomFile::ExpectPattern(position, buffer, bytes_read, __LINE__);
+
+  for (int i = 0; i < kBufferOffset; ++i) {
+    EXPECT_EQ('\xCD', real_buffer[i]);
+  }
+
+  for (int i = kBufferOffset + bytes_read; i < kRealBufferLength; ++i) {
+    EXPECT_EQ('\xCD', real_buffer[i]);
+  }
+
+  bool result = SbFileClose(file);
+  EXPECT_TRUE(result);
+}
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

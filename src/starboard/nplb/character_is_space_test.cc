@@ -1,0 +1,45 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "starboard/character.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace nplb {
+namespace {
+
+TEST(SbCharacterIsSpaceTest, SunnyDay) {
+  const char kInputs[] =
+      "1234567890"
+      "`~!@#$%^&*()_+-=[]\\{}|;':\",./<>?"
+      "abcdefghijklmnopqrstuvwxyz"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      " \t";
+  const char kExpected[] =
+      "FFFFFFFFFF"
+      "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+      "FFFFFFFFFFFFFFFFFFFFFFFFFF"
+      "FFFFFFFFFFFFFFFFFFFFFFFFFF"
+      "TT";
+  SB_COMPILE_ASSERT(SB_ARRAY_SIZE(kInputs) == SB_ARRAY_SIZE(kExpected),
+                    same_size);
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kInputs); ++i) {
+    EXPECT_EQ(kExpected[i] == 'T' ? true : false,
+              SbCharacterIsSpace(kInputs[i]));
+  }
+}
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

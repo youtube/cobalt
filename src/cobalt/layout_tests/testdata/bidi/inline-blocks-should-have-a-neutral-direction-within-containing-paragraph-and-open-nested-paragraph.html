@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!--
+ | Paragraphs flow around inline blocks, which generate their own internal
+ | paragraph, and the inline block is treated as a neutral character within
+ | the original paragraph.
+ |   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+ |   https://www.w3.org/TR/CSS21/visuren.html#direction
+ -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0px;
+      font-family: Roboto, Noto Naskh Arabic UI;
+      font-size: 30px;
+      color: #fff;
+    }
+    .containing-block {
+      background-color: #03a9f4;
+      width: 200px;
+      line-height: 1.2em;
+    }
+    .inline-block {
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="containing-block">
+    <div><span class="inline-block">a</span>تت2</div>
+    <div>د1<span class="inline-block">a</span></div>
+    <div>د1<span class="inline-block">a</span>تت2</div>
+    <div>د<span class="inline-block">1<span>تت</span></span>تتتت</div>
+    <div>د<span class="inline-block">تت<span>1</span></span>تتتت</div>
+    <div>a<span class="inline-block">1<span>تت</span></span>b</div>
+    <div>a<span class="inline-block">تت<span>1</span></span>b</div>
+  </div>
+</body>
+</html>

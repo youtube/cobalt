@@ -1,0 +1,44 @@
+{#
+ # Copyright 2016 Google Inc. All Rights Reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+ # You may obtain a copy of the License at
+ #
+ #     http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS,
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ #}
+
+{% macro call_nonvoid_function(return_type, function_name, arguments) %}
+  TypeTraits<{{return_type}} >::ReturnType value =
+      impl->{{function_name}}({{arguments|join(", ")}});
+  if (!exception_state.IsExceptionSet()) {
+    ToJSValue(context, value, &exception_state, &result_value);
+  }
+{%- endmacro %}
+
+{% macro call_void_function(function_name, arguments) %}
+  impl->{{function_name}}({{arguments|join(", ")}});
+  result_value.set(JS::UndefinedHandleValue);
+{%- endmacro %}
+
+{% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments, raises_exception, call_with) %}
+{% if call_with %}
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+{% endif %}
+  {{impl_class}}* impl =
+      WrapperPrivate::GetWrappable<{{impl_class}}>(object);
+{% do arguments.append("&exception_state") if raises_exception %}
+{% do arguments.append("global_object_proxy->Get%s()"|format(call_with)) if call_with %}
+{% if cobalt_type == "void" %}
+{{ call_void_function(function_name, arguments) }}
+{% else %}
+{{ call_nonvoid_function(cobalt_type, function_name, arguments) }}
+{% endif %}
+{% endmacro %}

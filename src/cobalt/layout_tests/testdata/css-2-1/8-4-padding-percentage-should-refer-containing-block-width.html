@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!--
+ | The percentage is calculated with respect to the width of the generated box's
+ | containing block, even for "padding-top" and "padding-bottom".
+ |   https://www.w3.org/TR/CSS21/box.html#padding-properties
+ -->
+<html>
+<head>
+  <style>
+    .absolute {
+      position: absolute;
+    }
+    .level-1 {
+      background-color: #00b0ff;
+      height: 100px;
+      width: 200px;
+    }
+    .level-2 {
+      background-color: #1de9b6;
+      height: 200px;
+      width: 100px;
+    }
+    .level-3 {
+      background-color: #00bfa5;
+      display: inline-block;
+      padding: 50%;
+    }
+    .level-3.absolute {
+      background-color: #0091ea;
+      left: 200px;
+    }
+  </style>
+</head>
+<body>
+  <div class="level-1 absolute">
+    <div class="level-2">
+      <div class="level-3 absolute"></div>
+      <div class="level-3"></div>
+    </div>
+  </div>
+</body>
+</html>

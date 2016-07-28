@@ -1,0 +1,36 @@
+diff --git a/README.chromium b/README.chromium
+index ae335ca..9962738 100644
+--- a/README.chromium
++++ b/README.chromium
+@@ -96,3 +96,5 @@ Android platform support
+ 
+ Copy config/android/openssl/opensslconf.h from Android's
+ external/openssl/include/openssl/opensslconf.h
++
++Fix warnings when building with clang
+diff --git a/openssl/crypto/bio/bss_dgram.c b/openssl/crypto/bio/bss_dgram.c
+index 71ebe98..a6d882b 100644
+--- a/openssl/crypto/bio/bss_dgram.c
++++ b/openssl/crypto/bio/bss_dgram.c
+@@ -378,7 +378,7 @@ static long dgram_ctrl(BIO *b, int cmd, long num, void *ptr)
+ 	bio_dgram_data *data = NULL;
+ #if defined(IP_MTU_DISCOVER) || defined(IP_MTU)
+ 	long sockopt_val = 0;
+-	unsigned int sockopt_len = 0;
++	socklen_t sockopt_len = 0;
+ #endif
+ #ifdef OPENSSL_SYS_LINUX
+ 	socklen_t addr_len;
+diff --git a/openssl/crypto/cryptlib.c b/openssl/crypto/cryptlib.c
+index 387a987..5dfeec7 100644
+--- a/openssl/crypto/cryptlib.c
++++ b/openssl/crypto/cryptlib.c
+@@ -500,7 +500,7 @@ void CRYPTO_THREADID_current(CRYPTO_THREADID *id)
+ 	CRYPTO_THREADID_set_numeric(id, (unsigned long)find_thread(NULL));
+ #else
+ 	/* For everything else, default to using the address of 'errno' */
+-	CRYPTO_THREADID_set_pointer(id, &errno);
++	CRYPTO_THREADID_set_pointer(id, (void*)&errno);
+ #endif
+ 	}
+ 

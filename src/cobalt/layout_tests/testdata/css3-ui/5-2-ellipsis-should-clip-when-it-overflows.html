@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!--
+ | When the "text-overflow" property is set to "ellipsis" an ellipsis
+ | character is rendered to represent clipped inline content.
+ | "If there is insufficient space for the ellipsis, then clip the
+ | rendering of the ellipsis itself..."
+ |   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
+ -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0px;
+      font-family: Roboto;
+      font-size: 20px;
+    }
+    div {
+      white-space: nowrap;
+      width: 20px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid #000000;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div dir="ltr">This is some long text that will not fit in the box</div>
+    <div dir="ltr"><span>This is some long text that will not fit in the box</span></div>
+    <div dir="rtl">This is some long text that will not fit in the box</div>
+    <div dir="rtl"><span>This is some long text that will not fit in the box</span></div>
+  </div>
+</body>
+</html>

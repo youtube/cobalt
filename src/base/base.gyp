@@ -1,0 +1,1322 @@
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+{
+  'variables': {
+    'chromium_code': 1,
+  },
+  'includes': [
+    '../build/win_precompile.gypi',
+    'base.gypi',
+  ],
+  'targets': [
+    {
+      'target_name': 'base',
+      'type': '<(component)',
+      'toolsets': ['host', 'target'],
+      'variables': {
+        'base_target': 1,
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
+      'dependencies': [
+        'base_static',
+        'allocator/allocator.gyp:allocator_extension_thunks',
+        '../testing/gtest.gyp:gtest_prod',
+        '../third_party/modp_b64/modp_b64.gyp:modp_b64',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+      ],
+      # TODO(gregoryd): direct_dependent_settings should be shared with the
+      #  64-bit target, but it doesn't work due to a bug in gyp
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '..',
+        ],
+      },
+      'conditions': [
+        ['use_glib==1', {
+          'conditions': [
+            ['chromeos==1', {
+              'sources/': [ ['include', '_chromeos\\.cc$'] ]
+            }],
+            ['linux_use_tcmalloc==0', {
+              'defines': [
+                'NO_TCMALLOC',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'NO_TCMALLOC',
+                ],
+              },
+            }],
+            ['toolkit_uses_gtk==1', {
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ],
+              'export_dependent_settings': [
+                '../build/linux/system.gyp:gtk',
+              ],
+            }],
+          ],
+          'dependencies': [
+            'symbolize',
+            '../build/linux/system.gyp:glib',
+            '../build/linux/system.gyp:x11',
+            'xdg_mime',
+          ],
+          'defines': [
+            'USE_SYMBOLIZE',
+          ],
+          'cflags': [
+            '-Wno-write-strings',
+          ],
+          'export_dependent_settings': [
+            '../build/linux/system.gyp:glib',
+            '../build/linux/system.gyp:x11',
+          ],
+        }, {  # use_glib!=1
+            'sources/': [
+              ['exclude', '/xdg_user_dirs/'],
+              ['exclude', '_nss\\.cc$'],
+            ],
+        }],
+        ['OS == "android" and _toolset == "host"', {
+          # Base for host support is the minimum required to run the
+          # ssl false start blacklist tool. It requires further changes
+          # to generically support host builds (and tests).
+          # Note: when building for host, gyp has OS == "android",
+          # hence the *_android.cc files are included but the actual code
+          # doesn't have OS_ANDROID / ANDROID defined.
+          'conditions': [
+            # Host build on linux depends on system.gyp::gtk as
+            # default linux build has TOOLKIT_GTK defined.
+            ['host_os == "linux"', {
+              'sources/': [
+                ['include', '^atomicops_internals_x86_gcc\\.cc$'],
+              ],
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ],
+              'export_dependent_settings': [
+                '../build/linux/system.gyp:gtk',
+              ],
+            }],
+            ['host_os == "mac"', {
+              'sources/': [
+                ['exclude', '^native_library_linux\\.cc$'],
+                ['exclude', '^process_util_linux\\.cc$'],
+                ['exclude', '^sys_info_linux\\.cc$'],
+                ['exclude', '^sys_string_conversions_linux\\.cc$'],
+                ['exclude', '^worker_pool_linux\\.cc$'],
+              ],
+            }],
+          ],
+        }],
+        ['(OS == "android" or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")) and _toolset == "target"', {
+          'dependencies': [
+            'base_jni_headers',
+            'symbolize',
+            '../third_party/ashmem/ashmem.gyp:ashmem',
+            '../third_party/icu/icu.gyp:icuuc',
+          ],
+          'include_dirs': [
+            '<(SHARED_INTERMEDIATE_DIR)/base',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-llog',
+            ],
+          },
+          'defines': [
+            'USE_SYMBOLIZE',
+          ],
+          'sources!': [
+            'debug/stack_trace_posix.cc',
+          ],
+          'conditions' : [
+            ['target_arch == "ia32"', {
+              'sources/': [
+                ['include', '^atomicops_internals_x86_gcc\\.cc$'],
+              ],
+            }],
+            ['target_arch != "android"', {
+              'includes': [
+                '../build/android/cpufeatures.gypi',
+              ],
+            }],
+          ],
+        }],
+        ['(OS == "android" or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")) and _toolset == "target" and android_build_type == 0', {
+          'dependencies': [
+            'base_java',
+          ],
+        }],
+        ['((OS == "lb_shell" or OS == "starboard") and target_arch == "android")', {
+          'link_settings': {
+            'libraries': [
+              # for android_getCpuCount
+              '-lportable',
+            ],
+          },
+        }],
+        ['os_bsd==1', {
+          'include_dirs': [
+            '/usr/local/include',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-L/usr/local/lib -lexecinfo',
+            ],
+          },
+        }],
+        ['OS == "linux"', {
+          'link_settings': {
+            'libraries': [
+              # We need rt for clock_gettime().
+              '-lrt',
+              # For 'native_library_linux.cc'
+              '-ldl',
+            ],
+          },
+        }],
+        ['OS == "mac"', {
+          'link_settings': {
+            'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/AppKit.framework',
+              '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework',
+              '$(SDKROOT)/System/Library/Frameworks/Carbon.framework',
+              '$(SDKROOT)/System/Library/Frameworks/CoreFoundation.framework',
+              '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
+              '$(SDKROOT)/System/Library/Frameworks/IOKit.framework',
+              '$(SDKROOT)/System/Library/Frameworks/Security.framework',
+            ],
+          },
+          'dependencies': [
+            '../third_party/mach_override/mach_override.gyp:mach_override',
+          ],
+        }],
+        ['OS == "ios"', {
+          'link_settings': {
+            'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/CoreFoundation.framework',
+              '$(SDKROOT)/System/Library/Frameworks/CoreGraphics.framework',
+              '$(SDKROOT)/System/Library/Frameworks/CoreText.framework',
+              '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
+              '$(SDKROOT)/System/Library/Frameworks/UIKit.framework',
+            ],
+          },
+        }],
+        ['OS != "win" and OS != "ios"', {
+            'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
+        },],
+        ['component=="shared_library"', {
+          'conditions': [
+            ['OS=="win"', {
+              'sources!': [
+                'debug/debug_on_start_win.cc',
+              ],
+            }],
+          ],
+        }],
+        ['OS == "lb_shell"', {
+          'conditions': [
+            ['target_arch != "android"', {
+              'dependencies!': [
+                '../third_party/libevent/libevent.gyp:libevent'
+              ],
+            }],
+            ['target_arch == "linux"', {
+              'defines': [
+                'USE_SYMBOLIZE',
+              ],
+              'dependencies': [
+                'symbolize',
+              ],
+            }],
+            ['target_arch == "ps3" and _toolset == "target"', {
+              # Script for resolving symbols, for use by stack_trace_ps3.cc
+              'copies': [
+                {
+                  'destination': '<(PRODUCT_DIR)',
+                  'files': [
+                    'debug/addr2line_ps3.py',
+                  ],
+                },
+              ],
+              'dependencies': [
+                # On PS3, we use both posix emulation and starboard for
+                # threading.  We depend on starboard for its TLS implementation.
+                # Eventually this will replace the posix_emulation below.
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+              ],
+            }],
+            # toolset can be host or target.
+            # (host in the case of e.g. protobuf compiler.)
+            # We only want posix_emulation for target builds.
+            ['_toolset == "target"', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }],  # _toolset == "target"
+          ],
+          'sources': [
+            'debug/debugger_shell.cc',
+            'debug/stack_trace_shell.cc',
+            'guid_shell.cc',
+            'safe_strerror_shell.cc',
+            'sys_string_conversions_shell.cc',
+            'test/test_file_util_shell.cc',
+            'threading/thread_local_shell.cc',
+            'threading/thread_local_storage_shell.cc',
+            'threading/worker_pool_shell.cc',
+          ],
+        }],  # OS=="lb_shell"
+        ['OS == "starboard"', {
+          'conditions': [
+            ['_toolset == "target"', {
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+                '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
+               ],
+            }],  # _toolset == "target"
+          ],
+          'dependencies!': [
+            '../third_party/libevent/libevent.gyp:libevent'
+          ],
+          'sources': [
+            'base_paths_starboard.cc',
+            'test/test_file_util_starboard.cc',
+          ],
+        }],  # OS=="starboard"
+        ['OS == "lb_shell" or OS == "starboard"', {
+          'sources!': [
+            'file_descriptor_shuffle.cc',
+          ],
+        }],  # OS == "lb_shell" or OS == "starboard"
+      ],
+      'sources': [
+        'third_party/nspr/prcpucfg.h',
+        'third_party/nspr/prcpucfg_win.h',
+        'third_party/nspr/prtypes.h',
+        'third_party/xdg_user_dirs/xdg_user_dir_lookup.cc',
+        'third_party/xdg_user_dirs/xdg_user_dir_lookup.h',
+        'auto_reset.h',
+        'event_recorder.h',
+        'event_recorder_stubs.cc',
+        'event_recorder_win.cc',
+        'linux_util.cc',
+        'linux_util.h',
+        'md5.cc',
+        'md5.h',
+        'message_pump_android.cc',
+        'message_pump_android.h',
+        'message_pump_glib.cc',
+        'message_pump_glib.h',
+        'message_pump_gtk.cc',
+        'message_pump_gtk.h',
+        'message_pump_io_ios.cc',
+        'message_pump_io_ios.h',
+        'message_pump_observer.h',
+        'message_pump_aurax11.cc',
+        'message_pump_aurax11.h',
+        'message_pump_libevent.cc',
+        'message_pump_libevent.h',
+        'message_pump_mac.h',
+        'message_pump_mac.mm',
+        'metrics/field_trial.cc',
+        'metrics/field_trial.h',
+        'posix/file_descriptor_shuffle.cc',
+        'posix/file_descriptor_shuffle.h',
+        'sync_socket.h',
+        'sync_socket_win.cc',
+        'sync_socket_posix.cc',
+      ],
+    },
+    {
+      'target_name': 'base_i18n',
+      'type': '<(component)',
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
+      'dependencies': [
+        'base',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
+      ],
+      'conditions': [
+        ['toolkit_uses_gtk==1', {
+          'dependencies': [
+            # i18n/rtl.cc uses gtk
+            '../build/linux/system.gyp:gtk',
+          ],
+        }],
+        ['OS=="lb_shell"', {
+          'dependencies': [
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+          ],
+        }],
+        ['OS=="starboard"', {
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<(DEPTH)/starboard/client_porting/icu_init/icu_init.gyp:icu_init',
+          ],
+        }],
+      ],
+      'export_dependent_settings': [
+        'base',
+      ],
+      'defines': [
+        'BASE_I18N_IMPLEMENTATION',
+      ],
+      'sources': [
+        'i18n/base_i18n_export.h',
+        'i18n/bidi_line_iterator.cc',
+        'i18n/bidi_line_iterator.h',
+        'i18n/break_iterator.cc',
+        'i18n/break_iterator.h',
+        'i18n/char_iterator.cc',
+        'i18n/char_iterator.h',
+        'i18n/case_conversion.cc',
+        'i18n/case_conversion.h',
+        'i18n/file_util_icu.cc',
+        'i18n/file_util_icu.h',
+        'i18n/icu_encoding_detection.cc',
+        'i18n/icu_encoding_detection.h',
+        'i18n/icu_string_conversions.cc',
+        'i18n/icu_string_conversions.h',
+        'i18n/icu_util.cc',
+        'i18n/icu_util.h',
+        'i18n/number_formatting.cc',
+        'i18n/number_formatting.h',
+        'i18n/rtl.cc',
+        'i18n/rtl.h',
+        'i18n/string_search.cc',
+        'i18n/string_search.h',
+        'i18n/time_formatting.cc',
+        'i18n/time_formatting.h',
+      ],
+    },
+    {
+      'target_name': 'base_prefs',
+      'type': '<(component)',
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
+      'dependencies': [
+        'base',
+      ],
+      'export_dependent_settings': [
+        'base',
+      ],
+      'defines': [
+        'BASE_PREFS_IMPLEMENTATION',
+      ],
+      'sources': [
+        'prefs/default_pref_store.cc',
+        'prefs/default_pref_store.h',
+        'prefs/json_pref_store.cc',
+        'prefs/json_pref_store.h',
+        'prefs/overlay_user_pref_store.cc',
+        'prefs/overlay_user_pref_store.h',
+        'prefs/persistent_pref_store.h',
+        'prefs/pref_observer.h',
+        'prefs/pref_notifier.h',
+        'prefs/pref_store.cc',
+        'prefs/pref_store.h',
+        'prefs/pref_value_map.cc',
+        'prefs/pref_value_map.h',
+        'prefs/public/pref_change_registrar.cc',
+        'prefs/public/pref_change_registrar.h',
+        'prefs/public/pref_member.cc',
+        'prefs/public/pref_member.h',
+        'prefs/public/pref_service_base.h',
+        'prefs/value_map_pref_store.cc',
+        'prefs/value_map_pref_store.h',
+      ],
+      'conditions': [
+        ['OS == "starboard"', {
+          'sources!': [
+            # Uses ImportantFileWriter, which is not supported by Starboard.
+            'prefs/json_pref_store.cc',
+            'prefs/json_pref_store.h',
+          ],
+        }],  # OS=="starboard"
+      ],
+    },
+    {
+      # This is the subset of files from base that should not be used with a
+      # dynamic library. Note that this library cannot depend on base because
+      # base depends on base_static.
+      'target_name': 'base_static',
+      'type': 'static_library',
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
+      'toolsets': ['host', 'target'],
+      'sources': [
+        'base_switches.cc',
+        'base_switches.h',
+        'win/pe_image.cc',
+        'win/pe_image.h',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+      'conditions': [
+        ['OS == "lb_shell" or OS=="starboard"', {
+          'sources/': [
+            ['exclude', '^win/'],
+          ],
+        }],
+      ],
+    },
+    {
+      # TODO(rvargas): Remove this when gyp finally supports a clean model.
+      # See bug 36232.
+      'target_name': 'base_static_win64',
+      'type': 'static_library',
+      'sources': [
+        'base_switches.cc',
+        'base_switches.h',
+        'win/pe_image.cc',
+        'win/pe_image.h',
+      ],
+      'sources!': [
+        # base64.cc depends on modp_b64.
+        'base64.cc',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+      'configurations': {
+        'Common_Base': {
+          'msvs_target_platform': 'x64',
+        },
+      },
+      'defines': [
+        'NACL_WIN64',
+      ],
+      # TODO(rvargas): Bug 78117. Remove this.
+      'msvs_disabled_warnings': [
+        4244,
+      ],
+    },
+    # Include this target for a main() function that simply instantiates
+    # and runs a base::TestSuite.
+    {
+      'target_name': 'run_all_unittests',
+      'type': 'static_library',
+      'dependencies': [
+        'test_support_base',
+      ],
+      'sources': [
+        'test/run_all_unittests.cc',
+      ],
+    },
+    {
+      'target_name': 'base_unittests',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        # Tests.
+        'android/jni_android_unittest.cc',
+        'android/jni_array_unittest.cc',
+        'android/jni_string_unittest.cc',
+        'android/path_utils_unittest.cc',
+        'android/scoped_java_ref_unittest.cc',
+        'at_exit_unittest.cc',
+        'atomicops_unittest.cc',
+        'base64_unittest.cc',
+        'bind_helpers_unittest.cc',
+        'bind_unittest.cc',
+        'bind_unittest.nc',
+        'bits_unittest.cc',
+        'build_time_unittest.cc',
+        'callback_unittest.cc',
+        'callback_unittest.nc',
+        'cancelable_callback_unittest.cc',
+        'command_line_unittest.cc',
+        'containers/linked_list_unittest.cc',
+        'containers/mru_cache_unittest.cc',
+        'containers/small_map_unittest.cc',
+        'containers/stack_container_unittest.cc',
+        'cpu_unittest.cc',
+        'debug/leak_tracker_unittest.cc',
+        'debug/stack_trace_unittest.cc',
+        'debug/trace_event_unittest.cc',
+        'debug/trace_event_unittest.h',
+        'debug/trace_event_win_unittest.cc',
+        'environment_unittest.cc',
+        'file_path_unittest.cc',
+        'file_util_proxy_unittest.cc',
+        'file_util_unittest.cc',
+        'file_version_info_unittest.cc',
+        'files/dir_reader_posix_unittest.cc',
+        'files/important_file_writer_unittest.cc',
+        'files/scoped_temp_dir_unittest.cc',
+        'gmock_unittest.cc',
+        'guid_unittest.cc',
+        'hi_res_timer_manager_unittest.cc',
+        'id_map_unittest.cc',
+        'i18n/break_iterator_unittest.cc',
+        'i18n/char_iterator_unittest.cc',
+        'i18n/case_conversion_unittest.cc',
+        'i18n/file_util_icu_unittest.cc',
+        'i18n/icu_string_conversions_unittest.cc',
+        'i18n/number_formatting_unittest.cc',
+        'i18n/rtl_unittest.cc',
+        'i18n/string_search_unittest.cc',
+        'i18n/time_formatting_unittest.cc',
+        'ios/device_util_unittest.mm',
+        'json/json_parser_unittest.cc',
+        'json/json_reader_unittest.cc',
+        'json/json_value_converter_unittest.cc',
+        'json/json_value_serializer_unittest.cc',
+        'json/json_writer_unittest.cc',
+        'json/string_escape_unittest.cc',
+        'lazy_instance_unittest.cc',
+        'logging_unittest.cc',
+        'mac/bind_objc_block_unittest.mm',
+        'mac/foundation_util_unittest.mm',
+        'mac/libdispatch_task_runner_unittest.cc',
+        'mac/mac_util_unittest.mm',
+        'mac/objc_property_releaser_unittest.mm',
+        'mac/scoped_sending_event_unittest.mm',
+        'md5_unittest.cc',
+        'memory/aligned_memory_unittest.cc',
+        'memory/linked_ptr_unittest.cc',
+        'memory/ref_counted_memory_unittest.cc',
+        'memory/ref_counted_unittest.cc',
+        'memory/scoped_nsobject_unittest.mm',
+        'memory/scoped_ptr_unittest.cc',
+        'memory/scoped_ptr_unittest.nc',
+        'memory/scoped_vector_unittest.cc',
+        'memory/singleton_unittest.cc',
+        'memory/weak_ptr_unittest.cc',
+        'memory/weak_ptr_unittest.nc',
+        'message_loop_proxy_impl_unittest.cc',
+        'message_loop_proxy_unittest.cc',
+        'message_loop_unittest.cc',
+        'message_pump_glib_unittest.cc',
+        'message_pump_io_ios_unittest.cc',
+        'message_pump_libevent_unittest.cc',
+        'metrics/sample_map_unittest.cc',
+        'metrics/sample_vector_unittest.cc',
+        'metrics/bucket_ranges_unittest.cc',
+        'metrics/field_trial_unittest.cc',
+        'metrics/histogram_unittest.cc',
+        'metrics/sparse_histogram_unittest.cc',
+        'metrics/stats_table_unittest.cc',
+        'metrics/statistics_recorder_unittest.cc',
+        'object_tracker.h',
+        'observer_list_unittest.cc',
+        'os_compat_android_unittest.cc',
+        'path_service_unittest.cc',
+        'pickle_unittest.cc',
+        'platform_file_unittest.cc',
+        'posix/file_descriptor_shuffle_unittest.cc',
+        'pr_time_unittest.cc',
+        'process_util_unittest.cc',
+        'process_util_unittest_ios.cc',
+        'process_util_unittest_mac.h',
+        'process_util_unittest_mac.mm',
+        'profiler/tracked_time_unittest.cc',
+        'rand_util_unittest.cc',
+        'scoped_native_library_unittest.cc',
+        'scoped_observer.h',
+        'sha1_unittest.cc',
+        'shared_memory_unittest.cc',
+        'stl_util_unittest.cc',
+        'string16_unittest.cc',
+        'string_number_conversions_unittest.cc',
+        'string_piece_unittest.cc',
+        'string_split_unittest.cc',
+        'string_tokenizer_unittest.cc',
+        'string_util_unittest.cc',
+        'stringize_macros_unittest.cc',
+        'stringprintf_unittest.cc',
+        'synchronization/cancellation_flag_unittest.cc',
+        'synchronization/condition_variable_unittest.cc',
+        'synchronization/lock_unittest.cc',
+        'synchronization/waitable_event_unittest.cc',
+        'synchronization/waitable_event_watcher_unittest.cc',
+        'sys_info_unittest.cc',
+        'sys_string_conversions_mac_unittest.mm',
+        'sys_string_conversions_unittest.cc',
+        'system_monitor/system_monitor_unittest.cc',
+        'task_runner_util_unittest.cc',
+        'template_util_unittest.cc',
+        'test/sequenced_worker_pool_owner.cc',
+        'test/sequenced_worker_pool_owner.h',
+        'test/trace_event_analyzer_unittest.cc',
+        'test/time_helpers.cc',
+        'test/time_helpers.h',
+        'threading/non_thread_safe_unittest.cc',
+        'threading/platform_thread_unittest.cc',
+        'threading/sequenced_worker_pool_unittest.cc',
+        'threading/simple_thread_unittest.cc',
+        'threading/thread_checker_unittest.cc',
+        'threading/thread_collision_warner_unittest.cc',
+        'threading/thread_local_storage_unittest.cc',
+        'threading/thread_local_unittest.cc',
+        'threading/thread_unittest.cc',
+        'threading/watchdog_unittest.cc',
+        'threading/worker_pool_posix_unittest.cc',
+        'threading/worker_pool_unittest.cc',
+        'time_unittest.cc',
+        'time_win_unittest.cc',
+        'timer_unittest.cc',
+        'tools_sanity_unittest.cc',
+        'tracked_objects_unittest.cc',
+        'tuple_unittest.cc',
+        'utf_offset_string_conversions_unittest.cc',
+        'utf_string_conversions_unittest.cc',
+        'values_unittest.cc',
+        'version_unittest.cc',
+        'vlog_unittest.cc',
+        'win/dllmain.cc',
+        'win/enum_variant_unittest.cc',
+        'win/event_trace_consumer_unittest.cc',
+        'win/event_trace_controller_unittest.cc',
+        'win/event_trace_provider_unittest.cc',
+        'win/i18n_unittest.cc',
+        'win/iunknown_impl_unittest.cc',
+        'win/object_watcher_unittest.cc',
+        'win/pe_image_unittest.cc',
+        'win/registry_unittest.cc',
+        'win/sampling_profiler_unittest.cc',
+        'win/scoped_bstr_unittest.cc',
+        'win/scoped_comptr_unittest.cc',
+        'win/scoped_process_information_unittest.cc',
+        'win/shortcut_unittest.cc',
+        'win/startup_information_unittest.cc',
+        'win/scoped_variant_unittest.cc',
+        'win/win_util_unittest.cc',
+        'win/wrapped_window_proc_unittest.cc',
+      ],
+      'dependencies': [
+        'base',
+        'base_i18n',
+        'base_static',
+        'run_all_unittests',
+        'test_support_base',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
+      ],
+      'includes': ['../build/nocompile.gypi'],
+      'variables': {
+         # TODO(ajwong): Is there a way to autodetect this?
+        'module_dir': 'base'
+      },
+      'conditions': [
+        ['OS == "android"', {
+          'dependencies': [
+            'android/jni_generator/jni_generator.gyp:jni_generator_tests',
+          ],
+          'conditions': [
+            ['gtest_target_type == "shared_library"', {
+              'dependencies': [
+                '../testing/android/native_test.gyp:native_test_native_code',
+              ],
+            }],
+          ],
+          'sources!': [
+            # Broken on Android, and already disabled there.
+            'debug/stack_trace_unittest.cc',
+          ],
+        }],
+        ['OS == "ios"', {
+          'sources/': [
+            # Only test the iOS-meaningful portion of process_utils.
+            ['exclude', '^process_util_unittest'],
+            ['include', '^process_util_unittest_ios\\.cc$'],
+            # Requires spawning processes.
+            ['exclude', '^metrics/stats_table_unittest\\.cc$'],
+            # iOS does not use message_pump_libevent.
+            ['exclude', '^message_pump_libevent_unittest\\.cc$'],
+          ],
+          'conditions': [
+            ['coverage != 0', {
+              'sources!': [
+                # These sources can't be built with coverage due to a toolchain
+                # bug: http://openradar.appspot.com/radar?id=1499403
+                'json/json_reader_unittest.cc',
+                'string_piece_unittest.cc',
+
+                # These tests crash when run with coverage turned on due to an
+                # issue with llvm_gcda_increment_indirect_counter:
+                # http://crbug.com/156058
+                'debug/trace_event_unittest.cc',
+                'debug/trace_event_unittest.h',
+                'logging_unittest.cc',
+                'string_util_unittest.cc',
+                'test/trace_event_analyzer_unittest.cc',
+                'utf_offset_string_conversions_unittest.cc',
+              ],
+            }],
+          ],
+          'actions': [
+            {
+              'action_name': 'copy_test_data',
+              'variables': {
+                'test_data_files': [
+                  'data/json/bom_feff.json',
+                  'data/file_util_unittest',
+                ],
+                'test_data_prefix': 'base',
+              },
+              'includes': [ '../build/copy_test_data_ios.gypi' ],
+            },
+          ],
+        }],
+        ['cobalt==1', {
+          'actions': [
+            {
+              'action_name': 'copy_test_data',
+              'variables': {
+                'input_files': [
+                  'data/json',
+                  'data/file_util_unittest',
+                ],
+                'output_dir': 'base/data',
+              },
+              'includes': [ '../cobalt/build/copy_test_data.gypi' ],
+            },
+          ],
+        }],
+        ['use_glib==1', {
+          'sources!': [
+            'file_version_info_unittest.cc',
+          ],
+          'conditions': [
+            [ 'linux_use_tcmalloc==1', {
+                'dependencies': [
+                  'allocator/allocator.gyp:allocator',
+                ],
+              },
+            ],
+            [ 'toolkit_uses_gtk==1', {
+              'sources': [
+                'nix/xdg_util_unittest.cc',
+              ],
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ]
+            }],
+          ],
+          'dependencies': [
+            '../build/linux/system.gyp:glib',
+            '../build/linux/system.gyp:ssl',
+            '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
+          ],
+        }, {  # use_glib!=1
+          'sources!': [
+            'message_pump_glib_unittest.cc',
+          ]
+        }],
+        # This is needed to trigger the dll copy step on windows.
+        # TODO(mark): This should not be necessary.
+        ['OS == "win"', {
+          'dependencies': [
+            '../third_party/icu/icu.gyp:icudata',
+          ],
+          'sources!': [
+            'file_descriptor_shuffle_unittest.cc',
+            'files/dir_reader_posix_unittest.cc',
+            'threading/worker_pool_posix_unittest.cc',
+            'message_pump_libevent_unittest.cc',
+          ],
+        }, {  # OS != "win"
+          'dependencies': [
+            '../third_party/libevent/libevent.gyp:libevent'
+          ],
+          'sources/': [
+            ['exclude', '^win/'],
+          ],
+          'sources!': [
+            'debug/trace_event_win_unittest.cc',
+            'time_win_unittest.cc',
+            'win/win_util_unittest.cc',
+          ],
+        }],
+        ['OS == "lb_shell" or OS == "starboard"', {
+          'sources!': [
+            'environment_unittest.cc',
+            'files/important_file_writer_unittest.cc',
+            # We don't use field trials (an experiments framework) in Cobalt,
+            # and these tests depend on the current date being set correctly,
+            # so do not run them.
+            'metrics/field_trial_unittest.cc',
+            'metrics/stats_table_unittest.cc',
+            'process_util_unittest.cc',
+            'scoped_native_library_unittest.cc',
+            'shared_memory_unittest.cc',
+            'synchronization/waitable_event_watcher_unittest.cc',
+          ],
+          'sources': [
+            'circular_buffer_shell_unittest.cc',
+            'optional_unittest.cc',
+            'state_machine_shell_unittest.cc',
+          ],
+          'conditions': [
+            ['target_arch != "android" or OS == "starboard"', {
+              'dependencies!': [
+                '../third_party/libevent/libevent.gyp:libevent'
+              ],
+              'sources!': [
+                'message_pump_libevent_unittest.cc',
+              ],
+            }],
+          ],
+        }],
+      ],  # conditions
+      'target_conditions': [
+        ['OS == "ios"', {
+          'sources/': [
+            # Pull in specific Mac files for iOS (which have been filtered out
+            # by file name rules).
+            ['include', '^mac/objc_property_releaser_unittest\\.mm$'],
+            ['include', '^mac/bind_objc_block_unittest\\.mm$'],
+            ['include', '^sys_string_conversions_mac_unittest\\.mm$'],
+          ],
+        }],
+      ],  # target_conditions
+      'msvs_disabled_warnings': [
+        4800,  # forcing value to bool 'true' or 'false' (performance warning)
+      ],
+    },
+    {
+      'target_name': 'test_support_base',
+      'type': 'static_library',
+      'dependencies': [
+        'base',
+        'base_static',
+        'base_i18n',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'export_dependent_settings': [
+        'base',
+      ],
+      'conditions': [
+        ['cobalt==1', {
+          'dependencies': [
+            # Platform delegate is used to perform system specific
+            # initialization logic. This is a temporary solution and the code
+            # should eventually move into the chromium/base code.
+            '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
+          ],
+        }],
+        ['toolkit_uses_gtk==1', {
+          'dependencies': [
+            # test_suite initializes GTK.
+            '../build/linux/system.gyp:gtk',
+          ],
+        }],
+        ['os_posix==0', {
+          'sources!': [
+            'test/scoped_locale.cc',
+            'test/scoped_locale.h',
+          ],
+        }],
+        ['os_bsd==1', {
+          'sources!': [
+            'test/test_file_util_linux.cc',
+          ],
+        }],
+        ['OS=="win"', {
+          'direct_dependent_settings': {
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'DelayLoadDLLs': [
+                  'propsys.dll',
+                ],
+              },
+            },
+          },
+        }],
+      ],
+      'sources': [
+        'perftimer.cc',
+        'test/main_hook.cc',
+        'test/main_hook.h',
+        'test/main_hook_ios.mm',
+        'test/mock_chrome_application_mac.h',
+        'test/mock_chrome_application_mac.mm',
+        'test/mock_devices_changed_observer.cc',
+        'test/mock_devices_changed_observer.h',
+        'test/mock_time_provider.cc',
+        'test/mock_time_provider.h',
+        'test/multiprocess_test.cc',
+        'test/multiprocess_test.h',
+        'test/multiprocess_test_android.cc',
+        'test/perf_test_suite.cc',
+        'test/perf_test_suite.h',
+        'test/scoped_locale.cc',
+        'test/scoped_locale.h',
+        'test/scoped_path_override.cc',
+        'test/scoped_path_override.h',
+        'test/sequenced_task_runner_test_template.cc',
+        'test/sequenced_task_runner_test_template.h',
+        'test/task_runner_test_template.cc',
+        'test/task_runner_test_template.h',
+        'test/test_file_util.h',
+        'test/test_file_util_linux.cc',
+        'test/test_file_util_mac.cc',
+        'test/test_file_util_posix.cc',
+        'test/test_file_util_win.cc',
+        'test/test_listener_ios.h',
+        'test/test_listener_ios.mm',
+        'test/test_reg_util_win.cc',
+        'test/test_reg_util_win.h',
+        'test/test_shortcut_win.cc',
+        'test/test_shortcut_win.h',
+        'test/test_suite.cc',
+        'test/test_suite.h',
+        'test/test_support_android.cc',
+        'test/test_support_android.h',
+        'test/test_support_ios.h',
+        'test/test_support_ios.mm',
+        'test/test_switches.cc',
+        'test/test_switches.h',
+        'test/test_timeouts.cc',
+        'test/test_timeouts.h',
+        'test/thread_test_helper.cc',
+        'test/thread_test_helper.h',
+        'test/trace_event_analyzer.cc',
+        'test/trace_event_analyzer.h',
+        'test/values_test_util.cc',
+        'test/values_test_util.h',
+      ],
+      'target_conditions': [
+        ['OS == "ios"', {
+          'sources/': [
+            # Pull in specific Mac files for iOS (which have been filtered out
+            # by file name rules).
+            ['include', '^test/test_file_util_mac\\.cc$'],
+          ],
+        }],
+        ['OS == "lb_shell" or OS=="starboard"', {
+          'sources/': [
+            ['exclude', 'test/multiprocess_test'],
+          ],
+          'sources!': [
+            'perftimer.cc',
+          ],
+          'sources': [
+            'perftimer_starboard.cc',
+          ],
+        }],
+      ],  # target_conditions
+    },
+    {
+      'target_name': 'test_support_perf',
+      'type': 'static_library',
+      'dependencies': [
+        'base',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'sources': [
+        'perftimer.cc',
+        'test/run_all_perftests.cc',
+      ],
+      'direct_dependent_settings': {
+        'defines': [
+          'PERF_TEST',
+        ],
+      },
+      'conditions': [
+        ['toolkit_uses_gtk==1', {
+          'dependencies': [
+            # Needed to handle the #include chain:
+            #   base/test/perf_test_suite.h
+            #   base/test/test_suite.h
+            #   gtk/gtk.h
+            '../build/linux/system.gyp:gtk',
+          ],
+        }],
+        ['OS=="starboard"', {
+          'sources!': [
+            'perftimer.cc',
+          ],
+          'sources': [
+            'perftimer_starboard.cc',
+          ],
+        }],
+      ],
+    },
+  ],
+  'conditions': [
+    ['OS!="ios"', {
+      'targets': [
+        {
+          'target_name': 'check_example',
+          'type': 'executable',
+          'sources': [
+            'check_example.cc',
+          ],
+          'dependencies': [
+            'base',
+          ],
+        },
+      ],
+    }],
+    ['OS == "win"', {
+      'targets': [
+        {
+          'target_name': 'base_nacl_win64',
+          'type': '<(component)',
+          'variables': {
+            'base_target': 1,
+          },
+          'dependencies': [
+            'base_static_win64',
+            'allocator/allocator.gyp:allocator_extension_thunks_win64',
+            'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations_win64',
+          ],
+          # TODO(gregoryd): direct_dependent_settings should be shared with the
+          # 32-bit target, but it doesn't work due to a bug in gyp
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '..',
+            ],
+          },
+          'defines': [
+            '<@(nacl_win64_defines)',
+          ],
+          'sources!': [
+            # base64.cc depends on modp_b64.
+            'base64.cc',
+          ],
+          'configurations': {
+            'Common_Base': {
+              'msvs_target_platform': 'x64',
+            },
+          },
+          'conditions': [
+            ['component == "shared_library"', {
+              'sources!': [
+                'debug/debug_on_start_win.cc',
+              ],
+            }],
+          ],
+        },
+        {
+          'target_name': 'base_i18n_nacl_win64',
+          'type': '<(component)',
+          # TODO(gregoryd): direct_dependent_settings should be shared with the
+          # 32-bit target, but it doesn't work due to a bug in gyp
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '..',
+            ],
+          },
+          'defines': [
+            '<@(nacl_win64_defines)',
+            'BASE_I18N_IMPLEMENTATION',
+          ],
+          'include_dirs': [
+            '..',
+          ],
+          'sources': [
+            'i18n/icu_util_nacl_win64.cc',
+          ],
+          'configurations': {
+            'Common_Base': {
+              'msvs_target_platform': 'x64',
+            },
+          },
+        },
+      ],
+    }],
+    ['os_posix==1 and OS!="mac" and OS!="ios" and (OS!="lb_shell" or target_arch in ("android", "linux"))', {
+      'targets': [
+        {
+          'target_name': 'symbolize',
+          'type': 'static_library',
+          'toolsets': ['host', 'target'],
+          'variables': {
+            'chromium_code': 0,
+          },
+          'conditions': [
+            ['OS == "solaris"', {
+              'include_dirs': [
+                '/usr/gnu/include',
+                '/usr/gnu/include/libelf',
+              ],
+            },],
+          ],
+          'cflags': [
+            '-Wno-sign-compare',
+          ],
+          'cflags!': [
+            '-Wextra',
+          ],
+          'sources': [
+            'third_party/symbolize/config.h',
+            'third_party/symbolize/demangle.cc',
+            'third_party/symbolize/demangle.h',
+            'third_party/symbolize/glog/logging.h',
+            'third_party/symbolize/glog/raw_logging.h',
+            'third_party/symbolize/symbolize.cc',
+            'third_party/symbolize/symbolize.h',
+            'third_party/symbolize/utilities.h',
+          ],
+          'include_dirs': [
+            '..',
+          ],
+        },
+        {
+          'target_name': 'xdg_mime',
+          'type': 'static_library',
+          'toolsets': ['host', 'target'],
+          'variables': {
+            'chromium_code': 0,
+          },
+          'cflags!': [
+            '-Wextra',
+          ],
+          'sources': [
+            'third_party/xdg_mime/xdgmime.c',
+            'third_party/xdg_mime/xdgmime.h',
+            'third_party/xdg_mime/xdgmimealias.c',
+            'third_party/xdg_mime/xdgmimealias.h',
+            'third_party/xdg_mime/xdgmimecache.c',
+            'third_party/xdg_mime/xdgmimecache.h',
+            'third_party/xdg_mime/xdgmimeglob.c',
+            'third_party/xdg_mime/xdgmimeglob.h',
+            'third_party/xdg_mime/xdgmimeicon.c',
+            'third_party/xdg_mime/xdgmimeicon.h',
+            'third_party/xdg_mime/xdgmimeint.c',
+            'third_party/xdg_mime/xdgmimeint.h',
+            'third_party/xdg_mime/xdgmimemagic.c',
+            'third_party/xdg_mime/xdgmimemagic.h',
+            'third_party/xdg_mime/xdgmimeparent.c',
+            'third_party/xdg_mime/xdgmimeparent.h',
+          ],
+        },
+      ],
+    }],
+    ['OS == "android" or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")', {
+      'targets': [
+        {
+          'target_name': 'base_jni_headers',
+          'type': 'none',
+          'sources': [
+            'android/java/src/org/chromium/base/BuildInfo.java',
+            'android/java/src/org/chromium/base/CpuFeatures.java',
+            'android/java/src/org/chromium/base/LocaleUtils.java',
+            'android/java/src/org/chromium/base/PathService.java',
+            'android/java/src/org/chromium/base/PathUtils.java',
+            'android/java/src/org/chromium/base/SystemMessageHandler.java',
+            'android/java/src/org/chromium/base/SystemMonitor.java',
+          ],
+          'variables': {
+            'jni_gen_dir': 'base',
+          },
+          'includes': [ '../build/jni_generator.gypi' ],
+        },
+        {
+          'target_name': 'base_java',
+          'type': 'none',
+          'variables': {
+            'package_name': 'base',
+            'java_in_dir': '../base/android/java',
+          },
+          'includes': [ '../build/java.gypi' ],
+        },
+        {
+          'target_name': 'base_java_test_support',
+          'type': 'none',
+          'dependencies': [
+            'base_java',
+          ],
+          'variables': {
+            'package_name': 'base_javatests',
+            'java_in_dir': '../base/test/android/javatests',
+          },
+          'includes': [ '../build/java.gypi' ],
+        },
+      ],
+    }],
+    ['OS == "win"', {
+      'targets': [
+        {
+          'target_name': 'debug_message',
+          'type': 'executable',
+          'sources': [
+            'debug_message.cc',
+          ],
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'SubSystem': '2',         # Set /SUBSYSTEM:WINDOWS
+            },
+          },
+        },
+      ],
+    }],
+    ['cobalt==1', {
+      'targets': [
+        {
+          'target_name': 'base_unittests_deploy',
+          'type': 'none',
+          'dependencies': [
+            'base_unittests',
+          ],
+          'variables': {
+            'executable_name': 'base_unittests',
+          },
+          'includes': [ '../cobalt/build/deploy.gypi' ],
+        },
+      ],
+    }],
+    # Special target to wrap a gtest_target_type == shared_library
+    # base_unittests into an android apk for execution.
+    # TODO(jrg): lib.target comes from _InstallableTargetInstallPath()
+    # in the gyp make generator.  What is the correct way to extract
+    # this path from gyp and into 'raw' for input to antfiles?
+    # Hard-coding in the gypfile seems a poor choice.
+    ['(OS == "android" and gtest_target_type == "shared_library") or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")', {
+      'targets': [
+        {
+          'target_name': 'base_unittests_apk',
+          'type': 'none',
+          'dependencies': [
+            'base_java',
+            'base_unittests',
+          ],
+          'variables': {
+            'test_suite_name': 'base_unittests',
+            'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)base_unittests<(SHARED_LIB_SUFFIX)',
+          },
+          'includes': [ '../build/apk_test.gypi' ],
+        },
+      ],
+    }],
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'base_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'base_unittests',
+          ],
+          'includes': [
+            '../build/isolate.gypi',
+            'base_unittests.isolate',
+          ],
+          'sources': [
+            'base_unittests.isolate',
+          ],
+        },
+      ],
+    }],
+  ],
+}

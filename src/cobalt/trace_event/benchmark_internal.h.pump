@@ -1,0 +1,119 @@
+//
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+$$ This is a pump file for generating the interface and implementation of
+$$ the benchmarking system's TRACE_EVENT_BENCHMARK* macros, which can take a
+$$ variable number of parameters.  Pump is a python script that is part of the
+$$ Google Test suite of utilities.  Description can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+#include "base/compiler_specific.h"
+
+// clang-format off
+
+$var MAX_ARITY = 10
+
+$range ARITY 1..MAX_ARITY
+
+$for ARITY [[
+
+$range ARG 1..ARITY
+
+#define TRACE_EVENT_BENCHMARK$(ARITY)(benchmark, $for ARG , [[event_name_$(ARG), measurement_type_$(ARG)]])\
+MSVC_PUSH_DISABLE_WARNING(6326)\
+class benchmark : public cobalt::trace_event::Benchmark {\
+ public:\
+  void Experiment() OVERRIDE;\
+  void AnalyzeTraceEvent(\
+      const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& event)\
+      OVERRIDE {\
+
+$for ARG
+[[
+    if (event->name() == event_name_$(ARG)) {\
+      switch (measurement_type_$(ARG)) {\
+        case cobalt::trace_event::FLOW_DURATION: {\
+          if (event->flow_duration()) {\
+            event_$(ARG)_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
+        } break;\
+        case cobalt::trace_event::IN_SCOPE_DURATION: {\
+          if (event->in_scope_duration()) {\
+            event_$(ARG)_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
+        } break;\
+        case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
+          if (!event_$(ARG)_last_begin_time_.is_null()) {\
+            event_$(ARG)_samples_.push_back(\
+                (event->begin_event().timestamp() -\
+                    event_$(ARG)_last_begin_time_).InSecondsF());\
+          }\
+        } break;\
+      }\
+\
+      event_$(ARG)_last_begin_time_ = event->begin_event().timestamp();\
+    }\
+
+]]
+  }\
+  std::vector<Result> CompileResults() OVERRIDE {\
+    std::vector<Result> results;\
+
+$for ARG
+[[
+    switch (measurement_type_$(ARG)) {\
+      case cobalt::trace_event::FLOW_DURATION: {\
+        results.push_back(\
+            Result(std::string(event_name_$(ARG)) + " flow duration in seconds",\
+                   event_$(ARG)_samples_));\
+      } break;\
+      case cobalt::trace_event::IN_SCOPE_DURATION: {\
+        results.push_back(\
+            Result(std::string(event_name_$(ARG)) + " in-scope duration in seconds",\
+                   event_$(ARG)_samples_));\
+      } break;\
+      case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
+        results.push_back(\
+            Result(std::string(event_name_$(ARG)) + " time between event starts in seconds",\
+                   event_$(ARG)_samples_));\
+      } break;\
+    }\
+
+]]
+    return results;\
+  }\
+ private:\
+
+$for ARG
+[[
+  std::vector<double> event_$(ARG)_samples_;\
+  base::TimeTicks event_$(ARG)_last_begin_time_;\
+
+]]
+};\
+\
+TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
+\
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
+
+]]
+
+// clang-format on

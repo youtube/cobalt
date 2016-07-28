@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!--
+ | When a box is split in inline formatting context, the newly generated box
+ | inherits the stacking context and the contaning block from the older sibling.
+ -->
+<html>
+<body style="margin:0px; font-family: Roboto; font-size: 20px;">
+ <div style="width: 80px; background-color:#DDD">
+  <div>
+    <span style="position: relative;">oooo
+      <span style="position: relative;">xxxx</span>
+    </span>
+  </div>
+ </div>
+</body>
+</html>

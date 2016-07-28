@@ -1,0 +1,43 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// https://www.w3.org/TR/2015/WD-uievents-20151215/#interface-KeyboardEvent
+
+[Constructor(DOMString type)]
+interface KeyboardEvent : UIEvent {
+  // enum KeyLocationCode
+  const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;
+  const unsigned long DOM_KEY_LOCATION_LEFT = 0x01;
+  const unsigned long DOM_KEY_LOCATION_RIGHT = 0x02;
+  const unsigned long DOM_KEY_LOCATION_NUMPAD = 0x03;
+
+  readonly attribute DOMString key;
+  readonly attribute unsigned long location;
+  readonly attribute boolean ctrlKey;
+  readonly attribute boolean shiftKey;
+  readonly attribute boolean altKey;
+  readonly attribute boolean metaKey;
+  readonly attribute boolean repeat;
+
+  boolean getModifierState(DOMString text);
+
+  // Deprecated. These features have been removed from the Web standards.
+  //   https://www.w3.org/TR/DOM-Level-3-Events/#legacy-key-models
+  readonly attribute long keyCode;
+  readonly attribute long charCode;
+  readonly attribute unsigned long keyLocation;
+  readonly attribute DOMString keyIdentifier;
+};

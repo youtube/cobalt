@@ -1,0 +1,71 @@
+#hudFrame {
+  position: absolute;
+  top: 85%;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-color: rgba(128, 128, 128, 0.6);
+  color: #FFFFFF;
+}
+
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #FFFFFF;
+  border: 1px;
+  border-color: #606060;
+  border-style: solid;
+  padding: 10px;
+}
+
+#consoleFrame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 15%;
+  right: 0;
+  background-color: rgba(128, 128, 128, 0.6);
+  color: #FFFFFF;
+  overflow: hidden;
+}
+
+#messageContainerFrame {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  bottom: 40px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #FFFFFF;
+  overflow: hidden;
+  border: 1px;
+  border-color: #606060;
+  border-style: solid;
+  padding: 10px;
+}
+
+#messageContainer {
+  position: absolute;
+  bottom: 10px;
+  font-family: monospace;
+}
+
+#in {
+  position: absolute;
+  left: 10px;
+  bottom: 0;
+  right: 10px;
+  height: 20px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #FFFFFF;
+  white-space: pre;
+  font-family: monospace;
+  border: 1px;
+  border-color: #606060;
+  border-style: solid;
+  padding: 10px;
+}

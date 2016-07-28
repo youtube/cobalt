@@ -1,0 +1,16 @@
+# HG changeset patch
+# Parent cd8909c56cccd12a576d731982a2b98be6fd1a96
+Bug 949195 - Only use IsInRequest when JS_DEBUG.
+
+diff --git a/js/public/RootingAPI.h b/js/public/RootingAPI.h
+--- a/js/public/RootingAPI.h
++++ b/js/public/RootingAPI.h
+@@ -532,7 +532,7 @@ class MOZ_STACK_CLASS Rooted : public js
+ {
+     void init(JSContext *cxArg) {
+         MOZ_ASSERT(cxArg);
+-#ifdef JS_THREADSAFE
++#if defined(JS_DEBUG) && defined(JS_THREADSAFE)
+         MOZ_ASSERT(js::IsInRequest(cxArg));
+ #endif
+ #if defined(JSGC_ROOT_ANALYSIS) || defined(JSGC_USE_EXACT_ROOTING)

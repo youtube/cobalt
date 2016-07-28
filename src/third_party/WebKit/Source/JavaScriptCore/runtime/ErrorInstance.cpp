@@ -1,0 +1,43 @@
+/*
+ *  Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
+ *  Copyright (C) 2003, 2008 Apple Inc. All rights reserved.
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ *
+ */
+
+#include "config.h"
+#include "ErrorInstance.h"
+
+#include "JSScope.h"
+
+#if COMPILER(GHS)
+#include "JSDestructibleObject.h"
+#endif
+
+namespace JSC {
+
+ASSERT_HAS_TRIVIAL_DESTRUCTOR(ErrorInstance);
+
+const ClassInfo ErrorInstance::s_info = { "Error", JSNonFinalObject::s_classinfo(), 0, 0, CREATE_METHOD_TABLE(ErrorInstance) };
+const ClassInfo* ErrorInstance::s_classinfo() { return &s_info; }
+
+ErrorInstance::ErrorInstance(JSGlobalData& globalData, Structure* structure)
+    : JSNonFinalObject(globalData, structure)
+    , m_appendSourceToMessage(false)
+{
+}
+
+} // namespace JSC

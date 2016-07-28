@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!--
+ | Like "top", but specifies how far a box's bottom margin edge is offset
+ | above the bottom of the box's containing block. For relatively positioned
+ | boxes, the offset is with respect to the bottom edge of the box itself.
+ |   https://www.w3.org/TR/CSS21/visuren.html#position-props
+ -->
+<html>
+<head>
+  <style>
+    body {
+      font-size: 100px;
+    }
+    div {
+      height: 100px;
+    }
+    .containing-block {
+      position: relative;
+      height: 600px;
+    }
+    .green {
+      color: green;
+    }
+    .blue {
+      color: blue;
+    }
+    .absolutely-positioned {
+      position: absolute;
+      bottom: 300px;
+    }
+    .relatively-positioned {
+      position: relative;
+      bottom: -400px;
+    }
+  </style>
+</head>
+<body>
+  <div class="containing-block">
+    <div class="green relatively-positioned">world!</div>
+    <div class="green">Hello,</div>
+    <div><!-- Placeholder for "world!". --></div>
+
+    <div class="blue absolutely-positioned">world!</div>
+    <div class="blue">Hello,</div>
+  </div>
+</body>
+</html>

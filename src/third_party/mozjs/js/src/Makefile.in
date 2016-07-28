@@ -1,0 +1,726 @@
+# -*- Mode: makefile -*-
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+DEPTH		= @DEPTH@
+topsrcdir	= @top_srcdir@
+srcdir		= @srcdir@
+
+TOPLEVEL_BUILD := 1
+
+run_for_side_effects := $(shell echo "MAKE: $(MAKE)")
+include $(DEPTH)/config/autoconf.mk
+
+ifdef JS_STANDALONE
+LIBRARY_NAME	= mozjs-@MOZILLA_SYMBOLVERSION@
+else
+LIBRARY_NAME	= mozjs
+endif
+
+STATIC_LIBRARY_NAME = js_static
+MSVC_ENABLE_PGO := 1
+LIBS		= $(NSPR_LIBS)
+
+# JavaScript must be built shared, even for static builds, as it is used by
+# other modules which are always built shared. Failure to do so results in
+# the js code getting copied into xpinstall and jsd as well as mozilla-bin,
+# and then the static data cells used for locking no longer work.
+#
+# In fact, we now build both a static and a shared library, as the
+# JS shell would like to link to the static library.
+
+ifdef JS_SHARED_LIBRARY
+FORCE_SHARED_LIB = 1
+endif
+FORCE_STATIC_LIB = 1
+DIST_INSTALL = 1
+
+###############################################
+# BEGIN include sources for low-level code shared with mfbt
+#
+MFBT_ROOT = $(srcdir)/../../mfbt
+VPATH += $(MFBT_ROOT)
+include $(MFBT_ROOT)/exported_headers.mk
+
+VPATH		+= \
+		$(srcdir) \
+		$(srcdir)/builtin \
+		$(srcdir)/devtools \
+		$(srcdir)/ds \
+		$(srcdir)/frontend \
+		$(srcdir)/gc \
+		$(srcdir)/vm \
+		$(NULL)
+
+######################################################
+# BEGIN include exported headers from the JS engine
+#
+#       Ultimately, after cleansing EXPORTS,
+#       these will be the ONLY headers exported by
+#       the js engine
+#
+VPATH		+= \
+		$(srcdir)/../public \
+		$(NULL)
+
+###############################################
+# BEGIN enable non-releasable features
+#
+ifdef NIGHTLY_BUILD
+DEFINES += -DENABLE_PARALLEL_JS
+endif
+
+# Ion
+ifdef ENABLE_ION
+VPATH +=	$(srcdir)/jit
+VPATH +=	$(srcdir)/jit/shared
+
+ifeq (86, $(findstring 86,$(TARGET_CPU)))
+ifeq (x86_64, $(TARGET_CPU))
+VPATH +=	$(srcdir)/jit/x64
+else
+VPATH +=	$(srcdir)/jit/x86
+endif
+endif
+ifeq (arm, $(findstring arm, $(TARGET_CPU)))
+VPATH +=	$(srcdir)/jit/arm
+endif
+endif #ENABLE_ION
+
+###############################################
+# BEGIN include sources for the Nitro assembler
+#
+
+VPATH += 	$(srcdir)/assembler \
+		$(srcdir)/assembler/wtf \
+		$(srcdir)/assembler/jit \
+		$(srcdir)/yarr \
+		$(NONE)
+
+ifneq (,$(ENABLE_ION)$(ENABLE_YARR_JIT))
+VPATH += 	$(srcdir)/assembler/assembler \
+		$(NONE)
+endif
+
+#
+# END enclude sources for the Nitro assembler
+#############################################
+
+ifdef JS_HAS_CTYPES
+VPATH += $(srcdir)/ctypes
+
+ifdef MOZ_NATIVE_FFI
+LOCAL_INCLUDES = $(MOZ_FFI_CFLAGS)
+else
+LOCAL_INCLUDES = -Ictypes/libffi/include
+endif
+
+LOCAL_INCLUDES += \
+    -I. \
+    $(NULL)
+
+
+ifdef MOZ_NATIVE_FFI
+EXTRA_DSO_LDOPTS += $(MOZ_FFI_LIBS)
+else
+ifeq ($(OS_ARCH),OS2)
+SHARED_LIBRARY_LIBS += \
+    ctypes/libffi/.libs/ffi.a \
+    $(NULL)
+else
+SHARED_LIBRARY_LIBS += \
+    ctypes/libffi/.libs/libffi.$(LIB_SUFFIX) \
+    $(NULL)
+endif
+endif
+
+endif # JS_HAS_CTYPES
+
+LOCAL_INCLUDES += -I$(MFBT_ROOT)/double-conversion
+
+# PerfMeasurement is available regardless of low-level support for it;
+# it just doesn't necessarily do anything useful.  There is one
+# implementation source file per supported operating system, plus a stub
+# for unsupported OSes, plus the Javascript wrapper.
+VPATH += $(srcdir)/perf
+
+DASH_R		= -r
+
+ifneq (,$(filter OS2 WINNT,$(OS_ARCH)))
+SDK_LIBRARY = $(IMPORT_LIBRARY)
+else
+SDK_LIBRARY = $(SHARED_LIBRARY)
+endif
+
+include $(topsrcdir)/config/config.mk
+
+ifeq (,$(MOZ_GLUE_PROGRAM_LDFLAGS))
+# When building standalone, we need to include mfbt sources, and to declare
+# "exported" mfbt symbols on its behalf when we use its headers.
+include $(MFBT_ROOT)/sources.mk
+DEFINES += -DIMPL_MFBT
+endif
+
+EXTRA_DSO_LDOPTS += $(NSPR_LIBS)
+
+ifndef BUILD_OPT
+MOCHAFILE	= 1
+endif
+
+# Define keyword generator before rules.mk, see bug 323979 comment 50
+
+HOST_CPPSRCS += jskwgen.cpp
+HOST_SIMPLE_PROGRAMS += host_jskwgen$(HOST_BIN_SUFFIX)
+GARBAGE += jsautokw.h host_jskwgen$(HOST_BIN_SUFFIX)
+
+HOST_CPPSRCS += jsoplengen.cpp
+HOST_SIMPLE_PROGRAMS += host_jsoplengen$(HOST_BIN_SUFFIX)
+GARBAGE += jsautooplen.h host_jsoplengen$(HOST_BIN_SUFFIX)
+
+GARBAGE += selfhosted.out.h
+
+USE_HOST_CXX = 1
+
+ifdef HAVE_DTRACE
+ifneq ($(OS_ARCH),Darwin)
+DTRACE_PROBE_OBJ = $(LIBRARY_NAME)-dtrace.$(OBJ_SUFFIX)
+endif
+MOZILLA_DTRACE_SRC = $(srcdir)/devtools/javascript-trace.d
+endif
+
+default::
+
+ifneq (,$(CROSS_COMPILE)$(filter-out WINNT OS2,$(OS_ARCH)))
+# nsinstall doesn't get built until we enter config/ in the exports phase,
+# so we'll have to manually ensure it gets built here if we want to use
+# $(EXPORTS)
+export:: config/nsinstall$(HOST_BIN_SUFFIX)
+$(PUBLIC) $(SDK_PUBLIC): config/nsinstall$(HOST_BIN_SUFFIX)
+
+config/nsinstall$(HOST_BIN_SUFFIX): $(srcdir)/config/nsinstall.c $(srcdir)/config/pathsub.c
+	$(MAKE) -C config/ nsinstall$(HOST_BIN_SUFFIX)
+endif
+
+# Ensure symbol versions of shared library on Linux do not conflict
+# with those in libxul.
+ifeq (Linux,$(OS_TARGET))
+EXTRA_DSO_LDOPTS += -Wl,-version-script,symverscript
+
+symverscript: symverscript.in
+	$(PYTHON) $(topsrcdir)/config/Preprocessor.py \
+		-DVERSION="$(subst -,_,$(LIBRARY_NAME))" $< > $@
+
+EXTRA_DEPS += symverscript
+endif
+
+include $(topsrcdir)/config/rules.mk
+
+ifdef JS_HAS_CTYPES
+ifndef MOZ_NATIVE_FFI
+# Build libffi proper as part of the 'exports' target, so things get built
+# in the right order.
+export::
+		$(call SUBMAKE,,ctypes/libffi)
+
+distclean clean::
+		$(call SUBMAKE,$@,ctypes/libffi)
+endif
+endif
+
+
+#############################################
+# BEGIN ECMAScript Internationalization API
+#
+
+# ICU headers need to be available whether we build with the complete
+# Internationalization API or not - ICU stubs rely on them.
+
+LOCAL_INCLUDES += \
+  -I$(topsrcdir)/../../intl/icu/source/common \
+  -I$(topsrcdir)/../../intl/icu/source/i18n \
+  $(NULL)
+
+ifdef ENABLE_INTL_API
+
+ifeq ($(OS_ARCH),WINNT)
+  # Library names: On Windows, ICU uses modified library names for static
+  # and debug libraries.
+  ifdef MOZ_DEBUG
+    ICU_LIB_SUFFIX=d
+  endif
+  ICU_LIB_RENAME = $(foreach libname,$(ICU_LIB_NAMES),\
+                     cp -p intl/icu/lib/s$(libname)$(ICU_LIB_SUFFIX).lib intl/icu/lib/$(libname).lib;)
+endif
+
+ifdef .PYMAKE
+ICU_MAKE = $(GMAKE)
+else
+ICU_MAKE = $(MAKE)
+endif
+
+# - Build ICU as part of the "export" target, so things get built
+#   in the right order.
+# - ICU requires GNU make according to its readme.html. pymake can't be used
+#   because it doesn't support order only dependencies.
+# - Force ICU to use the standard suffix for object files because expandlibs
+#   will discard all files with a non-standard suffix (bug 857450).
+# - Options for genrb: -k strict parsing; -R omit collation tailoring rules.
+export::
+# ICU's build system is full of races, so force non-parallel build.
+	+$(ICU_MAKE) -j1 -C intl/icu STATIC_O=$(OBJ_SUFFIX) GENRBOPTS='-k -R'
+	$(ICU_LIB_RENAME)
+
+distclean clean::
+	$(call SUBMAKE,$@,intl/icu)
+
+endif
+
+#
+# END ECMAScript Internationalization API
+#############################################
+
+
+# The "find any vanilla new/new[] calls" script is tailored to Linux, so
+# only run it there.  That should be enough to catch any such calls that
+# creep in.
+check-vanilla-new:
+	$(srcdir)/config/find_vanilla_new_calls $(LIBRARY)
+
+ifeq ($(OS_ARCH),Linux)
+check:: check-vanilla-new
+endif
+
+# Help ensure that the number of OOM errors in SpiderMonkey doesn't increase.
+# If the number of OOM errors changes, update the number below. We intend this
+# number to go down over time, by fixing OOMs.
+check-ooms:
+	$(wildcard $(RUN_TEST_PROGRAM)) $(PYTHON) -u $(srcdir)/config/find_OOM_errors.py --regression 125
+
+ifeq ($(MOZ_DEBUG),1)
+#check:: check-ooms
+endif
+
+ifdef MOZ_VALGRIND
+ifndef MOZ_ASAN
+JITTEST_VALGRIND_FLAG = --valgrind
+endif
+endif
+
+check-jit-test::
+	$(wildcard $(RUN_TEST_PROGRAM)) $(PYTHON) -u $(srcdir)/jit-test/jit_test.py \
+	        --no-slow --no-progress --tinderbox --tbpl $(JITTEST_VALGRIND_FLAG) \
+	        $(DIST)/bin/$(JS_SHELL_NAME)$(BIN_SUFFIX)
+
+check:: check-jit-test
+
+# jstests doesn't have a --jitflags option, so we need to loop, updating the
+# exit code (RC) after each invocation.
+# FIXME: MethodJIT doesn't work for 1 test case (bug 644393), so
+# --no-extensions is set to skip that test. Remove as soon as possible.
+check-jstests:
+	RC=0; \
+	for f in `echo "$(JITFLAGS)" | tr ',' '\n'`; \
+		do \
+			$(wildcard $(RUN_TEST_PROGRAM)) $(PYTHON) -u $(srcdir)/tests/jstests.py \
+				--tinderbox --no-progress \
+				--no-extensions \
+				--timeout 300 \
+				--args="`echo $$f | sed 's/\(.\)/ -\1/g'`" \
+				$(DIST)/bin/$(JS_SHELL_NAME)$(BIN_SUFFIX); \
+			RC=$$(( $$RC || $$?)); \
+		done; \
+	exit $$RC
+
+# FIXME:
+# We want to run check-jstests as part of |make check| on all platforms, on
+# tinderbox. However, some configurations don't work quite right just yet.
+# Rather than risking regressions in major configurations while fixing these
+# secondary configuration, we work around them and fix the bugs later.
+#
+#   Bug 652154: On Windows, SM(!m !t) don't work because of path problems with
+#				their unusual directory layout
+#
+#   Bug 652155: On Mac, SM(d) doesn't work for unknown reasons
+
+ifeq ($(OS_ARCH),WINNT)
+ifdef ENABLE_METHODJIT
+endif
+else
+ifndef HAVE_DTRACE
+#check:: check-jstests
+endif
+endif
+
+DIST_GARBAGE = config.cache config.log config.status* \
+   config/autoconf.mk config/emptyvars.mk \
+   unallmakefiles $(JS_CONFIG_NAME) js-config.h js-confdefs.h \
+   backend.mk config/backend.mk devtools/backend.mk editline/backend.mk \
+   gdb/backend.mk jsapi-tests/backend.mk shell/backend.mk tests/backend.mk \
+   backend.RecursiveMakeBackend.built backend.RecursiveMakeBackend.built.pp \
+   devtools/rootAnalysis/Makefile
+
+distclean::
+	cat unallmakefiles | $(XARGS) rm -f
+	$(RM) $(DIST_GARBAGE)
+	rm -rf intl _virtualenv
+
+DEFINES		+= -DEXPORT_JS_API
+
+INCLUDES	+= -I$(srcdir)
+
+ifdef JS_THREADSAFE
+DEFINES		+= -DJS_THREADSAFE
+endif
+
+ifdef JS_HAS_CTYPES
+DEFINES		+= -DJS_HAS_CTYPES
+DEFINES         += -DDLL_PREFIX=\"$(DLL_PREFIX)\" -DDLL_SUFFIX=\"$(DLL_SUFFIX)\"
+endif
+
+ifneq ($(findstring -L,$(NSPR_LIBS)),)
+NSPR_STATIC_PATH = $(subst -L,,$(findstring -L,$(NSPR_LIBS)))
+else
+NSPR_STATIC_PATH = $(DIST)/lib
+endif
+
+ifdef MOZ_VTUNE
+ifeq ($(OS_ARCH), WINNT)
+EXTRA_DSO_LDOPTS += $(VTUNE_LIBRARIES)
+LIBS += $(VTUNE_LIBRARIES)
+else
+SHARED_LIBRARY_LIBS += $(VTUNE_LIBRARIES)
+endif # WINNT
+endif # MOZ_VTUNE
+
+ifdef MOZ_ETW
+# This will get the ETW provider resources into the library mozjs.dll
+RESFILE = ETWProvider.res
+endif
+
+# HP-UX does not require the extra linking of "-lm"
+ifeq (,$(filter HP-UX WINNT OS2,$(OS_ARCH)))
+EXTRA_LIBS	+= -lm
+endif
+
+CFLAGS += $(MOZ_ZLIB_CFLAGS)
+EXTRA_LIBS += $(MOZ_ZLIB_LIBS)
+# Enable zlib usage if zlib has been located. When building the browser on
+# Windows, MOZ_ZLIB_LIBS is empty because zlib is part of libmozglue. We thus
+# also enable zlib if mozglue is present.
+ifneq (,$(MOZ_ZLIB_LIBS)$(MOZ_GLUE_LDFLAGS))
+DEFINES += -DUSE_ZLIB
+endif
+
+SHARED_LIBRARY_LIBS += $(ICU_LIBS)
+
+# Prevent floating point errors caused by VC++ optimizations
+ifdef _MSC_VER
+# XXX We should add this to CXXFLAGS, too?
+CFLAGS += -fp:precise
+
+ifeq ($(CPU_ARCH),x86)
+# Workaround compiler bug on PGO (Bug 721284)
+MonoIC.$(OBJ_SUFFIX): CXXFLAGS += -GL-
+Compiler.$(OBJ_SUFFIX): CXXFLAGS += -GL-
+# Ditto (Bug 772303)
+RegExp.$(OBJ_SUFFIX): CXXFLAGS += -GL-
+endif
+# Ditto (Bug 810661)
+ifeq ($(CPU_ARCH),x86_64)
+CTypes.$(OBJ_SUFFIX): CXXFLAGS += -GL-
+endif
+endif # _MSC_VER
+
+ifeq ($(OS_ARCH),FreeBSD)
+EXTRA_LIBS	+= -pthread
+endif
+ifeq ($(OS_ARCH),Linux)
+EXTRA_LIBS	+= -ldl
+endif
+# Silence warnings on AIX/HP-UX from non-GNU compilers
+ifndef GNU_CC
+ifeq ($(OS_ARCH),AIX)
+# Suppress warnings from xlC
+# 1540-1281: offsetof() on null non-POD types
+# 1540-1608: anonymous unions using static data members
+CFLAGS		+= -qsuppress=1540-1281 -qsuppress=1540-1608
+CXXFLAGS	+= -qsuppress=1540-1281 -qsuppress=1540-1608
+endif
+ifeq ($(OS_ARCH),HP-UX)
+# Suppress warnings from aCC
+# 3055: anonymous unions declaring types
+# 4189: offsetof() on non-POD types
+CFLAGS		+= +W3055,4189
+CXXFLAGS	+= +W3055,4189
+endif
+endif
+ifeq ($(OS_ARCH),SunOS)
+ifeq ($(TARGET_CPU),sparc)
+
+ifdef GNU_CC
+CFLAGS   += -mcpu=v9
+CXXFLAGS += -mcpu=v9
+endif # GNU_CC
+
+endif
+ifeq ($(OS_RELEASE),4.1)
+EXTRA_LIBS	+= -ldl -lnsl
+else
+EXTRA_LIBS	+= -lposix4 -ldl -lnsl -lsocket
+endif
+endif
+
+# An AIX Optimization bug causes PR_dtoa() & JS_dtoa to produce wrong result.
+# This suppresses optimization for this single compilation unit.
+ifeq ($(OS_ARCH),AIX)
+jsatom.o: jsatom.cpp Makefile.in
+	$(REPORT_BUILD)
+	@$(MAKE_DEPS_AUTO_CXX)
+	$(CXX) -o $@ -c $(filter-out $(MOZ_OPTIMIZE_FLAGS), $(COMPILE_CFLAGS)) $<
+jsdtoa.o: jsdtoa.cpp Makefile.in
+	$(REPORT_BUILD)
+	@$(MAKE_DEPS_AUTO_CXX)
+	$(CXX) -o $@ -c $(filter-out $(MOZ_OPTIMIZE_FLAGS), $(COMPILE_CFLAGS)) $<
+endif
+
+# Compute the linker flags that programs linking against SpiderMonkey should
+# pass to get SpiderMonkey and its dependencies, beyond just the -L and -l
+# for the SpiderMonkey library itself.
+# - EXTRA_DSO_LDOPTS includes the NSPR -L and -l flags.
+# - OS_LIBS includes libraries selected by the configure script.
+# - EXTRA_LIBS includes libraries selected by this Makefile.
+JS_CONFIG_LIBS=$(EXTRA_DSO_LDOPTS) $(OS_LIBS) $(EXTRA_LIBS)
+ifdef GNU_CC
+JS_CONFIG_MOZ_JS_LIBS=-L$(libdir) -l$(LIBRARY_NAME)
+else
+JS_CONFIG_MOZ_JS_LIBS=$(libdir)/$(LIBRARY_NAME).lib
+endif
+
+# The configure script invokes this rule explicitly at configure time!
+# It's important that js-config be ready by the time we're done
+# configuring, because we may be running other configure scripts that
+# would like to run js-config themselves, before js is built.
+#
+# This file and rules.mk go through a certain amount of work to decide
+# which libraries to build, what to name them, and what flags to pass
+# when linking them (and thus what flags its own clients must pass).
+# All this information needs to go into the js-config script.  To
+# avoid trying to re-compute all that in the configure script, we just
+# have the configure script generate this Makefile, and then invoke
+# this rule.
+
+# Set the various definitions that will be substituted for js-config
+# and for the pck-config .pc file.
+JS_CONFIG_SUBSTITUTIONS=\
+	-Dprefix="$(prefix)" \
+	-Dexec_prefix="$(exec_prefix)" \
+	-Dincludedir="$(includedir)" \
+	-Dlibdir="$(libdir)" \
+	-DMOZILLA_VERSION="$(MOZILLA_VERSION)" \
+	-DLIBRARY_NAME="$(LIBRARY_NAME)" \
+	-DJS_CONFIG_LIBS="$(JS_CONFIG_LIBS)" \
+	-DJS_CONFIG_MOZ_JS_LIBS="$(JS_CONFIG_MOZ_JS_LIBS)" \
+	-DMOZJS_MAJOR_VERSION="$(MOZJS_MAJOR_VERSION)" \
+	-DMOZJS_MINOR_VERSION="$(MOZJS_MINOR_VERSION)" \
+	-DMOZJS_PATCH_VERSION="$(MOZJS_PATCH_VERSION)" \
+	-DMOZJS_ALPHA="$(MOZJS_ALPHA)" \
+	-DNSPR_CFLAGS="$(NSPR_CFLAGS)" \
+	-DNSPR_PKGCONF_CHECK="$(NSPR_PKGCONF_CHECK)" \
+	-DUSE_CXX11="$(USE_CXX11)"
+
+$(JS_CONFIG_NAME): js-config.in Makefile $(DEPTH)/config/autoconf.mk $(topsrcdir)/config/config.mk $(topsrcdir)/config/rules.mk
+	$(RM) $@.tmp
+	$(PYTHON) $(topsrcdir)/config/Preprocessor.py --marker % $(JS_CONFIG_SUBSTITUTIONS) $< > $@.tmp \
+	&& mv $@.tmp $@ && chmod +x $@
+
+SCRIPTS = $(JS_CONFIG_NAME)
+SDK_BINARY = $(JS_CONFIG_NAME)
+
+$(LIBRARY_NAME).pc: js.pc.in
+	$(PYTHON) $(topsrcdir)/config/Preprocessor.py $(JS_CONFIG_SUBSTITUTIONS) $< > $@
+
+install:: $(LIBRARY_NAME).pc
+	$(SYSINSTALL) $^ $(DESTDIR)$(libdir)/pkgconfig
+
+######################################################
+# BEGIN SpiderMonkey header installation
+#
+# Mozilla/Gecko/Firefox mostly doesn't concern itself with defining a sensible
+# install target, because it's shipping primarily packaged builds.  And even if
+# it did, those builds wouldn't really have reason to include header files.  So
+# we have to install public headers ourselves, rather than using something from
+# config/rules.mk or similar.
+#
+# The overall directory structure of the installed headers looks like so:
+#
+#   $(includedir)/
+#      $(LIBRARY_NAME)/
+#        jsapi.h, jspubtd.h, etc. (all of EXPORTS)
+#        js/
+#          js/public/* headers (all are public)
+#        ds/
+#          js/src/ds/* public headers
+#        gc/
+#          js/src/gc/* public headers
+#        mozilla/
+#          mfbt headers
+#
+
+install:: $(EXPORTS)
+	$(SYSINSTALL) $^ $(DESTDIR)$(includedir)/$(LIBRARY_NAME)
+
+install:: $(EXPORTS_js)
+	$(SYSINSTALL) $^ $(DESTDIR)$(includedir)/$(LIBRARY_NAME)/js
+
+install:: $(EXPORTS_mozilla)
+	$(SYSINSTALL) $^ $(DESTDIR)$(includedir)/$(LIBRARY_NAME)/mozilla
+
+#
+# END SpiderMonkey header installation
+#############################################
+
+install:: $(SCRIPTS)
+	$(SYSINSTALL) $^ $(DESTDIR)$(bindir)
+
+install:: $(REAL_LIBRARY) $(SHARED_LIBRARY) $(IMPORT_LIBRARY)
+ifneq (,$(REAL_LIBRARY))
+	$(SYSINSTALL) $(REAL_LIBRARY) $(DESTDIR)$(libdir)
+	mv -f $(DESTDIR)$(libdir)/$(REAL_LIBRARY) $(subst $(STATIC_LIBRARY_NAME),$(LIBRARY_NAME),$(DESTDIR)$(libdir)/$(REAL_LIBRARY))
+endif
+ifneq (,$(SHARED_LIBRARY))
+	$(SYSINSTALL) $(SHARED_LIBRARY) $(DESTDIR)$(libdir)
+endif
+ifneq (,$(IMPORT_LIBRARY))
+	$(SYSINSTALL) $(IMPORT_LIBRARY) $(DESTDIR)$(libdir)
+endif
+	$(MAKE) -C shell install
+
+# Extra dependencies and rules for auto-generated headers
+host_jskwgen.$(OBJ_SUFFIX): jsversion.h vm/Keywords.h
+
+# Use CURDIR to avoid finding a jsautokw.h in the source tree (from a
+# previous build?) via VPATH when we're building in a separate tree.
+$(CURDIR)/jsautokw.h: host_jskwgen$(HOST_BIN_SUFFIX)
+	./host_jskwgen$(HOST_BIN_SUFFIX) $@
+
+host_jsoplengen.$(OBJ_SUFFIX): jsopcode.tbl
+
+# Use CURDIR to avoid finding a jsautooplen.h in the source tree (from
+# a previous build?) via VPATH when we're building in a separate tree.
+$(CURDIR)/jsautooplen.h: host_jsoplengen$(HOST_BIN_SUFFIX)
+	./host_jsoplengen$(HOST_BIN_SUFFIX) $@
+
+# Force auto-header generation before compiling any source that may use them
+$(patsubst %.cc,%.$(OBJ_SUFFIX),$(CPPSRCS:%.cpp=%.$(OBJ_SUFFIX))): $(CURDIR)/jsautokw.h $(CURDIR)/jsautooplen.h
+
+ifdef MOZ_ETW
+ETWProvider.h ETWProvider.rc ETWProvider.mof: ETWProvider.man
+	$(MC) -um -mof $^
+
+Probes.$(OBJ_SUFFIX): ETWProvider.h
+
+ETWProvider.res: ETWProvider.rc
+	$(RC) -r -i "$(SDKDIR)Include" $^
+
+export:: ETWProvider.res
+
+install:: ETWProvider.mof ETWProvider.man
+	$(SYSINSTALL) $^ $(DESTDIR)$(bindir)
+
+endif
+
+ifdef HAVE_DTRACE
+$(CURDIR)/javascript-trace.h: $(srcdir)/devtools/javascript-trace.d
+	dtrace -h -s $(srcdir)/devtools/javascript-trace.d -o javascript-trace.h.in
+	sed -e 's/if _DTRACE_VERSION/ifdef INCLUDE_MOZILLA_DTRACE/' \
+	    -e '/const/!s/char \*/const char */g' \
+	    javascript-trace.h.in > javascript-trace.h
+
+# We can't automatically generate dependencies on auto-generated headers;
+# we have to list them explicitly.
+$(addsuffix .$(OBJ_SUFFIX),Probes jsinterp jsobj): $(CURDIR)/javascript-trace.h
+endif
+
+ifdef HAVE_LINUX_PERF_EVENT_H
+pm_linux.$(OBJ_SUFFIX): CXXFLAGS += $(LINUX_HEADERS_INCLUDES)
+endif
+
+# Prepare self-hosted JS code for embedding
+export:: selfhosting
+selfhosting:: selfhosted.out.h
+
+selfhosting_srcs := \
+  $(srcdir)/builtin/Utilities.js \
+  $(srcdir)/builtin/Array.js \
+  $(srcdir)/builtin/Date.js \
+  $(srcdir)/builtin/Intl.js \
+  $(srcdir)/builtin/IntlData.js \
+  $(srcdir)/builtin/Number.js \
+  $(srcdir)/builtin/ParallelArray.js \
+  $(srcdir)/builtin/String.js \
+  $(NULL)
+
+selfhosted_out_h_deps := \
+  $(selfhosting_srcs) \
+  $(srcdir)/js.msg \
+  $(srcdir)/builtin/embedjs.py \
+  $(NULL)
+
+SELFHOSTED_DEFINES += $(DEFINES) $(ACDEFINES)
+ifdef MOZ_DEBUG
+SELFHOSTED_DEFINES += $(MOZ_DEBUG_ENABLE_DEFS)
+else
+SELFHOSTED_DEFINES += $(MOZ_DEBUG_DISABLE_DEFS)
+endif
+
+selfhosted.out.h: $(selfhosted_out_h_deps)
+	$(PYTHON) $(srcdir)/builtin/embedjs.py $(SELFHOSTED_DEFINES) \
+	  -p '$(CPP)' -m $(srcdir)/js.msg -o $@ $(selfhosting_srcs)
+
+###############################################
+# BEGIN kludges for the Nitro assembler
+#
+
+# Needed to "configure" it correctly.  Unfortunately these
+# flags wind up being applied to all code in js/src, not just
+# the code in js/src/assembler.
+CXXFLAGS += -DUSE_SYSTEM_MALLOC=1 -DENABLE_ASSEMBLER=1
+
+ifneq (,$(ENABLE_YARR_JIT))
+CXXFLAGS +=  -DENABLE_JIT=1
+endif
+
+INCLUDES +=	-I$(srcdir)/assembler -I$(srcdir)/yarr
+
+#
+# END kludges for the Nitro assembler
+###############################################
+
+###############################################
+# Generating source package tarballs
+# (only possible when tar is found)
+ifneq (,$(TAR))
+
+source-package:
+	SRCDIR=$(srcdir) \
+	DIST=$(DIST) \
+	MAKE=$(MAKE) \
+	MKDIR=$(MKDIR) \
+	TAR=$(TAR) \
+	MOZJS_MAJOR_VERSION=$(MOZJS_MAJOR_VERSION) \
+	MOZJS_MINOR_VERSION=$(MOZJS_MINOR_VERSION) \
+	MOZJS_PATCH_VERSION=$(MOZJS_PATCH_VERSION) \
+	MOZJS_ALPHA=$(MOZJS_ALPHA) \
+	$(srcdir)/make-source-package.sh
+
+clean::
+	DIST=$(DIST) \
+	MOZJS_MAJOR_VERSION=$(MOZJS_MAJOR_VERSION) \
+	MOZJS_MINOR_VERSION=$(MOZJS_MINOR_VERSION) \
+	MOZJS_PATCH_VERSION=$(MOZJS_PATCH_VERSION) \
+	MOZJS_ALPHA=$(MOZJS_ALPHA) \
+	$(srcdir)/make-source-package.sh clean
+
+endif

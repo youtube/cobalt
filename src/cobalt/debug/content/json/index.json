@@ -1,0 +1,10 @@
+[ {
+   "description": "",
+   "devtoolsFrontendUrl": "/devtools/inspector.html?ws=/devtools/page/cobalt",
+   "faviconUrl": "/favicon.ico",
+   "id": "cobalt",
+   "title": "Cobalt",
+   "type": "page",
+   "url": "https://youtube.com/tv",
+   "webSocketDebuggerUrl": "ws://devtools/page/cobalt"
+} ]

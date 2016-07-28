@@ -1,0 +1,11 @@
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.net;
+
+public class CertificateMimeType {
+#define CERTIFICATE_MIME_TYPE(name, value) public static final int name = value;
+#include "net/base/mime_util_certificate_type_list.h"
+#undef CERTIFICATE_MIME_TYPE
+}

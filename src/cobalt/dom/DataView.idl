@@ -1,0 +1,58 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// https://www.khronos.org/registry/typedarray/specs/latest/#8
+
+[
+  Constructor(ArrayBuffer buffer, optional unsigned long byteOffset,
+              optional unsigned long byteLength),
+  RaisesException=Constructor
+]
+interface DataView {
+  [RaisesException] byte getInt8(unsigned long byteOffset);
+  [RaisesException] octet getUint8(unsigned long byteOffset);
+  [RaisesException] short getInt16(unsigned long byteOffset,
+                                   optional boolean littleEndian);
+  [RaisesException] unsigned short getUint16(unsigned long byteOffset,
+                                             optional boolean littleEndian);
+  [RaisesException] long getInt32(unsigned long byteOffset,
+                                  optional boolean littleEndian);
+  [RaisesException] unsigned long getUint32(unsigned long byteOffset,
+                                            optional boolean littleEndian);
+  [RaisesException] float getFloat32(unsigned long byteOffset,
+                                     optional boolean littleEndian);
+  [RaisesException] double getFloat64(unsigned long byteOffset,
+                                      optional boolean littleEndian);
+
+  [RaisesException] void setInt8(unsigned long byteOffset, byte value);
+  [RaisesException] void setUint8(unsigned long byteOffset, octet value);
+  [RaisesException] void setInt16(unsigned long byteOffset, short value,
+                                  optional boolean littleEndian);
+  [RaisesException] void setUint16(unsigned long byteOffset,
+                                   unsigned short value,
+                                   optional boolean littleEndian);
+  [RaisesException] void setInt32(unsigned long byteOffset, long value,
+                                  optional boolean littleEndian);
+  [RaisesException] void setUint32(unsigned long byteOffset,
+                                   unsigned long value,
+                                   optional boolean littleEndian);
+  [RaisesException] void setFloat32(unsigned long byteOffset, float value,
+                                    optional boolean littleEndian);
+  [RaisesException] void setFloat64(unsigned long byteOffset, double value,
+                                    optional boolean littleEndian);
+};
+
+DataView implements ArrayBufferView;

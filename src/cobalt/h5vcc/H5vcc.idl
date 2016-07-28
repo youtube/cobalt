@@ -1,0 +1,39 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// H5vcc stands for "HTML5 Video Container for Consoles".
+//
+// The H5vcc node acts as a Javascript namespace collecting various disparate
+// APIs which allow clients to call non-standard native functions that we
+// expose.
+//
+// For example we provide a h5vcc.storage.ClearCookies(), which can empty the
+// cookie jar in response to the user's request. Other H5vcc modules expose
+// audio capabilities about the platform, or run an in-app DIAL server.
+//
+// The H5vcc node should just be a collection of readonly sub-nodes.
+// This is created by the BrowserModule and passed directly to the Window
+// during construction.
+
+interface H5vcc {
+  readonly attribute H5vccAccountInfo accountInfo;
+  readonly attribute H5vccAudioConfigArray audioConfig;
+  readonly attribute H5vccCVal cVal;
+  readonly attribute H5vccRuntime runtime;
+  readonly attribute H5vccSettings settings;
+  readonly attribute H5vccStorage storage;
+  readonly attribute H5vccSystem system;
+};
