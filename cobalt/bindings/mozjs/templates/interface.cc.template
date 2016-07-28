@@ -258,6 +258,40 @@ JSBool fcn_{{operation.idl_name}}(
 {% endif %}
 {% endfor %}
 
+{% if stringifier %}
+JSBool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  {{impl_class}}* impl =
+      wrapper_private->wrappable<{{impl_class}}>().get();
+  if (!impl) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Stringifier problem.");
+    NOTREACHED();
+    return false;
+  }
+  std::string stringified = impl->{{stringifier.name}}();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedString rooted_string(context,
+      JS_NewStringCopyN(context, stringified.c_str(), stringified.length()));
+  args.rval().set(JS::StringValue(rooted_string));
+  return true;
+}
+
+{% endif %}
 const JSPropertySpec prototype_properties[] = {
 {% for constant in constants %}
   {
@@ -294,6 +328,15 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
+{% if stringifier %}
+  {
+      "toString",
+      JSOP_WRAPPER(&Stringifier),
+      0,
+      JSPROP_PERMANENT,
+      NULL,
+  },
+{% endif %}
 {% for operation in operations %}
 {% if operation.conditional %}
 #if defined({{operation.conditional}})

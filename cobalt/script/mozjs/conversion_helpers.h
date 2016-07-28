@@ -193,8 +193,10 @@ inline void FromJSValue(
 inline void ToJSValue(JSContext* context, const std::string& in_string,
                       MozjsExceptionState* exception_state,
                       JS::MutableHandleValue out_value) {
-  out_value.set(JS::StringValue(
-      JS_NewStringCopyN(context, in_string.c_str(), in_string.length())));
+  JS::RootedString rooted_string(
+      context,
+      JS_NewStringCopyN(context, in_string.c_str(), in_string.length()));
+  out_value.set(JS::StringValue(rooted_string));
 }
 
 // optional<T> -> JSValue
