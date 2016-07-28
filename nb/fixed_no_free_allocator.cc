@@ -34,6 +34,11 @@ void* FixedNoFreeAllocator::Allocate(std::size_t size,
   uint8_t* aligned_next_memory =
       AsPointer(AlignUp(AsInteger(next_memory_), alignment));
 
+  if (aligned_next_memory + size < aligned_next_memory) {
+    // "aligned_next_memory + size" overflows.
+    return NULL;
+  }
+
   if (aligned_next_memory + size > memory_end_) {
     // We don't have enough memory available to make this allocation.
     return NULL;
