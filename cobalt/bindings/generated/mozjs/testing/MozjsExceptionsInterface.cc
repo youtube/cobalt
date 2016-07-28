@@ -141,14 +141,14 @@ JSBool get_attributeThrowsException(
       wrapper_private->wrappable<ExceptionsInterface>().get();
   TypeTraits<bool >::ReturnType value =
       impl->attribute_throws_exception(&exception_state);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_attributeThrowsException(
@@ -159,7 +159,7 @@ JSBool set_attributeThrowsException(
   TypeTraits<bool >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -169,7 +169,7 @@ JSBool set_attributeThrowsException(
   impl->set_attribute_throws_exception(value, &exception_state);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_functionThrowsException(
@@ -198,10 +198,10 @@ JSBool fcn_functionThrowsException(
   impl->FunctionThrowsException(&exception_state);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

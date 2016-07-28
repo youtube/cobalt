@@ -141,14 +141,14 @@ JSBool get_arbitraryProperty(
       wrapper_private->wrappable<ArbitraryInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->arbitrary_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_arbitraryProperty(
@@ -159,7 +159,7 @@ JSBool set_arbitraryProperty(
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -169,7 +169,7 @@ JSBool set_arbitraryProperty(
   impl->set_arbitrary_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_arbitraryFunction(
@@ -198,10 +198,10 @@ JSBool fcn_arbitraryFunction(
   impl->ArbitraryFunction();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

@@ -139,14 +139,14 @@ JSBool get_length(
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_propertyOnDerivedClass(
@@ -160,14 +160,14 @@ JSBool get_propertyOnDerivedClass(
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
   TypeTraits<bool >::ReturnType value =
       impl->property_on_derived_class();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_propertyOnDerivedClass(
@@ -178,7 +178,7 @@ JSBool set_propertyOnDerivedClass(
   TypeTraits<bool >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -188,7 +188,7 @@ JSBool set_propertyOnDerivedClass(
   impl->set_property_on_derived_class(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_derivedIndexedGetter(
@@ -220,7 +220,7 @@ JSBool fcn_derivedIndexedGetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &index);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -229,14 +229,14 @@ JSBool fcn_derivedIndexedGetter(
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->DerivedIndexedGetter(index);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_derivedIndexedSetter(
@@ -268,14 +268,14 @@ JSBool fcn_derivedIndexedSetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &index);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<uint32_t >::ConversionType value;
   DCHECK_LT(1, args.length());
   FromJSValue(context, args.handleAt(1),
       kNoConversionFlags, &exception_state, &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -285,10 +285,10 @@ JSBool fcn_derivedIndexedSetter(
   impl->DerivedIndexedSetter(index, value);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_operationOnDerivedClass(
@@ -317,10 +317,10 @@ JSBool fcn_operationOnDerivedClass(
   impl->OperationOnDerivedClass();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

@@ -139,14 +139,14 @@ JSBool get_length(
       wrapper_private->wrappable<AnonymousIndexedGetterInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
