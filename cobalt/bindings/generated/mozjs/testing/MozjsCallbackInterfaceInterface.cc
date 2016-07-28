@@ -143,14 +143,14 @@ JSBool get_callbackAttribute(
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
   TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ReturnType value =
       impl->callback_attribute();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_callbackAttribute(
@@ -161,7 +161,7 @@ JSBool set_callbackAttribute(
   TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -171,7 +171,7 @@ JSBool set_callbackAttribute(
   impl->set_callback_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_registerCallback(
@@ -203,7 +203,7 @@ JSBool fcn_registerCallback(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &callback_interface);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -213,10 +213,10 @@ JSBool fcn_registerCallback(
   impl->RegisterCallback(callback_interface);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_someOperation(
@@ -245,10 +245,10 @@ JSBool fcn_someOperation(
   impl->SomeOperation();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

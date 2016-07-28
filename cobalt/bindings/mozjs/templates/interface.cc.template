@@ -72,10 +72,10 @@ JSBool get_{{constant.idl_name}}(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   ToJSValue(context, {{constant.value}}, &exception_state, &result_value);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
      vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 {% endfor %}
@@ -158,10 +158,10 @@ JSBool get_{{attribute.idl_name}}(
 {{ call_cobalt_function(impl_class, attribute.type,
                         attribute.getter_function_name, [],
                         attribute.raises_exception, attribute.call_with) }}
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 {% if attribute.has_setter %}
@@ -173,7 +173,7 @@ JSBool set_{{attribute.idl_name}}(
   TypeTraits<{{attribute.type}} >::ConversionType value;
   FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
 {% if attribute.put_forwards %}
@@ -182,7 +182,7 @@ JSBool set_{{attribute.idl_name}}(
 {{ call_cobalt_function(impl_class, "void", attribute.setter_function_name,
                         ["value"], attribute.raises_exception, attribute.call_with) }}
 {% endif %}
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 {% endif %}
@@ -232,7 +232,7 @@ JSBool fcn_{{operation.idl_name}}(
   DCHECK_LT({{loop.index0}}, args.length());
   FromJSValue(context, args.handleAt({{loop.index0}}),
       {{argument.conversion_flags}}, &exception_state, &{{argument.name}});
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
 {% endfor %}
@@ -242,11 +242,11 @@ JSBool fcn_{{operation.idl_name}}(
                         overload.raises_exception,
                         overload.call_with) }}
 {% if operation.type != 'void' %}
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
 {% endif %}
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 {% else %}
   NOTIMPLEMENTED();
   return false;

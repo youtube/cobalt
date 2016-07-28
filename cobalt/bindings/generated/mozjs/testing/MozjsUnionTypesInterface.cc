@@ -143,14 +143,14 @@ JSBool get_unionProperty(
       wrapper_private->wrappable<UnionTypesInterface>().get();
   TypeTraits<script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ReturnType value =
       impl->union_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unionProperty(
@@ -161,7 +161,7 @@ JSBool set_unionProperty(
   TypeTraits<script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -171,7 +171,7 @@ JSBool set_unionProperty(
   impl->set_union_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_unionWithNullableMemberProperty(
@@ -185,14 +185,14 @@ JSBool get_unionWithNullableMemberProperty(
       wrapper_private->wrappable<UnionTypesInterface>().get();
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ReturnType value =
       impl->union_with_nullable_member_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unionWithNullableMemberProperty(
@@ -203,7 +203,7 @@ JSBool set_unionWithNullableMemberProperty(
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -213,7 +213,7 @@ JSBool set_unionWithNullableMemberProperty(
   impl->set_union_with_nullable_member_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableUnionProperty(
@@ -227,14 +227,14 @@ JSBool get_nullableUnionProperty(
       wrapper_private->wrappable<UnionTypesInterface>().get();
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ReturnType value =
       impl->nullable_union_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableUnionProperty(
@@ -245,7 +245,7 @@ JSBool set_nullableUnionProperty(
   TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -255,7 +255,7 @@ JSBool set_nullableUnionProperty(
   impl->set_nullable_union_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

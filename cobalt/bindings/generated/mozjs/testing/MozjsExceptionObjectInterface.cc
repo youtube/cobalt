@@ -139,14 +139,14 @@ JSBool get_error(
       wrapper_private->wrappable<ExceptionObjectInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->error();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_message(
@@ -160,14 +160,14 @@ JSBool get_message(
       wrapper_private->wrappable<ExceptionObjectInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->message();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

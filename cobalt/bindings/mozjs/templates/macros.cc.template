@@ -17,7 +17,7 @@
 {% macro call_nonvoid_function(return_type, function_name, arguments) %}
   TypeTraits<{{return_type}} >::ReturnType value =
       impl->{{function_name}}({{arguments|join(", ")}});
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 {%- endmacro %}

@@ -55,18 +55,15 @@ void MozjsExceptionState::SetException(
 void MozjsExceptionState::SetSimpleException(
     SimpleExceptionType simple_exception, const std::string& message) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(!is_exception_set_);
 
   std::stringstream stream;
   stream << SimpleExceptionToString(simple_exception) << ": " << message;
-  // JS_ReportWarning first builds an error message from the given sprintf-style
+  // JS_ReportError first builds an error message from the given sprintf-style
   // format string and any additional arguments passed after it. The resulting
   // error message is passed to the context's JSErrorReporter callback.
-  JS_ReportWarning(context_, stream.str().c_str());
-}
-
-bool MozjsExceptionState::IsExceptionSet() {
-  // TODO: Implement this.
-  return false;
+  JS_ReportError(context_, stream.str().c_str());
+  is_exception_set_ = true;
 }
 
 }  // namespace mozjs

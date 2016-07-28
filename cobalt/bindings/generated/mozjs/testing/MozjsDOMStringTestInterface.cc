@@ -139,14 +139,14 @@ JSBool get_property(
       wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_property(
@@ -157,7 +157,7 @@ JSBool set_property(
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -167,7 +167,7 @@ JSBool set_property(
   impl->set_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_readOnlyProperty(
@@ -181,14 +181,14 @@ JSBool get_readOnlyProperty(
       wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->read_only_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullIsEmptyProperty(
@@ -202,14 +202,14 @@ JSBool get_nullIsEmptyProperty(
       wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->null_is_empty_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullIsEmptyProperty(
@@ -220,7 +220,7 @@ JSBool set_nullIsEmptyProperty(
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagTreatNullAsEmptyString), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -230,7 +230,7 @@ JSBool set_nullIsEmptyProperty(
   impl->set_null_is_empty_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_undefinedIsEmptyProperty(
@@ -244,14 +244,14 @@ JSBool get_undefinedIsEmptyProperty(
       wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->undefined_is_empty_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_undefinedIsEmptyProperty(
@@ -262,7 +262,7 @@ JSBool set_undefinedIsEmptyProperty(
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagTreatUndefinedAsEmptyString), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -272,7 +272,7 @@ JSBool set_undefinedIsEmptyProperty(
   impl->set_undefined_is_empty_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableUndefinedIsEmptyProperty(
@@ -286,14 +286,14 @@ JSBool get_nullableUndefinedIsEmptyProperty(
       wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_undefined_is_empty_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableUndefinedIsEmptyProperty(
@@ -304,7 +304,7 @@ JSBool set_nullableUndefinedIsEmptyProperty(
   TypeTraits<base::optional<std::string > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable | kConversionFlagTreatUndefinedAsEmptyString), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -314,7 +314,7 @@ JSBool set_nullableUndefinedIsEmptyProperty(
   impl->set_nullable_undefined_is_empty_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
