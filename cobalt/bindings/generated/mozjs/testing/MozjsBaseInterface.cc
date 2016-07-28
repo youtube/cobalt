@@ -141,14 +141,14 @@ JSBool get_baseAttribute(
       wrapper_private->wrappable<BaseInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->base_attribute();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_baseOperation(
@@ -177,10 +177,10 @@ JSBool fcn_baseOperation(
   impl->BaseOperation();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

@@ -86,10 +86,10 @@ JSBool get_INTEGER_CONSTANT(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   ToJSValue(context, 5, &exception_state, &result_value);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
      vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_DOUBLE_CONSTANT(
@@ -101,10 +101,10 @@ JSBool get_DOUBLE_CONSTANT(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   ToJSValue(context, 2.718, &exception_state, &result_value);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
      vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

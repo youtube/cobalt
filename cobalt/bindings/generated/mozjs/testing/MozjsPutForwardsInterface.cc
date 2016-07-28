@@ -143,14 +143,14 @@ JSBool get_forwardingAttribute(
       wrapper_private->wrappable<PutForwardsInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->forwarding_attribute();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_forwardingAttribute(
@@ -161,11 +161,11 @@ JSBool set_forwardingAttribute(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   NOTIMPLEMENTED();
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

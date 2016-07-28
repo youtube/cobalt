@@ -139,14 +139,14 @@ JSBool get_length(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_propertyOnBaseClass(
@@ -160,14 +160,14 @@ JSBool get_propertyOnBaseClass(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   TypeTraits<bool >::ReturnType value =
       impl->property_on_base_class();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_propertyOnBaseClass(
@@ -178,7 +178,7 @@ JSBool set_propertyOnBaseClass(
   TypeTraits<bool >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -188,7 +188,7 @@ JSBool set_propertyOnBaseClass(
   impl->set_property_on_base_class(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_indexedGetter(
@@ -220,7 +220,7 @@ JSBool fcn_indexedGetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &index);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -229,14 +229,14 @@ JSBool fcn_indexedGetter(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->IndexedGetter(index);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_indexedSetter(
@@ -268,14 +268,14 @@ JSBool fcn_indexedSetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &index);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<uint32_t >::ConversionType value;
   DCHECK_LT(1, args.length());
   FromJSValue(context, args.handleAt(1),
       kNoConversionFlags, &exception_state, &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -285,10 +285,10 @@ JSBool fcn_indexedSetter(
   impl->IndexedSetter(index, value);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_namedGetter(
@@ -320,7 +320,7 @@ JSBool fcn_namedGetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &name);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -329,14 +329,14 @@ JSBool fcn_namedGetter(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->NamedGetter(name);
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_namedSetter(
@@ -368,14 +368,14 @@ JSBool fcn_namedSetter(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &name);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   TypeTraits<std::string >::ConversionType value;
   DCHECK_LT(1, args.length());
   FromJSValue(context, args.handleAt(1),
       kNoConversionFlags, &exception_state, &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -385,10 +385,10 @@ JSBool fcn_namedSetter(
   impl->NamedSetter(name, value);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_operationOnBaseClass(
@@ -417,10 +417,10 @@ JSBool fcn_operationOnBaseClass(
   impl->OperationOnBaseClass();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

@@ -151,14 +151,14 @@ JSBool get_arbitraryObject(
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->arbitrary_object();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_arbitraryObject(
@@ -169,7 +169,7 @@ JSBool set_arbitraryObject(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -179,7 +179,7 @@ JSBool set_arbitraryObject(
   impl->set_arbitrary_object(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_baseInterface(
@@ -193,14 +193,14 @@ JSBool get_baseInterface(
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<scoped_refptr<BaseInterface> >::ReturnType value =
       impl->base_interface();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_derivedInterface(
@@ -214,14 +214,14 @@ JSBool get_derivedInterface(
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<scoped_refptr<DerivedInterface> >::ReturnType value =
       impl->derived_interface();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_derivedInterface(
@@ -232,7 +232,7 @@ JSBool set_derivedInterface(
   TypeTraits<scoped_refptr<DerivedInterface> >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -242,7 +242,7 @@ JSBool set_derivedInterface(
   impl->set_derived_interface(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_objectProperty(
@@ -256,14 +256,14 @@ JSBool get_objectProperty(
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
   TypeTraits<OpaqueHandle >::ReturnType value =
       impl->object_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_objectProperty(
@@ -274,7 +274,7 @@ JSBool set_objectProperty(
   TypeTraits<OpaqueHandle >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -284,7 +284,7 @@ JSBool set_objectProperty(
   impl->set_object_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
