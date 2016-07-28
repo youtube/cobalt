@@ -141,14 +141,14 @@ JSBool get_disabledProperty(
       wrapper_private->wrappable<DisabledInterface>().get();
   TypeTraits<int32_t >::ReturnType value =
       impl->disabled_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_disabledProperty(
@@ -159,7 +159,7 @@ JSBool set_disabledProperty(
   TypeTraits<int32_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -169,7 +169,7 @@ JSBool set_disabledProperty(
   impl->set_disabled_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_disabledFunction(
@@ -198,10 +198,10 @@ JSBool fcn_disabledFunction(
   impl->DisabledFunction();
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

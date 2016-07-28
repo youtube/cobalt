@@ -139,14 +139,14 @@ JSBool get_theStringifierAttribute(
       wrapper_private->wrappable<StringifierAttributeInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->the_stringifier_attribute();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_theStringifierAttribute(
@@ -157,7 +157,7 @@ JSBool set_theStringifierAttribute(
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -167,7 +167,7 @@ JSBool set_theStringifierAttribute(
   impl->set_the_stringifier_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

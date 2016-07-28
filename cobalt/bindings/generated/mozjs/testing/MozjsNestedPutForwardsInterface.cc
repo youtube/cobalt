@@ -143,14 +143,14 @@ JSBool get_nestedForwardingAttribute(
       wrapper_private->wrappable<NestedPutForwardsInterface>().get();
   TypeTraits<scoped_refptr<PutForwardsInterface> >::ReturnType value =
       impl->nested_forwarding_attribute();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nestedForwardingAttribute(
@@ -161,11 +161,11 @@ JSBool set_nestedForwardingAttribute(
   TypeTraits<scoped_refptr<PutForwardsInterface> >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   NOTIMPLEMENTED();
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

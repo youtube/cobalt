@@ -153,14 +153,14 @@ JSBool fcn_theStringifierOperation(
       wrapper_private->wrappable<StringifierOperationInterface>().get();
   TypeTraits<std::string >::ReturnType value =
       impl->TheStringifierOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 

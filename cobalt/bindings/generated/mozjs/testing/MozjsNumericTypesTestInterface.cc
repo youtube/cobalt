@@ -139,14 +139,14 @@ JSBool get_byteProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int8_t >::ReturnType value =
       impl->byte_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_byteProperty(
@@ -157,7 +157,7 @@ JSBool set_byteProperty(
   TypeTraits<int8_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -167,7 +167,7 @@ JSBool set_byteProperty(
   impl->set_byte_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_octetProperty(
@@ -181,14 +181,14 @@ JSBool get_octetProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint8_t >::ReturnType value =
       impl->octet_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_octetProperty(
@@ -199,7 +199,7 @@ JSBool set_octetProperty(
   TypeTraits<uint8_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -209,7 +209,7 @@ JSBool set_octetProperty(
   impl->set_octet_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_shortProperty(
@@ -223,14 +223,14 @@ JSBool get_shortProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int16_t >::ReturnType value =
       impl->short_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_shortProperty(
@@ -241,7 +241,7 @@ JSBool set_shortProperty(
   TypeTraits<int16_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -251,7 +251,7 @@ JSBool set_shortProperty(
   impl->set_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_unsignedShortProperty(
@@ -265,14 +265,14 @@ JSBool get_unsignedShortProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint16_t >::ReturnType value =
       impl->unsigned_short_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unsignedShortProperty(
@@ -283,7 +283,7 @@ JSBool set_unsignedShortProperty(
   TypeTraits<uint16_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -293,7 +293,7 @@ JSBool set_unsignedShortProperty(
   impl->set_unsigned_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_longProperty(
@@ -307,14 +307,14 @@ JSBool get_longProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int32_t >::ReturnType value =
       impl->long_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_longProperty(
@@ -325,7 +325,7 @@ JSBool set_longProperty(
   TypeTraits<int32_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -335,7 +335,7 @@ JSBool set_longProperty(
   impl->set_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_unsignedLongProperty(
@@ -349,14 +349,14 @@ JSBool get_unsignedLongProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->unsigned_long_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unsignedLongProperty(
@@ -367,7 +367,7 @@ JSBool set_unsignedLongProperty(
   TypeTraits<uint32_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -377,7 +377,7 @@ JSBool set_unsignedLongProperty(
   impl->set_unsigned_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_doubleProperty(
@@ -391,14 +391,14 @@ JSBool get_doubleProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->double_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_doubleProperty(
@@ -409,7 +409,7 @@ JSBool set_doubleProperty(
   TypeTraits<double >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagRestricted), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -419,7 +419,7 @@ JSBool set_doubleProperty(
   impl->set_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_unrestrictedDoubleProperty(
@@ -433,14 +433,14 @@ JSBool get_unrestrictedDoubleProperty(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->unrestricted_double_property();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unrestrictedDoubleProperty(
@@ -451,7 +451,7 @@ JSBool set_unrestrictedDoubleProperty(
   TypeTraits<double >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -461,7 +461,7 @@ JSBool set_unrestrictedDoubleProperty(
   impl->set_unrestricted_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
 
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_byteArgumentOperation(
@@ -493,7 +493,7 @@ JSBool fcn_byteArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -503,10 +503,10 @@ JSBool fcn_byteArgumentOperation(
   impl->ByteArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_byteReturnOperation(
@@ -534,14 +534,14 @@ JSBool fcn_byteReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int8_t >::ReturnType value =
       impl->ByteReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_doubleArgumentOperation(
@@ -573,7 +573,7 @@ JSBool fcn_doubleArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       (kConversionFlagRestricted), &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -583,10 +583,10 @@ JSBool fcn_doubleArgumentOperation(
   impl->DoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_doubleReturnOperation(
@@ -614,14 +614,14 @@ JSBool fcn_doubleReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->DoubleReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_longArgumentOperation(
@@ -653,7 +653,7 @@ JSBool fcn_longArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -663,10 +663,10 @@ JSBool fcn_longArgumentOperation(
   impl->LongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_longReturnOperation(
@@ -694,14 +694,14 @@ JSBool fcn_longReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int32_t >::ReturnType value =
       impl->LongReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_octetArgumentOperation(
@@ -733,7 +733,7 @@ JSBool fcn_octetArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -743,10 +743,10 @@ JSBool fcn_octetArgumentOperation(
   impl->OctetArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_octetReturnOperation(
@@ -774,14 +774,14 @@ JSBool fcn_octetReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint8_t >::ReturnType value =
       impl->OctetReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_shortArgumentOperation(
@@ -813,7 +813,7 @@ JSBool fcn_shortArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -823,10 +823,10 @@ JSBool fcn_shortArgumentOperation(
   impl->ShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_shortReturnOperation(
@@ -854,14 +854,14 @@ JSBool fcn_shortReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int16_t >::ReturnType value =
       impl->ShortReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unrestrictedDoubleArgumentOperation(
@@ -893,7 +893,7 @@ JSBool fcn_unrestrictedDoubleArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -903,10 +903,10 @@ JSBool fcn_unrestrictedDoubleArgumentOperation(
   impl->UnrestrictedDoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unrestrictedDoubleReturnOperation(
@@ -934,14 +934,14 @@ JSBool fcn_unrestrictedDoubleReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ReturnType value =
       impl->UnrestrictedDoubleReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedLongArgumentOperation(
@@ -973,7 +973,7 @@ JSBool fcn_unsignedLongArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -983,10 +983,10 @@ JSBool fcn_unsignedLongArgumentOperation(
   impl->UnsignedLongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedLongReturnOperation(
@@ -1014,14 +1014,14 @@ JSBool fcn_unsignedLongReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint32_t >::ReturnType value =
       impl->UnsignedLongReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedShortArgumentOperation(
@@ -1053,7 +1053,7 @@ JSBool fcn_unsignedShortArgumentOperation(
   DCHECK_LT(0, args.length());
   FromJSValue(context, args.handleAt(0),
       kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
   WrapperPrivate* wrapper_private =
@@ -1063,10 +1063,10 @@ JSBool fcn_unsignedShortArgumentOperation(
   impl->UnsignedShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedShortReturnOperation(
@@ -1094,14 +1094,14 @@ JSBool fcn_unsignedShortReturnOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint16_t >::ReturnType value =
       impl->UnsignedShortReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
