@@ -273,6 +273,7 @@ v8.log
 /third_party/yasm/generate_files.xml
 /third_party/yasm/source/patched-yasm
 /third_party/yasm/yasm.xml
+/third_party/zzuf
 /tools/deps2git/
 /tools/distcc
 /tools/grit
