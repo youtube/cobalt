@@ -601,6 +601,7 @@ void Node::Remove(const scoped_refptr<Node>& node) {
 
   OnMutation();
   InvalidateLayoutBoxesFromNodeAndAncestors();
+  node->InvalidateLayoutBoxesFromNodeAndDescendants();
   node->UpdateGenerationForNodeAndAncestors();
 
   bool was_inserted_to_document = node->inserted_into_document_;
