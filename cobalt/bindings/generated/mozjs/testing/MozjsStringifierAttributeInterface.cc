@@ -171,6 +171,38 @@ JSBool set_theStringifierAttribute(
 }
 
 
+JSBool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  StringifierAttributeInterface* impl =
+      wrapper_private->wrappable<StringifierAttributeInterface>().get();
+  if (!impl) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Stringifier problem.");
+    NOTREACHED();
+    return false;
+  }
+  std::string stringified = impl->the_stringifier_attribute();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedString rooted_string(context,
+      JS_NewStringCopyN(context, stringified.c_str(), stringified.length()));
+  args.rval().set(JS::StringValue(rooted_string));
+  return true;
+}
+
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
       "theStringifierAttribute", 0,
@@ -182,6 +214,13 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
+  {
+      "toString",
+      JSOP_WRAPPER(&Stringifier),
+      0,
+      JSPROP_PERMANENT,
+      NULL,
+  },
   JS_FS_END
 };
 
