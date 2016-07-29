@@ -14,33 +14,48 @@
  # limitations under the License.
  #}
 
-{% macro call_nonvoid_function(return_type, function_name, arguments) %}
+{% macro call_nonvoid_function(return_type, function_name, arguments,
+                               impl_class, is_static) %}
+{% if not is_static %}
   TypeTraits<{{return_type}} >::ReturnType value =
       impl->{{function_name}}({{arguments|join(", ")}});
+{% else %}
+  TypeTraits<{{return_type}} >::ReturnType value =
+      {{impl_class}}::{{function_name}}({{arguments_list|join(', ')}});
+{% endif %}
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &exception_state, &result_value);
   }
 {%- endmacro %}
 
-{% macro call_void_function(function_name, arguments) %}
+{% macro call_void_function(function_name, arguments, impl_class, is_static) %}
+{% if not is_static %}
   impl->{{function_name}}({{arguments|join(", ")}});
+{% else %}
+  {{impl_class}}::{{function_name}}({{arguments|join(', ')}});
+{% endif %}
   result_value.set(JS::UndefinedHandleValue);
 {%- endmacro %}
 
-{% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments, raises_exception, call_with) %}
+{% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments,
+                              raises_exception, call_with, is_static) %}
 {% if call_with %}
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
 {% endif %}
+{% if not is_static %}
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   {{impl_class}}* impl =
       wrapper_private->wrappable<{{impl_class}}>().get();
+{% endif %}
 {% do arguments.append("&exception_state") if raises_exception %}
-{% do arguments.append("global_object_proxy->Get%s()"|format(call_with)) if call_with %}
+{% do arguments.append("global_object_proxy->Get%s()"
+                                          | format(call_with)) if call_with %}
 {% if cobalt_type == "void" %}
-{{ call_void_function(function_name, arguments) }}
+{{ call_void_function(function_name, arguments, impl_class, is_static) }}
 {% else %}
-{{ call_nonvoid_function(cobalt_type, function_name, arguments) }}
+{{ call_nonvoid_function(cobalt_type, function_name, arguments, impl_class,
+                         is_static) }}
 {% endif %}
 {% endmacro %}

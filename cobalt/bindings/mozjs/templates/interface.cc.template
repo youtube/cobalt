@@ -73,7 +73,7 @@ JSBool get_{{constant.idl_name}}(
   JS::RootedValue result_value(context);
   ToJSValue(context, {{constant.value}}, &exception_state, &result_value);
   if (!exception_state.is_exception_set()) {
-     vp.set(result_value);
+    vp.set(result_value);
   }
   return !exception_state.is_exception_set();
 }
@@ -157,7 +157,8 @@ JSBool get_{{attribute.idl_name}}(
   JS::RootedValue result_value(context);
 {{ call_cobalt_function(impl_class, attribute.type,
                         attribute.getter_function_name, [],
-                        attribute.raises_exception, attribute.call_with) }}
+                        attribute.raises_exception, attribute.call_with,
+                        false) }}
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -180,7 +181,8 @@ JSBool set_{{attribute.idl_name}}(
   NOTIMPLEMENTED();
 {% else %}
 {{ call_cobalt_function(impl_class, "void", attribute.setter_function_name,
-                        ["value"], attribute.raises_exception, attribute.call_with) }}
+                        ["value"], attribute.raises_exception,
+                        attribute.call_with, false) }}
 {% endif %}
   return !exception_state.is_exception_set();
 }
@@ -192,15 +194,20 @@ JSBool set_{{attribute.idl_name}}(
 {% endif %}
 {% endfor %}
 
-{%- for operation in operations %}
+{%- for operation in operations + static_operations %}
 {% if operation.conditional %}
 #if defined({{operation.conditional}})
 {% endif %}
+{% if operation.is_static %}
+JSBool staticfcn_{{operation.idl_name}}(
+{% else %}
 JSBool fcn_{{operation.idl_name}}(
+{% endif %}
     JSContext* context, uint32_t argc, JS::Value *vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
+{% if not operation.is_static %}
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -213,6 +220,7 @@ JSBool fcn_{{operation.idl_name}}(
     NOTREACHED();
     return false;
   }
+{% endif %}
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
 {# TODO: Overload resolution. Just use first overload for now. #}
@@ -240,7 +248,8 @@ JSBool fcn_{{operation.idl_name}}(
 {{ call_cobalt_function(impl_class, overload.type,
                         overload.name, arguments,
                         overload.raises_exception,
-                        overload.call_with) }}
+                        overload.call_with,
+                        operation.is_static) }}
 {% if operation.type != 'void' %}
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -367,6 +376,25 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+{% for operation in static_operations %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+  {
+      "{{ operation.idl_name }}",
+      JSOP_WRAPPER(&staticfcn_{{operation.idl_name}}),
+      {{ operation.length }},
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
+{% endif %}
+{% endfor %}
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
 {% for attribute in attributes if attribute.is_constructor_attribute %}
 {% if attribute.conditional %}
@@ -436,8 +464,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
