@@ -141,6 +141,10 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
