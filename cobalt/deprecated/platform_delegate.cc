@@ -44,6 +44,8 @@ bool PathProvider(int key, FilePath* result) {
         *result = FilePath(plat->logging_output_path());
         return true;
       } else {
+        DLOG(ERROR) << "Unable to get or create paths::DIR_COBALT_DEBUG_OUT: "
+                    << plat->logging_output_path();
         return false;
       }
 
@@ -53,6 +55,8 @@ bool PathProvider(int key, FilePath* result) {
         *result = FilePath(plat->logging_output_path());
         return true;
       } else {
+        DLOG(ERROR) << "Unable to get or create paths::DIR_COBALT_TEST_OUT: "
+                    << plat->logging_output_path();
         return false;
       }
 
