@@ -857,7 +857,16 @@ def ExpandVariables(input, phase, variables, build_file):
             os.chdir(build_file_dir)
 
           parsed_contents = shlex.split(contents)
-          py_module = __import__(parsed_contents[0])
+
+          # Import only imports the root package specified in the parameter,
+          # even though all packages will be imported.  For example, if
+          # 'foo.bar.gum' is passed in to __import__(), 'foo', 'foo.bar', and
+          # 'foo.bar.gum' are all imported, but only 'foo' is returned.  To
+          # get access to the package we specified to __import__(), we instead
+          # pull it out of sys.modules after it has been imported.
+          __import__(parsed_contents[0])
+          py_module = sys.modules[parsed_contents[0]]
+
           replacement = str(py_module.DoMain(parsed_contents[1:])).rstrip()
 
           os.chdir(oldwd)
