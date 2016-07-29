@@ -129,8 +129,6 @@
         'base/data_url.h',
         'base/default_server_bound_cert_store.cc',
         'base/default_server_bound_cert_store.h',
-        'base/directory_lister.cc',
-        'base/directory_lister.h',
         'base/dns_reloader.cc',
         'base/dns_reloader.h',
         'base/dns_util.cc',
@@ -985,6 +983,9 @@
             ['exclude', 'disk_cache/cache_util_posix.cc'],
             ['exclude', 'disk_cache/file_posix.cc'],
             ['exclude', 'disk_cache/mapped_file_posix.cc'],
+            # we don't use the directory lister
+            ['exclude', 'base/directory_lister.cc'],
+            ['exclude', 'base/directory_lister.h'],
             # or SDCH, Shared Dictionary Compression over HTTP
             ['exclude', 'sdch'],
             # exclude any v8-specific bindings
@@ -1528,7 +1529,6 @@
         'base/crl_set_unittest.cc',
         'base/data_url_unittest.cc',
         'base/default_server_bound_cert_store_unittest.cc',
-        'base/directory_lister_unittest.cc',
         'base/dns_util_unittest.cc',
         'base/dnsrr_resolver_unittest.cc',
         'base/escape_unittest.cc',
@@ -2076,6 +2076,7 @@
             ['exclude', 'python_utils_unittest'],
             ['exclude', 'proxy_script_fetcher_impl_unittest'],
             ['exclude', 'x509_cert_types_unittest'],  # ParseDistinguishedName() only exists for mac/win
+            ['exclude', 'directory_lister_unittest'],  # Not used.
             # FTP is not supported
             ['exclude', 'ftp_auth_cache_unittest'],
             ['exclude', 'ftp_ctrl_response_buffer_unittest'],
