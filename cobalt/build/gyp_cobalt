@@ -191,6 +191,10 @@ class _GypRunner(object):
         '--toplevel-dir={}'.format(source_tree_dir),
     ]
 
+    # Add the source tree root to the Python path so that build files can
+    # easily reference other build files in the source tree.
+    sys.path.append(source_tree_dir)
+
     # Pass through the debug options.
     for debug in self.options.debug:
       self.common_args.append('--debug=%s' % debug)
