@@ -734,6 +734,35 @@ JSBool fcn_voidFunctionStringArg(
   return !exception_state.is_exception_set();
 }
 
+JSBool staticfcn_overloadedFunction(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  TypeTraits<double >::ConversionType arg;
+  DCHECK_LT(0, args.length());
+  FromJSValue(context, args.handleAt(0),
+      (kConversionFlagRestricted), &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  OperationsTestInterface::OverloadedFunction(arg);
+  result_value.set(JS::UndefinedHandleValue);
+
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   JS_PS_END
@@ -845,6 +874,17 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  {
+      "overloadedFunction",
+      JSOP_WRAPPER(&staticfcn_overloadedFunction),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -894,8 +934,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);

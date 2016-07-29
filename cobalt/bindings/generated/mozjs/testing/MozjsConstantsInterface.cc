@@ -87,7 +87,7 @@ JSBool get_INTEGER_CONSTANT(
   JS::RootedValue result_value(context);
   ToJSValue(context, 5, &exception_state, &result_value);
   if (!exception_state.is_exception_set()) {
-     vp.set(result_value);
+    vp.set(result_value);
   }
   return !exception_state.is_exception_set();
 }
@@ -102,7 +102,7 @@ JSBool get_DOUBLE_CONSTANT(
   JS::RootedValue result_value(context);
   ToJSValue(context, 2.718, &exception_state, &result_value);
   if (!exception_state.is_exception_set()) {
-     vp.set(result_value);
+    vp.set(result_value);
   }
   return !exception_state.is_exception_set();
 }
@@ -194,6 +194,10 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -243,8 +247,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
