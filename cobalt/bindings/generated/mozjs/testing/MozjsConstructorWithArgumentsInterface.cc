@@ -110,8 +110,7 @@ MozjsConstructorWithArgumentsInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsConstructorWithArgumentsInterfaceHandler>
     proxy_handler;
 
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
-
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -392,9 +391,67 @@ JSObject* MozjsConstructorWithArgumentsInterface::GetInterfaceObject(JSContext* 
 
 
 namespace {
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
-  // TODO: Implement support for constructors.
-  NOTIMPLEMENTED();
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 2;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  TypeTraits<bool >::ConversionType arg2;
+  // Optional arguments with default values
+  TypeTraits<std::string >::ConversionType default_arg =
+      "default";
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+      non_optional_value0,
+      kNoConversionFlags,
+      &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  DCHECK_LT(1, args.length());
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+      non_optional_value1,
+      kNoConversionFlags,
+      &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  size_t num_set_arguments = 3;
+  if (args.length() > 2) {
+    JS::RootedValue optional_value0(
+        context, args[2]);
+    FromJSValue(context,
+        optional_value0,
+        kNoConversionFlags,
+        &exception_state,
+        &default_arg);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+  }
+
+  scoped_refptr<ConstructorWithArgumentsInterface> new_object =
+      new ConstructorWithArgumentsInterface(arg1, arg2, default_arg);
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &exception_state, &result_value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
   return true;
 }
 }  // namespace
