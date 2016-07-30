@@ -110,8 +110,11 @@ MozjsConstructorInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsConstructorInterfaceHandler>
     proxy_handler;
 
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
-
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+JSBool Constructor1(
+    JSContext* context, unsigned int argc, JS::Value* vp);
+JSBool Constructor2(
+    JSContext* context, unsigned int argc, JS::Value* vp);
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -308,9 +311,86 @@ JSObject* MozjsConstructorInterface::GetInterfaceObject(JSContext* context) {
 
 
 namespace {
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
-  // TODO: Implement support for constructors.
-  NOTIMPLEMENTED();
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  switch(argc) {
+    case(0): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return Constructor1(context, argc, vp);
+      }
+      break;
+    }
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return Constructor2(context, argc, vp);
+      }
+      break;
+    }
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  MozjsExceptionState exception_state(context);
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
+}
+
+JSBool Constructor1(
+    JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
+  scoped_refptr<ConstructorInterface> new_object =
+      new ConstructorInterface();
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &exception_state, &result_value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
+  return true;
+}
+
+JSBool Constructor2(
+    JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<bool >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+      non_optional_value0,
+      kNoConversionFlags,
+      &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  scoped_refptr<ConstructorInterface> new_object =
+      new ConstructorInterface(arg);
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &exception_state, &result_value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
   return true;
 }
 }  // namespace
