@@ -110,8 +110,7 @@ MozjsEnumerationInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsEnumerationInterfaceHandler>
     proxy_handler;
 
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
-
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -358,9 +357,20 @@ JSObject* MozjsEnumerationInterface::GetInterfaceObject(JSContext* context) {
 
 
 namespace {
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
-  // TODO: Implement support for constructors.
-  NOTIMPLEMENTED();
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
+  scoped_refptr<EnumerationInterface> new_object =
+      new EnumerationInterface();
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &exception_state, &result_value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
   return true;
 }
 }  // namespace
