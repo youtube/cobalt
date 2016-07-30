@@ -14,8 +14,10 @@
  # limitations under the License.
  #}
 {% from 'macros.cc.template' import call_cobalt_function %}
+{% from 'macros.cc.template' import constructor_implementation with context %}
 {% from 'macros.cc.template' import get_impl_class_instance %}
 {% from 'macros.cc.template' import nonstatic_function_prologue %}
+{% from 'macros.cc.template' import overload_resolution_implementation with context %}
 {% from 'macros.cc.template' import static_function_prologue %}
 {% extends "interface-base.cc.template" %}
 {% block includes %}
@@ -291,8 +293,11 @@ JSBool get_{{constant.idl_name}}(
 
 {% endfor %}
 {% if constructor %}
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
-
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+{% for overload in constructor.overloads if constructor.overloads|length > 1 %}
+JSBool Constructor{{overload.overload_index}}(
+    JSContext* context, unsigned int argc, JS::Value* vp);
+{% endfor %}
 {% endif %}
 
 InterfaceData* CreateCachedInterfaceData() {
@@ -305,7 +310,8 @@ InterfaceData* CreateCachedInterfaceData() {
          sizeof(interface_data->interface_object_class_definition));
 
   JSClass* instance_class = &interface_data->instance_class_definition;
-  const int kGlobalFlags = {{"JSCLASS_GLOBAL_FLAGS" if is_global_interface else 0 }};
+  const int kGlobalFlags = {{
+      "JSCLASS_GLOBAL_FLAGS" if is_global_interface else 0 }};
   instance_class->name = "{{interface_name}}";
   instance_class->flags = kGlobalFlags | JSCLASS_HAS_PRIVATE;
   instance_class->addProperty = JS_PropertyStub;
@@ -835,11 +841,20 @@ JSObject* {{binding_class}}::GetInterfaceObject(JSContext* context) {
 
 namespace {
 {% if constructor %}
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
-  // TODO: Implement support for constructors.
-  NOTIMPLEMENTED();
-  return true;
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+{% if constructor.overloads|length == 1 %}
+{{ constructor_implementation(constructor.overloads[0]) -}}
+{% else %}
+{{ overload_resolution_implementation() }}
+{% endif %}
 }
+{% for overload in constructor.overloads if constructor.overloads|length > 1 %}
+
+JSBool Constructor{{overload.overload_index}}(
+    JSContext* context, unsigned int argc, JS::Value* vp) {
+{{ constructor_implementation(overload) -}}
+}
+{% endfor %}
 {% endif %}
 }  // namespace
 

@@ -14,6 +14,179 @@
  # limitations under the License.
  #}
 
+{#
+ # Extract and marshal arguments that will be passed to a function-like call.
+ # Parameters:
+ #     operation: An IdlOperation object
+ # Passed to caller:
+ #     A string that can be used as the parameters for a function call. It will
+ #     be either empty, or a comma-separated list of variable names.
+ #}
+{% macro extract_arguments(operation) %}
+{% set non_optional_arguments = operation.non_optional_arguments %}
+{% set optional_arguments = operation.optional_arguments %}
+{% set num_default_arguments = operation.num_default_arguments %}
+{% set variadic_argument = operation.variadic_argument %}
+{% set has_non_default_optional_arguments =
+          operation.has_non_default_optional_arguments %}
+
+{%- if non_optional_arguments|length > 0 %}
+  const size_t kMinArguments = {{non_optional_arguments|length}};
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+{% endif -%}
+
+{# Declare variables for all arguments #}
+{% for argument in non_optional_arguments %}
+{% if loop.first %}
+  // Non-optional arguments
+{% endif %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
+{% endfor %}
+{% for argument in optional_arguments if argument.default_value %}
+{% if loop.first %}
+  // Optional arguments with default values
+{% endif %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}} =
+      {{argument.default_value}};
+{% endfor %}
+{% for argument in optional_arguments if not argument.default_value %}
+{% if loop.first %}
+  // Optional arguments
+{% endif %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
+{% endfor %}
+{% if variadic_argument %}
+  // Variadic argument
+  TypeTraits<{{variadic_argument.type}} >::ConversionType
+      {{variadic_argument.name}};
+{% endif -%}
+
+{% for argument in non_optional_arguments %}
+
+  DCHECK_LT({{loop.index0}}, args.length());
+  JS::RootedValue non_optional_value{{loop.index0}}(
+      context, args[{{loop.index0}}]);
+  FromJSValue(context,
+      non_optional_value{{loop.index0}},
+      {{argument.conversion_flags}},
+      &exception_state, &{{argument.name}});
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{% endfor -%}
+{% for argument in optional_arguments %}
+{% if loop.first %}
+  size_t num_set_arguments = {{
+      non_optional_arguments|length + num_default_arguments}};
+{% endif %}
+  if (args.length() > {{loop.index0 + non_optional_arguments|length}}) {
+    JS::RootedValue optional_value{{loop.index0}}(
+        context, args[{{loop.index0 + non_optional_arguments|length}}]);
+    FromJSValue(context,
+        optional_value{{loop.index0}},
+        {{argument.conversion_flags}},
+        &exception_state,
+        &{{argument.name}});
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+{% if not argument.default_value %}
+    ++num_set_arguments;
+{% endif %}
+  }
+{% endfor %}
+{% if variadic_argument %}
+
+  // Get variadic arguments.
+{% if optional_arguments|length %}
+  const size_t kLastOptionalArgIndex = {{
+      non_optional_arguments|length + optional_arguments|length}};
+  if (num_set_arguments == kLastOptionalArgIndex) {
+    // If the last optional argument has been set, we will call the overload
+    // that takes the variadic argument, possibly with an empty vector in the
+    // case that there are no more arguments left.
+    ++num_set_arguments;
+  }
+{% endif %}
+  const size_t kFirstVariadicArgIndex = {{operation.arguments|length - 1}};
+  if (args.length() > kFirstVariadicArgIndex) {
+    {{variadic_argument.name}}.resize(
+        args.length() - kFirstVariadicArgIndex);
+    for (int i = 0; i + kFirstVariadicArgIndex < args.length(); ++i) {
+      JS::RootedValue variadic_argument_value{{i}}(
+          context, args[i + kFirstVariadicArgIndex]);
+      FromJSValue(exec_state,
+          variadic_argument_value{{i}},
+          {{variadic_argument.conversion_flags}},
+          &exception_state,
+          &{{variadic_argument.name}}[i]);
+      if (exception_state.is_exception_set()) {
+        return false;
+      }
+    }
+  }
+{% endif -%}
+
+{# Call the implementation function, based on the number of set arguments. #}
+{% if has_non_default_optional_arguments %}
+  switch (num_set_arguments) {
+{% for num_arguments in range(
+    non_optional_arguments|length + num_default_arguments,
+    operation.arguments|length + 1) %}
+{# If no variadic arguments have been set, we still call the function with
+   signature that has the variadic argument and pass an empty vector. There is
+   no such function signature that takes the optional parameter immediately
+   preceeding the variadic argument but does not take the variadic arguments. #}
+{% if loop.last or not operation.arguments[num_arguments].is_variadic %}
+{% set function_arguments =
+      operation.arguments[0:num_arguments]|map(attribute='name')|list %}
+    case {{num_arguments}}:
+      {
+        {# whitespace control block #}
+        {{-caller(function_arguments)|indent(8, True)}}
+        break;
+      }
+{% endif %}
+{% endfor %}
+    default:
+      NOTREACHED();
+      return false;
+  }
+{% else %} {#- has_non_default_optional_arguments #}
+{% set function_arguments = operation.arguments|map(attribute='name')|list %}
+  {# whitespace control block #}
+  {{-caller(function_arguments)}}
+{% endif %}
+{% endmacro %}
+
+{#
+ # Append extra arguments that should be passed to a cobalt function.
+ # Specifically, this will prepend parameters specified on IDLs using the
+ # [CallWith=] extended attribute.
+ # Parameters:
+ #     arguments_list: A list of C++ expressions that represent a sequence of
+ #         arguments that will be passed to a function.
+ #     context: An IDL object that may have the extended attribute that
+ #         we are interested in.
+ # Passed to caller:
+ #     arguments_list, possibly with extra arguments prepended and appended.
+ #}
+{% macro add_extra_arguments(arguments_list, context) %}
+{% if context.call_with %}
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+{% do arguments_list.append(
+    '%s->Get%s()'|format(global_object_proxy, context.call_with)) %};
+{% endif %}
+{% if context.raises_exception %}
+{% do arguments_list.append('&exception_state') %}
+{% endif %}
+{%- endmacro %}
+
 {% macro call_nonvoid_function(return_type, function_name, arguments,
                                impl_class, is_static) %}
 {% if not is_static %}
@@ -72,4 +245,62 @@
 {{ call_nonvoid_function(cobalt_type, function_name, arguments, impl_class,
                          is_static) }}
 {% endif %}
+{% endmacro %}
+
+{#
+ # Function body for constructor bindings.
+ # Parameters:
+ #     constructor: The constructor context object
+ #}
+{% macro constructor_implementation(constructor) %}
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+{% call(arguments_list) extract_arguments(constructor) %}
+{{ add_extra_arguments(arguments_list, constructor) }}
+  scoped_refptr<{{impl_class}}> new_object =
+      new {{impl_class}}({{arguments_list|join(', ')}});
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &exception_state, &result_value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
+  return true;
+{%- endcall %}
+{%- endmacro %}
+
+{#
+ # Function body for overload resolution function.
+ #}
+{% macro overload_resolution_implementation() %}
+  switch(argc) {
+{% for length, distinguishing_argument_index, resolution_tests in
+       constructor.overload_resolution_by_length %}
+    case({{length}}): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+{# In the case there is only one resolution condition, we don't need the arg. #}
+{% if resolution_tests|length > 1 %}
+      JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+      JS::RootedValue arg(
+          context, args[{{distinguishing_argument_index}}]);
+{% endif %}
+{% for test, overload in resolution_tests %}
+      if ({{test("arg")}}) {
+        return Constructor{{overload.overload_index}}(context, argc, vp);
+      }
+{% endfor %}
+      break;
+    }
+{% endfor %}
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  MozjsExceptionState exception_state(context);
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
 {%- endmacro %}
