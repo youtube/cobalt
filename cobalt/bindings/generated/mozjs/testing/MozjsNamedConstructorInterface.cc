@@ -166,7 +166,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -186,7 +187,8 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "SomeNamedConstructor";
+  const char name[] =
+      "SomeNamedConstructor";
   name_value.setString(JS_NewStringCopyZ(context, "NamedConstructorInterface"));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,

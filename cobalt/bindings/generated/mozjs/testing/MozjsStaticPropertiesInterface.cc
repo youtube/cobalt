@@ -128,6 +128,40 @@ InterfaceData* CreateCachedInterfaceData() {
   return interface_data;
 }
 
+JSBool staticget_staticAttribute(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+  TypeTraits<std::string >::ReturnType value =
+      StaticPropertiesInterface::static_attribute();
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context, value, &exception_state, &result_value);
+  }
+
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticset_staticAttribute(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+  TypeTraits<std::string >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  StaticPropertiesInterface::set_static_attribute(value);
+  result_value.set(JS::UndefinedHandleValue);
+
+  return !exception_state.is_exception_set();
+}
+
 JSBool staticfcn_staticFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   MozjsExceptionState exception_state(context);
@@ -154,6 +188,12 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+  {  // Static read/write attribute.
+      "staticAttribute", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&staticget_staticAttribute),
+      JSOP_WRAPPER(&staticset_staticAttribute),
+  },
   JS_PS_END
 };
 
@@ -187,7 +227,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -207,7 +248,8 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "StaticPropertiesInterface";
+  const char name[] =
+      "StaticPropertiesInterface";
   name_value.setString(JS_NewStringCopyZ(context, "StaticPropertiesInterface"));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
