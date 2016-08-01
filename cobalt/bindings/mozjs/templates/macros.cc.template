@@ -50,8 +50,8 @@
       wrapper_private->wrappable<{{impl_class}}>().get();
 {% endif %}
 {% do arguments.append("&exception_state") if raises_exception %}
-{% do arguments.append("global_object_proxy->Get%s()"
-                                          | format(call_with)) if call_with %}
+{% do arguments.append("global_object_proxy->Get%s()"|format(call_with))
+    if call_with %}
 {% if cobalt_type == "void" %}
 {{ call_void_function(function_name, arguments, impl_class, is_static) }}
 {% else %}

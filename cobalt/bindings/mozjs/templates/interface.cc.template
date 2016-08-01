@@ -135,7 +135,7 @@ InterfaceData* CreateCachedInterfaceData() {
   return interface_data;
 }
 
-{% for attribute in attributes %}
+{% for attribute in attributes + static_attributes %}
 {% if attribute.conditional %}
 #if defined({{attribute.conditional}})
 {% endif %}
@@ -150,7 +150,10 @@ JSBool get_{{attribute.idl_name}}(
 }
 
 {% else %}
-JSBool get_{{attribute.idl_name}}(
+{% if attribute.is_static %}
+{% set getter_prefix = "static" %}
+{% endif %}
+JSBool {{getter_prefix}}get_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
@@ -158,7 +161,7 @@ JSBool get_{{attribute.idl_name}}(
 {{ call_cobalt_function(impl_class, attribute.type,
                         attribute.getter_function_name, [],
                         attribute.raises_exception, attribute.call_with,
-                        false) }}
+                        attribute.is_static) }}
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -166,7 +169,10 @@ JSBool get_{{attribute.idl_name}}(
 }
 
 {% if attribute.has_setter %}
-JSBool set_{{attribute.idl_name}}(
+{% if attribute.is_static %}
+{% set setter_prefix = "static"%}
+{% endif %}
+JSBool {{setter_prefix}}set_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
@@ -180,9 +186,10 @@ JSBool set_{{attribute.idl_name}}(
 {% if attribute.put_forwards %}
   NOTIMPLEMENTED();
 {% else %}
-{{ call_cobalt_function(impl_class, "void", attribute.setter_function_name,
+{{ call_cobalt_function(impl_class, "void",
+                        attribute.setter_function_name,
                         ["value"], attribute.raises_exception,
-                        attribute.call_with, false) }}
+                        attribute.call_with, attribute.is_static) }}
 {% endif %}
   return !exception_state.is_exception_set();
 }
@@ -373,6 +380,29 @@ const JSPropertySpec interface_object_properties[] = {
       JSOP_NULLWRAPPER,
   },
 {% endfor %}
+{% for attribute in static_attributes %}
+{% if attribute.conditional %}
+#if defined({{attribute.conditional}})
+{% endif %}
+{% if attribute.has_setter %}
+  {  // Static read/write attribute.
+      "{{attribute.idl_name}}", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&staticget_{{attribute.idl_name}}),
+      JSOP_WRAPPER(&staticset_{{attribute.idl_name}}),
+  },
+{% else %}
+  {  // Static readonly attribute.
+      "{{attribute.idl_name}}", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
+      JSOP_WRAPPER(&staticget_{{attribute.idl_name}}),
+      JSOP_NULLRAPPER,
+  },
+{% endif %}
+{% if attribute.conditional %}
+#endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
   JS_PS_END
 };
 
@@ -433,7 +463,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -454,7 +485,8 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "{{ named_constructor if named_constructor else interface.name }}";
+  const char name[] =
+      "{{ named_constructor if named_constructor else interface.name }}";
   name_value.setString(JS_NewStringCopyZ(context, "{{interface.name}}"));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
