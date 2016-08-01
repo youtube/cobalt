@@ -17,6 +17,8 @@
 #ifndef COBALT_BINDINGS_TESTING_STATIC_PROPERTIES_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_STATIC_PROPERTIES_INTERFACE_H_
 
+#include <string>
+
 #include "base/lazy_instance.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -33,6 +35,7 @@ class StaticPropertiesInterface : public script::Wrappable {
     MOCK_METHOD0(static_attribute, std::string());
     MOCK_METHOD1(set_static_attribute, void(const std::string&));
   };
+
   static void StaticFunction() { static_methods_mock.Get().StaticFunction(); }
   static std::string static_attribute() {
     return static_methods_mock.Get().static_attribute();

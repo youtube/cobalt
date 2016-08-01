@@ -164,7 +164,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
