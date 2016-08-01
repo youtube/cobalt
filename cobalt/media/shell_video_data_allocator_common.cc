@@ -78,35 +78,35 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   scoped_refptr<FrameBufferCommon> frame_buffer_common =
       base::polymorphic_downcast<FrameBufferCommon*>(frame_buffer.get());
 
+  DCHECK_LE(frame_buffer->data(), param.y_data());
+  DCHECK_LE(param.y_data() + param.y_pitch() * param.decoded_height(),
+            param.u_data());
+  DCHECK_LE(param.u_data() + param.uv_pitch() * param.decoded_height() / 2,
+            param.v_data());
+  DCHECK_LE(param.v_data() + param.uv_pitch() * param.decoded_height() / 2,
+            frame_buffer->data() + frame_buffer->size());
+
   // TODO: Ensure it work with visible_rect with non-zero left and
   // top.  Note that simply add offset to the image buffer may cause alignment
   // issues.
-  gfx::Size decoded_size(param.decoded_width(), param.decoded_height());
   gfx::Size visible_size(param.visible_rect().size());
-
-  intptr_t offset = 0;
-  int pitch_in_bytes = decoded_size.width();
-
-  DCHECK_EQ(pitch_in_bytes % 2, 0) << pitch_in_bytes << " has to be even.";
 
   // Create image data descriptor for the frame in I420.
   MultiPlaneImageDataDescriptor descriptor(
       kMultiPlaneImageFormatYUV3PlaneBT709);
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(visible_size, kPixelFormatY8,
-                                  kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += pitch_in_bytes * decoded_size.height();
+      param.y_data() - frame_buffer->data(),
+      ImageDataDescriptor(visible_size, kPixelFormatY8,
+                          kAlphaFormatUnpremultiplied, param.y_pitch()));
   visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
-  pitch_in_bytes /= 2;
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(visible_size, kPixelFormatU8,
-                                  kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += pitch_in_bytes * decoded_size.height() / 2;
+      param.u_data() - frame_buffer->data(),
+      ImageDataDescriptor(visible_size, kPixelFormatU8,
+                          kAlphaFormatUnpremultiplied, param.uv_pitch()));
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(visible_size, kPixelFormatV8,
-                                  kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += pitch_in_bytes * decoded_size.height() / 2;
-  CHECK_EQ(offset, param.decoded_width() * param.decoded_height() * 3 / 2);
+      param.v_data() - frame_buffer->data(),
+      ImageDataDescriptor(visible_size, kPixelFormatV8,
+                          kAlphaFormatUnpremultiplied, param.uv_pitch()));
 
   scoped_refptr<Image> image =
       resource_provider_->CreateMultiPlaneImageFromRawMemory(
@@ -130,27 +130,26 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
   // TODO: Ensure it work with visible_rect with non-zero left and
   // top.  Note that simply add offset to the image buffer may cause alignment
   // issues.
-  gfx::Size decoded_size(param.decoded_width(), param.decoded_height());
   gfx::Size visible_size(param.visible_rect().size());
 
   intptr_t offset = 0;
-  int pitch_in_bytes = decoded_size.width();
+  int pitch_in_bytes = param.y_pitch();
 
   DCHECK_EQ(pitch_in_bytes % 2, 0) << pitch_in_bytes << " has to be even.";
 
-  // Create image data descriptor for the frame in I420.
+  // Create image data descriptor for the frame in NV12.
   MultiPlaneImageDataDescriptor descriptor(
       kMultiPlaneImageFormatYUV2PlaneBT709);
   descriptor.AddPlane(
       offset, ImageDataDescriptor(visible_size, kPixelFormatY8,
                                   kAlphaFormatPremultiplied, pitch_in_bytes));
-  offset += pitch_in_bytes * decoded_size.height();
+  offset += pitch_in_bytes * param.decoded_height();
   visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
   descriptor.AddPlane(
       offset, ImageDataDescriptor(visible_size, kPixelFormatUV8,
                                   kAlphaFormatPremultiplied, pitch_in_bytes));
-  offset += pitch_in_bytes * decoded_size.height() / 2;
-  CHECK_EQ(offset, param.decoded_width() * param.decoded_height() * 3 / 2);
+  offset += pitch_in_bytes * param.decoded_height() / 2;
+  DCHECK_EQ(offset, pitch_in_bytes * param.decoded_height() * 3 / 2);
 
   scoped_refptr<Image> image =
       resource_provider_->CreateMultiPlaneImageFromRawMemory(
