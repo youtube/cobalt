@@ -28,12 +28,14 @@
 #include "cobalt/script/script_object.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -64,7 +66,7 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
 using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
@@ -174,7 +176,7 @@ JSBool get_byteProperty(
   TypeTraits<int8_t >::ReturnType value =
       impl->byte_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -218,7 +220,7 @@ JSBool get_octetProperty(
   TypeTraits<uint8_t >::ReturnType value =
       impl->octet_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -262,7 +264,7 @@ JSBool get_shortProperty(
   TypeTraits<int16_t >::ReturnType value =
       impl->short_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -306,7 +308,7 @@ JSBool get_unsignedShortProperty(
   TypeTraits<uint16_t >::ReturnType value =
       impl->unsigned_short_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -350,7 +352,7 @@ JSBool get_longProperty(
   TypeTraits<int32_t >::ReturnType value =
       impl->long_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -394,7 +396,7 @@ JSBool get_unsignedLongProperty(
   TypeTraits<uint32_t >::ReturnType value =
       impl->unsigned_long_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -438,7 +440,7 @@ JSBool get_doubleProperty(
   TypeTraits<double >::ReturnType value =
       impl->double_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -482,7 +484,7 @@ JSBool get_unrestrictedDoubleProperty(
   TypeTraits<double >::ReturnType value =
       impl->unrestricted_double_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -582,7 +584,7 @@ JSBool fcn_byteReturnOperation(
   TypeTraits<int8_t >::ReturnType value =
       impl->ByteReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -660,7 +662,7 @@ JSBool fcn_doubleReturnOperation(
   TypeTraits<double >::ReturnType value =
       impl->DoubleReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -738,7 +740,7 @@ JSBool fcn_longReturnOperation(
   TypeTraits<int32_t >::ReturnType value =
       impl->LongReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -816,7 +818,7 @@ JSBool fcn_octetReturnOperation(
   TypeTraits<uint8_t >::ReturnType value =
       impl->OctetReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -894,7 +896,7 @@ JSBool fcn_shortReturnOperation(
   TypeTraits<int16_t >::ReturnType value =
       impl->ShortReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -972,7 +974,7 @@ JSBool fcn_unrestrictedDoubleReturnOperation(
   TypeTraits<double >::ReturnType value =
       impl->UnrestrictedDoubleReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -1050,7 +1052,7 @@ JSBool fcn_unsignedLongReturnOperation(
   TypeTraits<uint32_t >::ReturnType value =
       impl->UnsignedLongReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -1128,7 +1130,7 @@ JSBool fcn_unsignedShortReturnOperation(
   TypeTraits<uint16_t >::ReturnType value =
       impl->UnsignedShortReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {

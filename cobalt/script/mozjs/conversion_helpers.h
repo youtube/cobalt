@@ -27,6 +27,7 @@
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/type_traits.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
 
@@ -56,19 +57,39 @@ enum ConversionFlags {
 
   // Valid conversion flags for objects.
   kConversionFlagsObject = kConversionFlagNullable,
+
+  // Valid conversion flags for callback functions.
+  kConversionFlagsCallbackFunction = kConversionFlagNullable,
 };
+
+// TODO: These will be removed once conversion for all types is implemented.
+template <typename T>
+void ToJSValue(
+    JSContext* context, const T& unimplemented,
+    JS::MutableHandleValue out_value,
+    typename base::enable_if<!std::numeric_limits<T>::is_specialized>::type* =
+        NULL) {
+  NOTIMPLEMENTED();
+}
+
+template <typename T>
+void FromJSValue(
+    JSContext* context, JS::HandleValue value, int conversion_flags,
+    ExceptionState* exception_state, T* out_unimplemented,
+    typename base::enable_if<!std::numeric_limits<T>::is_specialized>::type* =
+        NULL) {
+  NOTIMPLEMENTED();
+}
 
 // bool -> JSValue
 inline void ToJSValue(JSContext* context, bool in_boolean,
-                      MozjsExceptionState* exception_state,
                       JS::MutableHandleValue out_value) {
   out_value.set(JS::BooleanValue(in_boolean));
 }
 
 // JSValue -> bool
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
-                        int conversion_flags,
-                        MozjsExceptionState* exception_state,
+                        int conversion_flags, ExceptionState* exception_state,
                         bool* out_boolean) {
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
@@ -80,8 +101,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 // signed integers <= 4 bytes -> JSValue
 template <typename T>
 inline void ToJSValue(
-    JSContext* context, T in_number, MozjsExceptionState* exception_state,
-    JS::MutableHandleValue out_value,
+    JSContext* context, T in_number, JS::MutableHandleValue out_value,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  std::numeric_limits<T>::is_integer &&
                                  std::numeric_limits<T>::is_signed &&
@@ -94,7 +114,7 @@ inline void ToJSValue(
 template <typename T>
 inline void FromJSValue(
     JSContext* context, JS::HandleValue value, int conversion_flags,
-    MozjsExceptionState* exception_state, T* out_number,
+    ExceptionState* exception_state, T* out_number,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  std::numeric_limits<T>::is_integer &&
                                  std::numeric_limits<T>::is_signed &&
@@ -116,8 +136,7 @@ inline void FromJSValue(
 // unsigned integers <= 4 bytes -> JSValue
 template <typename T>
 inline void ToJSValue(
-    JSContext* context, T in_number, MozjsExceptionState* exception_state,
-    JS::MutableHandleValue out_value,
+    JSContext* context, T in_number, JS::MutableHandleValue out_value,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  std::numeric_limits<T>::is_integer &&
                                  !std::numeric_limits<T>::is_signed &&
@@ -130,7 +149,7 @@ inline void ToJSValue(
 template <typename T>
 inline void FromJSValue(
     JSContext* context, JS::HandleValue value, int conversion_flags,
-    MozjsExceptionState* exception_state, T* out_number,
+    ExceptionState* exception_state, T* out_number,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  std::numeric_limits<T>::is_integer &&
                                  !std::numeric_limits<T>::is_signed &&
@@ -152,8 +171,7 @@ inline void FromJSValue(
 // double -> JSValue
 template <typename T>
 inline void ToJSValue(
-    JSContext* context, T in_number, MozjsExceptionState* exception_state,
-    JS::MutableHandleValue out_value,
+    JSContext* context, T in_number, JS::MutableHandleValue out_value,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
@@ -164,7 +182,7 @@ inline void ToJSValue(
 template <typename T>
 inline void FromJSValue(
     JSContext* context, JS::HandleValue value, int conversion_flags,
-    MozjsExceptionState* exception_state, T* out_number,
+    ExceptionState* exception_state, T* out_number,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
@@ -191,7 +209,6 @@ inline void FromJSValue(
 
 // std::string -> JSValue
 inline void ToJSValue(JSContext* context, const std::string& in_string,
-                      MozjsExceptionState* exception_state,
                       JS::MutableHandleValue out_value) {
   JS::RootedString rooted_string(
       context,
@@ -202,20 +219,18 @@ inline void ToJSValue(JSContext* context, const std::string& in_string,
 // optional<T> -> JSValue
 template <typename T>
 inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
-                      MozjsExceptionState* exception_state,
                       JS::MutableHandleValue out_value) {
   if (!in_optional) {
     out_value.setNull();
     return;
   }
-  ToJSValue(context, in_optional.value(), exception_state, out_value);
+  ToJSValue(context, in_optional.value(), out_value);
 }
 
 // JSValue -> optional<T>
 template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
-                        int conversion_flags,
-                        MozjsExceptionState* exception_state,
+                        int conversion_flags, ExceptionState* exception_state,
                         base::optional<T>* out_optional) {
   if (value.isNull()) {
     *out_optional = base::nullopt;
@@ -230,14 +245,13 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 
 // JSValue -> std::string
 void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, MozjsExceptionState* exception_state,
+                 int conversion_flags, ExceptionState* exception_state,
                  std::string* out_string);
 
 // JSValue -> optional<std::string>
 template <>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
-                        int conversion_flags,
-                        MozjsExceptionState* exception_state,
+                        int conversion_flags, ExceptionState* exception_state,
                         base::optional<std::string>* out_optional) {
   if (value.isNull()) {
     *out_optional = base::nullopt;
@@ -256,18 +270,16 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 // OpaqueHandle -> JSValue
 void ToJSValue(JSContext* context,
                const OpaqueHandleHolder* opaque_handle_holder,
-               MozjsExceptionState* exception_state,
                JS::MutableHandleValue out_value);
 
 // JSValue -> OpaqueHandle
 void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, MozjsExceptionState* exception_state,
-                 MozjsObjectHandle::HolderType* out_holder);
+                 int conversion_flags, ExceptionState* exception_state,
+                 MozjsObjectHandleHolder* out_holder);
 
 // object -> JSValue
 template <typename T>
 inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
-                      MozjsExceptionState* exception_state,
                       JS::MutableHandleValue out_value) {
   if (!in_object) {
     out_value.setNull();
@@ -287,8 +299,7 @@ inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
 // JSValue -> object
 template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
-                        int conversion_flags,
-                        MozjsExceptionState* exception_state,
+                        int conversion_flags, ExceptionState* exception_state,
                         scoped_refptr<T>* out_object) {
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
@@ -321,25 +332,6 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   // This is not a platform object. Return a type error.
   exception_state->SetSimpleException(ExceptionState::kTypeError,
                                       kDoesNotImplementInterface);
-}
-
-// TODO: These will be removed once conversion for all types is implemented.
-template <typename T>
-void ToJSValue(
-    JSContext* context, const T& unimplemented,
-    MozjsExceptionState* exception_state, JS::MutableHandleValue out_value,
-    typename base::enable_if<!std::numeric_limits<T>::is_specialized>::type* =
-        NULL) {
-  NOTIMPLEMENTED();
-}
-
-template <typename T>
-void FromJSValue(
-    JSContext* context, JS::HandleValue value, int conversion_flags,
-    MozjsExceptionState* exception_state, T* out_unimplemented,
-    typename base::enable_if<!std::numeric_limits<T>::is_specialized>::type* =
-        NULL) {
-  NOTIMPLEMENTED();
 }
 
 }  // namespace mozjs
