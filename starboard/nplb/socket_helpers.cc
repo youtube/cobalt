@@ -14,6 +14,7 @@
 
 #include "starboard/nplb/socket_helpers.h"
 
+#include "starboard/once.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
@@ -22,6 +23,36 @@
 
 namespace starboard {
 namespace nplb {
+namespace {
+
+int port_number_for_tests = 0;
+SbOnceControl valid_port_once_control = SB_ONCE_INITIALIZER;
+
+void InitializePortNumberForTests() {
+  // Create a listening socket. Let the system choose a port for us.
+  SbSocket socket = CreateListeningTcpIpv4Socket(0);
+  SB_DCHECK(socket != kSbSocketInvalid);
+
+  // Query which port this socket was bound to and save it to valid_port_number.
+  SbSocketAddress socket_address = {0};
+  bool result = SbSocketGetLocalAddress(socket, &socket_address);
+  SB_DCHECK(result);
+  port_number_for_tests = socket_address.port;
+
+  // Clean up the socket.
+  result = SbSocketDestroy(socket);
+  SB_DCHECK(result);
+}
+}  // namespace
+
+int GetPortNumberForTests() {
+#if defined(SB_SOCKET_OVERRIDE_PORT_FOR_TESTS)
+  return SB_SOCKET_OVERRIDE_PORT_FOR_TESTS;
+#else
+  SbOnce(&valid_port_once_control, &InitializePortNumberForTests);
+  return port_number_for_tests;
+#endif
+}
 
 bool IsUnspecified(const SbSocketAddress* address) {
   // Look at each piece of memory and make sure too many of them aren't zero.
