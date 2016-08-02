@@ -77,7 +77,7 @@ bool ShellRawAudioDecoderStub::UpdateConfig(const AudioDecoderConfig& config) {
   }
 
   decoded_buffer_size_ =
-      kSampleSizeInBytes * channel_count * mp4::AAC::kSamplesPerFrame;
+      kSampleSizeInBytes * channel_count * mp4::AAC::kFramesPerAccessUnit;
   return true;
 }
 

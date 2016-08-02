@@ -247,10 +247,10 @@ void ShellAudioRendererImpl::OnDecoderSelected(
   decrypting_demuxer_stream_ = decrypting_demuxer_stream;
 
   // construct audio parameters for the sink
-  audio_parameters_ =
-      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY, channel_layout,
-                      decoder_->samples_per_second(),
-                      decoder_->bits_per_channel(), mp4::AAC::kSamplesPerFrame);
+  audio_parameters_ = AudioParameters(
+      AudioParameters::AUDIO_PCM_LOW_LATENCY, channel_layout,
+      decoder_->samples_per_second(), decoder_->bits_per_channel(),
+      mp4::AAC::kFramesPerAccessUnit);
 
   state_ = kPaused;
 
@@ -486,16 +486,16 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
         if (end_of_stream_state_ == kWaitingForEOS) {
           // Normal decode event
           rendered_timestamp_ = buffered_timestamp_;
-          frames_rendered = mp4::AAC::kSamplesPerFrame;
+          frames_rendered = mp4::AAC::kFramesPerAccessUnit;
         }
         if (end_of_stream_state_ == kReceivedEOS) {
           end_of_stream_state_ = kRenderedEOS;
         }
         if (end_of_stream_state_ == kRenderedEOS) {
           const int bytes_per_sample = audio_parameters_.bits_per_sample() / 8;
-          // TODO: Change this to DCHECK_LE and fill only kSamplesPerFrame
+          // TODO: Change this to DCHECK_LE and fill only kFramesPerAccessUnit
           // instead of dest->frames() once we support Read with arbitrary size.
-          DCHECK_EQ(mp4::AAC::kSamplesPerFrame * bytes_per_sample *
+          DCHECK_EQ(mp4::AAC::kFramesPerAccessUnit * bytes_per_sample *
                         audio_parameters_.channels(),
                     dest->frames() * dest->channels() * sizeof(float));
           // Write zeros (silence) to each channel
@@ -505,8 +505,8 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
                 dest->frames() * sizeof(float);  // NOLINT(runtime/sizeof)
             memset(channel_data, 0, num_bytes);
           }
-          frames_rendered = mp4::AAC::kSamplesPerFrame;
-          uint64_t silence_ms = mp4::AAC::kSamplesPerFrame * 1000 /
+          frames_rendered = mp4::AAC::kFramesPerAccessUnit;
+          uint64_t silence_ms = mp4::AAC::kFramesPerAccessUnit * 1000 /
                                 audio_parameters_.sample_rate();
           silence_rendered_ += base::TimeDelta::FromMilliseconds(silence_ms);
         }

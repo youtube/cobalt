@@ -91,11 +91,13 @@ class ShellAudioStreamer {
           max_hardware_channels_(max_hardware_channels),
           bytes_per_sample_(bytes_per_sample),
           native_output_sample_rate_(native_output_sample_rate) {
-      const size_t kSamplesPerFrame = mp4::AAC::kSamplesPerFrame;
+      const size_t kFramesPerAccessUnit = mp4::AAC::kFramesPerAccessUnit;
       DCHECK_LE(initial_rebuffering_frames_per_channel,
                 sink_buffer_size_in_frames_per_channel);
-      DCHECK_EQ(initial_rebuffering_frames_per_channel % kSamplesPerFrame, 0);
-      DCHECK_EQ(sink_buffer_size_in_frames_per_channel % kSamplesPerFrame, 0);
+      DCHECK_EQ(initial_rebuffering_frames_per_channel % kFramesPerAccessUnit,
+                0);
+      DCHECK_EQ(sink_buffer_size_in_frames_per_channel % kFramesPerAccessUnit,
+                0);
     }
 
     bool interleaved() const {

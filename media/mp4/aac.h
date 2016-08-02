@@ -23,6 +23,10 @@ namespace mp4 {
 // for more details.
 class MEDIA_EXPORT AAC {
  public:
+  // Size in bytes of the ADTS header added by ConvertEsdsToADTS().
+  static const size_t kADTSHeaderSize = 7;
+  static const size_t kFramesPerAccessUnit = 1024;
+
   AAC();
   ~AAC();
 
@@ -49,10 +53,6 @@ class MEDIA_EXPORT AAC {
 #if defined(COBALT_WIN)
   const std::vector<uint8>& raw_data() const { return raw_data_; }
 #endif  // COBALT_WIN
-
-  // Size in bytes of the ADTS header added by ConvertEsdsToADTS().
-  static const size_t kADTSHeaderSize = 7;
-  static const size_t kSamplesPerFrame = 1024;
 
  private:
   bool SkipDecoderGASpecificConfig(BitReader* bit_reader) const;
