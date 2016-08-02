@@ -43,6 +43,10 @@ bool IsUnspecified(const SbSocketAddress* address);
 // address types.
 bool IsLocalhost(const SbSocketAddress* address);
 
+// Returns a valid port number that can be bound to for use in nplb tests.
+// This will always return the same port number.
+int GetPortNumberForTests();
+
 // Returns an IPv4 localhost address with the given port.
 SbSocketAddress GetIpv4Localhost(int port);
 
