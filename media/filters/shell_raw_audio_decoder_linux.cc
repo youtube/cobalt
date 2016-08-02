@@ -311,7 +311,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
 
     if (decoded_audio_size > 0) {
       // Copy the audio samples into an output buffer.
-      int buffer_size = kSampleSizeInBytes * mp4::AAC::kSamplesPerFrame *
+      int buffer_size = kSampleSizeInBytes * mp4::AAC::kFramesPerAccessUnit *
                         codec_context_->channels;
       output = decoder_buffer_pool_.Allocate(buffer_size);
       DCHECK(output);
@@ -319,7 +319,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
       // requirement. This should eventually be lifted.
       ResampleToInterleavedFloat(
           codec_context_->sample_fmt, codec_context_->channel_layout,
-          samples_per_second_, mp4::AAC::kSamplesPerFrame,
+          samples_per_second_, mp4::AAC::kFramesPerAccessUnit,
           av_frame_->extended_data,
           reinterpret_cast<uint8*>(output->GetWritableData()));
       output->SetTimestamp(output_timestamp_helper_->GetTimestamp());

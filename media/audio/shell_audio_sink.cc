@@ -227,7 +227,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   // Number of ms of buffered playback remaining
   uint32_t buffered_time =
       (*total_frames * 1000 / audio_parameters_.sample_rate());
-  if (free_frames >= mp4::AAC::kSamplesPerFrame) {
+  if (free_frames >= mp4::AAC::kFramesPerAccessUnit) {
     SetupRenderAudioBus();
 
     int frames_rendered =
@@ -238,7 +238,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
       // +ve value indicates number of samples in a successful read
       // TODO: We cannot guarantee this on platforms that use a resampler. Check
       // if it is possible to move the resample into the streamer.
-      // DCHECK_EQ(frames_rendered, mp4::AAC::kSamplesPerFrame);
+      // DCHECK_EQ(frames_rendered, mp4::AAC::kFramesPerAccessUnit);
       render_frame_cursor_ += frames_rendered;
       *total_frames += frames_rendered;
       free_frames -= frames_rendered;
@@ -247,7 +247,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     render_callback_->Render(NULL, buffered_time);
   }
 
-  bool buffer_full = free_frames < mp4::AAC::kSamplesPerFrame;
+  bool buffer_full = free_frames < mp4::AAC::kFramesPerAccessUnit;
   DCHECK_LE(*total_frames,
             static_cast<uint32>(std::numeric_limits<int32>::max()));
   bool rebuffer_threshold_reached =
@@ -266,7 +266,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 #endif  // #if defined(OS_STARBOARD)
 
 #if defined(MEDIA_UNDERFLOW_DETECTED_BY_AUDIO_SINK)
-  const size_t kUnderflowThreshold = mp4::AAC::kSamplesPerFrame / 2;
+  const size_t kUnderflowThreshold = mp4::AAC::kFramesPerAccessUnit / 2;
   if (*total_frames < kUnderflowThreshold) {
     if (!rebuffering_) {
       rebuffering_ = true;
@@ -313,7 +313,7 @@ void ShellAudioSink::SetupRenderAudioBus() {
   // check for buffer wraparound, hopefully rare
   int render_frame_position =
       render_frame_cursor_ % settings_.per_channel_frames(audio_bus_.get());
-  int requested_frames = mp4::AAC::kSamplesPerFrame;
+  int requested_frames = mp4::AAC::kFramesPerAccessUnit;
   if (render_frame_position + requested_frames >
       settings_.per_channel_frames(audio_bus_.get())) {
     requested_frames =
