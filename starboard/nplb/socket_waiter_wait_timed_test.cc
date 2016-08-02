@@ -47,13 +47,13 @@ void TestSocketWaiterCallback(SbSocketWaiter waiter,
 }
 
 TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
-  const int kPort = 2048;
   const int kBufSize = 1024;
 
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
+  ConnectedTrio trio =
+      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     ADD_FAILURE();
     return;

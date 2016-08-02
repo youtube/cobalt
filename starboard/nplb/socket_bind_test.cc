@@ -28,7 +28,7 @@ namespace {
 const void* kNull = NULL;
 
 TEST(SbSocketBindTest, RainyDayNullSocket) {
-  SbSocketAddress address = GetIpv4Unspecified(2048);
+  SbSocketAddress address = GetIpv4Unspecified(GetPortNumberForTests());
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(kSbSocketInvalid, &address));
 }
 
@@ -41,7 +41,7 @@ TEST(SbSocketBindTest, RainyDayNullAddress) {
 
   // Even though that failed, binding the same socket now with 0.0.0.0:2048
   // should work.
-  SbSocketAddress address = GetIpv4Unspecified(2048);
+  SbSocketAddress address = GetIpv4Unspecified(GetPortNumberForTests());
   EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
@@ -57,12 +57,12 @@ TEST(SbSocketBindTest, RainyDayWrongAddressType) {
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   // Binding with the wrong address type should fail.
-  SbSocketAddress address = GetIpv6Unspecified(2048);
+  SbSocketAddress address = GetIpv6Unspecified(GetPortNumberForTests());
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(server_socket, &address));
 
   // Even though that failed, binding the same socket now with 0.0.0.0:2048
   // should work.
-  address = GetIpv4Unspecified(2048);
+  address = GetIpv4Unspecified(GetPortNumberForTests());
   EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
