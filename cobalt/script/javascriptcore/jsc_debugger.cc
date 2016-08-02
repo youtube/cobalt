@@ -225,7 +225,7 @@ void JSCDebugger::sourceParsed(JSC::ExecState* exec_state,
     // Script failed to parse.
     delegate_->OnScriptFailedToParse(
         scoped_ptr<SourceProvider>(new JSCSourceProvider(
-            source_provider, error_line, error_message.latin1().data())));
+            source_provider, error_line, error_message.utf8().data())));
   }
 }
 
