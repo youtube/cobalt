@@ -30,7 +30,7 @@ namespace media {
 using base::Time;
 using base::TimeDelta;
 
-const size_t kSamplesPerFrame = mp4::AAC::kSamplesPerFrame;
+const size_t kFramesPerAccessUnit = mp4::AAC::kFramesPerAccessUnit;
 
 namespace {
 
@@ -334,7 +334,7 @@ void ShellAudioDecoderImpl::OnBufferDecoded(
                    "ShellAudioDecoderImpl::DecodeBuffer() data decoded.",
                    "timestamp", buffer->GetTimestamp().InMicroseconds());
       DCHECK_EQ(buffer->GetDataSize(),
-                kSamplesPerFrame * bits_per_channel() / 8 * num_channels_);
+                kFramesPerAccessUnit * bits_per_channel() / 8 * num_channels_);
 
       PipelineStatistics statistics;
       statistics.audio_bytes_decoded = buffer->GetDataSize();

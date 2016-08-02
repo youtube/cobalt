@@ -33,7 +33,7 @@ namespace {
 using namespace testing;
 
 const uint32 kMaxHardwareChannelsStereo = 2;
-const size_t kSamplesPerFrame = media::mp4::AAC::kSamplesPerFrame;
+const size_t kFramesPerAccessUnit = media::mp4::AAC::kFramesPerAccessUnit;
 
 bool operator==(const media::AudioParameters& params1,
                 const media::AudioParameters& params2) {
@@ -483,8 +483,8 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
     for (int i = 0; i < 10; ++i) {
       // Try to get 1024 frames but don't give it any data
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(
-              VerifyAudioBusFrameCount(config, init_params, kSamplesPerFrame));
+          .WillOnce(VerifyAudioBusFrameCount(config, init_params,
+                                             kFramesPerAccessUnit));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
       // Ok, now give it 1024 frames
@@ -494,8 +494,8 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
 
       // Try to get another 1024 frames but don't give it any data
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(
-              VerifyAudioBusFrameCount(config, init_params, kSamplesPerFrame));
+          .WillOnce(VerifyAudioBusFrameCount(config, init_params,
+                                             kFramesPerAccessUnit));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
       // Ok, now give it 480 frames

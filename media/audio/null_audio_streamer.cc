@@ -41,7 +41,7 @@ NullAudioStreamer::~NullAudioStreamer() {
 ShellAudioStreamer::Config NullAudioStreamer::GetConfig() const {
   // Reasonable looking settings.
   const uint32 initial_rebuffering_frames_per_channel =
-      mp4::AAC::kSamplesPerFrame * 32;
+      mp4::AAC::kFramesPerAccessUnit * 32;
   const uint32 sink_buffer_size_in_frames_per_channel =
       initial_rebuffering_frames_per_channel * 8;
   const uint32 max_hardware_channels = 2;
