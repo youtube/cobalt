@@ -28,10 +28,10 @@ namespace render_tree {
 // character based upon what it considers to be the best match.
 class FontProvider {
  public:
-  // Returns a font-glyph combination based upon a passed in character. The
-  // returned font is guaranteed to be non-NULL. However, the glyph index may
-  // be set to |kInvalidGlyphIndex| if no font is found that supports the
-  // requested character.
+  // Returns the font-glyph combination that the FontProvider considers to be
+  // the best match for the passed in character. The returned font is guaranteed
+  // to be non-NULL. However, the glyph index may be set to |kInvalidGlyphIndex|
+  // if the returned font does not provide a glyph for the character.
   virtual const scoped_refptr<Font>& GetCharacterFont(
       int32 utf32_character, GlyphIndex* glyph_index) = 0;
 
