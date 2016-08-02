@@ -234,6 +234,7 @@
       'variables': {
         'executable_name': 'nplb',
       },
+      'includes': [ '../build/deploy.gypi' ],
     },
   ],
 }

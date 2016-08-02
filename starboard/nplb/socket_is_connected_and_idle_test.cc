@@ -22,14 +22,13 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const int kPort = 2048;
-
 TEST(SbSocketIsConnectedAndIdleTest, RainyDayInvalidSocket) {
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(kSbSocketInvalid));
 }
 
 TEST(SbSocketIsConnectedAndIdleTest, SunnyDay) {
-  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
+  ConnectedTrio trio =
+      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }
@@ -68,7 +67,8 @@ TEST(SbSocketIsConnectedAndIdleTest, SunnyDayNotConnected) {
 }
 
 TEST(SbSocketIsConnectedAndIdleTest, SunnyDayListeningNotConnected) {
-  SbSocket server_socket = CreateListeningTcpIpv4Socket(kPort);
+  SbSocket server_socket =
+      CreateListeningTcpIpv4Socket(GetPortNumberForTests());
   if (!SbSocketIsValid(server_socket)) {
     return;
   }

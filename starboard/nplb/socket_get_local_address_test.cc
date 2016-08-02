@@ -82,8 +82,7 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
 }
 
 TEST(SbSocketGetLocalAddressTest, SunnyDayConnected) {
-  const int kPort = 2048;
-
+  const int kPort = GetPortNumberForTests();
   ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
