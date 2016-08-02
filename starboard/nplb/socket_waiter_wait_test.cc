@@ -56,13 +56,13 @@ void FailSocketWaiterCallback(SbSocketWaiter waiter,
 }
 
 TEST(SbSocketWaiterWaitTest, SunnyDay) {
-  const int kPort = 2048;
   const int kBufSize = 1024;
 
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
+  ConnectedTrio trio =
+      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     ADD_FAILURE();
     return;
@@ -148,7 +148,6 @@ struct AlreadyReadyContext {
 
 const char kAData[] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const char kBData[] = "bb";
-const int kPort = 2048;
 
 void* AlreadyReadyEntryPoint(void* param) {
   AlreadyReadyContext* context = reinterpret_cast<AlreadyReadyContext*>(param);
@@ -204,7 +203,7 @@ TEST(SbSocketWaiterWaitTest, SunnyDayAlreadyReady) {
   context.waiter = SbSocketWaiterCreate();
   ASSERT_TRUE(SbSocketWaiterIsValid(context.waiter));
 
-  context.trio = CreateAndConnect(kPort, kSocketTimeout);
+  context.trio = CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
   ASSERT_TRUE(SbSocketIsValid(context.trio.server_socket));
 
   EXPECT_TRUE(SbSocketWaiterAdd(context.waiter, context.trio.client_socket,

@@ -24,11 +24,10 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const int kPort = 2048;
-
 TEST(SbSocketAcceptTest, RainyDayNoConnection) {
   // Set up a socket to listen.
-  SbSocket server_socket = CreateListeningTcpIpv4Socket(kPort);
+  SbSocket server_socket =
+      CreateListeningTcpIpv4Socket(GetPortNumberForTests());
   if (!SbSocketIsValid(server_socket)) {
     return;
   }
@@ -60,7 +59,7 @@ TEST(SbSocketAcceptTest, RainyDayNotBound) {
 
 TEST(SbSocketAcceptTest, RainyDayNotListening) {
   // Set up a socket, but don't Bind or Listen.
-  SbSocket server_socket = CreateBoundTcpIpv4Socket(kPort);
+  SbSocket server_socket = CreateBoundTcpIpv4Socket(GetPortNumberForTests());
   if (!SbSocketIsValid(server_socket)) {
     return;
   }
