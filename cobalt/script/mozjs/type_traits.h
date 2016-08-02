@@ -18,11 +18,7 @@
 #define COBALT_SCRIPT_MOZJS_TYPE_TRAITS_H_
 
 #include "cobalt/script/callback_interface_traits.h"
-#include "cobalt/script/mozjs/mozjs_callback_function_holder.h"
 #include "cobalt/script/mozjs/mozjs_callback_interface_holder.h"
-#include "cobalt/script/mozjs/mozjs_object_handle.h"
-#include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
 
 namespace cobalt {
 namespace script {
@@ -34,18 +30,6 @@ struct TypeTraits {
   typedef T ConversionType;
   // Type type returned from a Cobalt implementation of a bound function.
   typedef T ReturnType;
-};
-
-template <>
-struct TypeTraits<OpaqueHandle> {
-  typedef MozjsObjectHandleHolder ConversionType;
-  typedef const ScriptObject<OpaqueHandle>* ReturnType;
-};
-
-template <typename Sig>
-struct TypeTraits<CallbackFunction<Sig> > {
-  typedef MozjsCallbackFunctionHolder<CallbackFunction<Sig> > ConversionType;
-  typedef const ScriptObject<CallbackFunction<Sig> >* ReturnType;
 };
 
 template <typename CallbackInterface>

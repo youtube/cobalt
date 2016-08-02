@@ -41,7 +41,7 @@ class MozjsUserObjectHolder
 
   explicit MozjsUserObjectHolder(JS::HandleObject object, JSContext* context,
                                  WrapperFactory* wrapper_factory)
-      : object_handle_(MozjsUserObjectType(object)),
+      : object_handle_(MozjsUserObjectType(context, object)),
         context_(context),
         wrapper_factory_(wrapper_factory) {}
 
