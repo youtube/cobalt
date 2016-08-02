@@ -18,6 +18,7 @@
 
 #include "base/optional.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/opaque_handle.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
@@ -31,12 +32,12 @@ namespace mozjs {
 // a ScriptObject<OpaqueHandle>.
 class MozjsObjectHandle : public OpaqueHandle {
  public:
-  typedef MozjsUserObjectHolder<MozjsObjectHandle> HolderType;
   typedef OpaqueHandle BaseType;
   JSObject* handle() const { return handle_; }
 
  private:
-  explicit MozjsObjectHandle(JS::HandleObject object) : handle_(object) {}
+  MozjsObjectHandle(JSContext*, JS::HandleObject object)
+      : handle_(object) {}
   ~MozjsObjectHandle() {}
 
   // Note that this class does not root this JS::Heap<> object. Rooting of this
@@ -49,6 +50,12 @@ class MozjsObjectHandle : public OpaqueHandle {
 };
 
 typedef MozjsUserObjectHolder<MozjsObjectHandle> MozjsObjectHandleHolder;
+
+template <>
+struct TypeTraits<OpaqueHandle> {
+  typedef MozjsObjectHandleHolder ConversionType;
+  typedef const ScriptObject<OpaqueHandle>* ReturnType;
+};
 
 }  // namespace mozjs
 }  // namespace script

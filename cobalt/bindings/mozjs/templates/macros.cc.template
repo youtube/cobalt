@@ -197,7 +197,7 @@
       {{impl_class}}::{{function_name}}({{arguments_list|join(', ')}});
 {% endif %}
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 {%- endmacro %}
 

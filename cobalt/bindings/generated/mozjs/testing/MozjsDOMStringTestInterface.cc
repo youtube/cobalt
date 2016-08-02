@@ -28,12 +28,14 @@
 #include "cobalt/script/script_object.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -64,7 +66,7 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
 using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
@@ -174,7 +176,7 @@ JSBool get_property(
   TypeTraits<std::string >::ReturnType value =
       impl->property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -218,7 +220,7 @@ JSBool get_readOnlyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->read_only_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -240,7 +242,7 @@ JSBool get_nullIsEmptyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->null_is_empty_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -284,7 +286,7 @@ JSBool get_undefinedIsEmptyProperty(
   TypeTraits<std::string >::ReturnType value =
       impl->undefined_is_empty_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -328,7 +330,7 @@ JSBool get_nullableUndefinedIsEmptyProperty(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_undefined_is_empty_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
