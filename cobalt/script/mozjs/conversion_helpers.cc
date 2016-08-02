@@ -24,7 +24,7 @@ namespace mozjs {
 
 // JSValue -> std::string
 void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, MozjsExceptionState* exception_state,
+                 int conversion_flags, ExceptionState* exception_state,
                  std::string* out_string) {
   DCHECK_EQ(conversion_flags & ~kConversionFlagsString, 0)
       << "Unexpected conversion flags found: ";
@@ -54,7 +54,6 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 // OpaqueHandle -> JSValue
 void ToJSValue(JSContext* context,
                const OpaqueHandleHolder* opaque_handle_holder,
-               MozjsExceptionState* exception_state,
                JS::MutableHandleValue out_value) {
   JS::RootedObject js_object(context);
   if (opaque_handle_holder) {
@@ -70,8 +69,8 @@ void ToJSValue(JSContext* context,
 
 // JSValue -> OpaqueHandle
 void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, MozjsExceptionState* exception_state,
-                 MozjsObjectHandle::HolderType* out_holder) {
+                 int conversion_flags, ExceptionState* exception_state,
+                 MozjsObjectHandleHolder* out_holder) {
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
   JS::RootedObject js_object(context);
@@ -98,8 +97,8 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK(js_object);
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-  *out_holder = MozjsObjectHandle::HolderType(
-      js_object, context, global_object_proxy->wrapper_factory());
+  *out_holder = MozjsObjectHandleHolder(js_object, context,
+                                        global_object_proxy->wrapper_factory());
 }
 
 }  // namespace mozjs
