@@ -30,12 +30,14 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -68,7 +70,7 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
 using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
@@ -178,7 +180,7 @@ JSBool get_nullableBooleanProperty(
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->nullable_boolean_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -222,7 +224,7 @@ JSBool get_nullableNumericProperty(
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->nullable_numeric_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -266,7 +268,7 @@ JSBool get_nullableStringProperty(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_string_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -310,7 +312,7 @@ JSBool get_nullableObjectProperty(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->nullable_object_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -410,7 +412,7 @@ JSBool fcn_nullableBooleanOperation(
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->NullableBooleanOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -488,7 +490,7 @@ JSBool fcn_nullableNumericOperation(
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->NullableNumericOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -566,7 +568,7 @@ JSBool fcn_nullableObjectOperation(
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->NullableObjectOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
@@ -644,7 +646,7 @@ JSBool fcn_nullableStringOperation(
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->NullableStringOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+    ToJSValue(context, value, &result_value);
   }
 
   if (!exception_state.is_exception_set()) {
