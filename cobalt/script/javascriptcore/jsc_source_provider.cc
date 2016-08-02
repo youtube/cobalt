@@ -81,7 +81,7 @@ std::string JSCSourceProvider::GetScriptId() {
 }
 
 std::string JSCSourceProvider::GetScriptSource() {
-  return source_provider_->source().latin1().data();
+  return source_provider_->source().utf8().data();
 }
 
 base::optional<std::string> JSCSourceProvider::GetSourceMapUrl() {
@@ -98,7 +98,7 @@ base::optional<int> JSCSourceProvider::GetStartLine() {
 }
 
 std::string JSCSourceProvider::GetUrl() {
-  return source_provider_->url().latin1().data();
+  return source_provider_->url().utf8().data();
 }
 
 base::optional<bool> JSCSourceProvider::IsContentScript() {

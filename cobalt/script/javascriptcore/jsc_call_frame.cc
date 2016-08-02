@@ -107,7 +107,7 @@ scoped_ptr<CallFrame> JSCCallFrame::GetCaller() {
 }
 
 std::string JSCCallFrame::GetFunctionName() {
-  return call_frame_.functionName().latin1().data();
+  return call_frame_.functionName().utf8().data();
 }
 
 int JSCCallFrame::GetLineNumber() {
