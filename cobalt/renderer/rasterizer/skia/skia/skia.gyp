@@ -56,7 +56,7 @@
       'variables': {
         'executable_name': 'filter_fuzz_stub',
       },
-      'includes': [ '../../../../build/deploy.gypi' ],
+      'includes': [ '../../../../../starboard/build/deploy.gypi' ],
     },
   ],
 }

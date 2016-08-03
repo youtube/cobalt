@@ -123,7 +123,7 @@
       'variables': {
         'executable_name': 'network_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

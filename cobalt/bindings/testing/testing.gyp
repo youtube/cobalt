@@ -165,7 +165,7 @@
       'variables': {
         'executable_name': 'bindings_test',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
 
     {
@@ -192,7 +192,7 @@
       'variables': {
         'executable_name': 'bindings_sandbox',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
   ],
 }

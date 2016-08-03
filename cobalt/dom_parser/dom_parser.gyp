@@ -67,7 +67,7 @@
       'variables': {
         'executable_name': 'dom_parser_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

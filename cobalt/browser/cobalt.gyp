@@ -57,7 +57,7 @@
       'variables': {
         'executable_name': 'cobalt',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
     {
       'target_name': 'snapshot_app_stats',
@@ -90,7 +90,7 @@
       'variables': {
         'executable_name': 'snapshot_app_stats',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
 
   ],
