@@ -53,7 +53,7 @@ void ShellRawVideoDecoderStub::Decode(
   scoped_refptr<FrameBuffer> frame_buffer =
       allocator_->AllocateFrameBuffer(yuv_size, 1);
   YV12Param param(natural_size_.width(), natural_size_.height(),
-                  gfx::Rect(natural_size_));
+                  gfx::Rect(natural_size_), frame_buffer->data());
   scoped_refptr<VideoFrame> frame =
       allocator_->CreateYV12Frame(frame_buffer, param, buffer->GetTimestamp());
   decode_cb.Run(FRAME_DECODED, frame);

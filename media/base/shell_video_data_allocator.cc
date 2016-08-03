@@ -22,15 +22,16 @@ namespace media {
 
 ShellVideoDataAllocator::YV12Param::YV12Param(int decoded_width,
                                               int decoded_height,
-                                              const gfx::Rect& visible_rect)
+                                              const gfx::Rect& visible_rect,
+                                              uint8* data)
     : decoded_width_(decoded_width),
       decoded_height_(decoded_height),
       visible_rect_(visible_rect),
-      y_pitch_(0),
-      uv_pitch_(0),
-      y_data_(NULL),
-      u_data_(NULL),
-      v_data_(NULL) {}
+      y_pitch_(decoded_width),
+      uv_pitch_(decoded_width / 2),
+      y_data_(data),
+      u_data_(y_data_ + y_pitch_ * decoded_height_),
+      v_data_(u_data_ + uv_pitch_ * decoded_height_ / 2) {}
 
 ShellVideoDataAllocator::YV12Param::YV12Param(int width,
                                               int height,

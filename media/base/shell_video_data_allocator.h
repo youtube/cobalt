@@ -47,7 +47,8 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
    public:
     YV12Param(int decoded_width,
               int decoded_height,
-              const gfx::Rect& visible_rect);
+              const gfx::Rect& visible_rect,
+              uint8* data);
 
     // Create with data pointer to individual planes. All pointers should be in
     // the same memory block controlled by the accompanied FrameBuffer passed to
