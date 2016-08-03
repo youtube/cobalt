@@ -349,6 +349,32 @@ inline void FromJSValue(
   *out_number = static_cast<T>(uint32_value);
 }
 
+// JSValue -> signed integers > 4 bytes
+template <class T>
+inline void FromJSValue(
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, int conversion_flags,
+    ExceptionState* out_exception, T* out_number,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
+                                 std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) > 4),
+                             T>::type* = NULL) {
+  NOTIMPLEMENTED();
+}
+
+// JSValue -> unsigned integers > 4 bytes
+template <class T>
+inline void FromJSValue(
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, int conversion_flags,
+    ExceptionState* out_exception, T* out_number,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
+                                 !std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) > 4),
+                             T>::type* = NULL) {
+  NOTIMPLEMENTED();
+}
+
 // JSValue -> double
 template <class T>
 inline void FromJSValue(

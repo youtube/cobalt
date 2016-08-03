@@ -39,6 +39,14 @@ interface NumericTypesTestInterface {
   void unsignedLongArgumentOperation(unsigned long arg1);
   attribute unsigned long unsignedLongProperty;
 
+  long long longLongReturnOperation();
+  void longLongArgumentOperation(long long arg1);
+  attribute long long longLongProperty;
+
+  unsigned long long unsignedLongLongReturnOperation();
+  void unsignedLongLongArgumentOperation(unsigned long long arg1);
+  attribute unsigned long long unsignedLongLongProperty;
+
   double doubleReturnOperation();
   void doubleArgumentOperation(double arg1);
   attribute double doubleProperty;
