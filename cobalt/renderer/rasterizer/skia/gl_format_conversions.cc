@@ -36,6 +36,8 @@ GLenum ConvertRenderTreeFormatToGL(render_tree::PixelFormat pixel_format) {
       return GL_ALPHA;
     case render_tree::kPixelFormatV8:
       return GL_ALPHA;
+    case render_tree::kPixelFormatUV8:
+      return GL_LUMINANCE_ALPHA;
     default: { NOTREACHED() << "Unknown format."; }
   }
   return GL_RGBA;
@@ -49,6 +51,8 @@ GrPixelConfig ConvertGLFormatToGr(GLenum gl_format) {
       return kBGRA_8888_GrPixelConfig;
     case GL_ALPHA:
       return kAlpha_8_GrPixelConfig;
+    case GL_LUMINANCE_ALPHA:
+      return kRGBA_8888_GrPixelConfig;
     default: { NOTREACHED() << "Unsupported GL format."; }
   }
   return kRGBA_8888_GrPixelConfig;

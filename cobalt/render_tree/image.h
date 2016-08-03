@@ -32,6 +32,7 @@ enum PixelFormat {
   kPixelFormatY8,
   kPixelFormatU8,
   kPixelFormatV8,
+  kPixelFormatUV8,
   kPixelFormatInvalid,
 };
 
@@ -47,6 +48,8 @@ inline int BytesPerPixel(PixelFormat pixel_format) {
       return 1;
     case kPixelFormatV8:
       return 1;
+    case kPixelFormatUV8:
+      return 2;
     case kPixelFormatInvalid:
     default:
       DLOG(FATAL) << "Unexpected pixel format.";
@@ -115,6 +118,9 @@ enum MultiPlaneImageFormat {
   // A YUV image where each channel, Y, U and V, is stored as a separate
   // single-channel image plane.
   kMultiPlaneImageFormatYUV3PlaneBT709,
+  // A YUV image where the Y channel is stored as a single-channel image plane
+  // and the U and V channels are interleaved in a second image plane.
+  kMultiPlaneImageFormatYUV2PlaneBT709,
 };
 
 // Like the ImageDataDescriptor object, a MultiPlaneImageDataDescriptor

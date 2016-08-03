@@ -34,10 +34,12 @@ using cobalt::render_tree::kAlphaFormatUnpremultiplied;
 using cobalt::render_tree::kPixelFormatRGBA8;
 using cobalt::render_tree::MultiPlaneImageDataDescriptor;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;
 using cobalt::render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
 using cobalt::render_tree::kPixelFormatU8;
 using cobalt::render_tree::kPixelFormatV8;
 using cobalt::render_tree::kPixelFormatY8;
+using cobalt::render_tree::kPixelFormatUV8;
 
 namespace {
 void ReleaseImage(scoped_refptr<Image> /* image */) {}
@@ -138,19 +140,14 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
 
   // Create image data descriptor for the frame in I420.
   MultiPlaneImageDataDescriptor descriptor(
-      kMultiPlaneImageFormatYUV3PlaneBT709);
+      kMultiPlaneImageFormatYUV2PlaneBT709);
   descriptor.AddPlane(
       offset, ImageDataDescriptor(visible_size, kPixelFormatY8,
                                   kAlphaFormatPremultiplied, pitch_in_bytes));
   offset += pitch_in_bytes * decoded_size.height();
   visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
-  pitch_in_bytes /= 2;
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(visible_size, kPixelFormatU8,
-                                  kAlphaFormatPremultiplied, pitch_in_bytes));
-  offset += pitch_in_bytes * decoded_size.height() / 2;
-  descriptor.AddPlane(
-      offset, ImageDataDescriptor(visible_size, kPixelFormatV8,
+      offset, ImageDataDescriptor(visible_size, kPixelFormatUV8,
                                   kAlphaFormatPremultiplied, pitch_in_bytes));
   offset += pitch_in_bytes * decoded_size.height() / 2;
   CHECK_EQ(offset, param.decoded_width() * param.decoded_height() * 3 / 2);

@@ -44,6 +44,7 @@
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkNV122RGBShader.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkYUV2RGBShader.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkTypeface.h"
@@ -509,32 +510,47 @@ void RenderMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image,
                            SkCanvas* render_target,
                            const math::RectF& destination_rect,
                            const math::Matrix3F* local_transform) {
-  DCHECK_EQ(render_tree::kMultiPlaneImageFormatYUV3PlaneBT709,
-            multi_plane_image->GetFormat());
-
   SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
 
   const SkBitmap& y_bitmap = multi_plane_image->GetBitmap(0);
+  DCHECK(!y_bitmap.isNull());
   SkMatrix y_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
       math::Size(y_bitmap.width(), y_bitmap.height()), destination_rect,
       &y_matrix);
 
   const SkBitmap& u_bitmap = multi_plane_image->GetBitmap(1);
+  DCHECK(!u_bitmap.isNull());
   SkMatrix u_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
       math::Size(u_bitmap.width(), u_bitmap.height()), destination_rect,
       &u_matrix);
 
-  const SkBitmap& v_bitmap = multi_plane_image->GetBitmap(2);
-  SkMatrix v_matrix = skia_local_transform;
-  ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect,
-      &v_matrix);
+  SkAutoTUnref<SkShader> yuv2rgb_shader;
 
-  SkAutoTUnref<SkShader> yuv2rgb_shader(
-      SkNEW_ARGS(SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
-                                   u_bitmap, u_matrix, v_bitmap, v_matrix)));
+  switch (multi_plane_image->GetFormat()) {
+    case render_tree::kMultiPlaneImageFormatYUV2PlaneBT709:
+      yuv2rgb_shader.reset(SkNEW_ARGS(
+          SkNV122RGBShader,
+          (kRec709_SkYUVColorSpace, y_bitmap, y_matrix, u_bitmap, u_matrix)));
+      break;
+    case render_tree::kMultiPlaneImageFormatYUV3PlaneBT709: {
+      const SkBitmap& v_bitmap = multi_plane_image->GetBitmap(2);
+      DCHECK(!v_bitmap.isNull());
+      SkMatrix v_matrix = skia_local_transform;
+      ConvertLocalTransformMatrixToSkiaShaderFormat(
+          math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect,
+          &v_matrix);
+      yuv2rgb_shader.reset(SkNEW_ARGS(
+          SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
+                            u_bitmap, u_matrix, v_bitmap, v_matrix)));
+      break;
+    }
+    default: {
+      NOTREACHED() << "Unsupported multi plane image format.";
+      break;
+    }
+  }
 
   SkPaint paint = CreateSkPaintForImageRendering();
   paint.setShader(yuv2rgb_shader);

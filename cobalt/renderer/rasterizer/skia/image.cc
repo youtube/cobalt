@@ -30,7 +30,8 @@ void SkiaImage::DCheckForPremultipliedAlpha(
   TRACE_EVENT0("cobalt::renderer", "SkiaImage::DCheckForPremultipliedAlpha()");
   if (pixel_format == render_tree::kPixelFormatY8 ||
       pixel_format == render_tree::kPixelFormatU8 ||
-      pixel_format == render_tree::kPixelFormatV8) {
+      pixel_format == render_tree::kPixelFormatV8 ||
+      pixel_format == render_tree::kPixelFormatUV8) {
     // These formats don't have alpha, so they are trivially good to go.
     return;
   }
