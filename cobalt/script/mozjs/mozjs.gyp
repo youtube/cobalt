@@ -32,13 +32,15 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],
+      'defines': [ 'ENGINE_SUPPORTS_INT64', ],
       'all_dependent_settings': {
         'defines': [
-          # SpiderMonkey bindings implements indexed deleters.
-          'ENGINE_SUPPORTS_INDEXED_DELETERS',
-        ],
+        # SpiderMonkey bindings implements indexed deleters.
+        'ENGINE_SUPPORTS_INDEXED_DELETERS',
+        'ENGINE_SUPPORTS_INT64', ],
       },
     },
+
     {
       # Standalone executable for JS engine
       'target_name': 'mozjs',

@@ -22,6 +22,7 @@
 
 #include "base/logging.h"
 #include "base/optional.h"
+#include "base/stringprintf.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
@@ -133,6 +134,49 @@ inline void FromJSValue(
   *out_number = static_cast<T>(out);
 }
 
+// JSValue -> signed integers > 4 bytes
+template <typename T>
+inline void FromJSValue(
+    JSContext* context, JS::HandleValue value, int conversion_flags,
+    ExceptionState* exception_state, T* out_number,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
+                                 std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) > 4),
+                             T>::type* = NULL) {
+  double to_number;
+  JS::ToNumber(context, value, &to_number);
+
+  std::string value_str;
+  FromJSValue(context, value, conversion_flags, exception_state, &value_str);
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
+  DCHECK(out_number);
+  int64_t out;
+  // This produces an IDL long long.
+  JSBool success = JS_ValueToInt64(context, value, &out);
+  DCHECK(success);
+  if (!success) {
+    exception_state->SetSimpleException(
+        ExceptionState::kTypeError,
+        "Cannot convert a JavaScript value to int64_t.");
+    return;
+  }
+  *out_number = static_cast<T>(out);
+}
+
+// signed integers > 4 bytes -> JSValue
+template <typename T>
+inline void ToJSValue(
+    JSContext* context, T in_number, JS::MutableHandleValue out_value,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
+                                 std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) > 4),
+                             T>::type* = NULL) {
+  out_value.set(JS_NumberValue(in_number));
+}
+
 // unsigned integers <= 4 bytes -> JSValue
 template <typename T>
 inline void ToJSValue(
@@ -166,6 +210,45 @@ inline void FromJSValue(
   DCHECK(success);
 
   *out_number = static_cast<T>(out);
+}
+
+// JSValue -> unsigned integers > 4 bytes
+template <typename T>
+inline void FromJSValue(
+    JSContext* context, JS::HandleValue value, int conversion_flags,
+    ExceptionState* exception_state, T* out_number,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
+                                 !std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) > 4),
+                             T>::type* = NULL) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
+  DCHECK(out_number);
+
+  uint64_t out;
+  // This produces and IDL unsigned long long.
+  JSBool success = JS_ValueToUint64(context, value, &out);
+  DCHECK(success);
+  if (!success) {
+    exception_state->SetSimpleException(
+        ExceptionState::kTypeError,
+        "Cannot convert a JavaScript value to uint64_t.");
+    return;
+  }
+  *out_number = static_cast<T>(out);
+}
+
+// unsigned integers > 4 bytes -> JSValue
+template <typename T>
+inline void ToJSValue(
+    JSContext* context, T in_number, JS::MutableHandleValue out_value,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
+                                 !std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) > 4),
+                             T>::type* = NULL) {
+  out_value.set(JS_NumberValue(in_number));
 }
 
 // double -> JSValue
