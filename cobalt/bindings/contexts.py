@@ -37,6 +37,7 @@ def idl_primitive_type_to_cobalt(idl_type):
       'short': 'int16_t',
       'unsigned short': 'uint16_t',
       'long': 'int32_t',
+      'long long': 'int64_t',
       'unsigned long': 'uint32_t',
       'unsigned long long': 'uint64_t',
       'float': 'float',
