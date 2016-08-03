@@ -177,12 +177,12 @@ JSBool get_longArg(
       WrapperPrivate::GetFromObject(context, object);
   ConstructorWithArgumentsInterface* impl =
       wrapper_private->wrappable<ConstructorWithArgumentsInterface>().get();
+
   TypeTraits<int32_t >::ReturnType value =
       impl->long_arg();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -199,12 +199,12 @@ JSBool get_booleanArg(
       WrapperPrivate::GetFromObject(context, object);
   ConstructorWithArgumentsInterface* impl =
       wrapper_private->wrappable<ConstructorWithArgumentsInterface>().get();
+
   TypeTraits<bool >::ReturnType value =
       impl->boolean_arg();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -221,12 +221,12 @@ JSBool get_stringArg(
       WrapperPrivate::GetFromObject(context, object);
   ConstructorWithArgumentsInterface* impl =
       wrapper_private->wrappable<ConstructorWithArgumentsInterface>().get();
+
   TypeTraits<std::string >::ReturnType value =
       impl->string_arg();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -425,9 +425,9 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   JS::RootedValue non_optional_value0(
       context, args[0]);
   FromJSValue(context,
-      non_optional_value0,
-      kNoConversionFlags,
-      &exception_state, &arg1);
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
@@ -436,9 +436,9 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   JS::RootedValue non_optional_value1(
       context, args[1]);
   FromJSValue(context,
-      non_optional_value1,
-      kNoConversionFlags,
-      &exception_state, &arg2);
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &arg2);
   if (exception_state.is_exception_set()) {
     return false;
   }
@@ -447,10 +447,10 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
     JS::RootedValue optional_value0(
         context, args[2]);
     FromJSValue(context,
-        optional_value0,
-        kNoConversionFlags,
-        &exception_state,
-        &default_arg);
+                optional_value0,
+                kNoConversionFlags,
+                &exception_state,
+                &default_arg);
     if (exception_state.is_exception_set()) {
       return false;
     }

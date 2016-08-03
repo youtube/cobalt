@@ -179,12 +179,12 @@ JSBool get_callbackAttribute(
       WrapperPrivate::GetFromObject(context, object);
   CallbackInterfaceInterface* impl =
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
+
   TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ReturnType value =
       impl->callback_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -207,14 +207,15 @@ JSBool set_callbackAttribute(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_callback_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_registerCallback(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -234,31 +235,34 @@ JSBool fcn_registerCallback(
       WrapperPrivate::GetFromObject(context, object);
   CallbackInterfaceInterface* impl =
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callback_interface;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &callback_interface);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &callback_interface);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->RegisterCallback(callback_interface);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_someOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -278,13 +282,9 @@ JSBool fcn_someOperation(
       WrapperPrivate::GetFromObject(context, object);
   CallbackInterfaceInterface* impl =
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->SomeOperation();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

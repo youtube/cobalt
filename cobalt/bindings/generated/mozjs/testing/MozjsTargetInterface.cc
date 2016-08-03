@@ -167,6 +167,7 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_implementedInterfaceFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -186,18 +187,15 @@ JSBool fcn_implementedInterfaceFunction(
       WrapperPrivate::GetFromObject(context, object);
   TargetInterface* impl =
       wrapper_private->wrappable<TargetInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->ImplementedInterfaceFunction();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_partialInterfaceFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -217,13 +215,9 @@ JSBool fcn_partialInterfaceFunction(
       WrapperPrivate::GetFromObject(context, object);
   TargetInterface* impl =
       wrapper_private->wrappable<TargetInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->PartialInterfaceFunction();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

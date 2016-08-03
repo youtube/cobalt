@@ -15,5 +15,9 @@
  */
 interface StaticPropertiesInterface {
   static void staticFunction();
+  static void staticFunction(long arg);
+  static void staticFunction(DOMString arg);
+  static void staticFunction(long arg1, long arg2, long arg3);
+  static void staticFunction(long arg1, long arg2, ArbitraryInterface arg3);
   static attribute DOMString staticAttribute;
 };

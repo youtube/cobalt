@@ -167,6 +167,7 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_callWithSettings(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -186,15 +187,11 @@ JSBool fcn_callWithSettings(
       WrapperPrivate::GetFromObject(context, object);
   ExtendedIDLAttributesInterface* impl =
       wrapper_private->wrappable<ExtendedIDLAttributesInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+
   impl->CallWithSettings(global_object_proxy->GetEnvironmentSettings());
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

@@ -19,6 +19,9 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
+using ::testing::A;
+using ::testing::InSequence;
 using ::testing::Return;
 
 namespace cobalt {
@@ -36,6 +39,43 @@ TEST_F(StaticPropertiesBindingsTest, StaticFunction) {
               StaticFunction());
   EXPECT_TRUE(
       EvaluateScript("StaticPropertiesInterface.staticFunction();", NULL));
+}
+
+TEST_F(StaticPropertiesBindingsTest,
+       StaticOverloadedOperationByNumberOfArguments) {
+  InSequence in_sequence_dummy;
+
+  EXPECT_CALL(StaticPropertiesInterface::static_methods_mock.Get(),
+              StaticFunction());
+  EXPECT_TRUE(
+      EvaluateScript("StaticPropertiesInterface.staticFunction();", NULL));
+
+  EXPECT_CALL(StaticPropertiesInterface::static_methods_mock.Get(),
+              StaticFunction(_, _, A<int32_t>()));
+  EXPECT_TRUE(EvaluateScript(
+      "StaticPropertiesInterface.staticFunction(6, 8, 9);", NULL));
+
+  EXPECT_CALL(
+      StaticPropertiesInterface::static_methods_mock.Get(),
+      StaticFunction(_, _, A<const scoped_refptr<ArbitraryInterface>&>()));
+  EXPECT_TRUE(
+      EvaluateScript("StaticPropertiesInterface.staticFunction(6, 8, new "
+                     "ArbitraryInterface());",
+                     NULL));
+}
+
+TEST_F(StaticPropertiesBindingsTest, StaticOverloadedOperationByType) {
+  InSequence in_sequence_dummy;
+
+  EXPECT_CALL(StaticPropertiesInterface::static_methods_mock.Get(),
+              StaticFunction(A<int32_t>()));
+  EXPECT_TRUE(
+      EvaluateScript("StaticPropertiesInterface.staticFunction(4);", NULL));
+
+  EXPECT_CALL(StaticPropertiesInterface::static_methods_mock.Get(),
+              StaticFunction(A<const std::string&>()));
+  EXPECT_TRUE(EvaluateScript(
+      "StaticPropertiesInterface.staticFunction(\"foo\");", NULL));
 }
 
 TEST_F(StaticPropertiesBindingsTest, GetStaticAttribute) {

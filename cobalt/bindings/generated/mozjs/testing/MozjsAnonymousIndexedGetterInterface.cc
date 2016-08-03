@@ -128,12 +128,12 @@ JSBool GetIndexedProperty(
     NOTREACHED();
     return false;
   }
+
   TypeTraits<uint32_t >::ReturnType value =
       impl->AnonymousIndexedGetter(index);
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -169,9 +169,9 @@ JSBool SetIndexedProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->AnonymousIndexedSetter(index, value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -266,12 +266,12 @@ JSBool get_length(
       WrapperPrivate::GetFromObject(context, object);
   AnonymousIndexedGetterInterface* impl =
       wrapper_private->wrappable<AnonymousIndexedGetterInterface>().get();
+
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }

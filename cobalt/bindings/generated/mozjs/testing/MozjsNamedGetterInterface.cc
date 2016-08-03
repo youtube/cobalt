@@ -127,12 +127,12 @@ JSBool GetNamedProperty(
     NOTREACHED();
     return false;
   }
+
   TypeTraits<std::string >::ReturnType value =
       impl->NamedGetter(property_name);
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -169,9 +169,9 @@ JSBool SetNamedProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->NamedSetter(property_name, value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -184,9 +184,9 @@ bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
       WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
       wrapper_private->wrappable<NamedGetterInterface>().get();
+
   impl->NamedDeleter(property_name);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -273,6 +273,7 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_namedDeleter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -292,31 +293,34 @@ JSBool fcn_namedDeleter(
       WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
       wrapper_private->wrappable<NamedGetterInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<std::string >::ConversionType name;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &name);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &name);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->NamedDeleter(name);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_namedGetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -336,26 +340,31 @@ JSBool fcn_namedGetter(
       WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
       wrapper_private->wrappable<NamedGetterInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<std::string >::ConversionType name;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &name);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &name);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   TypeTraits<std::string >::ReturnType value =
       impl->NamedGetter(name);
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -364,6 +373,7 @@ JSBool fcn_namedGetter(
 
 JSBool fcn_namedSetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -383,33 +393,40 @@ JSBool fcn_namedSetter(
       WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
       wrapper_private->wrappable<NamedGetterInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<std::string >::ConversionType name;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &name);
-  if (exception_state.is_exception_set()) {
-    return false;
-  }
   TypeTraits<std::string >::ConversionType value;
-  DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1),
-      kNoConversionFlags, &exception_state, &value);
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &name);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
+  DCHECK_LT(1, args.length());
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
   impl->NamedSetter(name, value);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

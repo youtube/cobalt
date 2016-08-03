@@ -168,10 +168,17 @@ TEST_F(OperationsBindingsTest, OverloadedOperationByType) {
 }
 
 TEST_F(OperationsBindingsTest, StaticMethodNotPartOfOverloadSet) {
+  InSequence in_sequence_dummy;
+
   EXPECT_CALL(OperationsTestInterface::static_methods_mock.Get(),
               OverloadedFunction(_));
   EXPECT_TRUE(
       EvaluateScript("OperationsTestInterface.overloadedFunction(6.1);", NULL));
+
+  EXPECT_CALL(OperationsTestInterface::static_methods_mock.Get(),
+              OverloadedFunction(_, _));
+  EXPECT_TRUE(EvaluateScript(
+      "OperationsTestInterface.overloadedFunction(4, 8);", NULL));
 }
 
 TEST_F(OperationsBindingsTest, OverloadedOperationByOptionality) {

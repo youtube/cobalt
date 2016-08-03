@@ -15,6 +15,43 @@
  #}
 
 {#
+ # Function body for operation bindings.
+ # Parameters:
+ #     operation: The operation context object
+ #}
+{% macro function_implementation(operation) %}
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+{% if operation.is_static %}
+{{ static_function_prologue() }}
+{% else %}
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+{% endif %}
+{% call(arguments_list) extract_arguments(operation) %}
+{{ call_cobalt_function(impl_class, operation.type, operation.name,
+                         arguments_list, operation.raises_exception,
+                         operation.call_with, operation.is_static) }}
+{% if operation.type != 'void' %}
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+{% endif %}
+  return !exception_state.is_exception_set();
+{%- endcall %}
+{%- endmacro %}
+
+{#
  # Extract and marshal arguments that will be passed to a function-like call.
  # Parameters:
  #     operation: An IdlOperation object
@@ -61,8 +98,8 @@
 {% endfor %}
 {% if variadic_argument %}
   // Variadic argument
-  TypeTraits<{{variadic_argument.type}} >::ConversionType
-      {{variadic_argument.name}};
+  TypeTraits<{{variadic_argument.type}} >::ConversionType {{
+      variadic_argument.name}};
 {% endif -%}
 
 {% for argument in non_optional_arguments %}
@@ -71,9 +108,9 @@
   JS::RootedValue non_optional_value{{loop.index0}}(
       context, args[{{loop.index0}}]);
   FromJSValue(context,
-      non_optional_value{{loop.index0}},
-      {{argument.conversion_flags}},
-      &exception_state, &{{argument.name}});
+              non_optional_value{{loop.index0}},
+              {{argument.conversion_flags}},
+              &exception_state, &{{argument.name}});
   if (exception_state.is_exception_set()) {
     return false;
   }
@@ -87,10 +124,10 @@
     JS::RootedValue optional_value{{loop.index0}}(
         context, args[{{loop.index0 + non_optional_arguments|length}}]);
     FromJSValue(context,
-        optional_value{{loop.index0}},
-        {{argument.conversion_flags}},
-        &exception_state,
-        &{{argument.name}});
+                optional_value{{loop.index0}},
+                {{argument.conversion_flags}},
+                &exception_state,
+                &{{argument.name}});
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -114,16 +151,15 @@
 {% endif %}
   const size_t kFirstVariadicArgIndex = {{operation.arguments|length - 1}};
   if (args.length() > kFirstVariadicArgIndex) {
-    {{variadic_argument.name}}.resize(
-        args.length() - kFirstVariadicArgIndex);
+    {{variadic_argument.name}}.resize(args.length() - kFirstVariadicArgIndex);
     for (int i = 0; i + kFirstVariadicArgIndex < args.length(); ++i) {
       JS::RootedValue variadic_argument_value{{i}}(
           context, args[i + kFirstVariadicArgIndex]);
-      FromJSValue(exec_state,
-          variadic_argument_value{{i}},
-          {{variadic_argument.conversion_flags}},
-          &exception_state,
-          &{{variadic_argument.name}}[i]);
+      FromJSValue(context,
+                  variadic_argument_value{{i}},
+                  {{variadic_argument.conversion_flags}},
+                  &exception_state,
+                  &{{variadic_argument.name}}[i]);
       if (exception_state.is_exception_set()) {
         return false;
       }
@@ -146,10 +182,9 @@
       operation.arguments[0:num_arguments]|map(attribute='name')|list %}
     case {{num_arguments}}:
       {
-        {# whitespace control block #}
-        {{-caller(function_arguments)|indent(8, True)}}
-        break;
+        {{- caller(function_arguments)|indent(8, false) }}
       }
+      break;
 {% endif %}
 {% endfor %}
     default:
@@ -175,16 +210,14 @@
  # Passed to caller:
  #     arguments_list, possibly with extra arguments prepended and appended.
  #}
-{% macro add_extra_arguments(arguments_list, context) %}
-{% if context.call_with %}
+{% macro add_extra_arguments(arguments_list, raises_exception, call_with) %}
+{% if call_with %}
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
 {% do arguments_list.append(
-    '%s->Get%s()'|format(global_object_proxy, context.call_with)) %};
+      'global_object_proxy->Get%s()'|format(call_with)) %}
 {% endif %}
-{% if context.raises_exception %}
-{% do arguments_list.append('&exception_state') %}
-{% endif %}
+{% do arguments_list.append('&exception_state') if raises_exception %}
 {%- endmacro %}
 
 {% macro call_nonvoid_function(return_type, function_name, arguments,
@@ -232,18 +265,12 @@
  #}
 {% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments,
                               raises_exception, call_with, is_static) %}
-{% if call_with %}
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-{% endif %}
-{% do arguments.append("&exception_state") if raises_exception %}
-{% do arguments.append("global_object_proxy->Get%s()"|format(call_with))
-    if call_with %}
+{{ add_extra_arguments(arguments, raises_exception, call_with) }}
 {% if cobalt_type == "void" %}
-{{ call_void_function(function_name, arguments, impl_class, is_static) }}
+{{ call_void_function(function_name, arguments, impl_class, is_static) -}}
 {% else %}
 {{ call_nonvoid_function(cobalt_type, function_name, arguments, impl_class,
-                         is_static) }}
+                         is_static) -}}
 {% endif %}
 {% endmacro %}
 
@@ -256,7 +283,8 @@
   MozjsExceptionState exception_state(context);
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
 {% call(arguments_list) extract_arguments(constructor) %}
-{{ add_extra_arguments(arguments_list, constructor) }}
+{{ add_extra_arguments(arguments_list, constructor.raises_exception,
+                       constructor.call_with) }}
   scoped_refptr<{{impl_class}}> new_object =
       new {{impl_class}}({{arguments_list|join(', ')}});
   JS::RootedValue result_value(context);
@@ -270,23 +298,28 @@
 
 {#
  # Function body for overload resolution function.
+ # Parameters:
+ #     overload_context: The overload context object.
+ #     bound_function_prefix: The prefix of the function to be called on
+ #         resolution. The overload index will be appended to this.
  #}
-{% macro overload_resolution_implementation() %}
+{% macro overload_resolution_implementation(
+      overload_context, bound_function_prefix) %}
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   switch(argc) {
 {% for length, distinguishing_argument_index, resolution_tests in
-       constructor.overload_resolution_by_length %}
+       overload_context.overload_resolution_by_length %}
     case({{length}}): {
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
 {# In the case there is only one resolution condition, we don't need the arg. #}
 {% if resolution_tests|length > 1 %}
-      JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-      JS::RootedValue arg(
-          context, args[{{distinguishing_argument_index}}]);
+      JS::RootedValue arg(context, args[{{distinguishing_argument_index}}]);
 {% endif %}
 {% for test, overload in resolution_tests %}
       if ({{test("arg")}}) {
-        return Constructor{{overload.overload_index}}(context, argc, vp);
+        return {{bound_function_prefix}}{{overload.overload_index}}(
+                  context, argc, vp);
       }
 {% endfor %}
       break;
