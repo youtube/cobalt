@@ -115,10 +115,6 @@ static base::LazyInstance<MozjsConstructorInterfaceHandler>
     proxy_handler;
 
 JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
-JSBool Constructor1(
-    JSContext* context, unsigned int argc, JS::Value* vp);
-JSBool Constructor2(
-    JSContext* context, unsigned int argc, JS::Value* vp);
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -325,34 +321,6 @@ JSObject* MozjsConstructorInterface::GetInterfaceObject(JSContext* context) {
 
 
 namespace {
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
-  switch(argc) {
-    case(0): {
-      // Overload resolution algorithm details found here:
-      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
-      if (true) {
-        return Constructor1(context, argc, vp);
-      }
-      break;
-    }
-    case(1): {
-      // Overload resolution algorithm details found here:
-      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
-      if (true) {
-        return Constructor2(context, argc, vp);
-      }
-      break;
-    }
-  }
-  // Invalid number of args
-  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
-  // 4. If S is empty, then throw a TypeError.
-  MozjsExceptionState exception_state(context);
-  exception_state.SetSimpleException(
-      script::ExceptionState::kTypeError, "Invalid number of arguments.");
-  return false;
-}
-
 JSBool Constructor1(
     JSContext* context, unsigned int argc, JS::Value* vp) {
   MozjsExceptionState exception_state(context);
@@ -385,9 +353,9 @@ JSBool Constructor2(
   JS::RootedValue non_optional_value0(
       context, args[0]);
   FromJSValue(context,
-      non_optional_value0,
-      kNoConversionFlags,
-      &exception_state, &arg);
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
   if (exception_state.is_exception_set()) {
     return false;
   }
@@ -400,6 +368,37 @@ JSBool Constructor2(
   JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
   args.rval().setObject(*result_object);
   return true;
+}
+
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  switch(argc) {
+    case(0): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return Constructor1(
+                  context, argc, vp);
+      }
+      break;
+    }
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return Constructor2(
+                  context, argc, vp);
+      }
+      break;
+    }
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  MozjsExceptionState exception_state(context);
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
 }
 }  // namespace
 

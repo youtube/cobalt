@@ -167,6 +167,7 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_theStringifierOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -186,13 +187,12 @@ JSBool fcn_theStringifierOperation(
       WrapperPrivate::GetFromObject(context, object);
   StringifierOperationInterface* impl =
       wrapper_private->wrappable<StringifierOperationInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<std::string >::ReturnType value =
       impl->TheStringifierOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }

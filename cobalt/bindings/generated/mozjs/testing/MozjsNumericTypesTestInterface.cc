@@ -175,12 +175,12 @@ JSBool get_byteProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<int8_t >::ReturnType value =
       impl->byte_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -203,9 +203,9 @@ JSBool set_byteProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_byte_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -219,12 +219,12 @@ JSBool get_octetProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<uint8_t >::ReturnType value =
       impl->octet_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -247,9 +247,9 @@ JSBool set_octetProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_octet_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -263,12 +263,12 @@ JSBool get_shortProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<int16_t >::ReturnType value =
       impl->short_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -291,9 +291,9 @@ JSBool set_shortProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -307,12 +307,12 @@ JSBool get_unsignedShortProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<uint16_t >::ReturnType value =
       impl->unsigned_short_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -335,9 +335,9 @@ JSBool set_unsignedShortProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_unsigned_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -351,12 +351,12 @@ JSBool get_longProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<int32_t >::ReturnType value =
       impl->long_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -379,9 +379,9 @@ JSBool set_longProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -395,12 +395,12 @@ JSBool get_unsignedLongProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<uint32_t >::ReturnType value =
       impl->unsigned_long_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -423,9 +423,9 @@ JSBool set_unsignedLongProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_unsigned_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -439,12 +439,12 @@ JSBool get_longLongProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<int64_t >::ReturnType value =
       impl->long_long_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -467,9 +467,9 @@ JSBool set_longLongProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_long_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -483,12 +483,12 @@ JSBool get_unsignedLongLongProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<uint64_t >::ReturnType value =
       impl->unsigned_long_long_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -511,9 +511,9 @@ JSBool set_unsignedLongLongProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_unsigned_long_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -527,12 +527,12 @@ JSBool get_doubleProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<double >::ReturnType value =
       impl->double_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -555,9 +555,9 @@ JSBool set_doubleProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -571,12 +571,12 @@ JSBool get_unrestrictedDoubleProperty(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
   TypeTraits<double >::ReturnType value =
       impl->unrestricted_double_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -599,14 +599,15 @@ JSBool set_unrestrictedDoubleProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_unrestricted_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_byteArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -626,31 +627,34 @@ JSBool fcn_byteArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int8_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->ByteArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_byteReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -670,13 +674,12 @@ JSBool fcn_byteReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<int8_t >::ReturnType value =
       impl->ByteReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -685,6 +688,7 @@ JSBool fcn_byteReturnOperation(
 
 JSBool fcn_doubleArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -704,31 +708,34 @@ JSBool fcn_doubleArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<double >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagRestricted), &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagRestricted),
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->DoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_doubleReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -748,13 +755,12 @@ JSBool fcn_doubleReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<double >::ReturnType value =
       impl->DoubleReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -763,6 +769,7 @@ JSBool fcn_doubleReturnOperation(
 
 JSBool fcn_longArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -782,31 +789,34 @@ JSBool fcn_longArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int32_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->LongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_longLongArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -826,31 +836,34 @@ JSBool fcn_longLongArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int64_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->LongLongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_longLongReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -870,13 +883,12 @@ JSBool fcn_longLongReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<int64_t >::ReturnType value =
       impl->LongLongReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -885,6 +897,7 @@ JSBool fcn_longLongReturnOperation(
 
 JSBool fcn_longReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -904,13 +917,12 @@ JSBool fcn_longReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<int32_t >::ReturnType value =
       impl->LongReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -919,6 +931,7 @@ JSBool fcn_longReturnOperation(
 
 JSBool fcn_octetArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -938,31 +951,34 @@ JSBool fcn_octetArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint8_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->OctetArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_octetReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -982,13 +998,12 @@ JSBool fcn_octetReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<uint8_t >::ReturnType value =
       impl->OctetReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -997,6 +1012,7 @@ JSBool fcn_octetReturnOperation(
 
 JSBool fcn_shortArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1016,31 +1032,34 @@ JSBool fcn_shortArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int16_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->ShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_shortReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1060,13 +1079,12 @@ JSBool fcn_shortReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<int16_t >::ReturnType value =
       impl->ShortReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -1075,6 +1093,7 @@ JSBool fcn_shortReturnOperation(
 
 JSBool fcn_unrestrictedDoubleArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1094,31 +1113,34 @@ JSBool fcn_unrestrictedDoubleArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<double >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->UnrestrictedDoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unrestrictedDoubleReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1138,13 +1160,12 @@ JSBool fcn_unrestrictedDoubleReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<double >::ReturnType value =
       impl->UnrestrictedDoubleReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -1153,6 +1174,7 @@ JSBool fcn_unrestrictedDoubleReturnOperation(
 
 JSBool fcn_unsignedLongArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1172,31 +1194,34 @@ JSBool fcn_unsignedLongArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint32_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->UnsignedLongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedLongLongArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1216,31 +1241,34 @@ JSBool fcn_unsignedLongLongArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint64_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->UnsignedLongLongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedLongLongReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1260,13 +1288,12 @@ JSBool fcn_unsignedLongLongReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<uint64_t >::ReturnType value =
       impl->UnsignedLongLongReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -1275,6 +1302,7 @@ JSBool fcn_unsignedLongLongReturnOperation(
 
 JSBool fcn_unsignedLongReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1294,13 +1322,12 @@ JSBool fcn_unsignedLongReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<uint32_t >::ReturnType value =
       impl->UnsignedLongReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -1309,6 +1336,7 @@ JSBool fcn_unsignedLongReturnOperation(
 
 JSBool fcn_unsignedShortArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1328,31 +1356,34 @@ JSBool fcn_unsignedShortArgumentOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint16_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->UnsignedShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedShortReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1372,13 +1403,12 @@ JSBool fcn_unsignedShortReturnOperation(
       WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<uint16_t >::ReturnType value =
       impl->UnsignedShortReturnOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }

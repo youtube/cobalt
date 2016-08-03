@@ -28,6 +28,8 @@
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
+#include "JSCArbitraryInterface.h"
+#include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "cobalt/script/javascriptcore/constructor_base.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
@@ -53,6 +55,8 @@
 namespace {
 using cobalt::bindings::testing::StaticPropertiesInterface;
 using cobalt::bindings::testing::JSCStaticPropertiesInterface;
+using cobalt::bindings::testing::ArbitraryInterface;
+using cobalt::bindings::testing::JSCArbitraryInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalObjectProxy;
 using cobalt::script::OpaqueHandle;
@@ -104,6 +108,11 @@ void setJSstaticAttribute(
     JSC::JSObject* this_object,
     JSC::JSValue value);
 JSC::EncodedJSValue staticFunctionJSstaticFunction(JSC::ExecState*);
+JSC::EncodedJSValue staticFunctionJSstaticFunction1(JSC::ExecState*);
+JSC::EncodedJSValue staticFunctionJSstaticFunction2(JSC::ExecState*);
+JSC::EncodedJSValue staticFunctionJSstaticFunction3(JSC::ExecState*);
+JSC::EncodedJSValue staticFunctionJSstaticFunction4(JSC::ExecState*);
+JSC::EncodedJSValue staticFunctionJSstaticFunction5(JSC::ExecState*);
 
 // These are declared unconditionally, but only defined if needed by the
 // interface.
@@ -673,11 +682,201 @@ void setJSstaticAttribute(
 JSC::EncodedJSValue staticFunctionJSstaticFunction(
     JSC::ExecState* exec_state) {
   TRACE_EVENT0("JSCStaticPropertiesInterface", "call staticFunction");
+  const size_t num_arguments = exec_state->argumentCount();
+  switch(num_arguments) {
+    case(0): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return staticFunctionJSstaticFunction1(exec_state);
+      }
+      break;
+    }
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      JSC::JSValue arg = exec_state->argument(0);
+      if (arg.isNumber()) {
+        return staticFunctionJSstaticFunction2(exec_state);
+      }
+      if (true) {
+        return staticFunctionJSstaticFunction3(exec_state);
+      }
+      if (true) {
+        return staticFunctionJSstaticFunction2(exec_state);
+      }
+      break;
+    }
+    case(3): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      JSC::JSValue arg = exec_state->argument(2);
+      if (arg.inherits(JSCArbitraryInterface::s_classinfo())) {
+        return staticFunctionJSstaticFunction5(exec_state);
+      }
+      if (true) {
+        return staticFunctionJSstaticFunction4(exec_state);
+      }
+      break;
+    }
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  return JSC::throwVMTypeError(exec_state);
+}
+
+JSC::EncodedJSValue staticFunctionJSstaticFunction1(
+    JSC::ExecState* exec_state) {
   JSCGlobalObject* global_object =
       JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
   JSCExceptionState exception_state(global_object);
 
   StaticPropertiesInterface::StaticFunction();
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue staticFunctionJSstaticFunction2(
+    JSC::ExecState* exec_state) {
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+
+  const size_t kMinArguments = 1;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  StaticPropertiesInterface::StaticFunction(arg);
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue staticFunctionJSstaticFunction3(
+    JSC::ExecState* exec_state) {
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+
+  const size_t kMinArguments = 1;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<std::string >::ConversionType arg;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  StaticPropertiesInterface::StaticFunction(arg);
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue staticFunctionJSstaticFunction4(
+    JSC::ExecState* exec_state) {
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+
+  const size_t kMinArguments = 3;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  TypeTraits<int32_t >::ConversionType arg2;
+  TypeTraits<int32_t >::ConversionType arg3;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+
+  DCHECK_LT(1, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(1),
+      kNoConversionFlags,
+      &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+
+  DCHECK_LT(2, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(2),
+      kNoConversionFlags,
+      &exception_state, &arg3);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  StaticPropertiesInterface::StaticFunction(arg1, arg2, arg3);
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue staticFunctionJSstaticFunction5(
+    JSC::ExecState* exec_state) {
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+
+  const size_t kMinArguments = 3;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  TypeTraits<int32_t >::ConversionType arg2;
+  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg3;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+
+  DCHECK_LT(1, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(1),
+      kNoConversionFlags,
+      &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+
+  DCHECK_LT(2, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(2),
+      kNoConversionFlags,
+      &exception_state, &arg3);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  StaticPropertiesInterface::StaticFunction(arg1, arg2, arg3);
   return JSC::JSValue::encode(JSC::jsUndefined());
 
 }

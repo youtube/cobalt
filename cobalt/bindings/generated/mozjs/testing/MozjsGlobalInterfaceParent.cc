@@ -167,6 +167,7 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_parentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -186,13 +187,9 @@ JSBool fcn_parentOperation(
       WrapperPrivate::GetFromObject(context, object);
   GlobalInterfaceParent* impl =
       wrapper_private->wrappable<GlobalInterfaceParent>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->ParentOperation();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

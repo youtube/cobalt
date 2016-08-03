@@ -175,12 +175,12 @@ JSBool get_derivedAttribute(
       WrapperPrivate::GetFromObject(context, object);
   DerivedInterface* impl =
       wrapper_private->wrappable<DerivedInterface>().get();
+
   TypeTraits<std::string >::ReturnType value =
       impl->derived_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -189,6 +189,7 @@ JSBool get_derivedAttribute(
 
 JSBool fcn_derivedOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -208,13 +209,9 @@ JSBool fcn_derivedOperation(
       WrapperPrivate::GetFromObject(context, object);
   DerivedInterface* impl =
       wrapper_private->wrappable<DerivedInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->DerivedOperation();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

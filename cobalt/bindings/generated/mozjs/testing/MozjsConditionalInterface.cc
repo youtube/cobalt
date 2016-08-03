@@ -178,12 +178,12 @@ JSBool get_enabledAttribute(
       WrapperPrivate::GetFromObject(context, object);
   ConditionalInterface* impl =
       wrapper_private->wrappable<ConditionalInterface>().get();
+
   TypeTraits<int32_t >::ReturnType value =
       impl->enabled_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -206,9 +206,9 @@ JSBool set_enabledAttribute(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_enabled_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -224,12 +224,12 @@ JSBool get_disabledAttribute(
       WrapperPrivate::GetFromObject(context, object);
   ConditionalInterface* impl =
       wrapper_private->wrappable<ConditionalInterface>().get();
+
   TypeTraits<int32_t >::ReturnType value =
       impl->disabled_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -252,9 +252,9 @@ JSBool set_disabledAttribute(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_disabled_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -262,6 +262,7 @@ JSBool set_disabledAttribute(
 #if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
 JSBool fcn_disabledOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -281,13 +282,9 @@ JSBool fcn_disabledOperation(
       WrapperPrivate::GetFromObject(context, object);
   ConditionalInterface* impl =
       wrapper_private->wrappable<ConditionalInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->DisabledOperation();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
@@ -295,6 +292,7 @@ JSBool fcn_disabledOperation(
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
 JSBool fcn_enabledOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -314,13 +312,9 @@ JSBool fcn_enabledOperation(
       WrapperPrivate::GetFromObject(context, object);
   ConditionalInterface* impl =
       wrapper_private->wrappable<ConditionalInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->EnabledOperation();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

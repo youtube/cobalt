@@ -175,12 +175,12 @@ JSBool get_supportedAttribute(
       WrapperPrivate::GetFromObject(context, object);
   InterfaceWithUnsupportedProperties* impl =
       wrapper_private->wrappable<InterfaceWithUnsupportedProperties>().get();
+
   TypeTraits<int32_t >::ReturnType value =
       impl->supported_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
