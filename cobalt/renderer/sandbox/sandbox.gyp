@@ -45,7 +45,7 @@
       'variables': {
         'executable_name': 'renderer_sandbox',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
 
     {
@@ -76,7 +76,7 @@
       'variables': {
         'executable_name': 'scaling_text_sandbox',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
   ],
 }

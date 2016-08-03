@@ -84,7 +84,7 @@
       'variables': {
         'executable_name': 'dom_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }
