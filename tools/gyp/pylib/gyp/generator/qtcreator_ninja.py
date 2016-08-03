@@ -299,8 +299,8 @@ def GenerateQTCreatorFiles(target_dicts, params):
         (GetSet(target, 'sources') - GetSet(target, 'sources_excluded')),
         gyp_dirname, projects_dir)
     sources |= set([os.path.relpath(gyp_abspath, projects_dir)])
-    # Generate projects for all executable targets that contain a deploy step
-    if target['target_name'].endswith('_deploy'):
+    # Generate projects for targets with the ide_deploy_target variable set.
+    if GetValue(target, 'variables/ide_deploy_target', 0):
       executable_target = GetValue(target, 'variables/executable_name')
       assert executable_target
       executable_folder = os.path.relpath(gyp_dirname, repo_dir)
