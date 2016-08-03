@@ -45,12 +45,30 @@ class IntegerTypeBindingsTest : public NumericTypeBindingsTest<T> {};
 template <typename T>
 class FloatingPointTypeBindingsTest : public NumericTypeBindingsTest<T> {};
 
+#if defined(ENGINE_SUPPORTS_INT64)
+template <typename T>
+class LargeIntegerTypeBindingsTest : public NumericTypeBindingsTest<T> {};
+
+typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
+                         UnsignedShortTypeTest, LongTypeTest,
+                         UnsignedLongTypeTest, LongLongTypeTest,
+                         UnsignedLongLongTypeTest, DoubleTypeTest> NumericTypes;
+
+typedef ::testing::Types<LongLongTypeTest, UnsignedLongLongTypeTest>
+    LargeIntegerTypes;
+
+TYPED_TEST_CASE(LargeIntegerTypeBindingsTest, LargeIntegerTypes);
+#else
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
                          UnsignedLongTypeTest, DoubleTypeTest> NumericTypes;
+#endif  // ENGINE_SUPPORTS_INT64
+// Not including long longs in IntegerTypes, due to different casting
+// behaviours.
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
                          UnsignedLongTypeTest> IntegerTypes;
+
 typedef ::testing::Types<DoubleTypeTest, UnrestrictedDoubleTypeTest>
     FloatingPointTypes;
 TYPED_TEST_CASE(NumericTypeBindingsTest, NumericTypes);
@@ -141,7 +159,6 @@ TYPED_TEST(IntegerTypeBindingsTest, SetPropertyRange) {
   EXPECT_CALL(this->test_mock(), mock_set_property(0));
   EXPECT_TRUE(this->EvaluateScript(
       StringPrintf("test.%sProperty = 0;", TypeParam::type_string()), NULL));
-
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
   EXPECT_TRUE(this->EvaluateScript(
       StringPrintf("test.%sProperty = %s;", TypeParam::type_string(),
@@ -209,6 +226,196 @@ TYPED_TEST(IntegerTypeBindingsTest, OutOfRangeBehaviour) {
                    TypeParam::min_value_string()),
       NULL));
 }
+
+#if defined(ENGINE_SUPPORTS_INT64)
+TYPED_TEST(LargeIntegerTypeBindingsTest, PropertyValueRange) {
+  InSequence in_sequence_dummy;
+
+  std::string result;
+  std::string script =
+      StringPrintf("test.%sProperty;", TypeParam::type_string());
+
+  EXPECT_CALL(this->test_mock(), mock_get_property()).WillOnce(Return(0));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ("0", result.c_str());
+
+  EXPECT_CALL(this->test_mock(), mock_get_property())
+      .WillOnce(Return(TypeParam::min_value()));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ(TypeParam::min_value_string(), result.c_str());
+
+  EXPECT_CALL(this->test_mock(), mock_get_property())
+      .WillOnce(Return(TypeParam::max_value()));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ(TypeParam::max_value_string(), result.c_str());
+}
+
+// These tests require converting LargeIntegers (e.g. long long) to
+// JSValues using the IDL spec:
+// https://www.w3.org/TR/2012/CR-WebIDL-20120419/#es-long-long
+// This preserves exactly the range (-(2^53 - 1), 2^53 -1) and
+// approximately outside that range (see the spec for details).
+TYPED_TEST(LargeIntegerTypeBindingsTest, ReturnValueRange) {
+  InSequence in_sequence_dummy;
+
+  // Exactly preserve 0.
+  std::string result;
+  std::string script =
+      StringPrintf("test.%sReturnOperation();", TypeParam::type_string());
+  EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
+      .WillOnce(Return(0));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ("0", result.c_str());
+
+  // Approximately preserve int64_t/uint64_t min.
+  EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
+      .WillOnce(Return(TypeParam::min_value()));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ(TypeParam::min_value_string(), result.c_str());
+
+  // Approximately preserve int64_t/uint64_t max.
+  EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
+      .WillOnce(Return(TypeParam::max_value()));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ(TypeParam::max_value_string(), result.c_str());
+
+  // Exactly preserve 2^53 - 1.
+  const uint64_t kRangeBound = (1ll << 53) - 1;
+  std::string expected_result = StringPrintf("%" PRIu64 "", kRangeBound);
+  EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
+      .WillOnce(Return(kRangeBound));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ(expected_result.c_str(), result.c_str());
+
+  // Signed : exactly preserve -(2^53 - 1).
+  if (TypeParam::min_value() < 0) {
+    expected_result = StringPrintf("-%" PRIu64 "", kRangeBound);
+    EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
+        .WillOnce(Return(-kRangeBound));
+    EXPECT_TRUE(this->EvaluateScript(script, &result));
+    EXPECT_STREQ(expected_result.c_str(), result.c_str());
+  }
+
+  // Exactly preserve 9223372036854775000 (between 2^53 and int64_t max).
+  expected_result = "9223372036854775000";
+  EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
+      .WillOnce(Return(9223372036854775000ll));
+  EXPECT_TRUE(this->EvaluateScript(script, &result));
+  EXPECT_STREQ(expected_result.c_str(), result.c_str());
+
+  // Unsigned : exactly preserve 18446744073709550000 (between 2^53
+  // and uint64_t max).
+  if (TypeParam::min_value() >= 0) {
+    expected_result = "18446744073709550000";
+    EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
+        .WillOnce(Return(18446744073709550000l));
+    EXPECT_TRUE(this->EvaluateScript(script, &result));
+    EXPECT_STREQ(expected_result.c_str(), result.c_str());
+  }
+}
+
+// These tests require converting JSValues to LargeIntegers (e.g. long long)
+// using the IDL spec:
+// https://www.w3.org/TR/2012/CR-WebIDL-20120419/#es-long-long
+// This preserves exactly the range (-(2^53 - 1), 2^53 -1),
+// and for all other values does the following:
+// For input value V.
+// x = ToNumber(V)
+// If x is Nan, +inf, -inf return 0
+// ...Handle extended_attribute special cases...
+// 5. x = sign(x) * floor(abs(x))
+// 6. x = x mod 2^64
+// 7. If x >= 2^63, x = x - 2^64 (for signed only)
+// 8. Return the IDL long long value that represents the same numeric
+//    value as x.
+TYPED_TEST(LargeIntegerTypeBindingsTest, SetPropertyRange) {
+  InSequence in_sequence_dummy;
+
+  // Exactly preserve 0.
+  EXPECT_CALL(this->test_mock(), mock_set_property(0));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sProperty = 0;", TypeParam::type_string()), NULL));
+
+  // Exactly preserve 2^53 - 1.
+  EXPECT_CALL(this->test_mock(), mock_set_property((1ll << 53) - 1));
+  EXPECT_TRUE(
+      this->EvaluateScript(StringPrintf("test.%sProperty = 9007199254740991;",
+                                        TypeParam::type_string()),
+                           NULL));
+
+  // Signed : exactly preserve -(2^53 - 1).
+  if (TypeParam::min_value() < 0) {
+    EXPECT_CALL(this->test_mock(), mock_set_property(-((1ll << 53) - 1)));
+    EXPECT_TRUE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = -9007199254740991;",
+                     TypeParam::type_string()),
+        NULL));
+  }
+
+  // Send 9223372036854775000 (between 2^53 and int64_t max) to
+  // 9223372036854774784.
+  EXPECT_CALL(this->test_mock(), mock_set_property(9223372036854774784));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sProperty = 9223372036854775000;",
+                   TypeParam::type_string()),
+      NULL));
+
+  // Unsigned : send 18446744073709550000 (between 2^53
+  // and uint64_t max) to 18446744073709549568.
+  if (TypeParam::min_value() >= 0) {
+    EXPECT_CALL(this->test_mock(), mock_set_property(18446744073709549568));
+    EXPECT_TRUE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = 18446744073709550000;",
+                     TypeParam::type_string()),
+        NULL));
+  }
+}
+
+// These tests also rely on FromJSValue (similar to above).
+TYPED_TEST(LargeIntegerTypeBindingsTest, ArgumentOperationRange) {
+  InSequence in_sequence_dummy;
+
+  // Exactly preserve 0.
+  EXPECT_CALL(this->test_mock(), MockArgumentOperation(0));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sArgumentOperation(0);", TypeParam::type_string()),
+      NULL));
+
+  // Exactly preserve 2^53 - 1.
+  EXPECT_CALL(this->test_mock(), MockArgumentOperation((1ll << 53) - 1));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sArgumentOperation(9007199254740991);",
+                   TypeParam::type_string()),
+      NULL));
+
+  // Signed : exactly preserve -(2^53 - 1).
+  if (TypeParam::min_value() < 0) {
+    EXPECT_CALL(this->test_mock(), MockArgumentOperation(-((1ll << 53) - 1)));
+    EXPECT_TRUE(this->EvaluateScript(
+        StringPrintf("test.%sArgumentOperation(-9007199254740991);",
+                     TypeParam::type_string()),
+        NULL));
+  }
+
+  // Send 9223372036854775000 (between 2^53 and int64_t max) to
+  // 9223372036854774784.
+  EXPECT_CALL(this->test_mock(), MockArgumentOperation(9223372036854774784));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sArgumentOperation(9223372036854775000);",
+                   TypeParam::type_string()),
+      NULL));
+
+  // Unsigned : send 18446744073709550000 (between 2^53
+  // and uint64_t max) to 18446744073709549568.
+  if (TypeParam::min_value() >= 0) {
+    EXPECT_CALL(this->test_mock(), MockArgumentOperation(18446744073709549568));
+    EXPECT_TRUE(this->EvaluateScript(
+        StringPrintf("test.%sArgumentOperation(18446744073709550000);",
+                     TypeParam::type_string()),
+        NULL));
+  }
+}
+#endif  // ENGINE_SUPPORTS_INT64
 
 TYPED_TEST(FloatingPointTypeBindingsTest, NonFiniteValues) {
   InSequence in_sequence_dummy;

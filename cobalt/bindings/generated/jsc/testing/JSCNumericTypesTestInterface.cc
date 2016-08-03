@@ -143,6 +143,22 @@ void setJSunsignedLongProperty(
     JSC::ExecState* exec,
     JSC::JSObject* this_object,
     JSC::JSValue value);
+JSC::JSValue getJSlongLongProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
+void setJSlongLongProperty(
+    JSC::ExecState* exec,
+    JSC::JSObject* this_object,
+    JSC::JSValue value);
+JSC::JSValue getJSunsignedLongLongProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
+void setJSunsignedLongLongProperty(
+    JSC::ExecState* exec,
+    JSC::JSObject* this_object,
+    JSC::JSValue value);
 JSC::JSValue getJSdoubleProperty(
     JSC::ExecState* exec_state,
     JSC::JSValue slot_base,
@@ -164,6 +180,8 @@ JSC::EncodedJSValue functionJSbyteReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSdoubleArgumentOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSdoubleReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSlongArgumentOperation(JSC::ExecState*);
+JSC::EncodedJSValue functionJSlongLongArgumentOperation(JSC::ExecState*);
+JSC::EncodedJSValue functionJSlongLongReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSlongReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSoctetArgumentOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSoctetReturnOperation(JSC::ExecState*);
@@ -172,6 +190,8 @@ JSC::EncodedJSValue functionJSshortReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSunrestrictedDoubleArgumentOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSunrestrictedDoubleReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSunsignedLongArgumentOperation(JSC::ExecState*);
+JSC::EncodedJSValue functionJSunsignedLongLongArgumentOperation(JSC::ExecState*);
+JSC::EncodedJSValue functionJSunsignedLongLongReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSunsignedLongReturnOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSunsignedShortArgumentOperation(JSC::ExecState*);
 JSC::EncodedJSValue functionJSunsignedShortReturnOperation(JSC::ExecState*);
@@ -432,6 +452,18 @@ const JSC::HashTableValue JSCNumericTypesTestInterface::Prototype::property_tabl
         static_cast<intptr_t>(1),
         JSC::NoIntrinsic
     },
+    { "longLongArgumentOperation",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSlongLongArgumentOperation),
+        static_cast<intptr_t>(1),
+        JSC::NoIntrinsic
+    },
+    { "longLongReturnOperation",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSlongLongReturnOperation),
+        static_cast<intptr_t>(0),
+        JSC::NoIntrinsic
+    },
     { "longReturnOperation",
         JSC::DontDelete | JSC::Function,
         reinterpret_cast<intptr_t>(functionJSlongReturnOperation),
@@ -480,6 +512,18 @@ const JSC::HashTableValue JSCNumericTypesTestInterface::Prototype::property_tabl
         static_cast<intptr_t>(1),
         JSC::NoIntrinsic
     },
+    { "unsignedLongLongArgumentOperation",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSunsignedLongLongArgumentOperation),
+        static_cast<intptr_t>(1),
+        JSC::NoIntrinsic
+    },
+    { "unsignedLongLongReturnOperation",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSunsignedLongLongReturnOperation),
+        static_cast<intptr_t>(0),
+        JSC::NoIntrinsic
+    },
     { "unsignedLongReturnOperation",
         JSC::DontDelete | JSC::Function,
         reinterpret_cast<intptr_t>(functionJSunsignedLongReturnOperation),
@@ -509,7 +553,7 @@ const JSC::HashTableValue JSCNumericTypesTestInterface::Prototype::property_tabl
 
 // static
 const JSC::HashTable JSCNumericTypesTestInterface::Prototype::property_table_prototype = {
-    80,  // compactSize
+    84,  // compactSize
     63,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
@@ -615,6 +659,18 @@ const JSC::HashTableValue JSCNumericTypesTestInterface::property_table_values[] 
         reinterpret_cast<intptr_t>(setJSunsignedLongProperty),
         JSC::NoIntrinsic
     },
+    { "longLongProperty",
+        JSC::DontDelete ,
+        reinterpret_cast<intptr_t>(getJSlongLongProperty),
+        reinterpret_cast<intptr_t>(setJSlongLongProperty),
+        JSC::NoIntrinsic
+    },
+    { "unsignedLongLongProperty",
+        JSC::DontDelete ,
+        reinterpret_cast<intptr_t>(getJSunsignedLongLongProperty),
+        reinterpret_cast<intptr_t>(setJSunsignedLongLongProperty),
+        JSC::NoIntrinsic
+    },
     { "doubleProperty",
         JSC::DontDelete ,
         reinterpret_cast<intptr_t>(getJSdoubleProperty),
@@ -632,7 +688,7 @@ const JSC::HashTableValue JSCNumericTypesTestInterface::property_table_values[] 
 
 // static
 const JSC::HashTable JSCNumericTypesTestInterface::property_table_prototype = {
-    39,  // compactSize
+    41,  // compactSize
     31,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
@@ -1113,6 +1169,98 @@ void setJSunsignedLongProperty(
   }
 }
 
+JSC::JSValue getJSlongLongProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "get longLongProperty");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, slot_base);
+  if (!impl) {
+    return exec_state->exception();
+  }
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      impl->long_long_property());
+  return result;
+}
+
+void setJSlongLongProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSObject* this_object,
+    JSC::JSValue value) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "set longLongProperty");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return;
+  }
+  TypeTraits<int64_t >::ConversionType cobalt_value;
+  FromJSValue(exec_state, value,
+      kNoConversionFlags, &exception_state,
+      &cobalt_value);
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return;
+  }
+  // Check if argument conversion raised an exception.
+  if (!exec_state->hadException()) {
+    impl->set_long_long_property(cobalt_value);
+  }
+}
+
+JSC::JSValue getJSunsignedLongLongProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "get unsignedLongLongProperty");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, slot_base);
+  if (!impl) {
+    return exec_state->exception();
+  }
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      impl->unsigned_long_long_property());
+  return result;
+}
+
+void setJSunsignedLongLongProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSObject* this_object,
+    JSC::JSValue value) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "set unsignedLongLongProperty");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return;
+  }
+  TypeTraits<uint64_t >::ConversionType cobalt_value;
+  FromJSValue(exec_state, value,
+      kNoConversionFlags, &exception_state,
+      &cobalt_value);
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return;
+  }
+  // Check if argument conversion raised an exception.
+  if (!exec_state->hadException()) {
+    impl->set_unsigned_long_long_property(cobalt_value);
+  }
+}
+
 JSC::JSValue getJSdoubleProperty(
     JSC::ExecState* exec_state,
     JSC::JSValue slot_base,
@@ -1345,6 +1493,59 @@ JSC::EncodedJSValue functionJSlongArgumentOperation(
 
 }
 
+JSC::EncodedJSValue functionJSlongLongArgumentOperation(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "call longLongArgumentOperation");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  const size_t kMinArguments = 1;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<int64_t >::ConversionType arg1;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  impl->LongLongArgumentOperation(arg1);
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue functionJSlongLongReturnOperation(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "call longLongReturnOperation");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  TypeTraits<int64_t >::ReturnType return_value = impl->LongLongReturnOperation();
+  return JSC::JSValue::encode(ToJSValue(global_object, return_value));
+
+}
+
 JSC::EncodedJSValue functionJSlongReturnOperation(
     JSC::ExecState* exec_state) {
   TRACE_EVENT0("JSCNumericTypesTestInterface", "call longReturnOperation");
@@ -1554,6 +1755,59 @@ JSC::EncodedJSValue functionJSunsignedLongArgumentOperation(
   }
   impl->UnsignedLongArgumentOperation(arg1);
   return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue functionJSunsignedLongLongArgumentOperation(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "call unsignedLongLongArgumentOperation");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  const size_t kMinArguments = 1;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<uint64_t >::ConversionType arg1;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      kNoConversionFlags,
+      &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  impl->UnsignedLongLongArgumentOperation(arg1);
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue functionJSunsignedLongLongReturnOperation(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCNumericTypesTestInterface", "call unsignedLongLongReturnOperation");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  NumericTypesTestInterface* impl =
+      GetWrappableOrSetException<NumericTypesTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  TypeTraits<uint64_t >::ReturnType return_value = impl->UnsignedLongLongReturnOperation();
+  return JSC::JSValue::encode(ToJSValue(global_object, return_value));
 
 }
 
