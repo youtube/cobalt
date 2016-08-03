@@ -35,6 +35,9 @@ SkYUV2RGBShader::SkYUV2RGBShader(
     y_bitmap_(y_bitmap), y_matrix_(y_matrix),
     u_bitmap_(u_bitmap), u_matrix_(u_matrix),
     v_bitmap_(v_bitmap), v_matrix_(v_matrix) {
+  DCHECK(!y_bitmap_.isNull());
+  DCHECK(!u_bitmap_.isNull());
+  DCHECK(!v_bitmap_.isNull());
   InitializeShaders();
 }
 
@@ -42,14 +45,17 @@ void SkYUV2RGBShader::InitializeShaders() {
   y_shader_ = SkShader::CreateBitmapShader(
       y_bitmap_, SkShader::kClamp_TileMode, SkShader::kClamp_TileMode,
       &y_matrix_);
+  DCHECK(y_shader_);
 
   u_shader_ = SkShader::CreateBitmapShader(
       u_bitmap_, SkShader::kClamp_TileMode, SkShader::kClamp_TileMode,
       &u_matrix_);
+  DCHECK(u_shader_);
 
   v_shader_ = SkShader::CreateBitmapShader(
       v_bitmap_, SkShader::kClamp_TileMode, SkShader::kClamp_TileMode,
       &v_matrix_);
+  DCHECK(v_shader_);
 }
 
 #ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
@@ -124,12 +130,15 @@ SkShader::Context* SkYUV2RGBShader::onCreateContext(
       static_cast<char*>(storage) + sizeof(YUV2RGBShaderContext);
   SkShader::Context* y_shader_context =
       y_shader_->createContext(rec, shaderContextStorage);
+  DCHECK(y_shader_context);
   shaderContextStorage += y_shader_->contextSize();
   SkShader::Context* u_shader_context =
       u_shader_->createContext(rec, shaderContextStorage);
+  DCHECK(u_shader_context);
   shaderContextStorage += u_shader_->contextSize();
   SkShader::Context* v_shader_context =
       v_shader_->createContext(rec, shaderContextStorage);
+  DCHECK(v_shader_context);
 
   return SkNEW_PLACEMENT_ARGS(
     storage, YUV2RGBShaderContext,
@@ -262,7 +271,7 @@ bool SkYUV2RGBShader::asFragmentProcessor(GrContext*, const SkPaint& paint,
 
   *fp = GrYUVtoRGBEffect::Create(y_bitmap_.getTexture(), u_bitmap_.getTexture(),
                                  v_bitmap_.getTexture(), matrix, texture_params,
-                                 kRec709_SkYUVColorSpace);
+                                 kRec709_SkYUVColorSpace, false);
   return true;
 }
 
