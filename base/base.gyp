@@ -1273,7 +1273,7 @@
           'variables': {
             'executable_name': 'base_unittests',
           },
-          'includes': [ '../cobalt/build/deploy.gypi' ],
+          'includes': [ '../starboard/build/deploy.gypi' ],
         },
       ],
     }],

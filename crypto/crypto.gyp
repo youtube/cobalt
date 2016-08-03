@@ -389,7 +389,7 @@
           'variables': {
             'executable_name': 'crypto_unittests',
           },
-          'includes': [ '../cobalt/build/deploy.gypi' ],
+          'includes': [ '../starboard/build/deploy.gypi' ],
         },
       ],
     }],
