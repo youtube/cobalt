@@ -45,6 +45,7 @@
       'fragment_skia_linear_gradient_many_colors.glsl',
       'fragment_skia_linear_gradient_three_colors.glsl',
       'fragment_skia_linear_gradient_two_colors.glsl',
+      'fragment_skia_nv12.glsl',
       'fragment_skia_radial_gradient_many_colors.glsl',
       'fragment_skia_radial_gradient_three_colors.glsl',
       'fragment_skia_radial_gradient_two_colors.glsl',

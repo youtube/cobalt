@@ -43,11 +43,19 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #define BILINEAR_FILTERING_SUPPORTED 1
+#define NV12_TEXTURE_SUPPORTED 1
 
 #if defined(STARBOARD)
 #if !SB_HAS(BILINEAR_FILTERING_SUPPORT)
 #undef BILINEAR_FILTERING_SUPPORTED
 #define BILINEAR_FILTERING_SUPPORTED 0
+#endif
+#endif
+
+#if defined(STARBOARD)
+#if !SB_HAS(NV12_TEXTURE_SUPPORT)
+#undef NV12_TEXTURE_SUPPORTED
+#define NV12_TEXTURE_SUPPORTED 0
 #endif
 #endif
 
@@ -374,6 +382,7 @@ RGBASwizzle GetRGBASwizzleForPixelFormat(PixelFormat pixel_format) {
     case render_tree::kPixelFormatY8:
     case render_tree::kPixelFormatU8:
     case render_tree::kPixelFormatV8:
+    case render_tree::kPixelFormatUV8:
     case render_tree::kPixelFormatInvalid: {
       NOTREACHED() << "Invalid pixel format.";
     }
@@ -895,6 +904,74 @@ scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
   return resource_provider->CreateMultiPlaneImageFromRawMemory(
       image_memory.Pass(), image_data_descriptor);
 }
+
+// The software rasterizer does not support NV12 images.
+#if NV12_TEXTURE_SUPPORTED
+
+// Creates a two plane YUV image where the Y channel is stored as a
+// single-channel image plane and the U and V channels are interleaved in a
+// second image plane. The NV12 format dictates that the UV plane has the same
+// number of columns and half the rows of the Y plane.
+scoped_refptr<Image> MakeNV12Image(ResourceProvider* resource_provider,
+                                   const Size& image_size) {
+  // The alpha format doesn't really matter here, but we still need to pick one
+  // that the resource provider indicates it supports.
+  render_tree::AlphaFormat alpha_format =
+      render_tree::kAlphaFormatUnpremultiplied;
+  if (!resource_provider->AlphaFormatSupported(alpha_format)) {
+    alpha_format = render_tree::kAlphaFormatPremultiplied;
+  }
+  CHECK(resource_provider->AlphaFormatSupported(alpha_format));
+
+  static const int kMaxBytesUsed =
+      image_size.width() * image_size.height() * 3 / 2;
+
+  scoped_ptr<RawImageMemory> image_memory =
+      resource_provider->AllocateRawImageMemory(kMaxBytesUsed, 256);
+
+  // Setup information about the Y plane.
+  ImageDataDescriptor y_plane_descriptor(image_size,
+                                         render_tree::kPixelFormatY8,
+                                         alpha_format, image_size.width());
+  intptr_t y_plane_memory_offset = 0;
+  uint8_t* y_plane_memory = image_memory->GetMemory() + y_plane_memory_offset;
+  float y_plane_inverse_height = 1.0f / y_plane_descriptor.size.height();
+  for (int r = 0; r < y_plane_descriptor.size.height(); ++r) {
+    for (int c = 0; c < y_plane_descriptor.size.width(); ++c) {
+      y_plane_memory[c] =
+          static_cast<uint8_t>(255.0f * r * y_plane_inverse_height);
+    }
+    y_plane_memory += y_plane_descriptor.pitch_in_bytes;
+  }
+
+  // Setup information about the UV plane.
+  ImageDataDescriptor uv_plane_descriptor(
+      Size(image_size.width() / 2, image_size.height() / 2),
+      render_tree::kPixelFormatUV8, alpha_format, image_size.width());
+  intptr_t uv_plane_memory_offset =
+      y_plane_memory_offset +
+      y_plane_descriptor.pitch_in_bytes * y_plane_descriptor.size.height();
+  uint8_t* uv_plane_memory = image_memory->GetMemory() + uv_plane_memory_offset;
+  float uv_plane_inverse_width = 1.0f / uv_plane_descriptor.size.width();
+  for (int r = 0; r < uv_plane_descriptor.size.height(); ++r) {
+    for (int c = 0; c < uv_plane_descriptor.size.width(); ++c) {
+      uv_plane_memory[2 * c] =
+          static_cast<uint8_t>(255.0f * c * uv_plane_inverse_width);
+      uv_plane_memory[2 * c + 1] =
+          255 - static_cast<uint8_t>(255.0f * c * uv_plane_inverse_width);
+    }
+    uv_plane_memory += uv_plane_descriptor.pitch_in_bytes;
+  }
+
+  MultiPlaneImageDataDescriptor image_data_descriptor(
+      render_tree::kMultiPlaneImageFormatYUV2PlaneBT709);
+  image_data_descriptor.AddPlane(y_plane_memory_offset, y_plane_descriptor);
+  image_data_descriptor.AddPlane(uv_plane_memory_offset, uv_plane_descriptor);
+
+  return resource_provider->CreateMultiPlaneImageFromRawMemory(
+      image_memory.Pass(), image_data_descriptor);
+}
+#endif  // #if NV12_TEXTURE_SUPPORTED
 }  // namespace
 
 TEST_F(PixelTest, ThreePlaneYUVImageSupport) {
@@ -923,6 +1000,37 @@ TEST_F(PixelTest, ThreePlaneYUVImageWithTransform) {
           TranslateMatrix(-half_output_size.width(),
                           -half_output_size.height())));
 }
+
+// The software rasterizer does not support NV12 images.
+#if NV12_TEXTURE_SUPPORTED
+
+TEST_F(PixelTest, TwoPlaneYUVImageSupport) {
+  // Tests that an ImageNode hooked up to a 3-plane YUV image works fine.
+  scoped_refptr<Image> image =
+      MakeNV12Image(GetResourceProvider(), output_surface_size());
+
+  TestTree(new ImageNode(image));
+}
+
+TEST_F(PixelTest, TwoPlaneYUVImageWithDestSizeDifferentFromImage) {
+  // Tests that an ImageNode hooked up to a 3-plane YUV image works fine.
+  scoped_refptr<Image> image =
+      MakeNV12Image(GetResourceProvider(), output_surface_size());
+
+  TestTree(new ImageNode(image, RectF(100.0f, 100.0f)));
+}
+
+TEST_F(PixelTest, TwoPlaneYUVImageWithTransform) {
+  SizeF half_output_size = ScaleSize(output_surface_size(), 0.5f, 0.5f);
+  TestTree(new MatrixTransformNode(
+      new ImageNode(
+          MakeNV12Image(GetResourceProvider(), output_surface_size())),
+      TranslateMatrix(half_output_size.width(), half_output_size.height()) *
+          ScaleMatrix(0.5f) * RotateMatrix(static_cast<float>(M_PI) / 4) *
+          TranslateMatrix(-half_output_size.width(),
+                          -half_output_size.height())));
+}
+#endif  // #if NV12_TEXTURE_SUPPORTED
 
 TEST_F(PixelTest, ImageNodeLocalTransformRotationAndScale) {
   scoped_refptr<Image> image =
@@ -1386,12 +1494,24 @@ TEST_F(PixelTest, ZoomedInImagesDoNotWrapInterpolated) {
 
 #endif  // BILINEAR_FILTERING_SUPPORTED
 
-TEST_F(PixelTest, YUVImagesAreLinearlyInterpolated) {
-  // Tests that YUV images are bilinearly interpolated.
+TEST_F(PixelTest, YUV3PlaneImagesAreLinearlyInterpolated) {
+  // Tests that three plane YUV images are bilinearly interpolated.
   scoped_refptr<Image> image = MakeI420Image(GetResourceProvider(), Size(8, 8));
 
   TestTree(new ImageNode(image, RectF(output_surface_size())));
 }
+
+// The software rasterizer does not support NV12 images.
+#if NV12_TEXTURE_SUPPORTED
+
+TEST_F(PixelTest, YUV2PlaneImagesAreLinearlyInterpolated) {
+  // Tests that two plane YUV images are bilinearly interpolated.
+  scoped_refptr<Image> image = MakeNV12Image(GetResourceProvider(), Size(8, 8));
+
+  TestTree(new ImageNode(image, RectF(output_surface_size())));
+}
+
+#endif  // #if NV12_TEXTURE_SUPPORTED
 
 TEST_F(PixelTest, VeryLargeOpacityFilterDoesNotOccupyVeryMuchMemory) {
   // This test ensures that an opacity filter being applied to an extremely

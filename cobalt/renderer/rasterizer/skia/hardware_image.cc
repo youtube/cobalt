@@ -136,6 +136,7 @@ class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
     texture_ = texture.Pass();
     gr_texture_.reset(
         WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
+    DCHECK(gr_texture_);
 
     // Prepare a member SkBitmap that refers to the newly created GrTexture and
     // will be the object that Skia draw calls will reference when referring
