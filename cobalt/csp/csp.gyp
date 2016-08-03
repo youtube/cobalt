@@ -73,7 +73,7 @@
       'variables': {
         'executable_name': 'csp_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
 
     {
