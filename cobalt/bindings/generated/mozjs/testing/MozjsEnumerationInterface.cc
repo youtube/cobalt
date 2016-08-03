@@ -29,6 +29,7 @@
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
@@ -56,6 +57,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -74,6 +76,15 @@ using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::Wrappable;
+// Declare and define these in the same namespace that the other overloads
+// were brought into with the using declaration.
+void ToJSValue(
+    JSContext* context,
+    EnumerationInterface::TestEnum in_enum,
+    JS::MutableHandleValue out_value);
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 EnumerationInterface::TestEnum* out_enum);
 }  // namespace
 
 namespace cobalt {
@@ -390,4 +401,55 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 }  // namespace cobalt
 
 namespace {
+
+inline void ToJSValue(
+    JSContext* context,
+    EnumerationInterface::TestEnum in_enum,
+    JS::MutableHandleValue out_value) {
+
+  switch (in_enum) {
+    case EnumerationInterface::kAlpha:
+      ToJSValue(context, std::string("alpha"), out_value);
+      return;
+    case EnumerationInterface::kBeta:
+      ToJSValue(context, std::string("beta"), out_value);
+      return;
+    case EnumerationInterface::kGamma:
+      ToJSValue(context, std::string("gamma"), out_value);
+      return;
+  }
+}
+
+
+inline void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 EnumerationInterface::TestEnum* out_enum) {
+  DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
+  // JSValue -> IDL enum algorithm described here:
+  // http://heycam.github.io/webidl/#es-enumeration
+  // 1. Let S be the result of calling ToString(V).
+  JS::RootedString rooted_string(context, JS_ValueToString(context, value));
+
+  JSBool match = JS_FALSE;
+// 3. Return the enumeration value of type E that is equal to S.
+if (JS_StringEqualsAscii(
+      context, rooted_string, "alpha", &match)
+      && match) {
+    *out_enum = EnumerationInterface::kAlpha;
+  } else if (JS_StringEqualsAscii(
+      context, rooted_string, "beta", &match)
+      && match) {
+    *out_enum = EnumerationInterface::kBeta;
+  } else if (JS_StringEqualsAscii(
+      context, rooted_string, "gamma", &match)
+      && match) {
+    *out_enum = EnumerationInterface::kGamma;
+  } else {
+    // 2. If S is not one of E's enumeration values, then throw a TypeError.
+    exception_state->
+        SetSimpleException(ExceptionState::kTypeError,
+                           "Cannot convert JavaScript value to Enum.");
+    return;
+  }
+}
 }  // namespace
