@@ -104,7 +104,7 @@
       'variables': {
         'executable_name': 'math_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

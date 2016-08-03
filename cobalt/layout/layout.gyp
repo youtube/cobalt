@@ -131,7 +131,7 @@
       'variables': {
         'executable_name': 'layout_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

@@ -45,7 +45,7 @@
       'variables': {
         'executable_name': 'image_decoder_sandbox',
       },
-      'includes': [ '../../../build/deploy.gypi' ],
+      'includes': [ '../../../../starboard/build/deploy.gypi' ],
     },
   ],
 }
