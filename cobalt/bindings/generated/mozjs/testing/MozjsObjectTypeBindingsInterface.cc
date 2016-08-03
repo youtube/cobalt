@@ -187,12 +187,12 @@ JSBool get_arbitraryObject(
       WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
+
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->arbitrary_object();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -215,9 +215,9 @@ JSBool set_arbitraryObject(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_arbitrary_object(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -231,12 +231,12 @@ JSBool get_baseInterface(
       WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
+
   TypeTraits<scoped_refptr<BaseInterface> >::ReturnType value =
       impl->base_interface();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -253,12 +253,12 @@ JSBool get_derivedInterface(
       WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
+
   TypeTraits<scoped_refptr<DerivedInterface> >::ReturnType value =
       impl->derived_interface();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -281,9 +281,9 @@ JSBool set_derivedInterface(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_derived_interface(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -297,12 +297,12 @@ JSBool get_objectProperty(
       WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
+
   TypeTraits<OpaqueHandle >::ReturnType value =
       impl->object_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -325,9 +325,9 @@ JSBool set_objectProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_object_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 

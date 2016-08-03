@@ -13,8 +13,10 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  #}
+{% from 'macros.cc.template' import add_extra_arguments %}
 {% from 'macros.cc.template' import call_cobalt_function %}
 {% from 'macros.cc.template' import constructor_implementation with context %}
+{% from 'macros.cc.template' import function_implementation with context %}
 {% from 'macros.cc.template' import get_impl_class_instance %}
 {% from 'macros.cc.template' import nonstatic_function_prologue %}
 {% from 'macros.cc.template' import overload_resolution_implementation with context %}
@@ -289,6 +291,9 @@ ProxyHandler::IndexedPropertyHooks
 static base::LazyInstance<{{binding_class}}Handler>
     proxy_handler;
 
+{% if constructor %}
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+{% endif %}
 {% for constant in constants %}
 JSBool get_{{constant.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
@@ -311,13 +316,6 @@ JSBool get_{{constant.idl_name}}(
 }
 
 {% endfor %}
-{% if constructor %}
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
-{% for overload in constructor.overloads if constructor.overloads|length > 1 %}
-JSBool Constructor{{overload.overload_index}}(
-    JSContext* context, unsigned int argc, JS::Value* vp);
-{% endfor %}
-{% endif %}
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -392,7 +390,7 @@ JSBool get_{{attribute.idl_name}}(
 JSBool staticget_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-{{ static_function_prologue() }}
+{{ static_function_prologue() -}}
 {% else %}
 JSBool get_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
@@ -449,66 +447,21 @@ JSBool set_{{attribute.idl_name}}(
 {% if operation.conditional %}
 #if defined({{operation.conditional}})
 {% endif %}
-{% if operation.is_static %}
-JSBool staticfcn_{{operation.idl_name}}(
-{% else %}
-JSBool fcn_{{operation.idl_name}}(
-{% endif %}
+{% set boundFunctionPrefix = "staticfcn_" if operation.is_static else "fcn_" %}
+{% for overload in operation.overloads if operation.overloads|length > 1 %}
+JSBool {{boundFunctionPrefix}}{{operation.idl_name}}{{overload.overload_index}}(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-{% if operation.is_static %}
-{{ static_function_prologue() }}
-{% else %}
-  // Compute the 'this' value.
-  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
-  // 'this' should be an object.
-  JS::RootedObject object(context);
-  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
-    return false;
-  }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
-    NOTREACHED();
-    return false;
-  }
-{{ nonstatic_function_prologue(impl_class) }}
-{% endif %}
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-{# TODO: Overload resolution. Just use first overload for now. #}
-{% set overload = operation.overloads[0] %}
-{# TODO: Optional and variadic arguments. #}
-{% if overload.arguments|selectattr('is_optional')|selectattr('is_variadic')|list|length == 0 %}
-{% if overload.arguments|length > 0 %}
-  const size_t kMinArguments = {{overload.arguments|length}};
-  if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
-    return false;
-  }
-{% endif %}
-{% for argument in overload.arguments %}
-  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
-  DCHECK_LT({{loop.index0}}, args.length());
-  FromJSValue(context, args.handleAt({{loop.index0}}),
-      {{argument.conversion_flags}}, &exception_state, &{{argument.name}});
-  if (exception_state.is_exception_set()) {
-    return false;
-  }
+{{ function_implementation(overload) -}}
+}
+
 {% endfor %}
-{% set arguments = overload.arguments|map(attribute="name")|list %}
-{{ call_cobalt_function(impl_class, overload.type,
-                        overload.name, arguments,
-                        overload.raises_exception,
-                        overload.call_with,
-                        operation.is_static) }}
-{% if operation.type != 'void' %}
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
-{% endif %}
-  return !exception_state.is_exception_set();
+JSBool {{boundFunctionPrefix}}{{operation.idl_name}}(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+{% if operation.overloads|length == 1 %}
+{{ function_implementation(operation.overloads[0]) -}}
 {% else %}
-  NOTIMPLEMENTED();
-  return false;
+{{ overload_resolution_implementation(
+      operation, boundFunctionPrefix + operation.idl_name) }}
 {% endif %}
 }
 
@@ -872,20 +825,20 @@ JSObject* {{binding_class}}::GetInterfaceObject(JSContext* context) {
 
 namespace {
 {% if constructor %}
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
-{% if constructor.overloads|length == 1 %}
-{{ constructor_implementation(constructor.overloads[0]) -}}
-{% else %}
-{{ overload_resolution_implementation() }}
-{% endif %}
-}
 {% for overload in constructor.overloads if constructor.overloads|length > 1 %}
-
 JSBool Constructor{{overload.overload_index}}(
     JSContext* context, unsigned int argc, JS::Value* vp) {
 {{ constructor_implementation(overload) -}}
 }
+
 {% endfor %}
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+{% if constructor.overloads|length == 1 %}
+{{ constructor_implementation(constructor.overloads[0]) -}}
+{% else %}
+{{ overload_resolution_implementation(constructor, "Constructor")}}
+{% endif %}
+}
 {% endif %}
 }  // namespace
 

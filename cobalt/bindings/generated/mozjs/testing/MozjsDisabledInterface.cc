@@ -177,12 +177,12 @@ JSBool get_disabledProperty(
       WrapperPrivate::GetFromObject(context, object);
   DisabledInterface* impl =
       wrapper_private->wrappable<DisabledInterface>().get();
+
   TypeTraits<int32_t >::ReturnType value =
       impl->disabled_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -205,14 +205,15 @@ JSBool set_disabledProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_disabled_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_disabledFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -232,13 +233,9 @@ JSBool fcn_disabledFunction(
       WrapperPrivate::GetFromObject(context, object);
   DisabledInterface* impl =
       wrapper_private->wrappable<DisabledInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->DisabledFunction();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

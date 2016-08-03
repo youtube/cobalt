@@ -121,6 +121,8 @@ JSC::EncodedJSValue functionJSvoidFunctionNoArgs(JSC::ExecState*);
 JSC::EncodedJSValue functionJSvoidFunctionObjectArg(JSC::ExecState*);
 JSC::EncodedJSValue functionJSvoidFunctionStringArg(JSC::ExecState*);
 JSC::EncodedJSValue staticFunctionJSoverloadedFunction(JSC::ExecState*);
+JSC::EncodedJSValue staticFunctionJSoverloadedFunction1(JSC::ExecState*);
+JSC::EncodedJSValue staticFunctionJSoverloadedFunction2(JSC::ExecState*);
 
 // These are declared unconditionally, but only defined if needed by the
 // interface.
@@ -1510,6 +1512,33 @@ JSC::EncodedJSValue functionJSvoidFunctionStringArg(
 JSC::EncodedJSValue staticFunctionJSoverloadedFunction(
     JSC::ExecState* exec_state) {
   TRACE_EVENT0("JSCOperationsTestInterface", "call overloadedFunction");
+  const size_t num_arguments = exec_state->argumentCount();
+  switch(num_arguments) {
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return staticFunctionJSoverloadedFunction1(exec_state);
+      }
+      break;
+    }
+    case(2): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return staticFunctionJSoverloadedFunction2(exec_state);
+      }
+      break;
+    }
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  return JSC::throwVMTypeError(exec_state);
+}
+
+JSC::EncodedJSValue staticFunctionJSoverloadedFunction1(
+    JSC::ExecState* exec_state) {
   JSCGlobalObject* global_object =
       JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
   JSCExceptionState exception_state(global_object);
@@ -1530,6 +1559,42 @@ JSC::EncodedJSValue staticFunctionJSoverloadedFunction(
     return JSC::throwVMError(exec_state, exception_state.exception_object());
   }
   OperationsTestInterface::OverloadedFunction(arg);
+  return JSC::JSValue::encode(JSC::jsUndefined());
+
+}
+
+JSC::EncodedJSValue staticFunctionJSoverloadedFunction2(
+    JSC::ExecState* exec_state) {
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+
+  const size_t kMinArguments = 2;
+  if (exec_state->argumentCount() < kMinArguments) {
+    return JSC::throwVMNotEnoughArgumentsError(exec_state);
+  }
+  // Non-optional arguments
+  TypeTraits<double >::ConversionType arg1;
+  TypeTraits<double >::ConversionType arg2;
+
+  DCHECK_LT(0, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(0),
+      (kConversionFlagRestricted),
+      &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+
+  DCHECK_LT(1, exec_state->argumentCount());
+  FromJSValue(exec_state,
+      exec_state->argument(1),
+      (kConversionFlagRestricted),
+      &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return JSC::throwVMError(exec_state, exception_state.exception_object());
+  }
+  OperationsTestInterface::OverloadedFunction(arg1, arg2);
   return JSC::JSValue::encode(JSC::jsUndefined());
 
 }

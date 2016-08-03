@@ -175,12 +175,12 @@ JSBool get_theStringifierAttribute(
       WrapperPrivate::GetFromObject(context, object);
   StringifierAttributeInterface* impl =
       wrapper_private->wrappable<StringifierAttributeInterface>().get();
+
   TypeTraits<std::string >::ReturnType value =
       impl->the_stringifier_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -203,9 +203,9 @@ JSBool set_theStringifierAttribute(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_the_stringifier_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
