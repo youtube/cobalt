@@ -18,6 +18,8 @@
   'sources': [
     'config/SkUserConfig.h',
     'egl/src/gpu/cobalt/GrGpuFactory.cc',
+    'src/effects/SkNV122RGBShader.cc',
+    'src/effects/SkNV122RGBShader.h',
     'src/effects/SkYUV2RGBShader.cc',
     'src/effects/SkYUV2RGBShader.h',
     'src/google_logging.cc',

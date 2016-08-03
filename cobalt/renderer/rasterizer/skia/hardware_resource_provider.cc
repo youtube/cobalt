@@ -117,10 +117,13 @@ SkiaHardwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
   TRACE_EVENT0(
       "cobalt::renderer",
       "SkiaHardwareResourceProvider::CreateMultiPlaneImageFromRawMemory()");
-  DCHECK_EQ(render_tree::kMultiPlaneImageFormatYUV3PlaneBT709,
-            descriptor.image_format())
-      << "Currently we only support 3-plane YUV multi plane images.";
-  DCHECK_EQ(3, descriptor.num_planes());
+  DCHECK((render_tree::kMultiPlaneImageFormatYUV2PlaneBT709 ==
+              descriptor.image_format() &&
+          2 == descriptor.num_planes()) ||
+         (render_tree::kMultiPlaneImageFormatYUV3PlaneBT709 ==
+              descriptor.image_format() &&
+          3 == descriptor.num_planes()))
+      << "Currently we only support 2-plane or 3-plane YUV multi plane images.";
 
   scoped_ptr<SkiaHardwareRawImageMemory> skia_hardware_raw_image_memory(
       base::polymorphic_downcast<SkiaHardwareRawImageMemory*>(
