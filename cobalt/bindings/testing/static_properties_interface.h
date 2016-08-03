@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/lazy_instance.h"
+#include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -32,11 +33,30 @@ class StaticPropertiesInterface : public script::Wrappable {
   class StaticMethodsMock {
    public:
     MOCK_METHOD0(StaticFunction, void());
+    MOCK_METHOD1(StaticFunction, void(int32_t));
+    MOCK_METHOD1(StaticFunction, void(const std::string&));
+    MOCK_METHOD3(StaticFunction, void(int32_t, int32_t, int32_t));
+    MOCK_METHOD3(StaticFunction,
+                 void(int32_t, int32_t,
+                      const scoped_refptr<ArbitraryInterface>&));
     MOCK_METHOD0(static_attribute, std::string());
     MOCK_METHOD1(set_static_attribute, void(const std::string&));
   };
 
   static void StaticFunction() { static_methods_mock.Get().StaticFunction(); }
+  static void StaticFunction(int32_t arg) {
+    static_methods_mock.Get().StaticFunction(arg);
+  }
+  static void StaticFunction(const std::string& arg) {
+    static_methods_mock.Get().StaticFunction(arg);
+  }
+  static void StaticFunction(int32_t arg1, int32_t arg2, int32_t arg3) {
+    static_methods_mock.Get().StaticFunction(arg1, arg2, arg3);
+  }
+  static void StaticFunction(int32_t arg1, int32_t arg2,
+                             const scoped_refptr<ArbitraryInterface>& arg3) {
+    static_methods_mock.Get().StaticFunction(arg1, arg2, arg3);
+  }
   static std::string static_attribute() {
     return static_methods_mock.Get().static_attribute();
   }

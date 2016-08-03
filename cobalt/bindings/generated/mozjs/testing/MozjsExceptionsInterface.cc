@@ -177,12 +177,12 @@ JSBool get_attributeThrowsException(
       WrapperPrivate::GetFromObject(context, object);
   ExceptionsInterface* impl =
       wrapper_private->wrappable<ExceptionsInterface>().get();
+
   TypeTraits<bool >::ReturnType value =
       impl->attribute_throws_exception(&exception_state);
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -205,14 +205,15 @@ JSBool set_attributeThrowsException(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_attribute_throws_exception(value, &exception_state);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_functionThrowsException(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -232,13 +233,9 @@ JSBool fcn_functionThrowsException(
       WrapperPrivate::GetFromObject(context, object);
   ExceptionsInterface* impl =
       wrapper_private->wrappable<ExceptionsInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->FunctionThrowsException(&exception_state);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

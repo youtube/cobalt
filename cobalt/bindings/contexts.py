@@ -228,7 +228,7 @@ def get_num_default_arguments(optional_arguments):
   num_default_arguments = 0
 
   for argument in optional_arguments:
-    if argument['default_value'] is not 'None':
+    if argument['default_value'] is not None:
       num_default_arguments += 1
 
   return num_default_arguments

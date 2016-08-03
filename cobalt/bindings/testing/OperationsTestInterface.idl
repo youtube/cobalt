@@ -41,6 +41,7 @@ interface OperationsTestInterface {
   // double and long are not distinguishable, but because this is a static
   // function it is part of the same overload set as the one that takes long.
   static void overloadedFunction(double arg);
+  static void overloadedFunction(double arg1, double arg2);
 
   void overloadedNullable(long arg);
   void overloadedNullable(boolean? arg);

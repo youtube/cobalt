@@ -179,12 +179,12 @@ JSBool get_nullableBooleanProperty(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->nullable_boolean_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -207,9 +207,9 @@ JSBool set_nullableBooleanProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_nullable_boolean_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -223,12 +223,12 @@ JSBool get_nullableNumericProperty(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->nullable_numeric_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -251,9 +251,9 @@ JSBool set_nullableNumericProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_nullable_numeric_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -267,12 +267,12 @@ JSBool get_nullableStringProperty(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->nullable_string_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -295,9 +295,9 @@ JSBool set_nullableStringProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_nullable_string_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -311,12 +311,12 @@ JSBool get_nullableObjectProperty(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->nullable_object_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -339,14 +339,15 @@ JSBool set_nullableObjectProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_nullable_object_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableBooleanArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -366,31 +367,34 @@ JSBool fcn_nullableBooleanArgument(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<base::optional<bool > >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->NullableBooleanArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableBooleanOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -410,13 +414,12 @@ JSBool fcn_nullableBooleanOperation(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<base::optional<bool > >::ReturnType value =
       impl->NullableBooleanOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -425,6 +428,7 @@ JSBool fcn_nullableBooleanOperation(
 
 JSBool fcn_nullableNumericArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -444,31 +448,34 @@ JSBool fcn_nullableNumericArgument(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<base::optional<int32_t > >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->NullableNumericArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableNumericOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -488,13 +495,12 @@ JSBool fcn_nullableNumericOperation(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<base::optional<int32_t > >::ReturnType value =
       impl->NullableNumericOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -503,6 +509,7 @@ JSBool fcn_nullableNumericOperation(
 
 JSBool fcn_nullableObjectArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -522,31 +529,34 @@ JSBool fcn_nullableObjectArgument(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->NullableObjectArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableObjectOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -566,13 +576,12 @@ JSBool fcn_nullableObjectOperation(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->NullableObjectOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -581,6 +590,7 @@ JSBool fcn_nullableObjectOperation(
 
 JSBool fcn_nullableStringArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -600,31 +610,34 @@ JSBool fcn_nullableStringArgument(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<base::optional<std::string > >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->NullableStringArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableStringOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -644,13 +657,12 @@ JSBool fcn_nullableStringOperation(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   TypeTraits<base::optional<std::string > >::ReturnType value =
       impl->NullableStringOperation();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }

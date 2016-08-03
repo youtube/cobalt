@@ -127,12 +127,12 @@ JSBool GetNamedProperty(
     NOTREACHED();
     return false;
   }
+
   TypeTraits<std::string >::ReturnType value =
       impl->AnonymousNamedGetter(property_name);
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -169,9 +169,9 @@ JSBool SetNamedProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->AnonymousNamedSetter(property_name, value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -219,12 +219,12 @@ JSBool GetIndexedProperty(
     NOTREACHED();
     return false;
   }
+
   TypeTraits<uint32_t >::ReturnType value =
       impl->DerivedIndexedGetter(index);
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -260,9 +260,9 @@ JSBool SetIndexedProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->DerivedIndexedSetter(index, value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -357,12 +357,12 @@ JSBool get_length(
       WrapperPrivate::GetFromObject(context, object);
   DerivedGetterSetterInterface* impl =
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
+
   TypeTraits<uint32_t >::ReturnType value =
       impl->length();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -379,12 +379,12 @@ JSBool get_propertyOnDerivedClass(
       WrapperPrivate::GetFromObject(context, object);
   DerivedGetterSetterInterface* impl =
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
+
   TypeTraits<bool >::ReturnType value =
       impl->property_on_derived_class();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -407,14 +407,15 @@ JSBool set_propertyOnDerivedClass(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_property_on_derived_class(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_derivedIndexedGetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -434,26 +435,31 @@ JSBool fcn_derivedIndexedGetter(
       WrapperPrivate::GetFromObject(context, object);
   DerivedGetterSetterInterface* impl =
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint32_t >::ConversionType index;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &index);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &index);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   TypeTraits<uint32_t >::ReturnType value =
       impl->DerivedIndexedGetter(index);
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
@@ -462,6 +468,7 @@ JSBool fcn_derivedIndexedGetter(
 
 JSBool fcn_derivedIndexedSetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -481,38 +488,46 @@ JSBool fcn_derivedIndexedSetter(
       WrapperPrivate::GetFromObject(context, object);
   DerivedGetterSetterInterface* impl =
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint32_t >::ConversionType index;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &index);
-  if (exception_state.is_exception_set()) {
-    return false;
-  }
   TypeTraits<uint32_t >::ConversionType value;
-  DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1),
-      kNoConversionFlags, &exception_state, &value);
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &index);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
+  DCHECK_LT(1, args.length());
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
   impl->DerivedIndexedSetter(index, value);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_operationOnDerivedClass(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -532,13 +547,9 @@ JSBool fcn_operationOnDerivedClass(
       WrapperPrivate::GetFromObject(context, object);
   DerivedGetterSetterInterface* impl =
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->OperationOnDerivedClass();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

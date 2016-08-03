@@ -179,12 +179,12 @@ JSBool get_forwardingAttribute(
       WrapperPrivate::GetFromObject(context, object);
   PutForwardsInterface* impl =
       wrapper_private->wrappable<PutForwardsInterface>().get();
+
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
       impl->forwarding_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }

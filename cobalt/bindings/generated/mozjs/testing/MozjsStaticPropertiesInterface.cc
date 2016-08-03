@@ -26,6 +26,8 @@
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
+#include "MozjsArbitraryInterface.h"
+#include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
@@ -48,6 +50,8 @@
 namespace {
 using cobalt::bindings::testing::StaticPropertiesInterface;
 using cobalt::bindings::testing::MozjsStaticPropertiesInterface;
+using cobalt::bindings::testing::ArbitraryInterface;
+using cobalt::bindings::testing::MozjsArbitraryInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalObjectProxy;
 using cobalt::script::OpaqueHandle;
@@ -176,7 +180,6 @@ JSBool staticget_staticAttribute(
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -195,25 +198,249 @@ JSBool staticset_staticAttribute(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   StaticPropertiesInterface::set_static_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
 
+JSBool staticfcn_staticFunction1(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+
+  StaticPropertiesInterface::StaticFunction();
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticfcn_staticFunction2(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  StaticPropertiesInterface::StaticFunction(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticfcn_staticFunction3(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<std::string >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  StaticPropertiesInterface::StaticFunction(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticfcn_staticFunction4(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  const size_t kMinArguments = 3;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  TypeTraits<int32_t >::ConversionType arg2;
+  TypeTraits<int32_t >::ConversionType arg3;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  DCHECK_LT(1, args.length());
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  DCHECK_LT(2, args.length());
+  JS::RootedValue non_optional_value2(
+      context, args[2]);
+  FromJSValue(context,
+              non_optional_value2,
+              kNoConversionFlags,
+              &exception_state, &arg3);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  StaticPropertiesInterface::StaticFunction(arg1, arg2, arg3);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticfcn_staticFunction5(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  const size_t kMinArguments = 3;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  TypeTraits<int32_t >::ConversionType arg2;
+  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg3;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  DCHECK_LT(1, args.length());
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  DCHECK_LT(2, args.length());
+  JS::RootedValue non_optional_value2(
+      context, args[2]);
+  FromJSValue(context,
+              non_optional_value2,
+              kNoConversionFlags,
+              &exception_state, &arg3);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  StaticPropertiesInterface::StaticFunction(arg1, arg2, arg3);
+  result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
 
 JSBool staticfcn_staticFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  StaticPropertiesInterface::StaticFunction();
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
+  switch(argc) {
+    case(0): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return staticfcn_staticFunction1(
+                  context, argc, vp);
+      }
+      break;
+    }
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      JS::RootedValue arg(context, args[0]);
+      if (false) {
+        return staticfcn_staticFunction2(
+                  context, argc, vp);
+      }
+      if (true) {
+        return staticfcn_staticFunction3(
+                  context, argc, vp);
+      }
+      if (true) {
+        return staticfcn_staticFunction2(
+                  context, argc, vp);
+      }
+      break;
+    }
+    case(3): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      JS::RootedValue arg(context, args[2]);
+      if (false) {
+        return staticfcn_staticFunction5(
+                  context, argc, vp);
+      }
+      if (true) {
+        return staticfcn_staticFunction4(
+                  context, argc, vp);
+      }
+      break;
+    }
   }
-  return !exception_state.is_exception_set();
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  MozjsExceptionState exception_state(context);
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
 }
 
 
