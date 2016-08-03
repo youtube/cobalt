@@ -309,6 +309,7 @@ void PNGImageDecoder::RowAvailableCallback(png_bytep row_buffer,
     case render_tree::kPixelFormatY8:
     case render_tree::kPixelFormatU8:
     case render_tree::kPixelFormatV8:
+    case render_tree::kPixelFormatUV8:
     case render_tree::kPixelFormatInvalid: {
       NOTREACHED();
     } break;

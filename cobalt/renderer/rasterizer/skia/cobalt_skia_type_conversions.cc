@@ -34,6 +34,8 @@ SkColorType RenderTreeSurfaceFormatToSkia(
       return kAlpha_8_SkColorType;
     case render_tree::kPixelFormatV8:
       return kAlpha_8_SkColorType;
+    case render_tree::kPixelFormatUV8:
+      return kRGBA_8888_SkColorType;
     default:
       DLOG(FATAL) << "Unknown render tree pixel format!";
       return kUnknown_SkColorType;
