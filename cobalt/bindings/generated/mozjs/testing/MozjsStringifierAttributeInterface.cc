@@ -29,6 +29,7 @@
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
@@ -56,6 +57,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
