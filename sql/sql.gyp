@@ -110,7 +110,7 @@
           'variables': {
             'executable_name': 'sql_unittests',
           },
-          'includes': [ '../cobalt/build/deploy.gypi' ],
+          'includes': [ '../starboard/build/deploy.gypi' ],
         },
       ],
     }],
