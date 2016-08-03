@@ -359,12 +359,12 @@ JSBool get_windowProperty(
       WrapperPrivate::GetFromObject(context, object);
   Window* impl =
       wrapper_private->wrappable<Window>().get();
+
   TypeTraits<std::string >::ReturnType value =
       impl->window_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -387,14 +387,15 @@ JSBool set_windowProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_window_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_windowOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -414,13 +415,9 @@ JSBool fcn_windowOperation(
       WrapperPrivate::GetFromObject(context, object);
   Window* impl =
       wrapper_private->wrappable<Window>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->WindowOperation();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

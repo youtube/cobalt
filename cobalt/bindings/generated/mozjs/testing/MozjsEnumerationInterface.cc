@@ -186,12 +186,12 @@ JSBool get_enumProperty(
       WrapperPrivate::GetFromObject(context, object);
   EnumerationInterface* impl =
       wrapper_private->wrappable<EnumerationInterface>().get();
+
   TypeTraits<EnumerationInterface::TestEnum >::ReturnType value =
       impl->enum_property();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -214,9 +214,9 @@ JSBool set_enumProperty(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_enum_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 

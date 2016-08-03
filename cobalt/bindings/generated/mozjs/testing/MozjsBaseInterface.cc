@@ -177,12 +177,12 @@ JSBool get_baseAttribute(
       WrapperPrivate::GetFromObject(context, object);
   BaseInterface* impl =
       wrapper_private->wrappable<BaseInterface>().get();
+
   TypeTraits<std::string >::ReturnType value =
       impl->base_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -191,6 +191,7 @@ JSBool get_baseAttribute(
 
 JSBool fcn_baseOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -210,13 +211,9 @@ JSBool fcn_baseOperation(
       WrapperPrivate::GetFromObject(context, object);
   BaseInterface* impl =
       wrapper_private->wrappable<BaseInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
   impl->BaseOperation();
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 

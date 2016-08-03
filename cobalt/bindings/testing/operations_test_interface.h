@@ -35,6 +35,7 @@ class OperationsTestInterface : public script::Wrappable {
   class StaticMethodsMock {
    public:
     MOCK_METHOD1(OverloadedFunction, void(double));
+    MOCK_METHOD2(OverloadedFunction, void(double, double));
   };
 
   MOCK_METHOD0(VoidFunctionNoArgs, void());
@@ -71,6 +72,10 @@ class OperationsTestInterface : public script::Wrappable {
 
   static void OverloadedFunction(double arg) {
     static_methods_mock.Get().OverloadedFunction(arg);
+  }
+
+  static void OverloadedFunction(double arg1, double arg2) {
+    static_methods_mock.Get().OverloadedFunction(arg1, arg2);
   }
 
   MOCK_METHOD1(OverloadedNullable, void(int32_t));

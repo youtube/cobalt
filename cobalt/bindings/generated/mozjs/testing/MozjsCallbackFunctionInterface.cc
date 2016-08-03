@@ -179,12 +179,12 @@ JSBool get_callbackAttribute(
       WrapperPrivate::GetFromObject(context, object);
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
+
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType value =
       impl->callback_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -207,9 +207,9 @@ JSBool set_callbackAttribute(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_callback_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
@@ -223,12 +223,12 @@ JSBool get_nullableCallbackAttribute(
       WrapperPrivate::GetFromObject(context, object);
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
+
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType value =
       impl->nullable_callback_attribute();
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, value, &result_value);
   }
-
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
@@ -251,14 +251,15 @@ JSBool set_nullableCallbackAttribute(
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->set_nullable_callback_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionThatReturnsString(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -278,31 +279,34 @@ JSBool fcn_takesFunctionThatReturnsString(
       WrapperPrivate::GetFromObject(context, object);
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionThatReturnsString >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->TakesFunctionThatReturnsString(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionWithNullableParameters(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -322,31 +326,34 @@ JSBool fcn_takesFunctionWithNullableParameters(
       WrapperPrivate::GetFromObject(context, object);
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionWithNullableParameters >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->TakesFunctionWithNullableParameters(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionWithOneParameter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -366,31 +373,34 @@ JSBool fcn_takesFunctionWithOneParameter(
       WrapperPrivate::GetFromObject(context, object);
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionWithOneParameter >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->TakesFunctionWithOneParameter(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionWithSeveralParameters(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -410,31 +420,34 @@ JSBool fcn_takesFunctionWithSeveralParameters(
       WrapperPrivate::GetFromObject(context, object);
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionWithSeveralParameters >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->TakesFunctionWithSeveralParameters(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesVoidFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -454,26 +467,28 @@ JSBool fcn_takesVoidFunction(
       WrapperPrivate::GetFromObject(context, object);
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
   if (exception_state.is_exception_set()) {
     return false;
   }
+
   impl->TakesVoidFunction(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
   return !exception_state.is_exception_set();
 }
 
