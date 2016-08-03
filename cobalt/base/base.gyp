@@ -107,7 +107,7 @@
       'variables': {
         'executable_name': 'base_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

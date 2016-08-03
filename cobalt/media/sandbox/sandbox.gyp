@@ -57,7 +57,7 @@
       'variables': {
         'executable_name': 'web_media_player_sandbox',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
 
     # This target will build a sandbox application that allows for easy
@@ -95,7 +95,7 @@
       'variables': {
         'executable_name': 'media_source_sandbox',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
   ],
   'conditions': [
@@ -141,7 +141,7 @@
           'variables': {
             'executable_name': 'raw_video_decoder_fuzzer',
           },
-          'includes': [ '../../build/deploy.gypi' ],
+          'includes': [ '../../../starboard/build/deploy.gypi' ],
         },
       ],
     }],
