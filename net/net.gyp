@@ -2390,7 +2390,7 @@
           'variables': {
             'executable_name': 'net_unittests',
           },
-          'includes': [ '../cobalt/build/deploy.gypi' ],
+          'includes': [ '../starboard/build/deploy.gypi' ],
         },
       ],
     }],
