@@ -19,6 +19,7 @@
       'type': 'static_library',
       'sources': [
         'conversion_helpers.cc',
+        'mozjs_callback_interface.cc',
         'mozjs_engine.cc',
         'mozjs_exception_state.cc',
         'mozjs_global_object_proxy.cc',

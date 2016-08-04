@@ -18,37 +18,30 @@
 #define COBALT_SCRIPT_MOZJS_MOZJS_CALLBACK_INTERFACE_HOLDER_H_
 
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/callback_interface_traits.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/type_traits.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 
-template <typename CallbackInterface>
-class MozjsCallbackInterfaceHolder : public ScriptObject<CallbackInterface> {
+template <typename MozjsCallbackInterface>
+class MozjsCallbackInterfaceHolder
+    : public MozjsUserObjectHolder<MozjsCallbackInterface> {
  public:
-  typedef typename CallbackInterfaceTraits<
-      CallbackInterface>::MozjsCallbackInterfaceClass MozjsCallbackInterface;
-  typedef ScriptObject<CallbackInterface> BaseClass;
+  typedef MozjsUserObjectHolder<MozjsCallbackInterface> BaseClass;
+  MozjsCallbackInterfaceHolder() {}
+  MozjsCallbackInterfaceHolder(JS::HandleObject object, JSContext* context,
+                               WrapperFactory* wrapper_factory)
+      : BaseClass(object, context, wrapper_factory) {}
+};
 
-  void RegisterOwner(Wrappable* owner) OVERRIDE { NOTIMPLEMENTED(); }
-
-  void DeregisterOwner(Wrappable* owner) OVERRIDE { NOTIMPLEMENTED(); }
-
-  const CallbackInterface* GetScriptObject() const OVERRIDE {
-    NOTIMPLEMENTED();
-    return NULL;
-  }
-
-  scoped_ptr<ScriptObject<CallbackInterface> > MakeCopy() const OVERRIDE {
-    NOTIMPLEMENTED();
-    return scoped_ptr<ScriptObject<CallbackInterface> >();
-  }
-
-  bool EqualTo(const BaseClass& other) const OVERRIDE {
-    NOTIMPLEMENTED();
-    return false;
-  }
+template <typename CallbackInterface>
+struct TypeTraits<CallbackInterfaceTraits<CallbackInterface> > {
+  typedef MozjsCallbackInterfaceHolder<typename CallbackInterfaceTraits<
+      CallbackInterface>::MozjsCallbackInterfaceClass> ConversionType;
+  typedef const ScriptObject<CallbackInterface>* ReturnType;
 };
 
 }  // namespace mozjs

@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_SCRIPT_MOZJS_TYPE_TRAITS_H_
-#define COBALT_SCRIPT_MOZJS_TYPE_TRAITS_H_
+#ifndef COBALT_SCRIPT_MOZJS_MOZJS_CALLBACK_INTERFACE_H_
+#define COBALT_SCRIPT_MOZJS_MOZJS_CALLBACK_INTERFACE_H_
+
+#include "cobalt/script/callback_interface_traits.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 
-template <typename T>
-struct TypeTraits {
-  // The type to convert into from a JS Value in the bindings implementation.
-  typedef T ConversionType;
-  // Type type returned from a Cobalt implementation of a bound function.
-  typedef T ReturnType;
-};
+// Helper class to get the actual callable object from a JSObject implementing
+// a callback interface.
+// Returns true if a callable was found, and false if not.
+bool GetCallableForCallbackInterface(JSContext* context,
+                                     JS::HandleObject implementing_object,
+                                     const char* property_name,
+                                     JS::MutableHandleValue out_callable);
 
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // COBALT_SCRIPT_MOZJS_TYPE_TRAITS_H_
+#endif  // COBALT_SCRIPT_MOZJS_MOZJS_CALLBACK_INTERFACE_H_
