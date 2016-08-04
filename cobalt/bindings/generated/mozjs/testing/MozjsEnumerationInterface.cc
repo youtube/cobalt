@@ -366,10 +366,7 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   scoped_refptr<EnumerationInterface> new_object =
       new EnumerationInterface();
   JS::RootedValue result_value(context);
-  ToJSValue(context, new_object, &exception_state, &result_value);
-  if (exception_state.is_exception_set()) {
-    return false;
-  }
+  ToJSValue(context, new_object, &result_value);
   DCHECK(result_value.isObject());
   JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
   args.rval().setObject(*result_object);
