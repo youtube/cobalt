@@ -321,6 +321,14 @@ JSObject* MozjsGlobalInterfaceParent::CreateProxy(
   return proxy;
 }
 
+//static
+const JSClass* MozjsGlobalInterfaceParent::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* MozjsGlobalInterfaceParent::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);

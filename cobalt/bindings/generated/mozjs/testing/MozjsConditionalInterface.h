@@ -42,6 +42,7 @@ class MozjsConditionalInterface {
  public:
   static JSObject* CreateProxy(JSContext* context,
       const scoped_refptr<script::Wrappable>& wrappable);
+  static const JSClass* PrototypeClass(JSContext* context);
   static JSObject* GetPrototype(JSContext* context);
   static JSObject* GetInterfaceObject(JSContext* context);
 };

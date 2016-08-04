@@ -799,6 +799,14 @@ JSObject* {{binding_class}}::CreateProxy(
 }
 
 {% endif %}
+//static
+const JSClass* {{binding_class}}::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* {{binding_class}}::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -863,7 +871,8 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   {% if interface.name != impl_class %}
   wrapper_factory->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
-      base::Bind(Mozjs{{interface.name}}::CreateProxy));
+      base::Bind(Mozjs{{interface.name}}::CreateProxy),
+      base::Bind(Mozjs{{interface.name}}::PrototypeClass));
   {% endif %}
 {% if interface.conditional %}
 #endif  // defined({{interface.conditional}})

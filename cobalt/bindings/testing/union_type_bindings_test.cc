@@ -94,6 +94,47 @@ TEST_F(UnionTypesBindingsTest, ConvertFromJS) {
   EXPECT_TRUE(union_type.AsType<scoped_refptr<ArbitraryInterface> >());
 }
 
+TEST_F(UnionTypesBindingsTest, ConvertFromJSInvalid) {
+  InSequence dummy;
+
+  UnionTypesInterface::UnionBasePropertyType union_base_type;
+  // Try to assign wrong interface type.
+  // First assign a valid value.
+  EXPECT_CALL(test_mock(), set_union_base_property(_))
+      .WillOnce(SaveArg<0>(&union_base_type));
+  EXPECT_TRUE(
+      EvaluateScript("test.unionBaseProperty = \"string type\";", NULL));
+  ASSERT_TRUE(union_base_type.IsType<std::string>());
+  EXPECT_EQ("string type", union_base_type.AsType<std::string>());
+  // Attempt to assign invalid value.
+  EXPECT_FALSE(EvaluateScript(
+      "test.unionBaseProperty = new EnumerationInterface();", NULL));
+  // Check the original value was preserved.
+  ASSERT_TRUE(union_base_type.IsType<std::string>());
+  EXPECT_EQ("string type", union_base_type.AsType<std::string>());
+}
+
+TEST_F(UnionTypesBindingsTest, ConvertFromJSInherit) {
+  InSequence dummy;
+
+  UnionTypesInterface::UnionBasePropertyType union_base_type;
+  // Assign with base.
+  EXPECT_CALL(test_mock(), set_union_base_property(_))
+      .WillOnce(SaveArg<0>(&union_base_type));
+  EXPECT_TRUE(
+      EvaluateScript("test.unionBaseProperty = new BaseInterface();", NULL));
+  ASSERT_TRUE(union_base_type.IsType<scoped_refptr<BaseInterface> >());
+  EXPECT_TRUE(union_base_type.AsType<scoped_refptr<BaseInterface> >());
+
+  // Assign with derived.
+  EXPECT_CALL(test_mock(), set_union_base_property(_))
+      .WillOnce(SaveArg<0>(&union_base_type));
+  EXPECT_TRUE(
+      EvaluateScript("test.unionBaseProperty = new DerivedInterface();", NULL));
+  ASSERT_TRUE(union_base_type.IsType<scoped_refptr<BaseInterface> >());
+  EXPECT_TRUE(union_base_type.AsType<scoped_refptr<BaseInterface> >());
+}
+
 TEST_F(UnionTypesBindingsTest, SetNullableUnion) {
   InSequence dummy;
 

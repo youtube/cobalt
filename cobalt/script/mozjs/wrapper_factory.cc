@@ -27,10 +27,12 @@ namespace script {
 namespace mozjs {
 
 void WrapperFactory::RegisterWrappableType(
-    base::TypeId wrappable_type, const CreateWrapperFunction& create_function) {
-  std::pair<CreateWrapperHashMap::iterator, bool> pib =
-      create_wrapper_functions_.insert(
-          std::make_pair(wrappable_type, create_function));
+    base::TypeId wrappable_type, const CreateWrapperFunction& create_function,
+    const PrototypeClassFunction& class_function) {
+  std::pair<WrappableTypeFunctionsHashMap::iterator, bool> pib =
+      wrappable_type_functions_.insert(std::make_pair(
+          wrappable_type,
+          WrappableTypeFunctions(create_function, class_function)));
   DCHECK(pib.second)
       << "RegisterWrappableType registered for type more than once.";
 }
@@ -62,13 +64,14 @@ bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
 
 scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     const scoped_refptr<Wrappable>& wrappable) const {
-  CreateWrapperHashMap::const_iterator it =
-      create_wrapper_functions_.find(wrappable->GetWrappableType());
-  if (it == create_wrapper_functions_.end()) {
+  WrappableTypeFunctionsHashMap::const_iterator it =
+      wrappable_type_functions_.find(wrappable->GetWrappableType());
+  if (it == wrappable_type_functions_.end()) {
     NOTREACHED();
     return scoped_ptr<Wrappable::WeakWrapperHandle>();
   }
-  JS::RootedObject new_proxy(context_, it->second.Run(context_, wrappable));
+  JS::RootedObject new_proxy(
+      context_, it->second.create_wrapper.Run(context_, wrappable));
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromProxyObject(context_, new_proxy);
   DCHECK(wrapper_private);
@@ -76,6 +79,29 @@ scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
       new MozjsWrapperHandle(wrapper_private));
 }
 
+bool WrapperFactory::DoesObjectImplementInterface(JSObject* object,
+                                                  base::TypeId type_id) const {
+  WrappableTypeFunctionsHashMap::const_iterator it =
+      wrappable_type_functions_.find(type_id);
+  if (it == wrappable_type_functions_.end()) {
+    NOTREACHED();
+    return false;
+  }
+  const JSClass* proto_class = it->second.prototype_class.Run(context_);
+  JS::RootedObject object_proto_object(context_);
+  bool success =
+      JS_GetPrototype(context_, object, object_proto_object.address());
+  bool equality = false;
+  while (!equality && success && object_proto_object) {
+    // Get the class of the prototype.
+    JSClass* object_proto_class = JS_GetClass(object_proto_object);
+    equality = (object_proto_class == proto_class);
+    // Get the prototype of the previous prototype.
+    success = JS_GetPrototype(context_, object_proto_object,
+                              object_proto_object.address());
+  }
+  return equality;
+}
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
