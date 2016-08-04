@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+[Constructor]
 interface DerivedInterface : BaseInterface {
   readonly attribute DOMString derivedAttribute;
   void derivedOperation();

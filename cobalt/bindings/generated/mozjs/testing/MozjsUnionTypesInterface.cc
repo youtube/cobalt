@@ -27,7 +27,9 @@
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "MozjsArbitraryInterface.h"
+#include "MozjsBaseInterface.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
+#include "cobalt/bindings/testing/base_interface.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
@@ -51,7 +53,9 @@ namespace {
 using cobalt::bindings::testing::UnionTypesInterface;
 using cobalt::bindings::testing::MozjsUnionTypesInterface;
 using cobalt::bindings::testing::ArbitraryInterface;
+using cobalt::bindings::testing::BaseInterface;
 using cobalt::bindings::testing::MozjsArbitraryInterface;
+using cobalt::bindings::testing::MozjsBaseInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalObjectProxy;
 using cobalt::script::OpaqueHandle;
@@ -301,6 +305,50 @@ JSBool set_nullableUnionProperty(
   return !exception_state.is_exception_set();
 }
 
+JSBool get_unionBaseProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  UnionTypesInterface* impl =
+      wrapper_private->wrappable<UnionTypesInterface>().get();
+
+  TypeTraits<script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ReturnType value =
+      impl->union_base_property();
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context, value, &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_unionBaseProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  UnionTypesInterface* impl =
+      wrapper_private->wrappable<UnionTypesInterface>().get();
+  TypeTraits<script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_union_base_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
@@ -320,6 +368,12 @@ const JSPropertySpec prototype_properties[] = {
       JSPROP_SHARED | JSPROP_ENUMERATE,
       JSOP_WRAPPER(&get_nullableUnionProperty),
       JSOP_WRAPPER(&set_nullableUnionProperty),
+  },
+  {  // Read/Write property
+      "unionBaseProperty", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_unionBaseProperty),
+      JSOP_WRAPPER(&set_unionBaseProperty),
   },
   JS_PS_END
 };
@@ -438,6 +492,14 @@ JSObject* MozjsUnionTypesInterface::CreateProxy(
                              proxy_handler.Pointer()));
   WrapperPrivate::AddPrivateData(proxy, wrappable);
   return proxy;
+}
+
+//static
+const JSClass* MozjsUnionTypesInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static
