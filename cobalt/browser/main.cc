@@ -19,6 +19,7 @@
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
 #if defined(OS_STARBOARD)
+#include "cobalt/browser/starboard/event_handler.h"
 #include "cobalt/system_window/starboard/system_window.h"
 #endif
 
@@ -43,7 +44,7 @@ void StopApplication() {
 
 #if defined(OS_STARBOARD)
 COBALT_WRAP_EVENT_MAIN(StartApplication,
-                       cobalt::system_window::HandleInputEvent,
+                       cobalt::browser::EventHandler::HandleEvent,
                        StopApplication);
 #else
 COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);
