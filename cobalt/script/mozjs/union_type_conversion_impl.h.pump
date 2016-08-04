@@ -1,0 +1,205 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$$ Maximum number of different member types in a union.
+$var MAX_MEMBERS = 4
+/*
+ * Copyright 2016 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef COBALT_SCRIPT_MOZJS_UNION_TYPE_CONVERSION_IMPL_H_
+#define COBALT_SCRIPT_MOZJS_UNION_TYPE_CONVERSION_IMPL_H_
+
+#include "cobalt/base/type_id.h"
+#include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/type_traits.h"
+#include "cobalt/script/union_type.h"
+
+// Conversion to/from JS::Value for IDL union types.
+
+namespace cobalt {
+namespace script {
+namespace mozjs {
+
+$range NUM_MEMBERS 2..MAX_MEMBERS
+$for NUM_MEMBERS [[
+
+$range TYPE 1..NUM_MEMBERS
+
+template <$for TYPE , [[typename T$(TYPE)]]>
+void ToJSValue(JSContext* context, const script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>& in_union, JS::MutableHandleValue out_value) {
+$for TYPE [[
+
+  if (in_union.template IsType<T$(TYPE)>()) {
+      ToJSValue(context, in_union.template AsType<T$(TYPE)>(), out_value);
+      return;
+  }
+]]
+
+  NOTREACHED();
+  out_value.setUndefined();
+}
+
+template <$for TYPE , [[typename T$(TYPE)]]>
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>* out_union) {
+  DCHECK_EQ(0, conversion_flags);
+  // JS -> IDL type conversion procedure described here:
+  // http://heycam.github.io/webidl/#es-union
+
+  // 1. If the union type includes a nullable type and V is null or undefined,
+  // then return the IDL value null.
+  if (value.isNull() || value.isUndefined()) {
+    // If the type was nullable or undefined, we should have caught that as a
+    // part of the base::optional<T> conversion.
+    NOTREACHED();
+    return;
+  }
+  // Typedef for readability.
+
+$for TYPE [[
+  typedef ::cobalt::script::internal::UnionTypeTraits<T$(TYPE)> UnionTypeTraitsT$(TYPE);
+
+]]
+
+  // Forward declare all potential types
+
+$for TYPE [[
+  T$(TYPE) t$(TYPE);
+
+]]
+
+  // 3.1 If types includes an interface type that V implements, then return the
+  //     IDL value that is a reference to the object V.
+  // 3.2 If types includes object, then return the IDL value that is a reference
+  //     to the object V.
+  //
+  // The specification doesn't dictate what should happen if V implements more
+  // than one of the interfaces. For example, if V implements interface B and
+  // interface B inherits from interface A, what happens if both A and B are
+  // union members? Blink doesn't seem to do anything special for this case.
+  // Just choose the first interface in the flattened members that matches.
+  if (value.isObject()) {
+
+    JS::RootedObject rooted_object(context);
+    bool success = JS_ValueToObject(context, value, rooted_object.address());
+    DCHECK(success);
+    MozjsGlobalObjectProxy* global_object_proxy =
+        static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+    const WrapperFactory* wrapper_factory =
+        global_object_proxy->wrapper_factory();
+
+$for TYPE [[
+    if (UnionTypeTraitsT$(TYPE)::is_interface_type
+        && wrapper_factory->DoesObjectImplementInterface(
+            rooted_object, UnionTypeTraitsT$(TYPE)::GetTypeID())) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+      *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+      return;
+    }
+
+]]
+  }
+
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
+  //       TypedArrayName, callback functions, dictionary, array type.
+  //       And sequences if necessary.
+
+  // 14. If V is a Boolean value, then:
+  //   1. If types includes a boolean, then return the result of converting V
+  //      to boolean.
+  if (value.isBoolean()) {
+$for TYPE [[
+
+    if (UnionTypeTraitsT$(TYPE)::is_boolean_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+      *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+      return;
+    }
+
+]]
+  }
+
+  // 15. If V is a Number value, then:
+  //   1. If types includes a numeric type, then return the result of converting
+  //      V to that numeric type.
+  if (value.isNumber()) {
+$for TYPE [[
+
+    if (UnionTypeTraitsT$(TYPE)::is_numeric_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+      *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+      return;
+    }
+
+]]
+  }
+
+  // 16. If types includes a string type, then return the result of converting V
+  // to that type.
+  if (value.isString()) {
+$for TYPE [[
+
+    if (UnionTypeTraitsT$(TYPE)::is_string_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+      *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+      return;
+    }
+
+]]
+  }
+
+  // 17. If types includes a numeric type, then return the result of converting
+  // V to that numeric type.
+$for TYPE [[
+
+  if (UnionTypeTraitsT$(TYPE)::is_numeric_type) {
+    FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+    *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+    return;
+  }
+]]
+
+  // 18. If types includes a boolean, then return the result of converting V to
+  // boolean.
+$for TYPE [[
+
+  if (UnionTypeTraitsT$(TYPE)::is_boolean_type) {
+    FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+    *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+    return;
+  }
+]]
+
+  // 19. Throw a TypeError.
+  exception_state->SetSimpleException(
+      ExceptionState::kTypeError, "Value is not a member of the union type.");
+}
+
+]]  $$ for NUM_MEMBERS
+
+}  // namespace mozjs
+}  // namespace script
+}  // namespace cobalt
+
+#endif  // COBALT_SCRIPT_MOZJS_UNION_TYPE_CONVERSION_IMPL_H_

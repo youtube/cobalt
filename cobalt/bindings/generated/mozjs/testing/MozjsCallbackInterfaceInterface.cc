@@ -429,6 +429,14 @@ JSObject* MozjsCallbackInterfaceInterface::CreateProxy(
   return proxy;
 }
 
+//static
+const JSClass* MozjsCallbackInterfaceInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* MozjsCallbackInterfaceInterface::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);
