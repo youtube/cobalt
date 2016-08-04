@@ -23,6 +23,7 @@ class {{binding_class}} {
  public:
   static JSObject* CreateProxy(JSContext* context,
       const scoped_refptr<script::Wrappable>& wrappable);
+  static const JSClass* PrototypeClass(JSContext* context);
   static JSObject* GetPrototype(JSContext* context);
 {% if has_interface_object %}
   static JSObject* GetInterfaceObject(JSContext* context);

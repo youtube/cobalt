@@ -431,6 +431,14 @@ JSObject* MozjsBooleanTypeTestInterface::CreateProxy(
   return proxy;
 }
 
+//static
+const JSClass* MozjsBooleanTypeTestInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* MozjsBooleanTypeTestInterface::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);

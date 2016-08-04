@@ -366,6 +366,14 @@ JSObject* MozjsStringifierOperationInterface::CreateProxy(
   return proxy;
 }
 
+//static
+const JSClass* MozjsStringifierOperationInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* MozjsStringifierOperationInterface::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);

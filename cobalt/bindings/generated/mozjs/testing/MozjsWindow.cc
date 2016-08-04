@@ -577,6 +577,14 @@ JSObject* MozjsWindow::CreateProxy(
   return proxy;
 }
 
+//static
+const JSClass* MozjsWindow::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* MozjsWindow::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -624,134 +632,176 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
   WrapperFactory* wrapper_factory = mozjs_global_object_proxy->wrapper_factory();
   wrapper_factory->RegisterWrappableType(
       AnonymousIndexedGetterInterface::AnonymousIndexedGetterInterfaceWrappableType(),
-      base::Bind(MozjsAnonymousIndexedGetterInterface::CreateProxy));
+      base::Bind(MozjsAnonymousIndexedGetterInterface::CreateProxy),
+      base::Bind(MozjsAnonymousIndexedGetterInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       AnonymousNamedGetterInterface::AnonymousNamedGetterInterfaceWrappableType(),
-      base::Bind(MozjsAnonymousNamedGetterInterface::CreateProxy));
+      base::Bind(MozjsAnonymousNamedGetterInterface::CreateProxy),
+      base::Bind(MozjsAnonymousNamedGetterInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       AnonymousNamedIndexedGetterInterface::AnonymousNamedIndexedGetterInterfaceWrappableType(),
-      base::Bind(MozjsAnonymousNamedIndexedGetterInterface::CreateProxy));
+      base::Bind(MozjsAnonymousNamedIndexedGetterInterface::CreateProxy),
+      base::Bind(MozjsAnonymousNamedIndexedGetterInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ArbitraryInterface::ArbitraryInterfaceWrappableType(),
-      base::Bind(MozjsArbitraryInterface::CreateProxy));
+      base::Bind(MozjsArbitraryInterface::CreateProxy),
+      base::Bind(MozjsArbitraryInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       BaseInterface::BaseInterfaceWrappableType(),
-      base::Bind(MozjsBaseInterface::CreateProxy));
+      base::Bind(MozjsBaseInterface::CreateProxy),
+      base::Bind(MozjsBaseInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       BooleanTypeTestInterface::BooleanTypeTestInterfaceWrappableType(),
-      base::Bind(MozjsBooleanTypeTestInterface::CreateProxy));
+      base::Bind(MozjsBooleanTypeTestInterface::CreateProxy),
+      base::Bind(MozjsBooleanTypeTestInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       CallbackFunctionInterface::CallbackFunctionInterfaceWrappableType(),
-      base::Bind(MozjsCallbackFunctionInterface::CreateProxy));
+      base::Bind(MozjsCallbackFunctionInterface::CreateProxy),
+      base::Bind(MozjsCallbackFunctionInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       CallbackInterfaceInterface::CallbackInterfaceInterfaceWrappableType(),
-      base::Bind(MozjsCallbackInterfaceInterface::CreateProxy));
+      base::Bind(MozjsCallbackInterfaceInterface::CreateProxy),
+      base::Bind(MozjsCallbackInterfaceInterface::PrototypeClass));
 #if defined(ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory->RegisterWrappableType(
       ConditionalInterface::ConditionalInterfaceWrappableType(),
-      base::Bind(MozjsConditionalInterface::CreateProxy));
+      base::Bind(MozjsConditionalInterface::CreateProxy),
+      base::Bind(MozjsConditionalInterface::PrototypeClass));
 #endif  // defined(ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory->RegisterWrappableType(
       ConstantsInterface::ConstantsInterfaceWrappableType(),
-      base::Bind(MozjsConstantsInterface::CreateProxy));
+      base::Bind(MozjsConstantsInterface::CreateProxy),
+      base::Bind(MozjsConstantsInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ConstructorInterface::ConstructorInterfaceWrappableType(),
-      base::Bind(MozjsConstructorInterface::CreateProxy));
+      base::Bind(MozjsConstructorInterface::CreateProxy),
+      base::Bind(MozjsConstructorInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ConstructorWithArgumentsInterface::ConstructorWithArgumentsInterfaceWrappableType(),
-      base::Bind(MozjsConstructorWithArgumentsInterface::CreateProxy));
+      base::Bind(MozjsConstructorWithArgumentsInterface::CreateProxy),
+      base::Bind(MozjsConstructorWithArgumentsInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       DOMStringTestInterface::DOMStringTestInterfaceWrappableType(),
-      base::Bind(MozjsDOMStringTestInterface::CreateProxy));
+      base::Bind(MozjsDOMStringTestInterface::CreateProxy),
+      base::Bind(MozjsDOMStringTestInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       DerivedGetterSetterInterface::DerivedGetterSetterInterfaceWrappableType(),
-      base::Bind(MozjsDerivedGetterSetterInterface::CreateProxy));
+      base::Bind(MozjsDerivedGetterSetterInterface::CreateProxy),
+      base::Bind(MozjsDerivedGetterSetterInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       DerivedInterface::DerivedInterfaceWrappableType(),
-      base::Bind(MozjsDerivedInterface::CreateProxy));
+      base::Bind(MozjsDerivedInterface::CreateProxy),
+      base::Bind(MozjsDerivedInterface::PrototypeClass));
 #if defined(NO_ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory->RegisterWrappableType(
       DisabledInterface::DisabledInterfaceWrappableType(),
-      base::Bind(MozjsDisabledInterface::CreateProxy));
+      base::Bind(MozjsDisabledInterface::CreateProxy),
+      base::Bind(MozjsDisabledInterface::PrototypeClass));
 #endif  // defined(NO_ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory->RegisterWrappableType(
       EnumerationInterface::EnumerationInterfaceWrappableType(),
-      base::Bind(MozjsEnumerationInterface::CreateProxy));
+      base::Bind(MozjsEnumerationInterface::CreateProxy),
+      base::Bind(MozjsEnumerationInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ExceptionObjectInterface::ExceptionObjectInterfaceWrappableType(),
-      base::Bind(MozjsExceptionObjectInterface::CreateProxy));
+      base::Bind(MozjsExceptionObjectInterface::CreateProxy),
+      base::Bind(MozjsExceptionObjectInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ExceptionsInterface::ExceptionsInterfaceWrappableType(),
-      base::Bind(MozjsExceptionsInterface::CreateProxy));
+      base::Bind(MozjsExceptionsInterface::CreateProxy),
+      base::Bind(MozjsExceptionsInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ExtendedIDLAttributesInterface::ExtendedIDLAttributesInterfaceWrappableType(),
-      base::Bind(MozjsExtendedIDLAttributesInterface::CreateProxy));
+      base::Bind(MozjsExtendedIDLAttributesInterface::CreateProxy),
+      base::Bind(MozjsExtendedIDLAttributesInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       GetOpaqueRootInterface::GetOpaqueRootInterfaceWrappableType(),
-      base::Bind(MozjsGetOpaqueRootInterface::CreateProxy));
+      base::Bind(MozjsGetOpaqueRootInterface::CreateProxy),
+      base::Bind(MozjsGetOpaqueRootInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       GlobalInterfaceParent::GlobalInterfaceParentWrappableType(),
-      base::Bind(MozjsGlobalInterfaceParent::CreateProxy));
+      base::Bind(MozjsGlobalInterfaceParent::CreateProxy),
+      base::Bind(MozjsGlobalInterfaceParent::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ImplementedInterface::ImplementedInterfaceWrappableType(),
-      base::Bind(MozjsImplementedInterface::CreateProxy));
+      base::Bind(MozjsImplementedInterface::CreateProxy),
+      base::Bind(MozjsImplementedInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       IndexedGetterInterface::IndexedGetterInterfaceWrappableType(),
-      base::Bind(MozjsIndexedGetterInterface::CreateProxy));
+      base::Bind(MozjsIndexedGetterInterface::CreateProxy),
+      base::Bind(MozjsIndexedGetterInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       InterfaceWithUnsupportedProperties::InterfaceWithUnsupportedPropertiesWrappableType(),
-      base::Bind(MozjsInterfaceWithUnsupportedProperties::CreateProxy));
+      base::Bind(MozjsInterfaceWithUnsupportedProperties::CreateProxy),
+      base::Bind(MozjsInterfaceWithUnsupportedProperties::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NamedConstructorInterface::NamedConstructorInterfaceWrappableType(),
-      base::Bind(MozjsNamedConstructorInterface::CreateProxy));
+      base::Bind(MozjsNamedConstructorInterface::CreateProxy),
+      base::Bind(MozjsNamedConstructorInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NamedGetterInterface::NamedGetterInterfaceWrappableType(),
-      base::Bind(MozjsNamedGetterInterface::CreateProxy));
+      base::Bind(MozjsNamedGetterInterface::CreateProxy),
+      base::Bind(MozjsNamedGetterInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NamedIndexedGetterInterface::NamedIndexedGetterInterfaceWrappableType(),
-      base::Bind(MozjsNamedIndexedGetterInterface::CreateProxy));
+      base::Bind(MozjsNamedIndexedGetterInterface::CreateProxy),
+      base::Bind(MozjsNamedIndexedGetterInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NestedPutForwardsInterface::NestedPutForwardsInterfaceWrappableType(),
-      base::Bind(MozjsNestedPutForwardsInterface::CreateProxy));
+      base::Bind(MozjsNestedPutForwardsInterface::CreateProxy),
+      base::Bind(MozjsNestedPutForwardsInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NoConstructorInterface::NoConstructorInterfaceWrappableType(),
-      base::Bind(MozjsNoConstructorInterface::CreateProxy));
+      base::Bind(MozjsNoConstructorInterface::CreateProxy),
+      base::Bind(MozjsNoConstructorInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NoInterfaceObjectInterface::NoInterfaceObjectInterfaceWrappableType(),
-      base::Bind(MozjsNoInterfaceObjectInterface::CreateProxy));
+      base::Bind(MozjsNoInterfaceObjectInterface::CreateProxy),
+      base::Bind(MozjsNoInterfaceObjectInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NullableTypesTestInterface::NullableTypesTestInterfaceWrappableType(),
-      base::Bind(MozjsNullableTypesTestInterface::CreateProxy));
+      base::Bind(MozjsNullableTypesTestInterface::CreateProxy),
+      base::Bind(MozjsNullableTypesTestInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       NumericTypesTestInterface::NumericTypesTestInterfaceWrappableType(),
-      base::Bind(MozjsNumericTypesTestInterface::CreateProxy));
+      base::Bind(MozjsNumericTypesTestInterface::CreateProxy),
+      base::Bind(MozjsNumericTypesTestInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       ObjectTypeBindingsInterface::ObjectTypeBindingsInterfaceWrappableType(),
-      base::Bind(MozjsObjectTypeBindingsInterface::CreateProxy));
+      base::Bind(MozjsObjectTypeBindingsInterface::CreateProxy),
+      base::Bind(MozjsObjectTypeBindingsInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       OperationsTestInterface::OperationsTestInterfaceWrappableType(),
-      base::Bind(MozjsOperationsTestInterface::CreateProxy));
+      base::Bind(MozjsOperationsTestInterface::CreateProxy),
+      base::Bind(MozjsOperationsTestInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       PutForwardsInterface::PutForwardsInterfaceWrappableType(),
-      base::Bind(MozjsPutForwardsInterface::CreateProxy));
+      base::Bind(MozjsPutForwardsInterface::CreateProxy),
+      base::Bind(MozjsPutForwardsInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       StaticPropertiesInterface::StaticPropertiesInterfaceWrappableType(),
-      base::Bind(MozjsStaticPropertiesInterface::CreateProxy));
+      base::Bind(MozjsStaticPropertiesInterface::CreateProxy),
+      base::Bind(MozjsStaticPropertiesInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       StringifierAnonymousOperationInterface::StringifierAnonymousOperationInterfaceWrappableType(),
-      base::Bind(MozjsStringifierAnonymousOperationInterface::CreateProxy));
+      base::Bind(MozjsStringifierAnonymousOperationInterface::CreateProxy),
+      base::Bind(MozjsStringifierAnonymousOperationInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       StringifierAttributeInterface::StringifierAttributeInterfaceWrappableType(),
-      base::Bind(MozjsStringifierAttributeInterface::CreateProxy));
+      base::Bind(MozjsStringifierAttributeInterface::CreateProxy),
+      base::Bind(MozjsStringifierAttributeInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       StringifierOperationInterface::StringifierOperationInterfaceWrappableType(),
-      base::Bind(MozjsStringifierOperationInterface::CreateProxy));
+      base::Bind(MozjsStringifierOperationInterface::CreateProxy),
+      base::Bind(MozjsStringifierOperationInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       TargetInterface::TargetInterfaceWrappableType(),
-      base::Bind(MozjsTargetInterface::CreateProxy));
+      base::Bind(MozjsTargetInterface::CreateProxy),
+      base::Bind(MozjsTargetInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       UnionTypesInterface::UnionTypesInterfaceWrappableType(),
-      base::Bind(MozjsUnionTypesInterface::CreateProxy));
+      base::Bind(MozjsUnionTypesInterface::CreateProxy),
+      base::Bind(MozjsUnionTypesInterface::PrototypeClass));
 
 }
 
