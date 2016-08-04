@@ -21,7 +21,6 @@
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
-#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
