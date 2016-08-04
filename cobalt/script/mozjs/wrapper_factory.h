@@ -37,26 +37,39 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   typedef base::Callback<JSObject*(JSContext*, const scoped_refptr<Wrappable>&)>
       CreateWrapperFunction;
 
+  // Callback to get JSClass* of prototype.
+  typedef base::Callback<const JSClass*(JSContext*)> PrototypeClassFunction;
+
   explicit WrapperFactory(JSContext* context) : context_(context) {}
   void RegisterWrappableType(base::TypeId wrappable_type,
-                             const CreateWrapperFunction& create_function);
+                             const CreateWrapperFunction& create_function,
+                             const PrototypeClassFunction& class_function);
 
   // Gets the Proxy for the Wrapper object for this Wrappable. It may create a
   // new Wrapper and Proxy.
   JSObject* GetWrapperProxy(const scoped_refptr<Wrappable>& wrappable) const;
-
   // Returns true if this JSObject is a Wrapper object.
   bool IsWrapper(JS::HandleObject wrapper) const;
 
+  bool DoesObjectImplementInterface(JSObject*, base::TypeId) const;
+
  private:
+  struct WrappableTypeFunctions {
+    CreateWrapperFunction create_wrapper;
+    PrototypeClassFunction prototype_class;
+    WrappableTypeFunctions(const CreateWrapperFunction& create_wrapper,
+                           const PrototypeClassFunction& prototype_class)
+        : create_wrapper(create_wrapper), prototype_class(prototype_class) {}
+  };
+
   scoped_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(
       const scoped_refptr<Wrappable>& wrappable) const;
 
-  typedef base::hash_map<base::TypeId, CreateWrapperFunction>
-      CreateWrapperHashMap;
+  typedef base::hash_map<base::TypeId, WrappableTypeFunctions>
+      WrappableTypeFunctionsHashMap;
 
   JSContext* context_;
-  CreateWrapperHashMap create_wrapper_functions_;
+  WrappableTypeFunctionsHashMap wrappable_type_functions_;
 };
 
 }  // namespace mozjs

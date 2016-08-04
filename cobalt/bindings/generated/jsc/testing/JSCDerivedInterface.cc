@@ -99,6 +99,7 @@ JSC::JSValue getJSderivedAttribute(
     JSC::ExecState* exec_state,
     JSC::JSValue slot_base,
     JSC::PropertyName property_name);
+JSC::EncodedJSValue constructorJSDerivedInterface(JSC::ExecState*);
 JSC::EncodedJSValue functionJSderivedOperation(JSC::ExecState*);
 
 // These are declared unconditionally, but only defined if needed by the
@@ -181,13 +182,6 @@ class JSCDerivedInterface::InterfaceObject : public ConstructorBase {
     return JSC::CallTypeNone;
   }
 
-  // static override. This prevents this object from being called as a
-  // constructor, throwing a TypeError if the user attempts to do so.
-  //
-  // This method is defined when no constructors are defined on the IDL.
-  static JSC::ConstructType getConstructData(JSC::JSCell*, JSC::ConstructData&) {
-    return JSC::ConstructTypeNone;
-  }
 
  private:
   typedef ConstructorBase BaseClass;
@@ -275,8 +269,7 @@ JSC::JSObject* JSCDerivedInterface::InterfaceObject::GetInstance(
         &s_info);
 
     const int kNumArguments = 0;
-    // NativeExecutable must be non-null even if this is not actually callable.
-    JSC::NativeExecutable* executable = global_data.getHostFunction(NULL, NULL);
+    JSC::NativeExecutable* executable = global_data.getHostFunction(NULL, &constructorJSDerivedInterface);
 
     // Create the new interface object.
     InterfaceObject* new_interface_object =
@@ -630,6 +623,16 @@ JSC::JSValue getJSderivedAttribute(
       global_object,
       impl->derived_attribute());
   return result;
+}
+
+JSC::EncodedJSValue constructorJSDerivedInterface(JSC::ExecState* exec_state) {
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+    scoped_refptr<DerivedInterface> new_object =
+        new DerivedInterface();
+    return JSC::JSValue::encode(ToJSValue(global_object, new_object));
+
 }
 
 JSC::EncodedJSValue functionJSderivedOperation(

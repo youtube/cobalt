@@ -114,6 +114,7 @@ MozjsDerivedInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsDerivedInterfaceHandler>
     proxy_handler;
 
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -162,6 +163,7 @@ InterfaceData* CreateCachedInterfaceData() {
   interface_object_class->enumerate = JS_EnumerateStub;
   interface_object_class->resolve = JS_ResolveStub;
   interface_object_class->convert = JS_ConvertStub;
+  interface_object_class->construct = Constructor;
   return interface_data;
 }
 
@@ -294,6 +296,16 @@ void InitializePrototypeAndInterfaceObject(
                         JSPROP_READONLY);
   DCHECK(success);
 
+  // Add the InterfaceObject.length property. It is set to the length of the
+  // shortest argument list of all overload constructors.
+  JS::RootedValue length_value(context);
+  length_value.setInt32(0);
+  success =
+      JS_DefineProperty(context, rooted_interface_object, "length",
+                        length_value, JS_PropertyStub, JS_StrictPropertyStub,
+                        JSPROP_READONLY);
+  DCHECK(success);
+
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
                                 interface_object_properties);
@@ -349,6 +361,14 @@ JSObject* MozjsDerivedInterface::CreateProxy(
   return proxy;
 }
 
+//static
+const JSClass* MozjsDerivedInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* MozjsDerivedInterface::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -372,6 +392,19 @@ JSObject* MozjsDerivedInterface::GetInterfaceObject(JSContext* context) {
 
 
 namespace {
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
+  scoped_refptr<DerivedInterface> new_object =
+      new DerivedInterface();
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &result_value);
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
+  return true;
+}
 }  // namespace
 
 
