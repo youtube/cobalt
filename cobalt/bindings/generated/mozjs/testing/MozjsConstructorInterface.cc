@@ -349,10 +349,7 @@ JSBool Constructor1(
   scoped_refptr<ConstructorInterface> new_object =
       new ConstructorInterface();
   JS::RootedValue result_value(context);
-  ToJSValue(context, new_object, &exception_state, &result_value);
-  if (exception_state.is_exception_set()) {
-    return false;
-  }
+  ToJSValue(context, new_object, &result_value);
   DCHECK(result_value.isObject());
   JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
   args.rval().setObject(*result_object);
@@ -386,10 +383,7 @@ JSBool Constructor2(
   scoped_refptr<ConstructorInterface> new_object =
       new ConstructorInterface(arg);
   JS::RootedValue result_value(context);
-  ToJSValue(context, new_object, &exception_state, &result_value);
-  if (exception_state.is_exception_set()) {
-    return false;
-  }
+  ToJSValue(context, new_object, &result_value);
   DCHECK(result_value.isObject());
   JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
   args.rval().setObject(*result_object);
