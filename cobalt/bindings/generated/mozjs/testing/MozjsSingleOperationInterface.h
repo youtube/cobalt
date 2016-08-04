@@ -26,11 +26,28 @@
 // Headers for other bindings wrapper classes
 #include "cobalt/bindings/testing/single_operation_interface.h"
 
+#include "third_party/mozjs/js/src/jsapi.h"
+
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class MozjsSingleOperationInterface { };
+class MozjsSingleOperationInterface : public SingleOperationInterface {
+ public:
+  typedef SingleOperationInterface BaseType;
+
+  MozjsSingleOperationInterface(
+      JSContext* context, JS::HandleObject implementing_object);
+  base::optional<int32_t > HandleCallback(
+      const scoped_refptr<script::Wrappable>& callback_this,
+      const scoped_refptr<ArbitraryInterface>& value,
+      bool* had_exception) const OVERRIDE;
+  JSObject* handle() const { return implementing_object_; }
+
+ private:
+  JSContext* context_;
+  JS::Heap<JSObject*> implementing_object_;
+};
 
 }  // namespace bindings
 }  // namespace testing

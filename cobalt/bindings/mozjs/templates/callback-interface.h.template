@@ -15,13 +15,39 @@
  #}
 {% extends "callback-interface-base.h.template" %}
 
+{% block includes %}
+{{ super() }}
+#include "third_party/mozjs/js/src/jsapi.h"
+{% endblock includes %}
+
 {% block implementation %}
 namespace cobalt {
 {% for component in components %}
 namespace {{component}} {
 {% endfor %}
 
-class {{binding_class}} { };
+class {{binding_class}} : public {{impl_class}} {
+ public:
+  typedef {{impl_class}} BaseType;
+
+  {{binding_class}}(
+      JSContext* context, JS::HandleObject implementing_object);
+{% for operation in operations %}
+{% for overload in operation.overloads %}
+  {{overload.type}} {{overload.name}}(
+      const scoped_refptr<script::Wrappable>& callback_this,
+    {% for arg in overload.arguments %}
+      {{arg.arg_type}} {{arg.name}},
+    {% endfor %}
+      bool* had_exception) const OVERRIDE;
+{% endfor %}
+{% endfor %}
+  JSObject* handle() const { return implementing_object_; }
+
+ private:
+  JSContext* context_;
+  JS::Heap<JSObject*> implementing_object_;
+};
 
 {% for component in components %}
 }  // namespace {{component}}

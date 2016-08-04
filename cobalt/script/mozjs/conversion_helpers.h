@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/enable_if.h"
+#include "cobalt/script/mozjs/mozjs_callback_interface_holder.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
@@ -61,6 +62,9 @@ enum ConversionFlags {
 
   // Valid conversion flags for callback functions.
   kConversionFlagsCallbackFunction = kConversionFlagNullable,
+
+  // Valid conversion flags for callback interfaces.
+  kConversionFlagsCallbackInterface = kConversionFlagNullable,
 };
 
 // TODO: These will be removed once conversion for all types is implemented.
@@ -415,6 +419,72 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   // This is not a platform object. Return a type error.
   exception_state->SetSimpleException(ExceptionState::kTypeError,
                                       kDoesNotImplementInterface);
+}
+
+// CallbackInterface -> JSValue
+template <typename T>
+inline void ToJSValue(JSContext* context,
+                      const ScriptObject<T>* callback_interface,
+                      JS::MutableHandleValue out_value) {
+  if (!callback_interface) {
+    out_value.set(JS::NullValue());
+    return;
+  }
+  typedef typename CallbackInterfaceTraits<T>::MozjsCallbackInterfaceClass
+      MozjsCallbackInterfaceClass;
+  // Downcast to MozjsUserObjectHolder<T> so we can get the underlying JSObject.
+  typedef MozjsUserObjectHolder<MozjsCallbackInterfaceClass>
+      MozjsUserObjectHolderClass;
+  const MozjsUserObjectHolderClass* user_object_holder =
+      base::polymorphic_downcast<const MozjsUserObjectHolderClass*>(
+          callback_interface);
+
+  // Shouldn't be NULL. If the callback was NULL then NULL should have been
+  // passed as an argument into this function.
+  // Downcast to the corresponding MozjsCallbackInterface type, from which we
+  // can get the implementing object.
+  const MozjsCallbackInterfaceClass* mozjs_callback_interface =
+      base::polymorphic_downcast<const MozjsCallbackInterfaceClass*>(
+          user_object_holder->GetScriptObject());
+  DCHECK(mozjs_callback_interface);
+  out_value.set(OBJECT_TO_JSVAL(mozjs_callback_interface->handle()));
+}
+
+// JSValue -> CallbackInterface
+template <typename T>
+inline void FromJSValue(
+    JSContext* context, JS::HandleValue value, int conversion_flags,
+    ExceptionState* out_exception,
+    MozjsCallbackInterfaceHolder<T>* out_callback_interface) {
+  typedef T MozjsCallbackInterfaceClass;
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsCallbackFunction, 0)
+      << "No conversion flags supported.";
+  if (value.isNull()) {
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotNullableType);
+    }
+    // If it is a nullable type, just return.
+    return;
+  }
+
+  // https://www.w3.org/TR/WebIDL/#es-user-objects
+  // Any user object can be considered to implement a user interface. Actually
+  // checking if the correct properties exist will happen when the operation
+  // on the callback interface is run.
+  if (!value.isObject()) {
+    out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                      kNotObjectType);
+    return;
+  }
+
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+
+  JS::RootedObject implementing_object(context, JSVAL_TO_OBJECT(value));
+  DCHECK(implementing_object);
+  *out_callback_interface = MozjsCallbackInterfaceHolder<T>(
+      implementing_object, context, global_object_proxy->wrapper_factory());
 }
 
 }  // namespace mozjs
