@@ -297,6 +297,16 @@ void InitializePrototypeAndInterfaceObject(
                         JSPROP_READONLY);
   DCHECK(success);
 
+  // Add the InterfaceObject.length property. It is set to the length of the
+  // shortest argument list of all overload constructors.
+  JS::RootedValue length_value(context);
+  length_value.setInt32(0);
+  success =
+      JS_DefineProperty(context, rooted_interface_object, "length",
+                        length_value, JS_PropertyStub, JS_StrictPropertyStub,
+                        JSPROP_READONLY);
+  DCHECK(success);
+
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
                                 interface_object_properties);
