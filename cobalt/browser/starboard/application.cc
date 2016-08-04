@@ -16,6 +16,8 @@
 
 #include "cobalt/browser/application.h"
 
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/browser/starboard/event_handler.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -24,8 +26,13 @@ namespace browser {
 class ApplicationStarboard : public Application {
  public:
   explicit ApplicationStarboard(const base::Closure& quit_closure)
-      : Application(quit_closure) {}
+      : Application(quit_closure), event_handler_(&event_dispatcher_) {}
   ~ApplicationStarboard() OVERRIDE {}
+
+ private:
+  // Event handler to receive Starboard events, convert to Cobalt events
+  // and dispatch to the rest of the system.
+  EventHandler event_handler_;
 };
 
 scoped_ptr<Application> CreateApplication(const base::Closure& quit_closure) {
