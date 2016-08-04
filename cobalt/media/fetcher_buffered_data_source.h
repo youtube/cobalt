@@ -55,9 +55,6 @@ namespace media {
 class FetcherBufferedDataSource : public ::media::BufferedDataSource,
                                   private net::URLFetcherDelegate {
  public:
-  static const uint32 kBackwardBytes = 256 * 1024;
-  static const uint32 kForwardBytes = 3 * 256 * 1024;
-  static const uint32 kBufferCapacity = kBackwardBytes + kForwardBytes;
   static const int64 kInvalidSize = -1;
 
   // Because the Fetchers have to be created and destroyed on the same thread,
