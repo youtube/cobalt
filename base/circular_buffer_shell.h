@@ -17,8 +17,8 @@ class BASE_EXPORT CircularBufferShell {
  public:
   enum ReserveType { kDoNotReserve, kReserve };
 
-  CircularBufferShell(size_t max_capacity,
-                      ReserveType reserve_type = kDoNotReserve);
+  explicit CircularBufferShell(size_t max_capacity,
+                               ReserveType reserve_type = kDoNotReserve);
   ~CircularBufferShell();
 
   // Clears out all data in the buffer, releasing any allocated memory.
@@ -52,6 +52,9 @@ class BASE_EXPORT CircularBufferShell {
 
   // Returns the length of the data left in the buffer to read.
   size_t GetLength() const;
+
+  // Returns the maximum capacity this circular buffer can grow to.
+  size_t max_capacity() const { return max_capacity_; }
 
  private:
   // Ensures that there is enough capacity to write length bytes to the
