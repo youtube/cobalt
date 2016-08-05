@@ -265,7 +265,7 @@ void TextBox::SetShouldCollapseTrailingWhiteSpace(
 
 bool TextBox::IsCollapsed() const {
   return !HasLeadingWhiteSpace() && !HasTrailingWhiteSpace() &&
-         !HasNonCollapsibleText() && !has_trailing_line_break_;
+         !HasNonCollapsibleText();
 }
 
 bool TextBox::HasLeadingWhiteSpace() const {
