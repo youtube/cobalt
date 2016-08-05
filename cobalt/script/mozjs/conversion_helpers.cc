@@ -41,14 +41,22 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  JSString* string = JS_ValueToString(context, value);
+  JS::RootedString string(context, JS_ValueToString(context, value));
   if (!string) {
     exception_state->SetSimpleException(ExceptionState::kTypeError,
                                         "Not supported type.");
     return;
   }
 
-  *out_string = std::string(JS_EncodeStringToUTF8(context, string));
+  JSAutoByteString auto_byte_string;
+  char* utf8_chars = auto_byte_string.encodeUtf8(context, string);
+  if (!utf8_chars) {
+    exception_state->SetSimpleException(ExceptionState::kTypeError,
+                                        "Failed to convert to utf8.");
+    return;
+  }
+
+  *out_string = utf8_chars;
 }
 
 // OpaqueHandle -> JSValue
