@@ -181,6 +181,7 @@ WrapResult InlineContainerBox::TryWrapAt(
     WrapAtPolicy wrap_at_policy, WrapOpportunityPolicy wrap_opportunity_policy,
     bool is_line_existence_justified, LayoutUnit available_width,
     bool should_collapse_trailing_white_space) {
+  DCHECK(!IsAbsolutelyPositioned());
   DCHECK(is_line_existence_justified || justifies_line_existence_);
 
   switch (wrap_at_policy) {
@@ -469,7 +470,13 @@ WrapResult InlineContainerBox::TryWrapAtLastOpportunityWithinWidth(
   // set to the number of child boxes.
   size_t overflow_index = 0;
   while (overflow_index < child_boxes().size()) {
-    LayoutUnit child_width = child_boxes()[overflow_index]->GetMarginBoxWidth();
+    Box* child_box = child_boxes()[overflow_index];
+    // Absolutely positioned boxes are not included in width calculations.
+    if (child_box->IsAbsolutelyPositioned()) {
+      continue;
+    }
+
+    LayoutUnit child_width = child_box->GetMarginBoxWidth();
     if (child_width > available_width) {
       break;
     }
@@ -563,6 +570,10 @@ WrapResult InlineContainerBox::TryWrapAtIndex(
     bool is_line_existence_justified, LayoutUnit available_width,
     bool should_collapse_trailing_white_space) {
   Box* child_box = child_boxes()[wrap_index];
+  // Absolutely positioned boxes are not wrappable.
+  if (child_box->IsAbsolutelyPositioned()) {
+    return kWrapResultNoWrap;
+  }
 
   // Check for whether the line is justified before this child. If it is not,
   // then verify that the line is justified within this child. This function
