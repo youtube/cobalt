@@ -37,7 +37,8 @@ CircularBufferShell::CircularBufferShell(
       length_(0),
       read_position_(0) {
   if (reserve_type == kReserve) {
-    IncreaseCapacityTo(max_capacity_);
+    base::AutoLock l(lock_);
+    IncreaseCapacityTo_Locked(max_capacity_);
   }
 }
 
@@ -65,7 +66,7 @@ void CircularBufferShell::Read(void* destination,
   if (destination == NULL)
     length = 0;
 
-  ReadAndAdvanceUnchecked(destination, length, bytes_read);
+  ReadAndAdvanceUnchecked_Locked(destination, length, bytes_read);
 }
 
 void CircularBufferShell::Peek(void* destination,
@@ -77,12 +78,12 @@ void CircularBufferShell::Peek(void* destination,
   if (destination == NULL)
     length = 0;
 
-  ReadUnchecked(destination, length, source_offset, bytes_peeked);
+  ReadUnchecked_Locked(destination, length, source_offset, bytes_peeked);
 }
 
 void CircularBufferShell::Skip(size_t length, size_t* bytes_skipped) {
   base::AutoLock l(lock_);
-  ReadAndAdvanceUnchecked(NULL, length, bytes_skipped);
+  ReadAndAdvanceUnchecked_Locked(NULL, length, bytes_skipped);
 }
 
 bool CircularBufferShell::Write(const void* source,
@@ -93,7 +94,7 @@ bool CircularBufferShell::Write(const void* source,
   if (source == NULL)
     length = 0;
 
-  if (!EnsureCapacityToWrite(length)) {
+  if (!EnsureCapacityToWrite_Locked(length)) {
     return false;
   }
 
@@ -102,12 +103,13 @@ bool CircularBufferShell::Write(const void* source,
     size_t remaining = length - produced;
 
     // In this pass, write up to the contiguous space left.
-    size_t to_write = std::min(remaining, capacity_ - GetWritePosition());
+    size_t to_write =
+        std::min(remaining, capacity_ - GetWritePosition_Locked());
     if (to_write == 0)
       break;
 
     // Copy this segment and do the accounting.
-    void* destination = GetWritePointer();
+    void* destination = GetWritePointer_Locked();
     const void* src = add_to_pointer(source, produced);
     memcpy(destination, src, to_write);
     length_ += to_write;
@@ -124,11 +126,13 @@ size_t CircularBufferShell::GetLength() const {
   return length_;
 }
 
-void CircularBufferShell::ReadUnchecked(void* destination,
-                                        size_t destination_length,
-                                        size_t source_offset,
-                                        size_t* bytes_read) const {
+void CircularBufferShell::ReadUnchecked_Locked(void* destination,
+                                               size_t destination_length,
+                                               size_t source_offset,
+                                               size_t* bytes_read) const {
   DCHECK(destination != NULL || bytes_read != NULL);
+
+  lock_.AssertAcquired();
 
   size_t dummy = 0;
   if (!bytes_read) {
@@ -168,9 +172,12 @@ void CircularBufferShell::ReadUnchecked(void* destination,
   *bytes_read = consumed;
 }
 
-void CircularBufferShell::ReadAndAdvanceUnchecked(void* destination,
-                                                  size_t destination_length,
-                                                  size_t* bytes_read) {
+void CircularBufferShell::ReadAndAdvanceUnchecked_Locked(
+    void* destination,
+    size_t destination_length,
+    size_t* bytes_read) {
+  lock_.AssertAcquired();
+
   size_t dummy = 0;
   if (!bytes_read) {
     bytes_read = &dummy;
@@ -182,20 +189,26 @@ void CircularBufferShell::ReadAndAdvanceUnchecked(void* destination,
     return;
   }
 
-  ReadUnchecked(destination, destination_length, 0, bytes_read);
+  ReadUnchecked_Locked(destination, destination_length, 0, bytes_read);
   length_ -= *bytes_read;
   read_position_ = (read_position_ + *bytes_read) % capacity_;
 }
 
-void* CircularBufferShell::GetWritePointer() const {
-  return add_to_pointer(buffer_, GetWritePosition());
+void* CircularBufferShell::GetWritePointer_Locked() const {
+  lock_.AssertAcquired();
+
+  return add_to_pointer(buffer_, GetWritePosition_Locked());
 }
 
-size_t CircularBufferShell::GetWritePosition() const {
+size_t CircularBufferShell::GetWritePosition_Locked() const {
+  lock_.AssertAcquired();
+
   return (read_position_ + length_) % capacity_;
 }
 
-bool CircularBufferShell::EnsureCapacityToWrite(size_t length) {
+bool CircularBufferShell::EnsureCapacityToWrite_Locked(size_t length) {
+  lock_.AssertAcquired();
+
   if (capacity_ - length_ < length) {
     size_t capacity = std::max(2 * capacity_, length_ + length);
     if (capacity > max_capacity_)
@@ -206,13 +219,15 @@ bool CircularBufferShell::EnsureCapacityToWrite(size_t length) {
       return false;
     }
 
-    return IncreaseCapacityTo(capacity);
+    return IncreaseCapacityTo_Locked(capacity);
   }
 
   return true;
 }
 
-bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
+bool CircularBufferShell::IncreaseCapacityTo_Locked(size_t capacity) {
+  lock_.AssertAcquired();
+
   if (capacity <= capacity_) {
     return true;
   }
@@ -237,7 +252,7 @@ bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
   size_t length = length_;
 
   // Copy the data over to the new buffer.
-  ReadUnchecked(buffer, length_, 0, NULL);
+  ReadUnchecked_Locked(buffer, length_, 0, NULL);
 
   // Adjust the accounting.
   length_ = length;
@@ -246,6 +261,21 @@ bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
   free(buffer_);
   buffer_ = buffer;
   return true;
+}
+
+size_t CircularBufferShell::GetMaxCapacity() const {
+  base::AutoLock l(lock_);
+
+  return max_capacity_;
+}
+
+void CircularBufferShell::IncreaseMaxCapacityTo(size_t new_max_capacity) {
+  base::AutoLock l(lock_);
+
+  DCHECK_GT(new_max_capacity, max_capacity_);
+  if (new_max_capacity > max_capacity_) {
+    max_capacity_ = new_max_capacity;
+  }
 }
 
 }  // namespace base
