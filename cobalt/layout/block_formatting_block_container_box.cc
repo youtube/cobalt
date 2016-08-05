@@ -158,6 +158,7 @@ WrapResult InlineLevelBlockContainerBox::TryWrapAt(
     bool is_line_existence_justified, LayoutUnit /*available_width*/,
     bool /*should_collapse_trailing_white_space*/) {
   // NOTE: This logic must stay in sync with ReplacedBox::TryWrapAt().
+  DCHECK(!IsAbsolutelyPositioned());
 
   // Wrapping is not allowed until the line's existence is justified, meaning
   // that wrapping cannot occur before the box. Given that this box cannot be
