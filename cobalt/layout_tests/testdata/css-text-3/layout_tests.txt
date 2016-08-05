@@ -29,6 +29,7 @@
 4-1-1-space-preceding-br-element-should-not-be-collapsed
 4-1-3-spaces-at-beginning-and-end-of-line-should-be-collapsed
 4-1-empty-inline-block-should-be-treated-as-non-empty-text
+5-absolute-boxes-in-span-should-not-impact-line-wrapping
 5-collapsible-leading-white-space-should-not-prevent-soft-wrap-opportunity
 5-collapsible-trailing-white-space-should-not-prevent-soft-wrap-opportunity
 5-collapsible-trailing-white-space-that-overflows-line-prior-to-collapse-should-not-cause-wrap
