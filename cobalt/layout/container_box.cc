@@ -89,11 +89,7 @@ Boxes::const_iterator ContainerBox::InsertSplitSiblingOfDirectChild(
   // https://www.w3.org/TR/css-transforms-1/#transformable-element
   DCHECK(!split_sibling->IsTransformable());
   if (split_sibling->IsPositioned()) {
-    // Absolutely positioned boxes are not splittable.
-    DCHECK(!split_sibling->IsAbsolutelyPositioned());
-    // This container is the containing block because the split sibling cannot
-    // be an absolutely positioned box.
-    are_cross_references_valid_ = false;
+    split_sibling->GetContainingBlock()->are_cross_references_valid_ = false;
     split_sibling->GetStackingContext()->are_cross_references_valid_ = false;
   }
 
