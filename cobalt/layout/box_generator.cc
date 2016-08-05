@@ -315,13 +315,19 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
     return;
   }
 
+  scoped_refptr<cssom::CSSComputedStyleDeclaration>
+      css_computed_style_declaration = new cssom::CSSComputedStyleDeclaration();
+  css_computed_style_declaration->set_data(
+      GetComputedStyleOfAnonymousBox(br_element->computed_style()));
+
+  css_computed_style_declaration->set_animations(br_element->animations());
+
   DCHECK(*paragraph_);
   int32 text_position = (*paragraph_)->GetTextEndPosition();
 
-  scoped_refptr<TextBox> br_text_box =
-      new TextBox(br_element->css_computed_style_declaration(), *paragraph_,
-                  text_position, text_position, true,
-                  context_->used_style_provider, context_->layout_stat_tracker);
+  scoped_refptr<TextBox> br_text_box = new TextBox(
+      css_computed_style_declaration, *paragraph_, text_position, text_position,
+      true, context_->used_style_provider, context_->layout_stat_tracker);
 
   // Add a line feed code point to the paragraph to signify the new line for
   // the line breaking and bidirectional algorithms.
