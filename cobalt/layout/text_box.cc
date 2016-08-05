@@ -165,6 +165,8 @@ WrapResult TextBox::TryWrapAt(WrapAtPolicy wrap_at_policy,
                               bool is_line_existence_justified,
                               LayoutUnit available_width,
                               bool should_collapse_trailing_white_space) {
+  DCHECK(!IsAbsolutelyPositioned());
+
   bool style_allows_break_word =
       computed_style()->overflow_wrap() == cssom::KeywordValue::GetBreakWord();
 
