@@ -97,6 +97,12 @@
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
+// --- Graphics Configuration ------------------------------------------------
+
+// Indicates whether or not the given platform supports rendering of NV12
+// textures. These textures typically originate from video decoders.
+#define SB_HAS_NV12_TEXTURE_SUPPORT 1
+
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
 
