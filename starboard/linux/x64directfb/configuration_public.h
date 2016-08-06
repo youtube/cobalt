@@ -26,6 +26,11 @@
 // API afterwards since we'll have DirectFB available.
 #include "starboard/linux/x64x11/configuration_public.h"
 
+// Indicates whether or not the given platform supports rendering of NV12
+// textures. These textures typically originate from video decoders.
+#undef SB_HAS_NV12_TEXTURE_SUPPORT
+#define SB_HAS_NV12_TEXTURE_SUPPORT 0
+
 // This configuration supports the blitter API (implemented via DirectFB).
 #undef SB_HAS_BLITTER
 #define SB_HAS_BLITTER 1
