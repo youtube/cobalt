@@ -364,6 +364,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Only one SB_HAS_{MANY, 1, 2, 4, 6}_CORE[S] can be defined per platform."
 #endif
 
+#if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
+#error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
+#endif
+
 #if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
 // Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
 // as SB_PREFERRED_RGBA_BYTE_ORDER_*.

@@ -69,6 +69,12 @@
 #define SB_IS_WCHAR_T_SIGNED 1
 #endif
 
+// --- Architecture Configuration --------------------------------------------
+
+// On default Linux desktop, you must be a superuser in order to set real time
+// scheduling on threads.
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+
 // --- Attribute Configuration -----------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
