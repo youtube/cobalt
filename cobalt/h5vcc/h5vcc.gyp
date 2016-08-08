@@ -57,6 +57,19 @@
         # For cobalt_build_id.h
         '<(SHARED_INTERMEDIATE_DIR)',
       ],
+      'conditions': [
+        ['enable_account_manager == 1', {
+          'sources': [
+            'h5vcc_account_manager.cc',
+            'h5vcc_account_manager.h',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'COBALT_ENABLE_ACCOUNT_MANAGER',
+            ],
+          },
+        }],
+      ],
     },
 
     {

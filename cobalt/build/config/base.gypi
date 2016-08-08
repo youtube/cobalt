@@ -67,6 +67,9 @@
     # Set to 1 to build with DIAL support.
     'in_app_dial%': 0,
 
+    # Set to 1 to enable H5vccAccountManager.
+    'enable_account_manager%': 0,
+
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
 
@@ -267,7 +270,7 @@
         'defines': [
           'COBALT_DISABLE_SPDY',
         ],
-      }]
+      }],
     ],
 
     # TODO: Revisit and remove unused configurations.
