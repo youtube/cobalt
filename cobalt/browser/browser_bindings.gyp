@@ -21,6 +21,10 @@
     # be generated.
     'bindings_output_dir': '<(SHARED_INTERMEDIATE_DIR)/bindings/browser',
 
+    'bindings_dependencies': [
+      '../h5vcc/h5vcc.gyp:h5vcc',
+    ],
+
     # Bindings for the interfaces in this list will be generated, and there must
     # be an implementation declared in a header that lives in the same
     # directory of each IDL.
@@ -144,6 +148,7 @@
         '../h5vcc/dial/DialServer.idl',
         '../h5vcc/H5vcc.idl',
         '../h5vcc/H5vccAccountInfo.idl',
+        '../h5vcc/H5vccAccountManager.idl',
         '../h5vcc/H5vccAudioConfig.idl',
         '../h5vcc/H5vccAudioConfigArray.idl',
         '../h5vcc/H5vccCVal.idl',
