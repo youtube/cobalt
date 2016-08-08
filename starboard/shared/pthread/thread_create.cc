@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,50 @@
 
 #include <pthread.h>
 #include <sched.h>
+#include <unistd.h>
 
+#include "starboard/log.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/string.h"
 
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+#if !defined(_POSIX_PRIORITY_SCHEDULING)
+#error "The _POSIX_PRIORITY_SCHEDULING define indicates that a pthreads \
+system supports thread priorities, however this define is not \
+defined on this system, contradicting the Starboard configuration \
+indicating that priority scheduling is supported."
+#endif  // !defined(_POSIX_PRIORITY_SCHEDULING)
+#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT)
+
 namespace {
+
+int SbThreadPriorityToPthread(SbThreadPriority priority) {
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      SB_NOTREACHED() << "Lowest priority threads should use SCHED_OTHER.";
+      return 0;
+      break;
+    case kSbThreadPriorityLow: return 2;
+    case kSbThreadNoPriority:
+    // Fall through on purpose to default to kThreadPriority_Normal.
+    case kSbThreadPriorityNormal: return 3;
+    case kSbThreadPriorityHigh: return 4;
+    case kSbThreadPriorityHighest: return 5;
+    case kSbThreadPriorityRealTime: return 6;
+    default:
+      SB_NOTREACHED();
+      return 0;
+  }
+}
 
 struct ThreadParams {
   SbThreadAffinity affinity;
   SbThreadEntryPoint entry_point;
   char name[128];
   void* context;
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+  SbThreadPriority priority;
+#endif  // #if SB_HAS(THREAD_PRIORITY_SUPPORT)
 };
 
 void* ThreadFunc(void* context) {
@@ -37,6 +70,21 @@ void* ThreadFunc(void* context) {
   if (thread_params->name[0] != '\0') {
     SbThreadSetName(thread_params->name);
   }
+
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+  // Use Linux' regular scheduler for lowest priority threads.  Real-time
+  // priority threads (of any priority) will always have priority over
+  // non-real-time threads (e.g. threads whose scheduler is setup to be
+  // SCHED_OTHER, the default scheduler).
+  if (thread_params->priority != kSbThreadPriorityLowest) {
+    // Note that use of sched_setscheduler() has been found to be more reliably
+    // supported than pthread_setschedparam(), so we are using that.
+    struct sched_param thread_sched_param;
+    thread_sched_param.sched_priority =
+        SbThreadPriorityToPthread(thread_params->priority);
+    sched_setscheduler(0, SCHED_FIFO, &thread_sched_param);
+  }
+#endif  // #if SB_HAS(THREAD_PRIORITY_SUPPORT)
 
   delete thread_params;
 
@@ -84,10 +132,6 @@ SbThread SbThreadCreate(int64_t stack_size,
     pthread_attr_setstacksize(&attributes, stack_size);
   }
 
-  // Here is where we would use priority, but it doesn't really work on Linux
-  // without using a realtime scheduling policy, according to this article:
-  // http://stackoverflow.com/questions/3649281/how-to-increase-thread-priority-in-pthreads/3663250
-
   ThreadParams* params = new ThreadParams();
   params->affinity = affinity;
   params->entry_point = entry_point;
@@ -98,6 +142,10 @@ SbThread SbThreadCreate(int64_t stack_size,
   } else {
     params->name[0] = '\0';
   }
+
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+  params->priority = priority;
+#endif  // #if SB_HAS(THREAD_PRIORITY_SUPPORT)
 
   SbThread thread = kSbThreadInvalid;
   result = pthread_create(&thread, &attributes, ThreadFunc, params);
