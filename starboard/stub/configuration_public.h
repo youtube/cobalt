@@ -85,6 +85,9 @@
 // Whether the current platform is expected to have exactly 6 cores.
 #define SB_HAS_6_CORES 0
 
+// Whether the current platform supports thread priorities.
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+
 // Whether the current platform's thread scheduler will automatically balance
 // threads between cores, as opposed to systems where threads will only ever run
 // on the specifically pinned core.

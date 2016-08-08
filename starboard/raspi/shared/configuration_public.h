@@ -63,6 +63,14 @@
 #define SB_IS_WCHAR_T_SIGNED 1
 #endif
 
+// --- Architecture Configuration --------------------------------------------
+
+// On the current version of Raspbian, real time thread scheduling seems to be
+// broken in that higher priority threads do not always have priority over lower
+// priority threads.  It looks like the thread created last will always have the
+// highest priority.
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+
 // --- Attribute Configuration -----------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
