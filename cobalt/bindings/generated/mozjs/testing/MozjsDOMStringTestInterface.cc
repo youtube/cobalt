@@ -452,7 +452,7 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedValue name_value(context);
   const char name[] =
       "DOMStringTestInterface";
-  name_value.setString(JS_NewStringCopyZ(context, "DOMStringTestInterface"));
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
