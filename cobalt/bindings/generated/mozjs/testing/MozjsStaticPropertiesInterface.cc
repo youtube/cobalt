@@ -405,7 +405,7 @@ JSBool staticfcn_staticFunction(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[0]);
-      if (false) {
+      if (arg.isNumber()) {
         return staticfcn_staticFunction2(
                   context, argc, vp);
       }

@@ -719,7 +719,7 @@ JSBool fcn_overloadedFunction(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[0]);
-      if (false) {
+      if (arg.isNumber()) {
         return fcn_overloadedFunction2(
                   context, argc, vp);
       }
@@ -859,7 +859,7 @@ JSBool fcn_overloadedNullable(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[0]);
-      if (false) {
+      if (arg.isNullOrUndefined()) {
         return fcn_overloadedNullable2(
                   context, argc, vp);
       }
