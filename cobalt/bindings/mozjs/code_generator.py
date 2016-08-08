@@ -34,16 +34,17 @@ class ExpressionGeneratorMozjs(ExpressionGenerator):
   """Implementation  of ExpressionGenerator for JavaScriptCore."""
 
   def is_undefined(self, arg):
-    return 'false'
+    return '%s.isUndefined()' % arg
 
   def is_undefined_or_null(self, arg):
-    return 'false'
+    return '%s.isNullOrUndefined()' % arg
 
   def inherits_interface(self, interface_name, arg):
+    # TODO: Implement this.
     return 'false'
 
   def is_number(self, arg):
-    return 'false'
+    return '%s.isNumber()' % arg
 
 
 class CodeGeneratorMozjs(CodeGeneratorCobalt):
