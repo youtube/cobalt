@@ -223,6 +223,10 @@
 // working properly.
 #define SB_HAS_BILINEAR_FILTERING_SUPPORT 1
 
+// Indicates whether or not the given platform supports rendering of NV12
+// textures. These textures typically originate from video decoders.
+#define SB_HAS_NV12_TEXTURE_SUPPORT 1
+
 // --- Media Configuration ---------------------------------------------------
 
 // Specifies whether this platform has support for direct access to a decoder
