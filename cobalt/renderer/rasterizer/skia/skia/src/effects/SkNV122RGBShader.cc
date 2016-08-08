@@ -157,8 +157,8 @@ void SkNV122RGBShader::NV122RGBShaderContext::shadeSpan(int x, int y,
 
     for (int i = 0; i < count_in_chunk; ++i) {
       int32_t y_value = SkColorGetA(y_values[i]) - 16;
-      int32_t u_value = SkColorGetG(uv_values[i]) - 128;
-      int32_t v_value = 255 - (SkColorGetR(uv_values[i]) - 128);
+      int32_t u_value = SkColorGetB(uv_values[i]) - 128;
+      int32_t v_value = SkColorGetA(uv_values[i]) - 128;
 
       const float kA = 1.164f;
       const float kB = -0.213f;
