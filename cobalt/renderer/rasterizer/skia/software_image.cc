@@ -53,30 +53,61 @@ SkiaSoftwareImage::SkiaSoftwareImage(
   Initialize(source_data, descriptor);
 }
 
+namespace {
+// Converts UV8 texture data to an ARGB SkBitmap where the original U channel is
+// found in the B channel, the original V channel is found in the A channel, and
+// the R and G channels are zeroed out.
+void ConvertUV8ToARGBSkBitmap(
+    uint8_t* source_data, const render_tree::ImageDataDescriptor& descriptor,
+    SkBitmap* bitmap) {
+  bitmap->allocN32Pixels(descriptor.size.width(), descriptor.size.height());
+  int row_pixels_dest = bitmap->rowBytes() / bitmap->bytesPerPixel();
+
+  bitmap->lockPixels();
+  uint8_t* current_src = source_data;
+  SkColor* current_dest = static_cast<SkColor*>(bitmap->getPixels());
+  for (int row = 0; row < descriptor.size.height(); ++row) {
+    for (int column = 0; column < descriptor.size.width(); ++column) {
+      current_dest[column] = SkColorSetARGBMacro(
+          current_src[column * 2 + 1], 0, 0, current_src[column * 2 + 0]);
+    }
+    current_dest += row_pixels_dest;
+    current_src += descriptor.pitch_in_bytes;
+  }
+  bitmap->unlockPixels();
+}
+}  // namespace
+
 void SkiaSoftwareImage::Initialize(
     uint8_t* source_data, const render_tree::ImageDataDescriptor& descriptor) {
   SkAlphaType skia_alpha_format =
       RenderTreeAlphaFormatToSkia(descriptor.alpha_format);
   DCHECK_EQ(kPremul_SkAlphaType, skia_alpha_format);
 
-  // Convert our incoming pixel data from unpremultiplied alpha to
-  // premultiplied alpha format, which is what Skia expects.
-  SkImageInfo premul_image_info =
-      SkImageInfo::Make(descriptor.size.width(), descriptor.size.height(),
-                        RenderTreeSurfaceFormatToSkia(descriptor.pixel_format),
-                        skia_alpha_format);
+  size_ = descriptor.size;
 
+  if (descriptor.pixel_format == render_tree::kPixelFormatUV8) {
+    // Convert UV8 to ARGB because Skia does not support any two-channel
+    // formats.  This of course is not efficient, but efficiency in the software
+    // renderer is not as important as completeness and correctness.
+    ConvertUV8ToARGBSkBitmap(source_data, descriptor, &bitmap_);
+  } else {
 // Check that the incoming pixel data is indeed in premultiplied alpha
 // format.
 #if !defined(NDEBUG)
-  SkiaImage::DCheckForPremultipliedAlpha(descriptor.size,
-                                         descriptor.pitch_in_bytes,
-                                         descriptor.pixel_format, source_data);
+    SkiaImage::DCheckForPremultipliedAlpha(
+        descriptor.size, descriptor.pitch_in_bytes, descriptor.pixel_format,
+        source_data);
 #endif
-  bitmap_.installPixels(premul_image_info, source_data,
-                        descriptor.pitch_in_bytes);
-
-  size_ = descriptor.size;
+    // Convert our incoming pixel data from unpremultiplied alpha to
+    // premultiplied alpha format, which is what Skia expects.
+    SkImageInfo premul_image_info = SkImageInfo::Make(
+        descriptor.size.width(), descriptor.size.height(),
+        RenderTreeSurfaceFormatToSkia(descriptor.pixel_format),
+        skia_alpha_format);
+    bitmap_.installPixels(premul_image_info, source_data,
+                          descriptor.pitch_in_bytes);
+  }
 }
 
 SkiaSoftwareRawImageMemory::SkiaSoftwareRawImageMemory(size_t size_in_bytes,
