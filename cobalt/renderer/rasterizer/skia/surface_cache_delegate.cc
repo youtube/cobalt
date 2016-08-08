@@ -163,11 +163,6 @@ common::SurfaceCache::CachedSurface* SurfaceCacheDelegate::EndRecording() {
   TRACE_EVENT0("cobalt::renderer", "SurfaceCacheDelegate::EndRecording()");
   DCHECK(recording_data_);
 
-  {
-    TRACE_EVENT0("cobalt::renderer", "SurfaceCacheDelegate canvas_->flush()");
-    canvas_->flush();
-  }
-
   set_canvas_function_.Run(recording_data_->original_canvas);
   canvas_ = recording_data_->original_canvas;
 
