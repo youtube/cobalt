@@ -176,10 +176,10 @@ JSBool get_byteProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int8_t >::ReturnType value =
+  TypeTraits<int8_t >::ReturnType return_value =
       impl->byte_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -220,10 +220,10 @@ JSBool get_octetProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint8_t >::ReturnType value =
+  TypeTraits<uint8_t >::ReturnType return_value =
       impl->octet_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -264,10 +264,10 @@ JSBool get_shortProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int16_t >::ReturnType value =
+  TypeTraits<int16_t >::ReturnType return_value =
       impl->short_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -308,10 +308,10 @@ JSBool get_unsignedShortProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint16_t >::ReturnType value =
+  TypeTraits<uint16_t >::ReturnType return_value =
       impl->unsigned_short_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -352,10 +352,10 @@ JSBool get_longProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int32_t >::ReturnType value =
+  TypeTraits<int32_t >::ReturnType return_value =
       impl->long_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -396,10 +396,10 @@ JSBool get_unsignedLongProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint32_t >::ReturnType value =
+  TypeTraits<uint32_t >::ReturnType return_value =
       impl->unsigned_long_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -440,10 +440,10 @@ JSBool get_longLongProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int64_t >::ReturnType value =
+  TypeTraits<int64_t >::ReturnType return_value =
       impl->long_long_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -484,10 +484,10 @@ JSBool get_unsignedLongLongProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint64_t >::ReturnType value =
+  TypeTraits<uint64_t >::ReturnType return_value =
       impl->unsigned_long_long_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -528,10 +528,10 @@ JSBool get_doubleProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<double >::ReturnType value =
+  TypeTraits<double >::ReturnType return_value =
       impl->double_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -572,10 +572,10 @@ JSBool get_unrestrictedDoubleProperty(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<double >::ReturnType value =
+  TypeTraits<double >::ReturnType return_value =
       impl->unrestricted_double_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -675,10 +675,10 @@ JSBool fcn_byteReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int8_t >::ReturnType value =
+  TypeTraits<int8_t >::ReturnType return_value =
       impl->ByteReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -756,10 +756,10 @@ JSBool fcn_doubleReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<double >::ReturnType value =
+  TypeTraits<double >::ReturnType return_value =
       impl->DoubleReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -884,10 +884,10 @@ JSBool fcn_longLongReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int64_t >::ReturnType value =
+  TypeTraits<int64_t >::ReturnType return_value =
       impl->LongLongReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -918,10 +918,10 @@ JSBool fcn_longReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int32_t >::ReturnType value =
+  TypeTraits<int32_t >::ReturnType return_value =
       impl->LongReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -999,10 +999,10 @@ JSBool fcn_octetReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint8_t >::ReturnType value =
+  TypeTraits<uint8_t >::ReturnType return_value =
       impl->OctetReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -1080,10 +1080,10 @@ JSBool fcn_shortReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<int16_t >::ReturnType value =
+  TypeTraits<int16_t >::ReturnType return_value =
       impl->ShortReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -1161,10 +1161,10 @@ JSBool fcn_unrestrictedDoubleReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<double >::ReturnType value =
+  TypeTraits<double >::ReturnType return_value =
       impl->UnrestrictedDoubleReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -1289,10 +1289,10 @@ JSBool fcn_unsignedLongLongReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint64_t >::ReturnType value =
+  TypeTraits<uint64_t >::ReturnType return_value =
       impl->UnsignedLongLongReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -1323,10 +1323,10 @@ JSBool fcn_unsignedLongReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint32_t >::ReturnType value =
+  TypeTraits<uint32_t >::ReturnType return_value =
       impl->UnsignedLongReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -1404,10 +1404,10 @@ JSBool fcn_unsignedShortReturnOperation(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  TypeTraits<uint16_t >::ReturnType value =
+  TypeTraits<uint16_t >::ReturnType return_value =
       impl->UnsignedShortReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);

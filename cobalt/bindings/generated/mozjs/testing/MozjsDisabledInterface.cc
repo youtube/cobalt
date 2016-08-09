@@ -178,10 +178,10 @@ JSBool get_disabledProperty(
   DisabledInterface* impl =
       wrapper_private->wrappable<DisabledInterface>().get();
 
-  TypeTraits<int32_t >::ReturnType value =
+  TypeTraits<int32_t >::ReturnType return_value =
       impl->disabled_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
