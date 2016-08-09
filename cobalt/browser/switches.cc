@@ -71,12 +71,31 @@ const char kPartialLayout[] = "partial_layout";
 // Creates a remote debugging server and listens on the specified port.
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
 
+// Determines the capacity of the scratch surface cache.  The scratch surface
+// cache facilitates the reuse of temporary offscreen surfaces within a single
+// frame.  This setting is only relevant when using the hardware-accelerated
+// Skia rasterizer.
+const char kScratchSurfaceCacheSizeInBytes[] =
+    "scratch_surface_cache_size_in_bytes";
+
 // If this flag is set, Cobalt will automatically shutdown after the specified
 // number of seconds have passed.
 const char kShutdownAfter[] = "shutdown_after";
 
+// Determines the capacity of the skia cache.  The Skia cache is maintained
+// within Skia and is used to cache the results of complicated effects such as
+// shadows, so that Skia draw calls that are used repeatedly across frames can
+// be cached into surfaces.  This setting is only relevant when using the
+// hardware-accelerated Skia rasterizer.
+const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
+
 // Decode all images using StubImageDecoder.
 const char kStubImageDecoder[] = "stub_image_decoder";
+
+// Determines the capacity of the surface cache.  The surface cache tracks which
+// render tree nodes are being re-used across frames and stores the nodes that
+// are most CPU-expensive to render into surfaces.
+const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
 
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on
 // Cobalt startup.  A value must also be specified for this switch, which is
