@@ -153,7 +153,7 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
     RendererModule::Options render_module_options;
     Pipeline pipeline(
         base::Bind(render_module_options.create_rasterizer_function,
-                   graphics_context.get()),
+                   graphics_context.get(), render_module_options),
         dummy_output_surface, NULL);
 
     // Our test render tree will consist of only a single ImageNode.

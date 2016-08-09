@@ -29,12 +29,6 @@ namespace skia {
 
 namespace {
 
-// We choose this cache size empirically, however exceeding the cache is allowed
-// and won't have any detrimental effects, besides the fact that the cache
-// won't be fully utilized.  It may eventually be nice to allow this to be
-// set as a paramter.
-const size_t kMaxCacheSizeInBytes = 7 * 1024 * 1024;
-
 // Approximate the memory usage of a given surface size.
 size_t ApproximateSurfaceMemory(const math::Size& size) {
   // Here we assume that we use 4 bytes per pixel.
@@ -44,8 +38,10 @@ size_t ApproximateSurfaceMemory(const math::Size& size) {
 }  // namespace
 
 ScratchSurfaceCache::ScratchSurfaceCache(
-    const CreateSkSurfaceFunction& create_sk_surface_function)
+    const CreateSkSurfaceFunction& create_sk_surface_function,
+    int cache_capacity_in_bytes)
     : create_sk_surface_function_(create_sk_surface_function),
+      cache_capacity_in_bytes_(cache_capacity_in_bytes),
       surface_memory_(0) {}
 
 ScratchSurfaceCache::~ScratchSurfaceCache() {
@@ -178,8 +174,9 @@ SkSurface* ScratchSurfaceCache::FindBestCachedSurface(const math::Size& size) {
 void ScratchSurfaceCache::Purge() {
   // Delete surfaces from the front (least recently used) of |unused_surfaces_|
   // until we have deleted all surfaces or lowered our memory usage to under
-  // kMaxCacheSizeInBytes.
-  while (!unused_surfaces_.empty() && surface_memory_ > kMaxCacheSizeInBytes) {
+  // |cache_capacity_in_bytes_|.
+  while (!unused_surfaces_.empty() &&
+         surface_memory_ > cache_capacity_in_bytes_) {
     SkSurface* to_free = unused_surfaces_.front();
     surface_memory_ -= ApproximateSurfaceMemory(
         math::Size(to_free->width(), to_free->height()));

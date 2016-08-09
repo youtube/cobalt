@@ -26,31 +26,34 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
+
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
-    backend::GraphicsContext* graphics_context) {
-  const size_t kSurfaceCacheCapacityInBytes = 0;
+    backend::GraphicsContext* graphics_context,
+    const RendererModule::Options& options) {
 #if COBALT_FORCE_STUB_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(new rasterizer::stub::Rasterizer());
 #else
 #if SB_HAS(GLES2)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
-      new rasterizer::egl::SoftwareRasterizer(graphics_context,
-                                              kSurfaceCacheCapacityInBytes));
+      new rasterizer::egl::SoftwareRasterizer(
+          graphics_context, options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::SkiaHardwareRasterizer(
-          graphics_context, kSurfaceCacheCapacityInBytes));
+          graphics_context, options.skia_cache_size_in_bytes,
+          options.scratch_surface_cache_size_in_bytes,
+          options.surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #elif SB_HAS(BLITTER)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::SoftwareRasterizer(
-          graphics_context, kSurfaceCacheCapacityInBytes));
+          graphics_context, options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
-          graphics_context, kSurfaceCacheCapacityInBytes));
+          graphics_context, options.surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #else
 #error "Either GLES2 or the Starboard Blitter API must be available."
@@ -61,6 +64,12 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 }  // namespace
 
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
+  // Set default options from the current build's Starboard configuration.
+  surface_cache_size_in_bytes = COBALT_SURFACE_CACHE_SIZE_IN_BYTES;
+  skia_cache_size_in_bytes = COBALT_SKIA_CACHE_SIZE_IN_BYTES;
+  scratch_surface_cache_size_in_bytes =
+      COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
+
   create_rasterizer_function = base::Bind(&CreateRasterizer);
 }
 
