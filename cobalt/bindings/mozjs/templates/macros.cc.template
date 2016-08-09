@@ -52,6 +52,51 @@
 {%- endmacro %}
 
 {#
+ # Function body for setting an attribute value.
+ # Parameters:
+ #     attribute: The attribute context object.
+ #     impl_class: Cobalt class name of the Cobalt implementation of the
+ #         interface on which the attribute is a member.
+ #     cobalt_impl_prefix: Variable name prefix of a pointer to a Cobalt
+ #         implementation of the interface on which the attribute is a member.
+ #}
+{% macro set_attribute_implementation(attribute, impl_class,
+                                      cobalt_impl_prefix="") %}
+{% if attribute.put_forwards %}
+  { // Begin scope of {{attribute.type}} forwarded_{{cobalt_impl_prefix}}impl.
+    {{attribute.type}} forwarded_{{cobalt_impl_prefix}}impl =
+{% if not attribute.is_static %}
+       {{cobalt_impl_prefix}}impl->{{attribute.getter_function_name}}();
+{% else %}
+       {{impl_class}}::{{attribute.getter_function_name}}();
+{% endif %}
+    if (!forwarded_{{cobalt_impl_prefix}}impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+{{ set_attribute_implementation(attribute.put_forwards, attribute.type,
+     "forwarded_" + cobalt_impl_prefix) -}}
+    }
+    return !exception_state.is_exception_set();
+  } // End scope of {{attribute.type}} forwarded_{{cobalt_impl_prefix}}impl.
+{% else %}
+  TypeTraits<{{attribute.type}} >::ConversionType value;
+  FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{{ call_cobalt_function(impl_class, "void",
+                        attribute.setter_function_name,
+                        ["value"], attribute.raises_exception,
+                        attribute.call_with, attribute.is_static,
+                        cobalt_impl_prefix) }}
+  return !exception_state.is_exception_set();
+{% endif %} {#- attribute.put_forwards #}
+{%- endmacro %}
+
+{#
  # Extract and marshal arguments that will be passed to a function-like call.
  # Parameters:
  #     operation: An IdlOperation object
@@ -235,9 +280,10 @@
   }
 {%- endmacro %}
 
-{% macro call_void_function(function_name, arguments, impl_class, is_static) %}
+{% macro call_void_function(function_name, arguments, impl_class, is_static,
+                            cobalt_impl_prefix) %}
 {% if not is_static %}
-  impl->{{function_name}}({{arguments|join(", ")}});
+  {{cobalt_impl_prefix}}impl->{{function_name}}({{arguments|join(", ")}});
 {% else %}
   {{impl_class}}::{{function_name}}({{arguments|join(', ')}});
 {% endif %}
@@ -265,10 +311,12 @@
  # Call a function on an instance of a Cobalt platform object.
  #}
 {% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments,
-                              raises_exception, call_with, is_static) %}
+                              raises_exception, call_with, is_static,
+                              cobalt_impl_prefix) %}
 {{ add_extra_arguments(arguments, raises_exception, call_with) }}
 {% if cobalt_type == "void" %}
-{{ call_void_function(function_name, arguments, impl_class, is_static) -}}
+{{ call_void_function(function_name, arguments, impl_class, is_static,
+                      cobalt_impl_prefix) -}}
 {% else %}
 {{ call_nonvoid_function(cobalt_type, function_name, arguments, impl_class,
                          is_static) -}}

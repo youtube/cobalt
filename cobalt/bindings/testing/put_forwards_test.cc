@@ -43,6 +43,17 @@ TEST_F(PutForwardsTest, ForwardsToInterface) {
   EXPECT_TRUE(EvaluateScript("test.forwardingAttribute = 'apple';", NULL));
 }
 
+TEST_F(PutForwardsTest, StaticForwardsToInterface) {
+  scoped_refptr<StrictMock<ArbitraryInterface> > arbitrary_interface_mock(
+      new StrictMock<ArbitraryInterface>());
+  EXPECT_CALL(PutForwardsInterface::static_methods_mock.Get(),
+              static_forwarding_attribute())
+      .WillOnce(Return(arbitrary_interface_mock));
+  EXPECT_CALL(*arbitrary_interface_mock, set_arbitrary_property("orange"));
+  EXPECT_TRUE(EvaluateScript(
+      "PutForwardsInterface.staticForwardingAttribute = 'orange';", NULL));
+}
+
 TEST_F(NestedPutForwardsTest, ForwardsToNestedInterface) {
   scoped_refptr<StrictMock<PutForwardsInterface> > puts_forward_interface_mock(
       new StrictMock<PutForwardsInterface>());
