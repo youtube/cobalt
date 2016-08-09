@@ -20,6 +20,7 @@
 {% from 'macros.cc.template' import get_impl_class_instance %}
 {% from 'macros.cc.template' import nonstatic_function_prologue %}
 {% from 'macros.cc.template' import overload_resolution_implementation with context %}
+{% from 'macros.cc.template' import set_attribute_implementation with context %}
 {% from 'macros.cc.template' import static_function_prologue %}
 {% extends "interface-base.cc.template" %}
 {% block includes %}
@@ -417,32 +418,17 @@ JSBool staticset_{{attribute.idl_name}}(
 JSBool set_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-{{ nonstatic_function_prologue(impl_class) }}
-{% endif %}
-  TypeTraits<{{attribute.type}} >::ConversionType value;
-  FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
-              &value);
-  if (exception_state.is_exception_set()) {
-    return false;
-  }
-{% if attribute.put_forwards %}
-  NOTIMPLEMENTED();
-{% else %}
-{{ call_cobalt_function(impl_class, "void",
-                        attribute.setter_function_name,
-                        ["value"], attribute.raises_exception,
-                        attribute.call_with, attribute.is_static) }}
-{% endif %}
-  return !exception_state.is_exception_set();
+{{ nonstatic_function_prologue(impl_class)}}
+{% endif %} {#- attribute.is_static #}
+{{ set_attribute_implementation(attribute, impl_class) -}}
 }
 
-{% endif %}
+{% endif %} {#- attribute.has_setter #}
 {% endif %}
 {% if attribute.conditional %}
 #endif  // {{attribute.conditional}}
-{% endif %}
+{% endif %} {#- attribute.is_constructor_attribute #}
 {% endfor %}
-
 {%- for operation in operations + static_operations %}
 {% if operation.conditional %}
 #if defined({{operation.conditional}})
@@ -592,7 +578,7 @@ const JSPropertySpec interface_object_properties[] = {
       "{{attribute.idl_name}}", 0,
       JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
       JSOP_WRAPPER(&staticget_{{attribute.idl_name}}),
-      JSOP_NULLRAPPER,
+      JSOP_NULLWRAPPER,
   },
 {% endif %}
 {% if attribute.conditional %}
@@ -829,7 +815,7 @@ JSObject* {{binding_class}}::GetInterfaceObject(JSContext* context) {
   return interface_data->interface_object;
 }
 
-{% endif %}
+{% endif %} {#- has_interface_object #}
 
 namespace {
 {% if constructor %}

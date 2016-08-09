@@ -201,14 +201,73 @@ JSBool set_forwardingAttribute(
       WrapperPrivate::GetFromObject(context, object);
   PutForwardsInterface* impl =
       wrapper_private->wrappable<PutForwardsInterface>().get();
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
+  { // Begin scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
+    scoped_refptr<ArbitraryInterface> forwarded_impl =
+       impl->forwarding_attribute();
+    if (!forwarded_impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+  TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
     return false;
   }
-  NOTIMPLEMENTED();
+
+  forwarded_impl->set_arbitrary_property(value);
+  result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
+}
+    return !exception_state.is_exception_set();
+  } // End scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
+}
+
+JSBool staticget_staticForwardingAttribute(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              PutForwardsInterface::static_forwarding_attribute(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticset_staticForwardingAttribute(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  { // Begin scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
+    scoped_refptr<ArbitraryInterface> forwarded_impl =
+       PutForwardsInterface::static_forwarding_attribute();
+    if (!forwarded_impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+  TypeTraits<std::string >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  forwarded_impl->set_arbitrary_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+    return !exception_state.is_exception_set();
+  } // End scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
 }
 
 
@@ -227,6 +286,12 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+  {  // Static read/write attribute.
+      "staticForwardingAttribute", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&staticget_staticForwardingAttribute),
+      JSOP_WRAPPER(&staticset_staticForwardingAttribute),
+  },
   JS_PS_END
 };
 
