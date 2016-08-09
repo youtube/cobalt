@@ -85,6 +85,7 @@ TEST_F(PlatformObjectBindingsTest, Prototype) {
   EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
 }
 
+#if defined(ENGINE_DEFINES_ATTRIBUTES_ON_OBJECT)
 TEST_F(PlatformObjectBindingsTest, PropertyIsOwnProperty) {
   EXPECT_CALL(test_mock(), arbitrary_object());
 
@@ -93,6 +94,18 @@ TEST_F(PlatformObjectBindingsTest, PropertyIsOwnProperty) {
       "test.arbitraryObject.hasOwnProperty(\"arbitraryProperty\");", &result));
   EXPECT_STREQ("true", result.c_str());
 }
+#else
+TEST_F(PlatformObjectBindingsTest, PropertyIsDefinedOnPrototype) {
+  EXPECT_CALL(test_mock(), arbitrary_object());
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(
+      "Object.getPrototypeOf(test.arbitraryObject).hasOwnProperty("
+      "\"arbitraryProperty\");",
+      &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+#endif  // defined(ENGINE_DEFINES_ATTRIBUTES_ON_OBJECT)
 
 TEST_F(PlatformObjectBindingsTest, MemberFunctionIsPrototypeProperty) {
   EXPECT_CALL(test_mock(), arbitrary_object()).Times(3);
