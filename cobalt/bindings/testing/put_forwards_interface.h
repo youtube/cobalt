@@ -17,6 +17,7 @@
 #ifndef COBALT_BINDINGS_TESTING_PUT_FORWARDS_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_PUT_FORWARDS_INTERFACE_H_
 
+#include "base/lazy_instance.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -27,9 +28,22 @@ namespace testing {
 
 class PutForwardsInterface : public script::Wrappable {
  public:
+  class StaticMethodsMock {
+   public:
+    MOCK_METHOD0(static_forwarding_attribute,
+                 scoped_refptr<ArbitraryInterface>(void));
+  };
+
   MOCK_METHOD0(forwarding_attribute, scoped_refptr<ArbitraryInterface>());
 
+  static scoped_refptr<ArbitraryInterface> static_forwarding_attribute() {
+    return static_methods_mock.Get().static_forwarding_attribute();
+  }
+
   DEFINE_WRAPPABLE_TYPE(PutForwardsInterface);
+
+  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >
+      static_methods_mock;
 };
 
 }  // namespace testing

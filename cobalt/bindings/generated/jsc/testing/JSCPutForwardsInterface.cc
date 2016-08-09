@@ -107,6 +107,14 @@ void setJSforwardingAttribute(
     JSC::ExecState* exec,
     JSC::JSObject* this_object,
     JSC::JSValue value);
+JSC::JSValue getJSstaticForwardingAttribute(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
+void setJSstaticForwardingAttribute(
+    JSC::ExecState* exec,
+    JSC::JSObject* this_object,
+    JSC::JSValue value);
 
 // These are declared unconditionally, but only defined if needed by the
 // interface.
@@ -218,6 +226,12 @@ class JSCPutForwardsInterface::InterfaceObject : public ConstructorBase {
 
 const JSC::HashTableValue JSCPutForwardsInterface::InterfaceObject::property_table_values[] = {
     // static functions will also go here.
+    { "staticForwardingAttribute",
+        JSC::DontDelete | JSC::ReadOnly,
+        reinterpret_cast<intptr_t>(getJSstaticForwardingAttribute),
+        0,
+        JSC::NoIntrinsic
+    },
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCPutForwardsInterface::InterfaceObject::property_table_values
 
@@ -225,8 +239,8 @@ const JSC::HashTableValue JSCPutForwardsInterface::InterfaceObject::property_tab
 const JSC::HashTable
 JSCPutForwardsInterface::InterfaceObject::property_table_prototype = {
     // Sizes will be calculated based on the number of static functions as well.
-    2,  // compactSize
-    1,  // compactSizeMask
+    4,  // compactSize
+    3,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
 };  // JSCPutForwardsInterface::InterfaceObject::property_table_prototype
@@ -666,6 +680,50 @@ void setJSforwardingAttribute(
   {
     scoped_refptr<ArbitraryInterface> forwarded_impl =
         impl->forwarding_attribute();
+    if (!forwarded_impl) {
+      return;
+    }
+  TypeTraits<std::string >::ConversionType cobalt_value;
+  FromJSValue(exec_state, value,
+      kNoConversionFlags, &exception_state,
+      &cobalt_value);
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return;
+  }
+  // Check if argument conversion raised an exception.
+  if (!exec_state->hadException()) {
+    forwarded_impl->set_arbitrary_property(cobalt_value);
+  }
+  }
+
+}
+
+JSC::JSValue getJSstaticForwardingAttribute(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCPutForwardsInterface", "get staticForwardingAttribute");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      PutForwardsInterface::static_forwarding_attribute());
+  return result;
+}
+
+void setJSstaticForwardingAttribute(
+    JSC::ExecState* exec_state,
+    JSC::JSObject* this_object,
+    JSC::JSValue value) {
+  TRACE_EVENT0("JSCPutForwardsInterface", "set staticForwardingAttribute");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  {
+    scoped_refptr<ArbitraryInterface> forwarded_impl =
+        PutForwardsInterface::static_forwarding_attribute();
     if (!forwarded_impl) {
       return;
     }

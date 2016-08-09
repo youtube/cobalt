@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-interface PutForwardsInterface {
-  [PutForwards=arbitraryProperty]
-  readonly attribute ArbitraryInterface forwardingAttribute;
-  [PutForwards=arbitraryProperty]
-  static readonly attribute ArbitraryInterface staticForwardingAttribute;
-};
+
+#include "cobalt/bindings/testing/put_forwards_interface.h"
+
+namespace cobalt {
+namespace bindings {
+namespace testing {
+
+base::LazyInstance<
+    ::testing::StrictMock<PutForwardsInterface::StaticMethodsMock> >
+    PutForwardsInterface::static_methods_mock = LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace testing
+}  // namespace bindings
+}  // namespace cobalt
