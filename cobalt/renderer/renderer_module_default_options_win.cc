@@ -24,21 +24,29 @@ namespace renderer {
 
 namespace {
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
-    backend::GraphicsContext* graphics_context) {
-  const size_t kSurfaceCacheCapacityInBytes = 0;
+    backend::GraphicsContext* graphics_context,
+    const RendererModule::Options& options) {
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
-      new rasterizer::egl::SoftwareRasterizer(graphics_context,
-                                              kSurfaceCacheCapacityInBytes));
+      new rasterizer::egl::SoftwareRasterizer(
+          graphics_context, options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::SkiaHardwareRasterizer(
-          graphics_context, kSurfaceCacheCapacityInBytes));
+          graphics_context, options.skia_cache_size_in_bytes,
+          options.scratch_surface_cache_size_in_bytes,
+          options.surface_cache_size_in_bytes));
 #endif  // #if COBALT_FORCE_SOFTWARE_RASTERIZER
 }
 }  // namespace
 
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
+  // Set default options from the current build's configuration.
+  surface_cache_size_in_bytes = COBALT_SURFACE_CACHE_SIZE_IN_BYTES;
+  skia_cache_size_in_bytes = COBALT_SKIA_CACHE_SIZE_IN_BYTES;
+  scratch_surface_cache_size_in_bytes =
+      COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
+
   create_rasterizer_function = base::Bind(&CreateRasterizer);
 }
 
