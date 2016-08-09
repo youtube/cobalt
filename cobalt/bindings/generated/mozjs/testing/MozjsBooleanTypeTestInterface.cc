@@ -176,10 +176,10 @@ JSBool get_booleanProperty(
   BooleanTypeTestInterface* impl =
       wrapper_private->wrappable<BooleanTypeTestInterface>().get();
 
-  TypeTraits<bool >::ReturnType value =
+  TypeTraits<bool >::ReturnType return_value =
       impl->boolean_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -279,10 +279,10 @@ JSBool fcn_booleanReturnOperation(
   BooleanTypeTestInterface* impl =
       wrapper_private->wrappable<BooleanTypeTestInterface>().get();
 
-  TypeTraits<bool >::ReturnType value =
+  TypeTraits<bool >::ReturnType return_value =
       impl->BooleanReturnOperation();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);

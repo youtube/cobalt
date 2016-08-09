@@ -178,10 +178,10 @@ JSBool get_attributeThrowsException(
   ExceptionsInterface* impl =
       wrapper_private->wrappable<ExceptionsInterface>().get();
 
-  TypeTraits<bool >::ReturnType value =
+  TypeTraits<bool >::ReturnType return_value =
       impl->attribute_throws_exception(&exception_state);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

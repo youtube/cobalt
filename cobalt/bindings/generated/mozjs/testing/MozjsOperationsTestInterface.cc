@@ -192,10 +192,10 @@ JSBool fcn_longFunctionNoArgs(
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
 
-  TypeTraits<int32_t >::ReturnType value =
+  TypeTraits<int32_t >::ReturnType return_value =
       impl->LongFunctionNoArgs();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -226,10 +226,10 @@ JSBool fcn_objectFunctionNoArgs(
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
 
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
+  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType return_value =
       impl->ObjectFunctionNoArgs();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
@@ -902,10 +902,10 @@ JSBool fcn_stringFunctionNoArgs(
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
 
-  TypeTraits<std::string >::ReturnType value =
+  TypeTraits<std::string >::ReturnType return_value =
       impl->StringFunctionNoArgs();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);

@@ -178,10 +178,10 @@ JSBool get_derivedAttribute(
   DerivedInterface* impl =
       wrapper_private->wrappable<DerivedInterface>().get();
 
-  TypeTraits<std::string >::ReturnType value =
+  TypeTraits<std::string >::ReturnType return_value =
       impl->derived_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
