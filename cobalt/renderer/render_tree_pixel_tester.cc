@@ -71,7 +71,7 @@ RenderTreePixelTester::RenderTreePixelTester(
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
   rasterizer_ = render_module_options.create_rasterizer_function.Run(
-      graphics_context_.get());
+      graphics_context_.get(), render_module_options);
 }
 
 RenderTreePixelTester::~RenderTreePixelTester() {}

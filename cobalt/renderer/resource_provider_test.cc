@@ -155,7 +155,7 @@ TEST(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
   RendererModule::Options render_module_options;
   scoped_ptr<rasterizer::Rasterizer> rasterizer =
       render_module_options.create_rasterizer_function.Run(
-          graphics_context.get());
+          graphics_context.get(), render_module_options);
 
   // Create a dummy offscreen surface so that we can have a target when we start
   // a frame with the graphics context.
@@ -208,7 +208,7 @@ TEST(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
   RendererModule::Options render_module_options;
   scoped_ptr<rasterizer::Rasterizer> rasterizer =
       render_module_options.create_rasterizer_function.Run(
-          graphics_context.get());
+          graphics_context.get(), render_module_options);
 
   // Create a dummy offscreen surface so that we can have a target when we start
   // a frame with the graphics context.

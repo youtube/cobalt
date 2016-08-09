@@ -46,8 +46,8 @@ class ScratchSurfaceCache {
  public:
   typedef base::Callback<SkSurface*(const math::Size&)> CreateSkSurfaceFunction;
 
-  ScratchSurfaceCache(
-      const CreateSkSurfaceFunction& create_sk_surface_function);
+  ScratchSurfaceCache(const CreateSkSurfaceFunction& create_sk_surface_function,
+                      int cache_capacity_in_bytes);
   ~ScratchSurfaceCache();
 
  private:
@@ -69,6 +69,9 @@ class ScratchSurfaceCache {
 
   // Called to allocate new SkSurfaces.
   CreateSkSurfaceFunction create_sk_surface_function_;
+
+  // The maximum number of surface bytes that can be stored in the cache.
+  int cache_capacity_in_bytes_;
 
   // We keep track of all surfaces we've handed out using |surface_stack_|.
   // This is mostly for debug checks to verify that surfaces returned to us

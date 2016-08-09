@@ -165,6 +165,31 @@ void EnableUsingStubImageDecoderIfRequired() {
     loader::image::ImageDecoder::UseStubImageDecoder();
   }
 }
+
+void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
+    int32 out;
+    if (base::StringToInt32(
+            CommandLine::ForCurrentProcess()->GetSwitchValueNative(switch_name),
+            &out)) {
+      LOG(INFO) << "Command line switch '" << switch_name << "': Modifying "
+                << *output << " -> " << out;
+      *output = out;
+    } else {
+      LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
+    }
+  }
+}
+
+void ApplyCommandLineSettingsToRendererOptions(
+    renderer::RendererModule::Options* options) {
+  SetIntegerIfSwitchIsSet(browser::switches::kSurfaceCacheSizeInBytes,
+                          &options->surface_cache_size_in_bytes);
+  SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
+                          &options->scratch_surface_cache_size_in_bytes);
+  SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
+                          &options->skia_cache_size_in_bytes);
+}
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 // Restrict navigation to a couple of whitelisted URLs by default.
@@ -264,6 +289,8 @@ Application::Application(const base::Closure& quit_closure)
   options.network_module_options.preferred_language = language;
 
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
+
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           browser::switches::kNullSavegame)) {
     options.storage_manager_options.savegame_options.factory =

@@ -42,6 +42,9 @@ extern const char kTimedTrace[];
 extern const char kViewport[];
 extern const char kVideoDecoderStub[];
 extern const char kWebDriverPort[];
+extern const char kSurfaceCacheSizeInBytes[];
+extern const char kScratchSurfaceCacheSizeInBytes[];
+extern const char kSkiaCacheSizeInBytes[];
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 }  // namespace switches

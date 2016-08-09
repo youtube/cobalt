@@ -36,17 +36,11 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-namespace {
-
-const int kMaxSkiaCacheResources = 128;
-const size_t kMaxSkiaCacheBytes = 4 * 1024 * 1024u;
-
-}  // namespace
-
 class SkiaHardwareRasterizer::Impl {
  public:
-  explicit Impl(backend::GraphicsContext* graphics_context,
-                int surface_cache_size_in_bytes);
+  Impl(backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,
+       int scratch_surface_cache_size_in_bytes,
+       int surface_cache_size_in_bytes);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -125,11 +119,18 @@ GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
 }  // namespace
 
 SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                                   int skia_cache_size_in_bytes,
+                                   int scratch_surface_cache_size_in_bytes,
                                    int surface_cache_size_in_bytes)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
   TRACE_EVENT0("cobalt::renderer", "SkiaHardwareRasterizer::Impl::Impl()");
+
+  DLOG(INFO) << "skia_cache_size_in_bytes: " << skia_cache_size_in_bytes;
+  DLOG(INFO) << "scratch_surface_cache_size_in_bytes: "
+             << scratch_surface_cache_size_in_bytes;
+  DLOG(INFO) << "surface_cache_size_in_bytes: " << surface_cache_size_in_bytes;
 
   graphics_context_->MakeCurrent();
   // Create a GrContext object that wraps the passed in Cobalt GraphicsContext
@@ -143,14 +144,16 @@ SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   // rendering shadow effects, gradient effects, and software rendered paths.
   // As we have our own cache for most resources, set it to a much smaller value
   // so Skia doesn't use too much GPU memory.
-  gr_context_->setResourceCacheLimits(
-      kMaxSkiaCacheResources, kMaxSkiaCacheBytes);
+  const int kSkiaCacheMaxResources = 128;
+  gr_context_->setResourceCacheLimits(kSkiaCacheMaxResources,
+                                      skia_cache_size_in_bytes);
 
   base::Callback<SkSurface*(const math::Size&)> create_sk_surface_function =
       base::Bind(&SkiaHardwareRasterizer::Impl::CreateSkSurface,
                  base::Unretained(this));
 
-  scratch_surface_cache_.emplace(create_sk_surface_function);
+  scratch_surface_cache_.emplace(create_sk_surface_function,
+                                 scratch_surface_cache_size_in_bytes);
 
   // Setup a resource provider for resources to be used with a hardware
   // accelerated Skia rasterizer.
@@ -300,8 +303,11 @@ SkiaHardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
 }
 
 SkiaHardwareRasterizer::SkiaHardwareRasterizer(
-    backend::GraphicsContext* graphics_context, int surface_cache_size_in_bytes)
-    : impl_(new Impl(graphics_context, surface_cache_size_in_bytes)) {}
+    backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,
+    int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes)
+    : impl_(new Impl(graphics_context, skia_cache_size_in_bytes,
+                     scratch_surface_cache_size_in_bytes,
+                     surface_cache_size_in_bytes)) {}
 
 SkiaHardwareRasterizer::~SkiaHardwareRasterizer() {}
 
