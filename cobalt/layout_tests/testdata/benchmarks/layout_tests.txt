@@ -1,2 +1,1 @@
-layout-times-for-performance-spike-initial-layout:1920x1080, file:///cobalt/browser/testdata/performance-spike/index.html
-***REMOVED***-2015-q3-initial-layout:1920x1080, file:///cobalt/layout_tests/benchmarks/***REMOVED***-2015-q3/index.html
+youtube-2015-q3-initial-layout:1920x1080, file:///cobalt/layout_tests/benchmarks/youtube-2015-q3/index.html
