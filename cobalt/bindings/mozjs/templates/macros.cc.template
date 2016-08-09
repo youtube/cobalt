@@ -227,7 +227,7 @@
       impl->{{function_name}}({{arguments|join(", ")}});
 {% else %}
   TypeTraits<{{return_type}} >::ReturnType return_value =
-      {{impl_class}}::{{function_name}}({{arguments_list|join(', ')}});
+      {{impl_class}}::{{function_name}}({{arguments|join(', ')}});
 {% endif %}
   if (!exception_state.is_exception_set()) {
     ToJSValue(context, return_value, &result_value);
