@@ -180,10 +180,10 @@ JSBool get_callbackAttribute(
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
 
-  TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType value =
+  TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType return_value =
       impl->callback_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -224,10 +224,10 @@ JSBool get_nullableCallbackAttribute(
   CallbackFunctionInterface* impl =
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
 
-  TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType value =
+  TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType return_value =
       impl->nullable_callback_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
