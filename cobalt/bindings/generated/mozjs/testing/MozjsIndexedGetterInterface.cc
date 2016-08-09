@@ -129,10 +129,10 @@ JSBool GetIndexedProperty(
     return false;
   }
 
-  TypeTraits<uint32_t >::ReturnType value =
+  TypeTraits<uint32_t >::ReturnType return_value =
       impl->IndexedGetter(index);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -282,10 +282,10 @@ JSBool get_length(
   IndexedGetterInterface* impl =
       wrapper_private->wrappable<IndexedGetterInterface>().get();
 
-  TypeTraits<uint32_t >::ReturnType value =
+  TypeTraits<uint32_t >::ReturnType return_value =
       impl->length();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -382,10 +382,10 @@ JSBool fcn_indexedGetter(
     return false;
   }
 
-  TypeTraits<uint32_t >::ReturnType value =
+  TypeTraits<uint32_t >::ReturnType return_value =
       impl->IndexedGetter(index);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);

@@ -176,10 +176,10 @@ JSBool get_property(
   DOMStringTestInterface* impl =
       wrapper_private->wrappable<DOMStringTestInterface>().get();
 
-  TypeTraits<std::string >::ReturnType value =
+  TypeTraits<std::string >::ReturnType return_value =
       impl->property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -220,10 +220,10 @@ JSBool get_readOnlyProperty(
   DOMStringTestInterface* impl =
       wrapper_private->wrappable<DOMStringTestInterface>().get();
 
-  TypeTraits<std::string >::ReturnType value =
+  TypeTraits<std::string >::ReturnType return_value =
       impl->read_only_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -242,10 +242,10 @@ JSBool get_nullIsEmptyProperty(
   DOMStringTestInterface* impl =
       wrapper_private->wrappable<DOMStringTestInterface>().get();
 
-  TypeTraits<std::string >::ReturnType value =
+  TypeTraits<std::string >::ReturnType return_value =
       impl->null_is_empty_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -286,10 +286,10 @@ JSBool get_undefinedIsEmptyProperty(
   DOMStringTestInterface* impl =
       wrapper_private->wrappable<DOMStringTestInterface>().get();
 
-  TypeTraits<std::string >::ReturnType value =
+  TypeTraits<std::string >::ReturnType return_value =
       impl->undefined_is_empty_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -330,10 +330,10 @@ JSBool get_nullableUndefinedIsEmptyProperty(
   DOMStringTestInterface* impl =
       wrapper_private->wrappable<DOMStringTestInterface>().get();
 
-  TypeTraits<base::optional<std::string > >::ReturnType value =
+  TypeTraits<base::optional<std::string > >::ReturnType return_value =
       impl->nullable_undefined_is_empty_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

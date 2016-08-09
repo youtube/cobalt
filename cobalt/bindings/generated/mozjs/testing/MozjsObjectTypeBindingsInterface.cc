@@ -188,10 +188,10 @@ JSBool get_arbitraryObject(
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
 
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
+  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType return_value =
       impl->arbitrary_object();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -232,10 +232,10 @@ JSBool get_baseInterface(
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
 
-  TypeTraits<scoped_refptr<BaseInterface> >::ReturnType value =
+  TypeTraits<scoped_refptr<BaseInterface> >::ReturnType return_value =
       impl->base_interface();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -254,10 +254,10 @@ JSBool get_derivedInterface(
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
 
-  TypeTraits<scoped_refptr<DerivedInterface> >::ReturnType value =
+  TypeTraits<scoped_refptr<DerivedInterface> >::ReturnType return_value =
       impl->derived_interface();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -298,10 +298,10 @@ JSBool get_objectProperty(
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
 
-  TypeTraits<OpaqueHandle >::ReturnType value =
+  TypeTraits<OpaqueHandle >::ReturnType return_value =
       impl->object_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

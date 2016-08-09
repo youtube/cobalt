@@ -128,10 +128,10 @@ JSBool GetNamedProperty(
     return false;
   }
 
-  TypeTraits<std::string >::ReturnType value =
+  TypeTraits<std::string >::ReturnType return_value =
       impl->AnonymousNamedGetter(property_name);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -220,10 +220,10 @@ JSBool GetIndexedProperty(
     return false;
   }
 
-  TypeTraits<uint32_t >::ReturnType value =
+  TypeTraits<uint32_t >::ReturnType return_value =
       impl->AnonymousIndexedGetter(index);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -358,10 +358,10 @@ JSBool get_length(
   AnonymousNamedIndexedGetterInterface* impl =
       wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
 
-  TypeTraits<uint32_t >::ReturnType value =
+  TypeTraits<uint32_t >::ReturnType return_value =
       impl->length();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, value, &result_value);
+    ToJSValue(context, return_value, &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
