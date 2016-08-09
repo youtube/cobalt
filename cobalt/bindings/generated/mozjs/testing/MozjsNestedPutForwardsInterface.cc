@@ -201,14 +201,38 @@ JSBool set_nestedForwardingAttribute(
       WrapperPrivate::GetFromObject(context, object);
   NestedPutForwardsInterface* impl =
       wrapper_private->wrappable<NestedPutForwardsInterface>().get();
-  TypeTraits<scoped_refptr<PutForwardsInterface> >::ConversionType value;
+  { // Begin scope of scoped_refptr<PutForwardsInterface> forwarded_impl.
+    scoped_refptr<PutForwardsInterface> forwarded_impl =
+       impl->nested_forwarding_attribute();
+    if (!forwarded_impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+  { // Begin scope of scoped_refptr<ArbitraryInterface> forwarded_forwarded_impl.
+    scoped_refptr<ArbitraryInterface> forwarded_forwarded_impl =
+       forwarded_impl->forwarding_attribute();
+    if (!forwarded_forwarded_impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+  TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
     return false;
   }
-  NOTIMPLEMENTED();
+
+  forwarded_forwarded_impl->set_arbitrary_property(value);
+  result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
+}
+    return !exception_state.is_exception_set();
+  } // End scope of scoped_refptr<ArbitraryInterface> forwarded_forwarded_impl.
+}
+    return !exception_state.is_exception_set();
+  } // End scope of scoped_refptr<PutForwardsInterface> forwarded_impl.
 }
 
 
