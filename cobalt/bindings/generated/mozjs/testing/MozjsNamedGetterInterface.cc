@@ -128,10 +128,10 @@ JSBool GetNamedProperty(
     return false;
   }
 
-  TypeTraits<std::string >::ReturnType return_value =
-      impl->NamedGetter(property_name);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->NamedGetter(property_name),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -360,10 +360,10 @@ JSBool fcn_namedGetter(
     return false;
   }
 
-  TypeTraits<std::string >::ReturnType return_value =
-      impl->NamedGetter(name);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->NamedGetter(name),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);

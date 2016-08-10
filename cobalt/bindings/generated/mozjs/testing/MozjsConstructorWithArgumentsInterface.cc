@@ -178,10 +178,10 @@ JSBool get_longArg(
   ConstructorWithArgumentsInterface* impl =
       wrapper_private->wrappable<ConstructorWithArgumentsInterface>().get();
 
-  TypeTraits<int32_t >::ReturnType return_value =
-      impl->long_arg();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->long_arg(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -200,10 +200,10 @@ JSBool get_booleanArg(
   ConstructorWithArgumentsInterface* impl =
       wrapper_private->wrappable<ConstructorWithArgumentsInterface>().get();
 
-  TypeTraits<bool >::ReturnType return_value =
-      impl->boolean_arg();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->boolean_arg(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -222,10 +222,10 @@ JSBool get_stringArg(
   ConstructorWithArgumentsInterface* impl =
       wrapper_private->wrappable<ConstructorWithArgumentsInterface>().get();
 
-  TypeTraits<std::string >::ReturnType return_value =
-      impl->string_arg();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->string_arg(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

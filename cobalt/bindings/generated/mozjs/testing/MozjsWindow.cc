@@ -360,10 +360,10 @@ JSBool get_windowProperty(
   Window* impl =
       wrapper_private->wrappable<Window>().get();
 
-  TypeTraits<std::string >::ReturnType return_value =
-      impl->window_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->window_property(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
