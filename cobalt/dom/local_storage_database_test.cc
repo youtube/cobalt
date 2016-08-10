@@ -41,7 +41,7 @@ class CallbackWaiter {
   CallbackWaiter() : was_called_event_(true, false) {}
   virtual ~CallbackWaiter() {}
   bool TimedWait() {
-    return was_called_event_.TimedWait(base::TimeDelta::FromSeconds(3));
+    return was_called_event_.TimedWait(base::TimeDelta::FromSeconds(5));
   }
 
  protected:
