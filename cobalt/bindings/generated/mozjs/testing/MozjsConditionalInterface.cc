@@ -179,10 +179,10 @@ JSBool get_enabledAttribute(
   ConditionalInterface* impl =
       wrapper_private->wrappable<ConditionalInterface>().get();
 
-  TypeTraits<int32_t >::ReturnType return_value =
-      impl->enabled_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->enabled_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -225,10 +225,10 @@ JSBool get_disabledAttribute(
   ConditionalInterface* impl =
       wrapper_private->wrappable<ConditionalInterface>().get();
 
-  TypeTraits<int32_t >::ReturnType return_value =
-      impl->disabled_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->disabled_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

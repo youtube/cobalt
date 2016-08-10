@@ -180,10 +180,10 @@ JSBool get_forwardingAttribute(
   PutForwardsInterface* impl =
       wrapper_private->wrappable<PutForwardsInterface>().get();
 
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType return_value =
-      impl->forwarding_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->forwarding_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

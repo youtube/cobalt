@@ -180,10 +180,10 @@ JSBool get_nestedForwardingAttribute(
   NestedPutForwardsInterface* impl =
       wrapper_private->wrappable<NestedPutForwardsInterface>().get();
 
-  TypeTraits<scoped_refptr<PutForwardsInterface> >::ReturnType return_value =
-      impl->nested_forwarding_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->nested_forwarding_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
