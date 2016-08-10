@@ -453,8 +453,11 @@ static const MediaFormatStrict format_codec_mappings[] = {
   { "audio/webm", "vorbis" },
 #elif defined(OS_STARBOARD)
 #if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
-    {"video/webm", "vp9"},
-    {"audio/webm", ""},
+  {"video/webm", "vp9"},
+  {"audio/webm", ""},
+#else  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+  {"video/webm", ""},
+  {"audio/webm", ""},
 #endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
 #elif defined(__LB_SHELL__) || defined(COBALT)
   // No other platforms support webm.
