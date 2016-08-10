@@ -451,9 +451,11 @@ static const MediaFormatStrict format_codec_mappings[] = {
 #if defined(__LB_ANDROID__)  // Assume Android supports everything.
   { "video/webm", "vorbis,vp8,vp8.0,vp9" },
   { "audio/webm", "vorbis" },
-#elif defined(ENABLE_WEB_VP9)
+#elif defined(OS_STARBOARD)
+#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
     {"video/webm", "vp9"},
     {"audio/webm", ""},
+#endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
 #elif defined(__LB_SHELL__) || defined(COBALT)
   // No other platforms support webm.
   { "video/webm", "" },
