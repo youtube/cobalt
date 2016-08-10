@@ -58,6 +58,15 @@ TEST_F(DOMStringBindingsTest, SetReadOnlyProperty) {
   EXPECT_TRUE(EvaluateScript("test.readOnlyProperty = \"foo\";", NULL));
 }
 
+TEST_F(DOMStringBindingsTest, GetReadOnlyTokenProperty) {
+  EXPECT_CALL(test_mock(), read_only_token_property())
+      .WillOnce(Return(base::Token("mock_value")));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.readOnlyTokenProperty;", &result));
+  EXPECT_STREQ("mock_value", result.c_str());
+}
+
 TEST_F(DOMStringBindingsTest, SetNull) {
   EXPECT_CALL(test_mock(), set_property("null"));
 

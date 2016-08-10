@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/enable_if.h"
+#include "cobalt/base/token.h"
 #include "cobalt/script/mozjs/mozjs_callback_interface_holder.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
@@ -68,23 +69,24 @@ enum ConversionFlags {
   kConversionFlagsCallbackInterface = kConversionFlagNullable,
 };
 
-// TODO: These will be removed once conversion for all types is implemented.
-template <typename T>
-void ToJSValue(
-    JSContext* context, const T& unimplemented,
-    JS::MutableHandleValue out_value,
-    typename base::enable_if<!std::numeric_limits<T>::is_specialized>::type* =
-        NULL) {
-  NOTIMPLEMENTED();
+// std::string -> JSValue
+inline void ToJSValue(JSContext* context, const std::string& in_string,
+                      JS::MutableHandleValue out_value) {
+  JS::RootedString rooted_string(
+      context,
+      JS_NewStringCopyN(context, in_string.c_str(), in_string.length()));
+  out_value.set(JS::StringValue(rooted_string));
 }
 
-template <typename T>
-void FromJSValue(
-    JSContext* context, JS::HandleValue value, int conversion_flags,
-    ExceptionState* exception_state, T* out_unimplemented,
-    typename base::enable_if<!std::numeric_limits<T>::is_specialized>::type* =
-        NULL) {
-  NOTIMPLEMENTED();
+// JSValue -> std::string
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 std::string* out_string);
+
+// base::Token -> JSValue
+inline void ToJSValue(JSContext* context, const base::Token& token,
+                      JS::MutableHandleValue out_value) {
+  ToJSValue(context, std::string(token.c_str()), out_value);
 }
 
 // bool -> JSValue
@@ -295,15 +297,6 @@ inline void FromJSValue(
   *out_number = double_value;
 }
 
-// std::string -> JSValue
-inline void ToJSValue(JSContext* context, const std::string& in_string,
-                      JS::MutableHandleValue out_value) {
-  JS::RootedString rooted_string(
-      context,
-      JS_NewStringCopyN(context, in_string.c_str(), in_string.length()));
-  out_value.set(JS::StringValue(rooted_string));
-}
-
 // optional<T> -> JSValue
 template <typename T>
 inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
@@ -330,11 +323,6 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
                 exception_state, &(out_optional->value()));
   }
 }
-
-// JSValue -> std::string
-void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 std::string* out_string);
 
 // JSValue -> optional<std::string>
 template <>
