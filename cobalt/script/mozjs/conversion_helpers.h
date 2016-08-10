@@ -398,7 +398,17 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
     JS::RootedObject wrapper(context, js::GetProxyTargetObject(js_object));
     MozjsGlobalObjectProxy* global_object_proxy =
         static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-    if (global_object_proxy->wrapper_factory()->IsWrapper(wrapper)) {
+    const WrapperFactory* wrapper_factory =
+        global_object_proxy->wrapper_factory();
+    if (wrapper_factory->IsWrapper(wrapper)) {
+      bool object_implements_interface =
+          wrapper_factory->DoesObjectImplementInterface(js_object,
+                                                        base::GetTypeId<T>());
+      if (!object_implements_interface) {
+        exception_state->SetSimpleException(ExceptionState::kTypeError,
+                                            kDoesNotImplementInterface);
+        return;
+      }
       WrapperPrivate* wrapper_private =
           WrapperPrivate::GetFromWrapperObject(wrapper);
       *out_object = wrapper_private->wrappable<T>();
