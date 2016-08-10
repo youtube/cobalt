@@ -69,8 +69,8 @@ void ShellVideoDecoderImpl::Initialize(
 
   VideoDecoderConfig decoder_config;
   decoder_config.CopyFrom(demuxer_stream_->video_decoder_config());
-  DLOG(INFO) << "Configuration at Start: "
-             << decoder_config.AsHumanReadableString();
+  LOG(INFO) << "Configuration at Start: "
+            << decoder_config.AsHumanReadableString();
 
   raw_decoder_ = raw_video_decoder_factory_->Create(
       decoder_config, demuxer_stream_->GetDecryptor(),
@@ -175,8 +175,8 @@ void ShellVideoDecoderImpl::BufferReady(
   if (demuxer_status == DemuxerStream::kConfigChanged) {
     VideoDecoderConfig decoder_config;
     decoder_config.CopyFrom(demuxer_stream_->video_decoder_config());
-    DLOG(INFO) << "Configuration Changed: "
-               << decoder_config.AsHumanReadableString();
+    LOG(INFO) << "Configuration Changed: "
+              << decoder_config.AsHumanReadableString();
     // One side effect of asking for the video configuration is that
     // the MediaSource demuxer stack uses that request to determine
     // that the video decoder has updated its configuration.
