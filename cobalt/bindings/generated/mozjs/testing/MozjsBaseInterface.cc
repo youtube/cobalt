@@ -178,10 +178,10 @@ JSBool get_baseAttribute(
   BaseInterface* impl =
       wrapper_private->wrappable<BaseInterface>().get();
 
-  TypeTraits<std::string >::ReturnType return_value =
-      impl->base_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->base_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

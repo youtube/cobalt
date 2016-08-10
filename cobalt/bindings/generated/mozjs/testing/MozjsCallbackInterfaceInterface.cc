@@ -180,10 +180,10 @@ JSBool get_callbackAttribute(
   CallbackInterfaceInterface* impl =
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
 
-  TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ReturnType return_value =
-      impl->callback_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->callback_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

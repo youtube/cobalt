@@ -176,10 +176,10 @@ JSBool get_theStringifierAttribute(
   StringifierAttributeInterface* impl =
       wrapper_private->wrappable<StringifierAttributeInterface>().get();
 
-  TypeTraits<std::string >::ReturnType return_value =
-      impl->the_stringifier_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->the_stringifier_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

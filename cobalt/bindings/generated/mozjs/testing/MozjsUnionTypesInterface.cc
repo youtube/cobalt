@@ -184,10 +184,10 @@ JSBool get_unionProperty(
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
 
-  TypeTraits<script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ReturnType return_value =
-      impl->union_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->union_property(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -228,10 +228,10 @@ JSBool get_unionWithNullableMemberProperty(
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
 
-  TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ReturnType return_value =
-      impl->union_with_nullable_member_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->union_with_nullable_member_property(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -272,10 +272,10 @@ JSBool get_nullableUnionProperty(
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
 
-  TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ReturnType return_value =
-      impl->nullable_union_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->nullable_union_property(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -316,10 +316,10 @@ JSBool get_unionBaseProperty(
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
 
-  TypeTraits<script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ReturnType return_value =
-      impl->union_base_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->union_base_property(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
