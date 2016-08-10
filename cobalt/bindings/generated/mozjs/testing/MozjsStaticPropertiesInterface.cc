@@ -175,10 +175,10 @@ JSBool staticget_staticAttribute(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
-  TypeTraits<std::string >::ReturnType return_value =
-      StaticPropertiesInterface::static_attribute();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              StaticPropertiesInterface::static_attribute(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

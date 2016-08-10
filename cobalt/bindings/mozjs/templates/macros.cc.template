@@ -222,15 +222,16 @@
 
 {% macro call_nonvoid_function(return_type, function_name, arguments,
                                impl_class, is_static) %}
-{% if not is_static %}
-  TypeTraits<{{return_type}} >::ReturnType return_value =
-      impl->{{function_name}}({{arguments|join(", ")}});
-{% else %}
-  TypeTraits<{{return_type}} >::ReturnType return_value =
-      {{impl_class}}::{{function_name}}({{arguments|join(', ')}});
-{% endif %}
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+{% if not is_static %}
+    ToJSValue(context,
+              impl->{{function_name}}({{arguments|join(", ")}}),
+              &result_value);
+{% else %}
+    ToJSValue(context,
+              {{impl_class}}::{{function_name}}({{arguments|join(', ')}}),
+              &result_value);
+{% endif %}
   }
 {%- endmacro %}
 
