@@ -107,6 +107,10 @@ JSC::JSValue getJSreadOnlyProperty(
     JSC::ExecState* exec_state,
     JSC::JSValue slot_base,
     JSC::PropertyName property_name);
+JSC::JSValue getJSreadOnlyTokenProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
 JSC::JSValue getJSnullIsEmptyProperty(
     JSC::ExecState* exec_state,
     JSC::JSValue slot_base,
@@ -451,6 +455,12 @@ const JSC::HashTableValue JSCDOMStringTestInterface::property_table_values[] = {
         0,
         JSC::NoIntrinsic
     },
+    { "readOnlyTokenProperty",
+        JSC::DontDelete | JSC::ReadOnly,
+        reinterpret_cast<intptr_t>(getJSreadOnlyTokenProperty),
+        0,
+        JSC::NoIntrinsic
+    },
     { "nullIsEmptyProperty",
         JSC::DontDelete ,
         reinterpret_cast<intptr_t>(getJSnullIsEmptyProperty),
@@ -474,7 +484,7 @@ const JSC::HashTableValue JSCDOMStringTestInterface::property_table_values[] = {
 
 // static
 const JSC::HashTable JSCDOMStringTestInterface::property_table_prototype = {
-    20,  // compactSize
+    21,  // compactSize
     15,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
@@ -741,6 +751,25 @@ JSC::JSValue getJSreadOnlyProperty(
   JSC::JSValue result = ToJSValue(
       global_object,
       impl->read_only_property());
+  return result;
+}
+
+JSC::JSValue getJSreadOnlyTokenProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCDOMStringTestInterface", "get readOnlyTokenProperty");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  DOMStringTestInterface* impl =
+      GetWrappableOrSetException<DOMStringTestInterface>(exec_state, slot_base);
+  if (!impl) {
+    return exec_state->exception();
+  }
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      impl->read_only_token_property());
   return result;
 }
 

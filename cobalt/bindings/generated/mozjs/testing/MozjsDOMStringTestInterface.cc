@@ -231,6 +231,28 @@ JSBool get_readOnlyProperty(
   return !exception_state.is_exception_set();
 }
 
+JSBool get_readOnlyTokenProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->read_only_token_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
 JSBool get_nullIsEmptyProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
@@ -375,6 +397,12 @@ const JSPropertySpec prototype_properties[] = {
       "readOnlyProperty", 0,
       JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
       JSOP_WRAPPER(&get_readOnlyProperty),
+      JSOP_NULLWRAPPER,
+  },
+  {  // Readonly attribute
+      "readOnlyTokenProperty", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
+      JSOP_WRAPPER(&get_readOnlyTokenProperty),
       JSOP_NULLWRAPPER,
   },
   {  // Read/Write property
