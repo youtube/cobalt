@@ -187,10 +187,10 @@ JSBool get_enumProperty(
   EnumerationInterface* impl =
       wrapper_private->wrappable<EnumerationInterface>().get();
 
-  TypeTraits<EnumerationInterface::TestEnum >::ReturnType return_value =
-      impl->enum_property();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->enum_property(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);

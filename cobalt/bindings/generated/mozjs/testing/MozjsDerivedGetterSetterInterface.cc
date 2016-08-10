@@ -128,10 +128,10 @@ JSBool GetNamedProperty(
     return false;
   }
 
-  TypeTraits<std::string >::ReturnType return_value =
-      impl->AnonymousNamedGetter(property_name);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->AnonymousNamedGetter(property_name),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -220,10 +220,10 @@ JSBool GetIndexedProperty(
     return false;
   }
 
-  TypeTraits<uint32_t >::ReturnType return_value =
-      impl->DerivedIndexedGetter(index);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->DerivedIndexedGetter(index),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -358,10 +358,10 @@ JSBool get_length(
   DerivedGetterSetterInterface* impl =
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
 
-  TypeTraits<uint32_t >::ReturnType return_value =
-      impl->length();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->length(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -380,10 +380,10 @@ JSBool get_propertyOnDerivedClass(
   DerivedGetterSetterInterface* impl =
       wrapper_private->wrappable<DerivedGetterSetterInterface>().get();
 
-  TypeTraits<bool >::ReturnType return_value =
-      impl->property_on_derived_class();
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->property_on_derived_class(),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     vp.set(result_value);
@@ -455,10 +455,10 @@ JSBool fcn_derivedIndexedGetter(
     return false;
   }
 
-  TypeTraits<uint32_t >::ReturnType return_value =
-      impl->DerivedIndexedGetter(index);
   if (!exception_state.is_exception_set()) {
-    ToJSValue(context, return_value, &result_value);
+    ToJSValue(context,
+              impl->DerivedIndexedGetter(index),
+              &result_value);
   }
   if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
