@@ -26,6 +26,7 @@
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
+#include "cobalt/render_tree/image.h"
 #include "media/base/video_frame.h"
 #include "net/base/net_util.h"
 
@@ -35,9 +36,11 @@ namespace sandbox {
 namespace {
 
 typedef ::media::WebMediaPlayer::AddIdStatus AddIdStatus;
+
 using base::TimeDelta;
 using ::media::VideoFrame;
 using ::media::WebMediaPlayer;
+using render_tree::Image;
 
 GURL ResolveUrl(const char* arg) {
   GURL video_url(arg);
@@ -137,6 +140,14 @@ void AppendData(const std::string& id, const std::vector<uint8_t>& data,
   }
 }
 
+scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
+                             const base::TimeDelta& time) {
+  UNREFERENCED_PARAMETER(time);
+
+  scoped_refptr<VideoFrame> frame = player_helper->GetCurrentFrame();
+  return frame ? reinterpret_cast<Image*>(frame->texture_id()) : NULL;
+}
+
 int SandboxMain(int argc, char** argv) {
   if (argc != 3 && argc != 4) {
     LOG(ERROR) << "Usage: " << argv[0]
@@ -197,6 +208,9 @@ int SandboxMain(int argc, char** argv) {
   bool eos_appended = false;
 
   scoped_refptr<VideoFrame> last_frame;
+
+  media_sandbox.RegisterFrameCB(
+      base::Bind(FrameCB, base::Unretained(&player_helper)));
 
   for (;;) {
     AppendData(kAudioId, audio_loader.buffer(), &audio_offset, player);
