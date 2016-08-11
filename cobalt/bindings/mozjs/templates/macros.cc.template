@@ -364,6 +364,9 @@
 {# In the case there is only one resolution condition, we don't need the arg. #}
 {% if resolution_tests|length > 1 %}
       JS::RootedValue arg(context, args[{{distinguishing_argument_index}}]);
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
 {% endif %}
 {% for test, overload in resolution_tests %}
       if ({{test("arg")}}) {
