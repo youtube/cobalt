@@ -32,10 +32,10 @@ namespace media {
 class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
  public:
   static const int kInitialHeaderSize;
-  // Determine stream type, construct appropriate parser object, and return.
-  static scoped_refptr<ShellParser> Construct(
-      scoped_refptr<ShellDataSourceReader> reader,
-      const PipelineStatusCB& status_cb);
+  // Determine stream type, construct appropriate parser object, and returns
+  // PIPELINE_OK on success or error code.
+  static PipelineStatus Construct(scoped_refptr<ShellDataSourceReader> reader,
+                                  scoped_refptr<ShellParser>* parser);
   explicit ShellParser(scoped_refptr<ShellDataSourceReader> reader);
 
   // Seek through the file looking for audio and video configuration info,

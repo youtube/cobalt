@@ -232,27 +232,33 @@ void ShellDemuxer::Initialize(DemuxerHost* host,
       base::Bind(&ShellDemuxer::ParseConfigDone, this, status_cb));
 }
 
-bool ShellDemuxer::ParseConfigBlocking(const PipelineStatusCB& status_cb) {
+PipelineStatus ShellDemuxer::ParseConfigBlocking(
+    const PipelineStatusCB& status_cb) {
   DCHECK(blocking_thread_.message_loop_proxy()->BelongsToCurrentThread());
   DCHECK(!parser_);
 
   // construct stream parser with error callback
-  parser_ = ShellParser::Construct(reader_, status_cb);
+  PipelineStatus status = ShellParser::Construct(reader_, &parser_);
   // if we can't construct a parser for this stream it's a fatal error, return
   // false so ParseConfigDone will notify the caller to Initialize() via
   // status_cb.
-  if (!parser_) {
-    return false;
+  if (!parser_ || status != PIPELINE_OK) {
+    DCHECK(!parser_);
+    DCHECK_NE(status, PIPELINE_OK);
+    if (status == PIPELINE_OK) {
+      status = DEMUXER_ERROR_COULD_NOT_PARSE;
+    }
+    return status;
   }
 
   // instruct the parser to extract audio and video config from the file
   if (!parser_->ParseConfig()) {
-    return false;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // make sure we got a valid and complete configuration
   if (!parser_->IsConfigComplete()) {
-    return false;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // IsConfigComplete() should guarantee we know the duration
@@ -265,18 +271,19 @@ bool ShellDemuxer::ParseConfigBlocking(const PipelineStatusCB& status_cb) {
   }
 
   // successful parse of config data, inform the nonblocking demuxer thread
-  return true;
+  DCHECK_EQ(status, PIPELINE_OK);
+  return PIPELINE_OK;
 }
 
 void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
-                                   bool result) {
+                                   PipelineStatus status) {
   DCHECK(MessageLoopBelongsToCurrentThread());
   // if the blocking parser thread cannot parse config we're done.
-  if (!result) {
-    status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
+  if (status != PIPELINE_OK) {
+    status_cb.Run(status);
     return;
   }
-
+  DCHECK(parser_);
   // start downloading data
   Request(DemuxerStream::AUDIO);
 
