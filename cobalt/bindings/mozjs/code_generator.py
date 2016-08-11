@@ -40,8 +40,10 @@ class ExpressionGeneratorMozjs(ExpressionGenerator):
     return '%s.isNullOrUndefined()' % arg
 
   def inherits_interface(self, interface_name, arg):
-    # TODO: Implement this.
-    return 'false'
+    return ('%s.isObject() ?'
+            ' wrapper_factory->DoesObjectImplementInterface(\n'
+            '              JSVAL_TO_OBJECT(%s), base::GetTypeId<%s>()) :\n'
+            '              false') % (arg, arg, interface_name)
 
   def is_number(self, arg):
     return '%s.isNumber()' % arg
