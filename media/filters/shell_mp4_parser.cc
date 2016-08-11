@@ -139,7 +139,10 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
   base::TimeDelta timestamp;
   base::TimeDelta duration;
   if (type == DemuxerStream::AUDIO) {
-    DCHECK_NE(audio_time_scale_hz_, 0);
+    if (audio_time_scale_hz_ == 0) {
+      DLOG(ERROR) << "|audio_time_scale_hz_| cannot be 0.";
+      return NULL;
+    }
     if (!audio_map_->GetSize(audio_sample_, size) ||
         !audio_map_->GetOffset(audio_sample_, offset) ||
         !audio_map_->GetDuration(audio_sample_, duration_ticks) ||
@@ -183,6 +186,10 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
       first_audio_hole_ = timestamp + duration;
     }
   } else if (type == DemuxerStream::VIDEO) {
+    if (video_time_scale_hz_ == 0) {
+      DLOG(ERROR) << "|video_time_scale_hz_| cannot be 0.";
+      return NULL;
+    }
     if (!video_map_->GetSize(video_sample_, size) ||
         !video_map_->GetOffset(video_sample_, offset) ||
         !video_map_->GetDuration(video_sample_, duration_ticks) ||
@@ -197,7 +204,6 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
       }
     }
     video_sample_++;
-    DCHECK_NE(video_time_scale_hz_, 0);
     timestamp = TicksToTime(timestamp_ticks, video_time_scale_hz_);
     duration = TicksToTime(duration_ticks, video_time_scale_hz_);
     // due to b-frames it's much more likely we'll encounter discontinuous
@@ -221,8 +227,14 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
 }
 
 bool ShellMP4Parser::SeekTo(base::TimeDelta timestamp) {
-  DCHECK_NE(video_time_scale_hz_, 0);
-  DCHECK_NE(audio_time_scale_hz_, 0);
+  if (audio_time_scale_hz_ == 0 || video_time_scale_hz_ == 0) {
+    DLOG_IF(ERROR, audio_time_scale_hz_ == 0)
+        << "|audio_time_scale_hz_| cannot be 0.";
+    DLOG_IF(ERROR, video_time_scale_hz_ == 0)
+        << "|video_time_scale_hz_| cannot be 0.";
+    return false;
+  }
+
   // get video timestamp in video time units
   uint64 video_ticks = TimeToTicks(timestamp, video_time_scale_hz_);
   // find nearest keyframe from map, make it our next video sample
@@ -682,7 +694,7 @@ bool ShellMP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
     return false;
   }
   uint32 time_scale_hz = endian_util::load_uint32_big_endian(mvhd + 12);
-  if (!time_scale_hz) {
+  if (time_scale_hz == 0) {
     DLOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }
@@ -698,12 +710,20 @@ bool ShellMP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
 base::TimeDelta ShellMP4Parser::TicksToTime(uint64 ticks,
                                             uint32 time_scale_hz) {
   DCHECK_NE(time_scale_hz, 0);
+
+  if (time_scale_hz == 0) {
+    return base::TimeDelta::FromSeconds(0);
+  }
   return base::TimeDelta::FromMicroseconds((ticks * 1000000ULL) /
                                            time_scale_hz);
 }
 
 uint64 ShellMP4Parser::TimeToTicks(base::TimeDelta time, uint32 time_scale_hz) {
-  DCHECK(time_scale_hz);
+  DCHECK_NE(time_scale_hz, 0);
+
+  if (time_scale_hz == 0) {
+    return 0;
+  }
   return (time.InMicroseconds() * time_scale_hz) / 1000000ULL;
 }
 
