@@ -719,6 +719,9 @@ JSBool fcn_overloadedFunction(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[0]);
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
       if (arg.isNumber()) {
         return fcn_overloadedFunction2(
                   context, argc, vp);
@@ -737,7 +740,12 @@ JSBool fcn_overloadedFunction(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[2]);
-      if (false) {
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
+      if (arg.isObject() ? wrapper_factory->DoesObjectImplementInterface(
+              JSVAL_TO_OBJECT(arg), base::GetTypeId<ArbitraryInterface>()) :
+              false) {
         return fcn_overloadedFunction5(
                   context, argc, vp);
       }
@@ -859,6 +867,9 @@ JSBool fcn_overloadedNullable(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[0]);
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
       if (arg.isNullOrUndefined()) {
         return fcn_overloadedNullable2(
                   context, argc, vp);
