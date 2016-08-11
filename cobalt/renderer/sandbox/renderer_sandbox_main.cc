@@ -38,46 +38,65 @@ namespace {
 const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
 
-int SandboxMain(int argc, char** argv) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+class RendererSandbox {
+ public:
+  RendererSandbox();
 
-  cobalt::trace_event::ScopedTraceToFile trace_to_file(
-      FilePath(FILE_PATH_LITERAL("renderer_sandbox_trace.json")));
+ private:
+  cobalt::trace_event::ScopedTraceToFile trace_to_file_;
+  base::EventDispatcher event_dispatcher_;
+  scoped_ptr<SystemWindow> system_window_;
+  scoped_ptr<cobalt::renderer::RendererModule> renderer_module_;
+};
 
-  base::EventDispatcher event_dispatcher;
+RendererSandbox::RendererSandbox()
+    : trace_to_file_(
+          FilePath(FILE_PATH_LITERAL("renderer_sandbox_trace.json"))) {
   // Create a system window to use as a render target.
-  scoped_ptr<SystemWindow> system_window =
-      cobalt::system_window::CreateSystemWindow(
-          &event_dispatcher,
-          cobalt::math::Size(kViewportWidth, kViewportHeight));
+  system_window_ = cobalt::system_window::CreateSystemWindow(
+      &event_dispatcher_, cobalt::math::Size(kViewportWidth, kViewportHeight));
 
   // Construct a renderer module using default options.
   cobalt::renderer::RendererModule::Options renderer_module_options;
-  cobalt::renderer::RendererModule renderer_module(system_window.get(),
-                                                   renderer_module_options);
+  renderer_module_.reset(new cobalt::renderer::RendererModule(
+      system_window_.get(), renderer_module_options));
 
   cobalt::math::SizeF output_dimensions(
-      renderer_module.render_target()->GetSize());
+      renderer_module_->render_target()->GetSize());
 
   // Construct our render tree and associated animations to be passed into
   // the renderer pipeline for display.
   base::TimeDelta start_time = base::Time::Now() - base::Time::UnixEpoch();
   RenderTreeWithAnimations scene = AddBlankBackgroundToScene(
       CreateAllScenesCombinedScene(
-          renderer_module.pipeline()->GetResourceProvider(), output_dimensions,
-          start_time),
+          renderer_module_->pipeline()->GetResourceProvider(),
+          output_dimensions, start_time),
       output_dimensions);
 
   // Pass the render tree along with associated animations into the renderer
   // module to be displayed.
-  renderer_module.pipeline()->Submit(cobalt::renderer::Submission(
+  renderer_module_->pipeline()->Submit(cobalt::renderer::Submission(
       scene.render_tree, scene.animations, start_time));
+}
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(30));
+RendererSandbox* g_renderer_sandbox = NULL;
 
-  return 0;
+void StartApplication(int /*argc*/, char** /*argv*/,
+                      const base::Closure& quit_closure) {
+  DCHECK(!g_renderer_sandbox);
+  g_renderer_sandbox = new RendererSandbox();
+  DCHECK(g_renderer_sandbox);
+
+  MessageLoop::current()->PostDelayedTask(FROM_HERE, quit_closure,
+                                          base::TimeDelta::FromSeconds(30));
+}
+
+void StopApplication() {
+  DCHECK(g_renderer_sandbox);
+  delete g_renderer_sandbox;
+  g_renderer_sandbox = NULL;
 }
 
 }  // namespace
 
-COBALT_WRAP_SIMPLE_MAIN(SandboxMain);
+COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);
