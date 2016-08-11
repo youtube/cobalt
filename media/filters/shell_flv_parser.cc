@@ -111,6 +111,10 @@ bool ShellFLVParser::ParseConfig() {
     }
   }
 
+  if (duration_.InMilliseconds() == 0) {
+    return false;
+  }
+
   // We may have a valid duration by now and the reader may know the
   // length of the file in bytes, see if we can extrapolate a bitrate from
   // this.
@@ -250,12 +254,13 @@ scoped_refptr<ShellAU> ShellFLVParser::GetNextVideoAU() {
 bool ShellFLVParser::ParseNextTag() {
   uint8 tag_buffer[kTagDownloadSize];
 
-  int bytes_read = 0;
-  if (!at_end_of_file_) {
-    // get previous tag size and header for next one
-    bytes_read =
-        reader_->BlockingRead(tag_offset_, kTagDownloadSize, tag_buffer);
+  if (at_end_of_file_) {
+    return false;
   }
+
+  // get previous tag size and header for next one
+  int bytes_read =
+      reader_->BlockingRead(tag_offset_, kTagDownloadSize, tag_buffer);
 
   // if that was the last tag in the stream detect the EOS and return. This
   // is where normal termination of an FLV stream will occur.
