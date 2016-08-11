@@ -240,7 +240,7 @@ int SandboxMain(int argc, char** argv) {
   }
 
   MediaSandbox media_sandbox(
-      argc, argv, FilePath(FILE_PATH_LITERAL("media_source_fuzzer.json")));
+      argc, argv, FilePath(FILE_PATH_LITERAL("raw_video_decoder_fuzzer.json")));
 
   // Note that we can't access PathService until MediaSandbox is initialized.
   std::vector<std::string> filenames = CollectVideoFiles(argv[2]);

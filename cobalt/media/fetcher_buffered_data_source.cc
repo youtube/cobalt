@@ -67,6 +67,11 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
   DCHECK_GE(position, 0);
   DCHECK_GE(size, 0);
 
+  if (position < 0 || size < 0) {
+    read_cb.Run(kInvalidSize);
+    return;
+  }
+
   base::AutoLock auto_lock(lock_);
   Read_Locked(static_cast<uint64>(position), static_cast<uint64>(size), data,
               read_cb);
