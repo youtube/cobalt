@@ -28,12 +28,12 @@ namespace media {
 class ShellFLVParser : public ShellAVCParser {
  public:
   // Attempts to make sense of the provided bytes of the top of a file as an
-  // flv, and if it does make sense returns a ShellFLVParser initialized with
-  // some basic state. If it doesn't make sense this returns NULL.
-  static scoped_refptr<ShellParser> Construct(
-      scoped_refptr<ShellDataSourceReader> reader,
-      const uint8* construction_header,
-      const PipelineStatusCB& status_cb);
+  // flv, and if it does make sense returns PIPELINE_OK and |*parser| contains a
+  // ShellFLVParser initialized with some basic state.  If it doesn't make sense
+  // this returns an error status and |*parser| contains NULL.
+  static PipelineStatus Construct(scoped_refptr<ShellDataSourceReader> reader,
+                                  const uint8* construction_header,
+                                  scoped_refptr<ShellParser>* parser);
   ShellFLVParser(scoped_refptr<ShellDataSourceReader> reader,
                  uint32 tag_start_offset);
   virtual ~ShellFLVParser();

@@ -121,14 +121,15 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void BufferAllocated(scoped_refptr<DecoderBuffer> buffer);
 
  private:
-  void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
+  void ParseConfigDone(const PipelineStatusCB& status_cb,
+                       PipelineStatus status);
   void DataSourceStopped(const base::Closure& callback);
 
   // methods that perform blocking I/O, and are therefore run on the
   // blocking_thread_
   // download enough of the stream to parse the configuration. returns
   // false on error.
-  bool ParseConfigBlocking(const PipelineStatusCB& status_cb);
+  PipelineStatus ParseConfigBlocking(const PipelineStatusCB& status_cb);
   void RequestTask(DemuxerStream::Type type);
   void DownloadTask(scoped_refptr<DecoderBuffer> buffer);
   void IssueNextRequestTask();

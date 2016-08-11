@@ -72,34 +72,36 @@ static const int kMapTableAtomCacheEntries_co64 = 740212 / kEntrySize_co64;
 static const int kMapTableAtomCacheEntries_ctts = 51543 / kEntrySize_ctts;
 
 // static
-scoped_refptr<ShellParser> ShellMP4Parser::Construct(
+PipelineStatus ShellMP4Parser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
     const uint8* construction_header,
-    const PipelineStatusCB& status_cb) {
+    scoped_refptr<ShellParser>* parser) {
+  DCHECK(parser);
+  *parser = NULL;
+
   // detect mp4 stream by looking for ftyp atom at top of file
   uint32 ftyp = endian_util::load_uint32_big_endian(construction_header + 4);
   if (ftyp != kAtomType_ftyp) {
     // not an mp4
-    return NULL;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // first 4 bytes will be the size of the ftyp atom
   uint32 ftyp_atom_size =
       endian_util::load_uint32_big_endian(construction_header);
   if (ftyp_atom_size < kAtomMinSize) {
-    status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
-    return NULL;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
-  // construct and return new mp4 parser
-  return scoped_refptr<ShellParser>(new ShellMP4Parser(reader, ftyp_atom_size));
+  // construct new mp4 parser
+  *parser = new ShellMP4Parser(reader, ftyp_atom_size);
+  return PIPELINE_OK;
 }
 
 ShellMP4Parser::ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
                                uint32 ftyp_atom_size)
     : ShellAVCParser(reader),
-      atom_offset_(ftyp_atom_size)  // start at next atom, skipping over ftyp
-      ,
+      atom_offset_(ftyp_atom_size),  // start at next atom, skipping over ftyp
       current_trak_is_video_(false),
       current_trak_is_audio_(false),
       current_trak_time_scale_(0),

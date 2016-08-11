@@ -70,28 +70,33 @@ static const uint8 kAMF0NumberType = 0x00;
 static const int kAMF0NumberLength = 9;
 
 // static
-scoped_refptr<ShellParser> ShellFLVParser::Construct(
+PipelineStatus ShellFLVParser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
     const uint8* construction_header,
-    const PipelineStatusCB& status_cb) {
+    scoped_refptr<ShellParser>* parser) {
+  DCHECK(parser);
+  *parser = NULL;
+
   // look for "FLV" string at top of file, mask off LSB
   uint32 FLV = endian_util::load_uint32_big_endian(construction_header) >> 8;
   if (FLV != kFLV) {
-    return NULL;
+    // Not an flv.
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
   // Check for availability of both an audio and video stream. Audio stream is
   // third bit, video stream is first bit in 5th byte of file header
   if ((construction_header[4] & 0x05) != 0x05) {
-    status_cb.Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
-    return NULL;
+    return DEMUXER_ERROR_NO_SUPPORTED_STREAMS;
   }
   // offset of first data tag in stream is next 4 bytes
   uint32 data_offset =
       endian_util::load_uint32_big_endian(construction_header + 5);
   // add four bytes to skip over PreviousTagSize0
   data_offset += 4;
-  // construct and return an FLV parser
-  return scoped_refptr<ShellParser>(new ShellFLVParser(reader, data_offset));
+
+  // construct an FLV parser
+  *parser = new ShellFLVParser(reader, data_offset);
+  return PIPELINE_OK;
 }
 
 ShellFLVParser::ShellFLVParser(scoped_refptr<ShellDataSourceReader> reader,
