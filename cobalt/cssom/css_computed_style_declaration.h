@@ -58,9 +58,22 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
   const scoped_refptr<const CSSComputedStyleData>& data() const {
     return data_;
   }
-  void set_data(const scoped_refptr<const CSSComputedStyleData>& data) {
-    data_ = data;
+  void SetData(const scoped_refptr<const CSSComputedStyleData>& data);
+
+  // Updates the pointer to the nearest CSSComputedStyleData ancestor,
+  // inclusive, which has inherited properties declared.
+  void UpdateInheritedData();
+
+  // Returns whether or not this object or any ancestors have inherited
+  // properties declared.
+  bool HasInheritedProperties() const {
+    return data_with_inherited_properties_ != NULL;
   }
+
+  // Returns the reference to the property value for an inherited property.
+  // Should only be called if HasInheritedProperties() returns true.
+  const scoped_refptr<PropertyValue>& GetInheritedPropertyValueReference(
+      PropertyKey key) const;
 
   const scoped_refptr<const web_animations::AnimationSet>& animations() const {
     return animations_;
@@ -74,9 +87,15 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
   // From CSSStyleDeclaration.
   std::string GetDeclaredPropertyValueStringByKey(
       const PropertyKey key) const OVERRIDE;
+
+  // The CSSComputedStyleData owned by this object.
   scoped_refptr<const CSSComputedStyleData> data_;
 
-  // All animation that applies to  the above computed style.
+  // The nearest CSSComputedStyleData ancestor, inclusive, which has inherited
+  // properties declared.
+  scoped_refptr<const CSSComputedStyleData> data_with_inherited_properties_;
+
+  // All animation that applies to the above computed style.
   scoped_refptr<const web_animations::AnimationSet> animations_;
 
   DISALLOW_COPY_AND_ASSIGN(CSSComputedStyleDeclaration);

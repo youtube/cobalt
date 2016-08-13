@@ -25,6 +25,7 @@ namespace cobalt {
 namespace cssom {
 
 class CSSComputedStyleData;
+class CSSComputedStyleDeclaration;
 
 // The computed value is the result of resolving the specified value,
 // generally absolutizing it. The computed value is the value that is
@@ -32,11 +33,12 @@ class CSSComputedStyleData;
 //   https://www.w3.org/TR/css-cascade-3/#computed
 
 // Converts specified values into computed values in place.
-// parent_computed_style and root_computed_style cannot be NULL.
+// parent_computed_style_declaration and root_computed_style cannot be NULL.
 // property_key_to_base_url_map can be NULL.
 void PromoteToComputedStyle(
     const scoped_refptr<CSSComputedStyleData>& specified_style,
-    const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
+    const scoped_refptr<CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration,
     const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
     const math::Size& viewport_size,
     GURLMap* const property_key_to_base_url_map);
@@ -49,7 +51,8 @@ void PromoteToComputedStyle(
 //   https://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
 //   https://www.w3.org/TR/CSS21/visuren.html#anonymous
 scoped_refptr<CSSComputedStyleData> GetComputedStyleOfAnonymousBox(
-    const scoped_refptr<const CSSComputedStyleData>& parent_computed_style);
+    const scoped_refptr<CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration);
 
 }  // namespace cssom
 }  // namespace cobalt

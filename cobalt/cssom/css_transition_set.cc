@@ -84,10 +84,8 @@ void TransitionSet::UpdateTransitions(
   // For each animatable property, check to see if there are any transitions
   // assigned to it.  If so, check to see if there are any existing transitions
   // that must be updated, otherwise introduce new transitions.
-  const AnimatablePropertyList& animatable_properties =
-      GetAnimatableProperties();
-  for (AnimatablePropertyList::const_iterator iter =
-           animatable_properties.begin();
+  const PropertyKeyVector& animatable_properties = GetAnimatableProperties();
+  for (PropertyKeyVector::const_iterator iter = animatable_properties.begin();
        iter != animatable_properties.end(); ++iter) {
     UpdateTransitionForProperty(
         *iter, current_time, source_computed_style.GetPropertyValue(*iter),
@@ -216,7 +214,7 @@ void TransitionSet::UpdateTransitionForProperty(
 
       if (existing_transition &&
           current_time < existing_transition->EndTime()) {
-        // A transition is already ocurring, so we handle this case a bit
+        // A transition is already occurring, so we handle this case a bit
         // differently depending on if we're reversing the previous transition
         // or starting a completely different one.
         transitions_.UpdateTransitionForProperty(
