@@ -27,7 +27,7 @@
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/clock.h"
-#include "cobalt/cssom/css_computed_style_data.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/mutation_observer.h"
@@ -305,9 +305,13 @@ class Document : public Node, public cssom::MutationObserver {
   math::Size viewport_size() { return viewport_size_.value_or(math::Size()); }
   void SetViewport(const math::Size& viewport_size);
 
-  const scoped_refptr<cssom::CSSComputedStyleData>& initial_computed_style()
-      const {
-    return initial_computed_style_;
+  const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+  initial_computed_style_declaration() const {
+    return initial_computed_style_declaration_;
+  }
+  const scoped_refptr<cssom::CSSComputedStyleData>&
+  initial_computed_style_data() const {
+    return initial_computed_style_data_;
   }
 
   void NotifyUrlChanged(const GURL& url);
@@ -397,7 +401,9 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Computed style of the initial containing block, width and height come from
   // the viewport size.
-  scoped_refptr<cssom::CSSComputedStyleData> initial_computed_style_;
+  scoped_refptr<cssom::CSSComputedStyleDeclaration>
+      initial_computed_style_declaration_;
+  scoped_refptr<cssom::CSSComputedStyleData> initial_computed_style_data_;
 };
 
 }  // namespace dom

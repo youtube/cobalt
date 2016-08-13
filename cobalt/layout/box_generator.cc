@@ -317,8 +317,8 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
 
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration = new cssom::CSSComputedStyleDeclaration();
-  css_computed_style_declaration->set_data(
-      GetComputedStyleOfAnonymousBox(br_element->computed_style()));
+  css_computed_style_declaration->SetData(GetComputedStyleOfAnonymousBox(
+      br_element->css_computed_style_declaration()));
 
   css_computed_style_declaration->set_animations(br_element->animations());
 
@@ -802,7 +802,7 @@ scoped_refptr<cssom::CSSComputedStyleDeclaration> StripBackground(
   new_data->AssignFrom(*style->data());
   new_data->SetPropertyValue(cssom::kBackgroundColorProperty, NULL);
   new_data->SetPropertyValue(cssom::kBackgroundImageProperty, NULL);
-  new_style->set_data(new_data);
+  new_style->SetData(new_data);
 
   return new_style;
 }
@@ -880,8 +880,8 @@ void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
 void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration = new cssom::CSSComputedStyleDeclaration();
-  css_computed_style_declaration->set_data(GetComputedStyleOfAnonymousBox(
-      parent_css_computed_style_declaration_->data()));
+  css_computed_style_declaration->SetData(
+      GetComputedStyleOfAnonymousBox(parent_css_computed_style_declaration_));
 
   // Copy the animations from the parent.
   css_computed_style_declaration->set_animations(parent_animations_);

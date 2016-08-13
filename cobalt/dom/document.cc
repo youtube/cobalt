@@ -83,7 +83,9 @@ Document::Document(HTMLElementContext* html_element_context,
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))),
-      user_agent_style_sheet_(options.user_agent_style_sheet) {
+      user_agent_style_sheet_(options.user_agent_style_sheet),
+      initial_computed_style_declaration_(
+          new cssom::CSSComputedStyleDeclaration()) {
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
   if (options.viewport_size) {
@@ -547,14 +549,14 @@ void Document::UpdateComputedStyles() {
     scoped_refptr<HTMLElement> root = html();
     if (root) {
       // First update the computed style for root element.
-      root->UpdateComputedStyle(initial_computed_style_,
-                                initial_computed_style_,
+      root->UpdateComputedStyle(initial_computed_style_declaration_,
+                                initial_computed_style_data_,
                                 style_change_event_time);
 
       // Then update the computed styles for the other elements.
-      root->UpdateComputedStyleRecursively(root->computed_style(),
-                                           root->computed_style(),
-                                           style_change_event_time, true);
+      root->UpdateComputedStyleRecursively(
+          root->css_computed_style_declaration(), root->computed_style(),
+          style_change_event_time, true);
     }
 
     is_computed_style_dirty_ = false;
@@ -593,9 +595,16 @@ void Document::SetPartialLayout(const std::string& mode_string) {
 
 void Document::SetViewport(const math::Size& viewport_size) {
   viewport_size_ = viewport_size;
-  initial_computed_style_ = CreateInitialComputedStyle(*viewport_size_);
+  initial_computed_style_data_ = CreateInitialComputedStyle(*viewport_size_);
+  initial_computed_style_declaration_->SetData(initial_computed_style_data_);
+
   is_computed_style_dirty_ = true;
   is_selector_tree_dirty_ = true;
+
+  scoped_refptr<HTMLHtmlElement> current_html = html();
+  if (current_html) {
+    current_html->InvalidateComputedStylesRecursively();
+  }
 }
 
 Document::~Document() {
@@ -686,6 +695,13 @@ void Document::UpdateKeyframes() {
     keyframes_map_updater.ProcessCSSStyleSheet(user_agent_style_sheet_);
     keyframes_map_updater.ProcessStyleSheetList(style_sheets());
     are_keyframes_dirty_ = false;
+
+    // This should eventually be altered to only invalidate the tree when the
+    // the keyframes map changed.
+    scoped_refptr<HTMLHtmlElement> current_html = html();
+    if (current_html) {
+      current_html->InvalidateComputedStylesRecursively();
+    }
   }
 }
 
