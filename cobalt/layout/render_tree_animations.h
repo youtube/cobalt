@@ -33,6 +33,15 @@ namespace layout {
 // a convenience function that can be used by code that creates render tree
 // nodes (e.g. layout box tree processing).
 
+// This callback function defines a function that is expected to populate a
+// given CSS style object for a render tree node type.
+class PopulateBaseStyleForRenderTreeNode {
+ public:
+  typedef base::Callback<void(
+      const scoped_refptr<const cssom::CSSComputedStyleData>&,
+      const scoped_refptr<cssom::CSSComputedStyleData>&)> Function;
+};
+
 // This callback function defines a function that is expected to apply a given
 // CSS style to a render tree node builder object.  A function meeting this
 // specification can be passed into AddAnimations() in order to
@@ -47,7 +56,7 @@ class ApplyStyleToRenderTreeNode {
       typename T::Builder*)> Function;
 };
 
-// Helper function that applies a animation set to a base style to produce
+// Helper function that applies an animation set to a base style to produce
 // an animated style that is then passed into the provided
 // ApplyStyleToRenderTreeNode<T>::Function callback function.
 template <typename T>
@@ -69,6 +78,8 @@ void AnimateNode(const typename ApplyStyleToRenderTreeNode<T>::Function&
 // target the passed in render tree node.
 template <typename T>
 void AddAnimations(
+    const typename PopulateBaseStyleForRenderTreeNode::Function&
+        populate_base_style_function,
     const typename ApplyStyleToRenderTreeNode<T>::Function&
         apply_style_function,
     const cssom::CSSComputedStyleDeclaration& css_computed_style_declaration,
@@ -76,15 +87,18 @@ void AddAnimations(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animation_map_builder) {
   DCHECK(!css_computed_style_declaration.animations()->IsEmpty());
-  scoped_refptr<cssom::CSSComputedStyleData> base_style_copy =
+
+  // Populate the base style.
+  scoped_refptr<cssom::CSSComputedStyleData> base_style =
       new cssom::CSSComputedStyleData();
-  base_style_copy->AssignFrom(*css_computed_style_declaration.data());
+  populate_base_style_function.Run(css_computed_style_declaration.data(),
+                                   base_style);
 
   node_animation_map_builder->Add(
       target_node, base::Bind(&AnimateNode<T>, apply_style_function,
                               web_animations::BakedAnimationSet(
                                   *css_computed_style_declaration.animations()),
-                              base_style_copy));
+                              base_style));
 }
 
 }  // namespace layout

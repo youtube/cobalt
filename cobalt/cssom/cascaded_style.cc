@@ -69,7 +69,7 @@ scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
   scoped_refptr<CSSComputedStyleData> cascaded_style(
       new CSSComputedStyleData());
 
-  // A sparce vector of CascadePrecedence values for all possible property
+  // A sparse vector of CascadePrecedence values for all possible property
   // values.
   base::optional<CascadePrecedence>
       cascade_precedences[static_cast<size_t>(kNumLonghandProperties)];

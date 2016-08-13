@@ -536,6 +536,14 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 namespace {
+void PopulateBaseStyleForBackgroundNode(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+  // NOTE: Properties set by PopulateBaseStyleForBackgroundNode() should match
+  // the properties used by SetupBackgroundNodeFromStyle().
+  destination_style->set_background_color(source_style->background_color());
+}
+
 void SetupBackgroundNodeFromStyle(
     const base::optional<RoundedCorners>& rounded_corners,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
@@ -594,6 +602,36 @@ Border CreateBorderFromStyle(
       GetUsedColor(style->border_bottom_color()));
 
   return Border(left, right, top, bottom);
+}
+
+void PopulateBaseStyleForBorderNode(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+  // NOTE: Properties set by PopulateBaseStyleForBorderNode() should match the
+  // properties used by SetupBorderNodeFromStyle().
+
+  // Left
+  destination_style->set_border_left_width(source_style->border_left_width());
+  destination_style->set_border_left_style(source_style->border_left_style());
+  destination_style->set_border_left_color(source_style->border_left_color());
+
+  // Right
+  destination_style->set_border_right_width(source_style->border_right_width());
+  destination_style->set_border_right_style(source_style->border_right_style());
+  destination_style->set_border_right_color(source_style->border_right_color());
+
+  // Top
+  destination_style->set_border_top_width(source_style->border_top_width());
+  destination_style->set_border_top_style(source_style->border_top_style());
+  destination_style->set_border_top_color(source_style->border_top_color());
+
+  // Bottom
+  destination_style->set_border_bottom_width(
+      source_style->border_bottom_width());
+  destination_style->set_border_bottom_style(
+      source_style->border_bottom_style());
+  destination_style->set_border_bottom_color(
+      source_style->border_bottom_color());
 }
 
 void SetupBorderNodeFromStyle(
@@ -797,15 +835,33 @@ math::Matrix3F GetCSSTransform(
          math::TranslateMatrix(-origin.x(), -origin.y());
 }
 
-// Used within the animation callback for CSS transforms.  This will
-// set the transform of a single-child composition node to that specified by
-// the CSS transform of the provided CSS Style Declaration.
-void SetupCompositionNodeFromCSSSStyleTransform(
+void PopulateBaseStyleForMatrixTransformNode(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+  // NOTE: Properties set by PopulateBaseStyleForMatrixTransformNode() should
+  // match the properties used by
+  // SetupMatrixTransformNodeFromCSSSStyleTransform().
+  destination_style->set_transform(source_style->transform());
+  destination_style->set_transform_origin(source_style->transform_origin());
+}
+
+// Used within the animation callback for CSS transforms.  This will set the
+// transform of a single-child matrix transform node to that specified by the
+// CSS transform of the provided CSS Style Declaration.
+void SetupMatrixTransformNodeFromCSSSStyleTransform(
     const math::RectF& used_rect,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     MatrixTransformNode::Builder* transform_node_builder) {
   transform_node_builder->transform =
       GetCSSTransform(style->transform(), style->transform_origin(), used_rect);
+}
+
+void PopulateBaseStyleForFilterNode(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+  // NOTE: Properties set by PopulateBaseStyleForFilterNode() should match the
+  // properties used by SetupFilterNodeFromStyle().
+  destination_style->set_opacity(source_style->opacity());
 }
 
 void SetupFilterNodeFromStyle(
@@ -924,6 +980,7 @@ void Box::RenderAndAnimateBorder(
 
   if (HasAnimatedBorder(animations())) {
     AddAnimations<RectNode>(
+        base::Bind(&PopulateBaseStyleForBorderNode),
         base::Bind(&SetupBorderNodeFromStyle, rounded_corners),
         *css_computed_style_declaration(), border_node,
         node_animations_map_builder);
@@ -958,6 +1015,7 @@ void Box::RenderAndAnimateBackgroundColor(
       // instead here.
       if (background_color_animated) {
         AddAnimations<RectNode>(
+            base::Bind(&PopulateBaseStyleForBackgroundNode),
             base::Bind(&SetupBackgroundNodeFromStyle, rounded_corners),
             *css_computed_style_declaration(), rect_node,
             node_animations_map_builder);
@@ -1026,7 +1084,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
 
     if (opacity_animated) {
       // Possibly setup an animation for opacity.
-      AddAnimations<FilterNode>(base::Bind(&SetupFilterNodeFromStyle),
+      AddAnimations<FilterNode>(base::Bind(&PopulateBaseStyleForFilterNode),
+                                base::Bind(&SetupFilterNodeFromStyle),
                                 *css_computed_style_declaration(), filter_node,
                                 node_animations_map_builder);
     }
@@ -1075,14 +1134,16 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
   if (IsTransformable() &&
       animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
-    // transform, thus we create a new composition node to separate it and
+    // transform, thus we create a new matrix transform node to separate it and
     // animate that node only.
     scoped_refptr<MatrixTransformNode> css_transform_node =
         new MatrixTransformNode(border_node, math::Matrix3F::Identity());
 
-    // Specifically animate only the composition node with the CSS transform.
+    // Specifically animate only the matrix transform node with the CSS
+    // transform.
     AddAnimations<MatrixTransformNode>(
-        base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
+        base::Bind(&PopulateBaseStyleForMatrixTransformNode),
+        base::Bind(&SetupMatrixTransformNodeFromCSSSStyleTransform,
                    math::RectF(PointAtOffsetFromOrigin(border_node_offset),
                                GetBorderBoxSize())),
         *css_computed_style_declaration(), css_transform_node,

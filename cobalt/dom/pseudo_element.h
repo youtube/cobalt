@@ -58,10 +58,6 @@ class PseudoElement {
   scoped_refptr<const cssom::CSSComputedStyleData> computed_style() const {
     return css_computed_style_declaration_->data();
   }
-  void set_computed_style(
-      const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-    css_computed_style_declaration_->set_data(computed_style);
-  }
 
   cssom::RulesWithCascadePrecedence* matching_rules() {
     return &matching_rules_;

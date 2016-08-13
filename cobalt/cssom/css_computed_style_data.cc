@@ -20,6 +20,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/string_util.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 
@@ -62,7 +63,9 @@ bool CSSComputedStyleData::PropertySetMatcher::DoDeclaredPropertiesMatch(
 }
 
 CSSComputedStyleData::CSSComputedStyleData()
-    : has_inherited_properties_(false) {}
+    : has_declared_inherited_properties_(false) {}
+
+CSSComputedStyleData::~CSSComputedStyleData() {}
 
 unsigned int CSSComputedStyleData::length() const {
   // Computed style declarations have all known longhand properties.
@@ -79,12 +82,18 @@ CSSComputedStyleData::GetPropertyValueReference(PropertyKey key) const {
   DCHECK_GT(key, kNoneProperty);
   DCHECK_LE(key, kMaxLonghandPropertyKey);
 
+  // If the property's value is explicitly declared, then simply return it.
   if (declared_properties_[key]) {
     return declared_property_values_.find(key)->second;
   }
-  if (ancestor_computed_style_ &&
-      GetPropertyInheritance(key) == kInheritedYes) {
-    return ancestor_computed_style_->GetPropertyValueReference(key);
+
+  // Otherwise, if the property is inherited and the parent has inherited
+  // properties, then retrieve the parent's value for the property.
+  if (parent_computed_style_declaration_ &&
+      GetPropertyInheritance(key) == kInheritedYes &&
+      parent_computed_style_declaration_->HasInheritedProperties()) {
+    return parent_computed_style_declaration_
+        ->GetInheritedPropertyValueReference(key);
   }
 
   // For the root element, which has no parent element, the inherited value is
@@ -270,8 +279,18 @@ void CSSComputedStyleData::SetPropertyValue(
   if (value) {
     declared_properties_.set(key, true);
     declared_property_values_[key] = value;
-    has_inherited_properties_ = has_inherited_properties_ ||
-                                GetPropertyInheritance(key) == kInheritedYes;
+    // Only set |has_declared_inherited_properties_| if the property is
+    // inherited and the the value isn't explicitly set to "inherit". If it is
+    // set to "inherit", then the value is simply a copy of the parent's value,
+    // which doesn't necessitate the node being included in the inheritance
+    // tree, as it doesn't provide new information.
+    // NOTE: Declaring a value of "inherit" on an inherited property is used for
+    // transitions, which need to know the original value of the property (which
+    // would otherwise be lost when the parent changed).
+    has_declared_inherited_properties_ =
+        has_declared_inherited_properties_ ||
+        (GetPropertyInheritance(key) == kInheritedYes &&
+         value != KeywordValue::GetInherit());
   } else if (declared_properties_[key]) {
     declared_properties_.set(key, false);
     declared_property_values_.erase(key);
@@ -281,7 +300,10 @@ void CSSComputedStyleData::SetPropertyValue(
 void CSSComputedStyleData::AssignFrom(const CSSComputedStyleData& rhs) {
   declared_properties_ = rhs.declared_properties_;
   declared_property_values_ = rhs.declared_property_values_;
-  has_inherited_properties_ = rhs.has_inherited_properties_;
+  has_declared_inherited_properties_ = rhs.has_declared_inherited_properties_;
+  declared_properties_inherited_from_parent_ =
+      rhs.declared_properties_inherited_from_parent_;
+  parent_computed_style_declaration_ = rhs.parent_computed_style_declaration_;
 }
 
 std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {
@@ -305,18 +327,55 @@ std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {
   return serialized_text;
 }
 
-void CSSComputedStyleData::SetParentComputedStyle(
-    const scoped_refptr<const CSSComputedStyleData>& parent_computed_style) {
-  if (parent_computed_style->has_inherited_properties_) {
-    ancestor_computed_style_ = parent_computed_style;
-  } else {
-    // If the parent style does not have any inherited properties, we will never
-    // need to refer to it for inherited properties, so we refer to the parent
-    // style's ancestor instead. This gives the number of ancestor dereferences
-    // needed to find the value of an inherited property an upper bound equal to
-    // the total number of inheritable properties.
-    ancestor_computed_style_ = parent_computed_style->ancestor_computed_style_;
+void CSSComputedStyleData::AddDeclaredPropertyInheritedFromParent(
+    PropertyKey key) {
+  declared_properties_inherited_from_parent_.push_back(key);
+}
+
+bool CSSComputedStyleData::AreDeclaredPropertiesInheritedFromParentValid()
+    const {
+  // If there are no declared properties inherited from the parent, then it's
+  // impossible for them to be invalid.
+  if (declared_properties_inherited_from_parent_.size() == 0) {
+    return true;
   }
+
+  if (!parent_computed_style_declaration_) {
+    return false;
+  }
+
+  const scoped_refptr<const CSSComputedStyleData>& parent_computed_style_data =
+      parent_computed_style_declaration_->data();
+  if (!parent_computed_style_data) {
+    return false;
+  }
+
+  // Verify that the parent's data is valid.
+  DCHECK(parent_computed_style_data
+             ->AreDeclaredPropertiesInheritedFromParentValid());
+
+  // Walk the declared properties inherited from the parent. They're invalid if
+  // any no longer match the parent's value.
+  for (PropertyKeyVector::const_iterator iter =
+           declared_properties_inherited_from_parent_.begin();
+       iter != declared_properties_inherited_from_parent_.end(); ++iter) {
+    if (GetPropertyValueReference(*iter) !=
+        parent_computed_style_data->GetPropertyValueReference(*iter)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void CSSComputedStyleData::SetParentComputedStyleDeclaration(
+    const scoped_refptr<CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration) {
+  parent_computed_style_declaration_ = parent_computed_style_declaration;
+}
+
+const scoped_refptr<CSSComputedStyleDeclaration>&
+CSSComputedStyleData::GetParentComputedStyleDeclaration() const {
+  return parent_computed_style_declaration_;
 }
 
 }  // namespace cssom

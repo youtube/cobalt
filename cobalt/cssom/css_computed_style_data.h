@@ -31,12 +31,11 @@
 namespace cobalt {
 namespace cssom {
 
+class CSSComputedStyleDeclaration;
+
 // CSSComputedStyleData which has PropertyValue type properties only used
-// internally and it is not exposed to JavaScript.  It derives from
-// RefCountedThreadSafe instead of RefCounted so that it can be passed forward
-// to another thread for animating before rendering a scene.
-class CSSComputedStyleData
-    : public base::RefCountedThreadSafe<CSSComputedStyleData> {
+// internally and it is not exposed to JavaScript.
+class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
  public:
   // This class provides the ability to determine whether the properties of two
   // CSSComputedStyleData objects match for a given set of property keys.
@@ -61,6 +60,7 @@ class CSSComputedStyleData
                          16, std::equal_to<PropertyKey> > PropertyValues;
 
   CSSComputedStyleData();
+  ~CSSComputedStyleData();
 
   // The length attribute must return the number of CSS declarations in the
   // declarations.
@@ -661,24 +661,47 @@ class CSSComputedStyleData
 
   void AssignFrom(const CSSComputedStyleData& rhs);
 
+  // This returns the result of serializing a CSS declaration block.
+  // The current implementation does not handle shorthands.
+  //   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
+  std::string SerializeCSSDeclarationBlock() const;
+
   // Returns true if the property is explicitly declared in this style, as
   // opposed to implicitly inheriting from its parent or the initial value.
   bool IsDeclared(const PropertyKey key) const {
     return declared_properties_[key];
   }
 
-  // This returns the result of serializing a CSS declaration block.
-  // The current implementation does not handle shorthands.
-  //   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
-  std::string SerializeCSSDeclarationBlock() const;
+  // Whether or not any inherited properties have been declared.
+  // NOTE: Inherited properties that are set to a value "inherit" do not impact
+  // this flag, as they will have the same value as the parent and can be
+  // skipped by descendants retrieving their inherited value without impacting
+  // the returned value.
+  bool has_declared_inherited_properties() const {
+    return has_declared_inherited_properties_;
+  }
 
-  // Set the parent computed style for tracking inherited properties.
-  void SetParentComputedStyle(
-      const scoped_refptr<const CSSComputedStyleData>& parent_computed_style);
+  // Adds a declared property that was inherited from the parent to an
+  // internal list. This facilitates tracking of whether or not a value that was
+  // initially set to a parent's value continues to match the parent's value.
+  void AddDeclaredPropertyInheritedFromParent(PropertyKey key);
+
+  // Returns true if any declared property that was inherited from the parent
+  // are still valid. They become invalid when the parent's value changes.
+  bool AreDeclaredPropertiesInheritedFromParentValid() const;
 
   PropertyValues* declared_property_values() {
     return &declared_property_values_;
   }
+
+  // Set the parent computed style for tracking inherited properties.
+  void SetParentComputedStyleDeclaration(
+      const scoped_refptr<CSSComputedStyleDeclaration>&
+          parent_computed_style_declaration);
+
+  // Returns the parent computed style used for tracking inherited properties.
+  const scoped_refptr<CSSComputedStyleDeclaration>&
+  GetParentComputedStyleDeclaration() const;
 
  private:
   // Helper function that returns the computed value if the initial property
@@ -691,10 +714,25 @@ class CSSComputedStyleData
   LonghandPropertiesBitset declared_properties_;
   PropertyValues declared_property_values_;
 
-  scoped_refptr<const CSSComputedStyleData> ancestor_computed_style_;
+  // True if this style has any inherited properties declared.
+  // NOTE: Inherited properties that are set to a value "inherit" do not impact
+  // this flag, as they will have the same value as the parent and can be
+  // skipped by descendants retrieving their inherited value without impacting
+  // the returned value.
+  bool has_declared_inherited_properties_;
 
-  // True if this style has any inheritable properties defined.
-  bool has_inherited_properties_;
+  // Properties that were initially set to a value of "inherit" before being
+  // updated with the parent's value. This is used to determine whether the
+  // declared properties inherited from the parent have subsequently changed.
+  PropertyKeyVector declared_properties_inherited_from_parent_;
+
+  // The parent used for inherited properties.
+  // NOTE: The parent is a CSSComputedStyleDeclaration, rather than a
+  // CSSComputedStyleData, in order to allow for the replacement of ancestor
+  // CSSComputedStyleData objects without requiring all of its descendants to
+  // also be replaced. The descendant's inherited property value will instead
+  // dynamically update.
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration_;
 };
 
 }  // namespace cssom

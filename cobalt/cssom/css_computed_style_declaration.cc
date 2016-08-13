@@ -72,5 +72,45 @@ void CSSComputedStyleDeclaration::SetPropertyValue(
                            exception_state);
 }
 
+void CSSComputedStyleDeclaration::SetData(
+    const scoped_refptr<const CSSComputedStyleData>& data) {
+  data_ = data;
+  // After setting |data_|, |data_with_inherited_properties_| needs to be
+  // updated. It may have changed.
+  UpdateInheritedData();
+}
+
+void CSSComputedStyleDeclaration::UpdateInheritedData() {
+  if (!data_) {
+    // If there's no data, then there can be no data with inherited properties.
+    data_with_inherited_properties_ = NULL;
+  } else if (data_->has_declared_inherited_properties()) {
+    // Otherwise, if the data has inherited properties, then it's also the first
+    // data with inherited properties.
+    data_with_inherited_properties_ = data_;
+  } else {
+    // Otherwise, |data_with_inherited_properties_| should be set to the parent
+    // computed style's |data_with_inherited_properties_|. This is because the
+    // updates always cascade down the tree and the parent is guaranteed to
+    // have already been updated when the child is updated.
+    const scoped_refptr<CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration =
+            data_->GetParentComputedStyleDeclaration();
+    if (parent_computed_style_declaration) {
+      data_with_inherited_properties_ =
+          parent_computed_style_declaration->data_with_inherited_properties_;
+    } else {
+      data_with_inherited_properties_ = NULL;
+    }
+  }
+}
+
+const scoped_refptr<PropertyValue>&
+CSSComputedStyleDeclaration::GetInheritedPropertyValueReference(
+    PropertyKey key) const {
+  DCHECK(data_with_inherited_properties_);
+  return data_with_inherited_properties_->GetPropertyValueReference(key);
+}
+
 }  // namespace cssom
 }  // namespace cobalt
