@@ -96,14 +96,14 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
     // TODO: Determine which animations to propagate to the anonymous block box,
     //       instead of none at all.
     scoped_refptr<cssom::CSSComputedStyleDeclaration>
-        css_computed_style_declaration =
+        new_computed_style_declaration =
             new cssom::CSSComputedStyleDeclaration();
-    css_computed_style_declaration->set_data(
-        GetComputedStyleOfAnonymousBox(computed_style()));
-    css_computed_style_declaration->set_animations(
+    new_computed_style_declaration->SetData(
+        GetComputedStyleOfAnonymousBox(css_computed_style_declaration()));
+    new_computed_style_declaration->set_animations(
         new web_animations::AnimationSet());
     scoped_refptr<AnonymousBlockBox> new_anonymous_block_box(
-        new AnonymousBlockBox(css_computed_style_declaration,
+        new AnonymousBlockBox(new_computed_style_declaration,
                               GetBaseDirection(), used_style_provider(),
                               layout_stat_tracker()));
     anonymous_block_box = new_anonymous_block_box.get();
