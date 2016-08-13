@@ -299,6 +299,14 @@ LayoutUnit TextBox::GetBaselineOffsetFromTopMarginEdge() const {
 }
 
 namespace {
+void PopulateBaseStyleForTextNode(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+  // NOTE: Properties set by PopulateBaseStyleForTextNode() should match the
+  // properties used by SetupTextNodeFromStyle().
+  destination_style->set_color(source_style->color());
+}
+
 void SetupTextNodeFromStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     render_tree::TextNode::Builder* text_node_builder) {
@@ -410,6 +418,7 @@ void TextBox::RenderAndAnimateContent(
       border_node_builder->AddChild(text_node);
       if (is_color_animated) {
         AddAnimations<render_tree::TextNode>(
+            base::Bind(&PopulateBaseStyleForTextNode),
             base::Bind(&SetupTextNodeFromStyle),
             *css_computed_style_declaration(), text_node,
             node_animations_map_builder);
