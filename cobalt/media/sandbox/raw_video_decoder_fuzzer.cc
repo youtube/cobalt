@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
+#include <map>
 #include <vector>
 
+#include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "base/time.h"
 #include "cobalt/base/wrap_main.h"
+#include "cobalt/media/sandbox/fuzzer_app.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/media_source_demuxer.h"
 #include "cobalt/media/sandbox/zzuf_fuzzer.h"
 #include "media/base/bind_to_loop.h"
-#include "starboard/directory.h"
 
 namespace cobalt {
 namespace media {
@@ -154,124 +155,60 @@ void DumpFuzzedData(const std::string& filename, std::vector<uint8> container,
                        container.size());
 }
 
-bool IsVideoFile(const std::string& name) {
-  if (name.size() < 5) {
-    return false;
-  }
-  if (SbStringCompareNoCase(name.c_str() + name.size() - 5, ".webm") == 0) {
-    return true;
-  }
-  if (SbStringCompareNoCase(name.c_str() + name.size() - 4, ".mp4") == 0) {
-    return true;
-  }
-  return false;
-}
-
-// This function returns a vector of video files each with its full path name.
-std::vector<std::string> CollectVideoFiles(const std::string& pathname) {
-  std::vector<std::string> result;
-
-  SbDirectory directory = SbDirectoryOpen(pathname.c_str(), NULL);
-  if (!SbDirectoryIsValid(directory)) {
-    // Assuming it is a file.
-    if (IsVideoFile(pathname)) {
-      result.push_back(pathname);
-    }
-    return result;
-  }
-
-  SbDirectoryEntry entry;
-  while (SbDirectoryGetNext(directory, &entry)) {
-    if (IsVideoFile(entry.name)) {
-      result.push_back(pathname + SB_FILE_SEP_STRING + entry.name);
+class RawVideoDecoderFuzzerApp : public FuzzerApp {
+ public:
+  explicit RawVideoDecoderFuzzerApp(MediaSandbox* media_sandbox)
+      : media_sandbox_(media_sandbox) {}
+  ~RawVideoDecoderFuzzerApp() {
+    while (!demuxers_.empty()) {
+      delete demuxers_.begin()->second;
+      demuxers_.erase(demuxers_.begin());
     }
   }
-  SbDirectoryClose(directory);
-  return result;
-}
 
-// Create MediaSourceDemuxer and ZzufFuzzer for every file in |filenames| and
-// put them into |demuxers| and |fuzzers|.
-// If failed to create demuxer and fuzzer for a particular filename, it will be
-// removed from |filenames| so the size of |filenames|, |demuxers| and |fuzzers|
-// will be the same after the function returns.
-void GatherTestData(std::vector<std::string>* filenames,
-                    ScopedVector<MediaSourceDemuxer>* demuxers,
-                    ScopedVector<ZzufFuzzer>* fuzzers) {
-  const float kMinFuzzRatio = 0.01f;
-  const float kMaxFuzzRatio = 0.05f;
-
-  std::vector<std::string>::iterator iter = filenames->begin();
-  while (iter != filenames->end()) {
-    LOG(INFO) << "Loading " << *iter;
-    std::string content;
-    if (file_util::ReadFileToString(FilePath(*iter), &content) &&
-        !content.empty()) {
-      scoped_ptr<MediaSourceDemuxer> demuxer(new MediaSourceDemuxer(
-          std::vector<uint8>(content.begin(), content.end())));
-      if (demuxer->valid() && demuxer->GetFrameCount() > 0) {
-        fuzzers->push_back(
-            new ZzufFuzzer(demuxer->au_data(), kMinFuzzRatio, kMaxFuzzRatio));
-        demuxers->push_back(demuxer.release());
-        ++iter;
-      } else {
-        LOG(ERROR) << "Failed to demux video: " << *iter;
-        iter = filenames->erase(iter);
-      }
-    } else {
-      LOG(ERROR) << "Failed to load video: " << *iter;
-      iter = filenames->erase(iter);
+  std::vector<uint8> ParseFileContent(
+      const std::string& file_name,
+      const std::vector<uint8>& file_content) OVERRIDE {
+    std::string ext = FilePath(file_name).Extension();
+    if (ext != ".webm" && ext != ".mp4") {
+      LOG(ERROR) << "Skip unsupported file " << file_name;
+      return std::vector<uint8>();
     }
+
+    scoped_ptr<MediaSourceDemuxer> demuxer(new MediaSourceDemuxer(
+        std::vector<uint8>(file_content.begin(), file_content.end())));
+    if (demuxer->valid() && demuxer->GetFrameCount() > 0) {
+      demuxers_[file_name] = demuxer.release();
+      return demuxers_[file_name]->au_data();
+    }
+    LOG(ERROR) << "Failed to demux video: " << file_name;
+    return std::vector<uint8>();
   }
-}
+
+  void Fuzz(const std::string& file_name,
+            const std::vector<uint8>& fuzzing_content) OVERRIDE {
+    DCHECK(demuxers_.find(file_name) != demuxers_.end());
+    MediaSourceDemuxer* demuxer = demuxers_[file_name];
+    scoped_ptr<ShellRawVideoDecoder> decoder =
+        media_sandbox_->GetMediaModule()->GetRawVideoDecoderFactory()->Create(
+            demuxer->config(), NULL, false);
+    DCHECK(decoder);
+    VideoDecoderFuzzer decoder_fuzzer(fuzzing_content, demuxer, decoder.get());
+    decoder_fuzzer.Fuzz();
+  }
+
+ private:
+  MediaSandbox* media_sandbox_;
+  std::map<std::string, MediaSourceDemuxer*> demuxers_;
+};
 
 int SandboxMain(int argc, char** argv) {
-  if (argc != 3) {
-    LOG(ERROR) << "Usage: " << argv[0] << " <number of iterations> "
-               << "<video file name|directory name contains video files>";
-    LOG(ERROR) << "For example: " << argv[0] << " 200000 /data/video-files";
-    return 1;
-  }
-
-  long iterations = SbStringParseSignedInteger(argv[1], NULL, 10);
-
-  if (iterations <= 0) {
-    LOG(ERROR) << "Invalid 'number of iterations' " << argv[1];
-  }
-
   MediaSandbox media_sandbox(
       argc, argv, FilePath(FILE_PATH_LITERAL("raw_video_decoder_fuzzer.json")));
+  RawVideoDecoderFuzzerApp fuzzer_app(&media_sandbox);
 
-  // Note that we can't access PathService until MediaSandbox is initialized.
-  std::vector<std::string> filenames = CollectVideoFiles(argv[2]);
-
-  ScopedVector<MediaSourceDemuxer> demuxers;
-  ScopedVector<ZzufFuzzer> data_fuzzers;
-
-  GatherTestData(&filenames, &demuxers, &data_fuzzers);
-
-  DCHECK_EQ(filenames.size(), demuxers.size());
-  DCHECK_EQ(demuxers.size(), data_fuzzers.size());
-
-  if (demuxers.empty()) {
-    LOG(ERROR) << "No files to fuzz";
-    return 1;
-  }
-
-  for (long i = 0; i < iterations; ++i) {
-    for (size_t file_index = 0; file_index < demuxers.size(); ++file_index) {
-      LOG(INFO) << "Fuzzing \"" << filenames[file_index] << "\" with seed "
-                << data_fuzzers[file_index]->seed();
-      scoped_ptr<ShellRawVideoDecoder> decoder =
-          media_sandbox.GetMediaModule()->GetRawVideoDecoderFactory()->Create(
-              demuxers[file_index]->config(), NULL, false);
-      DCHECK(decoder);
-      VideoDecoderFuzzer decoder_fuzzer(
-          data_fuzzers[file_index]->GetFuzzedContent(), demuxers[file_index],
-          decoder.get());
-      decoder_fuzzer.Fuzz();
-      data_fuzzers[file_index]->AdvanceSeed();
-    }
+  if (fuzzer_app.Init(argc, argv)) {
+    fuzzer_app.RunFuzzingLoop();
   }
 
   return 0;
