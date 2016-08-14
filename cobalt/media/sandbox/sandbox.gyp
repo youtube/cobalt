@@ -107,6 +107,8 @@
           'target_name': 'raw_video_decoder_fuzzer',
           'type': '<(final_executable_type)',
           'sources': [
+            'fuzzer_app.cc',
+            'fuzzer_app.h',
             'media_sandbox.cc',
             'media_sandbox.h',
             'media_source_demuxer.cc',
@@ -148,6 +150,8 @@
           'target_name': 'shell_demuxer_fuzzer',
           'type': '<(final_executable_type)',
           'sources': [
+            'fuzzer_app.cc',
+            'fuzzer_app.h',
             'in_memory_data_source.cc',
             'in_memory_data_source.h',
             'media_sandbox.cc',
