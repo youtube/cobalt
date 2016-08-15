@@ -34,15 +34,15 @@
 
 using cobalt::math::Matrix3F;
 using cobalt::math::SizeF;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::ResourceProvider;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::renderer::test::png_utils::DecodePNGToRenderTreeImage;
 
 namespace cobalt {
@@ -89,10 +89,10 @@ scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
 
 }  // namespace
 
-RenderTreeWithAnimations CreateImageWrapScene(
+scoped_refptr<render_tree::Node> CreateImageWrapScene(
     ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
     base::TimeDelta start_time) {
-  NodeAnimationsMap::Builder animations;
+  AnimateNode::Builder animations;
 
   // Create an image node that will have its local_transform animated to
   // demonstrate what local_transform allows one to do.
@@ -107,8 +107,7 @@ RenderTreeWithAnimations CreateImageWrapScene(
 
   animations.Add(image_node, base::Bind(&AnimateImage, start_time));
 
-  return RenderTreeWithAnimations(
-      image_wrap_scene, new NodeAnimationsMap(animations.Pass()));
+  return new AnimateNode(animations, image_wrap_scene);
 }
 
 }  // namespace scenes

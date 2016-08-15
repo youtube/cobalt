@@ -67,7 +67,7 @@ class Animation {
   //                  base::TimeDelta::FromSeconds(1)));
   //
   // You can now create an AnimationList object from the AnimationList::Builder
-  // and ultimately add that to a NodeAnimationsMap object so that it can be
+  // and ultimately add that to a AnimateNode::Builder object so that it can be
   // mapped to a specific TextNode that it should be applied to.
   typedef base::Callback<void(typename T::Builder*, base::TimeDelta)> Function;
 };

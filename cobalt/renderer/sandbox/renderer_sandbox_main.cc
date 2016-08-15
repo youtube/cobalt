@@ -30,7 +30,6 @@
 using cobalt::render_tree::ResourceProvider;
 using cobalt::renderer::test::scenes::AddBlankBackgroundToScene;
 using cobalt::renderer::test::scenes::CreateAllScenesCombinedScene;
-using cobalt::renderer::test::scenes::RenderTreeWithAnimations;
 using cobalt::system_window::SystemWindow;
 
 namespace {
@@ -67,7 +66,7 @@ RendererSandbox::RendererSandbox()
   // Construct our render tree and associated animations to be passed into
   // the renderer pipeline for display.
   base::TimeDelta start_time = base::Time::Now() - base::Time::UnixEpoch();
-  RenderTreeWithAnimations scene = AddBlankBackgroundToScene(
+  scoped_refptr<cobalt::render_tree::Node> scene = AddBlankBackgroundToScene(
       CreateAllScenesCombinedScene(
           renderer_module_->pipeline()->GetResourceProvider(),
           output_dimensions, start_time),
@@ -75,8 +74,8 @@ RendererSandbox::RendererSandbox()
 
   // Pass the render tree along with associated animations into the renderer
   // module to be displayed.
-  renderer_module_->pipeline()->Submit(cobalt::renderer::Submission(
-      scene.render_tree, scene.animations, start_time));
+  renderer_module_->pipeline()->Submit(
+      cobalt::renderer::Submission(scene, start_time));
 }
 
 RendererSandbox* g_renderer_sandbox = NULL;

@@ -29,7 +29,7 @@ namespace scenes {
 
 // This render tree builder will create a scene containing highlighted
 // text scrolling smoothly from left to right.
-RenderTreeWithAnimations CreateMarqueeScene(
+scoped_refptr<render_tree::Node> CreateMarqueeScene(
     render_tree::ResourceProvider* resource_provider,
     const math::SizeF& output_dimensions, base::TimeDelta start_time);
 

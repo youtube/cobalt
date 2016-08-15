@@ -62,9 +62,8 @@ class RendererBenchmarkRunner {
     samples_to_gather_ = samples_to_gather;
     done_gathering_samples_.Reset();
 
-    renderer::Submission submission_with_callback(
-        layout_results.render_tree, layout_results.animations,
-        layout_results.layout_time);
+    renderer::Submission submission_with_callback(layout_results.render_tree,
+                                                  layout_results.layout_time);
     submission_with_callback.on_rasterized_callback = base::Bind(
         &RendererBenchmarkRunner::OnSubmitComplete, base::Unretained(this));
 
@@ -156,7 +155,7 @@ LayoutBenchmark::LayoutBenchmark(const TestInfo& test_info)
   layout_samples_[layout::kBenchmarkStatUpdateCrossReferences];
   layout_samples_[layout::kBenchmarkStatUpdateUsedSizes];
   layout_samples_[layout::kBenchmarkStatRenderAndAnimate];
-  renderer_samples_["NodeAnimationsMap::Apply()"];
+  renderer_samples_["AnimateNode::Apply()"];
   renderer_samples_["VisitRenderTree"];
   renderer_samples_["Skia Flush"];
 }

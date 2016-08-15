@@ -239,7 +239,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
-    RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
+    scoped_refptr<render_tree::Node> render_tree_root = layout::Layout(
         locale_, window_->document(), used_style_provider_.get(),
         layout_stat_tracker_, line_break_iterator_.get(),
         character_break_iterator_.get(), &initial_containing_block_);
@@ -251,11 +251,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 #endif  // ENABLE_TEST_RUNNER
     if (run_on_render_tree_produced_callback) {
-      on_render_tree_produced_callback_.Run(
-          LayoutResults(render_tree_with_animations.render_tree,
-                        render_tree_with_animations.animations,
-                        base::TimeDelta::FromMillisecondsD(
-                            *document->timeline()->current_time())));
+      on_render_tree_produced_callback_.Run(LayoutResults(
+          render_tree_root, base::TimeDelta::FromMillisecondsD(
+                                *document->timeline()->current_time())));
     }
 
     layout_dirty_ = false;
