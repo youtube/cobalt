@@ -24,6 +24,7 @@
 #include "cobalt/layout_tests/layout_snapshot.h"
 #include "cobalt/layout_tests/test_parser.h"
 #include "cobalt/math/size.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -88,8 +89,13 @@ TEST_P(LayoutTest, LayoutTest) {
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
       GetParam().url, viewport_size, pixel_tester.GetResourceProvider());
 
-  bool results = pixel_tester.TestTree(layout_results.render_tree,
-                                       GetParam().base_file_path);
+  render_tree::animations::AnimateNode* animated_node =
+      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+          layout_results.render_tree.get());
+
+  bool results =
+      pixel_tester.TestTree(animated_node->Apply(layout_results.layout_time),
+                            GetParam().base_file_path);
   EXPECT_TRUE(results);
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline) ||

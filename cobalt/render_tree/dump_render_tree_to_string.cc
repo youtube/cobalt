@@ -31,6 +31,10 @@
 namespace cobalt {
 namespace render_tree {
 
+namespace animations {
+class AnimateNode;
+}  // namespace animations
+
 namespace {
 
 // A render tree visitor that accumulates node dumps to text within a
@@ -39,6 +43,7 @@ class DebugTreePrinter : public NodeVisitor {
  public:
   DebugTreePrinter() : indent_(0) {}
 
+  void Visit(animations::AnimateNode* /* animate */) OVERRIDE { NOTREACHED(); }
   void Visit(CompositionNode* composition) OVERRIDE;
   void Visit(FilterNode* text) OVERRIDE;
   void Visit(ImageNode* image) OVERRIDE;

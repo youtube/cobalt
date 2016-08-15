@@ -74,7 +74,7 @@ void AnimateNode(const typename ApplyStyleToRenderTreeNode<T>::Function&
 }
 
 // If animations exist, this function will add an animation which represents
-// the animations to the passed in NodeAnimationsMap.  The animation will
+// the animations to the passed in AnimateNode.  The animation will
 // target the passed in render tree node.
 template <typename T>
 void AddAnimations(
@@ -84,8 +84,7 @@ void AddAnimations(
         apply_style_function,
     const cssom::CSSComputedStyleDeclaration& css_computed_style_declaration,
     const scoped_refptr<T>& target_node,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animation_map_builder) {
+    render_tree::animations::AnimateNode::Builder* node_animation_map_builder) {
   DCHECK(!css_computed_style_declaration.animations()->IsEmpty());
 
   // Populate the base style.

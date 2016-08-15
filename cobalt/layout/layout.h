@@ -21,7 +21,7 @@
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size_f.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
@@ -40,17 +40,6 @@ class UsedStyleProvider;
 // (https://www.w3.org/TR/CSS2/visuren.html) as recommended by a newer draft
 // (http://dev.w3.org/csswg/css-box/) which is undergoing active changes.
 
-struct RenderTreeWithAnimations {
-  RenderTreeWithAnimations(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          animations)
-      : render_tree(render_tree), animations(animations) {}
-
-  scoped_refptr<render_tree::Node> render_tree;
-  scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
-};
-
 // Update the computed styles, then generate and layout the box tree.
 void UpdateComputedStylesAndLayoutBoxTree(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
@@ -63,7 +52,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
 // Main entry point to the layout engine.
 // Produces the render tree (along with corresponding animations) which is a
 // result of recursive layout of the given HTML element.
-RenderTreeWithAnimations Layout(
+scoped_refptr<render_tree::Node> Layout(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,

@@ -30,7 +30,6 @@
 using cobalt::render_tree::ResourceProvider;
 using cobalt::renderer::test::scenes::AddBlankBackgroundToScene;
 using cobalt::renderer::test::scenes::CreateScalingTextScene;
-using cobalt::renderer::test::scenes::RenderTreeWithAnimations;
 using cobalt::system_window::SystemWindow;
 
 namespace {
@@ -62,15 +61,15 @@ int SandboxMain(int argc, char** argv) {
   // Construct our render tree and associated animations to be passed into
   // the renderer pipeline for display.
   base::TimeDelta start_time = base::Time::Now() - base::Time::UnixEpoch();
-  RenderTreeWithAnimations scene = AddBlankBackgroundToScene(
+  scoped_refptr<cobalt::render_tree::Node> scene = AddBlankBackgroundToScene(
       CreateScalingTextScene(renderer_module.pipeline()->GetResourceProvider(),
                              output_dimensions, start_time),
       output_dimensions);
 
   // Pass the render tree along with associated animations into the renderer
   // module to be displayed.
-  renderer_module.pipeline()->Submit(cobalt::renderer::Submission(
-      scene.render_tree, scene.animations, start_time));
+  renderer_module.pipeline()->Submit(
+      cobalt::renderer::Submission(scene, start_time));
 
   base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(30));
 

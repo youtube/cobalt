@@ -84,8 +84,8 @@ class TextBox : public Box {
   // From |Box|.
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const OVERRIDE;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
 #ifdef COBALT_BOX_DUMP_ENABLED

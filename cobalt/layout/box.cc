@@ -53,7 +53,7 @@ using cobalt::render_tree::RectNode;
 using cobalt::render_tree::RoundedCorners;
 using cobalt::render_tree::ViewportFilter;
 using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::NodeAnimationsMap;
+using cobalt::render_tree::animations::AnimateNode;
 
 namespace cobalt {
 namespace layout {
@@ -385,7 +385,7 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
 
 void Box::RenderAndAnimate(
     CompositionNode::Builder* parent_content_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder,
+    AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& offset_from_parent_node) const {
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
                       computed_style()->opacity().get())
@@ -447,16 +447,13 @@ void Box::RenderAndAnimate(
   //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
     RenderAndAnimateBackgroundColor(padding_rounded_corners,
-                                    &border_node_builder,
-                                    node_animations_map_builder);
+                                    &border_node_builder, animate_node_builder);
     RenderAndAnimateBackgroundImage(padding_rounded_corners,
-                                    &border_node_builder,
-                                    node_animations_map_builder);
+                                    &border_node_builder, animate_node_builder);
     RenderAndAnimateBorder(border_radius_provider.rounded_corners(),
-                           &border_node_builder, node_animations_map_builder);
+                           &border_node_builder, animate_node_builder);
     RenderAndAnimateBoxShadow(border_radius_provider.rounded_corners(),
-                              &border_node_builder,
-                              node_animations_map_builder);
+                              &border_node_builder, animate_node_builder);
   }
 
   const bool overflow_hidden =
@@ -472,17 +469,17 @@ void Box::RenderAndAnimate(
        border_insets_.zero())) {
     // If there's no reason to distinguish between content and background,
     // just add them all to the same composition node.
-    RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
+    RenderAndAnimateContent(&border_node_builder, animate_node_builder);
   } else {
     CompositionNode::Builder content_node_builder;
     // Otherwise, deal with content specifically so that we can apply overflow:
     // hidden to the content but not the background.
-    RenderAndAnimateContent(&content_node_builder, node_animations_map_builder);
+    RenderAndAnimateContent(&content_node_builder, animate_node_builder);
     if (!content_node_builder.children().empty()) {
       border_node_builder.AddChild(RenderAndAnimateOverflow(
           padding_rounded_corners,
           new CompositionNode(content_node_builder.Pass()),
-          node_animations_map_builder, math::Vector2dF(0, 0)));
+          animate_node_builder, math::Vector2dF(0, 0)));
     }
     // We've already applied overflow hidden, no need to apply it again later.
     overflow_hidden_needs_to_be_applied = false;
@@ -492,14 +489,14 @@ void Box::RenderAndAnimate(
     scoped_refptr<render_tree::Node> border_node =
         new CompositionNode(border_node_builder.Pass());
     if (overflow_hidden_needs_to_be_applied) {
-      border_node = RenderAndAnimateOverflow(
-          padding_rounded_corners, border_node, node_animations_map_builder,
-          border_box_offset);
+      border_node =
+          RenderAndAnimateOverflow(padding_rounded_corners, border_node,
+                                   animate_node_builder, border_box_offset);
     }
-    border_node = RenderAndAnimateOpacity(
-        border_node, node_animations_map_builder, opacity, opacity_animated);
-    border_node = RenderAndAnimateTransform(
-        border_node, node_animations_map_builder, border_box_offset);
+    border_node = RenderAndAnimateOpacity(border_node, animate_node_builder,
+                                          opacity, opacity_animated);
+    border_node = RenderAndAnimateTransform(border_node, animate_node_builder,
+                                            border_box_offset);
 
     parent_content_node_builder->AddChild(border_node);
   }
@@ -899,8 +896,8 @@ bool HasAnimatedBorder(const web_animations::AnimationSet* animation_set) {
 void Box::RenderAndAnimateBoxShadow(
     const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
-  UNREFERENCED_PARAMETER(node_animations_map_builder);
+    AnimateNode::Builder* animate_node_builder) const {
+  UNREFERENCED_PARAMETER(animate_node_builder);
 
   if (computed_style()->box_shadow() != cssom::KeywordValue::GetNone()) {
     const cssom::PropertyListValue* box_shadow_list =
@@ -963,7 +960,7 @@ void Box::RenderAndAnimateBoxShadow(
 void Box::RenderAndAnimateBorder(
     const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+    AnimateNode::Builder* animate_node_builder) const {
   // If the border is absent or all borders are transparent, there is no need
   // to render border.
   if (border_insets_.zero() || AreAllBordersTransparent(computed_style())) {
@@ -982,15 +979,14 @@ void Box::RenderAndAnimateBorder(
     AddAnimations<RectNode>(
         base::Bind(&PopulateBaseStyleForBorderNode),
         base::Bind(&SetupBorderNodeFromStyle, rounded_corners),
-        *css_computed_style_declaration(), border_node,
-        node_animations_map_builder);
+        *css_computed_style_declaration(), border_node, animate_node_builder);
   }
 }
 
 void Box::RenderAndAnimateBackgroundColor(
     const base::optional<RoundedCorners>& rounded_corners,
     render_tree::CompositionNode::Builder* border_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+    AnimateNode::Builder* animate_node_builder) const {
   // Only create the RectNode if the background color is not the initial value
   // (which we know is transparent) and not transparent.  If it's animated,
   // add it no matter what since its value may change over time to be
@@ -1017,8 +1013,7 @@ void Box::RenderAndAnimateBackgroundColor(
         AddAnimations<RectNode>(
             base::Bind(&PopulateBaseStyleForBackgroundNode),
             base::Bind(&SetupBackgroundNodeFromStyle, rounded_corners),
-            *css_computed_style_declaration(), rect_node,
-            node_animations_map_builder);
+            *css_computed_style_declaration(), rect_node, animate_node_builder);
       }
     }
   }
@@ -1027,8 +1022,8 @@ void Box::RenderAndAnimateBackgroundColor(
 void Box::RenderAndAnimateBackgroundImage(
     const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
-  UNREFERENCED_PARAMETER(node_animations_map_builder);
+    AnimateNode::Builder* animate_node_builder) const {
+  UNREFERENCED_PARAMETER(animate_node_builder);
 
   math::RectF image_frame(
       math::PointF(border_left_width().toFloat(), border_top_width().toFloat()),
@@ -1070,8 +1065,7 @@ void Box::RenderAndAnimateBackgroundImage(
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     const scoped_refptr<render_tree::Node>& border_node,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder,
+    render_tree::animations::AnimateNode::Builder* animate_node_builder,
     float opacity, bool opacity_animated) const {
   if (opacity < 1.0f || opacity_animated) {
     FilterNode::Builder filter_node_builder(border_node);
@@ -1087,7 +1081,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
       AddAnimations<FilterNode>(base::Bind(&PopulateBaseStyleForFilterNode),
                                 base::Bind(&SetupFilterNodeFromStyle),
                                 *css_computed_style_declaration(), filter_node,
-                                node_animations_map_builder);
+                                animate_node_builder);
     }
     return filter_node;
   }
@@ -1098,8 +1092,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const base::optional<render_tree::RoundedCorners>& rounded_corners,
     const scoped_refptr<render_tree::Node>& content_node,
-    render_tree::animations::NodeAnimationsMap::Builder*
-    /* node_animations_map_builder */,
+    render_tree::animations::AnimateNode::Builder*
+    /* animate_node_builder */,
     const math::Vector2dF& border_node_offset) const {
   bool overflow_hidden =
       computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
@@ -1128,8 +1122,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     const scoped_refptr<render_tree::Node>& border_node,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder,
+    render_tree::animations::AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) const {
   if (IsTransformable() &&
       animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
@@ -1147,7 +1140,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
                    math::RectF(PointAtOffsetFromOrigin(border_node_offset),
                                GetBorderBoxSize())),
         *css_computed_style_declaration(), css_transform_node,
-        node_animations_map_builder);
+        animate_node_builder);
 
     return css_transform_node;
   }

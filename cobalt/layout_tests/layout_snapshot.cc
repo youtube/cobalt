@@ -41,8 +41,7 @@ void WebModuleOnRenderTreeProducedCallback(
     base::optional<browser::WebModule::LayoutResults>* out_results,
     base::RunLoop* run_loop, MessageLoop* message_loop,
     const browser::WebModule::LayoutResults& results) {
-  out_results->emplace(results.render_tree, results.animations,
-                       results.layout_time);
+  out_results->emplace(results.render_tree, results.layout_time);
   message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 

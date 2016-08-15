@@ -22,10 +22,11 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
 
 using cobalt::render_tree::Node;
-using cobalt::render_tree::animations::NodeAnimationsMap;
+using cobalt::render_tree::animations::AnimateNode;
 
 namespace cobalt {
 namespace renderer {
@@ -134,10 +135,11 @@ render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
 
 void Pipeline::Submit(const Submission& render_tree_submission) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
+
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_.message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree_submission));
+                            CollectAnimations(render_tree_submission)));
 }
 
 void Pipeline::Clear() {
@@ -160,7 +162,7 @@ void Pipeline::RasterizeToRGBAPixels(
     rasterizer_thread_.message_loop()->PostTask(
         FROM_HERE,
         base::Bind(&Pipeline::RasterizeToRGBAPixels, base::Unretained(this),
-                   render_tree_submission, complete));
+                   CollectAnimations(render_tree_submission), complete));
     return;
   }
   // Create a new target that is the same dimensions as the display target.
@@ -231,8 +233,11 @@ void Pipeline::RasterizeSubmissionToRenderTarget(
   TRACE_EVENT0("cobalt::renderer",
                "Pipeline::RasterizeSubmissionToRenderTarget()");
   // Animate the render tree using the submitted animations.
-  scoped_refptr<Node> animated_render_tree = submission.animations->Apply(
-      submission.render_tree, submission.time_offset);
+  render_tree::animations::AnimateNode* animate_node =
+      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+          submission.render_tree.get());
+  scoped_refptr<Node> animated_render_tree =
+      animate_node->Apply(submission.time_offset);
 
   // Rasterize the animated render tree.
   rasterizer_->Submit(animated_render_tree, render_target);
@@ -311,8 +316,11 @@ void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
   Submission submission =
       submission_queue_->GetCurrentSubmission(base::TimeTicks::Now());
 
-  scoped_refptr<Node> animated_render_tree = submission.animations->Apply(
-      submission.render_tree, submission.time_offset);
+  render_tree::animations::AnimateNode* animate_node =
+      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+          submission.render_tree.get());
+  scoped_refptr<Node> animated_render_tree =
+      animate_node->Apply(submission.time_offset);
 
   std::string tree_dump =
       render_tree::DumpRenderTreeToString(animated_render_tree);
@@ -329,6 +337,17 @@ void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
   }
 }
 #endif  // #if defined(ENABLE_DEBUG_CONSOLE)
+
+Submission Pipeline::CollectAnimations(
+    const Submission& render_tree_submission) {
+  // Constructing an AnimateNode will result in the tree being traversed to
+  // collect all sub-AnimateNodes into the new one, in order to maintain the
+  // invariant that a sub-tree of an AnimateNode has no AnimateNodes.
+  Submission collected_submission = render_tree_submission;
+  collected_submission.render_tree = new render_tree::animations::AnimateNode(
+      render_tree_submission.render_tree);
+  return collected_submission;
+}
 
 }  // namespace renderer
 }  // namespace cobalt

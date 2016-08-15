@@ -31,7 +31,7 @@ namespace scenes {
 // scale being applied to it, and the scale of all text is animated.
 // This is very useful for investigating issues with text scaling, which
 // internally can be quite non-trivial.
-RenderTreeWithAnimations CreateScalingTextScene(
+scoped_refptr<render_tree::Node> CreateScalingTextScene(
     render_tree::ResourceProvider* resource_provider,
     const math::SizeF& output_dimensions, base::TimeDelta start_time);
 

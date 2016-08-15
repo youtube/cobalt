@@ -33,6 +33,13 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 
 namespace cobalt {
+
+namespace render_tree {
+namespace animations {
+class AnimateNode;
+}  // namespace animations
+}  // namespace render_tree
+
 namespace renderer {
 namespace rasterizer {
 namespace skia {
@@ -68,6 +75,9 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       SurfaceCacheDelegate* surface_cache_delegate,
       common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
+  void Visit(render_tree::animations::AnimateNode* animate_node) OVERRIDE {
+    NOTREACHED();
+  }
   void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
   void Visit(render_tree::ImageNode* image_node) OVERRIDE;

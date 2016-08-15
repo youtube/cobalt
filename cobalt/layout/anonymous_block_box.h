@@ -49,8 +49,8 @@ class AnonymousBlockBox : public BlockContainerBox {
 
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const OVERRIDE;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const OVERRIDE;
 
   // From |ContainerBox|.
 
