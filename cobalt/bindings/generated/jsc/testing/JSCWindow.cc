@@ -287,6 +287,7 @@ void setJSwindowProperty(
     JSC::ExecState* exec,
     JSC::JSObject* this_object,
     JSC::JSValue value);
+JSC::EncodedJSValue functionJSgetStackTrace(JSC::ExecState*);
 JSC::EncodedJSValue functionJSwindowOperation(JSC::ExecState*);
 
 // These are declared unconditionally, but only defined if needed by the
@@ -603,6 +604,12 @@ const JSC::HashTableValue JSCWindow::property_table_values[] = {
         reinterpret_cast<intptr_t>(setJSwindowProperty),
         JSC::NoIntrinsic
     },
+    { "getStackTrace",
+        JSC::DontDelete | JSC::Function,
+        reinterpret_cast<intptr_t>(functionJSgetStackTrace),
+        static_cast<intptr_t>(0),
+        JSC::NoIntrinsic
+    },
     { "windowOperation",
         JSC::DontDelete | JSC::Function,
         reinterpret_cast<intptr_t>(functionJSwindowOperation),
@@ -614,7 +621,7 @@ const JSC::HashTableValue JSCWindow::property_table_values[] = {
 
 // static
 const JSC::HashTable JSCWindow::property_table_prototype = {
-    9,  // compactSize
+    10,  // compactSize
     7,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
@@ -1017,6 +1024,25 @@ void setJSwindowProperty(
   if (!exec_state->hadException()) {
     impl->set_window_property(cobalt_value);
   }
+}
+
+JSC::EncodedJSValue functionJSgetStackTrace(
+    JSC::ExecState* exec_state) {
+  TRACE_EVENT0("JSCWindow", "call getStackTrace");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  Window* impl =
+      GetWrappableOrSetException<Window>(exec_state, this_object);
+  if (!impl) {
+    return JSC::JSValue::encode(exec_state->exception());
+  }
+
+  TypeTraits<std::string >::ReturnType return_value = impl->GetStackTrace(global_object->GetStackTrace());
+  return JSC::JSValue::encode(ToJSValue(global_object, return_value));
+
 }
 
 JSC::EncodedJSValue functionJSwindowOperation(
