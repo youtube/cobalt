@@ -26,6 +26,7 @@
 #include "cobalt/script/javascriptcore/js_object_cache.h"
 #include "cobalt/script/javascriptcore/script_object_registry.h"
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
+#include "cobalt/script/stack_frame.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
@@ -59,6 +60,7 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   EnvironmentSettings* GetEnvironmentSettings() {
     return environment_settings_;
   }
+  std::vector<StackFrame> GetStackTrace(int max_frames = 0);
 
   // JavaScriptCore stuff
   DECLARE_CLASSINFO();
