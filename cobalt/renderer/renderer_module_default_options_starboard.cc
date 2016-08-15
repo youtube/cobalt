@@ -40,7 +40,7 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           graphics_context, options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
-      new rasterizer::skia::SkiaHardwareRasterizer(
+      new rasterizer::skia::HardwareRasterizer(
           graphics_context, options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes));

@@ -36,7 +36,7 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-class SkiaHardwareRasterizer::Impl {
+class HardwareRasterizer::Impl {
  public:
   Impl(backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,
        int scratch_surface_cache_size_in_bytes,
@@ -51,7 +51,7 @@ class SkiaHardwareRasterizer::Impl {
 
  private:
   class CachedScratchSurfaceHolder
-      : public SkiaRenderTreeNodeVisitor::ScratchSurface {
+      : public RenderTreeNodeVisitor::ScratchSurface {
    public:
     CachedScratchSurfaceHolder(ScratchSurfaceCache* cache,
                                const math::Size& size)
@@ -65,7 +65,7 @@ class SkiaHardwareRasterizer::Impl {
   };
 
   SkSurface* CreateSkSurface(const math::Size& size);
-  scoped_ptr<SkiaRenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
+  scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
       const math::Size& size);
 
   base::ThreadChecker thread_checker_;
@@ -118,14 +118,14 @@ GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
 
 }  // namespace
 
-SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
-                                   int skia_cache_size_in_bytes,
-                                   int scratch_surface_cache_size_in_bytes,
-                                   int surface_cache_size_in_bytes)
+HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                               int skia_cache_size_in_bytes,
+                               int scratch_surface_cache_size_in_bytes,
+                               int surface_cache_size_in_bytes)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
-  TRACE_EVENT0("cobalt::renderer", "SkiaHardwareRasterizer::Impl::Impl()");
+  TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Impl::Impl()");
 
   DLOG(INFO) << "skia_cache_size_in_bytes: " << skia_cache_size_in_bytes;
   DLOG(INFO) << "scratch_surface_cache_size_in_bytes: "
@@ -149,7 +149,7 @@ SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                       skia_cache_size_in_bytes);
 
   base::Callback<SkSurface*(const math::Size&)> create_sk_surface_function =
-      base::Bind(&SkiaHardwareRasterizer::Impl::CreateSkSurface,
+      base::Bind(&HardwareRasterizer::Impl::CreateSkSurface,
                  base::Unretained(this));
 
   scratch_surface_cache_.emplace(create_sk_surface_function,
@@ -158,7 +158,7 @@ SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   // Setup a resource provider for resources to be used with a hardware
   // accelerated Skia rasterizer.
   resource_provider_.reset(
-      new SkiaHardwareResourceProvider(graphics_context_, gr_context_));
+      new HardwareResourceProvider(graphics_context_, gr_context_));
   graphics_context_->ReleaseCurrentContext();
 
   if (surface_cache_size_in_bytes > 0) {
@@ -172,7 +172,7 @@ SkiaHardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   }
 }
 
-SkiaHardwareRasterizer::Impl::~Impl() {
+HardwareRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
   sk_output_surface_.reset(NULL);
   surface_cache_ = base::nullopt;
@@ -182,7 +182,7 @@ SkiaHardwareRasterizer::Impl::~Impl() {
   graphics_context_->ReleaseCurrentContext();
 }
 
-void SkiaHardwareRasterizer::Impl::Submit(
+void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target, int options) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -227,11 +227,11 @@ void SkiaHardwareRasterizer::Impl::Submit(
   {
     TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
     // Rasterize the passed in render tree to our hardware render target.
-    SkiaRenderTreeNodeVisitor::CreateScratchSurfaceFunction
+    RenderTreeNodeVisitor::CreateScratchSurfaceFunction
         create_scratch_surface_function =
-            base::Bind(&SkiaHardwareRasterizer::Impl::CreateScratchSurface,
+            base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
                        base::Unretained(this));
-    SkiaRenderTreeNodeVisitor visitor(
+    RenderTreeNodeVisitor visitor(
         canvas, &create_scratch_surface_function,
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
@@ -246,14 +246,12 @@ void SkiaHardwareRasterizer::Impl::Submit(
   graphics_context_->SwapBuffers(render_target_egl);
 }
 
-render_tree::ResourceProvider*
-SkiaHardwareRasterizer::Impl::GetResourceProvider() {
+render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
 }
 
-SkSurface* SkiaHardwareRasterizer::Impl::CreateSkSurface(
-    const math::Size& size) {
-  TRACE_EVENT2("cobalt::renderer", "SkiaHardwareRasterizer::CreateSkSurface()",
+SkSurface* HardwareRasterizer::Impl::CreateSkSurface(const math::Size& size) {
+  TRACE_EVENT2("cobalt::renderer", "HardwareRasterizer::CreateSkSurface()",
                "width", size.width(), "height", size.height());
 
   // Create a texture of the specified size.  Then convert it to a render
@@ -287,39 +285,38 @@ SkSurface* SkiaHardwareRasterizer::Impl::CreateSkSurface(
   return SkSurface::NewRenderTargetDirect(skia_render_target, &surface_props);
 }
 
-scoped_ptr<SkiaRenderTreeNodeVisitor::ScratchSurface>
-SkiaHardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
-  TRACE_EVENT2("cobalt::renderer",
-               "SkiaHardwareRasterizer::CreateScratchImage()", "width",
-               size.width(), "height", size.height());
+scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>
+HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
+  TRACE_EVENT2("cobalt::renderer", "HardwareRasterizer::CreateScratchImage()",
+               "width", size.width(), "height", size.height());
 
   scoped_ptr<CachedScratchSurfaceHolder> scratch_surface(
       new CachedScratchSurfaceHolder(&scratch_surface_cache_.value(), size));
   if (scratch_surface->GetSurface()) {
-    return scratch_surface.PassAs<SkiaRenderTreeNodeVisitor::ScratchSurface>();
+    return scratch_surface.PassAs<RenderTreeNodeVisitor::ScratchSurface>();
   } else {
-    return scoped_ptr<SkiaRenderTreeNodeVisitor::ScratchSurface>();
+    return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>();
   }
 }
 
-SkiaHardwareRasterizer::SkiaHardwareRasterizer(
+HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes)
     : impl_(new Impl(graphics_context, skia_cache_size_in_bytes,
                      scratch_surface_cache_size_in_bytes,
                      surface_cache_size_in_bytes)) {}
 
-SkiaHardwareRasterizer::~SkiaHardwareRasterizer() {}
+HardwareRasterizer::~HardwareRasterizer() {}
 
-void SkiaHardwareRasterizer::Submit(
+void HardwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target, int options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
-  TRACE_EVENT0("cobalt::renderer", "SkiaHardwareRasterizer::Submit()");
+  TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Submit()");
   impl_->Submit(render_tree, render_target, options);
 }
 
-render_tree::ResourceProvider* SkiaHardwareRasterizer::GetResourceProvider() {
+render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
 }
 
