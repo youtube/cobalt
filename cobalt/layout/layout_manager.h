@@ -25,7 +25,6 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/layout/layout_stat_tracker.h"
 #include "cobalt/loader/image/image_cache.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -37,19 +36,15 @@ class LayoutManager {
  public:
   struct LayoutResults {
     LayoutResults(const scoped_refptr<render_tree::Node>& render_tree,
-                  const scoped_refptr<
-                      render_tree::animations::NodeAnimationsMap>& animations,
                   const base::TimeDelta& layout_time)
         : render_tree(render_tree),
-          animations(animations),
           layout_time(layout_time) {}
 
     // The render tree produced by a layout.
     scoped_refptr<render_tree::Node> render_tree;
-    // Animations that are to be applied to the layout's render tree.
-    scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
+
     // The time that the render tree was created, which will be used as a
-    // reference point for updating the animations specified above.
+    // reference point for updating the animations in the above render tree.
     base::TimeDelta layout_time;
   };
 

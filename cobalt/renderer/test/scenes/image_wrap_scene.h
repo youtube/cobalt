@@ -31,7 +31,7 @@ namespace scenes {
 // shrunk, and so the texture repeats to fill the size of the image node.
 // The texture is also spinning.  This scene effectively shows off
 // ImageNode's local_matrix parameter.
-RenderTreeWithAnimations CreateImageWrapScene(
+scoped_refptr<render_tree::Node> CreateImageWrapScene(
     render_tree::ResourceProvider* resource_provider,
     const math::SizeF& output_dimensions, base::TimeDelta start_time);
 

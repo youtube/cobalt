@@ -63,10 +63,9 @@ bool AnonymousBlockBox::HasTrailingLineBreak() const {
 
 void AnonymousBlockBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* border_node_builder,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) const {
+    render_tree::animations::AnimateNode::Builder* animate_node_builder) const {
   ContainerBox::RenderAndAnimateContent(border_node_builder,
-                                        node_animations_map_builder);
+                                        animate_node_builder);
 
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;

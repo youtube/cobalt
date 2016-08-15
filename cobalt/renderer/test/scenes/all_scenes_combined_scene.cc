@@ -29,48 +29,41 @@ using cobalt::math::Matrix3F;
 using cobalt::math::SizeF;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::ResourceProvider;
-using cobalt::render_tree::animations::NodeAnimationsMap;
+using cobalt::render_tree::animations::AnimateNode;
 
 namespace cobalt {
 namespace renderer {
 namespace test {
 namespace scenes {
 
-RenderTreeWithAnimations CreateAllScenesCombinedScene(
+scoped_refptr<render_tree::Node> CreateAllScenesCombinedScene(
     ResourceProvider* resource_provider, const SizeF& output_dimensions,
     base::TimeDelta start_time) {
   TRACE_EVENT0("cobalt::renderer_sandbox",
                "CreateAllScenesCombinedScene()");
   CompositionNode::Builder all_scenes_combined_scene_builder;
-  NodeAnimationsMap::Builder animations;
 
   // Compose all the render trees representing the sub-scenes through a
   // composition node, and merge the animations into one large set.
-  RenderTreeWithAnimations growing_rect_scene =
+  scoped_refptr<render_tree::Node> growing_rect_scene =
       CreateGrowingRectScene(output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(growing_rect_scene.render_tree);
-  animations.Merge(*growing_rect_scene.animations);
+  all_scenes_combined_scene_builder.AddChild(growing_rect_scene);
 
-  RenderTreeWithAnimations spinning_sprites_scene =
-      CreateSpinningSpritesScene(
-          resource_provider, output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(
-      spinning_sprites_scene.render_tree);
-  animations.Merge(*spinning_sprites_scene.animations);
+  scoped_refptr<render_tree::Node> spinning_sprites_scene =
+      CreateSpinningSpritesScene(resource_provider, output_dimensions,
+                                 start_time);
+  all_scenes_combined_scene_builder.AddChild(spinning_sprites_scene);
 
-  RenderTreeWithAnimations image_wrap_scene =
+  scoped_refptr<render_tree::Node> image_wrap_scene =
       CreateImageWrapScene(resource_provider, output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(image_wrap_scene.render_tree);
-  animations.Merge(*image_wrap_scene.animations);
+  all_scenes_combined_scene_builder.AddChild(image_wrap_scene);
 
-  RenderTreeWithAnimations marquee_scene =
+  scoped_refptr<render_tree::Node> marquee_scene =
       CreateMarqueeScene(resource_provider, output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(marquee_scene.render_tree);
-  animations.Merge(*marquee_scene.animations);
+  all_scenes_combined_scene_builder.AddChild(marquee_scene);
 
-  return RenderTreeWithAnimations(
-      new CompositionNode(all_scenes_combined_scene_builder.Pass()),
-      new NodeAnimationsMap(animations.Pass()));
+  return new AnimateNode(
+      new CompositionNode(all_scenes_combined_scene_builder.Pass()));
 }
 
 }  // namespace scenes

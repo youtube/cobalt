@@ -21,7 +21,7 @@
 #include "base/debug/trace_event.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 
 namespace cobalt {
@@ -32,20 +32,14 @@ struct Submission {
   // Convenience constructor that assumes there are no animations and sets up
   // an empty animation map.
   explicit Submission(scoped_refptr<render_tree::Node> render_tree)
-      : render_tree(render_tree),
-        animations(new render_tree::animations::NodeAnimationsMap(
-            render_tree::animations::NodeAnimationsMap::Builder().Pass())) {}
+      : render_tree(render_tree) {}
 
   // Submit a render tree as well as associated animations.  The
   // time_offset parameter indicates a time that will be used to offset all
   // times passed into animation functions.
-  Submission(
-      scoped_refptr<render_tree::Node> render_tree,
-      scoped_refptr<render_tree::animations::NodeAnimationsMap> animations,
-      base::TimeDelta time_offset)
-      : render_tree(render_tree),
-        animations(animations),
-        time_offset(time_offset) {}
+  Submission(scoped_refptr<render_tree::Node> render_tree,
+             base::TimeDelta time_offset)
+      : render_tree(render_tree), time_offset(time_offset) {}
 
   ~Submission() {
     TRACE_EVENT0("cobalt::renderer", "~Submission()");
@@ -53,16 +47,10 @@ struct Submission {
     // Explicitly dereference the render tree and animation under the scope of
     // the above trace event.
     render_tree = NULL;
-    animations = NULL;
   }
 
   // Maintains the current render tree that is to be rendered next frame.
   scoped_refptr<render_tree::Node> render_tree;
-
-  // Maintains the current animations that are to be in effect (i.e. applied
-  // to current_tree_) for all rasterizations until specifically updated by a
-  // call to Submit().
-  scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
 
   // The time from some origin that the associated render tree animations were
   // created.  This permits the render thread to compute times relative

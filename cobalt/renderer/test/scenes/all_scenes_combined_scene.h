@@ -29,7 +29,7 @@ namespace scenes {
 
 // This scene will simply composite all other scene types together into one
 // mega scene.
-RenderTreeWithAnimations CreateAllScenesCombinedScene(
+scoped_refptr<render_tree::Node> CreateAllScenesCombinedScene(
     render_tree::ResourceProvider* resource_provider,
     const math::SizeF& output_dimensions, base::TimeDelta start_time);
 

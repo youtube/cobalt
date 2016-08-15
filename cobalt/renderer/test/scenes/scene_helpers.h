@@ -18,7 +18,7 @@
 #define COBALT_RENDERER_TEST_SCENES_SCENE_HELPERS_H_
 
 #include "cobalt/math/size_f.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 
 namespace cobalt {
@@ -30,18 +30,8 @@ namespace scenes {
 // animations.
 inline float Sawtooth(float x) { return x - static_cast<int>(x); }
 
-struct RenderTreeWithAnimations {
-  RenderTreeWithAnimations(
-      scoped_refptr<render_tree::Node> render_tree,
-      scoped_refptr<render_tree::animations::NodeAnimationsMap> animations)
-      : render_tree(render_tree), animations(animations) {}
-
-  scoped_refptr<render_tree::Node> render_tree;
-  scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
-};
-
-RenderTreeWithAnimations AddBlankBackgroundToScene(
-    const RenderTreeWithAnimations& scene,
+scoped_refptr<render_tree::Node> AddBlankBackgroundToScene(
+    const scoped_refptr<render_tree::Node>& scene,
     const math::SizeF& output_dimensions);
 
 }  // namespace scenes
