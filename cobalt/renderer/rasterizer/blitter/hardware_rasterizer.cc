@@ -52,7 +52,7 @@ class HardwareRasterizer::Impl {
 
   backend::GraphicsContextBlitter* context_;
 
-  skia::SkiaSoftwareRasterizer software_rasterizer_;
+  skia::SoftwareRasterizer software_rasterizer_;
   scoped_ptr<render_tree::ResourceProvider> resource_provider_;
 
   int64 submit_count_;

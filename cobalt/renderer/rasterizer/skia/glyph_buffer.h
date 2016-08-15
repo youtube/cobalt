@@ -29,9 +29,9 @@ namespace skia {
 // Describes a render_tree::GlyphBuffer using Skia. This object contain all of
 // the information needed by Skia to render glyphs and is both immutable and
 // thread-safe.
-class SkiaGlyphBuffer : public render_tree::GlyphBuffer {
+class GlyphBuffer : public render_tree::GlyphBuffer {
  public:
-  SkiaGlyphBuffer(const math::RectF& bounds, SkTextBlobBuilder* builder);
+  GlyphBuffer(const math::RectF& bounds, SkTextBlobBuilder* builder);
 
   const SkTextBlob* GetTextBlob() const;
 

@@ -71,17 +71,17 @@ void TryAddFontToUsedFonts(const scoped_refptr<render_tree::Font>& font,
 TextShaper::TextShaper()
     : local_glyph_array_size_(0), local_text_buffer_size_(0) {}
 
-scoped_refptr<SkiaGlyphBuffer> TextShaper::CreateGlyphBuffer(
+scoped_refptr<GlyphBuffer> TextShaper::CreateGlyphBuffer(
     const char16* text_buffer, size_t text_length, const std::string& language,
     bool is_rtl, render_tree::FontProvider* font_provider) {
   math::RectF bounds;
   SkTextBlobBuilder builder;
   ShapeText(text_buffer, text_length, language, is_rtl, font_provider, &builder,
             &bounds, NULL);
-  return make_scoped_refptr(new SkiaGlyphBuffer(bounds, &builder));
+  return make_scoped_refptr(new GlyphBuffer(bounds, &builder));
 }
 
-scoped_refptr<SkiaGlyphBuffer> TextShaper::CreateGlyphBuffer(
+scoped_refptr<GlyphBuffer> TextShaper::CreateGlyphBuffer(
     const std::string& utf8_string,
     const scoped_refptr<render_tree::Font>& font) {
   string16 utf16_string;
@@ -174,7 +174,7 @@ bool TextShaper::CollectScriptRuns(const char16* text_buffer,
   int32 next_character = base::unicode::NormalizeSpaces(
       base::i18n::UTF16CharIterator(text_buffer, text_length).get());
   render_tree::GlyphIndex next_glyph = render_tree::kInvalidGlyphIndex;
-  SkiaFont* next_font = base::polymorphic_downcast<SkiaFont*>(
+  Font* next_font = base::polymorphic_downcast<Font*>(
       font_provider->GetCharacterFont(next_character, &next_glyph).get());
 
   UErrorCode error_code = U_ZERO_ERROR;
@@ -189,7 +189,7 @@ bool TextShaper::CollectScriptRuns(const char16* text_buffer,
   unsigned int current_index = 0;
   unsigned int end_index = text_length;
   while (current_index < end_index) {
-    SkiaFont* current_font = next_font;
+    Font* current_font = next_font;
     UScriptCode current_script = next_script;
 
     // Create an iterator starting at the current index and containing the
@@ -219,7 +219,7 @@ bool TextShaper::CollectScriptRuns(const char16* text_buffer,
         continue;
       }
 
-      next_font = base::polymorphic_downcast<SkiaFont*>(
+      next_font = base::polymorphic_downcast<Font*>(
           font_provider->GetCharacterFont(next_character, &next_glyph).get());
 
       next_script = uscript_getScript(next_character, &error_code);
@@ -398,7 +398,7 @@ void TextShaper::ShapeSimpleRun(const char16* text_buffer, size_t text_length,
   }
 
   int glyph_count = 0;
-  SkiaFont* last_font = NULL;
+  Font* last_font = NULL;
 
   // Walk through each character within the run.
   for (base::i18n::UTF16CharIterator iter(text_buffer, text_length);
@@ -422,7 +422,7 @@ void TextShaper::ShapeSimpleRun(const char16* text_buffer, size_t text_length,
     }
 
     // Look up the font and glyph for the current character.
-    SkiaFont* current_font = base::polymorphic_downcast<SkiaFont*>(
+    Font* current_font = base::polymorphic_downcast<Font*>(
         font_provider->GetCharacterFont(character, &glyph).get());
 
     // If there's a builder (meaning that a glyph buffer is being generated),

@@ -37,7 +37,7 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
+class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   // This callback may be called by the visitor in order to obtain a SkSurface
   // from which both a SkCanvas can be obtained (for rendering into) and then
@@ -58,11 +58,11 @@ class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
   };
 
   // The create_scratch_surface_function functor object will be saved within
-  // SkiaRenderTreeNodeVisitor, so it must outlive the SkiaRenderTreeNodeVisitor
+  // RenderTreeNodeVisitor, so it must outlive the RenderTreeNodeVisitor
   // object.  If |is_sub_visitor| is set to true, errors will be supported for
   // certain operations such as punch out alpha textures, as it is unfortunately
   // difficult to implement them when rendering to a sub-canvas.
-  SkiaRenderTreeNodeVisitor(
+  RenderTreeNodeVisitor(
       SkCanvas* render_target,
       const CreateScratchSurfaceFunction* create_scratch_surface_function,
       SurfaceCacheDelegate* surface_cache_delegate,
@@ -96,7 +96,7 @@ class SkiaRenderTreeNodeVisitor : public render_tree::NodeVisitor {
   base::optional<SurfaceCacheDelegate::ScopedContext>
       surface_cache_scoped_context_;
 
-  DISALLOW_COPY_AND_ASSIGN(SkiaRenderTreeNodeVisitor);
+  DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };
 
 }  // namespace skia
