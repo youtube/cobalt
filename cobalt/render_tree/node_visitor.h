@@ -29,11 +29,16 @@ class RectNode;
 class RectShadowNode;
 class TextNode;
 
+namespace animations {
+class AnimateNode;
+}  // namespace animations
+
 // Type-safe branching on a class hierarchy of render tree nodes,
 // implemented after a classical GoF pattern (see
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
 class NodeVisitor {
  public:
+  virtual void Visit(animations::AnimateNode* animate) = 0;
   virtual void Visit(CompositionNode* composition) = 0;
   virtual void Visit(FilterNode* text) = 0;
   virtual void Visit(ImageNode* image) = 0;

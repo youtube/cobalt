@@ -349,9 +349,8 @@ void AddTextShadows(render_tree::TextNode::Builder* builder,
 
 void TextBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* border_node_builder,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) const {
-  UNREFERENCED_PARAMETER(node_animations_map_builder);
+    render_tree::animations::AnimateNode::Builder* animate_node_builder) const {
+  UNREFERENCED_PARAMETER(animate_node_builder);
 
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
@@ -420,8 +419,7 @@ void TextBox::RenderAndAnimateContent(
         AddAnimations<render_tree::TextNode>(
             base::Bind(&PopulateBaseStyleForTextNode),
             base::Bind(&SetupTextNodeFromStyle),
-            *css_computed_style_declaration(), text_node,
-            node_animations_map_builder);
+            *css_computed_style_declaration(), text_node, animate_node_builder);
       }
     }
   }

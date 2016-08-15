@@ -64,8 +64,8 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
 
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const OVERRIDE;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const OVERRIDE;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
@@ -167,8 +167,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   void RenderAndAnimateStackingContextChildren(
       const ZIndexSortedList& z_index_child_list,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const Vector2dLayoutUnit& offset_from_parent_node) const;
 
   // A list of our direct children.  If a box is one of our child boxes, we

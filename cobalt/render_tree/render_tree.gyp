@@ -30,6 +30,7 @@
         'brush.cc',
         'brush.h',
         'brush_visitor.h',
+        'child_iterator.h',
         'color_rgba.h',
         'composition_node.cc',
         'composition_node.h',
@@ -73,8 +74,8 @@
       'target_name': 'animations',
       'type': 'static_library',
       'sources': [
-        'animations/node_animations_map.cc',
-        'animations/node_animations_map.h',
+        'animations/animate_node.cc',
+        'animations/animate_node.h',
       ],
       'dependencies': [
         'render_tree',
@@ -86,7 +87,7 @@
       'target_name': 'render_tree_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'animations/node_animations_map_test.cc',
+        'animations/animate_node_test.cc',
         'brush_visitor_test.cc',
         'color_rgba_test.cc',
         'node_visitor_test.cc',

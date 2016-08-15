@@ -16,6 +16,7 @@
 
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/simple_thread.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -29,10 +30,10 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::render_tree::animations::AnimateNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::ResourceProvider;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace renderer {
@@ -179,7 +180,7 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
 
     // Animate the ImageNode and pass in our callback function to be executed
     // upon render_tree animation.
-    NodeAnimationsMap::Builder animations;
+    AnimateNode::Builder animations;
     bool first_animate = true;
     animations.Add(test_node,
                    base::Bind(&AnimateImageNode, &animate_has_started,
@@ -194,9 +195,8 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
 
     // Submit the render tree and animation to the rendering pipeline for
     // rasterization (and the execution of our animation callback).
-    pipeline.Submit(Submission(
-        test_node, new NodeAnimationsMap(animations.Pass()),
-        base::Time::Now() - base::Time::UnixEpoch()));
+    pipeline.Submit(Submission(new AnimateNode(animations, test_node),
+                               base::Time::Now() - base::Time::UnixEpoch()));
 
     // Wait for all events that we have planned to occur.
     animate_has_started.Wait();

@@ -35,20 +35,20 @@
 
 using cobalt::math::Matrix3F;
 using cobalt::math::PointF;
-using cobalt::math::RotateMatrix;
 using cobalt::math::RectF;
+using cobalt::math::RotateMatrix;
 using cobalt::math::ScaleMatrix;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::ResourceProvider;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::renderer::test::png_utils::DecodePNGToRenderTreeImage;
 
 namespace cobalt {
@@ -118,14 +118,14 @@ scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
 
 }  // namespace
 
-RenderTreeWithAnimations CreateSpinningSpritesScene(
+scoped_refptr<render_tree::Node> CreateSpinningSpritesScene(
     ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
     base::TimeDelta start_time) {
   // Create an image for each SpriteInfo we have in our sprite_infos vector.
   // They will be positioned and scaled according to their SpriteInfo settings,
   // and rotated according to time.
   CompositionNode::Builder spinning_sprites_scene_builder;
-  NodeAnimationsMap::Builder animations;
+  AnimateNode::Builder animations;
 
   // Now, setup a plurality of spinning images that contain the test image.
   std::vector<SpriteInfo> sprite_infos = CreateSpriteInfos();
@@ -154,8 +154,7 @@ RenderTreeWithAnimations CreateSpinningSpritesScene(
   scoped_refptr<CompositionNode> spinning_sprites_composition(
       new CompositionNode(spinning_sprites_scene_builder.Pass()));
 
-  return RenderTreeWithAnimations(spinning_sprites_composition,
-                                  new NodeAnimationsMap(animations.Pass()));
+  return new AnimateNode(animations, spinning_sprites_composition);
 }
 
 }  // namespace scenes
