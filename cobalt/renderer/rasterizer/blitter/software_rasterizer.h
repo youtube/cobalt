@@ -50,7 +50,7 @@ class SoftwareRasterizer : public Rasterizer {
 
  private:
   backend::GraphicsContextBlitter* context_;
-  skia::SkiaSoftwareRasterizer skia_rasterizer_;
+  skia::SoftwareRasterizer skia_rasterizer_;
 };
 
 }  // namespace blitter

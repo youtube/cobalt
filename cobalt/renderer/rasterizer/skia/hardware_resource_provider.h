@@ -33,10 +33,10 @@ namespace skia {
 // This class must be thread-safe and capable of creating resources that
 // are to be consumed by this skia hardware rasterizer.  It must be constructed
 // on the thread that will be visiting submitted render trees.
-class SkiaHardwareResourceProvider : public render_tree::ResourceProvider {
+class HardwareResourceProvider : public render_tree::ResourceProvider {
  public:
-  SkiaHardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
-                               GrContext* gr_context);
+  HardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
+                           GrContext* gr_context);
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;

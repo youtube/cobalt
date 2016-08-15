@@ -37,80 +37,76 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-bool SkiaSoftwareResourceProvider::PixelFormatSupported(
+bool SoftwareResourceProvider::PixelFormatSupported(
     render_tree::PixelFormat pixel_format) {
   return RenderTreeSurfaceFormatToSkia(pixel_format) == kN32_SkColorType;
 }
 
-bool SkiaSoftwareResourceProvider::AlphaFormatSupported(
+bool SoftwareResourceProvider::AlphaFormatSupported(
     render_tree::AlphaFormat alpha_format) {
   return alpha_format == render_tree::kAlphaFormatPremultiplied;
 }
 
-scoped_ptr<ImageData> SkiaSoftwareResourceProvider::AllocateImageData(
+scoped_ptr<ImageData> SoftwareResourceProvider::AllocateImageData(
     const math::Size& size, render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareResourceProvider::AllocateImageData()");
+               "SoftwareResourceProvider::AllocateImageData()");
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
   return scoped_ptr<ImageData>(
-      new SkiaSoftwareImageData(size, pixel_format, alpha_format));
+      new SoftwareImageData(size, pixel_format, alpha_format));
 }
 
-scoped_refptr<render_tree::Image> SkiaSoftwareResourceProvider::CreateImage(
+scoped_refptr<render_tree::Image> SoftwareResourceProvider::CreateImage(
     scoped_ptr<ImageData> source_data) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareResourceProvider::CreateImage()");
-  scoped_ptr<SkiaSoftwareImageData> skia_source_data(
-      base::polymorphic_downcast<SkiaSoftwareImageData*>(
-          source_data.release()));
+  TRACE_EVENT0("cobalt::renderer", "SoftwareResourceProvider::CreateImage()");
+  scoped_ptr<SoftwareImageData> skia_source_data(
+      base::polymorphic_downcast<SoftwareImageData*>(source_data.release()));
 
   return scoped_refptr<render_tree::Image>(
-      new SkiaSoftwareImage(skia_source_data.Pass()));
+      new SoftwareImage(skia_source_data.Pass()));
 }
 
 scoped_ptr<render_tree::RawImageMemory>
-SkiaSoftwareResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,
-                                                     size_t alignment) {
+SoftwareResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,
+                                                 size_t alignment) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareResourceProvider::AllocateRawImageMemory()");
+               "SoftwareResourceProvider::AllocateRawImageMemory()");
 
   return scoped_ptr<render_tree::RawImageMemory>(
-      new SkiaSoftwareRawImageMemory(size_in_bytes, alignment));
+      new SoftwareRawImageMemory(size_in_bytes, alignment));
 }
 
 scoped_refptr<render_tree::Image>
-SkiaSoftwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
+SoftwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
     scoped_ptr<render_tree::RawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor) {
   TRACE_EVENT0(
       "cobalt::renderer",
-      "SkiaSoftwareResourceProvider::CreateMultiPlaneImageFromRawMemory()");
+      "SoftwareResourceProvider::CreateMultiPlaneImageFromRawMemory()");
 
-  scoped_ptr<SkiaSoftwareRawImageMemory> skia_software_raw_image_memory(
-      base::polymorphic_downcast<SkiaSoftwareRawImageMemory*>(
+  scoped_ptr<SoftwareRawImageMemory> skia_software_raw_image_memory(
+      base::polymorphic_downcast<SoftwareRawImageMemory*>(
           raw_image_memory.release()));
 
-  return make_scoped_refptr(new SkiaSoftwareMultiPlaneImage(
+  return make_scoped_refptr(new SoftwareMultiPlaneImage(
       skia_software_raw_image_memory.Pass(), descriptor));
 }
 
-bool SkiaSoftwareResourceProvider::HasLocalFontFamily(
+bool SoftwareResourceProvider::HasLocalFontFamily(
     const char* font_family_name) const {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareResourceProvider::HasLocalFontFamily()");
+               "SoftwareResourceProvider::HasLocalFontFamily()");
 
   SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
   SkAutoTUnref<SkFontStyleSet> style_set(fm->matchFamily(font_family_name));
   return style_set->count() > 0;
 }
 
-scoped_refptr<render_tree::Typeface>
-SkiaSoftwareResourceProvider::GetLocalTypeface(
+scoped_refptr<render_tree::Typeface> SoftwareResourceProvider::GetLocalTypeface(
     const char* font_family_name, render_tree::FontStyle font_style) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareResourceProvider::GetLocalFont()");
+  TRACE_EVENT0("cobalt::renderer", "SoftwareResourceProvider::GetLocalFont()");
 
   SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
   SkAutoTUnref<SkTypeface> typeface(fm->matchFamilyStyle(
@@ -119,11 +115,11 @@ SkiaSoftwareResourceProvider::GetLocalTypeface(
 }
 
 scoped_refptr<render_tree::Typeface>
-SkiaSoftwareResourceProvider::GetCharacterFallbackTypeface(
+SoftwareResourceProvider::GetCharacterFallbackTypeface(
     int32 character, render_tree::FontStyle font_style,
     const std::string& language) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareResourceProvider::GetCharacterFallbackTypeface()");
+               "SoftwareResourceProvider::GetCharacterFallbackTypeface()");
 
   SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
   SkAutoTUnref<SkTypeface> typeface(
@@ -133,11 +129,11 @@ SkiaSoftwareResourceProvider::GetCharacterFallbackTypeface(
 }
 
 scoped_refptr<render_tree::Typeface>
-SkiaSoftwareResourceProvider::CreateTypefaceFromRawData(
+SoftwareResourceProvider::CreateTypefaceFromRawData(
     scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data,
     std::string* error_string) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareResourceProvider::CreateFontFromRawData()");
+               "SoftwareResourceProvider::CreateFontFromRawData()");
 
   if (raw_data == NULL) {
     *error_string = "No data to process";
@@ -168,7 +164,7 @@ SkiaSoftwareResourceProvider::CreateTypefaceFromRawData(
 }
 
 scoped_refptr<render_tree::GlyphBuffer>
-SkiaSoftwareResourceProvider::CreateGlyphBuffer(
+SoftwareResourceProvider::CreateGlyphBuffer(
     const char16* text_buffer, size_t text_length, const std::string& language,
     bool is_rtl, render_tree::FontProvider* font_provider) {
   return text_shaper_.CreateGlyphBuffer(text_buffer, text_length, language,
@@ -176,13 +172,13 @@ SkiaSoftwareResourceProvider::CreateGlyphBuffer(
 }
 
 scoped_refptr<render_tree::GlyphBuffer>
-SkiaSoftwareResourceProvider::CreateGlyphBuffer(
+SoftwareResourceProvider::CreateGlyphBuffer(
     const std::string& utf8_string,
     const scoped_refptr<render_tree::Font>& font) {
   return text_shaper_.CreateGlyphBuffer(utf8_string, font);
 }
 
-float SkiaSoftwareResourceProvider::GetTextWidth(
+float SoftwareResourceProvider::GetTextWidth(
     const char16* text_buffer, size_t text_length, const std::string& language,
     bool is_rtl, render_tree::FontProvider* font_provider,
     render_tree::FontVector* maybe_used_fonts) {

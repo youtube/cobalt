@@ -54,7 +54,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   RenderTreeNodeVisitor(SbBlitterDevice device, SbBlitterContext context,
                         const RenderState& render_state,
-                        skia::SkiaSoftwareRasterizer* software_rasterizer,
+                        skia::SoftwareRasterizer* software_rasterizer,
                         SurfaceCacheDelegate* surface_cache_delegate,
                         common::SurfaceCache* surface_cache);
 
@@ -89,7 +89,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   // We maintain an instance of a software skia rasterizer which is used to
   // render anything that we cannot render via the Blitter API directly.
-  skia::SkiaSoftwareRasterizer* software_rasterizer_;
+  skia::SoftwareRasterizer* software_rasterizer_;
 
   SbBlitterDevice device_;
   SbBlitterContext context_;

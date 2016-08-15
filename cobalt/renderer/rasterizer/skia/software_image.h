@@ -29,11 +29,11 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-class SkiaSoftwareImageData : public render_tree::ImageData {
+class SoftwareImageData : public render_tree::ImageData {
  public:
-  SkiaSoftwareImageData(const math::Size& size,
-                        render_tree::PixelFormat pixel_format,
-                        render_tree::AlphaFormat alpha_format);
+  SoftwareImageData(const math::Size& size,
+                    render_tree::PixelFormat pixel_format,
+                    render_tree::AlphaFormat alpha_format);
 
   const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE;
   uint8_t* GetMemory() OVERRIDE;
@@ -45,12 +45,11 @@ class SkiaSoftwareImageData : public render_tree::ImageData {
   scoped_array<uint8_t> pixel_data_;
 };
 
-class SkiaSoftwareImage : public SkiaSinglePlaneImage {
+class SoftwareImage : public SinglePlaneImage {
  public:
-  explicit SkiaSoftwareImage(
-      scoped_ptr<SkiaSoftwareImageData> source_data);
-  SkiaSoftwareImage(uint8_t* source_data,
-                    const render_tree::ImageDataDescriptor& descriptor);
+  explicit SoftwareImage(scoped_ptr<SoftwareImageData> source_data);
+  SoftwareImage(uint8_t* source_data,
+                const render_tree::ImageDataDescriptor& descriptor);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
@@ -67,9 +66,9 @@ class SkiaSoftwareImage : public SkiaSinglePlaneImage {
   math::Size size_;
 };
 
-class SkiaSoftwareRawImageMemory : public render_tree::RawImageMemory {
+class SoftwareRawImageMemory : public render_tree::RawImageMemory {
  public:
-  SkiaSoftwareRawImageMemory(size_t size_in_bytes, size_t alignment);
+  SoftwareRawImageMemory(size_t size_in_bytes, size_t alignment);
 
   size_t GetSizeInBytes() const OVERRIDE;
   uint8_t* GetMemory() OVERRIDE;
@@ -81,10 +80,10 @@ class SkiaSoftwareRawImageMemory : public render_tree::RawImageMemory {
   scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> pixel_data_;
 };
 
-class SkiaSoftwareMultiPlaneImage : public SkiaMultiPlaneImage {
+class SoftwareMultiPlaneImage : public MultiPlaneImage {
  public:
-  SkiaSoftwareMultiPlaneImage(
-      scoped_ptr<SkiaSoftwareRawImageMemory> raw_image_memory,
+  SoftwareMultiPlaneImage(
+      scoped_ptr<SoftwareRawImageMemory> raw_image_memory,
       const render_tree::MultiPlaneImageDataDescriptor& descriptor);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
@@ -104,7 +103,7 @@ class SkiaSoftwareMultiPlaneImage : public SkiaMultiPlaneImage {
 
   scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> owned_pixel_data_;
 
-  scoped_refptr<SkiaSoftwareImage>
+  scoped_refptr<SoftwareImage>
       planes_[render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes];
 };
 

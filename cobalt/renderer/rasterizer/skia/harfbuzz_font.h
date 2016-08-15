@@ -28,9 +28,9 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-class SkiaFont;
+class Font;
 
-hb_font_t* CreateHarfBuzzFont(SkiaFont* skia_font);
+hb_font_t* CreateHarfBuzzFont(Font* skia_font);
 
 }  // namespace skia
 }  // namespace rasterizer

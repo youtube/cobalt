@@ -29,7 +29,7 @@ namespace skia {
 
 // This class must be thread-safe and capable of creating resources that
 // are to be consumed by this skia software rasterizer.
-class SkiaSoftwareResourceProvider : public render_tree::ResourceProvider {
+class SoftwareResourceProvider : public render_tree::ResourceProvider {
  public:
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;

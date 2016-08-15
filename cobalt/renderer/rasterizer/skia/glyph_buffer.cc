@@ -21,11 +21,10 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SkiaGlyphBuffer::SkiaGlyphBuffer(const math::RectF& bounds,
-                                 SkTextBlobBuilder* builder)
+GlyphBuffer::GlyphBuffer(const math::RectF& bounds, SkTextBlobBuilder* builder)
     : render_tree::GlyphBuffer(bounds), text_blob_(builder->build()) {}
 
-const SkTextBlob* SkiaGlyphBuffer::GetTextBlob() const {
+const SkTextBlob* GlyphBuffer::GetTextBlob() const {
   return SkSafeRef(text_blob_.get());
 }
 
