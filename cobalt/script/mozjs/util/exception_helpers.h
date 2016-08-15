@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-[PrimaryGlobal]
-interface Window : GlobalInterfaceParent {
-  void windowOperation();
-  attribute DOMString windowProperty;
-  [CallWith=StackTrace] DOMString getStackTrace();
-};
+#ifndef COBALT_SCRIPT_MOZJS_UTIL_EXCEPTION_HELPERS_H_
+#define COBALT_SCRIPT_MOZJS_UTIL_EXCEPTION_HELPERS_H_
+
+#include <vector>
+
+#include "cobalt/script/stack_frame.h"
+#include "third_party/mozjs/js/src/jsapi.h"
+
+namespace cobalt {
+namespace script {
+namespace mozjs {
+namespace util {
+std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames);
+}  // namespace util
+}  // namespace mozjs
+}  // namespace script
+}  // namespace cobalt
+#endif  // COBALT_SCRIPT_MOZJS_UTIL_EXCEPTION_HELPERS_H_

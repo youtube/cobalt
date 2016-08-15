@@ -17,7 +17,12 @@
 #ifndef COBALT_BINDINGS_TESTING_WINDOW_H_
 #define COBALT_BINDINGS_TESTING_WINDOW_H_
 
+#include <string>
+#include <vector>
+
 #include "cobalt/bindings/testing/global_interface_parent.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_object_proxy.h"
 
 namespace cobalt {
 namespace bindings {
@@ -28,6 +33,11 @@ class Window : public GlobalInterfaceParent {
   virtual void WindowOperation() {}
   virtual std::string window_property() { return ""; }
   virtual void set_window_property(const std::string&) {}
+
+  std::string GetStackTrace(
+      const std::vector<script::StackFrame>& stack_frame) {
+    return StackTraceToString(stack_frame);
+  }
 
   DEFINE_WRAPPABLE_TYPE(Window);
 };
