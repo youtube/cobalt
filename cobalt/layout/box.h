@@ -37,7 +37,7 @@
 #include "cobalt/layout/vector2d_layout_unit.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/web_animations/animation_set.h"
 
@@ -406,8 +406,7 @@ class Box : public base::RefCounted<Box> {
   // on the subclasses to provide the actual content.
   void RenderAndAnimate(
       render_tree::CompositionNode::Builder* parent_content_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& offset_from_parent_node) const;
 
   // Poor man's reflection.
@@ -529,8 +528,8 @@ class Box : public base::RefCounted<Box> {
   // Renders the content of the box.
   virtual void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const = 0;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const = 0;
 
   // A transformable element is an element whose layout is governed by the CSS
   // box model which is either a block-level or atomic inline-level element.
@@ -583,37 +582,35 @@ class Box : public base::RefCounted<Box> {
   void RenderAndAnimateBorder(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const;
   void RenderAndAnimateBackgroundColor(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const;
   void RenderAndAnimateBackgroundImage(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const;
   void RenderAndAnimateBoxShadow(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder)
+      const;
 
   // If opacity is animated or other than 1, wraps a border node into a filter
   // node. Otherwise returns the original border node.
   scoped_refptr<render_tree::Node> RenderAndAnimateOpacity(
       const scoped_refptr<render_tree::Node>& border_node,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
       float opacity, bool opacity_animated) const;
 
   scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       const scoped_refptr<render_tree::Node>& border_node,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset) const;
 
   // If transform is not "none", wraps a border node in a MatrixTransformNode.
@@ -621,8 +618,7 @@ class Box : public base::RefCounted<Box> {
   // |border_node_transform| intact.
   scoped_refptr<render_tree::Node> RenderAndAnimateTransform(
       const scoped_refptr<render_tree::Node>& border_node,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset) const;
 
   // The css_computed_style_declaration_ member references the

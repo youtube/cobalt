@@ -45,7 +45,7 @@ using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::TextNode;
 using cobalt::render_tree::animations::Animation;
 using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
+using cobalt::render_tree::animations::AnimateNode;
 
 namespace cobalt {
 namespace renderer {
@@ -62,7 +62,7 @@ void ScaleText(MatrixTransformNode::Builder* transform_node,
 
 }  // namespace
 
-RenderTreeWithAnimations CreateScalingTextScene(
+scoped_refptr<render_tree::Node> CreateScalingTextScene(
     ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
     base::TimeDelta start_time) {
   const std::string kText(
@@ -91,11 +91,10 @@ RenderTreeWithAnimations CreateScalingTextScene(
       Matrix3F::Identity()));
 
   // Setup the scaling animation on the text
-  NodeAnimationsMap::Builder animations;
+  AnimateNode::Builder animations;
   animations.Add(scaling_text_node, base::Bind(&ScaleText));
 
-  return RenderTreeWithAnimations(scaling_text_node,
-                                  new NodeAnimationsMap(animations.Pass()));
+  return new AnimateNode(animations, scaling_text_node);
 }
 
 }  // namespace scenes

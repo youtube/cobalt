@@ -25,7 +25,7 @@ namespace debug {
 RenderOverlay::RenderOverlay(
     const OnRenderTreeProducedCallback& render_tree_produced_callback)
     : render_tree_produced_callback_(render_tree_produced_callback),
-      input_layout_(NULL, NULL, base::TimeDelta()) {}
+      input_layout_(NULL, base::TimeDelta()) {}
 
 void RenderOverlay::OnRenderTreeProduced(const LayoutResults& layout_results) {
   input_layout_ = layout_results;
@@ -56,10 +56,10 @@ void RenderOverlay::Process() {
           new render_tree::CompositionNode(builder);
 
       render_tree_produced_callback_.Run(
-          LayoutResults(combined_tree, input_layout_.animations, layout_time));
+          LayoutResults(combined_tree, layout_time));
     } else {
-      render_tree_produced_callback_.Run(LayoutResults(
-          input_layout_.render_tree, input_layout_.animations, layout_time));
+      render_tree_produced_callback_.Run(
+          LayoutResults(input_layout_.render_tree, layout_time));
     }
   }
 }
