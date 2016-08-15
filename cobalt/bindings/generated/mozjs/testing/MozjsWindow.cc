@@ -393,6 +393,42 @@ JSBool set_windowProperty(
   return !exception_state.is_exception_set();
 }
 
+JSBool fcn_getStackTrace(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  Window* impl =
+      wrapper_private->wrappable<Window>().get();
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->GetStackTrace(global_object_proxy->GetStackTrace()),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
 JSBool fcn_windowOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -433,6 +469,13 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
+  {
+      "getStackTrace",
+      JSOP_WRAPPER(&fcn_getStackTrace),
+      0,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
   {
       "windowOperation",
       JSOP_WRAPPER(&fcn_windowOperation),

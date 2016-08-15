@@ -139,6 +139,7 @@
         'operations_bindings_test.cc',
         'optional_arguments_bindings_test.cc',
         'put_forwards_test.cc',
+        'stack_trace_test.cc',
         'static_properties_bindings_test.cc',
         'stringifier_bindings_test.cc',
         'union_type_bindings_test.cc',

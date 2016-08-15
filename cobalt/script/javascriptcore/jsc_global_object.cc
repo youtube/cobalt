@@ -17,6 +17,7 @@
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 
 #include "base/logging.h"
+#include "cobalt/script/javascriptcore/util/exception_helpers.h"
 
 namespace cobalt {
 namespace script {
@@ -56,6 +57,10 @@ JSCGlobalObject::JSCGlobalObject(JSC::JSGlobalData* global_data,
       object_cache_(new JSObjectCache(this)),
       script_object_registry_(script_object_registry),
       environment_settings_(environment_settings) {}
+
+std::vector<script::StackFrame> JSCGlobalObject::GetStackTrace(int max_frames) {
+  return util::GetStackTrace(globalExec(), max_frames);
+}
 
 }  // namespace javascriptcore
 }  // namespace script
