@@ -52,7 +52,7 @@ void DeleteArrayByType(void* data) {
 
 // Outputs the |width| and |extents| of the glyph with index |codepoint| in
 // |paint|'s font.
-void GetGlyphWidthAndExtents(SkiaFont* skia_font, hb_codepoint_t codepoint,
+void GetGlyphWidthAndExtents(Font* skia_font, hb_codepoint_t codepoint,
                              hb_position_t* width,
                              hb_glyph_extents_t* extents) {
   DCHECK_LE(codepoint, std::numeric_limits<uint16_t>::max());
@@ -78,7 +78,7 @@ void GetGlyphWidthAndExtents(SkiaFont* skia_font, hb_codepoint_t codepoint,
 hb_bool_t GetGlyph(hb_font_t* font, void* data, hb_codepoint_t unicode,
                    hb_codepoint_t variation_selector, hb_codepoint_t* glyph,
                    void* user_data) {
-  SkiaFont* skia_font = reinterpret_cast<SkiaFont*>(data);
+  Font* skia_font = reinterpret_cast<Font*>(data);
   *glyph = skia_font->GetGlyphForCharacter(unicode);
   return !!*glyph;
 }
@@ -86,7 +86,7 @@ hb_bool_t GetGlyph(hb_font_t* font, void* data, hb_codepoint_t unicode,
 // Returns the horizontal advance value of the |glyph|.
 hb_position_t GetGlyphHorizontalAdvance(hb_font_t* font, void* data,
                                         hb_codepoint_t glyph, void* user_data) {
-  SkiaFont* skia_font = reinterpret_cast<SkiaFont*>(data);
+  Font* skia_font = reinterpret_cast<Font*>(data);
   hb_position_t advance = 0;
 
   GetGlyphWidthAndExtents(skia_font, glyph, &advance, 0);
@@ -100,7 +100,7 @@ hb_bool_t GetGlyphHorizontalOrigin(hb_font_t* font, void* data,
   return true;
 }
 
-hb_position_t GetGlyphKerning(SkiaFont* font_data, hb_codepoint_t first_glyph,
+hb_position_t GetGlyphKerning(Font* font_data, hb_codepoint_t first_glyph,
                               hb_codepoint_t second_glyph) {
   SkAutoTUnref<SkTypeface> typeface(font_data->GetSkTypeface());
   const uint16_t glyphs[2] = {static_cast<uint16_t>(first_glyph),
@@ -121,7 +121,7 @@ hb_position_t GetGlyphHorizontalKerning(hb_font_t* font, void* data,
                                         hb_codepoint_t left_glyph,
                                         hb_codepoint_t right_glyph,
                                         void* user_data) {
-  SkiaFont* skia_font = reinterpret_cast<SkiaFont*>(data);
+  Font* skia_font = reinterpret_cast<Font*>(data);
   return GetGlyphKerning(skia_font, left_glyph, right_glyph);
 }
 
@@ -136,7 +136,7 @@ hb_position_t GetGlyphVerticalKerning(hb_font_t* font, void* data,
 // Writes the |extents| of |glyph|.
 hb_bool_t GetGlyphExtents(hb_font_t* font, void* data, hb_codepoint_t glyph,
                           hb_glyph_extents_t* extents, void* user_data) {
-  SkiaFont* skia_font = reinterpret_cast<SkiaFont*>(data);
+  Font* skia_font = reinterpret_cast<Font*>(data);
   GetGlyphWidthAndExtents(skia_font, glyph, 0, extents);
   return true;
 }
@@ -222,7 +222,7 @@ class HarfBuzzFace {
 }  // namespace
 
 // Creates a HarfBuzz font from the given Skia font.
-hb_font_t* CreateHarfBuzzFont(SkiaFont* skia_font) {
+hb_font_t* CreateHarfBuzzFont(Font* skia_font) {
   static std::map<SkFontID, HarfBuzzFace> face_caches;
 
   // Retrieve the typeface from the cache. In the case where it does not already

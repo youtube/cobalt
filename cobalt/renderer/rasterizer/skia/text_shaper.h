@@ -43,16 +43,16 @@ namespace skia {
 class TextShaper {
  public:
   // A script run represents a segment of text that can be shaped using a single
-  // SkiaFont and UScriptCode combination.
+  // skia::Font and UScriptCode combination.
   struct ScriptRun {
-    ScriptRun(SkiaFont* run_font, UScriptCode run_script,
+    ScriptRun(Font* run_font, UScriptCode run_script,
               unsigned int run_start_index, unsigned int run_length)
         : font(run_font),
           script(run_script),
           start_index(run_start_index),
           length(run_length) {}
 
-    SkiaFont* font;
+    Font* font;
     UScriptCode script;
     unsigned int start_index;
     unsigned int length;
@@ -69,7 +69,7 @@ class TextShaper {
   // If |is_rtl| is true, then the glyphs in the text buffer will be reversed.
   // Returns a newly created glyph buffer, which can be used to render the
   // shaped text.
-  scoped_refptr<SkiaGlyphBuffer> CreateGlyphBuffer(
+  scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
       const char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider);
@@ -78,7 +78,7 @@ class TextShaper {
   // complex, depending on the text provided.
   // Returns a newly created glyph buffer, which can be used to render the
   // shaped text.
-  scoped_refptr<SkiaGlyphBuffer> CreateGlyphBuffer(
+  scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
       const std::string& utf8_string,
       const scoped_refptr<render_tree::Font>& font);
 
@@ -117,9 +117,9 @@ class TextShaper {
     float max_y_;
   };
 
-  // Shape text relying on SkiaFont and HarfBuzz.
+  // Shape text relying on skia::Font and HarfBuzz.
   // Returns the width of the shaped text.
-  // If |maybe_glyph_buffer| is non-NULL, it is populated with SkiaGlyphBuffer
+  // If |maybe_glyph_buffer| is non-NULL, it is populated with skia::GlyphBuffer
   // shaping data.
   // If |maybe_bounds| is non-NULL, it is populated with the bounds of the
   // shaped text.
@@ -132,7 +132,7 @@ class TextShaper {
                   render_tree::FontVector* maybe_used_fonts);
 
   // Populate a ScriptRuns object with all runs of text containing a single
-  // SkiaFont and UScriptCode combination.
+  // skia::Font and UScriptCode combination.
   // Returns false if the script run collection fails.
   bool CollectScriptRuns(const char16* text_buffer, size_t text_length,
                          render_tree::FontProvider* font_provider,
@@ -157,7 +157,7 @@ class TextShaper {
                                    render_tree::FontVector* maybe_used_fonts,
                                    float* current_width);
 
-  // Shape a simple text run, relying on the SkiaFont objects provided by
+  // Shape a simple text run, relying on the skia::Font objects provided by
   // the FontProvider to determine the shaping data.
   void ShapeSimpleRun(const char16* text_buffer, size_t text_length,
                       render_tree::FontProvider* font_provider,

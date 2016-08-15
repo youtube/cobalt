@@ -53,7 +53,7 @@ using render_tree::ViewportFilter;
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SbBlitterDevice device, SbBlitterContext context,
     const RenderState& render_state,
-    skia::SkiaSoftwareRasterizer* software_rasterizer,
+    skia::SoftwareRasterizer* software_rasterizer,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache)
     : software_rasterizer_(software_rasterizer),
@@ -167,14 +167,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
-  // All Blitter API images derive from SkiaImage (so that they can be
+  // All Blitter API images derive from skia::Image (so that they can be
   // compatible with the Skia software renderer), so we start here by casting
-  // to SkiaImage.
-  skia::SkiaImage* skia_image = base::polymorphic_downcast<skia::SkiaImage*>(
-      image_node->data().source.get());
+  // to skia::Image.
+  skia::Image* skia_image =
+      base::polymorphic_downcast<skia::Image*>(image_node->data().source.get());
   const Size& image_size = skia_image->GetSize();
 
-  if (skia_image->GetTypeId() == base::GetTypeId<skia::SkiaMultiPlaneImage>()) {
+  if (skia_image->GetTypeId() == base::GetTypeId<skia::MultiPlaneImage>()) {
     // Let software Skia deal with multiplane (e.g. YUV) image rendering.
     RenderWithSoftwareRenderer(image_node);
     return;
