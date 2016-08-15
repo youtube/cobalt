@@ -73,7 +73,9 @@ GetOpaqueRoot=*
 
 # Call the Cobalt function this property is bound to with the corresponding
 # object added to the head of the function's parameters.
-CallWith=EnvironmentSettings
+# StackTrace is a custom addition to CallWith for the purpose of testing
+# GetStackTrace, and is not specified in the spec.
+CallWith=EnvironmentSettings|StackTrace
 ConstructorCallWith=EnvironmentSettings
 
 # The constructor/attribute/operation may raise an exception. A pointer to an

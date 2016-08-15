@@ -27,6 +27,7 @@
         'mozjs_property_enumerator.cc',
         'mozjs_source_code.cc',
         'proxy_handler.cc',
+        'util/exception_helpers.cc',
         'wrapper_factory.cc',
         'wrapper_private.cc',
       ],
