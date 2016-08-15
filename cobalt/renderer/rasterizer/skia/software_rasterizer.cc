@@ -37,8 +37,7 @@ SkSurface* CreateScratchSkSurface(const math::Size& size) {
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
 }
 
-class SoftwareScratchSurface
-    : public SkiaRenderTreeNodeVisitor::ScratchSurface {
+class SoftwareScratchSurface : public RenderTreeNodeVisitor::ScratchSurface {
  public:
   explicit SoftwareScratchSurface(const math::Size& size)
       : surface_(CreateScratchSkSurface(size)) {}
@@ -48,11 +47,11 @@ class SoftwareScratchSurface
   SkAutoTUnref<SkSurface> surface_;
 };
 
-scoped_ptr<SkiaRenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
+scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
     const math::Size& size) {
   TRACE_EVENT2("cobalt::renderer", "CreateScratchSurface()", "width",
                size.width(), "height", size.height());
-  return scoped_ptr<SkiaRenderTreeNodeVisitor::ScratchSurface>(
+  return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>(
       new SoftwareScratchSurface(size));
 }
 
@@ -60,7 +59,7 @@ void ReturnScratchImage(SkSurface* surface) { surface->unref(); }
 
 }  // namespace
 
-class SkiaSoftwareRasterizer::Impl {
+class SoftwareRasterizer::Impl {
  public:
   explicit Impl(int surface_cache_size);
 
@@ -78,10 +77,9 @@ class SkiaSoftwareRasterizer::Impl {
   base::optional<common::SurfaceCache> surface_cache_;
 };
 
-SkiaSoftwareRasterizer::Impl::Impl(int surface_cache_size)
-    : resource_provider_(new SkiaSoftwareResourceProvider()) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareRasterizer::SkiaSoftwareRasterizer()");
+SoftwareRasterizer::Impl::Impl(int surface_cache_size)
+    : resource_provider_(new SoftwareResourceProvider()) {
+  TRACE_EVENT0("cobalt::renderer", "SoftwareRasterizer::SoftwareRasterizer()");
 
   if (surface_cache_size > 0) {
     // Software surfaces don't have size limits, so this is set to an arbitrary
@@ -96,11 +94,11 @@ SkiaSoftwareRasterizer::Impl::Impl(int surface_cache_size)
   }
 }
 
-void SkiaSoftwareRasterizer::Impl::Submit(
+void SoftwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     SkCanvas* render_target) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
-  TRACE_EVENT0("cobalt::renderer", "SkiaSoftwareRasterizer::Submit()");
+  TRACE_EVENT0("cobalt::renderer", "SoftwareRasterizer::Submit()");
 
   // Update our surface cache to do per-frame calculations such as deciding
   // which render tree nodes are candidates for caching in this upcoming
@@ -114,9 +112,9 @@ void SkiaSoftwareRasterizer::Impl::Submit(
 
     // Create the rasterizer and setup its render target to the bitmap we have
     // just created above.
-    SkiaRenderTreeNodeVisitor::CreateScratchSurfaceFunction
+    RenderTreeNodeVisitor::CreateScratchSurfaceFunction
         create_scratch_surface_function = base::Bind(&CreateScratchSurface);
-    SkiaRenderTreeNodeVisitor visitor(
+    RenderTreeNodeVisitor visitor(
         render_target, &create_scratch_surface_function,
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
@@ -127,27 +125,25 @@ void SkiaSoftwareRasterizer::Impl::Submit(
   }
 }
 
-render_tree::ResourceProvider*
-SkiaSoftwareRasterizer::Impl::GetResourceProvider() {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkiaSoftwareRasterizer::GetResourceProvider()");
+render_tree::ResourceProvider* SoftwareRasterizer::Impl::GetResourceProvider() {
+  TRACE_EVENT0("cobalt::renderer", "SoftwareRasterizer::GetResourceProvider()");
   return resource_provider_.get();
 }
 
-SkiaSoftwareRasterizer::SkiaSoftwareRasterizer(int surface_cache_size)
+SoftwareRasterizer::SoftwareRasterizer(int surface_cache_size)
     : impl_(new Impl(surface_cache_size)) {}
 
-SkiaSoftwareRasterizer::~SkiaSoftwareRasterizer() {}
+SoftwareRasterizer::~SoftwareRasterizer() {}
 
 // Consume the render tree and output the results to the render target passed
 // into the constructor.
-void SkiaSoftwareRasterizer::Submit(
+void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     SkCanvas* render_target) {
   impl_->Submit(render_tree, render_target);
 }
 
-render_tree::ResourceProvider* SkiaSoftwareRasterizer::GetResourceProvider() {
+render_tree::ResourceProvider* SoftwareRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
 }
 

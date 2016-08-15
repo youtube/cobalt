@@ -24,10 +24,11 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-void SkiaImage::DCheckForPremultipliedAlpha(
-    const math::Size& dimensions, int source_pitch_in_bytes,
-    render_tree::PixelFormat pixel_format, const uint8_t* source_pixels) {
-  TRACE_EVENT0("cobalt::renderer", "SkiaImage::DCheckForPremultipliedAlpha()");
+void Image::DCheckForPremultipliedAlpha(const math::Size& dimensions,
+                                        int source_pitch_in_bytes,
+                                        render_tree::PixelFormat pixel_format,
+                                        const uint8_t* source_pixels) {
+  TRACE_EVENT0("cobalt::renderer", "Image::DCheckForPremultipliedAlpha()");
   if (pixel_format == render_tree::kPixelFormatY8 ||
       pixel_format == render_tree::kPixelFormatU8 ||
       pixel_format == render_tree::kPixelFormatV8 ||

@@ -49,7 +49,7 @@ uint32 SkiaTypeface::GetEstimatedSizeInBytes() const {
 
 scoped_refptr<render_tree::Font> SkiaTypeface::CreateFontWithSize(
     float font_size) {
-  return scoped_refptr<render_tree::Font>(new SkiaFont(this, font_size));
+  return scoped_refptr<render_tree::Font>(new Font(this, font_size));
 }
 
 render_tree::GlyphIndex SkiaTypeface::GetGlyphForCharacter(

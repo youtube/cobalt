@@ -33,12 +33,12 @@ namespace skia {
 // it can be used within a wrapper class that does implement it.
 // This class focuses on rendering a render tree to a SkCanvas object,
 // so a platform-specific rasterizer::Rasterizer implementation could wrap
-// this object and after calling SkiaSoftwareRasterizer::Submit(), the wrapper
+// this object and after calling SoftwareRasterizer::Submit(), the wrapper
 // class can send the results to a display or render target.
-class SkiaSoftwareRasterizer {
+class SoftwareRasterizer {
  public:
-  explicit SkiaSoftwareRasterizer(int surface_cache_size);
-  ~SkiaSoftwareRasterizer();
+  explicit SoftwareRasterizer(int surface_cache_size);
+  ~SoftwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed
   // into the constructor.
