@@ -613,6 +613,7 @@
                 'filters/videodec2_working_memory_ps4.h',
               ],
               'dependencies' : [
+                '<(DEPTH)/nb/nb.gyp:nb',
                 '<(DEPTH)/third_party/libvpx_gpu/libvpx_gpu.gyp:libvpx_gpu',
               ],
             }],
