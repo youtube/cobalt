@@ -27,6 +27,15 @@ enum PixelDataEndian {
   kPixelDataBigEndian,
 };
 
+// Converts pixel data in pixel buffer from the source format into the
+// destination format, swizzeling the pixel color components if necessary.
+void ConvertPixelDataInplace(uint8_t* pixels,
+                             int pitch_in_bytes,
+                             PixelFormat destination_format,
+                             PixelFormat source_format,
+                             int width,
+                             int height);
+
 // Copies pixel data from the source buffer and format into the destination
 // buffer and format, swizzeling the pixel color components if necessary.
 void ConvertPixelData(uint8_t* destination,
