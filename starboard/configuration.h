@@ -57,6 +57,9 @@
 // Determines at compile-time an inherent aspect of this platform.
 #define SB_IS(SB_FEATURE) (defined(SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
 
+// Determines at compile-time whether this platform has a quirk.
+#define SB_HAS_QUIRK(SB_FEATURE) (defined(SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
+
 // Determines at compile-time if this platform implements a given Starboard API
 // version number (or above).
 #define SB_VERSION(SB_API) (SB_API_VERSION >= SB_API)
