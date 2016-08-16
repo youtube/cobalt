@@ -17,6 +17,10 @@
 #ifndef SkUserConfig_DEFINED
 #define SkUserConfig_DEFINED
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
+
 /*  SkTypes.h, the root of the public header files, does the following trick:
 
     #include <SkPreConfig.h>
@@ -232,5 +236,11 @@ SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
 #define SK_BARRIERS_PLATFORM_H "../src/ports/SkBarriers_cobalt.h"
 
 // ===== End Cobalt-specific definitions =====
+
+#if defined(STARBOARD)
+#if SB_HAS_QUIRK(GL_NO_CONSTANT_ATTRIBUTE_SUPPORT)
+#define GR_GL_NO_CONSTANT_ATTRIBUTES 1
+#endif // SB_HAS_QUIRK(GL_NO_CONSTANT_ATTRIBUTE_SUPPORT)
+#endif // defined(STARBOARD)
 
 #endif  // SkUserConfig_DEFINED
