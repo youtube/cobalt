@@ -53,6 +53,7 @@
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
+#include "cobalt/dom/window.h"
 
 namespace cobalt {
 namespace dom {
@@ -61,6 +62,7 @@ Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
       html_element_context_(html_element_context),
+      window_(options.window),
       implementation_(new DOMImplementation()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
@@ -140,6 +142,8 @@ base::Token Document::node_name() const {
 scoped_refptr<Element> Document::document_element() const {
   return first_element_child();
 }
+
+scoped_refptr<Window> Document::default_view() const { return window_; }
 
 std::string Document::title() const {
   const char kTitleTag[] = "title";
