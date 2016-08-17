@@ -227,7 +227,7 @@ int SandboxMain(int argc, char** argv) {
       break;
     }
     scoped_refptr<VideoFrame> frame = player_helper.GetCurrentFrame();
-    if (frame != last_frame) {
+    if (frame && frame != last_frame) {
       LOG(INFO) << "showing frame " << frame->GetTimestamp().InMicroseconds();
       last_frame = frame;
     }
