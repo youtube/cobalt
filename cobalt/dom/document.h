@@ -61,6 +61,7 @@ class HTMLHtmlElement;
 class HTMLScriptElement;
 class Location;
 class Text;
+class Window;
 
 class DocumentObserver {
  public:
@@ -88,9 +89,11 @@ class Document : public Node, public cssom::MutationObserver {
     Options() : cookie_jar(NULL), csp_enforcement_mode(kCspEnforcementEnable) {}
     explicit Options(const GURL& url_value)
         : url(url_value),
+          window(NULL),
           cookie_jar(NULL),
           csp_enforcement_mode(kCspEnforcementEnable) {}
-    Options(const GURL& url_value, const base::Closure& hashchange_callback,
+    Options(const GURL& url_value, Window* window,
+            const base::Closure& hashchange_callback,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
@@ -102,6 +105,7 @@ class Document : public Node, public cssom::MutationObserver {
             const base::Closure& csp_policy_changed_callback,
             int csp_insecure_allowed_token = 0)
         : url(url_value),
+          window(window),
           hashchange_callback(hashchange_callback),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
@@ -115,6 +119,7 @@ class Document : public Node, public cssom::MutationObserver {
           csp_insecure_allowed_token(csp_insecure_allowed_token) {}
 
     GURL url;
+    Window* window;
     base::Closure hashchange_callback;
     scoped_refptr<base::Clock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
@@ -144,6 +149,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<Element> document_element() const;
   std::string title() const;
+
+  scoped_refptr<Window> default_view() const;
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
       const std::string& local_name) const;
@@ -334,6 +341,9 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
+  // Reference to the Window object. We cannot hold a strong reference,
+  // otherwise we create a reference loop.
+  Window* window_;
   // Associated DOM implementation object.
   scoped_refptr<DOMImplementation> implementation_;
   // Associated location object.
