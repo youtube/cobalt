@@ -18,6 +18,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "starboard/user.h"
@@ -88,16 +89,13 @@ std::string AccountManagerStarboard::GetUserId() {
   return GetCurrentUserProperty(kSbUserPropertyUserId);
 }
 
-void AccountManagerStarboard::StartSignIn() { SbUserStartSignIn(); }
+void AccountManagerStarboard::StartSignIn() {
+  NOTREACHED() << "Should be handled internally by platform.";
+}
 
 bool AccountManagerStarboard::IsAgeRestricted() {
-  SbUser user = SbUserGetCurrent();
-
-  if (!SbUserIsValid(user)) {
-    return false;
-  }
-
-  return SbUserIsAgeRestricted(user);
+  NOTREACHED() << "Should be handled internally by platform.";
+  return false;
 }
 
 }  // namespace account
