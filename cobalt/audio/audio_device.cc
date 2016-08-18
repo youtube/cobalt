@@ -75,6 +75,8 @@ class AudioDevice::Impl {
   int64 frames_rendered_;  // Frames retrieved from |render_callback_|.
   int64 frames_consumed_;  // Accumulated frames consumed reported by the sink.
 
+  bool was_silence_last_update_;
+
   SbAudioSink audio_sink_;
 
   DISALLOW_COPY_AND_ASSIGN(Impl);
@@ -90,6 +92,7 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
       output_frame_buffer_(kFramesPerChannel * number_of_channels),
       frames_rendered_(0),
       frames_consumed_(0),
+      was_silence_last_update_(false),
       audio_sink_(kSbAudioSinkInvalid) {
   DCHECK(number_of_channels_ == 1 || number_of_channels_ == 2)
       << "Invalid number of channels: " << number_of_channels_;
@@ -155,7 +158,12 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
   if ((kFramesPerChannel - *frames_in_buffer) >= kRenderBufferSizeFrames) {
     bool silence = false;
 
-    input_audio_bus_.ZeroAllFrames();
+    // If there was silence last time we were called, then the buffer has
+    // already been zeroed out and we don't need to do it again.
+    if (!was_silence_last_update_) {
+      input_audio_bus_.ZeroAllFrames();
+    }
+
     // Fill our temporary buffer with planar PCM float samples.
     render_callback_->FillAudioBus(&input_audio_bus_, &silence);
 
@@ -165,9 +173,12 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
       frames_rendered_ += kRenderBufferSizeFrames;
       *frames_in_buffer += kRenderBufferSizeFrames;
     }
+
+    was_silence_last_update_ = silence;
   }
 
   *offset_in_frames = frames_consumed_ % kFramesPerChannel;
+  *is_playing = (frames_rendered_ != frames_consumed_);
 }
 
 void AudioDevice::Impl::ConsumeFrames(int frames_consumed) {
