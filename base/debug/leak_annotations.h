@@ -7,6 +7,17 @@
 
 #include "build/build_config.h"
 
+// By default, Leak Sanitizer and Address Sanitizer is expected
+// to exist together. However, this is not true for all
+// platforms (e.g. PS4).
+// HAS_LEAK_SANTIZIER=0 explicitly removes the Leak Sanitizer from code.
+#ifdef ADDRESS_SANITIZER
+#ifndef HAS_LEAK_SANITIZER
+// Default is that Leak Sanitizer exists whenever Address Sanitizer does.
+#define HAS_LEAK_SANITIZER 1
+#endif
+#endif
+
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_NACL) && \
     defined(USE_HEAPCHECKER)
 
@@ -29,7 +40,7 @@
 #define ANNOTATE_LEAKING_OBJECT_PTR(X) \
     HeapLeakChecker::IgnoreObject(X)
 
-#elif defined(ADDRESS_SANITIZER)
+#elif defined(ADDRESS_SANITIZER) && HAS_LEAK_SANITIZER
 #include <sanitizer/lsan_interface.h>
 
 class ScopedLeakSanitizerDisabler {
