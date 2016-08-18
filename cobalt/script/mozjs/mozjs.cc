@@ -68,8 +68,10 @@ int MozjsMain(int argc, char** argv) {
   CommandLine command_line(argc, argv);
   CommandLine::StringVector args = command_line.GetArgs();
   if (!args.empty()) {
-    FilePath source_file(args[0]);
-    standalone_runner.ExecuteFile(source_file);
+    for (int i = 0; i < args.size(); ++i) {
+      FilePath source_file(args[i]);
+      standalone_runner.ExecuteFile(source_file);
+    }
   } else {
     standalone_runner.RunInteractive();
   }
