@@ -89,29 +89,30 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   // TODO: Ensure it work with visible_rect with non-zero left and
   // top.  Note that simply add offset to the image buffer may cause alignment
   // issues.
-  gfx::Size visible_size(param.visible_rect().size());
+  gfx::Size plane_size(param.visible_rect().size());
 
   // Create image data descriptor for the frame in I420.
   MultiPlaneImageDataDescriptor descriptor(
       kMultiPlaneImageFormatYUV3PlaneBT709);
   descriptor.AddPlane(
       param.y_data() - frame_buffer->data(),
-      ImageDataDescriptor(visible_size, kPixelFormatY8,
+      ImageDataDescriptor(plane_size, kPixelFormatY8,
                           kAlphaFormatUnpremultiplied, param.y_pitch()));
-  visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
+  plane_size.SetSize(plane_size.width() / 2, plane_size.height() / 2);
   descriptor.AddPlane(
       param.u_data() - frame_buffer->data(),
-      ImageDataDescriptor(visible_size, kPixelFormatU8,
+      ImageDataDescriptor(plane_size, kPixelFormatU8,
                           kAlphaFormatUnpremultiplied, param.uv_pitch()));
   descriptor.AddPlane(
       param.v_data() - frame_buffer->data(),
-      ImageDataDescriptor(visible_size, kPixelFormatV8,
+      ImageDataDescriptor(plane_size, kPixelFormatV8,
                           kAlphaFormatUnpremultiplied, param.uv_pitch()));
 
   scoped_refptr<Image> image =
       resource_provider_->CreateMultiPlaneImageFromRawMemory(
           frame_buffer_common->DetachRawImageMemory(), descriptor);
 
+  gfx::Size visible_size(param.visible_rect().size());
   // The reference of the image is held by the closure that binds ReleaseImage,
   // so it won't be freed before the ReleaseImage is called.
   scoped_refptr<VideoFrame> video_frame = VideoFrame::WrapNativeTexture(
@@ -130,7 +131,7 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
   // TODO: Ensure it work with visible_rect with non-zero left and
   // top.  Note that simply add offset to the image buffer may cause alignment
   // issues.
-  gfx::Size visible_size(param.visible_rect().size());
+  gfx::Size plane_size(param.visible_rect().size());
 
   intptr_t offset = 0;
   int pitch_in_bytes = param.y_pitch();
@@ -141,12 +142,12 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
   MultiPlaneImageDataDescriptor descriptor(
       kMultiPlaneImageFormatYUV2PlaneBT709);
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(visible_size, kPixelFormatY8,
+      offset, ImageDataDescriptor(plane_size, kPixelFormatY8,
                                   kAlphaFormatPremultiplied, pitch_in_bytes));
   offset += pitch_in_bytes * param.decoded_height();
-  visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
+  plane_size.SetSize(plane_size.width() / 2, plane_size.height() / 2);
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(visible_size, kPixelFormatUV8,
+      offset, ImageDataDescriptor(plane_size, kPixelFormatUV8,
                                   kAlphaFormatPremultiplied, pitch_in_bytes));
   offset += pitch_in_bytes * param.decoded_height() / 2;
   DCHECK_EQ(offset, pitch_in_bytes * param.decoded_height() * 3 / 2);
@@ -155,6 +156,7 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
       resource_provider_->CreateMultiPlaneImageFromRawMemory(
           frame_buffer_common->DetachRawImageMemory(), descriptor);
 
+  gfx::Size visible_size(param.visible_rect().size());
   // The reference of the image is held by the closure that binds ReleaseImage,
   // so it won't be freed before the ReleaseImage is called.
   scoped_refptr<VideoFrame> video_frame = VideoFrame::WrapNativeTexture(
