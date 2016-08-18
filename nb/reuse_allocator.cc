@@ -98,7 +98,7 @@ void ReuseAllocator::RemoveFreeBlock(FreeBlockSet::iterator it) {
 }
 
 void* ReuseAllocator::Allocate(std::size_t size) {
-  return Allocate(size, 0);
+  return Allocate(size, 1);
 }
 
 void* ReuseAllocator::AllocateForAlignment(std::size_t size,
@@ -107,6 +107,10 @@ void* ReuseAllocator::AllocateForAlignment(std::size_t size,
 }
 
 void* ReuseAllocator::Allocate(std::size_t size, std::size_t alignment) {
+  if (alignment == 0) {
+    alignment = 1;
+  }
+
   // Try to satisfy request from free list.
   // First look for a block that is appropriately aligned.
   // If we can't, look for a block that is big enough that we can
