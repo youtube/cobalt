@@ -7,14 +7,8 @@ that it does not.
 
 ## Current State
 
-Starboard is still in development, and now runs Cobalt. The biggest things that
-are missing, but coming soon, are:
-
-  * Media support. Some APIs have been defined, but they are not complete, they
-    are not wired into Cobalt, they aren't yet implemented, and they are subject
-    to change.
-  * Blitter support. This is support for a hardware accelerated 2D blitter,
-    which some older platforms will have instead of OpenGL.
+Desktop Linux Cobalt is fully implemented on top of Starboard, and version 1 of
+the Starboard API is mostly locked down.
 
 
 ## Interesting Source Locations
@@ -141,9 +135,19 @@ The `starboard_platform.gyp` contains absolute paths, so the paths will still be
 valid if you copy it to a new directory. You can then incrementally replace
 files with new implementations as necessary.
 
-For example, if your device runs Linux, you should start from linux.
+The cleanest, simplest starting point is from the Stub reference
+implementation. Nothing will work, but you should be able to compile and link it
+with your toolchain. You can then replace stub implementations with
+implementations from `src/starboard/shared` or your own custom implementations
+module-by-module, until you have gone through all modules.
 
-Rename the `x64x11/` directory to `<binary-variant>` (e.g. `mipseb`).
+You may also choose to copy either the Desktop Linux or Raspberry Pi ports and
+work backwards fixing things that don't compile or work on your platform.
+
+For example, for `bobbox-mipsel`, you might do:
+
+    mkdir -p src/third_party/starboard/bobbox
+    cp -R src/starboard/stub src/third_party/starboard/bobbox/mipsel
 
 Modify the files in `<binary-variant>/` as appropriate (you will probably be
 coming back to these files a lot).
@@ -154,9 +158,6 @@ files that you want to build as your new Starboard implementation. The
 `src/` directory of your source tree. Otherwise, files are assumed to be
 relative to the directory the `.gyp` or `.gypi` file is in.
 
-
-### IV. Add Your Platform Configurations to cobalt_gyp
-
 In order to use a new platform configuration in a build, you need to ensure that
 you have a `gyp_configuration.py`, `gyp_configuration.gypi`, and
 `starboard_platform.gypi` in their own directory for each binary variant, plus
@@ -165,28 +166,30 @@ the header files `configuration_public.h`, `atomic_public.h`, and
 files, and then calculate a port name based on the directories between
 `src/third_party/starboard` and your `gyp_configuration.*` files. (e.g. for
 `src/third_party/starboard/bobbox/mipseb/gyp_configuration.py`, it would choose
-the port name `bobbox_mipseb`.)
+the platform configuration name `bobbox-mipseb`.)
 
-  1. Set up `gyp_configuration.py`
-      1. Copy `src/starboard/linux/x64x11/gyp_configuration.py` to
-         `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.py`.
-         You may also consider copying from another reference platform, like `raspi-1`.
-      1. In `gyp_configuration.py`
-          1. In the `_PlatformConfig.__init__()` function, remove checks for Clang
-             or GOMA.
-          1. In the `CreatePlatformConfig()` function, pass your
-             `<platform-configuration>` as the parameter to the _PlatformConfig
-             constructor, like `return _PlatformConfig('bobbox-mipseb')`.
-        1. In `GetVariables`
-            1. Set `'clang': 1` if your toolchain is clang.
-            1. Delete other variables in that function that are not needed for
-               your platform.
-            1. In `GetEnvironmentVariables`, set the dictionary values to point
-               to the toolchain analogs for the toolchain for your platform.
-  1. Set up `gyp_configuration.gypi`
-      1. Copy `src/starboard/linux/x64x11/gyp_configuration.gypi` to
-         `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.gypi`.
-         You may also consider copying from another reference platform, like `raspi-1`.
+
+### IV. A New Port, Step-by-Step
+
+  1. Recursively copy `src/starboard/stub` to
+     `src/third_party/starboard/<family-name>/<binary-variant>`.  You may also
+     consider copying from another reference platform, like `raspi-1` or
+     `linux-x64x11`.
+  1. In `gyp_configuration.py`
+      1. In the `CreatePlatformConfig()` function, pass your
+         `<platform-configuration>` as the parameter to the PlatformConfig
+         constructor, like `return PlatformConfig('bobbox-mipseb')`.
+      1. In `GetVariables`
+          1. Set `'clang': 1` if your toolchain is clang.
+          1. Delete other variables in that function that are not needed for
+             your platform.
+      1. In `GetEnvironmentVariables`, set the dictionary values to point to the
+         toolchain analogs for the toolchain for your platform.
+  1. In `gyp_configuration.gypi`
+      1. Update the names of the configurations and the default_configuration to
+         be `<platform-configuation>_<build-type>` for your platform
+         configuration name, where `<build-type>` is one of `debug`, `devel`,
+         `qa`, `gold`.
       1. Update your platform variables.
           1. Set `'target_arch'` to your architecture: `'arm'`, `'ppc'`,
              `'x64'`, `'x86'`, `'mips'`
@@ -202,6 +205,12 @@ the port name `bobbox_mipseb`.)
          different for someone else.
       1. Update the global defines in `'target_defaults'.'defines'`, if
          necessary.
+  1. Go through `configuration_public.h` and adjust all the configuration values
+     as appropriate for your platform.
+  1. Update `starboard_platform.gyp` to point at all the source files you want
+     to build as part of your new Starboard implementation (as mentioned above).
+  1. Update `atomic_public.h` and `thread_types_public.h` as necessary to point
+     at the appropriate shared or custom implementations.
 
 
 You should now be able to run gyp with your new port. From your `src/` directory:
