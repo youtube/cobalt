@@ -13,16 +13,16 @@
 # limitations under the License.
 {
   'variables': {
-    'target_arch%': 'x64',
+    'target_arch': 'x64',
     'target_os': 'linux',
 
     'enable_webdriver': '1',
 
     # Use a stub rasterizer and graphical setup.
-    'rasterizer_type%': 'stub',
+    'rasterizer_type': 'stub',
 
     # No GL drivers available.
-    'gl_type%': 'none',
+    'gl_type': 'none',
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.

@@ -28,14 +28,20 @@
 #include "cobalt/script/script_object.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -51,6 +57,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -61,7 +68,9 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -74,7 +83,38 @@ namespace bindings {
 namespace testing {
 
 namespace {
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
+
+class MozjsNamedConstructorInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsNamedConstructorInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsNamedConstructorInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsNamedConstructorInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsNamedConstructorInterfaceHandler>
+    proxy_handler;
+
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -112,7 +152,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "NamedConstructorInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -139,6 +180,10 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -158,7 +203,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -178,18 +224,34 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "SomeNamedConstructor";
-  name_value.setString(JS_NewStringCopyZ(context, "NamedConstructorInterface"));
+  const char name[] =
+      "SomeNamedConstructor";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
                         JSPROP_READONLY);
   DCHECK(success);
 
+  // Add the InterfaceObject.length property. It is set to the length of the
+  // shortest argument list of all overload constructors.
+  JS::RootedValue length_value(context);
+  length_value.setInt32(0);
+  success =
+      JS_DefineProperty(context, rooted_interface_object, "length",
+                        length_value, JS_PropertyStub, JS_StrictPropertyStub,
+                        JSPROP_READONLY);
+  DCHECK(success);
+
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -221,7 +283,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsNamedConstructorInterface::CreateInstance(
+JSObject* MozjsNamedConstructorInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -229,8 +291,19 @@ JSObject* MozjsNamedConstructorInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
+}
+
+//static
+const JSClass* MozjsNamedConstructorInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static
@@ -256,9 +329,17 @@ JSObject* MozjsNamedConstructorInterface::GetInterfaceObject(JSContext* context)
 
 
 namespace {
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
-  // TODO: Implement support for constructors.
-  NOTIMPLEMENTED();
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+
+  scoped_refptr<NamedConstructorInterface> new_object =
+      new NamedConstructorInterface();
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &result_value);
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
   return true;
 }
 }  // namespace

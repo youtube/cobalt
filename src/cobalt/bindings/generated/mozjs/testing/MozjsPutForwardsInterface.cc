@@ -30,14 +30,20 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -55,6 +61,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -65,7 +72,9 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -78,6 +87,37 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+class MozjsPutForwardsInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsPutForwardsInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsPutForwardsInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsPutForwardsInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsPutForwardsInterfaceHandler>
+    proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -115,7 +155,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "PutForwardsInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -133,18 +174,21 @@ JSBool get_forwardingAttribute(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  PutForwardsInterface* impl =
-      WrapperPrivate::GetWrappable<PutForwardsInterface>(object);
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
-      impl->forwarding_attribute();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  PutForwardsInterface* impl =
+      wrapper_private->wrappable<PutForwardsInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->forwarding_attribute(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_forwardingAttribute(
@@ -152,14 +196,78 @@ JSBool set_forwardingAttribute(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  PutForwardsInterface* impl =
+      wrapper_private->wrappable<PutForwardsInterface>().get();
+  { // Begin scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
+    scoped_refptr<ArbitraryInterface> forwarded_impl =
+       impl->forwarding_attribute();
+    if (!forwarded_impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+  TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NOTIMPLEMENTED();
-  return !exception_state.IsExceptionSet();
+
+  forwarded_impl->set_arbitrary_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+    return !exception_state.is_exception_set();
+  } // End scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
+}
+
+JSBool staticget_staticForwardingAttribute(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              PutForwardsInterface::static_forwarding_attribute(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticset_staticForwardingAttribute(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  { // Begin scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
+    scoped_refptr<ArbitraryInterface> forwarded_impl =
+       PutForwardsInterface::static_forwarding_attribute();
+    if (!forwarded_impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+  TypeTraits<std::string >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  forwarded_impl->set_arbitrary_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+    return !exception_state.is_exception_set();
+  } // End scope of scoped_refptr<ArbitraryInterface> forwarded_impl.
 }
 
 
@@ -178,7 +286,17 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+  {  // Static read/write attribute.
+      "staticForwardingAttribute", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&staticget_staticForwardingAttribute),
+      JSOP_WRAPPER(&staticset_staticForwardingAttribute),
+  },
   JS_PS_END
+};
+
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -200,7 +318,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -220,8 +339,9 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "PutForwardsInterface";
-  name_value.setString(JS_NewStringCopyZ(context, "PutForwardsInterface"));
+  const char name[] =
+      "PutForwardsInterface";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
@@ -230,8 +350,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -263,7 +388,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsPutForwardsInterface::CreateInstance(
+JSObject* MozjsPutForwardsInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -271,8 +396,19 @@ JSObject* MozjsPutForwardsInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
+}
+
+//static
+const JSClass* MozjsPutForwardsInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static

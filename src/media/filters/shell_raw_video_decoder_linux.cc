@@ -225,7 +225,8 @@ void ShellRawVideoDecoderLinux::Decode(
   // It is worth revisiting if we are going to release Linux as a production
   // platform.
   YV12Param param(av_frame_->width, av_frame_->height,
-                  gfx::Rect(av_frame_->width, av_frame_->height));
+                  gfx::Rect(av_frame_->width, av_frame_->height),
+                  frame_buffer->data());
   // We have to make a copy of the frame buffer as the frame buffer retrieved
   // from |av_frame_->opaque| may still be used by Ffmpeg.
   size_t yv12_frame_size =

@@ -15,6 +15,7 @@
 
 class GrContext;
 class GrIndexBufferAllocPool;
+struct GrGLInterface;
 class GrPath;
 class GrPathRange;
 class GrPathRenderer;
@@ -328,6 +329,9 @@ public:
     }
 
     GrContext::GPUStats* gpuStats() { return &fGPUStats; }
+
+    // This is only to be used in tests.
+    virtual const GrGLInterface* glInterfaceForTesting() const { return NULL; }
 
 protected:
     DrawType PrimTypeToDrawType(GrPrimitiveType type) {

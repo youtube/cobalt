@@ -959,9 +959,8 @@ bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
       }
     }
   }
-  DCHECK_GE(sample_number, stss_last_keyframe_);
-  DCHECK_LT(sample_number, stss_next_keyframe_);
-  return true;
+  return sample_number >= stss_last_keyframe_ &&
+         sample_number < stss_next_keyframe_;
 }
 
 // The stts table has the following per-entry layout:

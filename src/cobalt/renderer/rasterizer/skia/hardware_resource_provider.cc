@@ -41,54 +41,52 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SkiaHardwareResourceProvider::SkiaHardwareResourceProvider(
+HardwareResourceProvider::HardwareResourceProvider(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context)
     : cobalt_context_(cobalt_context),
       gr_context_(gr_context),
       self_message_loop_(MessageLoop::current()) {}
 
-bool SkiaHardwareResourceProvider::PixelFormatSupported(
+bool HardwareResourceProvider::PixelFormatSupported(
     render_tree::PixelFormat pixel_format) {
   return pixel_format == render_tree::kPixelFormatRGBA8;
 }
 
-bool SkiaHardwareResourceProvider::AlphaFormatSupported(
+bool HardwareResourceProvider::AlphaFormatSupported(
     render_tree::AlphaFormat alpha_format) {
   return alpha_format == render_tree::kAlphaFormatPremultiplied;
 }
 
-scoped_ptr<ImageData> SkiaHardwareResourceProvider::AllocateImageData(
+scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
     const math::Size& size, render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareResourceProvider::AllocateImageData()");
+               "HardwareResourceProvider::AllocateImageData()");
   DCHECK_EQ(render_tree::kPixelFormatRGBA8, pixel_format)
       << "Currently, only RGBA8 is supported.";
 
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
 
-  return scoped_ptr<ImageData>(new SkiaHardwareImageData(
+  return scoped_ptr<ImageData>(new HardwareImageData(
       cobalt_context_->system_egl()->AllocateTextureData(
           size, ConvertRenderTreeFormatToGL(pixel_format)),
       pixel_format, alpha_format));
 }
 
-scoped_refptr<Image> SkiaHardwareResourceProvider::CreateImage(
+scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
     scoped_ptr<ImageData> source_data) {
-  TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareResourceProvider::CreateImage()");
-  scoped_ptr<SkiaHardwareImageData> skia_hardware_source_data(
-      base::polymorphic_downcast<SkiaHardwareImageData*>(
-          source_data.release()));
+  TRACE_EVENT0("cobalt::renderer", "HardwareResourceProvider::CreateImage()");
+  scoped_ptr<HardwareImageData> skia_hardware_source_data(
+      base::polymorphic_downcast<HardwareImageData*>(source_data.release()));
   const render_tree::ImageDataDescriptor& descriptor =
       skia_hardware_source_data->GetDescriptor();
 
   DCHECK_EQ(render_tree::kAlphaFormatPremultiplied, descriptor.alpha_format);
 #if defined(COBALT_BUILD_TYPE_DEBUG)
-  SkiaImage::DCheckForPremultipliedAlpha(
-      descriptor.size, descriptor.pitch_in_bytes, descriptor.pixel_format,
-      skia_hardware_source_data->GetMemory());
+  Image::DCheckForPremultipliedAlpha(descriptor.size, descriptor.pitch_in_bytes,
+                                     descriptor.pixel_format,
+                                     skia_hardware_source_data->GetMemory());
 #endif
 
   // Construct a frontend image from this data, which internally will send
@@ -96,56 +94,58 @@ scoped_refptr<Image> SkiaHardwareResourceProvider::CreateImage(
   // backend texture will be constructed, and associated with this frontend
   // texture through a map that will be accessed when the rasterizer visits
   // any subsequently submitted render trees referencing the frontend image.
-  return make_scoped_refptr(new SkiaHardwareFrontendImage(
+  return make_scoped_refptr(new HardwareFrontendImage(
       skia_hardware_source_data.Pass(), cobalt_context_, gr_context_,
       self_message_loop_));
 }
 
-scoped_ptr<RawImageMemory> SkiaHardwareResourceProvider::AllocateRawImageMemory(
+scoped_ptr<RawImageMemory> HardwareResourceProvider::AllocateRawImageMemory(
     size_t size_in_bytes, size_t alignment) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareResourceProvider::AllocateRawImageMemory()");
-  return scoped_ptr<RawImageMemory>(new SkiaHardwareRawImageMemory(
+               "HardwareResourceProvider::AllocateRawImageMemory()");
+  return scoped_ptr<RawImageMemory>(new HardwareRawImageMemory(
       cobalt_context_->system_egl()->AllocateRawTextureMemory(size_in_bytes,
                                                               alignment)));
 }
 
-scoped_refptr<Image>
-SkiaHardwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
+scoped_refptr<render_tree::Image>
+HardwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
     scoped_ptr<RawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor) {
   TRACE_EVENT0(
       "cobalt::renderer",
-      "SkiaHardwareResourceProvider::CreateMultiPlaneImageFromRawMemory()");
-  DCHECK_EQ(render_tree::kMultiPlaneImageFormatYUV3PlaneBT709,
-            descriptor.image_format())
-      << "Currently we only support 3-plane YUV multi plane images.";
-  DCHECK_EQ(3, descriptor.num_planes());
+      "HardwareResourceProvider::CreateMultiPlaneImageFromRawMemory()");
+  DCHECK((render_tree::kMultiPlaneImageFormatYUV2PlaneBT709 ==
+              descriptor.image_format() &&
+          2 == descriptor.num_planes()) ||
+         (render_tree::kMultiPlaneImageFormatYUV3PlaneBT709 ==
+              descriptor.image_format() &&
+          3 == descriptor.num_planes()))
+      << "Currently we only support 2-plane or 3-plane YUV multi plane images.";
 
-  scoped_ptr<SkiaHardwareRawImageMemory> skia_hardware_raw_image_memory(
-      base::polymorphic_downcast<SkiaHardwareRawImageMemory*>(
+  scoped_ptr<HardwareRawImageMemory> skia_hardware_raw_image_memory(
+      base::polymorphic_downcast<HardwareRawImageMemory*>(
           raw_image_memory.release()));
 
-  return make_scoped_refptr(new SkiaHardwareMultiPlaneImage(
+  return make_scoped_refptr(new HardwareMultiPlaneImage(
       skia_hardware_raw_image_memory.Pass(), descriptor, cobalt_context_,
       gr_context_, self_message_loop_));
 }
 
-bool SkiaHardwareResourceProvider::HasLocalFontFamily(
+bool HardwareResourceProvider::HasLocalFontFamily(
     const char* font_family_name) const {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareResourceProvider::HasLocalFontFamily()");
+               "HardwareResourceProvider::HasLocalFontFamily()");
 
   SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
   SkAutoTUnref<SkFontStyleSet> style_set(fm->matchFamily(font_family_name));
   return style_set->count() > 0;
 }
 
-scoped_refptr<render_tree::Typeface>
-SkiaHardwareResourceProvider::GetLocalTypeface(
+scoped_refptr<render_tree::Typeface> HardwareResourceProvider::GetLocalTypeface(
     const char* font_family_name, render_tree::FontStyle font_style) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareResourceProvider::GetLocalTypeface()");
+               "HardwareResourceProvider::GetLocalTypeface()");
 
   SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
   SkAutoTUnref<SkTypeface> typeface(fm->matchFamilyStyle(
@@ -154,11 +154,11 @@ SkiaHardwareResourceProvider::GetLocalTypeface(
 }
 
 scoped_refptr<render_tree::Typeface>
-SkiaHardwareResourceProvider::GetCharacterFallbackTypeface(
+HardwareResourceProvider::GetCharacterFallbackTypeface(
     int32 character, render_tree::FontStyle font_style,
     const std::string& language) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareResourceProvider::GetCharacterFallbackTypeface()");
+               "HardwareResourceProvider::GetCharacterFallbackTypeface()");
 
   SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
   SkAutoTUnref<SkTypeface> typeface(
@@ -168,11 +168,11 @@ SkiaHardwareResourceProvider::GetCharacterFallbackTypeface(
 }
 
 scoped_refptr<render_tree::Typeface>
-SkiaHardwareResourceProvider::CreateTypefaceFromRawData(
+HardwareResourceProvider::CreateTypefaceFromRawData(
     scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data,
     std::string* error_string) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareResourceProvider::CreateFontFromData()");
+               "HardwareResourceProvider::CreateFontFromData()");
 
   if (raw_data == NULL) {
     *error_string = "No data to process";
@@ -203,7 +203,7 @@ SkiaHardwareResourceProvider::CreateTypefaceFromRawData(
 }
 
 scoped_refptr<render_tree::GlyphBuffer>
-SkiaHardwareResourceProvider::CreateGlyphBuffer(
+HardwareResourceProvider::CreateGlyphBuffer(
     const char16* text_buffer, size_t text_length, const std::string& language,
     bool is_rtl, render_tree::FontProvider* font_provider) {
   return text_shaper_.CreateGlyphBuffer(text_buffer, text_length, language,
@@ -211,13 +211,13 @@ SkiaHardwareResourceProvider::CreateGlyphBuffer(
 }
 
 scoped_refptr<render_tree::GlyphBuffer>
-SkiaHardwareResourceProvider::CreateGlyphBuffer(
+HardwareResourceProvider::CreateGlyphBuffer(
     const std::string& utf8_string,
     const scoped_refptr<render_tree::Font>& font) {
   return text_shaper_.CreateGlyphBuffer(utf8_string, font);
 }
 
-float SkiaHardwareResourceProvider::GetTextWidth(
+float HardwareResourceProvider::GetTextWidth(
     const char16* text_buffer, size_t text_length, const std::string& language,
     bool is_rtl, render_tree::FontProvider* font_provider,
     render_tree::FontVector* maybe_used_fonts) {

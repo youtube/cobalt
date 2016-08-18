@@ -35,7 +35,7 @@ class DecoderBufferPool {
  public:
   static const uint32 kMaxAudioChannels = 8;  // We support 7.1 at most.
   static const uint32 kMaxSamplesPerBuffer =
-      mp4::AAC::kSamplesPerFrame * kMaxAudioChannels;
+      mp4::AAC::kFramesPerAccessUnit * kMaxAudioChannels;
   static const size_t kBufferCount = 48;
 
   DecoderBufferPool(uint32 sample_size_in_bytes);

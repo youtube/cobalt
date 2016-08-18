@@ -19,10 +19,14 @@
       'type': 'static_library',
       'sources': [
         'conversion_helpers.cc',
+        'mozjs_callback_interface.cc',
+        'mozjs_debugger.cc',
         'mozjs_engine.cc',
         'mozjs_exception_state.cc',
         'mozjs_global_object_proxy.cc',
+        'mozjs_property_enumerator.cc',
         'mozjs_source_code.cc',
+        'proxy_handler.cc',
         'wrapper_factory.cc',
         'wrapper_private.cc',
       ],
@@ -30,7 +34,15 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],
+      'defines': [ 'ENGINE_SUPPORTS_INT64', ],
+      'all_dependent_settings': {
+        'defines': [
+        # SpiderMonkey bindings implements indexed deleters.
+        'ENGINE_SUPPORTS_INDEXED_DELETERS',
+        'ENGINE_SUPPORTS_INT64', ],
+      },
     },
+
     {
       # Standalone executable for JS engine
       'target_name': 'mozjs',

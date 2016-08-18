@@ -30,14 +30,20 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -55,6 +61,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -65,7 +72,9 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -78,6 +87,37 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+class MozjsOperationsTestInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsOperationsTestInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsOperationsTestInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsOperationsTestInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsOperationsTestInterfaceHandler>
+    proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -115,7 +155,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "OperationsTestInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -130,9 +171,7 @@ InterfaceData* CreateCachedInterfaceData() {
 
 JSBool fcn_longFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -145,27 +184,28 @@ JSBool fcn_longFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  TypeTraits<int32_t >::ReturnType value =
-      impl->LongFunctionNoArgs();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<OperationsTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->LongFunctionNoArgs(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_objectFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -178,27 +218,28 @@ JSBool fcn_objectFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
-      impl->ObjectFunctionNoArgs();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<OperationsTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->ObjectFunctionNoArgs(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_optionalArgumentWithDefault(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -211,37 +252,137 @@ JSBool fcn_optionalArgumentWithDefault(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  // Optional arguments with default values
+  TypeTraits<double >::ConversionType arg1 =
+      2.718;
+  size_t num_set_arguments = 1;
+  if (args.length() > 0) {
+    JS::RootedValue optional_value0(
+        context, args[0]);
+    FromJSValue(context,
+                optional_value0,
+                (kConversionFlagRestricted),
+                &exception_state,
+                &arg1);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+  }
+
+  impl->OptionalArgumentWithDefault(arg1);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_optionalArguments(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
-  TypeTraits<double >::ConversionType arg1;
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  // Optional arguments
+  TypeTraits<int32_t >::ConversionType arg2;
+  TypeTraits<int32_t >::ConversionType arg3;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagRestricted), &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->OptionalArgumentWithDefault(arg1);
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
+  size_t num_set_arguments = 1;
+  if (args.length() > 1) {
+    JS::RootedValue optional_value0(
+        context, args[1]);
+    FromJSValue(context,
+                optional_value0,
+                kNoConversionFlags,
+                &exception_state,
+                &arg2);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+    ++num_set_arguments;
   }
-  return !exception_state.IsExceptionSet();
+  if (args.length() > 2) {
+    JS::RootedValue optional_value1(
+        context, args[2]);
+    FromJSValue(context,
+                optional_value1,
+                kNoConversionFlags,
+                &exception_state,
+                &arg3);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+    ++num_set_arguments;
+  }
+  switch (num_set_arguments) {
+    case 1:
+      {
+          impl->OptionalArguments(arg1);
+          result_value.set(JS::UndefinedHandleValue);
+          return !exception_state.is_exception_set();
+      }
+      break;
+    case 2:
+      {
+          impl->OptionalArguments(arg1, arg2);
+          result_value.set(JS::UndefinedHandleValue);
+          return !exception_state.is_exception_set();
+      }
+      break;
+    case 3:
+      {
+          impl->OptionalArguments(arg1, arg2, arg3);
+          result_value.set(JS::UndefinedHandleValue);
+          return !exception_state.is_exception_set();
+      }
+      break;
+    default:
+      NOTREACHED();
+      return false;
+  }
 }
 
-JSBool fcn_optionalArguments(
+JSBool fcn_optionalNullableArgumentsWithDefaults(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -254,51 +395,245 @@ JSBool fcn_optionalArguments(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  // Optional arguments with default values
+  TypeTraits<base::optional<bool > >::ConversionType arg1 =
+      base::nullopt;
+  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg2 =
+      NULL;
+  size_t num_set_arguments = 2;
+  if (args.length() > 0) {
+    JS::RootedValue optional_value0(
+        context, args[0]);
+    FromJSValue(context,
+                optional_value0,
+                (kConversionFlagNullable),
+                &exception_state,
+                &arg1);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+  }
+  if (args.length() > 1) {
+    JS::RootedValue optional_value1(
+        context, args[1]);
+    FromJSValue(context,
+                optional_value1,
+                (kConversionFlagNullable),
+                &exception_state,
+                &arg2);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+  }
+
+  impl->OptionalNullableArgumentsWithDefaults(arg1, arg2);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_overloadedFunction1(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+
+  impl->OverloadedFunction();
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_overloadedFunction2(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->OverloadedFunction(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_overloadedFunction3(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<std::string >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->OverloadedFunction(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_overloadedFunction4(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 3;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int32_t >::ConversionType arg1;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
   TypeTraits<int32_t >::ConversionType arg2;
-  DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1),
-      kNoConversionFlags, &exception_state, &arg2);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
   TypeTraits<int32_t >::ConversionType arg3;
-  DCHECK_LT(2, args.length());
-  FromJSValue(context, args.handleAt(2),
-      kNoConversionFlags, &exception_state, &arg3);
-  if (exception_state.IsExceptionSet()) {
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->OptionalArguments(arg1, arg2, arg3);
-  result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
+  DCHECK_LT(1, args.length());
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return false;
   }
-  return !exception_state.IsExceptionSet();
+
+  DCHECK_LT(2, args.length());
+  JS::RootedValue non_optional_value2(
+      context, args[2]);
+  FromJSValue(context,
+              non_optional_value2,
+              kNoConversionFlags,
+              &exception_state, &arg3);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->OverloadedFunction(arg1, arg2, arg3);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
 }
 
-JSBool fcn_optionalNullableArgumentsWithDefaults(
+JSBool fcn_overloadedFunction5(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -311,44 +646,128 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  const size_t kMinArguments = 2;
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  const size_t kMinArguments = 3;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
-  TypeTraits<base::optional<bool > >::ConversionType arg1;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg2;
-  DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1),
-      (kConversionFlagNullable), &exception_state, &arg2);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->OptionalNullableArgumentsWithDefaults(arg1, arg2);
-  result_value.set(JS::UndefinedHandleValue);
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  TypeTraits<int32_t >::ConversionType arg2;
+  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg3;
 
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return false;
   }
-  return !exception_state.IsExceptionSet();
+
+  DCHECK_LT(1, args.length());
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  DCHECK_LT(2, args.length());
+  JS::RootedValue non_optional_value2(
+      context, args[2]);
+  FromJSValue(context,
+              non_optional_value2,
+              kNoConversionFlags,
+              &exception_state, &arg3);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->OverloadedFunction(arg1, arg2, arg3);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_overloadedFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  switch(argc) {
+    case(0): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return fcn_overloadedFunction1(
+                  context, argc, vp);
+      }
+      break;
+    }
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      JS::RootedValue arg(context, args[0]);
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
+      if (arg.isNumber()) {
+        return fcn_overloadedFunction2(
+                  context, argc, vp);
+      }
+      if (true) {
+        return fcn_overloadedFunction3(
+                  context, argc, vp);
+      }
+      if (true) {
+        return fcn_overloadedFunction2(
+                  context, argc, vp);
+      }
+      break;
+    }
+    case(3): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      JS::RootedValue arg(context, args[2]);
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
+      if (arg.isObject() ? wrapper_factory->DoesObjectImplementInterface(
+              JSVAL_TO_OBJECT(arg), base::GetTypeId<ArbitraryInterface>()) :
+              false) {
+        return fcn_overloadedFunction5(
+                  context, argc, vp);
+      }
+      if (true) {
+        return fcn_overloadedFunction4(
+                  context, argc, vp);
+      }
+      break;
+    }
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
   MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
+}
 
+JSBool fcn_overloadedNullable1(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -361,67 +780,119 @@ JSBool fcn_overloadedFunction(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->OverloadedFunction();
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
   }
-  return !exception_state.IsExceptionSet();
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->OverloadedNullable(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_overloadedNullable2(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<base::optional<bool > >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->OverloadedNullable(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_overloadedNullable(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
-  // Compute the 'this' value.
-  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
-  // 'this' should be an object.
-  JS::RootedObject object(context);
-  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
-    return false;
-  }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
-    NOTREACHED();
-    return false;
-  }
-
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  const size_t kMinArguments = 1;
-  if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
-    return false;
+  switch(argc) {
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      JS::RootedValue arg(context, args[0]);
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
+      if (arg.isNullOrUndefined()) {
+        return fcn_overloadedNullable2(
+                  context, argc, vp);
+      }
+      if (true) {
+        return fcn_overloadedNullable1(
+                  context, argc, vp);
+      }
+      break;
+    }
   }
-  TypeTraits<int32_t >::ConversionType arg;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->OverloadedNullable(arg);
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  MozjsExceptionState exception_state(context);
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
 }
 
 JSBool fcn_stringFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -434,27 +905,28 @@ JSBool fcn_stringFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  TypeTraits<std::string >::ReturnType value =
-      impl->StringFunctionNoArgs();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<OperationsTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->StringFunctionNoArgs(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_variadicPrimitiveArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -467,37 +939,175 @@ JSBool fcn_variadicPrimitiveArguments(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  // Variadic argument
+  TypeTraits<std::vector<int32_t> >::ConversionType bools;
+
+  // Get variadic arguments.
+  const size_t kFirstVariadicArgIndex = 0;
+  if (args.length() > kFirstVariadicArgIndex) {
+    bools.resize(args.length() - kFirstVariadicArgIndex);
+    for (int i = 0; i + kFirstVariadicArgIndex < args.length(); ++i) {
+      JS::RootedValue variadic_argument_value(
+          context, args[i + kFirstVariadicArgIndex]);
+      FromJSValue(context,
+                  variadic_argument_value,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &bools[i]);
+      if (exception_state.is_exception_set()) {
+        return false;
+      }
+    }
+  }
+
+  impl->VariadicPrimitiveArguments(bools);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  // Optional arguments
+  TypeTraits<bool >::ConversionType optional_arg;
+  // Variadic argument
+  TypeTraits<std::vector<std::string> >::ConversionType strings;
+  size_t num_set_arguments = 0;
+  if (args.length() > 0) {
+    JS::RootedValue optional_value0(
+        context, args[0]);
+    FromJSValue(context,
+                optional_value0,
+                kNoConversionFlags,
+                &exception_state,
+                &optional_arg);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+    ++num_set_arguments;
+  }
+
+  // Get variadic arguments.
+  const size_t kLastOptionalArgIndex = 1;
+  if (num_set_arguments == kLastOptionalArgIndex) {
+    // If the last optional argument has been set, we will call the overload
+    // that takes the variadic argument, possibly with an empty vector in the
+    // case that there are no more arguments left.
+    ++num_set_arguments;
+  }
+  const size_t kFirstVariadicArgIndex = 1;
+  if (args.length() > kFirstVariadicArgIndex) {
+    strings.resize(args.length() - kFirstVariadicArgIndex);
+    for (int i = 0; i + kFirstVariadicArgIndex < args.length(); ++i) {
+      JS::RootedValue variadic_argument_value(
+          context, args[i + kFirstVariadicArgIndex]);
+      FromJSValue(context,
+                  variadic_argument_value,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &strings[i]);
+      if (exception_state.is_exception_set()) {
+        return false;
+      }
+    }
+  }
+  switch (num_set_arguments) {
+    case 0:
+      {
+          impl->VariadicStringArgumentsAfterOptionalArgument();
+          result_value.set(JS::UndefinedHandleValue);
+          return !exception_state.is_exception_set();
+      }
+      break;
+    case 2:
+      {
+          impl->VariadicStringArgumentsAfterOptionalArgument(optional_arg, strings);
+          result_value.set(JS::UndefinedHandleValue);
+          return !exception_state.is_exception_set();
+      }
+      break;
+    default:
+      NOTREACHED();
+      return false;
+  }
+}
+
+JSBool fcn_voidFunctionLongArg(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
-  TypeTraits<std::vector<int32_t> >::ConversionType bools;
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &bools);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->VariadicPrimitiveArguments(bools);
-  result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  impl->VoidFunctionLongArg(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
 }
 
-JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
+JSBool fcn_voidFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -510,196 +1120,217 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+
+  impl->VoidFunctionNoArgs();
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_voidFunctionObjectArg(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->VoidFunctionObjectArg(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_voidFunctionStringArg(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  OperationsTestInterface* impl =
+      wrapper_private->wrappable<OperationsTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<std::string >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->VoidFunctionStringArg(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticfcn_overloadedFunction1(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<double >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagRestricted),
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  OperationsTestInterface::OverloadedFunction(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool staticfcn_overloadedFunction2(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
-  TypeTraits<bool >::ConversionType optional_arg;
+  // Non-optional arguments
+  TypeTraits<double >::ConversionType arg1;
+  TypeTraits<double >::ConversionType arg2;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &optional_arg);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagRestricted),
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  TypeTraits<std::vector<std::string> >::ConversionType strings;
+
   DCHECK_LT(1, args.length());
-  FromJSValue(context, args.handleAt(1),
-      kNoConversionFlags, &exception_state, &strings);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value1(
+      context, args[1]);
+  FromJSValue(context,
+              non_optional_value1,
+              (kConversionFlagRestricted),
+              &exception_state, &arg2);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->VariadicStringArgumentsAfterOptionalArgument(optional_arg, strings);
-  result_value.set(JS::UndefinedHandleValue);
 
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  OperationsTestInterface::OverloadedFunction(arg1, arg2);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
 }
 
-JSBool fcn_voidFunctionLongArg(
+JSBool staticfcn_overloadedFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
-  // Compute the 'this' value.
-  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
-  // 'this' should be an object.
-  JS::RootedObject object(context);
-  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
-    return false;
-  }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
-    NOTREACHED();
-    return false;
-  }
-
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  const size_t kMinArguments = 1;
-  if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
-    return false;
+  switch(argc) {
+    case(1): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return staticfcn_overloadedFunction1(
+                  context, argc, vp);
+      }
+      break;
+    }
+    case(2): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+      if (true) {
+        return staticfcn_overloadedFunction2(
+                  context, argc, vp);
+      }
+      break;
+    }
   }
-  TypeTraits<int32_t >::ConversionType arg;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->VoidFunctionLongArg(arg);
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
-}
-
-JSBool fcn_voidFunctionNoArgs(
-    JSContext* context, uint32_t argc, JS::Value *vp) {
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
   MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
-  // Compute the 'this' value.
-  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
-  // 'this' should be an object.
-  JS::RootedObject object(context);
-  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
-    return false;
-  }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
-    NOTREACHED();
-    return false;
-  }
-
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->VoidFunctionNoArgs();
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
-}
-
-JSBool fcn_voidFunctionObjectArg(
-    JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
-  // Compute the 'this' value.
-  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
-  // 'this' should be an object.
-  JS::RootedObject object(context);
-  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
-    return false;
-  }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
-    NOTREACHED();
-    return false;
-  }
-
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  const size_t kMinArguments = 1;
-  if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
-    return false;
-  }
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->VoidFunctionObjectArg(arg);
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
-}
-
-JSBool fcn_voidFunctionStringArg(
-    JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
-  // Compute the 'this' value.
-  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
-  // 'this' should be an object.
-  JS::RootedObject object(context);
-  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
-    return false;
-  }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
-    NOTREACHED();
-    return false;
-  }
-
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  const size_t kMinArguments = 1;
-  if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
-    return false;
-  }
-  TypeTraits<std::string >::ConversionType arg;
-  DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-  OperationsTestInterface* impl =
-      WrapperPrivate::GetWrappable<OperationsTestInterface>(object);
-  impl->VoidFunctionStringArg(arg);
-  result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
 }
 
 
@@ -813,6 +1444,17 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  {
+      "overloadedFunction",
+      JSOP_WRAPPER(&staticfcn_overloadedFunction),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -832,7 +1474,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -852,8 +1495,9 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "OperationsTestInterface";
-  name_value.setString(JS_NewStringCopyZ(context, "OperationsTestInterface"));
+  const char name[] =
+      "OperationsTestInterface";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
@@ -862,8 +1506,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -895,7 +1544,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsOperationsTestInterface::CreateInstance(
+JSObject* MozjsOperationsTestInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -903,8 +1552,19 @@ JSObject* MozjsOperationsTestInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
+}
+
+//static
+const JSClass* MozjsOperationsTestInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static

@@ -116,7 +116,7 @@
       'variables': {
         'executable_name': 'loader_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
 
     {

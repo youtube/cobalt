@@ -28,14 +28,20 @@
 #include "cobalt/script/script_object.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -51,6 +57,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -61,7 +68,9 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -74,6 +83,37 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+class MozjsNumericTypesTestInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsNumericTypesTestInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsNumericTypesTestInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsNumericTypesTestInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsNumericTypesTestInterfaceHandler>
+    proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -111,7 +151,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "NumericTypesTestInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -129,18 +170,21 @@ JSBool get_byteProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<int8_t >::ReturnType value =
-      impl->byte_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->byte_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_byteProperty(
@@ -148,18 +192,21 @@ JSBool set_byteProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int8_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_byte_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_octetProperty(
@@ -167,18 +214,21 @@ JSBool get_octetProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<uint8_t >::ReturnType value =
-      impl->octet_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->octet_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_octetProperty(
@@ -186,18 +236,21 @@ JSBool set_octetProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint8_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_octet_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_shortProperty(
@@ -205,18 +258,21 @@ JSBool get_shortProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<int16_t >::ReturnType value =
-      impl->short_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->short_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_shortProperty(
@@ -224,18 +280,21 @@ JSBool set_shortProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int16_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_unsignedShortProperty(
@@ -243,18 +302,21 @@ JSBool get_unsignedShortProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<uint16_t >::ReturnType value =
-      impl->unsigned_short_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->unsigned_short_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unsignedShortProperty(
@@ -262,18 +324,21 @@ JSBool set_unsignedShortProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint16_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_unsigned_short_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_longProperty(
@@ -281,18 +346,21 @@ JSBool get_longProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<int32_t >::ReturnType value =
-      impl->long_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_longProperty(
@@ -300,18 +368,21 @@ JSBool set_longProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<int32_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_unsignedLongProperty(
@@ -319,18 +390,21 @@ JSBool get_unsignedLongProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<uint32_t >::ReturnType value =
-      impl->unsigned_long_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->unsigned_long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unsignedLongProperty(
@@ -338,18 +412,109 @@ JSBool set_unsignedLongProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<uint32_t >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_unsigned_long_property(value);
   result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
 
-  return !exception_state.IsExceptionSet();
+JSBool get_longLongProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->long_long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_longLongProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int64_t >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_long_long_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool get_unsignedLongLongProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->unsigned_long_long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_unsignedLongLongProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint64_t >::ConversionType value;
+  FromJSValue(context, vp, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_unsigned_long_long_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_doubleProperty(
@@ -357,18 +522,21 @@ JSBool get_doubleProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<double >::ReturnType value =
-      impl->double_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->double_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_doubleProperty(
@@ -376,18 +544,21 @@ JSBool set_doubleProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagRestricted), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_unrestrictedDoubleProperty(
@@ -395,18 +566,21 @@ JSBool get_unrestrictedDoubleProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<double >::ReturnType value =
-      impl->unrestricted_double_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->unrestricted_double_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_unrestrictedDoubleProperty(
@@ -414,25 +588,26 @@ JSBool set_unrestrictedDoubleProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   TypeTraits<double >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->set_unrestricted_double_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_byteArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -445,37 +620,41 @@ JSBool fcn_byteArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int8_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->ByteArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_byteReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -488,27 +667,28 @@ JSBool fcn_byteReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<int8_t >::ReturnType value =
-      impl->ByteReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->ByteReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_doubleArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -521,37 +701,41 @@ JSBool fcn_doubleArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<double >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagRestricted), &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagRestricted),
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->DoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_doubleReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -564,27 +748,28 @@ JSBool fcn_doubleReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<double >::ReturnType value =
-      impl->DoubleReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->DoubleReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_longArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -597,37 +782,122 @@ JSBool fcn_longArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int32_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->LongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
 
-  if (!exception_state.IsExceptionSet()) {
+JSBool fcn_longLongArgumentOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<int64_t >::ConversionType arg1;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->LongLongArgumentOperation(arg1);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_longLongReturnOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->LongLongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_longReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -640,27 +910,28 @@ JSBool fcn_longReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<int32_t >::ReturnType value =
-      impl->LongReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->LongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_octetArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -673,37 +944,41 @@ JSBool fcn_octetArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint8_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->OctetArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_octetReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -716,27 +991,28 @@ JSBool fcn_octetReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<uint8_t >::ReturnType value =
-      impl->OctetReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->OctetReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_shortArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -749,37 +1025,41 @@ JSBool fcn_shortArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<int16_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->ShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_shortReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -792,27 +1072,28 @@ JSBool fcn_shortReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<int16_t >::ReturnType value =
-      impl->ShortReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->ShortReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unrestrictedDoubleArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -825,37 +1106,41 @@ JSBool fcn_unrestrictedDoubleArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<double >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->UnrestrictedDoubleArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unrestrictedDoubleReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -868,27 +1153,28 @@ JSBool fcn_unrestrictedDoubleReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<double >::ReturnType value =
-      impl->UnrestrictedDoubleReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->UnrestrictedDoubleReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedLongArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -901,37 +1187,122 @@ JSBool fcn_unsignedLongArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint32_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->UnsignedLongArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
 
-  if (!exception_state.IsExceptionSet()) {
+JSBool fcn_unsignedLongLongArgumentOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<uint64_t >::ConversionType arg1;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->UnsignedLongLongArgumentOperation(arg1);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool fcn_unsignedLongLongReturnOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->UnsignedLongLongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedLongReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -944,27 +1315,28 @@ JSBool fcn_unsignedLongReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<uint32_t >::ReturnType value =
-      impl->UnsignedLongReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->UnsignedLongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedShortArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -977,37 +1349,41 @@ JSBool fcn_unsignedShortArgumentOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<uint16_t >::ConversionType arg1;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &arg1);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
+
   impl->UnsignedShortArgumentOperation(arg1);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_unsignedShortReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -1020,20 +1396,23 @@ JSBool fcn_unsignedShortReturnOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NumericTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NumericTypesTestInterface>(object);
-  TypeTraits<uint16_t >::ReturnType value =
-      impl->UnsignedShortReturnOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->UnsignedShortReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
@@ -1073,6 +1452,18 @@ const JSPropertySpec prototype_properties[] = {
       JSPROP_SHARED | JSPROP_ENUMERATE,
       JSOP_WRAPPER(&get_unsignedLongProperty),
       JSOP_WRAPPER(&set_unsignedLongProperty),
+  },
+  {  // Read/Write property
+      "longLongProperty", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_longLongProperty),
+      JSOP_WRAPPER(&set_longLongProperty),
+  },
+  {  // Read/Write property
+      "unsignedLongLongProperty", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_unsignedLongLongProperty),
+      JSOP_WRAPPER(&set_unsignedLongLongProperty),
   },
   {  // Read/Write property
       "doubleProperty", 0,
@@ -1122,6 +1513,20 @@ const JSFunctionSpec prototype_functions[] = {
       "longArgumentOperation",
       JSOP_WRAPPER(&fcn_longArgumentOperation),
       1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "longLongArgumentOperation",
+      JSOP_WRAPPER(&fcn_longLongArgumentOperation),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "longLongReturnOperation",
+      JSOP_WRAPPER(&fcn_longLongReturnOperation),
+      0,
       JSPROP_ENUMERATE,
       NULL,
   },
@@ -1182,6 +1587,20 @@ const JSFunctionSpec prototype_functions[] = {
       NULL,
   },
   {
+      "unsignedLongLongArgumentOperation",
+      JSOP_WRAPPER(&fcn_unsignedLongLongArgumentOperation),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "unsignedLongLongReturnOperation",
+      JSOP_WRAPPER(&fcn_unsignedLongLongReturnOperation),
+      0,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
       "unsignedLongReturnOperation",
       JSOP_WRAPPER(&fcn_unsignedLongReturnOperation),
       0,
@@ -1209,6 +1628,10 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -1228,7 +1651,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -1248,8 +1672,9 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "NumericTypesTestInterface";
-  name_value.setString(JS_NewStringCopyZ(context, "NumericTypesTestInterface"));
+  const char name[] =
+      "NumericTypesTestInterface";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
@@ -1258,8 +1683,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -1291,7 +1721,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsNumericTypesTestInterface::CreateInstance(
+JSObject* MozjsNumericTypesTestInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -1299,8 +1729,19 @@ JSObject* MozjsNumericTypesTestInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
+}
+
+//static
+const JSClass* MozjsNumericTypesTestInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static

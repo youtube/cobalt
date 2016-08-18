@@ -105,6 +105,14 @@ void TransportClientSocketTest::SetUp() {
   // Find a free port to listen on
   scoped_refptr<TCPListenSocket> sock;
   int port;
+#if defined(STARBOARD)
+  // Let the system choose a port for us.
+  sock = TCPListenSocket::CreateAndListen("127.0.0.1", 0, this);
+  ASSERT_TRUE(sock != NULL);
+  IPEndPoint address;
+  ASSERT_TRUE(sock->GetLocalAddress(&address) == 0);
+  port = address.port();
+#else
   // Range of ports to listen on.  Shouldn't need to try many.
   const int kMinPort = 10100;
   const int kMaxPort = 10200;
@@ -116,6 +124,7 @@ void TransportClientSocketTest::SetUp() {
     if (sock.get())
       break;
   }
+#endif
   ASSERT_TRUE(sock != NULL);
   listen_sock_ = sock;
   listen_port_ = port;

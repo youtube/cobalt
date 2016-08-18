@@ -131,7 +131,7 @@
       'variables': {
         'executable_name': 'webdriver_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
 
     {

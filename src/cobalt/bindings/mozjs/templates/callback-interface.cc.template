@@ -14,3 +14,96 @@
  # limitations under the License.
  #}
 {% extends "callback-interface-base.cc.template" %}
+
+{% block includes %}
+{{ super() }}
+#include "cobalt/script/logging_exception_state.h"
+#include "cobalt/script/mozjs/conversion_helpers.h"
+#include "cobalt/script/mozjs/mozjs_callback_interface.h"
+#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jscntxt.h"
+{% endblock includes %}
+
+{% block using_directives %}
+{{ super() }}
+using cobalt::script::LoggingExceptionState;
+using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::GetCallableForCallbackInterface;
+using cobalt::script::mozjs::ToJSValue;
+{% endblock using_directives %}
+
+{% block implementation %}
+namespace cobalt {
+{% for component in components %}
+namespace {{component}} {
+{% endfor %}
+
+{{binding_class}}::{{binding_class}}(
+    JSContext* context,
+    JS::HandleObject implementing_object)
+    : context_(context),
+      implementing_object_(implementing_object) { }
+
+{% for operation in operations %}
+{% for overload in operation.overloads %}
+{{overload.type}} {{binding_class}}::{{overload.name}}(
+    const scoped_refptr<script::Wrappable>& callback_this,
+  {% for arg in overload.arguments %}
+    {{arg.arg_type}} {{arg.name}},
+  {% endfor %}
+    bool* had_exception) const {
+  JSAutoRequest auto_request(context_);
+  JSAutoCompartment auto_compartment(context_, implementing_object_);
+
+  bool success = false;
+{% if overload.type != 'void' %}
+  {{overload.type}} cobalt_return_value;
+{% endif %}
+  // Get callable object.
+  JS::RootedValue callable(context_);
+  if (GetCallableForCallbackInterface(context_, implementing_object_,
+                                      "{{overload.idl_name}}", &callable)) {
+    // Convert the callback_this to a JSValue.
+    JS::RootedValue this_value(context_);
+    ToJSValue(context_, callback_this, &this_value);
+
+    // Convert arguments.
+    const int kNumArguments = {{overload.arguments|length}};
+    JS::Value args[kNumArguments];
+    js::SetValueRangeToNull(args, kNumArguments);
+    js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
+    {% for arg in overload.arguments %}
+    ToJSValue(context_, {{arg.name}},
+              auto_array_rooter.handleAt({{loop.index0}}));
+    {% endfor %}
+
+    // Call the function.
+    JS::RootedValue return_value(context_);
+    JSFunction* function = JS_ValueToFunction(context_, callable);
+    DCHECK(function);
+    success = JS::Call(context_, this_value, function, kNumArguments, args,
+                       return_value.address());
+    DLOG_IF(WARNING, !success) << "Exception in callback.";
+{% if overload.type != 'void' %}
+    if (success) {
+      LoggingExceptionState exception_state;
+      FromJSValue(context_, return_value, 0, &exception_state,
+                  &cobalt_return_value);
+      success = !exception_state.is_exception_set();
+    }
+{% endif %}
+  }
+
+  *had_exception = !success;
+{% if overload.type != 'void' %}
+  return cobalt_return_value;
+{% endif %}
+}
+{% endfor %}
+{% endfor %}
+
+{% for component in components %}
+}  // namespace {{component}}
+{% endfor %}
+}  // namespace cobalt
+{% endblock implementation %}

@@ -105,6 +105,10 @@ protected:
                                   const SkIRect& srcRect,
                                   const SkIPoint& dstPoint) SK_OVERRIDE;
 
+    virtual const GrGLInterface* glInterfaceForTesting() const {
+        return this->glInterface();
+    }
+
 private:
     // GrGpu overrides
     virtual void onResetContext(uint32_t resetBits) SK_OVERRIDE;

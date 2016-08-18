@@ -347,6 +347,14 @@ bool LineBox::TryAddChildWithinAvailableWidth(Box* child_box) {
 bool LineBox::TryWrapOverflowingBoxAndMaybeAddSplitChild(
     WrapAtPolicy wrap_at_policy, WrapOpportunityPolicy wrap_opportunity_policy,
     Box* child_box) {
+  // If none of the children justify the line's existence, then wrapping is
+  // unavailable. The wrap can't happen before the first child justifying the
+  // line.
+  if (!first_box_justifying_line_existence_index_ &&
+      !child_box->JustifiesLineExistence()) {
+    return false;
+  }
+
   // Attempt to wrap the child based upon the passed in wrap policy.
   WrapResult wrap_result = child_box->TryWrapAt(
       wrap_at_policy, wrap_opportunity_policy, LineExists(),

@@ -14,31 +14,375 @@
  # limitations under the License.
  #}
 
-{% macro call_nonvoid_function(return_type, function_name, arguments) %}
-  TypeTraits<{{return_type}} >::ReturnType value =
-      impl->{{function_name}}({{arguments|join(", ")}});
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
+{#
+ # Function body for operation bindings.
+ # Parameters:
+ #     operation: The operation context object
+ #}
+{% macro function_implementation(operation) %}
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+{% if operation.is_static %}
+{{ static_function_prologue() }}
+{% else %}
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
   }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+{% endif %}
+{% call(arguments_list) extract_arguments(operation) %}
+{{ call_cobalt_function(impl_class, operation.type, operation.name,
+                         arguments_list, operation.raises_exception,
+                         operation.call_with, operation.is_static) }}
+{% if operation.type != 'void' %}
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+{% endif %}
+  return !exception_state.is_exception_set();
+{%- endcall %}
 {%- endmacro %}
 
-{% macro call_void_function(function_name, arguments) %}
-  impl->{{function_name}}({{arguments|join(", ")}});
-  result_value.set(JS::UndefinedHandleValue);
+{#
+ # Function body for setting an attribute value.
+ # Parameters:
+ #     attribute: The attribute context object.
+ #     impl_class: Cobalt class name of the Cobalt implementation of the
+ #         interface on which the attribute is a member.
+ #     cobalt_impl_prefix: Variable name prefix of a pointer to a Cobalt
+ #         implementation of the interface on which the attribute is a member.
+ #}
+{% macro set_attribute_implementation(attribute, impl_class,
+                                      cobalt_impl_prefix="") %}
+{% if attribute.put_forwards %}
+  { // Begin scope of {{attribute.type}} forwarded_{{cobalt_impl_prefix}}impl.
+    {{attribute.type}} forwarded_{{cobalt_impl_prefix}}impl =
+{% if not attribute.is_static %}
+       {{cobalt_impl_prefix}}impl->{{attribute.getter_function_name}}();
+{% else %}
+       {{impl_class}}::{{attribute.getter_function_name}}();
+{% endif %}
+    if (!forwarded_{{cobalt_impl_prefix}}impl) {
+      NOTREACHED();
+      return false;
+    }
+    if (!exception_state.is_exception_set()) {
+{{ set_attribute_implementation(attribute.put_forwards, attribute.type,
+     "forwarded_" + cobalt_impl_prefix) -}}
+    }
+    return !exception_state.is_exception_set();
+  } // End scope of {{attribute.type}} forwarded_{{cobalt_impl_prefix}}impl.
+{% else %}
+  TypeTraits<{{attribute.type}} >::ConversionType value;
+  FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{{ call_cobalt_function(impl_class, "void",
+                        attribute.setter_function_name,
+                        ["value"], attribute.raises_exception,
+                        attribute.call_with, attribute.is_static,
+                        cobalt_impl_prefix) }}
+  return !exception_state.is_exception_set();
+{% endif %} {#- attribute.put_forwards #}
 {%- endmacro %}
 
-{% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments, raises_exception, call_with) %}
+{#
+ # Extract and marshal arguments that will be passed to a function-like call.
+ # Parameters:
+ #     operation: An IdlOperation object
+ # Passed to caller:
+ #     A string that can be used as the parameters for a function call. It will
+ #     be either empty, or a comma-separated list of variable names.
+ #}
+{% macro extract_arguments(operation) %}
+{% set non_optional_arguments = operation.non_optional_arguments %}
+{% set optional_arguments = operation.optional_arguments %}
+{% set num_default_arguments = operation.num_default_arguments %}
+{% set variadic_argument = operation.variadic_argument %}
+{% set has_non_default_optional_arguments =
+          operation.has_non_default_optional_arguments %}
+
+{%- if non_optional_arguments|length > 0 %}
+  const size_t kMinArguments = {{non_optional_arguments|length}};
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(
+        script::ExceptionState::kTypeError, "Not enough arguments.");
+    return false;
+  }
+{% endif -%}
+
+{# Declare variables for all arguments #}
+{% for argument in non_optional_arguments %}
+{% if loop.first %}
+  // Non-optional arguments
+{% endif %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
+{% endfor %}
+{% for argument in optional_arguments if argument.default_value %}
+{% if loop.first %}
+  // Optional arguments with default values
+{% endif %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}} =
+      {{argument.default_value}};
+{% endfor %}
+{% for argument in optional_arguments if not argument.default_value %}
+{% if loop.first %}
+  // Optional arguments
+{% endif %}
+  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
+{% endfor %}
+{% if variadic_argument %}
+  // Variadic argument
+  TypeTraits<{{variadic_argument.type}} >::ConversionType {{
+      variadic_argument.name}};
+{% endif -%}
+
+{% for argument in non_optional_arguments %}
+
+  DCHECK_LT({{loop.index0}}, args.length());
+  JS::RootedValue non_optional_value{{loop.index0}}(
+      context, args[{{loop.index0}}]);
+  FromJSValue(context,
+              non_optional_value{{loop.index0}},
+              {{argument.conversion_flags}},
+              &exception_state, &{{argument.name}});
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{% endfor -%}
+{% for argument in optional_arguments %}
+{% if loop.first %}
+  size_t num_set_arguments = {{
+      non_optional_arguments|length + num_default_arguments}};
+{% endif %}
+  if (args.length() > {{loop.index0 + non_optional_arguments|length}}) {
+    JS::RootedValue optional_value{{loop.index0}}(
+        context, args[{{loop.index0 + non_optional_arguments|length}}]);
+    FromJSValue(context,
+                optional_value{{loop.index0}},
+                {{argument.conversion_flags}},
+                &exception_state,
+                &{{argument.name}});
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+{% if not argument.default_value %}
+    ++num_set_arguments;
+{% endif %}
+  }
+{% endfor %}
+{% if variadic_argument %}
+
+  // Get variadic arguments.
+{% if optional_arguments|length %}
+  const size_t kLastOptionalArgIndex = {{
+      non_optional_arguments|length + optional_arguments|length}};
+  if (num_set_arguments == kLastOptionalArgIndex) {
+    // If the last optional argument has been set, we will call the overload
+    // that takes the variadic argument, possibly with an empty vector in the
+    // case that there are no more arguments left.
+    ++num_set_arguments;
+  }
+{% endif %}
+  const size_t kFirstVariadicArgIndex = {{operation.arguments|length - 1}};
+  if (args.length() > kFirstVariadicArgIndex) {
+    {{variadic_argument.name}}.resize(args.length() - kFirstVariadicArgIndex);
+    for (int i = 0; i + kFirstVariadicArgIndex < args.length(); ++i) {
+      JS::RootedValue variadic_argument_value{{i}}(
+          context, args[i + kFirstVariadicArgIndex]);
+      FromJSValue(context,
+                  variadic_argument_value{{i}},
+                  {{variadic_argument.conversion_flags}},
+                  &exception_state,
+                  &{{variadic_argument.name}}[i]);
+      if (exception_state.is_exception_set()) {
+        return false;
+      }
+    }
+  }
+{% endif -%}
+
+{# Call the implementation function, based on the number of set arguments. #}
+{% if has_non_default_optional_arguments %}
+  switch (num_set_arguments) {
+{% for num_arguments in range(
+    non_optional_arguments|length + num_default_arguments,
+    operation.arguments|length + 1) %}
+{# If no variadic arguments have been set, we still call the function with
+   signature that has the variadic argument and pass an empty vector. There is
+   no such function signature that takes the optional parameter immediately
+   preceeding the variadic argument but does not take the variadic arguments. #}
+{% if loop.last or not operation.arguments[num_arguments].is_variadic %}
+{% set function_arguments =
+      operation.arguments[0:num_arguments]|map(attribute='name')|list %}
+    case {{num_arguments}}:
+      {
+        {{- caller(function_arguments)|indent(8, false) }}
+      }
+      break;
+{% endif %}
+{% endfor %}
+    default:
+      NOTREACHED();
+      return false;
+  }
+{% else %} {#- has_non_default_optional_arguments #}
+{% set function_arguments = operation.arguments|map(attribute='name')|list %}
+  {# whitespace control block #}
+  {{-caller(function_arguments)}}
+{% endif %}
+{% endmacro %}
+
+{#
+ # Append extra arguments that should be passed to a cobalt function.
+ # Specifically, this will prepend parameters specified on IDLs using the
+ # [CallWith=] extended attribute.
+ # Parameters:
+ #     arguments_list: A list of C++ expressions that represent a sequence of
+ #         arguments that will be passed to a function.
+ #     context: An IDL object that may have the extended attribute that
+ #         we are interested in.
+ # Passed to caller:
+ #     arguments_list, possibly with extra arguments prepended and appended.
+ #}
+{% macro add_extra_arguments(arguments_list, raises_exception, call_with) %}
 {% if call_with %}
   MozjsGlobalObjectProxy* global_object_proxy =
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+{% do arguments_list.insert(0,
+                            'global_object_proxy->Get%s()'|format(call_with)) %}
 {% endif %}
-  {{impl_class}}* impl =
-      WrapperPrivate::GetWrappable<{{impl_class}}>(object);
-{% do arguments.append("&exception_state") if raises_exception %}
-{% do arguments.append("global_object_proxy->Get%s()"|format(call_with)) if call_with %}
-{% if cobalt_type == "void" %}
-{{ call_void_function(function_name, arguments) }}
+{% do arguments_list.append('&exception_state') if raises_exception %}
+{%- endmacro %}
+
+{% macro call_nonvoid_function(return_type, function_name, arguments,
+                               impl_class, is_static) %}
+  if (!exception_state.is_exception_set()) {
+{% if not is_static %}
+    ToJSValue(context,
+              impl->{{function_name}}({{arguments|join(", ")}}),
+              &result_value);
 {% else %}
-{{ call_nonvoid_function(cobalt_type, function_name, arguments) }}
+    ToJSValue(context,
+              {{impl_class}}::{{function_name}}({{arguments|join(', ')}}),
+              &result_value);
+{% endif %}
+  }
+{%- endmacro %}
+
+{% macro call_void_function(function_name, arguments, impl_class, is_static,
+                            cobalt_impl_prefix) %}
+{% if not is_static %}
+  {{cobalt_impl_prefix}}impl->{{function_name}}({{arguments|join(", ")}});
+{% else %}
+  {{impl_class}}::{{function_name}}({{arguments|join(', ')}});
+{% endif %}
+  result_value.set(JS::UndefinedHandleValue);
+{%- endmacro %}
+
+{% macro get_impl_class_instance(impl_class) %}
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  {{impl_class}}* impl =
+      wrapper_private->wrappable<{{impl_class}}>().get();
+{%- endmacro %}
+
+{% macro static_function_prologue() %}
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+{% endmacro %}
+
+{% macro nonstatic_function_prologue(impl_class) %}
+{{ static_function_prologue() }}
+{{ get_impl_class_instance(impl_class) }}
+{%- endmacro %}
+
+{#
+ # Call a function on an instance of a Cobalt platform object.
+ #}
+{% macro call_cobalt_function(impl_class, cobalt_type, function_name, arguments,
+                              raises_exception, call_with, is_static,
+                              cobalt_impl_prefix) %}
+{{ add_extra_arguments(arguments, raises_exception, call_with) }}
+{% if cobalt_type == "void" %}
+{{ call_void_function(function_name, arguments, impl_class, is_static,
+                      cobalt_impl_prefix) -}}
+{% else %}
+{{ call_nonvoid_function(cobalt_type, function_name, arguments, impl_class,
+                         is_static) -}}
 {% endif %}
 {% endmacro %}
+
+{#
+ # Function body for constructor bindings.
+ # Parameters:
+ #     constructor: The constructor context object
+ #}
+{% macro constructor_implementation(constructor) %}
+  MozjsExceptionState exception_state(context);
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+{% call(arguments_list) extract_arguments(constructor) %}
+{{ add_extra_arguments(arguments_list, constructor.raises_exception,
+                       constructor.call_with) }}
+  scoped_refptr<{{impl_class}}> new_object =
+      new {{impl_class}}({{arguments_list|join(', ')}});
+  JS::RootedValue result_value(context);
+  ToJSValue(context, new_object, &result_value);
+  DCHECK(result_value.isObject());
+  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
+  args.rval().setObject(*result_object);
+  return true;
+{%- endcall %}
+{%- endmacro %}
+
+{#
+ # Function body for overload resolution function.
+ # Parameters:
+ #     overload_context: The overload context object.
+ #     bound_function_prefix: The prefix of the function to be called on
+ #         resolution. The overload index will be appended to this.
+ #}
+{% macro overload_resolution_implementation(
+      overload_context, bound_function_prefix) %}
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  switch(argc) {
+{% for length, distinguishing_argument_index, resolution_tests in
+       overload_context.overload_resolution_by_length %}
+    case({{length}}): {
+      // Overload resolution algorithm details found here:
+      //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+{# In the case there is only one resolution condition, we don't need the arg. #}
+{% if resolution_tests|length > 1 %}
+      JS::RootedValue arg(context, args[{{distinguishing_argument_index}}]);
+      MozjsGlobalObjectProxy* global_object_proxy =
+          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
+{% endif %}
+{% for test, overload in resolution_tests %}
+      if ({{test("arg")}}) {
+        return {{bound_function_prefix}}{{overload.overload_index}}(
+                  context, argc, vp);
+      }
+{% endfor %}
+      break;
+    }
+{% endfor %}
+  }
+  // Invalid number of args
+  // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
+  // 4. If S is empty, then throw a TypeError.
+  MozjsExceptionState exception_state(context);
+  exception_state.SetSimpleException(
+      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  return false;
+{%- endmacro %}

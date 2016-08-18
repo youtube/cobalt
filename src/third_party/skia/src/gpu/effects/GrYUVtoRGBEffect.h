@@ -19,16 +19,16 @@ namespace GrYUVtoRGBEffect {
      * Creates an effect that performs color conversion from YUV to RGB
      */
     GrFragmentProcessor* Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
-                                SkYUVColorSpace colorSpace);
+                                SkYUVColorSpace colorSpace, bool nv12);
     GrFragmentProcessor* Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
                                 const SkMatrix& localMatrix,
-                                SkYUVColorSpace colorSpace);
+                                SkYUVColorSpace colorSpace, bool nv12);
 
     GrFragmentProcessor* Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
-                                const GrTextureParams& params, SkYUVColorSpace colorSpace);
+                                const GrTextureParams& params, SkYUVColorSpace colorSpace, bool nv12);
     GrFragmentProcessor* Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
                                 const SkMatrix& localMatrix, const GrTextureParams& params,
-                                SkYUVColorSpace colorSpace);
+                                SkYUVColorSpace colorSpace, bool nv12);
 };
 
 #endif

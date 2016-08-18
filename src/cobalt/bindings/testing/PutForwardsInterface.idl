@@ -16,4 +16,6 @@
 interface PutForwardsInterface {
   [PutForwards=arbitraryProperty]
   readonly attribute ArbitraryInterface forwardingAttribute;
+  [PutForwards=arbitraryProperty]
+  static readonly attribute ArbitraryInterface staticForwardingAttribute;
 };

@@ -246,6 +246,7 @@ WrapResult BlockContainerBox::TryWrapAt(
     WrapOpportunityPolicy /*wrap_opportunity_policy*/,
     bool /*is_line_existence_justified*/, LayoutUnit /*available_width*/,
     bool /*should_collapse_trailing_white_space*/) {
+  DCHECK(!IsAbsolutelyPositioned());
   DCHECK_EQ(kInlineLevel, GetLevel());
   return kWrapResultNoWrap;
 }

@@ -39,9 +39,9 @@ namespace skia {
 // NOTE: Glyph queries are not thread-safe and should only occur from a single
 // thread. However, the font can be created on a different thread than the
 // thread making the glyph queries.
-class SkiaFont : public render_tree::Font {
+class Font : public render_tree::Font {
  public:
-  SkiaFont(SkiaTypeface* typeface, SkScalar size);
+  Font(SkiaTypeface* typeface, SkScalar size);
 
   SkTypeface* GetSkTypeface() const;
 

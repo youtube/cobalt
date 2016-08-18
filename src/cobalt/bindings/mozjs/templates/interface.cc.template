@@ -13,19 +13,33 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  #}
+{% from 'macros.cc.template' import add_extra_arguments %}
 {% from 'macros.cc.template' import call_cobalt_function %}
+{% from 'macros.cc.template' import constructor_implementation with context %}
+{% from 'macros.cc.template' import function_implementation with context %}
+{% from 'macros.cc.template' import get_impl_class_instance %}
+{% from 'macros.cc.template' import nonstatic_function_prologue %}
+{% from 'macros.cc.template' import overload_resolution_implementation with context %}
+{% from 'macros.cc.template' import set_attribute_implementation with context %}
+{% from 'macros.cc.template' import static_function_prologue %}
 {% extends "interface-base.cc.template" %}
 {% block includes %}
 {{ super() }}
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 {% endblock includes %}
@@ -33,6 +47,7 @@
 {{ super() }}
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -43,16 +58,243 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::Wrappable;
 {% endblock using_directives %}
+{% block enumeration_declarations %}
+{% if enumerations|length %}
+// Declare and define these in the same namespace that the other overloads
+// were brought into with the using declaration.
+{% for enumeration in enumerations %}
+void ToJSValue(
+    JSContext* context,
+    {{impl_class}}::{{enumeration.name}} in_enum,
+    JS::MutableHandleValue out_value);
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 {{impl_class}}::{{enumeration.name}}* out_enum);
+{% endfor %}
+{% endif %}
+{% endblock enumeration_declarations %}
 
 {% block implementation %}
 namespace {
+
+{% if named_property_getter %}
+bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
+                              const std::string& property_name) {
+{{ get_impl_class_instance(impl_class) }}
+  return impl->CanQueryNamedProperty(property_name);
+}
+
+void EnumerateSupportedNames(JSContext* context, JS::HandleObject object,
+                             JS::AutoIdVector* properties) {
+{{ get_impl_class_instance(impl_class) }}
+  MozjsPropertyEnumerator enumerator(context, properties);
+  impl->EnumerateNamedProperties(&enumerator);
+}
+
+JSBool GetNamedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  std::string property_name;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
+              &property_name);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+{{ call_cobalt_function(impl_class, named_property_getter.type,
+                        named_property_getter.name, ["property_name"],
+                        named_property_getter.raises_exception,
+                        named_property_getter.call_with) }}
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if named_property_setter %}
+JSBool SetNamedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  std::string property_name;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
+              &property_name);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<{{named_property_setter.type}} >::ConversionType value;
+  FromJSValue(context, vp, {{named_property_setter.conversion_flags}},
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{{ call_cobalt_function(impl_class, "void",
+                        named_property_setter.name, ["property_name", "value"],
+                        named_property_setter.raises_exception,
+                        named_property_setter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if named_property_deleter %}
+bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
+                         const std::string& property_name) {
+{{ nonstatic_function_prologue(impl_class) }}
+{{ call_cobalt_function(impl_class, "void",
+                        named_property_deleter.name, ["property_name"],
+                        named_property_deleter.raises_exception,
+                        named_property_deleter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if indexed_property_getter %}
+bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
+                              uint32_t index) {
+{{ get_impl_class_instance(impl_class) }}
+  return index < impl->length();
+}
+
+void EnumerateSupportedIndexes(JSContext* context, JS::HandleObject object,
+                               JS::AutoIdVector* properties) {
+{{ get_impl_class_instance(impl_class) }}
+  const uint32_t kNumIndexedProperties = impl->length();
+  for (uint32_t i = 0; i < kNumIndexedProperties; ++i) {
+    properties->append(INT_TO_JSID(i));
+  }
+}
+
+JSBool GetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+{{ call_cobalt_function(impl_class, indexed_property_getter.type,
+                        indexed_property_getter.name, ["index"],
+                        indexed_property_getter.raises_exception,
+                        indexed_property_getter.call_with) }}
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if indexed_property_setter %}
+JSBool SetIndexedProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  JS::RootedValue id_value(context);
+  if (!JS_IdToValue(context, id, id_value.address())) {
+    NOTREACHED();
+    return false;
+  }
+{{ nonstatic_function_prologue(impl_class) }}
+  uint32_t index;
+  FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
+  if(exception_state.is_exception_set()) {
+    // The ID should be an integer or a string, so we shouldn't have any
+    // exceptions converting to string.
+    NOTREACHED();
+    return false;
+  }
+  TypeTraits<{{indexed_property_setter.type}} >::ConversionType value;
+  FromJSValue(context, vp, {{indexed_property_setter.conversion_flags}},
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{{ call_cobalt_function(impl_class, "void",
+                        indexed_property_setter.name, ["index", "value"],
+                        indexed_property_setter.raises_exception,
+                        indexed_property_setter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+{% if indexed_property_deleter %}
+bool DeleteIndexedProperty(
+    JSContext* context, JS::HandleObject object, uint32_t index) {
+{{ nonstatic_function_prologue(impl_class) }}
+{{ call_cobalt_function(impl_class, "void",
+                        indexed_property_deleter.name, ["index"],
+                        indexed_property_deleter.raises_exception,
+                        indexed_property_deleter.call_with) }}
+  return !exception_state.is_exception_set();
+}
+
+{% endif %}
+class {{binding_class}}Handler : public ProxyHandler {
+ public:
+  {{binding_class}}Handler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+{{binding_class}}Handler::named_property_hooks = {
+  {{ "IsSupportedNamedProperty" if named_property_getter else "NULL" }},
+  {{ "EnumerateSupportedNames" if named_property_getter else "NULL" }},
+  {{ "GetNamedProperty" if named_property_getter else "NULL" }},
+  {{ "SetNamedProperty" if named_property_setter else "NULL" }},
+  {{ "DeleteNamedProperty" if named_property_deleter else "NULL" }},
+};
+ProxyHandler::IndexedPropertyHooks
+{{binding_class}}Handler::indexed_property_hooks = {
+  {{ "IsSupportedIndexProperty" if indexed_property_getter else "NULL" }},
+  {{ "EnumerateSupportedIndexes" if indexed_property_getter else "NULL" }},
+  {{ "GetIndexedProperty" if indexed_property_getter else "NULL" }},
+  {{ "SetIndexedProperty" if indexed_property_setter else "NULL" }},
+  {{ "DeleteIndexedProperty" if indexed_property_deleter else "NULL" }},
+};
+
+static base::LazyInstance<{{binding_class}}Handler>
+    proxy_handler;
+
+{% if constructor %}
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+{% endif %}
 {% for constant in constants %}
 JSBool get_{{constant.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
@@ -67,17 +309,14 @@ JSBool get_{{constant.idl_name}}(
 {% endif %}
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  ToJSValue(context, {{constant.value}}, &exception_state, &result_value);
-  if (!exception_state.IsExceptionSet()) {
-     vp.set(result_value);
+  ToJSValue(context, {{constant.value}}, &result_value);
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 {% endfor %}
-{% if constructor %}
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args);
-{% endif %}
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -89,7 +328,8 @@ InterfaceData* CreateCachedInterfaceData() {
          sizeof(interface_data->interface_object_class_definition));
 
   JSClass* instance_class = &interface_data->instance_class_definition;
-  const int kGlobalFlags = {{"JSCLASS_GLOBAL_FLAGS" if is_global_interface else 0 }};
+  const int kGlobalFlags = {{
+      "JSCLASS_GLOBAL_FLAGS" if is_global_interface else 0 }};
   instance_class->name = "{{interface_name}}";
   instance_class->flags = kGlobalFlags | JSCLASS_HAS_PRIVATE;
   instance_class->addProperty = JS_PropertyStub;
@@ -115,7 +355,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "{{interface_name}}Constructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -131,7 +372,7 @@ InterfaceData* CreateCachedInterfaceData() {
   return interface_data;
 }
 
-{% for attribute in attributes %}
+{% for attribute in attributes + static_attributes %}
 {% if attribute.conditional %}
 #if defined({{attribute.conditional}})
 {% endif %}
@@ -146,57 +387,78 @@ JSBool get_{{attribute.idl_name}}(
 }
 
 {% else %}
+{% if attribute.is_static %}
+JSBool staticget_{{attribute.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+{{ static_function_prologue() -}}
+{% else %}
 JSBool get_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
+{{ nonstatic_function_prologue(impl_class) }}
+{% endif %}
 {{ call_cobalt_function(impl_class, attribute.type,
                         attribute.getter_function_name, [],
-                        attribute.raises_exception, attribute.call_with) }}
-  if (!exception_state.IsExceptionSet()) {
+                        attribute.raises_exception, attribute.call_with,
+                        attribute.is_static) }}
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 {% if attribute.has_setter %}
+{% if attribute.is_static %}
+JSBool staticset_{{attribute.idl_name}}(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+{{ static_function_prologue() }}
+{% else %}
 JSBool set_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-  TypeTraits<{{attribute.type}} >::ConversionType value;
-  FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
-              &value);
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-{% if attribute.put_forwards %}
-  NOTIMPLEMENTED();
-{% else %}
-{{ call_cobalt_function(impl_class, "void", attribute.setter_function_name,
-                        ["value"], attribute.raises_exception, attribute.call_with) }}
-{% endif %}
-  return !exception_state.IsExceptionSet();
+{{ nonstatic_function_prologue(impl_class)}}
+{% endif %} {#- attribute.is_static #}
+{{ set_attribute_implementation(attribute, impl_class) -}}
 }
 
-{% endif %}
+{% endif %} {#- attribute.has_setter #}
 {% endif %}
 {% if attribute.conditional %}
 #endif  // {{attribute.conditional}}
-{% endif %}
+{% endif %} {#- attribute.is_constructor_attribute #}
 {% endfor %}
-
-{%- for operation in operations %}
+{%- for operation in operations + static_operations %}
 {% if operation.conditional %}
 #if defined({{operation.conditional}})
 {% endif %}
-JSBool fcn_{{operation.idl_name}}(
+{% set boundFunctionPrefix = "staticfcn_" if operation.is_static else "fcn_" %}
+{% for overload in operation.overloads if operation.overloads|length > 1 %}
+JSBool {{boundFunctionPrefix}}{{operation.idl_name}}{{overload.overload_index}}(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
+{{ function_implementation(overload) -}}
+}
 
+{% endfor %}
+JSBool {{boundFunctionPrefix}}{{operation.idl_name}}(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+{% if operation.overloads|length == 1 %}
+{{ function_implementation(operation.overloads[0]) -}}
+{% else %}
+{{ overload_resolution_implementation(
+      operation, boundFunctionPrefix + operation.idl_name) }}
+{% endif %}
+}
+
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
+{% endif %}
+{% endfor %}
+
+{% if stringifier %}
+JSBool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
+  MozjsExceptionState exception_state(context);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -209,51 +471,25 @@ JSBool fcn_{{operation.idl_name}}(
     NOTREACHED();
     return false;
   }
-
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-{# TODO: Overload resolution. Just use first overload for now. #}
-{% set overload = operation.overloads[0] %}
-{# TODO: Optional and variadic arguments. #}
-{% if overload.arguments|selectattr('is_optional')|selectattr('is_variadic')|list|length == 0 %}
-{% if overload.arguments|length > 0 %}
-  const size_t kMinArguments = {{overload.arguments|length}};
-  if (args.length() < kMinArguments) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  {{impl_class}}* impl =
+      wrapper_private->wrappable<{{impl_class}}>().get();
+  if (!impl) {
     exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+        script::ExceptionState::kTypeError, "Stringifier problem.");
+    NOTREACHED();
     return false;
   }
-{% endif %}
-{% for argument in overload.arguments %}
-  TypeTraits<{{argument.type}} >::ConversionType {{argument.name}};
-  DCHECK_LT({{loop.index0}}, args.length());
-  FromJSValue(context, args.handleAt({{loop.index0}}),
-      {{argument.conversion_flags}}, &exception_state, &{{argument.name}});
-  if (exception_state.IsExceptionSet()) {
-    return false;
-  }
-{% endfor %}
-{% set arguments = overload.arguments|map(attribute="name")|list %}
-{{ call_cobalt_function(impl_class, overload.type,
-                        overload.name, arguments,
-                        overload.raises_exception,
-                        overload.call_with) }}
-{% if operation.type != 'void' %}
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-{% endif %}
-  return !exception_state.IsExceptionSet();
-{% else %}
-  NOTIMPLEMENTED();
-  return false;
-{% endif %}
+  std::string stringified = impl->{{stringifier.name}}();
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedString rooted_string(context,
+      JS_NewStringCopyN(context, stringified.c_str(), stringified.length()));
+  args.rval().set(JS::StringValue(rooted_string));
+  return true;
 }
 
-{% if operation.conditional %}
-#endif  // {{operation.conditional}}
 {% endif %}
-{% endfor %}
-
 const JSPropertySpec prototype_properties[] = {
 {% for constant in constants %}
   {
@@ -290,6 +526,15 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
+{% if stringifier %}
+  {
+      "toString",
+      JSOP_WRAPPER(&Stringifier),
+      0,
+      JSPROP_PERMANENT,
+      NULL,
+  },
+{% endif %}
 {% for operation in operations %}
 {% if operation.conditional %}
 #if defined({{operation.conditional}})
@@ -317,7 +562,49 @@ const JSPropertySpec interface_object_properties[] = {
       JSOP_NULLWRAPPER,
   },
 {% endfor %}
+{% for attribute in static_attributes %}
+{% if attribute.conditional %}
+#if defined({{attribute.conditional}})
+{% endif %}
+{% if attribute.has_setter %}
+  {  // Static read/write attribute.
+      "{{attribute.idl_name}}", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&staticget_{{attribute.idl_name}}),
+      JSOP_WRAPPER(&staticset_{{attribute.idl_name}}),
+  },
+{% else %}
+  {  // Static readonly attribute.
+      "{{attribute.idl_name}}", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
+      JSOP_WRAPPER(&staticget_{{attribute.idl_name}}),
+      JSOP_NULLWRAPPER,
+  },
+{% endif %}
+{% if attribute.conditional %}
+#endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
   JS_PS_END
+};
+
+const JSFunctionSpec interface_object_functions[] = {
+{% for operation in static_operations %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+  {
+      "{{ operation.idl_name }}",
+      JSOP_WRAPPER(&staticfcn_{{operation.idl_name}}),
+      {{ operation.length }},
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
+{% endif %}
+{% endfor %}
+  JS_FS_END
 };
 
 const JSPropertySpec own_properties[] = {
@@ -358,7 +645,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -379,18 +667,36 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "{{ named_constructor if named_constructor else interface.name }}";
-  name_value.setString(JS_NewStringCopyZ(context, "{{interface.name}}"));
+  const char name[] =
+      "{{ named_constructor if named_constructor else interface.name }}";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
                         JSPROP_READONLY);
   DCHECK(success);
+{% if constructor %}
+
+  // Add the InterfaceObject.length property. It is set to the length of the
+  // shortest argument list of all overload constructors.
+  JS::RootedValue length_value(context);
+  length_value.setInt32({{constructor.length}});
+  success =
+      JS_DefineProperty(context, rooted_interface_object, "length",
+                        length_value, JS_PropertyStub, JS_StrictPropertyStub,
+                        JSPROP_READONLY);
+  DCHECK(success);
+{% endif %}
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -423,7 +729,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 {% if is_global_interface %}
-JSObject* {{binding_class}}::CreateInstance(
+JSObject* {{binding_class}}::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject global_object(
@@ -454,14 +760,16 @@ JSObject* {{binding_class}}::CreateInstance(
   success = JS_DefineProperties(context, global_object, own_properties);
   DCHECK(success);
 
-  WrapperPrivate::AddPrivateData(global_object, wrappable);
-
-  return global_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, global_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 {% else %}
 // static
-JSObject* {{binding_class}}::CreateInstance(
+JSObject* {{binding_class}}::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -469,11 +777,22 @@ JSObject* {{binding_class}}::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
 }
 
 {% endif %}
+//static
+const JSClass* {{binding_class}}::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
+}
+
 // static
 JSObject* {{binding_class}}::GetPrototype(JSContext* context) {
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -496,14 +815,23 @@ JSObject* {{binding_class}}::GetInterfaceObject(JSContext* context) {
   return interface_data->interface_object;
 }
 
-{% endif %}
+{% endif %} {#- has_interface_object #}
 
 namespace {
 {% if constructor %}
-JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
-  // TODO: Implement support for constructors.
-  NOTIMPLEMENTED();
-  return true;
+{% for overload in constructor.overloads if constructor.overloads|length > 1 %}
+JSBool Constructor{{overload.overload_index}}(
+    JSContext* context, unsigned int argc, JS::Value* vp) {
+{{ constructor_implementation(overload) -}}
+}
+
+{% endfor %}
+JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+{% if constructor.overloads|length == 1 %}
+{{ constructor_implementation(constructor.overloads[0]) -}}
+{% else %}
+{{ overload_resolution_implementation(constructor, "Constructor")}}
+{% endif %}
 }
 {% endif %}
 }  // namespace
@@ -515,7 +843,7 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
   JSContext* context = mozjs_global_object_proxy->context();
 
   JSAutoRequest auto_request(context);
-  {{binding_class}}::CreateInstance(
+  {{binding_class}}::CreateProxy(
       context, global_interface);
   mozjs_global_object_proxy->SetEnvironmentSettings(environment_settings);
 
@@ -529,7 +857,8 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
   {% if interface.name != impl_class %}
   wrapper_factory->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
-      base::Bind(Mozjs{{interface.name}}::CreateInstance));
+      base::Bind(Mozjs{{interface.name}}::CreateProxy),
+      base::Bind(Mozjs{{interface.name}}::PrototypeClass));
   {% endif %}
 {% if interface.conditional %}
 #endif  // defined({{interface.conditional}})
@@ -537,3 +866,48 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* args) {
 {% endfor %}
 
 {% endblock create_global_object_impl %}
+
+{%  block enumeration_definitions %}
+{% for enumeration in enumerations %}
+
+inline void ToJSValue(
+    JSContext* context,
+    {{impl_class}}::{{enumeration.name}} in_enum,
+    JS::MutableHandleValue out_value) {
+
+  switch (in_enum) {
+{% for value, idl_value in enumeration.value_pairs %}
+    case {{impl_class}}::{{value}}:
+      ToJSValue(context, std::string("{{idl_value}}"), out_value);
+      return;
+{% endfor %}
+  }
+}
+
+
+inline void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 {{impl_class}}::{{enumeration.name}}* out_enum) {
+  DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
+  // JSValue -> IDL enum algorithm described here:
+  // http://heycam.github.io/webidl/#es-enumeration
+  // 1. Let S be the result of calling ToString(V).
+  JS::RootedString rooted_string(context, JS_ValueToString(context, value));
+
+  JSBool match = JS_FALSE;
+// 3. Return the enumeration value of type E that is equal to S.
+{% for value, idl_value in enumeration.value_pairs %}
+  {{-" else " if not loop.first}}if (JS_StringEqualsAscii(
+      context, rooted_string, "{{idl_value}}", &match)
+      && match) {
+    *out_enum = {{impl_class}}::{{value}};
+  }{% endfor %} else {
+    // 2. If S is not one of E's enumeration values, then throw a TypeError.
+    exception_state->
+        SetSimpleException(ExceptionState::kTypeError,
+                           "Cannot convert JavaScript value to Enum.");
+    return;
+  }
+}
+{% endfor %}
+{% endblock enumeration_definitions %}

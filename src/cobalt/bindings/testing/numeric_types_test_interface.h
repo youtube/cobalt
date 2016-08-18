@@ -17,6 +17,8 @@
 #ifndef COBALT_BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
 
+#include <limits>
+
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -55,6 +57,16 @@ class NumericTypesTestInterface : public script::Wrappable {
   virtual void UnsignedLongArgumentOperation(uint32_t value) {}
   virtual uint32_t unsigned_long_property() { return 0; }
   virtual void set_unsigned_long_property(uint32_t value) {}
+
+  virtual int64_t LongLongReturnOperation() { return 0; }
+  virtual void LongLongArgumentOperation(int64_t value) {}
+  virtual int64_t long_long_property() { return 0; }
+  virtual void set_long_long_property(int64_t value) {}
+
+  virtual uint64_t UnsignedLongLongReturnOperation() { return 0; }
+  virtual void UnsignedLongLongArgumentOperation(uint64_t value) {}
+  virtual uint64_t unsigned_long_long_property() { return 0; }
+  virtual void set_unsigned_long_long_property(uint64_t value) {}
 
   virtual double DoubleReturnOperation() { return 0; }
   virtual void DoubleArgumentOperation(double value) {}
@@ -194,6 +206,53 @@ class UnsignedLongTypeTest : public NumericTypesTestInterfaceT<uint32_t> {
   static const char* max_value_string() { return "4294967295"; }
   static const char* min_value_string() { return "0"; }
 };
+
+#if defined(ENGINE_SUPPORTS_INT64)
+class LongLongTypeTest : public NumericTypesTestInterfaceT<int64_t> {
+ public:
+  int64_t LongLongReturnOperation() OVERRIDE {
+    return MockReturnValueOperation();
+  }
+  void LongLongArgumentOperation(int64_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  int64_t long_long_property() OVERRIDE { return mock_get_property(); }
+  void set_long_long_property(int64_t value) OVERRIDE {
+    mock_set_property(value);
+  }
+
+  static const char* type_string() { return "longLong"; }
+  static int64_t max_value() { return 9223372036854775807ll; }
+  static int64_t min_value() { return -9223372036854775807ll - 1; }
+  // This is what 9223372036854775807 maps to in javascript.
+  static const char* max_value_string() { return "9223372036854776000"; }
+  static const char* min_value_string() { return "-9223372036854776000"; }
+};
+
+class UnsignedLongLongTypeTest : public NumericTypesTestInterfaceT<uint64_t> {
+ public:
+  uint64_t UnsignedLongLongReturnOperation() OVERRIDE {
+    return MockReturnValueOperation();
+  }
+  void UnsignedLongLongArgumentOperation(uint64_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  uint64_t unsigned_long_long_property() OVERRIDE {
+    return mock_get_property();
+  }
+  void set_unsigned_long_long_property(uint64_t value) OVERRIDE {
+    mock_set_property(value);
+  }
+
+  static const char* type_string() { return "unsignedLongLong"; }
+
+  static uint64_t max_value() { return 18446744073709551615; }
+  static uint64_t min_value() { return 0; }
+  // This is what the value 18446744073709551615 maps to in javascript.
+  static const char* max_value_string() { return "18446744073709552000"; }
+  static const char* min_value_string() { return "0"; }
+};
+#endif  // ENGINE_SUPPORTS_INT64
 
 class DoubleTypeTest : public NumericTypesTestInterfaceT<double> {
  public:

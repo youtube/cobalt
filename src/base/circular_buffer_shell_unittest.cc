@@ -452,3 +452,78 @@ TEST(CircularBufferShellTest, CycleReadWrite) {
     EXPECT_EQ(circular_buffer->GetLength(), 0);
   }
 }
+
+TEST(CircularBufferShellTest, IncreaseMaxCapacityTo) {
+  ClearPos();
+
+  scoped_ptr<base::CircularBufferShell> circular_buffer(
+      new base::CircularBufferShell(0));
+  EXPECT_EQ(circular_buffer->GetMaxCapacity(), 0);
+
+  // Increase max capacity by 20 to allow for expanding.
+  circular_buffer->IncreaseMaxCapacityTo(20);
+  EXPECT_EQ(circular_buffer->GetMaxCapacity(), 20);
+
+  // Set the size with the first write.
+  TestWrite(circular_buffer.get(), 10);
+
+  // Expand to the full capacity with the second write.
+  TestWrite(circular_buffer.get(), 10);
+
+  // Verify if the buffer is full by check the failure of writing one byte.
+  char ch = 'a';
+  size_t bytes_written = 0;
+  ASSERT_FALSE(circular_buffer->Write(&ch, 1, &bytes_written));
+
+  // Increase max capacity to 30 to allow for further expanding.
+  circular_buffer->IncreaseMaxCapacityTo(30);
+  EXPECT_EQ(circular_buffer->GetMaxCapacity(), 30);
+
+  // Expand to capacity with the fourth write.
+  TestWrite(circular_buffer.get(), 10);
+
+  // Verify if the buffer is full by check the failure of writing one byte.
+  ASSERT_FALSE(circular_buffer->Write(&ch, 1, &bytes_written));
+
+  // Drain the circular_buffer.
+  EXPECT_EQ(circular_buffer->GetLength(), 30);
+  TestRead(circular_buffer.get(), 30);
+  EXPECT_EQ(circular_buffer->GetLength(), 0);
+}
+
+TEST(CircularBufferShellTest, IncreaseMaxCapacityToWrapped) {
+  ClearPos();
+
+  scoped_ptr<base::CircularBufferShell> circular_buffer(
+      new base::CircularBufferShell(10));
+  EXPECT_EQ(circular_buffer->GetMaxCapacity(), 10);
+
+  // Expand to the full capacity with the first write.
+  TestWrite(circular_buffer.get(), 10);
+
+  // Partial read
+  TestRead(circular_buffer.get(), 5);
+
+  // The buffer is wrapped after the second write.
+  TestWrite(circular_buffer.get(), 5);
+
+  // Verify if the buffer is full by check the failure of writing one byte.
+  char ch = 'a';
+  size_t bytes_written = 0;
+  ASSERT_FALSE(circular_buffer->Write(&ch, 1, &bytes_written));
+
+  // Increase max capacity to 20 to allow for further expanding.
+  circular_buffer->IncreaseMaxCapacityTo(20);
+  EXPECT_EQ(circular_buffer->GetMaxCapacity(), 20);
+
+  // Expand to capacity with the fourth write.
+  TestWrite(circular_buffer.get(), 10);
+
+  // Verify if the buffer is full by check the failure of writing one byte.
+  ASSERT_FALSE(circular_buffer->Write(&ch, 1, &bytes_written));
+
+  // Drain the circular_buffer.
+  EXPECT_EQ(circular_buffer->GetLength(), 20);
+  TestRead(circular_buffer.get(), 20);
+  EXPECT_EQ(circular_buffer->GetLength(), 0);
+}

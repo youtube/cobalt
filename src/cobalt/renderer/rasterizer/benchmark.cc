@@ -50,7 +50,8 @@ const int kViewportHeight = 1080;
 scoped_ptr<Rasterizer> CreateDefaultRasterizer(
     GraphicsContext* graphics_context) {
   RendererModule::Options render_module_options;
-  return render_module_options.create_rasterizer_function.Run(graphics_context);
+  return render_module_options.create_rasterizer_function.Run(
+      graphics_context, render_module_options);
 }
 
 // Allow test writers to choose whether the rasterizer results should be drawn

@@ -28,6 +28,16 @@
 namespace cobalt {
 namespace media {
 
+namespace {
+
+const uint32 kBackwardBytes = 256 * 1024;
+const uint32 kInitialForwardBytes = 3 * 256 * 1024;
+const uint32 kInitialBufferCapacity = kBackwardBytes + kInitialForwardBytes;
+
+}  // namespace
+
+using base::CircularBufferShell;
+
 FetcherBufferedDataSource::FetcherBufferedDataSource(
     const scoped_refptr<base::MessageLoopProxy>& message_loop, const GURL& url,
     const csp::SecurityCallback& security_callback,
@@ -35,7 +45,7 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
     : message_loop_(message_loop),
       url_(url),
       network_module_(network_module),
-      buffer_(kBufferCapacity, base::CircularBufferShell::kReserve),
+      buffer_(kInitialBufferCapacity, CircularBufferShell::kReserve),
       buffer_offset_(0),
       error_occured_(false),
       last_request_offset_(0),
@@ -56,6 +66,11 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
                                      const ReadCB& read_cb) {
   DCHECK_GE(position, 0);
   DCHECK_GE(size, 0);
+
+  if (position < 0 || size < 0) {
+    read_cb.Run(kInvalidSize);
+    return;
+  }
 
   base::AutoLock auto_lock(lock_);
   Read_Locked(static_cast<uint64>(position), static_cast<uint64>(size), data,
@@ -206,11 +221,13 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
   }
 
   // If we are overflow, remove some data from the front of the buffer_.
-  if (buffer_.GetLength() + size > kBufferCapacity) {
+  if (buffer_.GetLength() + size > buffer_.GetMaxCapacity()) {
     size_t bytes_skipped;
-    buffer_.Skip(buffer_.GetLength() + size - kBufferCapacity, &bytes_skipped);
-    // "+ 0" converts kBufferCapacity into a r-value to avoid link error.
-    DCHECK_EQ(buffer_.GetLength() + size, kBufferCapacity + 0);
+    buffer_.Skip(buffer_.GetLength() + size - buffer_.GetMaxCapacity(),
+                 &bytes_skipped);
+    // "+ 0" converts buffer_.GetMaxCapacity() into a r-value to avoid link
+    // error.
+    DCHECK_EQ(buffer_.GetLength() + size, buffer_.GetMaxCapacity() + 0);
     buffer_offset_ += bytes_skipped;
   }
 
@@ -360,14 +377,24 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
   // Now we have to issue a new fetch and we no longer care about the range
   // of the current fetch in progress if there is any.  Ideally the request
   // range starts at |last_read_position_ - kBackwardBytes| with length of
-  // kBufferCapacity.
+  // buffer_.GetMaxCapacity().
   if (last_read_position_ > kBackwardBytes) {
     last_request_offset_ = last_read_position_ - kBackwardBytes;
   } else {
     last_request_offset_ = 0;
   }
 
-  last_request_size_ = kBufferCapacity;
+  size_t required_size =
+      last_read_position_ - last_request_offset_ + pending_read_size_;
+  if (required_size > buffer_.GetMaxCapacity()) {
+    // The capacity of the current buffer is not large enough to hold the
+    // pending read.
+    size_t new_capacity =
+        std::max<size_t>(buffer_.GetMaxCapacity() * 2, required_size);
+    buffer_.IncreaseMaxCapacityTo(new_capacity);
+  }
+
+  last_request_size_ = buffer_.GetMaxCapacity();
 
   if (last_request_offset_ >= buffer_offset_ &&
       last_request_offset_ <= buffer_offset_ + buffer_.GetLength()) {

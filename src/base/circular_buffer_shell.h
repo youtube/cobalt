@@ -17,8 +17,8 @@ class BASE_EXPORT CircularBufferShell {
  public:
   enum ReserveType { kDoNotReserve, kReserve };
 
-  CircularBufferShell(size_t max_capacity,
-                      ReserveType reserve_type = kDoNotReserve);
+  explicit CircularBufferShell(size_t max_capacity,
+                               ReserveType reserve_type = kDoNotReserve);
   ~CircularBufferShell();
 
   // Clears out all data in the buffer, releasing any allocated memory.
@@ -53,16 +53,23 @@ class BASE_EXPORT CircularBufferShell {
   // Returns the length of the data left in the buffer to read.
   size_t GetLength() const;
 
+  // Returns the maximum capacity this circular buffer can grow to.
+  size_t GetMaxCapacity() const;
+
+  // Increase the max capacity to |new_max_capacity| which has to be greater
+  // than the previous one.  The content of the class will be kept.
+  void IncreaseMaxCapacityTo(size_t new_max_capacity);
+
  private:
   // Ensures that there is enough capacity to write length bytes to the
   // buffer. Returns false if it was unable to ensure that capacity due to an
   // allocation error, or if it would surpass the configured maximum capacity.
-  bool EnsureCapacityToWrite(size_t length);
+  bool EnsureCapacityToWrite_Locked(size_t length);
 
   // Increases the capacity to the given absolute size in bytes. Returns false
   // if there was an allocation error, or it would surpass the configured
   // maximum capacity.
-  bool IncreaseCapacityTo(size_t capacity);
+  bool IncreaseCapacityTo_Locked(size_t capacity);
 
   // Private workhorse for Read without the parameter validation or locking.
   // When |destination| is NULL, it purely calculates the the bytes that would
@@ -71,24 +78,24 @@ class BASE_EXPORT CircularBufferShell {
   // length.  It is caller's responsibility to adjust |read_position_| and
   // |length_| according to the return value, which is the actual number of
   // bytes read.
-  void ReadUnchecked(void* destination,
-                     size_t destination_length,
-                     size_t source_offset,
-                     size_t* bytes_read) const;
+  void ReadUnchecked_Locked(void* destination,
+                            size_t destination_length,
+                            size_t source_offset,
+                            size_t* bytes_read) const;
 
   // The same the as above functions except that it also advance the
   // |read_position_| and adjust the |length_| accordingly.
-  void ReadAndAdvanceUnchecked(void* destination,
-                               size_t destination_length,
-                               size_t* bytes_read);
+  void ReadAndAdvanceUnchecked_Locked(void* destination,
+                                      size_t destination_length,
+                                      size_t* bytes_read);
 
   // Gets a pointer to the current write position.
-  void* GetWritePointer() const;
+  void* GetWritePointer_Locked() const;
 
   // Gets the current write position.
-  size_t GetWritePosition() const;
+  size_t GetWritePosition_Locked() const;
 
-  const size_t max_capacity_;
+  size_t max_capacity_;
   void* buffer_;
   size_t capacity_;
   size_t length_;

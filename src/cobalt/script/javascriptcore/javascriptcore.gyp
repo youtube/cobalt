@@ -67,6 +67,11 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
       ],
+      'all_dependent_settings': {
+        'defines': [
+          'ENGINE_DEFINES_ATTRIBUTES_ON_OBJECT',
+        ],
+      },
       'msvs_disabled_warnings': [
         # dll-interface warnings. Not easily fixed for template types.
         4251,

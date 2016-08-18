@@ -76,7 +76,7 @@
         '<(DEPTH)/base/base.gyp:base',
       ],
       'conditions': [
-        ['OS != "starboard" or target_arch == "ps4"', {
+        ['OS != "starboard"', {
           'includes': [
             'copy_i18n_data.gypi',
           ],
@@ -107,7 +107,7 @@
       'variables': {
         'executable_name': 'base_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

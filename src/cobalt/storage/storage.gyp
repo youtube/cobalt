@@ -89,7 +89,7 @@
       'variables': {
         'executable_name': 'storage_test',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

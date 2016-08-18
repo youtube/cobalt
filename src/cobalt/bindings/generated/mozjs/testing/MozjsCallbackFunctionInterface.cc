@@ -30,14 +30,20 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -55,6 +61,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -65,7 +72,9 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -78,6 +87,37 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+class MozjsCallbackFunctionInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsCallbackFunctionInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsCallbackFunctionInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsCallbackFunctionInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsCallbackFunctionInterfaceHandler>
+    proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -115,7 +155,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "CallbackFunctionInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -133,18 +174,21 @@ JSBool get_callbackAttribute(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
-  TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType value =
-      impl->callback_attribute();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->callback_attribute(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_callbackAttribute(
@@ -152,18 +196,21 @@ JSBool set_callbackAttribute(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+
   impl->set_callback_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableCallbackAttribute(
@@ -171,18 +218,21 @@ JSBool get_nullableCallbackAttribute(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
-  TypeTraits<CallbackFunctionInterface::VoidFunction >::ReturnType value =
-      impl->nullable_callback_attribute();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->nullable_callback_attribute(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableCallbackAttribute(
@@ -190,25 +240,26 @@ JSBool set_nullableCallbackAttribute(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+
   impl->set_nullable_callback_attribute(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionThatReturnsString(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -221,37 +272,41 @@ JSBool fcn_takesFunctionThatReturnsString(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionThatReturnsString >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+
   impl->TakesFunctionThatReturnsString(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionWithNullableParameters(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -264,37 +319,41 @@ JSBool fcn_takesFunctionWithNullableParameters(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionWithNullableParameters >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+
   impl->TakesFunctionWithNullableParameters(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionWithOneParameter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -307,37 +366,41 @@ JSBool fcn_takesFunctionWithOneParameter(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionWithOneParameter >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+
   impl->TakesFunctionWithOneParameter(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesFunctionWithSeveralParameters(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -350,37 +413,41 @@ JSBool fcn_takesFunctionWithSeveralParameters(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::FunctionWithSeveralParameters >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+
   impl->TakesFunctionWithSeveralParameters(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_takesVoidFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -393,30 +460,36 @@ JSBool fcn_takesVoidFunction(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  CallbackFunctionInterface* impl =
+      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ConversionType cb;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      kNoConversionFlags, &exception_state, &cb);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &cb);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  CallbackFunctionInterface* impl =
-      WrapperPrivate::GetWrappable<CallbackFunctionInterface>(object);
+
   impl->TakesVoidFunction(cb);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
@@ -479,6 +552,10 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -498,7 +575,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -518,8 +596,9 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "CallbackFunctionInterface";
-  name_value.setString(JS_NewStringCopyZ(context, "CallbackFunctionInterface"));
+  const char name[] =
+      "CallbackFunctionInterface";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
@@ -528,8 +607,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -561,7 +645,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsCallbackFunctionInterface::CreateInstance(
+JSObject* MozjsCallbackFunctionInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -569,8 +653,19 @@ JSObject* MozjsCallbackFunctionInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
+}
+
+//static
+const JSClass* MozjsCallbackFunctionInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static

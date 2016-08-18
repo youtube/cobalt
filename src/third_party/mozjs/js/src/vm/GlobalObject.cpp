@@ -480,6 +480,19 @@ GlobalObject::initStandardClasses(JSContext *cx, Handle<GlobalObject*> global)
            true;
 }
 
+#if defined(COBALT)
+/* static */ bool
+GlobalObject::isRuntimeCodeGenEnabled(JSContext *cx, Handle<GlobalObject*> global)
+{
+    /*
+     * For Cobalt, do not cache the value. Allow the callback to be triggered
+     * every time so we can do proper CSP reporting.
+     */
+    JSCSPEvalChecker allows = cx->runtime()->securityCallbacks->contentSecurityPolicyAllows;
+    return !allows || allows(cx);
+}
+#else
+
 /* static */ bool
 GlobalObject::isRuntimeCodeGenEnabled(JSContext *cx, Handle<GlobalObject*> global)
 {
@@ -495,6 +508,7 @@ GlobalObject::isRuntimeCodeGenEnabled(JSContext *cx, Handle<GlobalObject*> globa
     }
     return !v.isFalse();
 }
+#endif
 
 JSFunction *
 GlobalObject::createConstructor(JSContext *cx, Native ctor, JSAtom *nameArg, unsigned length,

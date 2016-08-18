@@ -64,6 +64,11 @@
           '<@(common_jit_defines)',
         ],
       }],
+      [ 'use_asan == 1', {
+        'defines': [
+          'MOZ_ASAN',
+        ],
+      }],
     ],
   },
   'targets': [

@@ -30,8 +30,8 @@
         '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_device_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_path.cc',
-        '<(DEPTH)/starboard/linux/shared/system_get_property.cc',
         '<(DEPTH)/starboard/linux/shared/system_has_capability.cc',
+        '<(DEPTH)/starboard/raspi/1/system_get_property.cc',
         '<(DEPTH)/starboard/raspi/shared/application_dispmanx.cc',
         '<(DEPTH)/starboard/raspi/shared/main.cc',
         '<(DEPTH)/starboard/raspi/shared/window_create.cc',
@@ -268,6 +268,8 @@
         '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
+        '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

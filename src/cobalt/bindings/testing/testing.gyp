@@ -104,6 +104,7 @@
         'exceptions_interface.cc',
         'named_constructor_interface.cc',
         'operations_test_interface.cc',
+        'put_forwards_interface.cc',
         'static_properties_interface.cc',
       ],
       'defines': [ '<@(bindings_defines)'],
@@ -165,7 +166,7 @@
       'variables': {
         'executable_name': 'bindings_test',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
 
     {
@@ -192,7 +193,7 @@
       'variables': {
         'executable_name': 'bindings_sandbox',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
     },
   ],
 }

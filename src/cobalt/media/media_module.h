@@ -31,6 +31,7 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_frame_provider.h"
+#include "media/filters/shell_video_decoder_impl.h"
 #include "media/player/web_media_player_delegate.h"
 
 namespace cobalt {
@@ -63,6 +64,12 @@ class MediaModule : public WebMediaPlayerFactory,
     UNREFERENCED_PARAMETER(value);
     return false;
   }
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  virtual ::media::ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
+    return NULL;
+  }
+#endif  // !defined(COBALT_RELEASE)
 
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.

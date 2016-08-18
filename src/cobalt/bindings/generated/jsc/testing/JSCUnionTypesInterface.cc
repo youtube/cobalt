@@ -29,7 +29,9 @@
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "JSCArbitraryInterface.h"
+#include "JSCBaseInterface.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
+#include "cobalt/bindings/testing/base_interface.h"
 
 #include "cobalt/script/javascriptcore/constructor_base.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
@@ -56,7 +58,9 @@ namespace {
 using cobalt::bindings::testing::UnionTypesInterface;
 using cobalt::bindings::testing::JSCUnionTypesInterface;
 using cobalt::bindings::testing::ArbitraryInterface;
+using cobalt::bindings::testing::BaseInterface;
 using cobalt::bindings::testing::JSCArbitraryInterface;
+using cobalt::bindings::testing::JSCBaseInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalObjectProxy;
 using cobalt::script::OpaqueHandle;
@@ -120,6 +124,14 @@ JSC::JSValue getJSnullableUnionProperty(
     JSC::JSValue slot_base,
     JSC::PropertyName property_name);
 void setJSnullableUnionProperty(
+    JSC::ExecState* exec,
+    JSC::JSObject* this_object,
+    JSC::JSValue value);
+JSC::JSValue getJSunionBaseProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
+void setJSunionBaseProperty(
     JSC::ExecState* exec,
     JSC::JSObject* this_object,
     JSC::JSValue value);
@@ -449,13 +461,19 @@ const JSC::HashTableValue JSCUnionTypesInterface::property_table_values[] = {
         reinterpret_cast<intptr_t>(setJSnullableUnionProperty),
         JSC::NoIntrinsic
     },
+    { "unionBaseProperty",
+        JSC::DontDelete ,
+        reinterpret_cast<intptr_t>(getJSunionBaseProperty),
+        reinterpret_cast<intptr_t>(setJSunionBaseProperty),
+        JSC::NoIntrinsic
+    },
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCUnionTypesInterface::property_table_values
 
 // static
 const JSC::HashTable JSCUnionTypesInterface::property_table_prototype = {
-    10,  // compactSize
-    7,  // compactSizeMask
+    19,  // compactSize
+    15,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
 };  // JSCUnionTypesInterface::property_table_prototype
@@ -794,6 +812,52 @@ void setJSnullableUnionProperty(
   // Check if argument conversion raised an exception.
   if (!exec_state->hadException()) {
     impl->set_nullable_union_property(cobalt_value);
+  }
+}
+
+JSC::JSValue getJSunionBaseProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCUnionTypesInterface", "get unionBaseProperty");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  UnionTypesInterface* impl =
+      GetWrappableOrSetException<UnionTypesInterface>(exec_state, slot_base);
+  if (!impl) {
+    return exec_state->exception();
+  }
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      impl->union_base_property());
+  return result;
+}
+
+void setJSunionBaseProperty(
+    JSC::ExecState* exec_state,
+    JSC::JSObject* this_object,
+    JSC::JSValue value) {
+  TRACE_EVENT0("JSCUnionTypesInterface", "set unionBaseProperty");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  UnionTypesInterface* impl =
+      GetWrappableOrSetException<UnionTypesInterface>(exec_state, this_object);
+  if (!impl) {
+    return;
+  }
+  TypeTraits<script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ConversionType cobalt_value;
+  FromJSValue(exec_state, value,
+      kNoConversionFlags, &exception_state,
+      &cobalt_value);
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return;
+  }
+  // Check if argument conversion raised an exception.
+  if (!exec_state->hadException()) {
+    impl->set_union_base_property(cobalt_value);
   }
 }
 JSC::JSValue NamedPropertyGetter(JSC::ExecState* exec_state,

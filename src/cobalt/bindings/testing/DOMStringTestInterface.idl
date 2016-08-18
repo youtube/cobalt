@@ -17,6 +17,7 @@
 interface DOMStringTestInterface {
   attribute DOMString property;
   readonly attribute DOMString readOnlyProperty;
+  readonly attribute DOMString readOnlyTokenProperty;
   [TreatNullAs=EmptyString] attribute DOMString nullIsEmptyProperty;
   [TreatUndefinedAs=EmptyString] attribute DOMString undefinedIsEmptyProperty;
   [TreatUndefinedAs=EmptyString] attribute DOMString? nullableUndefinedIsEmptyProperty;

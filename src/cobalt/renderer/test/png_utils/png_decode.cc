@@ -184,6 +184,7 @@ PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
         case render_tree::kPixelFormatY8:
         case render_tree::kPixelFormatU8:
         case render_tree::kPixelFormatV8:
+        case render_tree::kPixelFormatUV8:
         case render_tree::kPixelFormatInvalid: {
           NOTREACHED();
         }
@@ -202,6 +203,7 @@ PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
         case render_tree::kPixelFormatY8:
         case render_tree::kPixelFormatU8:
         case render_tree::kPixelFormatV8:
+        case render_tree::kPixelFormatUV8:
         case render_tree::kPixelFormatInvalid: {
           NOTREACHED();
         }

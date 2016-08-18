@@ -30,14 +30,20 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -55,6 +61,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -65,7 +72,9 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -78,6 +87,37 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+class MozjsNullableTypesTestInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsNullableTypesTestInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsNullableTypesTestInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsNullableTypesTestInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsNullableTypesTestInterfaceHandler>
+    proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -115,7 +155,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "NullableTypesTestInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -133,18 +174,21 @@ JSBool get_nullableBooleanProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<base::optional<bool > >::ReturnType value =
-      impl->nullable_boolean_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->nullable_boolean_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableBooleanProperty(
@@ -152,18 +196,21 @@ JSBool set_nullableBooleanProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<bool > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->set_nullable_boolean_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableNumericProperty(
@@ -171,18 +218,21 @@ JSBool get_nullableNumericProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<base::optional<int32_t > >::ReturnType value =
-      impl->nullable_numeric_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->nullable_numeric_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableNumericProperty(
@@ -190,18 +240,21 @@ JSBool set_nullableNumericProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<int32_t > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->set_nullable_numeric_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableStringProperty(
@@ -209,18 +262,21 @@ JSBool get_nullableStringProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<base::optional<std::string > >::ReturnType value =
-      impl->nullable_string_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->nullable_string_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableStringProperty(
@@ -228,18 +284,21 @@ JSBool set_nullableStringProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<base::optional<std::string > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->set_nullable_string_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableObjectProperty(
@@ -247,18 +306,21 @@ JSBool get_nullableObjectProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
-      impl->nullable_object_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->nullable_object_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableObjectProperty(
@@ -266,25 +328,26 @@ JSBool set_nullableObjectProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->set_nullable_object_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableBooleanArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -297,37 +360,41 @@ JSBool fcn_nullableBooleanArgument(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<base::optional<bool > >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->NullableBooleanArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableBooleanOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -340,27 +407,28 @@ JSBool fcn_nullableBooleanOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<base::optional<bool > >::ReturnType value =
-      impl->NullableBooleanOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->NullableBooleanOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableNumericArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -373,37 +441,41 @@ JSBool fcn_nullableNumericArgument(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<base::optional<int32_t > >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->NullableNumericArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableNumericOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -416,27 +488,28 @@ JSBool fcn_nullableNumericOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<base::optional<int32_t > >::ReturnType value =
-      impl->NullableNumericOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->NullableNumericOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableObjectArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -449,37 +522,41 @@ JSBool fcn_nullableObjectArgument(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->NullableObjectArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableObjectOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -492,27 +569,28 @@ JSBool fcn_nullableObjectOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<scoped_refptr<ArbitraryInterface> >::ReturnType value =
-      impl->NullableObjectOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->NullableObjectOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableStringArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -525,37 +603,41 @@ JSBool fcn_nullableStringArgument(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  NullableTypesTestInterface* impl =
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
     exception_state.SetSimpleException(
         script::ExceptionState::kTypeError, "Not enough arguments.");
     return false;
   }
+  // Non-optional arguments
   TypeTraits<base::optional<std::string > >::ConversionType arg;
+
   DCHECK_LT(0, args.length());
-  FromJSValue(context, args.handleAt(0),
-      (kConversionFlagNullable), &exception_state, &arg);
-  if (exception_state.IsExceptionSet()) {
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagNullable),
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
+
   impl->NullableStringArgument(arg);
   result_value.set(JS::UndefinedHandleValue);
-
-  if (!exception_state.IsExceptionSet()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool fcn_nullableStringOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
   JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
   // 'this' should be an object.
@@ -568,20 +650,23 @@ JSBool fcn_nullableStringOperation(
     NOTREACHED();
     return false;
   }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
 
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
-      WrapperPrivate::GetWrappable<NullableTypesTestInterface>(object);
-  TypeTraits<base::optional<std::string > >::ReturnType value =
-      impl->NullableStringOperation();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
+      wrapper_private->wrappable<NullableTypesTestInterface>().get();
 
-  if (!exception_state.IsExceptionSet()) {
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->NullableStringOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     args.rval().set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
@@ -677,6 +762,10 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -696,7 +785,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -716,8 +806,9 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "NullableTypesTestInterface";
-  name_value.setString(JS_NewStringCopyZ(context, "NullableTypesTestInterface"));
+  const char name[] =
+      "NullableTypesTestInterface";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
@@ -726,8 +817,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -759,7 +855,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsNullableTypesTestInterface::CreateInstance(
+JSObject* MozjsNullableTypesTestInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -767,8 +863,19 @@ JSObject* MozjsNullableTypesTestInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
+}
+
+//static
+const JSClass* MozjsNullableTypesTestInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static

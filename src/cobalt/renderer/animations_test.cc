@@ -38,17 +38,58 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
+scoped_refptr<Image> CreateDummyImage(ResourceProvider* resource_provider) {
+  // Initialize the image data and store a predictable, testable pattern
+  // of image data into it.
+  math::Size image_size(16, 16);
+
+  int rgba_mapping[4] = {0, 1, 2, 3};
+  render_tree::PixelFormat pixel_format = render_tree::kPixelFormatInvalid;
+  if (resource_provider->PixelFormatSupported(render_tree::kPixelFormatRGBA8)) {
+    pixel_format = render_tree::kPixelFormatRGBA8;
+  } else if (resource_provider->PixelFormatSupported(
+                 render_tree::kPixelFormatBGRA8)) {
+    pixel_format = render_tree::kPixelFormatBGRA8;
+    rgba_mapping[0] = 2;
+    rgba_mapping[2] = 0;
+  } else {
+    NOTREACHED() << "Unsupported pixel format.";
+  }
+
+  scoped_ptr<render_tree::ImageData> image_data =
+      resource_provider->AllocateImageData(
+          image_size, pixel_format, render_tree::kAlphaFormatPremultiplied);
+  for (int i = 0; i < image_size.width() * image_size.height(); ++i) {
+    image_data->GetMemory()[i * 4 + rgba_mapping[0]] = 1;
+    image_data->GetMemory()[i * 4 + rgba_mapping[1]] = 2;
+    image_data->GetMemory()[i * 4 + rgba_mapping[2]] = 3;
+    image_data->GetMemory()[i * 4 + rgba_mapping[3]] = 255;
+  }
+
+  // Create and return the new image.
+  return resource_provider->CreateImage(image_data.Pass());
+}
+
 void AnimateImageNode(base::WaitableEvent* animate_has_started,
                       base::WaitableEvent* image_ready,
-                      scoped_refptr<Image>* image,
+                      scoped_refptr<Image>* image, bool* first_animate,
                       ImageNode::Builder* image_node, base::TimeDelta time) {
   UNREFERENCED_PARAMETER(time);
+
+  if (!*first_animate) {
+    // We only do the test the first time this animation runs, ignore the
+    // subsequent animate calls.
+    return;
+  }
+  *first_animate = false;
 
   // Time to animate the image!  First signal that we are in the animation
   // callback which will prompt the CreateImageThread to create the image.
   animate_has_started->Signal();
   // Wait for the CreateImageThread to finish creating the image.
   image_ready->Wait();
+
+  DCHECK(*image);
 
   // Animate the image node by setting its image to the newly created image.
   image_node->source = *image;
@@ -75,35 +116,9 @@ class CreateImageThread : public base::SimpleThread {
     // animation callback.
     animate_has_started_->Wait();
 
-    // Initialize the image data and store a predictable, testable pattern
-    // of image data into it.
-    math::Size image_size(16, 16);
+    *image_ = CreateDummyImage(resource_provider_);
 
-    int rgba_mapping[4] = {0, 1, 2, 3};
-    render_tree::PixelFormat pixel_format = render_tree::kPixelFormatInvalid;
-    if (resource_provider_->PixelFormatSupported(
-            render_tree::kPixelFormatRGBA8)) {
-      pixel_format = render_tree::kPixelFormatRGBA8;
-    } else if (resource_provider_->PixelFormatSupported(
-                   render_tree::kPixelFormatBGRA8)) {
-      pixel_format = render_tree::kPixelFormatBGRA8;
-      rgba_mapping[0] = 2;
-      rgba_mapping[2] = 0;
-    } else {
-      NOTREACHED() << "Unsupported pixel format.";
-    }
-
-    scoped_ptr<render_tree::ImageData> image_data =
-        resource_provider_->AllocateImageData(
-            image_size, pixel_format, render_tree::kAlphaFormatPremultiplied);
-    for (int i = 0; i < image_size.width() * image_size.height(); ++i) {
-      image_data->GetMemory()[i * 4 + rgba_mapping[0]] = 1;
-      image_data->GetMemory()[i * 4 + rgba_mapping[1]] = 2;
-      image_data->GetMemory()[i * 4 + rgba_mapping[2]] = 3;
-      image_data->GetMemory()[i * 4 + rgba_mapping[3]] = 255;
-    }
-    // Create the new image.
-    *image_ = resource_provider_->CreateImage(image_data.Pass());
+    DCHECK(*image_);
 
     // Signal to the animation callback that it can now reference the newly
     // created image.
@@ -139,7 +154,8 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
   scoped_refptr<backend::RenderTarget> dummy_output_surface =
       graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
 
-  {
+  const int kNumTestTrials = 5;
+  for (int i = 0; i < kNumTestTrials; ++i) {
     // Setup some synchronization objects so we can ensure the image is created
     // while the animation callback is being executed, and also that the image
     // is referenced only after it is created.  It is important that these
@@ -153,19 +169,21 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
     RendererModule::Options render_module_options;
     Pipeline pipeline(
         base::Bind(render_module_options.create_rasterizer_function,
-                   graphics_context.get()),
+                   graphics_context.get(), render_module_options),
         dummy_output_surface, NULL);
 
     // Our test render tree will consist of only a single ImageNode.
-    scoped_refptr<ImageNode> test_node =
-        new ImageNode(scoped_refptr<Image>(), math::RectF(1.0f, 1.0f));
+    scoped_refptr<ImageNode> test_node = new ImageNode(
+        scoped_refptr<Image>(CreateDummyImage(pipeline.GetResourceProvider())),
+        math::RectF(1.0f, 1.0f));
 
     // Animate the ImageNode and pass in our callback function to be executed
     // upon render_tree animation.
     NodeAnimationsMap::Builder animations;
+    bool first_animate = true;
     animations.Add(test_node,
                    base::Bind(&AnimateImageNode, &animate_has_started,
-                              &image_ready, &image));
+                              &image_ready, &image, &first_animate));
 
     // Setup a separate thread to be responsible for creating the image, so that
     // we can guarantee that this operation will occur on a separate thread.

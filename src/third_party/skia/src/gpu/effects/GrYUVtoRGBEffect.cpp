@@ -19,22 +19,26 @@ class YUVtoRGBEffect : public GrFragmentProcessor {
 public:
     static GrFragmentProcessor* Create(GrTexture* yTexture, GrTexture* uTexture,
                                        GrTexture* vTexture, const GrTextureParams& params,
-                                       SkYUVColorSpace colorSpace) {
+                                       SkYUVColorSpace colorSpace, bool nv12) {
         return SkNEW_ARGS(YUVtoRGBEffect,
                 (yTexture, uTexture, vTexture,
                  GrCoordTransform::MakeDivByTextureWHMatrix(yTexture),
-                 params, colorSpace));
+                 params, colorSpace, nv12));
     }
 
     static GrFragmentProcessor* Create(GrTexture* yTexture, GrTexture* uTexture,
                                        GrTexture* vTexture, const SkMatrix& localMatrix,
                                        const GrTextureParams& params,
-                                       SkYUVColorSpace colorSpace) {
+                                       SkYUVColorSpace colorSpace, bool nv12) {
         return SkNEW_ARGS(YUVtoRGBEffect, (yTexture, uTexture, vTexture, localMatrix,
-                                           params, colorSpace));
+                                           params, colorSpace, nv12));
     }
 
     static const char* Name() { return "YUV to RGB"; }
+
+    bool isNV12() const {
+        return fNV12;
+    }
 
     virtual const GrBackendFragmentProcessorFactory& getFactory() const SK_OVERRIDE {
         return GrTBackendFragmentProcessorFactory<YUVtoRGBEffect>::getInstance();
@@ -66,13 +70,14 @@ public:
         }
 
         virtual void emitCode(GrGLProgramBuilder* builder,
-                              const GrFragmentProcessor&,
+                              const GrFragmentProcessor& effect,
                               const GrProcessorKey&,
                               const char* outputColor,
                               const char* inputColor,
                               const TransformedCoordsArray& coords,
                               const TextureSamplerArray& samplers) SK_OVERRIDE {
             GrGLFragmentShaderBuilder* fsBuilder = builder->getFragmentShaderBuilder();
+            const YUVtoRGBEffect& yuvEffect = effect.cast<YUVtoRGBEffect>();
 
             const char* yuvMatrix   = NULL;
             fMatrixUni = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
@@ -82,9 +87,14 @@ public:
             fsBuilder->appendTextureLookup(samplers[0], coords[0].c_str(), coords[0].getType());
             fsBuilder->codeAppend(".r,\n\t\t");
             fsBuilder->appendTextureLookup(samplers[1], coords[0].c_str(), coords[0].getType());
-            fsBuilder->codeAppend(".r,\n\t\t");
-            fsBuilder->appendTextureLookup(samplers[2], coords[0].c_str(), coords[0].getType());
-            fsBuilder->codeAppendf(".r,\n\t\t1.0) * %s;\n", yuvMatrix);
+            if (yuvEffect.fNV12) {
+                fsBuilder->codeAppend(".ba,\n\t\t");
+            } else {
+                fsBuilder->codeAppend(".r,\n\t\t");
+                fsBuilder->appendTextureLookup(samplers[2], coords[0].c_str(), coords[0].getType());
+                fsBuilder->codeAppendf(".r,\n\t\t");
+            }
+            fsBuilder->codeAppendf("1.0) * %s;\n", yuvMatrix);
         }
 
         virtual void setData(const GrGLProgramDataManager& pdman,
@@ -113,16 +123,19 @@ private:
     YUVtoRGBEffect(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
                    const SkMatrix& localMatrix,
                    const GrTextureParams& params,
-                   SkYUVColorSpace colorSpace)
+                   SkYUVColorSpace colorSpace, bool nv12)
      : fCoordTransform(kLocal_GrCoordSet, localMatrix, yTexture)
     , fYAccess(yTexture, params)
     , fUAccess(uTexture, params)
-    , fVAccess(vTexture, params)
-    , fColorSpace(colorSpace) {
+    , fColorSpace(colorSpace)
+    , fNV12(nv12) {
         this->addCoordTransform(&fCoordTransform);
         this->addTextureAccess(&fYAccess);
         this->addTextureAccess(&fUAccess);
-        this->addTextureAccess(&fVAccess);
+        if (!fNV12) {
+          fVAccess.reset(vTexture, params);
+          this->addTextureAccess(&fVAccess);
+        }
         this->setWillNotUseInputColor();
     }
 
@@ -131,7 +144,8 @@ private:
         return fYAccess.getTexture() == s.fYAccess.getTexture() &&
                fUAccess.getTexture() == s.fUAccess.getTexture() &&
                fVAccess.getTexture() == s.fVAccess.getTexture() &&
-               fColorSpace == s.getColorSpace();
+               fColorSpace == s.getColorSpace() &&
+               fNV12 == s.isNV12();
     }
 
     GrCoordTransform fCoordTransform;
@@ -139,6 +153,7 @@ private:
     GrTextureAccess fUAccess;
     GrTextureAccess fVAccess;
     SkYUVColorSpace fColorSpace;
+    bool fNV12;
 
     typedef GrFragmentProcessor INHERITED;
 };
@@ -169,26 +184,26 @@ const GrGLfloat YUVtoRGBEffect::GLProcessor::kRec709ConversionMatrix[16] = {
 
 GrFragmentProcessor*
 GrYUVtoRGBEffect::Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
-                         SkYUVColorSpace colorSpace) {
-    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, GrTextureParams(), colorSpace);
+                         SkYUVColorSpace colorSpace, bool nv12) {
+    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, GrTextureParams(), colorSpace, nv12);
 }
 
 GrFragmentProcessor*
 GrYUVtoRGBEffect::Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
                          const SkMatrix& localMatrix,
-                         SkYUVColorSpace colorSpace) {
-    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, localMatrix, GrTextureParams(), colorSpace);
+                         SkYUVColorSpace colorSpace, bool nv12) {
+    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, localMatrix, GrTextureParams(), colorSpace, nv12);
 }
 
 GrFragmentProcessor*
 GrYUVtoRGBEffect::Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
-                         const GrTextureParams& params, SkYUVColorSpace colorSpace) {
-    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, params, colorSpace);
+                         const GrTextureParams& params, SkYUVColorSpace colorSpace, bool nv12) {
+    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, params, colorSpace, nv12);
 }
 
 GrFragmentProcessor*
 GrYUVtoRGBEffect::Create(GrTexture* yTexture, GrTexture* uTexture, GrTexture* vTexture,
                          const SkMatrix& localMatrix, const GrTextureParams& params,
-                         SkYUVColorSpace colorSpace) {
-    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, localMatrix, params, colorSpace);
+                         SkYUVColorSpace colorSpace, bool nv12) {
+    return YUVtoRGBEffect::Create(yTexture, uTexture, vTexture, localMatrix, params, colorSpace, nv12);
 }

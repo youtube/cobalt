@@ -35,12 +35,12 @@ class MozjsWrapperHandle : public Wrappable::WeakWrapperHandle {
     weak_wrapper_private_ = wrapper_private->AsWeakPtr();
   }
 
-  static JSObject* GetJSObject(const Wrappable::WeakWrapperHandle* handle) {
+  static JSObject* GetObjectProxy(const Wrappable::WeakWrapperHandle* handle) {
     if (handle) {
       const MozjsWrapperHandle* mozjs_handle =
           base::polymorphic_downcast<const MozjsWrapperHandle*>(handle);
       if (mozjs_handle->weak_wrapper_private_) {
-        return mozjs_handle->weak_wrapper_private_->js_object();
+        return mozjs_handle->weak_wrapper_private_->js_object_proxy();
       }
     }
     return NULL;

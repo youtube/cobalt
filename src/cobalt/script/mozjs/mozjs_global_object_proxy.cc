@@ -184,8 +184,9 @@ void MozjsGlobalObjectProxy::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_comparment(context_, global_object_);
-  JS::RootedObject wrapper(context_, wrapper_factory_->GetWrapper(impl));
-  JS::Value wrapper_value = JS::ObjectValue(*wrapper.get());
+  JS::RootedObject wrapper_proxy(context_,
+                                 wrapper_factory_->GetWrapperProxy(impl));
+  JS::Value wrapper_value = OBJECT_TO_JSVAL(wrapper_proxy);
   bool success = JS_SetProperty(context_, global_object_, identifier.c_str(),
                                 &wrapper_value);
   DCHECK(success);

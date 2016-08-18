@@ -28,22 +28,32 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-// This SkiaHardwareRasterizer class represents a rasterizer that will setup
+// This HardwareRasterizer class represents a rasterizer that will setup
 // a Skia hardware rendering context.  When Submit() is called, the passed in
 // render tree will be rasterized using hardware-accelerated Skia.  The
-// SkiaHardwareRasterizer must be constructed on the same thread that Submit()
+// HardwareRasterizer must be constructed on the same thread that Submit()
 // is to be called on.
-class SkiaHardwareRasterizer : public Rasterizer {
+class HardwareRasterizer : public Rasterizer {
  public:
   // The passed in render target will be used to determine the dimensions of
   // the output.  The graphics context will be used to issue commands to the GPU
-  // to blit the final output to the render target.  If |surface_cache_size| is
-  // non-zero, the rasterizer will set itself up with a surface cache such that
-  // expensive render tree nodes seen multiple times will get saved to offscreen
-  // surfaces.
-  explicit SkiaHardwareRasterizer(backend::GraphicsContext* graphics_context,
-                                  int surface_cache_size_in_bytes);
-  virtual ~SkiaHardwareRasterizer();
+  // to blit the final output to the render target.
+  // The value of |skia_cache_size_in_bytes| dictates the maximum amount of
+  // memory that Skia will use to cache the results of certain effects that take
+  // a long time to render, such as shadows.  The results will be reused across
+  // submissions.
+  // The value of |scratch_surface_cache_size_in_bytes| sets an upper limit on
+  // the number of bytes that can be consumed by the scratch surface cache,
+  // a facility that allows temporary surfaces to be reused within the
+  // rasterization of a single frame/submission.
+  // If |surface_cache_size| is non-zero, the rasterizer will set itself up with
+  // a surface cache such that expensive render tree nodes seen multiple times
+  // will get saved to offscreen surfaces.
+  explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
+                              int skia_cache_size_in_bytes,
+                              int scratch_surface_cache_size_in_bytes,
+                              int surface_cache_size_in_bytes);
+  virtual ~HardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed
   // into the constructor.

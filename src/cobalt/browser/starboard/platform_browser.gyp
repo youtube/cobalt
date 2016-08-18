@@ -19,6 +19,8 @@
       'type': 'static_library',
       'sources': [
         'application.cc',
+        'event_handler.cc',
+        'event_handler.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',

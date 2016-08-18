@@ -37,6 +37,7 @@ def idl_primitive_type_to_cobalt(idl_type):
       'short': 'int16_t',
       'unsigned short': 'uint16_t',
       'long': 'int32_t',
+      'long long': 'int64_t',
       'unsigned long': 'uint32_t',
       'unsigned long long': 'uint64_t',
       'float': 'float',
@@ -211,34 +212,83 @@ def argument_context(interface, argument):
   }
 
 
+def get_non_optional_arguments(arguments):
+  """Create non optional arguments list."""
+  return [argument for argument in arguments
+          if not argument['is_optional'] and not argument['is_variadic']]
+
+
+def get_optional_arguments(arguments):
+  """Create optional arguments list."""
+  return [argument for argument in arguments if argument['is_optional']]
+
+
+def get_num_default_arguments(optional_arguments):
+  """Return the number of default arguments."""
+  num_default_arguments = 0
+
+  for argument in optional_arguments:
+    if argument['default_value'] is not None:
+      num_default_arguments += 1
+
+  return num_default_arguments
+
+
+def get_variadic_argument(arguments):
+  """Return the variadic argument."""
+  length = len(arguments)
+
+  if length > 0 and arguments[length - 1]['is_variadic']:
+    return arguments[length - 1]
+  else:
+    return []
+
+
+def partial_context(interface, operation):
+  """Create partial template values for generating bindings."""
+  arguments = [argument_context(interface, a) for a in operation.arguments]
+  optional_arguments = get_optional_arguments(arguments)
+  num_default_arguments = get_num_default_arguments(optional_arguments)
+  return {
+      'arguments': arguments,
+      'non_optional_arguments': get_non_optional_arguments(arguments),
+      'optional_arguments': optional_arguments,
+      'num_default_arguments': num_default_arguments,
+      'variadic_argument': get_variadic_argument(arguments),
+      'has_non_default_optional_arguments': len(optional_arguments) >
+                                            num_default_arguments,
+  }
+
+
 def constructor_context(interface, constructor):
   """Create template values for generating constructor bindings."""
-  return {
-      'arguments':
-          [argument_context(interface, a) for a in constructor.arguments],
-      'call_with':
-          interface.extended_attributes.get('ConstructorCallWith', None),
-      'raises_exception':
-          (interface.extended_attributes.get('RaisesException', None)
-           == 'Constructor'),
+  context = {
+      'call_with': interface.extended_attributes.get('ConstructorCallWith',
+                                                     None),
+      'raises_exception': (interface.extended_attributes.get(
+          'RaisesException', None) == 'Constructor'),
   }
+
+  context.update(partial_context(interface, constructor))
+  return context
 
 
 def method_context(interface, operation):
   """Create template values for generating method bindings."""
-  return {
+  context = {
       'idl_name': operation.name,
       'name': capitalize_function_name(operation.name),
       'type': typed_object_to_cobalt_type(interface, operation),
       'is_static': operation.is_static,
-      'arguments':
-          [argument_context(interface, a) for a in operation.arguments],
       'call_with': operation.extended_attributes.get('CallWith', None),
       'raises_exception':
           operation.extended_attributes.has_key('RaisesException'),
       'conditional': operation.extended_attributes.get('Conditional', None),
       'unsupported': 'NotSupported' in operation.extended_attributes,
   }
+
+  context.update(partial_context(interface, operation))
+  return context
 
 
 def stringifier_context(interface):

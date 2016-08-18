@@ -18,9 +18,9 @@
 
 #include <vector>
 
-#include "base/message_loop.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/stringprintf.h"
 #include "base/time.h"
@@ -28,8 +28,8 @@
 #include "cobalt/storage/savegame.h"
 #include "cobalt/storage/savegame_fake.h"
 #include "cobalt/storage/storage_manager.h"
-#include "net/cookies/canonical_cookie.h"
 #include "googleurl/src/gurl.h"
+#include "net/cookies/canonical_cookie.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -58,7 +58,7 @@ class CallbackWaiter {
   CallbackWaiter() : was_called_event_(true, false) {}
   virtual ~CallbackWaiter() {}
   bool TimedWait() {
-    return was_called_event_.TimedWait(base::TimeDelta::FromMilliseconds(500));
+    return was_called_event_.TimedWait(base::TimeDelta::FromSeconds(5));
   }
 
  protected:
@@ -119,7 +119,6 @@ class CookieVerifier : public CallbackWaiter {
  private:
   DISALLOW_COPY_AND_ASSIGN(CookieVerifier);
 };
-
 
 std::string GetSavePath() {
   FilePath test_path;

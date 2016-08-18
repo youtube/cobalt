@@ -272,7 +272,7 @@ static GrTexture *load_yuv_texture(GrContext* ctx, bool cache, const GrTexturePa
     if (renderTarget) {
         SkAutoTUnref<GrFragmentProcessor> yuvToRgbProcessor(GrYUVtoRGBEffect::Create(
             yuvTextures[0].texture(), yuvTextures[1].texture(), yuvTextures[2].texture(),
-            colorSpace));
+            colorSpace, false));
         GrPaint paint;
         paint.addColorProcessor(yuvToRgbProcessor);
         SkRect r = SkRect::MakeWH(SkIntToScalar(yuvSizes[0].fWidth),

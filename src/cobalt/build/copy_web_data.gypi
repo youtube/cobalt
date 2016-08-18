@@ -50,14 +50,14 @@
 
 {
   'inputs': [
-    '<!@pymod_do_main(copy_data --inputs <(input_files))',
+    '<!@pymod_do_main(starboard.build.copy_data --inputs <(input_files))',
   ],
   'outputs': [
-    '<!@pymod_do_main(copy_data -o <(PRODUCT_DIR)/content/data/web/<(output_dir) --outputs <(input_files))',
+    '<!@pymod_do_main(starboard.build.copy_data -o <(PRODUCT_DIR)/content/data/web/<(output_dir) --outputs <(input_files))',
   ],
   'action': [
     'python',
-    '<(DEPTH)/cobalt/build/copy_data.py',
+    '<(DEPTH)/starboard/build/copy_data.py',
     '-o', '<(PRODUCT_DIR)/content/data/web/<(output_dir)',
     '<@(input_files)',
   ],

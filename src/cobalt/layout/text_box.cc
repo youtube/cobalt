@@ -165,6 +165,8 @@ WrapResult TextBox::TryWrapAt(WrapAtPolicy wrap_at_policy,
                               bool is_line_existence_justified,
                               LayoutUnit available_width,
                               bool should_collapse_trailing_white_space) {
+  DCHECK(!IsAbsolutelyPositioned());
+
   bool style_allows_break_word =
       computed_style()->overflow_wrap() == cssom::KeywordValue::GetBreakWord();
 
@@ -265,7 +267,7 @@ void TextBox::SetShouldCollapseTrailingWhiteSpace(
 
 bool TextBox::IsCollapsed() const {
   return !HasLeadingWhiteSpace() && !HasTrailingWhiteSpace() &&
-         !HasNonCollapsibleText() && !has_trailing_line_break_;
+         !HasNonCollapsibleText();
 }
 
 bool TextBox::HasLeadingWhiteSpace() const {

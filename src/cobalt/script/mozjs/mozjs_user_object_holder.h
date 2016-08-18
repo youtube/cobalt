@@ -19,6 +19,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/script_object.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
@@ -39,9 +40,9 @@ class MozjsUserObjectHolder
 
   MozjsUserObjectHolder() : context_(NULL), wrapper_factory_(NULL) {}
 
-  explicit MozjsUserObjectHolder(JS::HandleObject object, JSContext* context,
-                                 WrapperFactory* wrapper_factory)
-      : object_handle_(MozjsUserObjectType(object)),
+  MozjsUserObjectHolder(JS::HandleObject object, JSContext* context,
+                        WrapperFactory* wrapper_factory)
+      : object_handle_(MozjsUserObjectType(context, object)),
         context_(context),
         wrapper_factory_(wrapper_factory) {}
 

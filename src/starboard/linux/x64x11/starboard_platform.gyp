@@ -261,6 +261,8 @@
         '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
+        '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
         '<(DEPTH)/starboard/shared/x11/application_x11.cc',
         '<(DEPTH)/starboard/shared/x11/window_create.cc',
         '<(DEPTH)/starboard/shared/x11/window_destroy.cc',

@@ -59,10 +59,14 @@ void RemapPixelChannels(int source_bytes_per_pixel,
                         const uint8_t* source,
                         int num_pixels) {
   for (int i = 0; i < num_pixels; ++i) {
-    destination[0] = channel_0_source == -1 ? 0 : source[channel_0_source];
-    destination[1] = channel_1_source == -1 ? 0 : source[channel_1_source];
-    destination[2] = channel_2_source == -1 ? 0 : source[channel_2_source];
-    destination[3] = channel_3_source == -1 ? 0 : source[channel_3_source];
+    uint8_t channel_0 = channel_0_source == -1 ? 0 : source[channel_0_source];
+    uint8_t channel_1 = channel_1_source == -1 ? 0 : source[channel_1_source];
+    uint8_t channel_2 = channel_2_source == -1 ? 0 : source[channel_2_source];
+    uint8_t channel_3 = channel_3_source == -1 ? 0 : source[channel_3_source];
+    destination[0] = channel_0;
+    destination[1] = channel_1;
+    destination[2] = channel_2;
+    destination[3] = channel_3;
 
     destination += 4;
     source += source_bytes_per_pixel;
@@ -81,6 +85,9 @@ ConvertRowFunction SelectConvertRowFunction(PixelFormat destination_format,
   } else if (destination_format == kPixelFormatRGBA8 &&
       source_format == kPixelFormatARGB8) {
     return &RemapPixelChannels<1, 2, 3, 0>;
+  } else if (destination_format == kPixelFormatRGBA8 &&
+             source_format == kPixelFormatBGRA8) {
+    return &RemapPixelChannels<2, 1, 0, 3>;
   }
 
   // Only what is currently needed by dependent libraries is supported, so
@@ -90,6 +97,36 @@ ConvertRowFunction SelectConvertRowFunction(PixelFormat destination_format,
 }
 
 }  // namespace
+
+void ConvertPixelDataInplace(uint8_t* pixels,
+                             int pitch_in_bytes,
+                             PixelFormat destination_format,
+                             PixelFormat source_format,
+                             int width,
+                             int height) {
+  if (destination_format == source_format) {
+    return;
+  }
+  SB_DCHECK(BytesPerPixel(destination_format) == BytesPerPixel(source_format));
+  // The destination format is different from the source format, so we must
+  // perform a conversion between pixels.
+
+  // First select the function that will reformat the pixels, based on
+  // the destination and source pixel formats.
+  ConvertRowFunction convert_row_function =
+      SelectConvertRowFunction(destination_format, source_format);
+  SB_DCHECK(convert_row_function)
+      << "The requested pixel conversion is not yet implemented.";
+
+  // Now, iterate through each row running the selected conversion function on
+  // each one.
+  uint8_t* pixel_row = pixels;
+  for (int row = 0; row < height; ++row) {
+    convert_row_function(BytesPerPixel(source_format), pixel_row, pixel_row,
+                         width);
+    pixel_row += pitch_in_bytes;
+  }
+}
 
 void ConvertPixelData(uint8_t* destination,
                       int destination_pitch_in_bytes,

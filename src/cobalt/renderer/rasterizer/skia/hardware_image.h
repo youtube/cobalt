@@ -40,11 +40,11 @@ GrTexture* CobaltTextureToSkiaTexture(
     GrContext* gr_context, scoped_ptr<backend::TextureEGL> cobalt_texture);
 
 // Forwards ImageData methods on to TextureData methods.
-class SkiaHardwareImageData : public render_tree::ImageData {
+class HardwareImageData : public render_tree::ImageData {
  public:
-  SkiaHardwareImageData(scoped_ptr<backend::TextureDataEGL> texture_data,
-                        render_tree::PixelFormat pixel_format,
-                        render_tree::AlphaFormat alpha_format);
+  HardwareImageData(scoped_ptr<backend::TextureDataEGL> texture_data,
+                    render_tree::PixelFormat pixel_format,
+                    render_tree::AlphaFormat alpha_format);
 
   const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE;
   uint8_t* GetMemory() OVERRIDE;
@@ -56,9 +56,9 @@ class SkiaHardwareImageData : public render_tree::ImageData {
   render_tree::ImageDataDescriptor descriptor_;
 };
 
-class SkiaHardwareRawImageMemory : public render_tree::RawImageMemory {
+class HardwareRawImageMemory : public render_tree::RawImageMemory {
  public:
-  SkiaHardwareRawImageMemory(
+  HardwareRawImageMemory(
       scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory);
 
   size_t GetSizeInBytes() const OVERRIDE;
@@ -74,27 +74,28 @@ class SkiaHardwareRawImageMemory : public render_tree::RawImageMemory {
 // constructed, it also sends a message to the rasterizer's thread to have
 // a corresponding backend image object constructed with the actual image data.
 // The frontend image is what is actually returned from a call to
-// SkiaHardwareResourceProvider::CreateImage(), but the backend object is what
+// HardwareResourceProvider::CreateImage(), but the backend object is what
 // actually contains the texture data.
-class SkiaHardwareFrontendImage : public SkiaSinglePlaneImage {
+class HardwareFrontendImage : public SinglePlaneImage {
  public:
-  SkiaHardwareFrontendImage(scoped_ptr<SkiaHardwareImageData> image_data,
-                            backend::GraphicsContextEGL* cobalt_context,
-                            GrContext* gr_context,
-                            MessageLoop* rasterizer_message_loop);
-  SkiaHardwareFrontendImage(
-      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
-          raw_texture_memory,
-      intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-      MessageLoop* rasterizer_message_loop);
+  HardwareFrontendImage(scoped_ptr<HardwareImageData> image_data,
+                        backend::GraphicsContextEGL* cobalt_context,
+                        GrContext* gr_context,
+                        MessageLoop* rasterizer_message_loop);
+  HardwareFrontendImage(const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
+                            raw_texture_memory,
+                        intptr_t offset,
+                        const render_tree::ImageDataDescriptor& descriptor,
+                        backend::GraphicsContextEGL* cobalt_context,
+                        GrContext* gr_context,
+                        MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
   // This method must only be called on the rasterizer thread.  This should not
-  // be tricky to enforce since it is declared in SkiaImage, and not Image.
+  // be tricky to enforce since it is declared in skia::Image, and not Image.
   // The outside world deals only with Image objects and typically it is only
-  // the skia render tree visitor that is aware of SkiaImages.  Since the
+  // the skia render tree visitor that is aware of skia::Images.  Since the
   // skia render tree should only be visited on the rasterizer thread, this
   // restraint should always be satisfied naturally.
   const SkBitmap& GetBitmap() const OVERRIDE;
@@ -102,12 +103,12 @@ class SkiaHardwareFrontendImage : public SkiaSinglePlaneImage {
   void EnsureInitialized() OVERRIDE;
 
  private:
-  ~SkiaHardwareFrontendImage() OVERRIDE;
+  ~HardwareFrontendImage() OVERRIDE;
 
   // The following Initialize functions will construct |backend_image_|, but
   // only if |backend_image_| is ever needed by the rasterizer thread.
   void InitializeBackendImageFromImageData(
-      scoped_ptr<SkiaHardwareImageData> image_data,
+      scoped_ptr<HardwareImageData> image_data,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
   void InitializeBackendImageFromRawImageData(
       const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
@@ -121,20 +122,20 @@ class SkiaHardwareFrontendImage : public SkiaSinglePlaneImage {
 
   // We keep track of a message loop which indicates the loop upon which we
   // can issue graphics commands.  Specifically, this is the message loop
-  // where all SkiaHardwareBackendImage (described below) logic is executed
+  // where all HardwareBackendImage (described below) logic is executed
   // on.
   MessageLoop* rasterizer_message_loop_;
 
-  // The SkiaHardwareBackendImage object is where all our rasterizer thread
+  // The HardwareBackendImage object is where all our rasterizer thread
   // specific objects live, such as the backend Skia graphics reference to
   // the texture object.  These items typically must be created, accessed and
   // destroyed all on the same thread, and so this object's methods should
   // always be executed on the rasterizer thread.  It is constructed when
-  // the SkiaHardwareFrontendImage is constructed, but destroyed when
-  // a message sent by SkiaHardwareFrontendImage's destructor is received by
+  // the HardwareFrontendImage is constructed, but destroyed when
+  // a message sent by HardwareFrontendImage's destructor is received by
   // the rasterizer thread.
-  class SkiaHardwareBackendImage;
-  scoped_ptr<SkiaHardwareBackendImage> backend_image_;
+  class HardwareBackendImage;
+  scoped_ptr<HardwareBackendImage> backend_image_;
 
   // This closure binds the backend image construction parameters so that we
   // can delay construction of it until it is accessed by the rasterizer thread.
@@ -144,10 +145,10 @@ class SkiaHardwareFrontendImage : public SkiaSinglePlaneImage {
 };
 
 // Multi-plane images are implemented as collections of single plane images.
-class SkiaHardwareMultiPlaneImage : public SkiaMultiPlaneImage {
+class HardwareMultiPlaneImage : public MultiPlaneImage {
  public:
-  SkiaHardwareMultiPlaneImage(
-      scoped_ptr<SkiaHardwareRawImageMemory> raw_image_memory,
+  HardwareMultiPlaneImage(
+      scoped_ptr<HardwareRawImageMemory> raw_image_memory,
       const render_tree::MultiPlaneImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       MessageLoop* rasterizer_message_loop);
@@ -166,14 +167,14 @@ class SkiaHardwareMultiPlaneImage : public SkiaMultiPlaneImage {
   void EnsureInitialized() OVERRIDE;
 
  private:
-  ~SkiaHardwareMultiPlaneImage() OVERRIDE;
+  ~HardwareMultiPlaneImage() OVERRIDE;
 
   const math::Size size_;
 
   render_tree::MultiPlaneImageFormat format_;
 
   // We maintain a single-plane image for each plane of this multi-plane image.
-  scoped_refptr<SkiaHardwareFrontendImage>
+  scoped_refptr<HardwareFrontendImage>
       planes_[render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes];
 };
 

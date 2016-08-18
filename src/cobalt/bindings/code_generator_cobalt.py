@@ -122,6 +122,12 @@ def get_indexed_property_setter(interface):
   return setter_operation
 
 
+def get_indexed_property_deleter(interface):
+  deleter_operation = get_indexed_special_operation(interface, 'deleter')
+  assert not deleter_operation or len(deleter_operation.arguments) == 1
+  return deleter_operation
+
+
 def get_named_special_operation(interface, special):
   special_operations = list(
       operation for operation in interface.operations
@@ -471,6 +477,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         interface, get_indexed_property_getter(interface))
     context['indexed_property_setter'] = contexts.special_method_context(
         interface, get_indexed_property_setter(interface))
+    context['indexed_property_deleter'] = contexts.special_method_context(
+        interface, get_indexed_property_deleter(interface))
     context['named_property_getter'] = contexts.special_method_context(
         interface, get_named_property_getter(interface))
     context['named_property_setter'] = contexts.special_method_context(

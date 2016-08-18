@@ -165,6 +165,31 @@ void EnableUsingStubImageDecoderIfRequired() {
     loader::image::ImageDecoder::UseStubImageDecoder();
   }
 }
+
+void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
+    int32 out;
+    if (base::StringToInt32(
+            CommandLine::ForCurrentProcess()->GetSwitchValueNative(switch_name),
+            &out)) {
+      LOG(INFO) << "Command line switch '" << switch_name << "': Modifying "
+                << *output << " -> " << out;
+      *output = out;
+    } else {
+      LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
+    }
+  }
+}
+
+void ApplyCommandLineSettingsToRendererOptions(
+    renderer::RendererModule::Options* options) {
+  SetIntegerIfSwitchIsSet(browser::switches::kSurfaceCacheSizeInBytes,
+                          &options->surface_cache_size_in_bytes);
+  SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
+                          &options->scratch_surface_cache_size_in_bytes);
+  SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
+                          &options->skia_cache_size_in_bytes);
+}
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 // Restrict navigation to a couple of whitelisted URLs by default.
@@ -264,6 +289,8 @@ Application::Application(const base::Closure& quit_closure)
   options.network_module_options.preferred_language = language;
 
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
+
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           browser::switches::kNullSavegame)) {
     options.storage_manager_options.savegame_options.factory =
@@ -499,19 +526,25 @@ void Application::OnApplicationEvent(const base::Event* event) {
   if (app_event->type() == system_window::ApplicationEvent::kQuit) {
     DLOG(INFO) << "Got quit event.";
     app_status_ = kWillQuitAppStatus;
+#if !defined(OS_STARBOARD)
     browser_module_->SetWillQuit();
     browser_module_->SetPaused(false);
+#endif  // !defined(OS_STARBOARD)
     Quit();
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
     app_status_ = kPausedAppStatus;
     ++app_suspend_count_;
+#if !defined(OS_STARBOARD)
     browser_module_->SetPaused(true);
+#endif  // !defined(OS_STARBOARD)
   } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
     DLOG(INFO) << "Got resume event.";
     app_status_ = kRunningAppStatus;
     ++app_resume_count_;
+#if !defined(OS_STARBOARD)
     browser_module_->SetPaused(false);
+#endif  // !defined(OS_STARBOARD)
   }
 }
 

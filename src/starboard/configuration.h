@@ -57,6 +57,9 @@
 // Determines at compile-time an inherent aspect of this platform.
 #define SB_IS(SB_FEATURE) (defined(SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
 
+// Determines at compile-time whether this platform has a quirk.
+#define SB_HAS_QUIRK(SB_FEATURE) (defined(SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
+
 // Determines at compile-time if this platform implements a given Starboard API
 // version number (or above).
 #define SB_VERSION(SB_API) (SB_API_VERSION >= SB_API)
@@ -382,6 +385,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_HAS_BILINEAR_FILTERING_SUPPORT)
 #error "Your platform must define SB_HAS_BILINEAR_FILTERING_SUPPORT."
+#endif
+
+#if !defined(SB_HAS_NV12_TEXTURE_SUPPORT)
+#error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
 
 // --- Derived Configuration -------------------------------------------------

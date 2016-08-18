@@ -54,6 +54,8 @@ int BytesPerPixelForGLFormat(GLenum format) {
     case GL_RGBA:
     case GL_BGRA_EXT:
       return 4;
+    case GL_LUMINANCE_ALPHA:
+      return 2;
     case GL_ALPHA:
       return 1;
     default:

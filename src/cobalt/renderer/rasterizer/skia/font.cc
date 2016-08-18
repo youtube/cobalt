@@ -49,20 +49,18 @@ base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
 
 }  // namespace
 
-SkiaFont::SkiaFont(SkiaTypeface* typeface, SkScalar size)
+Font::Font(SkiaTypeface* typeface, SkScalar size)
     : typeface_(typeface), size_(size) {
   glyph_bounds_thread_checker_.DetachFromThread();
 }
 
-SkTypeface* SkiaFont::GetSkTypeface() const {
-  return typeface_->GetSkTypeface();
-}
+SkTypeface* Font::GetSkTypeface() const { return typeface_->GetSkTypeface(); }
 
-render_tree::TypefaceId SkiaFont::GetTypefaceId() const {
+render_tree::TypefaceId Font::GetTypefaceId() const {
   return typeface_->GetId();
 }
 
-render_tree::FontMetrics SkiaFont::GetFontMetrics() const {
+render_tree::FontMetrics Font::GetFontMetrics() const {
   SkPaint paint = GetSkPaint();
 
   SkPaint::FontMetrics font_metrics;
@@ -85,11 +83,11 @@ render_tree::FontMetrics SkiaFont::GetFontMetrics() const {
                                   font_metrics.fLeading, x_height);
 }
 
-render_tree::GlyphIndex SkiaFont::GetGlyphForCharacter(int32 utf32_character) {
+render_tree::GlyphIndex Font::GetGlyphForCharacter(int32 utf32_character) {
   return typeface_->GetGlyphForCharacter(utf32_character);
 }
 
-const math::RectF& SkiaFont::GetGlyphBounds(render_tree::GlyphIndex glyph) {
+const math::RectF& Font::GetGlyphBounds(render_tree::GlyphIndex glyph) {
   DCHECK(glyph_bounds_thread_checker_.CalledOnValidThread());
   // Check to see if the glyph falls within the the first 256 glyphs. These
   // characters are part of the primary page and are stored within an array as
@@ -132,11 +130,11 @@ const math::RectF& SkiaFont::GetGlyphBounds(render_tree::GlyphIndex glyph) {
   }
 }
 
-float SkiaFont::GetGlyphWidth(render_tree::GlyphIndex glyph) {
+float Font::GetGlyphWidth(render_tree::GlyphIndex glyph) {
   return GetGlyphBounds(glyph).width();
 }
 
-SkPaint SkiaFont::GetSkPaint() const {
+SkPaint Font::GetSkPaint() const {
   SkPaint paint(GetDefaultSkPaint());
   SkAutoTUnref<SkTypeface> typeface(typeface_->GetSkTypeface());
   paint.setTypeface(typeface);
@@ -144,7 +142,7 @@ SkPaint SkiaFont::GetSkPaint() const {
   return paint;
 }
 
-const SkPaint& SkiaFont::GetDefaultSkPaint() {
+const SkPaint& Font::GetDefaultSkPaint() {
   return non_trivial_static_fields.Get().default_paint;
 }
 

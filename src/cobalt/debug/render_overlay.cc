@@ -40,24 +40,27 @@ void RenderOverlay::SetOverlay(
 }
 
 void RenderOverlay::Process() {
-  // Calculate a modified layout time accounting for the offset between now and
-  // the time the input layout was received.
-  base::TimeDelta layout_time =
-      input_layout_.layout_time +
-      (base::TimeTicks::HighResNow() - *input_receipt_time_);
+  if (input_layout_.render_tree) {
+    // Calculate a modified layout time accounting for the offset between now
+    // and the time the input layout was received.
+    base::TimeDelta layout_time = input_layout_.layout_time;
+    DCHECK(input_receipt_time_);
+    base::TimeTicks now = base::TimeTicks::HighResNow();
+    layout_time += now - input_receipt_time_.value_or(now);
 
-  if (overlay_) {
-    render_tree::CompositionNode::Builder builder;
-    builder.AddChild(input_layout_.render_tree);
-    builder.AddChild(overlay_);
-    scoped_refptr<render_tree::Node> combined_tree =
-        new render_tree::CompositionNode(builder);
+    if (overlay_) {
+      render_tree::CompositionNode::Builder builder;
+      builder.AddChild(input_layout_.render_tree);
+      builder.AddChild(overlay_);
+      scoped_refptr<render_tree::Node> combined_tree =
+          new render_tree::CompositionNode(builder);
 
-    render_tree_produced_callback_.Run(
-        LayoutResults(combined_tree, input_layout_.animations, layout_time));
-  } else {
-    render_tree_produced_callback_.Run(LayoutResults(
-        input_layout_.render_tree, input_layout_.animations, layout_time));
+      render_tree_produced_callback_.Run(
+          LayoutResults(combined_tree, input_layout_.animations, layout_time));
+    } else {
+      render_tree_produced_callback_.Run(LayoutResults(
+          input_layout_.render_tree, input_layout_.animations, layout_time));
+    }
   }
 }
 

@@ -44,6 +44,7 @@
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkNV122RGBShader.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkYUV2RGBShader.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkTypeface.h"
@@ -68,7 +69,7 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SkiaRenderTreeNodeVisitor::SkiaRenderTreeNodeVisitor(
+RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SkCanvas* render_target,
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
     SurfaceCacheDelegate* surface_cache_delegate,
@@ -84,7 +85,7 @@ SkiaRenderTreeNodeVisitor::SkiaRenderTreeNodeVisitor(
     // visitor and our canvas.
     surface_cache_scoped_context_.emplace(
         surface_cache_delegate_, render_target_,
-        base::Bind(&SkiaRenderTreeNodeVisitor::SetRenderTarget,
+        base::Bind(&RenderTreeNodeVisitor::SetRenderTarget,
                    base::Unretained(this)));
   }
 }
@@ -107,7 +108,7 @@ bool NodeIsWithinCanvasBounds(const SkMatrix& total_matrix,
 }
 }  // namespace
 
-void SkiaRenderTreeNodeVisitor::Visit(
+void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(CompositionNode)");
@@ -221,7 +222,7 @@ void ApplyBlurFilterToPaint(
 
 }  // namespace
 
-void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
+void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
     const render_tree::FilterNode::Builder& filter_node) {
   const SkMatrix& total_matrix_skia = render_target_->getTotalMatrix();
   math::Matrix3F total_matrix = SkiaMatrixToCobalt(total_matrix_skia);
@@ -264,9 +265,9 @@ void SkiaRenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
 
   // Render our source sub-tree into the offscreen surface.
   {
-    SkiaRenderTreeNodeVisitor sub_visitor(
-        canvas, create_scratch_surface_function_, surface_cache_delegate_,
-        surface_cache_, kType_SubVisitor);
+    RenderTreeNodeVisitor sub_visitor(canvas, create_scratch_surface_function_,
+                                      surface_cache_delegate_, surface_cache_,
+                                      kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -342,7 +343,7 @@ bool SourceCanRenderWithRoundedCorners(render_tree::Node* source) {
 }
 }  // namespace
 
-void SkiaRenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(FilterNode)");
 
@@ -460,7 +461,7 @@ SkPaint CreateSkPaintForImageRendering() {
   return paint;
 }
 
-void RenderSinglePlaneImage(SkiaSinglePlaneImage* single_plane_image,
+void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
                             SkCanvas* render_target,
                             const math::RectF& destination_rect,
                             const math::Matrix3F* local_transform) {
@@ -505,36 +506,51 @@ void RenderSinglePlaneImage(SkiaSinglePlaneImage* single_plane_image,
   }
 }
 
-void RenderMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image,
+void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
                            SkCanvas* render_target,
                            const math::RectF& destination_rect,
                            const math::Matrix3F* local_transform) {
-  DCHECK_EQ(render_tree::kMultiPlaneImageFormatYUV3PlaneBT709,
-            multi_plane_image->GetFormat());
-
   SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
 
   const SkBitmap& y_bitmap = multi_plane_image->GetBitmap(0);
+  DCHECK(!y_bitmap.isNull());
   SkMatrix y_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
       math::Size(y_bitmap.width(), y_bitmap.height()), destination_rect,
       &y_matrix);
 
   const SkBitmap& u_bitmap = multi_plane_image->GetBitmap(1);
+  DCHECK(!u_bitmap.isNull());
   SkMatrix u_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
       math::Size(u_bitmap.width(), u_bitmap.height()), destination_rect,
       &u_matrix);
 
-  const SkBitmap& v_bitmap = multi_plane_image->GetBitmap(2);
-  SkMatrix v_matrix = skia_local_transform;
-  ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect,
-      &v_matrix);
+  SkAutoTUnref<SkShader> yuv2rgb_shader;
 
-  SkAutoTUnref<SkShader> yuv2rgb_shader(
-      SkNEW_ARGS(SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
-                                   u_bitmap, u_matrix, v_bitmap, v_matrix)));
+  switch (multi_plane_image->GetFormat()) {
+    case render_tree::kMultiPlaneImageFormatYUV2PlaneBT709:
+      yuv2rgb_shader.reset(SkNEW_ARGS(
+          SkNV122RGBShader,
+          (kRec709_SkYUVColorSpace, y_bitmap, y_matrix, u_bitmap, u_matrix)));
+      break;
+    case render_tree::kMultiPlaneImageFormatYUV3PlaneBT709: {
+      const SkBitmap& v_bitmap = multi_plane_image->GetBitmap(2);
+      DCHECK(!v_bitmap.isNull());
+      SkMatrix v_matrix = skia_local_transform;
+      ConvertLocalTransformMatrixToSkiaShaderFormat(
+          math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect,
+          &v_matrix);
+      yuv2rgb_shader.reset(SkNEW_ARGS(
+          SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
+                            u_bitmap, u_matrix, v_bitmap, v_matrix)));
+      break;
+    }
+    default: {
+      NOTREACHED() << "Unsupported multi plane image format.";
+      break;
+    }
+  }
 
   SkPaint paint = CreateSkPaintForImageRendering();
   paint.setShader(yuv2rgb_shader);
@@ -543,7 +559,7 @@ void RenderMultiPlaneImage(SkiaMultiPlaneImage* multi_plane_image,
 
 }  // namespace
 
-void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
+void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // The image_node may contain nothing. For example, when it represents a video
   // element before any frame is decoded.
   if (!image_node->data().source) {
@@ -553,8 +569,8 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(ImageNode)");
 #endif
-  SkiaImage* image =
-      base::polymorphic_downcast<SkiaImage*>(image_node->data().source.get());
+  skia::Image* image =
+      base::polymorphic_downcast<skia::Image*>(image_node->data().source.get());
 
   // Creating an image via a resource provider may simply return a frontend
   // image object and enqueue the initialization of a backend image (to be
@@ -570,16 +586,14 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
-  if (image->GetTypeId() == base::GetTypeId<SkiaSinglePlaneImage>()) {
-    RenderSinglePlaneImage(
-        base::polymorphic_downcast<SkiaSinglePlaneImage*>(image),
-        render_target_, image_node->data().destination_rect,
-        &(image_node->data().local_transform));
-  } else if (image->GetTypeId() == base::GetTypeId<SkiaMultiPlaneImage>()) {
-    RenderMultiPlaneImage(
-        base::polymorphic_downcast<SkiaMultiPlaneImage*>(image), render_target_,
-        image_node->data().destination_rect,
-        &(image_node->data().local_transform));
+  if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
+    RenderSinglePlaneImage(base::polymorphic_downcast<SinglePlaneImage*>(image),
+                           render_target_, image_node->data().destination_rect,
+                           &(image_node->data().local_transform));
+  } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
+    RenderMultiPlaneImage(base::polymorphic_downcast<MultiPlaneImage*>(image),
+                          render_target_, image_node->data().destination_rect,
+                          &(image_node->data().local_transform));
   } else {
     NOTREACHED();
   }
@@ -589,7 +603,7 @@ void SkiaRenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 #endif
 }
 
-void SkiaRenderTreeNodeVisitor::Visit(
+void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransformNode)");
@@ -621,7 +635,7 @@ void SkiaRenderTreeNodeVisitor::Visit(
 #endif
 }
 
-void SkiaRenderTreeNodeVisitor::Visit(
+void RenderTreeNodeVisitor::Visit(
     render_tree::PunchThroughVideoNode* punch_through_video_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(PunchThroughVideoNode)");
@@ -979,7 +993,7 @@ void DrawSolidRoundedRectBorder(
 
 }  // namespace
 
-void SkiaRenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
+void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(RectNode)");
 #endif
@@ -1196,7 +1210,7 @@ void DrawRoundedRectShadowNode(render_tree::RectShadowNode* node,
 
 }  // namespace
 
-void SkiaRenderTreeNodeVisitor::Visit(
+void RenderTreeNodeVisitor::Visit(
     render_tree::RectShadowNode* rect_shadow_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(RectShadowNode)");
@@ -1238,10 +1252,10 @@ void RenderText(SkCanvas* render_target,
     NOTIMPLEMENTED() << "Cobalt does not yet support text blurs with Gaussian "
                         "sigmas larger than 20.";
   } else {
-    SkiaGlyphBuffer* skia_glyph_buffer =
-        base::polymorphic_downcast<SkiaGlyphBuffer*>(glyph_buffer.get());
+    GlyphBuffer* skia_glyph_buffer =
+        base::polymorphic_downcast<GlyphBuffer*>(glyph_buffer.get());
 
-    SkPaint paint(SkiaFont::GetDefaultSkPaint());
+    SkPaint paint(Font::GetDefaultSkPaint());
     paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
                   color.b() * 255);
 
@@ -1259,7 +1273,7 @@ void RenderText(SkCanvas* render_target,
 }
 }  // namespace
 
-void SkiaRenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
+void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(TextNode)");
 #endif

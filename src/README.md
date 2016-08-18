@@ -180,17 +180,25 @@ All source locations are specified relative to `src/` (this directory).
 
 Here's a quick and dirty guide to get to build the code on Linux.
 
-  1. Install the provided `depot_tools` archive into your favorite directory. It
-     has been slightly modified from Chromium's `depot_tools`.
+  1. Pull `depot_tools` into your favorite directory. It has been slightly
+     modified from Chromium's `depot_tools`.
+
+         git clone https://cobalt.googlesource.com/depot_tools
+
   2. Add that directory to the end of your `$PATH`.
-  3. Ensure you have these packages installed: `sudo apt-get install
-     libgles2-mesa-dev libpulse-dev libavformat-dev libavresample-dev
-     libasound2-dev libxrender-dev libxcomposite-dev`
+  3. Ensure you have these packages installed:
+
+         sudo apt-get install libgles2-mesa-dev libpulse-dev libavformat-dev \
+         libavresample-dev libasound2-dev libxrender-dev libxcomposite-dev
+
   4. Ensure you have the standard C++ header files installed
      (e.g. `libstdc++-4.8-dev`).
-  5. Remove bison-3 and install bison-2.7, or just make sure that bison-2.7 is
-     before bison-3 on your `$PATH`. (NOTE: We plan on moving to bison-3 in the
-     future.)
+  5. For now, we also require ruby:
+
+         sudo apt-get install ruby
+
+  6. Remove bison-3 and install bison-2.7. (NOTE: We plan on moving to bison-3
+     in the future.)
 
          $ sudo apt-get remove bison
          $ sudo apt-get install m4
@@ -203,27 +211,28 @@ Here's a quick and dirty guide to get to build the code on Linux.
          $ bison --version
          bison (GNU Bison) 2.7.12-4996
 
-  6. (From this directory) run GYP:
+  7. (From this directory) run GYP:
 
          cobalt/build/gyp_cobalt -C debug linux-x64x11
 
-  7. If you get a "clang not found" error, add the path to Cobalt's clang to
+  8. If you get a "clang not found" error, add the path to Cobalt's clang to
      your `$PATH` and rerun `gyp_cobalt` as above. For example:
      `/path/to/cobalt/src/third_party/llvm-build/Release+Asserts/bin`
-  8. Run Ninja:
+  9. Run Ninja:
 
          ninja -C out/linux-x64x11_debug cobalt
 
-  9. Run Cobalt:
+  10. Run Cobalt:
 
          out/linux-x64x11_debug/cobalt [--url=<url>]
 
       * If you want to use `http` instead of `https`, you must pass the
         `--allow_http` flag to the Cobalt command-line.
       * If you want to connect to an `https` host that doesn't have a
-        globally-validatable certificate, you must pass the
+        certificate validatable by our set of root CAs, you must pass the
         `--ignore_certificate_errors` flag to the Cobalt command-line.
-      * See `cobalt/browser/switches.cc` for more command-line options.
+      * See [`cobalt/browser/switches.cc`](cobalt/browser/switches.cc) for more
+        command-line options.
 
 
 ## Build Types

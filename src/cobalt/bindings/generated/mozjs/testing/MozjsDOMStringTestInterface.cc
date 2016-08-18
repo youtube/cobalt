@@ -28,14 +28,20 @@
 #include "cobalt/script/script_object.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
+#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -51,6 +57,7 @@ using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
+using cobalt::script::ExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
@@ -61,7 +68,9 @@ using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
 using cobalt::script::mozjs::MozjsGlobalObjectProxy;
-using cobalt::script::mozjs::MozjsObjectHandleHolder;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::ProxyHandler;
 using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
@@ -74,6 +83,37 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+class MozjsDOMStringTestInterfaceHandler : public ProxyHandler {
+ public:
+  MozjsDOMStringTestInterfaceHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks
+MozjsDOMStringTestInterfaceHandler::named_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+ProxyHandler::IndexedPropertyHooks
+MozjsDOMStringTestInterfaceHandler::indexed_property_hooks = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
+
+static base::LazyInstance<MozjsDOMStringTestInterfaceHandler>
+    proxy_handler;
+
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -111,7 +151,8 @@ InterfaceData* CreateCachedInterfaceData() {
   prototype_class->resolve = JS_ResolveStub;
   prototype_class->convert = JS_ConvertStub;
 
-  JSClass* interface_object_class = &interface_data->interface_object_class_definition;
+  JSClass* interface_object_class =
+      &interface_data->interface_object_class_definition;
   interface_object_class->name = "DOMStringTestInterfaceConstructor";
   interface_object_class->flags = 0;
   interface_object_class->addProperty = JS_PropertyStub;
@@ -129,18 +170,21 @@ JSBool get_property(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
-  TypeTraits<std::string >::ReturnType value =
-      impl->property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_property(
@@ -148,18 +192,21 @@ JSBool set_property(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
+
   impl->set_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_readOnlyProperty(
@@ -167,18 +214,43 @@ JSBool get_readOnlyProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
-  TypeTraits<std::string >::ReturnType value =
-      impl->read_only_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->read_only_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
+}
+
+JSBool get_readOnlyTokenProperty(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->read_only_token_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullIsEmptyProperty(
@@ -186,18 +258,21 @@ JSBool get_nullIsEmptyProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
-  TypeTraits<std::string >::ReturnType value =
-      impl->null_is_empty_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->null_is_empty_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullIsEmptyProperty(
@@ -205,18 +280,21 @@ JSBool set_nullIsEmptyProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagTreatNullAsEmptyString), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
+
   impl->set_null_is_empty_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_undefinedIsEmptyProperty(
@@ -224,18 +302,21 @@ JSBool get_undefinedIsEmptyProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
-  TypeTraits<std::string >::ReturnType value =
-      impl->undefined_is_empty_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->undefined_is_empty_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_undefinedIsEmptyProperty(
@@ -243,18 +324,21 @@ JSBool set_undefinedIsEmptyProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagTreatUndefinedAsEmptyString), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
+
   impl->set_undefined_is_empty_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool get_nullableUndefinedIsEmptyProperty(
@@ -262,18 +346,21 @@ JSBool get_nullableUndefinedIsEmptyProperty(
     JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
-  TypeTraits<base::optional<std::string > >::ReturnType value =
-      impl->nullable_undefined_is_empty_property();
-  if (!exception_state.IsExceptionSet()) {
-    ToJSValue(context, value, &exception_state, &result_value);
-  }
 
-  if (!exception_state.IsExceptionSet()) {
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->nullable_undefined_is_empty_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
     vp.set(result_value);
   }
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 JSBool set_nullableUndefinedIsEmptyProperty(
@@ -281,18 +368,21 @@ JSBool set_nullableUndefinedIsEmptyProperty(
     JSBool strict, JS::MutableHandleValue vp) {
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DOMStringTestInterface* impl =
+      wrapper_private->wrappable<DOMStringTestInterface>().get();
   TypeTraits<base::optional<std::string > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable | kConversionFlagTreatUndefinedAsEmptyString), &exception_state,
               &value);
-  if (exception_state.IsExceptionSet()) {
+  if (exception_state.is_exception_set()) {
     return false;
   }
-  DOMStringTestInterface* impl =
-      WrapperPrivate::GetWrappable<DOMStringTestInterface>(object);
+
   impl->set_nullable_undefined_is_empty_property(value);
   result_value.set(JS::UndefinedHandleValue);
-
-  return !exception_state.IsExceptionSet();
+  return !exception_state.is_exception_set();
 }
 
 
@@ -307,6 +397,12 @@ const JSPropertySpec prototype_properties[] = {
       "readOnlyProperty", 0,
       JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
       JSOP_WRAPPER(&get_readOnlyProperty),
+      JSOP_NULLWRAPPER,
+  },
+  {  // Readonly attribute
+      "readOnlyTokenProperty", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
+      JSOP_WRAPPER(&get_readOnlyTokenProperty),
       JSOP_NULLWRAPPER,
   },
   {  // Read/Write property
@@ -338,6 +434,10 @@ const JSPropertySpec interface_object_properties[] = {
   JS_PS_END
 };
 
+const JSFunctionSpec interface_object_functions[] = {
+  JS_FS_END
+};
+
 const JSPropertySpec own_properties[] = {
   JS_PS_END
 };
@@ -357,7 +457,8 @@ void InitializePrototypeAndInterfaceObject(
 
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype, NULL);
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -377,8 +478,9 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] = "DOMStringTestInterface";
-  name_value.setString(JS_NewStringCopyZ(context, "DOMStringTestInterface"));
+  const char name[] =
+      "DOMStringTestInterface";
+  name_value.setString(JS_NewStringCopyZ(context, name));
   success =
       JS_DefineProperty(context, rooted_interface_object, "name", name_value,
                         JS_PropertyStub, JS_StrictPropertyStub,
@@ -387,8 +489,13 @@ void InitializePrototypeAndInterfaceObject(
 
   // Define interface object properties (including constants).
   success = JS_DefineProperties(context, rooted_interface_object,
-                                         interface_object_properties);
+                                interface_object_properties);
   DCHECK(success);
+  // Define interface object functions (static).
+  success = JS_DefineFunctions(context, rooted_interface_object,
+                               interface_object_functions);
+  DCHECK(success);
+
 
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
@@ -420,7 +527,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 }  // namespace
 
 // static
-JSObject* MozjsDOMStringTestInterface::CreateInstance(
+JSObject* MozjsDOMStringTestInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context));
@@ -428,8 +535,19 @@ JSObject* MozjsDOMStringTestInterface::CreateInstance(
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
   DCHECK(new_object);
-  WrapperPrivate::AddPrivateData(new_object, wrappable);
-  return new_object;
+  JS::RootedObject proxy(context,
+      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
+                             proxy_handler.Pointer()));
+  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  return proxy;
+}
+
+//static
+const JSClass* MozjsDOMStringTestInterface::PrototypeClass(
+      JSContext* context) {
+  JS::RootedObject prototype(context, GetPrototype(context));
+  JSClass* proto_class = JS_GetClass(*prototype.address());
+  return proto_class;
 }
 
 // static

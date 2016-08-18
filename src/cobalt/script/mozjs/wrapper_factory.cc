@@ -20,37 +20,42 @@
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/mozjs_wrapper_handle.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
+#include "third_party/mozjs/js/src/jsproxy.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 
 void WrapperFactory::RegisterWrappableType(
-    base::TypeId wrappable_type, const CreateWrapperFunction& create_function) {
-  std::pair<CreateWrapperHashMap::iterator, bool> pib =
-      create_wrapper_functions_.insert(
-          std::make_pair(wrappable_type, create_function));
+    base::TypeId wrappable_type, const CreateWrapperFunction& create_function,
+    const PrototypeClassFunction& class_function) {
+  std::pair<WrappableTypeFunctionsHashMap::iterator, bool> pib =
+      wrappable_type_functions_.insert(std::make_pair(
+          wrappable_type,
+          WrappableTypeFunctions(create_function, class_function)));
   DCHECK(pib.second)
       << "RegisterWrappableType registered for type more than once.";
 }
 
-JSObject* WrapperFactory::GetWrapper(
+JSObject* WrapperFactory::GetWrapperProxy(
     const scoped_refptr<Wrappable>& wrappable) const {
   if (!wrappable) {
     return NULL;
   }
 
-  JS::RootedObject wrapper(context_, MozjsWrapperHandle::GetJSObject(
-                                         GetCachedWrapper(wrappable.get())));
-  if (!wrapper) {
+  JS::RootedObject wrapper_proxy(
+      context_,
+      MozjsWrapperHandle::GetObjectProxy(GetCachedWrapper(wrappable.get())));
+  if (!wrapper_proxy) {
     scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
         CreateWrapper(wrappable);
     SetCachedWrapper(wrappable.get(), object_handle.Pass());
-    wrapper =
-        MozjsWrapperHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
+    wrapper_proxy =
+        MozjsWrapperHandle::GetObjectProxy(GetCachedWrapper(wrappable.get()));
   }
-  DCHECK(wrapper);
-  return wrapper;
+  DCHECK(wrapper_proxy);
+  DCHECK(js::IsProxy(wrapper_proxy));
+  return wrapper_proxy;
 }
 
 bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
@@ -59,20 +64,44 @@ bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
 
 scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     const scoped_refptr<Wrappable>& wrappable) const {
-  CreateWrapperHashMap::const_iterator it =
-      create_wrapper_functions_.find(wrappable->GetWrappableType());
-  if (it == create_wrapper_functions_.end()) {
+  WrappableTypeFunctionsHashMap::const_iterator it =
+      wrappable_type_functions_.find(wrappable->GetWrappableType());
+  if (it == wrappable_type_functions_.end()) {
     NOTREACHED();
     return scoped_ptr<Wrappable::WeakWrapperHandle>();
   }
-  JS::RootedObject new_object(context_, it->second.Run(context_, wrappable));
+  JS::RootedObject new_proxy(
+      context_, it->second.create_wrapper.Run(context_, wrappable));
   WrapperPrivate* wrapper_private =
-      reinterpret_cast<WrapperPrivate*>(JS_GetPrivate(new_object));
+      WrapperPrivate::GetFromProxyObject(context_, new_proxy);
   DCHECK(wrapper_private);
   return make_scoped_ptr<Wrappable::WeakWrapperHandle>(
       new MozjsWrapperHandle(wrapper_private));
 }
 
+bool WrapperFactory::DoesObjectImplementInterface(JSObject* object,
+                                                  base::TypeId type_id) const {
+  WrappableTypeFunctionsHashMap::const_iterator it =
+      wrappable_type_functions_.find(type_id);
+  if (it == wrappable_type_functions_.end()) {
+    NOTREACHED();
+    return false;
+  }
+  const JSClass* proto_class = it->second.prototype_class.Run(context_);
+  JS::RootedObject object_proto_object(context_);
+  bool success =
+      JS_GetPrototype(context_, object, object_proto_object.address());
+  bool equality = false;
+  while (!equality && success && object_proto_object) {
+    // Get the class of the prototype.
+    JSClass* object_proto_class = JS_GetClass(object_proto_object);
+    equality = (object_proto_class == proto_class);
+    // Get the prototype of the previous prototype.
+    success = JS_GetPrototype(context_, object_proto_object,
+                              object_proto_object.address());
+  }
+  return equality;
+}
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt

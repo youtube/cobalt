@@ -46,7 +46,7 @@ GrTexture* WrapCobaltTextureWithSkiaTexture(
   return gr_context->wrapBackendTexture(desc);
 }
 
-SkiaHardwareImageData::SkiaHardwareImageData(
+HardwareImageData::HardwareImageData(
     scoped_ptr<backend::TextureDataEGL> texture_data,
     render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format)
@@ -54,33 +54,31 @@ SkiaHardwareImageData::SkiaHardwareImageData(
       descriptor_(texture_data_->GetSize(), pixel_format, alpha_format,
                   texture_data_->GetPitchInBytes()) {}
 
-const render_tree::ImageDataDescriptor& SkiaHardwareImageData::GetDescriptor()
+const render_tree::ImageDataDescriptor& HardwareImageData::GetDescriptor()
     const {
   return descriptor_;
 }
 
-uint8_t* SkiaHardwareImageData::GetMemory() {
-  return texture_data_->GetMemory();
-}
+uint8_t* HardwareImageData::GetMemory() { return texture_data_->GetMemory(); }
 
-scoped_ptr<backend::TextureDataEGL> SkiaHardwareImageData::PassTextureData() {
+scoped_ptr<backend::TextureDataEGL> HardwareImageData::PassTextureData() {
   return texture_data_.Pass();
 }
 
-SkiaHardwareRawImageMemory::SkiaHardwareRawImageMemory(
+HardwareRawImageMemory::HardwareRawImageMemory(
     scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory)
     : raw_texture_memory_(raw_texture_memory.Pass()) {}
 
-size_t SkiaHardwareRawImageMemory::GetSizeInBytes() const {
+size_t HardwareRawImageMemory::GetSizeInBytes() const {
   return raw_texture_memory_->GetSizeInBytes();
 }
 
-uint8_t* SkiaHardwareRawImageMemory::GetMemory() {
+uint8_t* HardwareRawImageMemory::GetMemory() {
   return raw_texture_memory_->GetMemory();
 }
 
 scoped_ptr<backend::RawTextureMemoryEGL>
-SkiaHardwareRawImageMemory::PassRawTextureMemory() {
+HardwareRawImageMemory::PassRawTextureMemory() {
   return raw_texture_memory_.Pass();
 }
 
@@ -88,26 +86,27 @@ SkiaHardwareRawImageMemory::PassRawTextureMemory() {
 // GetBitmap(), overridden from SkiaImage, will return a reference to a SkBitmap
 // object that refers to the image's GrTexture.  This object should only be
 // constructed, destructed and used from the same rasterizer thread.
-class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
+class HardwareFrontendImage::HardwareBackendImage {
  public:
-  SkiaHardwareBackendImage(scoped_ptr<SkiaHardwareImageData> image_data,
-                           backend::GraphicsContextEGL* cobalt_context,
-                           GrContext* gr_context) {
+  HardwareBackendImage(scoped_ptr<HardwareImageData> image_data,
+                       backend::GraphicsContextEGL* cobalt_context,
+                       GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
-                 "SkiaHardwareBackendImage::SkiaHardwareBackendImage()");
+                 "HardwareBackendImage::HardwareBackendImage()");
     scoped_ptr<backend::TextureEGL> texture =
         cobalt_context->CreateTexture(image_data->PassTextureData());
 
     CommonInitialize(texture.Pass(), gr_context);
   }
 
-  SkiaHardwareBackendImage(
-      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
-          raw_texture_memory,
-      intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
+  HardwareBackendImage(const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
+                           raw_texture_memory,
+                       intptr_t offset,
+                       const render_tree::ImageDataDescriptor& descriptor,
+                       backend::GraphicsContextEGL* cobalt_context,
+                       GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
-                 "SkiaHardwareBackendImage::SkiaHardwareBackendImage()");
+                 "HardwareBackendImage::HardwareBackendImage()");
     scoped_ptr<backend::TextureEGL> texture =
         cobalt_context->CreateTextureFromRawMemory(
             raw_texture_memory, offset, descriptor.size,
@@ -117,9 +116,9 @@ class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
     CommonInitialize(texture.Pass(), gr_context);
   }
 
-  ~SkiaHardwareBackendImage() {
+  ~HardwareBackendImage() {
     TRACE_EVENT0("cobalt::renderer",
-                 "SkiaHardwareBackendImage::~SkiaHardwareBackendImage()");
+                 "HardwareBackendImage::~HardwareBackendImage()");
     // This object should always be destroyed from the thread that it was
     // constructed on.
     DCHECK(thread_checker_.CalledOnValidThread());
@@ -131,11 +130,12 @@ class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
                         GrContext* gr_context) {
     DCHECK(thread_checker_.CalledOnValidThread());
     TRACE_EVENT0("cobalt::renderer",
-                 "SkiaHardwareBackendImage::CommonInitialize()");
+                 "HardwareBackendImage::CommonInitialize()");
 
     texture_ = texture.Pass();
     gr_texture_.reset(
         WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
+    DCHECK(gr_texture_);
 
     // Prepare a member SkBitmap that refers to the newly created GrTexture and
     // will be the object that Skia draw calls will reference when referring
@@ -160,22 +160,22 @@ class SkiaHardwareFrontendImage::SkiaHardwareBackendImage {
   SkBitmap bitmap_;
 };
 
-SkiaHardwareFrontendImage::SkiaHardwareFrontendImage(
-    scoped_ptr<SkiaHardwareImageData> image_data,
+HardwareFrontendImage::HardwareFrontendImage(
+    scoped_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : size_(image_data->GetDescriptor().size),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareFrontendImage::SkiaHardwareFrontendImage()");
+               "HardwareFrontendImage::HardwareFrontendImage()");
 
-  initialize_backend_image_ = base::Bind(
-      &SkiaHardwareFrontendImage::InitializeBackendImageFromImageData,
-      base::Unretained(this), base::Passed(&image_data), cobalt_context,
-      gr_context);
+  initialize_backend_image_ =
+      base::Bind(&HardwareFrontendImage::InitializeBackendImageFromImageData,
+                 base::Unretained(this), base::Passed(&image_data),
+                 cobalt_context, gr_context);
 }
 
-SkiaHardwareFrontendImage::SkiaHardwareFrontendImage(
+HardwareFrontendImage::HardwareFrontendImage(
     const scoped_refptr<backend::ConstRawTextureMemoryEGL>& raw_texture_memory,
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
@@ -183,16 +183,16 @@ SkiaHardwareFrontendImage::SkiaHardwareFrontendImage(
     : size_(descriptor.size),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareFrontendImage::SkiaHardwareFrontendImage()");
-  initialize_backend_image_ = base::Bind(
-      &SkiaHardwareFrontendImage::InitializeBackendImageFromRawImageData,
-      base::Unretained(this), raw_texture_memory, offset, descriptor,
-      cobalt_context, gr_context);
+               "HardwareFrontendImage::HardwareFrontendImage()");
+  initialize_backend_image_ =
+      base::Bind(&HardwareFrontendImage::InitializeBackendImageFromRawImageData,
+                 base::Unretained(this), raw_texture_memory, offset, descriptor,
+                 cobalt_context, gr_context);
 }
 
-SkiaHardwareFrontendImage::~SkiaHardwareFrontendImage() {
+HardwareFrontendImage::~HardwareFrontendImage() {
   TRACE_EVENT0("cobalt::renderer",
-               "SkiaHardwareFrontendImage::~SkiaHardwareFrontendImage()");
+               "HardwareFrontendImage::~HardwareFrontendImage()");
   // If we are destroying this image from a non-rasterizer thread, we still must
   // ensure that the |backend_image_| is destroyed from the rasterizer thread,
   // if |backend_image_| was ever constructed in the first place.
@@ -202,7 +202,7 @@ SkiaHardwareFrontendImage::~SkiaHardwareFrontendImage() {
   }  // else let the scoped pointer clean it up immediately.
 }
 
-const SkBitmap& SkiaHardwareFrontendImage::GetBitmap() const {
+const SkBitmap& HardwareFrontendImage::GetBitmap() const {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   // Forward this call to the backend image.  This method must be called from
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
@@ -210,7 +210,7 @@ const SkBitmap& SkiaHardwareFrontendImage::GetBitmap() const {
   return backend_image_->GetBitmap();
 }
 
-void SkiaHardwareFrontendImage::EnsureInitialized() {
+void HardwareFrontendImage::EnsureInitialized() {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   if (!initialize_backend_image_.is_null()) {
     initialize_backend_image_.Run();
@@ -218,25 +218,25 @@ void SkiaHardwareFrontendImage::EnsureInitialized() {
   }
 }
 
-void SkiaHardwareFrontendImage::InitializeBackendImageFromImageData(
-    scoped_ptr<SkiaHardwareImageData> image_data,
+void HardwareFrontendImage::InitializeBackendImageFromImageData(
+    scoped_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
-  backend_image_.reset(new SkiaHardwareBackendImage(
-      image_data.Pass(), cobalt_context, gr_context));
+  backend_image_.reset(
+      new HardwareBackendImage(image_data.Pass(), cobalt_context, gr_context));
 }
 
-void SkiaHardwareFrontendImage::InitializeBackendImageFromRawImageData(
+void HardwareFrontendImage::InitializeBackendImageFromRawImageData(
     const scoped_refptr<backend::ConstRawTextureMemoryEGL>& raw_texture_memory,
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
-  backend_image_.reset(new SkiaHardwareBackendImage(
+  backend_image_.reset(new HardwareBackendImage(
       raw_texture_memory, offset, descriptor, cobalt_context, gr_context));
 }
 
-SkiaHardwareMultiPlaneImage::SkiaHardwareMultiPlaneImage(
-    scoped_ptr<SkiaHardwareRawImageMemory> raw_image_memory,
+HardwareMultiPlaneImage::HardwareMultiPlaneImage(
+    scoped_ptr<HardwareRawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
@@ -248,16 +248,16 @@ SkiaHardwareMultiPlaneImage::SkiaHardwareMultiPlaneImage(
 
   // Construct a single plane image for each plane of this multi plane image.
   for (int i = 0; i < descriptor.num_planes(); ++i) {
-    planes_[i] = new SkiaHardwareFrontendImage(
+    planes_[i] = new HardwareFrontendImage(
         const_raw_texture_memory, descriptor.GetPlaneOffset(i),
         descriptor.GetPlaneDescriptor(i), cobalt_context, gr_context,
         rasterizer_message_loop);
   }
 }
 
-SkiaHardwareMultiPlaneImage::~SkiaHardwareMultiPlaneImage() {}
+HardwareMultiPlaneImage::~HardwareMultiPlaneImage() {}
 
-void SkiaHardwareMultiPlaneImage::EnsureInitialized() {
+void HardwareMultiPlaneImage::EnsureInitialized() {
   // A multi-plane image is not considered backend-initialized until all its
   // single-plane images are backend-initialized, thus we ensure that all
   // the component images are backend-initialized.

@@ -34,8 +34,31 @@ class RendererModule {
     Options();
 
     typedef base::Callback<scoped_ptr<rasterizer::Rasterizer>(
-        backend::GraphicsContext*)> CreateRasterizerCallback;
+        backend::GraphicsContext*, const Options& options)>
+        CreateRasterizerCallback;
+
+    // The rasterizer must be created, accessed, and destroyed within the same
+    // thread, and so to facilitate that a rasterizer factory function must
+    // be provided here instead of the rasterizer itself.
     CreateRasterizerCallback create_rasterizer_function;
+
+    // Determines the capacity of the scratch surface cache.  The scratch
+    // surface cache facilitates the reuse of temporary offscreen surfaces
+    // within a single frame.  This setting is only relevant when using the
+    // hardware-accelerated Skia rasterizer.
+    int scratch_surface_cache_size_in_bytes;
+
+    // Determines the capacity of the skia cache.  The Skia cache is maintained
+    // within Skia and is used to cache the results of complicated effects such
+    // as shadows, so that Skia draw calls that are used repeatedly across
+    // frames can be cached into surfaces.  This setting is only relevant when
+    // using the hardware-accelerated Skia rasterizer.
+    int skia_cache_size_in_bytes;
+
+    // Determines the capacity of the surface cache.  The surface cache tracks
+    // which render tree nodes are being re-used across frames and stores the
+    // nodes that are most CPU-expensive to render into surfaces.
+    int surface_cache_size_in_bytes;
 
    private:
     // Implemented per-platform, and allows each platform to customize

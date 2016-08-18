@@ -609,8 +609,11 @@
                 'filters/shell_raw_video_decoder_ps4.h',
                 'filters/shell_raw_vp9_decoder_ps4.cc',
                 'filters/shell_raw_vp9_decoder_ps4.h',
+                'filters/videodec2_working_memory_ps4.cc',
+                'filters/videodec2_working_memory_ps4.h',
               ],
               'dependencies' : [
+                '<(DEPTH)/nb/nb.gyp:nb',
                 '<(DEPTH)/third_party/libvpx_gpu/libvpx_gpu.gyp:libvpx_gpu',
               ],
             }],

@@ -19,7 +19,6 @@
 #include <string>
 
 #include "base/bind.h"
-#include "cobalt/base/localized_strings.h"
 #include "cobalt/browser/browser_module.h"
 
 namespace cobalt {
@@ -78,15 +77,6 @@ const char kSignedOut[] = "signed-out";
 const char kAgeRestricted[] = "age-restricted";
 
 const char kRetryParam[] = "retry-url";
-
-const char kNetworkFailureMessageId[] = "UNABLE_TO_CONTACT_YOUTUBE";
-const char kNetworkFailureMessageFallback[] = "Unable to contact YouTube";
-const char kSignedOutMessageId[] = "OFFLINE_MESSAGE_1";
-const char kSignedOutMessageFallback[] =
-    "You are signed out of PSN. To use YouTube, you need to sign in to PSN.";
-const char kAgeRestrictedMessageId[] = "AGE_RESTRICTED";
-const char kAgeRestrictedMessageFallback[] =
-    "YouTube is not intended for use by children under 13.";
 }  // namespace
 
 H5vccURLHandler::H5vccURLHandler(BrowserModule* browser_module,
@@ -118,9 +108,8 @@ bool H5vccURLHandler::HandleURL(const GURL& url) {
 
 bool H5vccURLHandler::HandleNetworkFailure() {
   system_window::SystemWindow::DialogOptions dialog_options;
-  dialog_options.message = base::LocalizedStrings::GetInstance()->GetString(
-      kNetworkFailureMessageId, kNetworkFailureMessageFallback);
-  dialog_options.num_buttons = 1;
+  dialog_options.message_code =
+      system_window::SystemWindow::kDialogConnectionError;
   dialog_options.callback = base::Bind(
       &H5vccURLHandler::OnNetworkFailureDialogResponse, base::Unretained(this));
   system_window_->ShowDialog(dialog_options);
@@ -129,9 +118,8 @@ bool H5vccURLHandler::HandleNetworkFailure() {
 
 bool H5vccURLHandler::HandleSignedOut() {
   system_window::SystemWindow::DialogOptions dialog_options;
-  dialog_options.message = base::LocalizedStrings::GetInstance()->GetString(
-      kSignedOutMessageId, kSignedOutMessageFallback);
-  dialog_options.num_buttons = 1;
+  dialog_options.message_code =
+      system_window::SystemWindow::kDialogUserSignedOut;
   dialog_options.callback = base::Bind(
       &H5vccURLHandler::OnSignedOutDialogResponse, base::Unretained(this));
   system_window_->ShowDialog(dialog_options);
@@ -140,9 +128,8 @@ bool H5vccURLHandler::HandleSignedOut() {
 
 bool H5vccURLHandler::HandleAgeRestricted() {
   system_window::SystemWindow::DialogOptions dialog_options;
-  dialog_options.message = base::LocalizedStrings::GetInstance()->GetString(
-      kAgeRestrictedMessageId, kAgeRestrictedMessageFallback);
-  dialog_options.num_buttons = 0;
+  dialog_options.message_code =
+      system_window::SystemWindow::kDialogUserAgeRestricted;
   system_window_->ShowDialog(dialog_options);
   return true;
 }
