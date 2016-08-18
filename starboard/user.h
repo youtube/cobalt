@@ -96,10 +96,6 @@ SB_EXPORT int SbUserGetSignedIn(SbUser* out_users, int users_size);
 // will persist for the lifetime of the app.
 SB_EXPORT SbUser SbUserGetCurrent();
 
-// Returns whether |user| is age-restricted according to the platform's age
-// policies.
-SB_EXPORT bool SbUserIsAgeRestricted(SbUser user);
-
 // Gets the size of the value of |property_id| for |user|, INCLUDING the
 // terminating null character. Returns 0 if if |user| is invalid, |property_id|
 // isn't recognized, supported, or set for |user|.
@@ -112,10 +108,6 @@ SB_EXPORT bool SbUserGetProperty(SbUser user,
                                  SbUserPropertyId property_id,
                                  char* out_value,
                                  int value_size);
-
-// Begins the user sign-in flow for the given platform, which may result in a
-// user changed event being dispatched.
-SB_EXPORT void SbUserStartSignIn();
 
 #if SB_HAS(USER_APPLICATION_LINKING_SUPPORT)
 // Initiates a process to link |user| with a per-application authentication

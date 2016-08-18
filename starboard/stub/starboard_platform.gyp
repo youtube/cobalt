@@ -212,8 +212,6 @@
         '<(DEPTH)/starboard/shared/stub/user_get_current.cc',
         '<(DEPTH)/starboard/shared/stub/user_get_property.cc',
         '<(DEPTH)/starboard/shared/stub/user_get_signed_in.cc',
-        '<(DEPTH)/starboard/shared/stub/user_is_age_restricted.cc',
-        '<(DEPTH)/starboard/shared/stub/user_start_sign_in.cc',
         '<(DEPTH)/starboard/shared/stub/window_create.cc',
         '<(DEPTH)/starboard/shared/stub/window_destroy.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_platform_handle.cc',
