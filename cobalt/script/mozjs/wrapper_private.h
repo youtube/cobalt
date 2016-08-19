@@ -78,6 +78,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   typedef ScopedVector<JS::Heap<JSObject*> > ReferencedObjectVector;
   WrapperPrivate(const scoped_refptr<Wrappable>& wrappable,
                  JS::HandleObject wrapper_proxy);
+  ~WrapperPrivate();
 
   scoped_refptr<Wrappable> wrappable_;
   JS::Heap<JSObject*> wrapper_proxy_;
