@@ -620,6 +620,9 @@ void VideoRendererBase::FrameReady(
   // Discard frames until we reach our desired preroll timestamp.
   if (state_ == kPrerolling && !frame->IsEndOfStream() &&
       frame->GetTimestamp() <= preroll_timestamp_) {
+#if SUPPORT_VIDEO_FRAME_HOLDING
+    frame_provider_->AddFrame(original_frame);
+#endif  // SUPPORT_VIDEO_FRAME_HOLDING
     prerolling_delayed_frame_ = frame;
     AttemptRead_Locked();
     return;
