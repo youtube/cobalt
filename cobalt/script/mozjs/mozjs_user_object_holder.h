@@ -16,6 +16,8 @@
 #ifndef COBALT_SCRIPT_MOZJS_MOZJS_USER_OBJECT_HOLDER_H_
 #define COBALT_SCRIPT_MOZJS_MOZJS_USER_OBJECT_HOLDER_H_
 
+#include "base/hash_tables.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -50,14 +52,21 @@ class MozjsUserObjectHolder
     JS::RootedObject owned_object(context_, js_object());
     WrapperPrivate* wrapper_private =
         WrapperPrivate::GetFromWrappable(owner, context_, wrapper_factory_);
+    wrappable_and_private_hash_map_.insert(
+        std::make_pair(owner, wrapper_private->AsWeakPtr()));
     wrapper_private->AddReferencedObject(owned_object);
   }
 
   void DeregisterOwner(Wrappable* owner) OVERRIDE {
     JS::RootedObject owned_object(context_, js_object());
-    WrapperPrivate* wrapper_private =
-        WrapperPrivate::GetFromWrappable(owner, context_, wrapper_factory_);
-    wrapper_private->RemoveReferencedObject(owned_object);
+    WrappableAndPrivateHashMap::iterator it =
+        wrappable_and_private_hash_map_.find(owner);
+    if (it != wrappable_and_private_hash_map_.end() && it->second) {
+      JS::RootedObject object_proxy(context_, it->second->js_object_proxy());
+      if (object_proxy) {
+        it->second->RemoveReferencedObject(owned_object);
+      }
+    }
   }
 
   const typename MozjsUserObjectType::BaseType* GetScriptObject()
@@ -89,9 +98,13 @@ class MozjsUserObjectHolder
   }
 
  private:
+  typedef base::hash_map<const Wrappable*, base::WeakPtr<WrapperPrivate> >
+      WrappableAndPrivateHashMap;
+
   JSContext* context_;
   base::optional<MozjsUserObjectType> object_handle_;
   WrapperFactory* wrapper_factory_;
+  WrappableAndPrivateHashMap wrappable_and_private_hash_map_;
 };
 
 }  // namespace mozjs

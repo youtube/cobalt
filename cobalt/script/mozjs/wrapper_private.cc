@@ -114,6 +114,8 @@ WrapperPrivate::WrapperPrivate(const scoped_refptr<Wrappable>& wrappable,
   DCHECK(js::IsProxy(wrapper_proxy));
 }
 
+WrapperPrivate::~WrapperPrivate() { wrapper_proxy_ = NULL; }
+
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
