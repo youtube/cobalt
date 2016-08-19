@@ -192,9 +192,11 @@ class RawVideoDecoderFuzzerApp : public FuzzerApp {
     scoped_ptr<ShellRawVideoDecoder> decoder =
         media_sandbox_->GetMediaModule()->GetRawVideoDecoderFactory()->Create(
             demuxer->config(), NULL, false);
-    DCHECK(decoder);
-    VideoDecoderFuzzer decoder_fuzzer(fuzzing_content, demuxer, decoder.get());
-    decoder_fuzzer.Fuzz();
+    if (decoder) {
+      VideoDecoderFuzzer decoder_fuzzer(fuzzing_content, demuxer,
+                                        decoder.get());
+      decoder_fuzzer.Fuzz();
+    }
   }
 
  private:
