@@ -141,6 +141,7 @@ const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;
 const SbLogPriority SB_LOG_ERROR = kSbLogPriorityError;
 const SbLogPriority SB_LOG_FATAL = kSbLogPriorityFatal;
+const SbLogPriority SB_LOG_0 = SB_LOG_ERROR;
 
 class SB_EXPORT LogMessage {
  public:
@@ -184,6 +185,10 @@ class LogMessageVoidify {
 #define SB_LOG_MESSAGE_FATAL                           \
   ::starboard::logging::LogMessage(__FILE__, __LINE__, \
                                    ::starboard::logging::SB_LOG_FATAL)
+
+// Compatibility with base/logging.h which defines ERROR to be 0 to workaround
+// some system header defines that do the same thing.
+#define SB_LOG_MESSAGE_0 SB_LOG_MESSAGE_ERROR
 
 #define SB_LOG_STREAM(severity) SB_LOG_MESSAGE_##severity.stream()
 #define SB_LAZY_STREAM(stream, condition) \
