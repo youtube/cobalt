@@ -53,9 +53,13 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
    public:
     explicit FrameBufferCommon(scoped_ptr<RawImageMemory> raw_image_memory);
 
-    uint8* data() const OVERRIDE { return raw_image_memory_->GetMemory(); }
+    uint8* data() const OVERRIDE {
+      return raw_image_memory_ ? raw_image_memory_->GetMemory() : NULL;
+    }
 
-    size_t size() const OVERRIDE { return raw_image_memory_->GetSizeInBytes(); }
+    size_t size() const OVERRIDE {
+      return raw_image_memory_ ? raw_image_memory_->GetSizeInBytes() : 0;
+    }
 
     // Disown the image_data_.
     scoped_ptr<RawImageMemory> DetachRawImageMemory();
