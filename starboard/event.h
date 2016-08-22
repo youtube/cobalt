@@ -78,6 +78,19 @@ typedef enum SbEventType {
   // No data argument.
   kSbEventTypeVerticalSync,
 
+  // The platform has detected a network disconnection. The platform should make
+  // a best effort to send an event of this type when the network disconnects,
+  // but there are likely to be cases where the platform cannot detect the
+  // disconnection (e.g. if the connection is via a powered hub which becomes
+  // disconnected), so the current network state cannot always be inferred from
+  // the sequence of Connect/Disconnect events.
+  kSbEventTypeNetworkDisconnect,
+
+  // The platform has detected a network connection. This event may be sent at
+  // application start-up, and should always be sent if the network reconnects
+  // since a disconnection event was sent.
+  kSbEventTypeNetworkConnect,
+
   // An event type reserved for scheduled callbacks. It will only be sent in
   // response to an application call to SbEventSchedule(), and it will call the
   // callback directly, so SbEventHandle should never receive this event
