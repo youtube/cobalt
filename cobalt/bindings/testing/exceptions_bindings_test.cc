@@ -24,7 +24,7 @@ using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::StrictMock;
+using ::testing::NiceMock;
 using ::testing::WithArg;
 
 #define EXPECT_SUBSTRING(needle, haystack) \
@@ -54,8 +54,7 @@ class ExceptionObjectSetter {
  public:
   explicit ExceptionObjectSetter(
       const scoped_refptr<ExceptionObjectInterface>& exception)
-      : exception_object_(
-            make_scoped_refptr<script::ScriptException>(exception.get())) {}
+      : exception_object_(exception) {}
   void FireException(script::ExceptionState* exception) {
     exception->SetException(exception_object_);
   }
@@ -117,13 +116,12 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromSetter) {
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
   scoped_refptr<ExceptionObjectInterface> exception_object =
-      make_scoped_refptr(new StrictMock<ExceptionObjectInterface>());
+      make_scoped_refptr(new NiceMock<ExceptionObjectInterface>());
   ExceptionObjectSetter exception_setter(exception_object);
 
   InSequence in_sequence_dummy;
   EXPECT_CALL(test_mock(), FunctionThrowsException(_)).WillOnce(
       Invoke(&exception_setter, &ExceptionObjectSetter::FireException));
-  EXPECT_CALL(*exception_object, message()).WillOnce(Return("the message"));
   EXPECT_TRUE(EvaluateScript(
       "var error = null;"
       "try { test.functionThrowsException(); }"
