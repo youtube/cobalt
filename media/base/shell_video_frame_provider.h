@@ -17,15 +17,6 @@
 #ifndef MEDIA_BASE_SHELL_VIDEO_FRAME_PROVIDER_H_
 #define MEDIA_BASE_SHELL_VIDEO_FRAME_PROVIDER_H_
 
-// TODO: Remove the code guarded by this macro once the work around is no longer
-//       needed.  Note that this macro is used in multiple source files.
-#define SUPPORT_VIDEO_FRAME_HOLDING 1
-
-#if SUPPORT_VIDEO_FRAME_HOLDING
-#include <map>
-#include <set>
-#endif  // SUPPORT_VIDEO_FRAME_HOLDING
-
 #include <vector>
 
 #include "base/callback.h"
@@ -73,28 +64,6 @@ class ShellVideoFrameProvider
   // queue since the last time this was called.
   bool QueryAndResetHasConsumedFrames();
 
-#if SUPPORT_VIDEO_FRAME_HOLDING
-  void HoldFrameAt(const base::TimeDelta& timestamp) {
-    base::AutoLock auto_lock(frames_lock_);
-
-    DCHECK(timestamps_to_hold_.find(timestamp) == timestamps_to_hold_.end());
-    timestamps_to_hold_.insert(timestamp);
-  }
-  void UnholdFrameAt(const base::TimeDelta& timestamp) {
-    base::AutoLock auto_lock(frames_lock_);
-
-    if (timestamps_to_hold_.find(timestamp) != timestamps_to_hold_.end()) {
-      timestamps_to_hold_.erase(timestamps_to_hold_.find(timestamp));
-    }
-
-    std::map<base::TimeDelta, scoped_refptr<VideoFrame> >::iterator iter =
-        frames_held_.find(timestamp);
-    if (iter != frames_held_.end()) {
-      frames_held_.erase(iter);
-    }
-  }
-#endif  // SUPPORT_VIDEO_FRAME_HOLDING
-
  private:
   base::TimeDelta GetMediaTime_Locked() const;
 
@@ -110,11 +79,6 @@ class ShellVideoFrameProvider
   int dropped_frames_;
   int max_delay_in_microseconds_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
-
-#if SUPPORT_VIDEO_FRAME_HOLDING
-  std::set<base::TimeDelta> timestamps_to_hold_;
-  std::map<base::TimeDelta, scoped_refptr<VideoFrame> > frames_held_;
-#endif  // SUPPORT_VIDEO_FRAME_HOLDING
 
   DISALLOW_COPY_AND_ASSIGN(ShellVideoFrameProvider);
 };

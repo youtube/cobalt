@@ -86,13 +86,6 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
       current_frame_ = frames_[0];
     }
 
-#if SUPPORT_VIDEO_FRAME_HOLDING
-    if (timestamps_to_hold_.find(frames_.front()->GetTimestamp()) !=
-        timestamps_to_hold_.end()) {
-      frames_held_[frames_.front()->GetTimestamp()] = frames_.front();
-    }
-#endif  // SUPPORT_VIDEO_FRAME_HOLDING
-
     frames_.erase(frames_.begin());
     has_consumed_frames_ = true;
   }
@@ -110,22 +103,12 @@ void ShellVideoFrameProvider::AddFrame(const scoped_refptr<VideoFrame>& frame) {
 void ShellVideoFrameProvider::Flush() {
   base::AutoLock auto_lock(frames_lock_);
   frames_.clear();
-
-#if SUPPORT_VIDEO_FRAME_HOLDING
-  timestamps_to_hold_.clear();
-  frames_held_.clear();
-#endif  // SUPPORT_VIDEO_FRAME_HOLDING
 }
 
 void ShellVideoFrameProvider::Stop() {
   base::AutoLock auto_lock(frames_lock_);
   frames_.clear();
   current_frame_ = NULL;
-
-#if SUPPORT_VIDEO_FRAME_HOLDING
-  timestamps_to_hold_.clear();
-  frames_held_.clear();
-#endif  // SUPPORT_VIDEO_FRAME_HOLDING
 }
 
 size_t ShellVideoFrameProvider::GetNumOfFramesCached() const {
