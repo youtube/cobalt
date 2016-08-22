@@ -41,6 +41,9 @@
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+{% if is_exception_interface %}
+#include "third_party/mozjs/js/src/jsexn.h"
+{% endif %}
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 {% endblock includes %}
 {% block using_directives %}
@@ -317,6 +320,26 @@ JSBool get_{{constant.idl_name}}(
 }
 
 {% endfor %}
+{% if is_exception_interface %}
+JSBool HasExceptionInstance(JSContext *context, JS::HandleObject type,
+                            JS::MutableHandleValue vp, JSBool *success) {
+
+  JS::RootedValue value(context);
+  bool success_check = JS_GetProperty(
+      context, type, "prototype", value.address());
+  DCHECK(success_check);
+
+  JS::RootedObject object(context, &value.toObject());
+  bool is_delegate;
+  if (!IsDelegate(context, object, vp, &is_delegate)) {
+    *success = false;
+    return false;
+  }
+
+  *success = is_delegate;
+  return true;
+}
+{% endif %}
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -368,6 +391,9 @@ InterfaceData* CreateCachedInterfaceData() {
   interface_object_class->convert = JS_ConvertStub;
 {% if constructor %}
   interface_object_class->construct = Constructor;
+{% endif %}
+{% if is_exception_interface %}
+  interface_object_class->hasInstance = &HasExceptionInstance;
 {% endif %}
   return interface_data;
 }
@@ -643,10 +669,19 @@ void InitializePrototypeAndInterfaceObject(
   {% endif %}
   DCHECK(parent_prototype);
 
+{% if is_exception_interface %}
+  JS::RootedObject prototype(context);
+  // Get Error prototype.
+  bool success_check = js_GetClassPrototype(
+      context, GetExceptionProtoKey(JSEXN_ERR), &prototype);
+  DCHECK(success_check);
+  interface_data->prototype = prototype;
+{% else %}
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
       context, &interface_data->prototype_class_definition, parent_prototype,
       NULL);
+{% endif %}
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
