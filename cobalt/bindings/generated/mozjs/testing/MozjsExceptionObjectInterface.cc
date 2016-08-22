@@ -43,6 +43,7 @@
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsexn.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
 namespace {
@@ -114,6 +115,24 @@ MozjsExceptionObjectInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsExceptionObjectInterfaceHandler>
     proxy_handler;
 
+JSBool HasExceptionInstance(JSContext *context, JS::HandleObject type,
+                            JS::MutableHandleValue vp, JSBool *success) {
+
+  JS::RootedValue value(context);
+  bool success_check = JS_GetProperty(
+      context, type, "prototype", value.address());
+  DCHECK(success_check);
+
+  JS::RootedObject object(context, &value.toObject());
+  bool is_delegate;
+  if (!IsDelegate(context, object, vp, &is_delegate)) {
+    *success = false;
+    return false;
+  }
+
+  *success = is_delegate;
+  return true;
+}
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -162,6 +181,7 @@ InterfaceData* CreateCachedInterfaceData() {
   interface_object_class->enumerate = JS_EnumerateStub;
   interface_object_class->resolve = JS_ResolveStub;
   interface_object_class->convert = JS_ConvertStub;
+  interface_object_class->hasInstance = &HasExceptionInstance;
   return interface_data;
 }
 
@@ -255,10 +275,12 @@ void InitializePrototypeAndInterfaceObject(
       context, JS_GetObjectPrototype(context, global_object));
   DCHECK(parent_prototype);
 
-  // Create the Prototype object.
-  interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype,
-      NULL);
+  JS::RootedObject prototype(context);
+  // Get Error prototype.
+  bool success_check = js_GetClassPrototype(
+      context, GetExceptionProtoKey(JSEXN_ERR), &prototype);
+  DCHECK(success_check);
+  interface_data->prototype = prototype;
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
