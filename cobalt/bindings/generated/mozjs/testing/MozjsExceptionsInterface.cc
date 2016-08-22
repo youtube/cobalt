@@ -420,6 +420,10 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 
   scoped_refptr<ExceptionsInterface> new_object =
       new ExceptionsInterface(&exception_state);
+  // In case that an exception is thrown from constructor.
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
   JS::RootedValue result_value(context);
   ToJSValue(context, new_object, &result_value);
   DCHECK(result_value.isObject());

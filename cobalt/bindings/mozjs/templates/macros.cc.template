@@ -336,6 +336,12 @@
                        constructor.call_with) }}
   scoped_refptr<{{impl_class}}> new_object =
       new {{impl_class}}({{arguments_list|join(', ')}});
+{% if constructor.raises_exception %}
+  // In case that an exception is thrown from constructor.
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+{% endif %}
   JS::RootedValue result_value(context);
   ToJSValue(context, new_object, &result_value);
   DCHECK(result_value.isObject());
