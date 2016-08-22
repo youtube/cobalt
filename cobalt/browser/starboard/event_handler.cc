@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/network/network_event.h"
 #include "cobalt/system_window/application_event.h"
 #include "cobalt/system_window/starboard/system_window.h"
 
@@ -58,6 +59,12 @@ void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
   } else if (starboard_event->type == kSbEventTypeSuspend) {
     cobalt_event.reset(new system_window::ApplicationEvent(
         system_window::ApplicationEvent::kSuspend));
+  } else if (starboard_event->type == kSbEventTypeNetworkConnect) {
+    cobalt_event.reset(
+        new network::NetworkEvent(network::NetworkEvent::kConnection));
+  } else if (starboard_event->type == kSbEventTypeNetworkDisconnect) {
+    cobalt_event.reset(
+        new network::NetworkEvent(network::NetworkEvent::kDisconnection));
   }
 
   // Dispatch the Cobalt event, if created.
