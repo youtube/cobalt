@@ -195,34 +195,16 @@ bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  MozjsSourceCode* mozjs_source_code =
-      base::polymorphic_downcast<MozjsSourceCode*>(source_code.get());
-
-  const std::string& script = mozjs_source_code->source_utf8();
-  const base::SourceLocation location = mozjs_source_code->location();
 
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
   JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
   JS::RootedValue result_value(context_);
+
   std::string error_message;
   last_error_message_ = &error_message;
-  JS::RootedObject global_object(
-      context_, js::GetProxyTargetObject(global_object_proxy_));
 
-  size_t length = script.size();
-  jschar* inflated_buffer =
-      js::InflateUTF8String(context_, script.c_str(), &length);
-  bool success = false;
-  if (inflated_buffer) {
-    success = JS_EvaluateUCScript(context_, global_object, inflated_buffer,
-                                  length, location.file_path.c_str(),
-                                  location.line_number, result_value.address());
-    js_free(inflated_buffer);
-  } else {
-    DLOG(ERROR) << "Malformed UTF-8 script.";
-  }
-
+  bool success = EvaluateScriptInternal(source_code, &result_value);
   if (out_result_utf8) {
     if (success) {
       MozjsExceptionState exception_state(context_);
@@ -234,8 +216,61 @@ bool MozjsGlobalEnvironment::EvaluateScript(
       DLOG(ERROR) << "Script execution failed.";
     }
   }
-  JS_RestoreExceptionState(context_, previous_exception_state);
   last_error_message_ = NULL;
+  JS_RestoreExceptionState(context_, previous_exception_state);
+  return success;
+}
+
+bool MozjsGlobalEnvironment::EvaluateScript(
+    const scoped_refptr<SourceCode>& source_code,
+    const scoped_refptr<Wrappable>& owning_object,
+    base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  JSAutoRequest auto_request(context_);
+  JSAutoCompartment auto_compartment(context_, global_object_proxy_);
+  JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
+  JS::RootedValue result_value(context_);
+  if (!EvaluateScriptInternal(source_code, &result_value)) {
+    return false;
+  }
+  if (out_opaque_handle) {
+    JS::RootedObject js_object(context_);
+    JS_ValueToObject(context_, result_value, js_object.address());
+    MozjsObjectHandleHolder mozjs_object_holder(js_object, context_,
+                                                wrapper_factory());
+    out_opaque_handle->emplace(owning_object.get(), mozjs_object_holder);
+  }
+  JS_RestoreExceptionState(context_, previous_exception_state);
+  return true;
+}
+
+bool MozjsGlobalEnvironment::EvaluateScriptInternal(
+    const scoped_refptr<SourceCode>& source_code,
+    JS::MutableHandleValue out_result) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(global_object_proxy_);
+  MozjsSourceCode* mozjs_source_code =
+      base::polymorphic_downcast<MozjsSourceCode*>(source_code.get());
+
+  const std::string& script = mozjs_source_code->source_utf8();
+  const base::SourceLocation location = mozjs_source_code->location();
+
+  JS::RootedObject global_object(
+      context_, js::GetProxyTargetObject(global_object_proxy_));
+
+  size_t length = script.size();
+  jschar* inflated_buffer =
+      js::InflateUTF8String(context_, script.c_str(), &length);
+  bool success = false;
+  if (inflated_buffer) {
+    success = JS_EvaluateUCScript(context_, global_object, inflated_buffer,
+                                  length, location.file_path.c_str(),
+                                  location.line_number, out_result.address());
+    js_free(inflated_buffer);
+  } else {
+    DLOG(ERROR) << "Malformed UTF-8 script.";
+  }
+
   return success;
 }
 
@@ -322,7 +357,7 @@ void MozjsGlobalEnvironment::BeginGarbageCollection() {
   if (global_object_proxy_ && garbage_collection_count_ == 1) {
     DCHECK(!opaque_root_state_);
     JSAutoRequest auto_request(context_);
-    JSAutoCompartment auto_comparment(context_, global_object_proxy_);
+    JSAutoCompartment auto_compartment(context_, global_object_proxy_);
     // Get the current state of opaque root relationships. Keep this object
     // alive for the duration of the GC phase to ensure that reachability
     // between roots and reachable objects is maintained.
