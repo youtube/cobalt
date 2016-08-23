@@ -47,7 +47,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   void RemoveReferencedObject(JS::HandleObject referee);
 
   // Create a new WrapperPrivate instance and associate it with the wrapper.
-  static void AddPrivateData(JS::HandleObject wrapper_proxy,
+  static void AddPrivateData(JSContext* context, JS::HandleObject wrapper_proxy,
                              const scoped_refptr<Wrappable>& wrappable);
 
   // Get the WrapperPrivate associated with the given Wrappable. A new JSObject

@@ -300,8 +300,12 @@ static base::LazyInstance<MozjsWindowHandler>
 
 JSBool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, JSBool *success) {
+  JS::RootedObject global_object(
+      context, JS_GetGlobalForObject(context, type));
+  DCHECK(global_object);
+
   JS::RootedObject prototype(
-      context, MozjsWindow::GetPrototype(context));
+      context, MozjsWindow::GetPrototype(context, global_object));
 
   // |IsDelegate| walks the prototype chain of an object returning true if
   // .prototype is found.
@@ -410,6 +414,28 @@ JSBool set_windowProperty(
   return !exception_state.is_exception_set();
 }
 
+JSBool get_window(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  Window* impl =
+      wrapper_private->wrappable<Window>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->window(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
 JSBool fcn_getStackTrace(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -482,6 +508,12 @@ const JSPropertySpec prototype_properties[] = {
       JSOP_WRAPPER(&get_windowProperty),
       JSOP_WRAPPER(&set_windowProperty),
   },
+  {  // Readonly attribute
+      "window", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
+      JSOP_WRAPPER(&get_window),
+      JSOP_NULLWRAPPER,
+  },
   JS_PS_END
 };
 
@@ -516,16 +548,14 @@ const JSPropertySpec own_properties[] = {
 };
 
 void InitializePrototypeAndInterfaceObject(
-    InterfaceData* interface_data, JSContext* context) {
+    InterfaceData* interface_data, JSContext* context,
+    JS::HandleObject global_object) {
   DCHECK(!interface_data->prototype);
   DCHECK(!interface_data->interface_object);
+  DCHECK(JS_IsGlobalObject(global_object));
 
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-  JS::RootedObject global_object(context, global_object_proxy->global_object());
-  DCHECK(global_object);
   JS::RootedObject parent_prototype(
-      context, bindings::testing::MozjsGlobalInterfaceParent::GetPrototype(context));
+      context, bindings::testing::MozjsGlobalInterfaceParent::GetPrototype(context, global_object));
   DCHECK(parent_prototype);
 
   // Create the Prototype object.
@@ -616,13 +646,8 @@ JSObject* MozjsWindow::CreateProxy(
   JS::RootedObject parent_prototype(
       context, JS_GetObjectPrototype(context, global_object));
 
-  // Set the global object pointer, so we can access the standard classes such
-  // as the base Object prototype when looking up our prototype.
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-  global_object_proxy->SetGlobalObject(global_object);
-
-  JS::RootedObject prototype(context, MozjsWindow::GetPrototype(context));
+  JS::RootedObject prototype(
+      context, MozjsWindow::GetPrototype(context, global_object));
   DCHECK(prototype);
   JS_SetPrototype(context, global_object, prototype);
 
@@ -633,34 +658,51 @@ JSObject* MozjsWindow::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, global_object, prototype, NULL,
                              proxy_handler.Pointer()));
-  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  WrapperPrivate::AddPrivateData(context, proxy, wrappable);
+
+  // Set the global object proxy pointer, so we can access the standard classes
+  // such as the base Object prototype when looking up our prototype.
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  global_object_proxy->SetGlobalObjectProxyAndWrapper(proxy, wrappable);
   return proxy;
 }
 
 //static
 const JSClass* MozjsWindow::PrototypeClass(
       JSContext* context) {
-  JS::RootedObject prototype(context, GetPrototype(context));
+  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(global_object);
+
+  JS::RootedObject prototype(context, GetPrototype(context, global_object));
   JSClass* proto_class = JS_GetClass(*prototype.address());
   return proto_class;
 }
 
 // static
-JSObject* MozjsWindow::GetPrototype(JSContext* context) {
+JSObject* MozjsWindow::GetPrototype(
+    JSContext* context, JS::HandleObject global_object) {
+  DCHECK(JS_IsGlobalObject(global_object));
+
   InterfaceData* interface_data = GetInterfaceData(context);
   if (!interface_data->prototype) {
     // Create new prototype that has all the props and methods
-    InitializePrototypeAndInterfaceObject(interface_data, context);
+    InitializePrototypeAndInterfaceObject(
+        interface_data, context, global_object);
   }
   DCHECK(interface_data->prototype);
   return interface_data->prototype;
 }
 
 // static
-JSObject* MozjsWindow::GetInterfaceObject(JSContext* context) {
+JSObject* MozjsWindow::GetInterfaceObject(
+    JSContext* context, JS::HandleObject global_object) {
+  DCHECK(JS_IsGlobalObject(global_object));
+
   InterfaceData* interface_data = GetInterfaceData(context);
   if (!interface_data->interface_object) {
-    InitializePrototypeAndInterfaceObject(interface_data, context);
+    InitializePrototypeAndInterfaceObject(
+        interface_data, context, global_object);
   }
   DCHECK(interface_data->interface_object);
   return interface_data->interface_object;
@@ -689,7 +731,8 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
       context, global_interface);
   mozjs_global_object_proxy->SetEnvironmentSettings(environment_settings);
 
-  WrapperFactory* wrapper_factory = mozjs_global_object_proxy->wrapper_factory();
+  WrapperFactory* wrapper_factory =
+      mozjs_global_object_proxy->wrapper_factory();
   wrapper_factory->RegisterWrappableType(
       AnonymousIndexedGetterInterface::AnonymousIndexedGetterInterfaceWrappableType(),
       base::Bind(MozjsAnonymousIndexedGetterInterface::CreateProxy),
