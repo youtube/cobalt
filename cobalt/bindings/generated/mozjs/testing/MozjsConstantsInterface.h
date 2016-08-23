@@ -41,8 +41,10 @@ class MozjsConstantsInterface {
   static JSObject* CreateProxy(JSContext* context,
       const scoped_refptr<script::Wrappable>& wrappable);
   static const JSClass* PrototypeClass(JSContext* context);
-  static JSObject* GetPrototype(JSContext* context);
-  static JSObject* GetInterfaceObject(JSContext* context);
+  static JSObject* GetPrototype(JSContext* context,
+                                JS::HandleObject global_object);
+  static JSObject* GetInterfaceObject(JSContext* context,
+                                      JS::HandleObject global_object);
 };
 
 }  // namespace bindings
