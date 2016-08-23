@@ -287,6 +287,10 @@ void setJSwindowProperty(
     JSC::ExecState* exec,
     JSC::JSObject* this_object,
     JSC::JSValue value);
+JSC::JSValue getJSwindow(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
 JSC::EncodedJSValue functionJSgetStackTrace(JSC::ExecState*);
 JSC::EncodedJSValue functionJSwindowOperation(JSC::ExecState*);
 
@@ -604,6 +608,12 @@ const JSC::HashTableValue JSCWindow::property_table_values[] = {
         reinterpret_cast<intptr_t>(setJSwindowProperty),
         JSC::NoIntrinsic
     },
+    { "window",
+        JSC::DontDelete | JSC::ReadOnly,
+        reinterpret_cast<intptr_t>(getJSwindow),
+        0,
+        JSC::NoIntrinsic
+    },
     { "getStackTrace",
         JSC::DontDelete | JSC::Function,
         reinterpret_cast<intptr_t>(functionJSgetStackTrace),
@@ -621,8 +631,8 @@ const JSC::HashTableValue JSCWindow::property_table_values[] = {
 
 // static
 const JSC::HashTable JSCWindow::property_table_prototype = {
-    10,  // compactSize
-    7,  // compactSizeMask
+    19,  // compactSize
+    15,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
 };  // JSCWindow::property_table_prototype
@@ -1024,6 +1034,25 @@ void setJSwindowProperty(
   if (!exec_state->hadException()) {
     impl->set_window_property(cobalt_value);
   }
+}
+
+JSC::JSValue getJSwindow(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCWindow", "get window");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  Window* impl =
+      GetWrappableOrSetException<Window>(exec_state, slot_base);
+  if (!impl) {
+    return exec_state->exception();
+  }
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      impl->window());
+  return result;
 }
 
 JSC::EncodedJSValue functionJSgetStackTrace(

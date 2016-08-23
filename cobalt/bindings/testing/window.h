@@ -38,6 +38,7 @@ class Window : public GlobalInterfaceParent {
       const std::vector<script::StackFrame>& stack_frame) {
     return StackTraceToString(stack_frame);
   }
+  scoped_refptr<Window> window() { return this; }
 
   DEFINE_WRAPPABLE_TYPE(Window);
 };

@@ -24,9 +24,11 @@ class {{binding_class}} {
   static JSObject* CreateProxy(JSContext* context,
       const scoped_refptr<script::Wrappable>& wrappable);
   static const JSClass* PrototypeClass(JSContext* context);
-  static JSObject* GetPrototype(JSContext* context);
+  static JSObject* GetPrototype(JSContext* context,
+                                JS::HandleObject global_object);
 {% if has_interface_object %}
-  static JSObject* GetInterfaceObject(JSContext* context);
+  static JSObject* GetInterfaceObject(JSContext* context,
+                                      JS::HandleObject global_object);
 {% endif %}
 };
 {% endblock implementation %}
