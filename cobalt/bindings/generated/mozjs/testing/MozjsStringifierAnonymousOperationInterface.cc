@@ -116,8 +116,12 @@ static base::LazyInstance<MozjsStringifierAnonymousOperationInterfaceHandler>
 
 JSBool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, JSBool *success) {
+  JS::RootedObject global_object(
+      context, JS_GetGlobalForObject(context, type));
+  DCHECK(global_object);
+
   JS::RootedObject prototype(
-      context, MozjsStringifierAnonymousOperationInterface::GetPrototype(context));
+      context, MozjsStringifierAnonymousOperationInterface::GetPrototype(context, global_object));
 
   // |IsDelegate| walks the prototype chain of an object returning true if
   // .prototype is found.
@@ -243,14 +247,12 @@ const JSPropertySpec own_properties[] = {
 };
 
 void InitializePrototypeAndInterfaceObject(
-    InterfaceData* interface_data, JSContext* context) {
+    InterfaceData* interface_data, JSContext* context,
+    JS::HandleObject global_object) {
   DCHECK(!interface_data->prototype);
   DCHECK(!interface_data->interface_object);
+  DCHECK(JS_IsGlobalObject(global_object));
 
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-  JS::RootedObject global_object(context, global_object_proxy->global_object());
-  DCHECK(global_object);
   JS::RootedObject parent_prototype(
       context, JS_GetObjectPrototype(context, global_object));
   DCHECK(parent_prototype);
@@ -329,8 +331,11 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 // static
 JSObject* MozjsStringifierAnonymousOperationInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(global_object);
+
   InterfaceData* interface_data = GetInterfaceData(context);
-  JS::RootedObject prototype(context, GetPrototype(context));
+  JS::RootedObject prototype(context, GetPrototype(context, global_object));
   DCHECK(prototype);
   JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
       context, &interface_data->instance_class_definition, prototype, NULL));
@@ -338,34 +343,45 @@ JSObject* MozjsStringifierAnonymousOperationInterface::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, new_object, prototype, NULL,
                              proxy_handler.Pointer()));
-  WrapperPrivate::AddPrivateData(proxy, wrappable);
+  WrapperPrivate::AddPrivateData(context, proxy, wrappable);
   return proxy;
 }
 
 //static
 const JSClass* MozjsStringifierAnonymousOperationInterface::PrototypeClass(
       JSContext* context) {
-  JS::RootedObject prototype(context, GetPrototype(context));
+  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(global_object);
+
+  JS::RootedObject prototype(context, GetPrototype(context, global_object));
   JSClass* proto_class = JS_GetClass(*prototype.address());
   return proto_class;
 }
 
 // static
-JSObject* MozjsStringifierAnonymousOperationInterface::GetPrototype(JSContext* context) {
+JSObject* MozjsStringifierAnonymousOperationInterface::GetPrototype(
+    JSContext* context, JS::HandleObject global_object) {
+  DCHECK(JS_IsGlobalObject(global_object));
+
   InterfaceData* interface_data = GetInterfaceData(context);
   if (!interface_data->prototype) {
     // Create new prototype that has all the props and methods
-    InitializePrototypeAndInterfaceObject(interface_data, context);
+    InitializePrototypeAndInterfaceObject(
+        interface_data, context, global_object);
   }
   DCHECK(interface_data->prototype);
   return interface_data->prototype;
 }
 
 // static
-JSObject* MozjsStringifierAnonymousOperationInterface::GetInterfaceObject(JSContext* context) {
+JSObject* MozjsStringifierAnonymousOperationInterface::GetInterfaceObject(
+    JSContext* context, JS::HandleObject global_object) {
+  DCHECK(JS_IsGlobalObject(global_object));
+
   InterfaceData* interface_data = GetInterfaceData(context);
   if (!interface_data->interface_object) {
-    InitializePrototypeAndInterfaceObject(interface_data, context);
+    InitializePrototypeAndInterfaceObject(
+        interface_data, context, global_object);
   }
   DCHECK(interface_data->interface_object);
   return interface_data->interface_object;
