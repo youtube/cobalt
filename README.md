@@ -241,12 +241,12 @@ Cobalt has four build optimization levels, going from the slowest, least
 optimized, with the most debug information at the top (debug) to the fastest,
 most optimized, and with the least debug information at the bottom (gold):
 
- | Type  | Optimizations | Logging | Asserts | Debug Info | Console  |
- | :---- | :------------ | :------ | :------ | :--------- | :------- |
- | debug | None          | Full    | Full    | Full       | Enabled  |
- | devel | Full          | Full    | Full    | Full       | Enabled  |
- | qa    | Full          | Limited | None    | None       | Enabled  |
- | gold  | Full          | None    | None    | None       | Disabled |
+ Type  | Optimizations | Logging | Asserts | Debug Info | Console
+ :---- | :------------ | :------ | :------ | :--------- | :-------
+ debug | None          | Full    | Full    | Full       | Enabled
+ devel | Full          | Full    | Full    | Full       | Enabled
+ qa    | Full          | Limited | None    | None       | Enabled
+ gold  | Full          | None    | None    | None       | Disabled
 
 When building for release, you should always use a gold build for the final
 product.
@@ -254,3 +254,9 @@ product.
     $ cobalt/build/gyp_cobalt -C gold linux-x64x11
     $ ninja -C out/linux-x64x11_gold cobalt
     $ out/linux-x64x11_gold/cobalt
+
+
+## Origin of this Repository
+
+This is a fork of the chromium repository at http://git.chromium.org/git/chromium.git
+
