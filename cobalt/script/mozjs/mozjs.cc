@@ -24,6 +24,7 @@
 #include "cobalt/script/source_code.h"
 #include "cobalt/script/standalone_javascript_runner.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsproxy.h"
 
 namespace cobalt {
 namespace script {
@@ -51,6 +52,8 @@ JSBool Print(JSContext* context, uint32_t argc, JS::Value* arguments_value) {
 }
 
 void SetupBindings(JSContext* context, JSObject* global_object) {
+  DCHECK(JS_IsGlobalObject(global_object));
+
   JSAutoRequest auto_request(context);
   JSAutoCompartment auto_comparment(context, global_object);
   JS_DefineFunction(context, global_object, "print", &Print, 0,
@@ -59,12 +62,12 @@ void SetupBindings(JSContext* context, JSObject* global_object) {
 
 int MozjsMain(int argc, char** argv) {
   cobalt::script::StandaloneJavascriptRunner standalone_runner;
-  MozjsGlobalObjectProxy* global_object_proxy =
+  MozjsGlobalObjectProxy* global_object_environment =
       static_cast<MozjsGlobalObjectProxy*>(
           standalone_runner.global_object_proxy().get());
 
-  SetupBindings(global_object_proxy->context(),
-                global_object_proxy->global_object());
+  SetupBindings(global_object_environment->context(),
+                global_object_environment->global_object());
 
   if (argc > 1) {
     // Command line arguments will be flag-value pairs of the form
@@ -86,7 +89,8 @@ int MozjsMain(int argc, char** argv) {
 
         // Execute the script and get the results of execution.
         std::string result;
-        bool success = global_object_proxy->EvaluateScript(source, &result);
+        bool success =
+            global_object_environment->EvaluateScript(source, &result);
         // Echo the results to stdout.
         if (!success) {
           std::cout << "Exception: ";

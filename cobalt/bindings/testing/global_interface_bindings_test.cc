@@ -37,6 +37,10 @@ class GlobalInterfaceBindingsTest : public BindingsTestBase {
 };
 }  // namespace
 
+TEST_F(GlobalInterfaceBindingsTest, GlobalWindowIsThis) {
+  EXPECT_TRUE(EvaluateScript("window === this;", NULL));
+}
+
 TEST_F(GlobalInterfaceBindingsTest, GlobalOperation) {
   EXPECT_CALL(test_mock(), WindowOperation());
   EXPECT_TRUE(EvaluateScript("windowOperation();", NULL));
