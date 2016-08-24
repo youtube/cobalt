@@ -1,0 +1,19 @@
+commit 0dec4f46db1b072591cb6703c68a2ebb0279026d
+Author: Navreet Gill <***REMOVED***@google.com>
+Date:   Wed Aug 24 11:32:47 2016 -0700
+
+    test
+
+diff --git a/gtest-parallel b/gtest-parallel
+index 4e80928..a258a87 100755
+--- a/gtest-parallel
++++ b/gtest-parallel
+@@ -296,7 +296,7 @@ for test_binary in binaries:
+ 
+   try:
+     test_list = subprocess.Popen(list_command + ['--gtest_list_tests'],
+-                                 stdout=subprocess.PIPE).communicate()[0]
++                                 stderr=subprocess.PIPE).communicate()[1]
+   except OSError as e:
+     sys.exit("%s: %s" % (test_binary, str(e)))
+ 
