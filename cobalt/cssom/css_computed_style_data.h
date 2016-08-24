@@ -686,8 +686,9 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
   // initially set to a parent's value continues to match the parent's value.
   void AddDeclaredPropertyInheritedFromParent(PropertyKey key);
 
-  // Returns true if any declared property that was inherited from the parent
-  // are still valid. They become invalid when the parent's value changes.
+  // Returns true if all of the declared properties that were inherited from the
+  // parent are still valid. They become invalid when the parent's value
+  // changes.
   bool AreDeclaredPropertiesInheritedFromParentValid() const;
 
   PropertyValues* declared_property_values() {
