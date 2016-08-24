@@ -36,6 +36,14 @@ const int kBytesPerPixel[] = {
 int BytesPerPixel(PixelFormat format) {
   SB_COMPILE_ASSERT(SB_ARRAY_SIZE(kBytesPerPixel) == kPixelFormatNumFormats,
                     kBytesPerPixel_has_entries_for_each_enum_PixelFormat);
+  if (kPixelFormatInvalid == format) {
+    return 0;  // Invalid formats have 0 bytes per pixel.
+  }
+
+  if (format < 0 || format >= kPixelFormatNumFormats) {
+    SB_DCHECK(false) << "Invalid PixelFormat: " << format;
+    return 0;
+  }
   return kBytesPerPixel[format];
 }
 
