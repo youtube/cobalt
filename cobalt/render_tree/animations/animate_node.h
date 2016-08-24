@@ -82,6 +82,10 @@ class AnimateNode : public Node {
     // There cannot be any keys that are in both the merge target and source.
     void Merge(const Builder& other);
 
+    // Returns true if there are no animations added to this
+    // AnimateNode::Builder.
+    bool empty() const { return node_animation_map_.empty(); }
+
    private:
     // A non-template function that contains the logic for storing a target
     // node and animation list pair.

@@ -141,7 +141,6 @@ scoped_refptr<render_tree::Node> Layout(
       line_break_iterator, character_break_iterator, initial_containing_block);
 
   // Add to render tree.
-  render_tree::animations::AnimateNode::Builder animate_node_builder;
   render_tree::CompositionNode::Builder render_tree_root_builder;
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatRenderAndAnimate);
@@ -150,15 +149,16 @@ scoped_refptr<render_tree::Node> Layout(
         base::StopWatch::kAutoStartOn, layout_stat_tracker);
 
     (*initial_containing_block)
-        ->RenderAndAnimate(&render_tree_root_builder, &animate_node_builder,
-                           math::Vector2dF(0, 0));
+        ->RenderAndAnimate(&render_tree_root_builder, math::Vector2dF(0, 0));
   }
 
   render_tree::CompositionNode* static_root_node =
       new render_tree::CompositionNode(render_tree_root_builder.Pass());
+
+  // Make it easy to animate the entire tree by placing an AnimateNode at the
+  // root to merge any sub-AnimateNodes.
   render_tree::animations::AnimateNode* animate_node =
-      new render_tree::animations::AnimateNode(animate_node_builder,
-                                               static_root_node);
+      new render_tree::animations::AnimateNode(static_root_node);
 
   return animate_node;
 }
