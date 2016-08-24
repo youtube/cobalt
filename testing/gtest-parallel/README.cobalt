@@ -1,0 +1,59 @@
+Name: gtest-parallel
+URL: https://github.com/google/gtest-parallel
+Version: 0
+License: Apache 2.0
+Security Critical: no
+
+Description
+    This directory contains the source code of a python project that helps run
+    gtest binaries in parallel using multiple processes.
+
+How to use
+    Pre-reqs: Python (2)
+    1.  ./gtest-parallel <name-of-gtest-binary>
+
+    for additional options, see ./gtest-parallel --help
+
+    If all the tests pass, you will be see one line on the screen get updated.
+    If a test fails, it will print out the test result and scroll a little bit.
+
+    Example: $ ./gtest-parallel ~/cobalt/src/out/linux-x64x11_debug/layout_tests
+    [436/436] BidiLayoutTests/LayoutTest.LayoutTest/1 (1285 ms)
+
+Troubleshooting
+    1.  Make sure that the gtest-parallel script is executable:
+      chmod +x ./gtest-parallel
+
+Source
+1.  a) The external repo was imported into our git server on lbshell-internal,
+       repo name is gtest-parallel
+    b) A new branch was created with the date of last commit
+    c) Then it was pushed to the COBALT branch
+
+    Steps for step 1.b:
+    $ git clone https://lbshell-internal.googlesource.com/testing/gtest-parallel
+    $ cd gtest-parallel/
+    $ git remote add upstream https://github.com/google/gtest-parallel.git
+    $ git fetch upstream
+    $ git checkout -b 20160803 upstream/master
+    $ git push origin
+
+    You will likely need admin permissions on the repo to execute the git push.
+
+2. A patch was applied since gtest now prints some things to stderr instead of
+   stdout.
+
+    $ patch < patches/stderr_out.patch
+
+FAQ
+1.  Do the tests need to be thread safe?
+
+    No, the script first asks the binary for the list of tests, and then splits
+    them across multiple processes.
+
+Patches
+1.  patches/stderr_out.patch
+
+    Starboard redirects some output from stdout to stderr.
+    Therefore, we needed to modify the the gtest-parallel script to parse stderr
+    instead of stdout.

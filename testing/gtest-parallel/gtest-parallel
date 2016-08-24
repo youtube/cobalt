@@ -296,7 +296,7 @@ for test_binary in binaries:
 
   try:
     test_list = subprocess.Popen(list_command + ['--gtest_list_tests'],
-                                 stdout=subprocess.PIPE).communicate()[0]
+                                 stderr=subprocess.PIPE).communicate()[1]
   except OSError as e:
     sys.exit("%s: %s" % (test_binary, str(e)))
 
