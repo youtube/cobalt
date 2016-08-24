@@ -115,6 +115,22 @@ static base::LazyInstance<MozjsGetOpaqueRootInterfaceHandler>
     proxy_handler;
 
 JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+JSBool HasInstance(JSContext *context, JS::HandleObject type,
+                   JS::MutableHandleValue vp, JSBool *success) {
+  JS::RootedObject prototype(
+      context, MozjsGetOpaqueRootInterface::GetPrototype(context));
+
+  // |IsDelegate| walks the prototype chain of an object returning true if
+  // .prototype is found.
+  bool is_delegate;
+  if (!IsDelegate(context, prototype, vp, &is_delegate)) {
+    *success = false;
+    return false;
+  }
+
+  *success = is_delegate;
+  return true;
+}
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -163,6 +179,7 @@ InterfaceData* CreateCachedInterfaceData() {
   interface_object_class->enumerate = JS_EnumerateStub;
   interface_object_class->resolve = JS_ResolveStub;
   interface_object_class->convert = JS_ConvertStub;
+  interface_object_class->hasInstance = &HasInstance;
   interface_object_class->construct = Constructor;
   return interface_data;
 }
