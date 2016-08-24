@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/nplb/socket_helpers.h"
+#include "starboard/nplb/thread_helpers.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,6 +25,11 @@ namespace {
 const int kMultiple = 5;
 const int kTrials = 8;
 
+struct WakeUpContext {
+  SbSocketWaiter waiter;
+  Semaphore semaphore;
+};
+
 void* WakeUpEntryPoint(void* context) {
   SbSocketWaiter waiter = reinterpret_cast<SbSocketWaiter>(context);
   SbSocketWaiterWakeUp(waiter);
@@ -31,7 +37,9 @@ void* WakeUpEntryPoint(void* context) {
 }
 
 void* WakeUpSleepEntryPoint(void* context) {
-  SbSocketWaiter waiter = reinterpret_cast<SbSocketWaiter>(context);
+  WakeUpContext* wake_up_context = reinterpret_cast<WakeUpContext*>(context);
+  SbSocketWaiter waiter = wake_up_context->waiter;
+  wake_up_context->semaphore.Take();
   SbThreadSleep(kSocketTimeout);
   SbSocketWaiterWakeUp(waiter);
   return NULL;
@@ -113,9 +121,16 @@ TEST(SbSocketWaiterWakeUpTest, CallFromOtherThreadWakesUp) {
   for (int i = 0; i < kTrials; ++i) {
     SbSocketWaiter waiter = SbSocketWaiterCreate();
     EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
+    WakeUpContext context;
+    context.waiter = waiter;
 
-    SbThread thread = Spawn(waiter, &WakeUpSleepEntryPoint);
-    WaitShouldBlockBetween(waiter, kSocketTimeout, kSocketTimeout * 2);
+    SbThread thread = Spawn(&context, &WakeUpSleepEntryPoint);
+    SbTimeMonotonic start = SbTimeGetMonotonicNow();
+    context.semaphore.Put();
+    TimedWait(waiter);
+    SbTimeMonotonic duration = SbTimeGetMonotonicNow() - start;
+    EXPECT_GT(kSocketTimeout * 2, duration);
+    EXPECT_LE(kSocketTimeout, duration);
     Join(thread);
 
     EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
