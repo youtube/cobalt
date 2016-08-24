@@ -320,18 +320,15 @@ JSBool get_{{constant.idl_name}}(
 }
 
 {% endfor %}
-{% if is_exception_interface %}
-JSBool HasExceptionInstance(JSContext *context, JS::HandleObject type,
-                            JS::MutableHandleValue vp, JSBool *success) {
+JSBool HasInstance(JSContext *context, JS::HandleObject type,
+                   JS::MutableHandleValue vp, JSBool *success) {
+  JS::RootedObject prototype(
+      context, {{binding_class}}::GetPrototype(context));
 
-  JS::RootedValue value(context);
-  bool success_check = JS_GetProperty(
-      context, type, "prototype", value.address());
-  DCHECK(success_check);
-
-  JS::RootedObject object(context, &value.toObject());
+  // |IsDelegate| walks the prototype chain of an object returning true if
+  // .prototype is found.
   bool is_delegate;
-  if (!IsDelegate(context, object, vp, &is_delegate)) {
+  if (!IsDelegate(context, prototype, vp, &is_delegate)) {
     *success = false;
     return false;
   }
@@ -339,7 +336,6 @@ JSBool HasExceptionInstance(JSContext *context, JS::HandleObject type,
   *success = is_delegate;
   return true;
 }
-{% endif %}
 
 InterfaceData* CreateCachedInterfaceData() {
   InterfaceData* interface_data = new InterfaceData();
@@ -389,11 +385,9 @@ InterfaceData* CreateCachedInterfaceData() {
   interface_object_class->enumerate = JS_EnumerateStub;
   interface_object_class->resolve = JS_ResolveStub;
   interface_object_class->convert = JS_ConvertStub;
+  interface_object_class->hasInstance = &HasInstance;
 {% if constructor %}
   interface_object_class->construct = Constructor;
-{% endif %}
-{% if is_exception_interface %}
-  interface_object_class->hasInstance = &HasExceptionInstance;
 {% endif %}
   return interface_data;
 }
