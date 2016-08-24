@@ -134,14 +134,13 @@ void RunRenderTreeSceneBenchmark(
 
 // Setup a quick macro so that we can measure the same events for each
 // render tree builder benchmark.
-#define RENDER_TREE_BUILDER_BENCHMARK(test_name)\
-TRACE_EVENT_BENCHMARK5(\
-    test_name, \
-    "BuildRenderTree", cobalt::trace_event::IN_SCOPE_DURATION, \
-    "NodeAnimationsMap::Apply()", cobalt::trace_event::IN_SCOPE_DURATION, \
-    "Rasterizer::Submit()", cobalt::trace_event::FLOW_DURATION, \
-    "Rasterizer::Submit()", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS, \
-    "VisitRenderTree", cobalt::trace_event::IN_SCOPE_DURATION)
+#define RENDER_TREE_BUILDER_BENCHMARK(test_name)                              \
+  TRACE_EVENT_BENCHMARK5(                                                     \
+      test_name, "BuildRenderTree", cobalt::trace_event::IN_SCOPE_DURATION,   \
+      "AnimateNode::Apply()", cobalt::trace_event::IN_SCOPE_DURATION,         \
+      "Rasterizer::Submit()", cobalt::trace_event::FLOW_DURATION,             \
+      "Rasterizer::Submit()", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS, \
+      "VisitRenderTree", cobalt::trace_event::IN_SCOPE_DURATION)
 
 // A catch-all test that excercises every different render tree node at the
 // same time.  This is the same render tree builder used by the renderer
