@@ -406,7 +406,6 @@ class Box : public base::RefCounted<Box> {
   // on the subclasses to provide the actual content.
   void RenderAndAnimate(
       render_tree::CompositionNode::Builder* parent_content_node_builder,
-      render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& offset_from_parent_node) const;
 
   // Poor man's reflection.
@@ -527,9 +526,7 @@ class Box : public base::RefCounted<Box> {
 
   // Renders the content of the box.
   virtual void RenderAndAnimateContent(
-      render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::AnimateNode::Builder* animate_node_builder)
-      const = 0;
+      render_tree::CompositionNode::Builder* border_node_builder) const = 0;
 
   // A transformable element is an element whose layout is governed by the CSS
   // box model which is either a block-level or atomic inline-level element.
