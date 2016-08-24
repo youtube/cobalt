@@ -385,8 +385,9 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
 
 void Box::RenderAndAnimate(
     CompositionNode::Builder* parent_content_node_builder,
-    AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& offset_from_parent_node) const {
+  AnimateNode::Builder animate_node_builder;
+
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
                       computed_style()->opacity().get())
                       ->value();
@@ -446,14 +447,14 @@ void Box::RenderAndAnimate(
   // 'visibility: visible'.
   //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
-    RenderAndAnimateBackgroundColor(padding_rounded_corners,
-                                    &border_node_builder, animate_node_builder);
-    RenderAndAnimateBackgroundImage(padding_rounded_corners,
-                                    &border_node_builder, animate_node_builder);
+    RenderAndAnimateBackgroundColor(
+        padding_rounded_corners, &border_node_builder, &animate_node_builder);
+    RenderAndAnimateBackgroundImage(
+        padding_rounded_corners, &border_node_builder, &animate_node_builder);
     RenderAndAnimateBorder(border_radius_provider.rounded_corners(),
-                           &border_node_builder, animate_node_builder);
+                           &border_node_builder, &animate_node_builder);
     RenderAndAnimateBoxShadow(border_radius_provider.rounded_corners(),
-                              &border_node_builder, animate_node_builder);
+                              &border_node_builder, &animate_node_builder);
   }
 
   const bool overflow_hidden =
@@ -469,17 +470,17 @@ void Box::RenderAndAnimate(
        border_insets_.zero())) {
     // If there's no reason to distinguish between content and background,
     // just add them all to the same composition node.
-    RenderAndAnimateContent(&border_node_builder, animate_node_builder);
+    RenderAndAnimateContent(&border_node_builder);
   } else {
     CompositionNode::Builder content_node_builder;
     // Otherwise, deal with content specifically so that we can apply overflow:
     // hidden to the content but not the background.
-    RenderAndAnimateContent(&content_node_builder, animate_node_builder);
+    RenderAndAnimateContent(&content_node_builder);
     if (!content_node_builder.children().empty()) {
       border_node_builder.AddChild(RenderAndAnimateOverflow(
           padding_rounded_corners,
           new CompositionNode(content_node_builder.Pass()),
-          animate_node_builder, math::Vector2dF(0, 0)));
+          &animate_node_builder, math::Vector2dF(0, 0)));
     }
     // We've already applied overflow hidden, no need to apply it again later.
     overflow_hidden_needs_to_be_applied = false;
@@ -491,14 +492,18 @@ void Box::RenderAndAnimate(
     if (overflow_hidden_needs_to_be_applied) {
       border_node =
           RenderAndAnimateOverflow(padding_rounded_corners, border_node,
-                                   animate_node_builder, border_box_offset);
+                                   &animate_node_builder, border_box_offset);
     }
-    border_node = RenderAndAnimateOpacity(border_node, animate_node_builder,
+    border_node = RenderAndAnimateOpacity(border_node, &animate_node_builder,
                                           opacity, opacity_animated);
-    border_node = RenderAndAnimateTransform(border_node, animate_node_builder,
+    border_node = RenderAndAnimateTransform(border_node, &animate_node_builder,
                                             border_box_offset);
 
-    parent_content_node_builder->AddChild(border_node);
+    parent_content_node_builder->AddChild(
+        animate_node_builder.empty()
+            ? border_node
+            : scoped_refptr<render_tree::Node>(
+                  new AnimateNode(animate_node_builder, border_node)));
   }
 }
 
@@ -1065,8 +1070,8 @@ void Box::RenderAndAnimateBackgroundImage(
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     const scoped_refptr<render_tree::Node>& border_node,
-    render_tree::animations::AnimateNode::Builder* animate_node_builder,
-    float opacity, bool opacity_animated) const {
+    AnimateNode::Builder* animate_node_builder, float opacity,
+    bool opacity_animated) const {
   if (opacity < 1.0f || opacity_animated) {
     FilterNode::Builder filter_node_builder(border_node);
 
@@ -1091,8 +1096,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const base::optional<render_tree::RoundedCorners>& rounded_corners,
-    const scoped_refptr<render_tree::Node>& content_node,
-    render_tree::animations::AnimateNode::Builder*
+    const scoped_refptr<render_tree::Node>& content_node, AnimateNode::Builder*
     /* animate_node_builder */,
     const math::Vector2dF& border_node_offset) const {
   bool overflow_hidden =
@@ -1122,7 +1126,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     const scoped_refptr<render_tree::Node>& border_node,
-    render_tree::animations::AnimateNode::Builder* animate_node_builder,
+    AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) const {
   if (IsTransformable() &&
       animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
