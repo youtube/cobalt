@@ -348,10 +348,7 @@ void AddTextShadows(render_tree::TextNode::Builder* builder,
 }  // namespace
 
 void TextBox::RenderAndAnimateContent(
-    render_tree::CompositionNode::Builder* border_node_builder,
-    render_tree::animations::AnimateNode::Builder* animate_node_builder) const {
-  UNREFERENCED_PARAMETER(animate_node_builder);
-
+    render_tree::CompositionNode::Builder* border_node_builder) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
   }
@@ -414,13 +411,20 @@ void TextBox::RenderAndAnimateContent(
 
       // The render tree API considers text coordinates to be a position
       // of a baseline, offset the text node accordingly.
-      border_node_builder->AddChild(text_node);
+      scoped_refptr<render_tree::Node> node_to_add;
       if (is_color_animated) {
+        render_tree::animations::AnimateNode::Builder animate_node_builder;
         AddAnimations<render_tree::TextNode>(
             base::Bind(&PopulateBaseStyleForTextNode),
             base::Bind(&SetupTextNodeFromStyle),
-            *css_computed_style_declaration(), text_node, animate_node_builder);
+            *css_computed_style_declaration(), text_node,
+            &animate_node_builder);
+        node_to_add = new render_tree::animations::AnimateNode(
+            animate_node_builder, text_node);
+      } else {
+        node_to_add = text_node;
       }
+      border_node_builder->AddChild(node_to_add);
     }
   }
 }
