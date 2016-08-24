@@ -115,17 +115,15 @@ MozjsExceptionObjectInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsExceptionObjectInterfaceHandler>
     proxy_handler;
 
-JSBool HasExceptionInstance(JSContext *context, JS::HandleObject type,
-                            JS::MutableHandleValue vp, JSBool *success) {
+JSBool HasInstance(JSContext *context, JS::HandleObject type,
+                   JS::MutableHandleValue vp, JSBool *success) {
+  JS::RootedObject prototype(
+      context, MozjsExceptionObjectInterface::GetPrototype(context));
 
-  JS::RootedValue value(context);
-  bool success_check = JS_GetProperty(
-      context, type, "prototype", value.address());
-  DCHECK(success_check);
-
-  JS::RootedObject object(context, &value.toObject());
+  // |IsDelegate| walks the prototype chain of an object returning true if
+  // .prototype is found.
   bool is_delegate;
-  if (!IsDelegate(context, object, vp, &is_delegate)) {
+  if (!IsDelegate(context, prototype, vp, &is_delegate)) {
     *success = false;
     return false;
   }
@@ -181,7 +179,7 @@ InterfaceData* CreateCachedInterfaceData() {
   interface_object_class->enumerate = JS_EnumerateStub;
   interface_object_class->resolve = JS_ResolveStub;
   interface_object_class->convert = JS_ConvertStub;
-  interface_object_class->hasInstance = &HasExceptionInstance;
+  interface_object_class->hasInstance = &HasInstance;
   return interface_data;
 }
 
