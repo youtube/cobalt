@@ -60,12 +60,12 @@ class ApplyStyleToRenderTreeNode {
 // an animated style that is then passed into the provided
 // ApplyStyleToRenderTreeNode<T>::Function callback function.
 template <typename T>
-void AnimateNode(const typename ApplyStyleToRenderTreeNode<T>::Function&
-                     apply_style_function,
-                 const web_animations::BakedAnimationSet& animations,
-                 const scoped_refptr<cssom::CSSComputedStyleData>& base_style,
-                 typename T::Builder* node_builder,
-                 base::TimeDelta time_elapsed) {
+void ApplyAnimation(
+    const typename ApplyStyleToRenderTreeNode<T>::Function&
+        apply_style_function,
+    const web_animations::BakedAnimationSet& animations,
+    const scoped_refptr<cssom::CSSComputedStyleData>& base_style,
+    typename T::Builder* node_builder, base::TimeDelta time_elapsed) {
   scoped_refptr<cssom::CSSComputedStyleData> animated_style =
       new cssom::CSSComputedStyleData();
   animated_style->AssignFrom(*base_style);
@@ -74,7 +74,7 @@ void AnimateNode(const typename ApplyStyleToRenderTreeNode<T>::Function&
 }
 
 // If animations exist, this function will add an animation which represents
-// the animations to the passed in AnimateNode.  The animation will
+// the animations to the passed in ApplyAnimation.  The animation will
 // target the passed in render tree node.
 template <typename T>
 void AddAnimations(
@@ -94,7 +94,7 @@ void AddAnimations(
                                    base_style);
 
   node_animation_map_builder->Add(
-      target_node, base::Bind(&AnimateNode<T>, apply_style_function,
+      target_node, base::Bind(&ApplyAnimation<T>, apply_style_function,
                               web_animations::BakedAnimationSet(
                                   *css_computed_style_declaration.animations()),
                               base_style));

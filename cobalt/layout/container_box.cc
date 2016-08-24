@@ -471,7 +471,6 @@ Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
 void ContainerBox::RenderAndAnimateStackingContextChildren(
     const ZIndexSortedList& z_index_child_list,
     render_tree::CompositionNode::Builder* content_node_builder,
-    render_tree::animations::AnimateNode::Builder* animate_node_builder,
     const Vector2dLayoutUnit& offset_from_parent_node) const {
   // Render all children of the passed in list in sorted order.
   for (ZIndexSortedList::const_iterator iter = z_index_child_list.begin();
@@ -483,8 +482,7 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
         GetOffsetFromStackingContextToContainingBlock(child_box) +
         offset_from_parent_node;
 
-    child_box->RenderAndAnimate(content_node_builder, animate_node_builder,
-                                position_offset);
+    child_box->RenderAndAnimate(content_node_builder, position_offset);
   }
 }
 
@@ -551,8 +549,7 @@ void ContainerBox::UpdateCrossReferencesOfContainerBox(
 }
 
 void ContainerBox::RenderAndAnimateContent(
-    render_tree::CompositionNode::Builder* border_node_builder,
-    render_tree::animations::AnimateNode::Builder* animate_node_builder) const {
+    render_tree::CompositionNode::Builder* border_node_builder) const {
   // Ensure that the cross references are up to date.
   const_cast<ContainerBox*>(this)->UpdateCrossReferences();
 
@@ -562,22 +559,19 @@ void ContainerBox::RenderAndAnimateContent(
   // z-index values.
   //   https://www.w3.org/TR/CSS21/visuren.html#z-index
   RenderAndAnimateStackingContextChildren(
-      negative_z_index_child_, border_node_builder, animate_node_builder,
-      content_box_offset);
+      negative_z_index_child_, border_node_builder, content_box_offset);
   // Render laid out child boxes.
   for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     if (!child_box->IsPositioned() && !child_box->IsTransformed()) {
-      child_box->RenderAndAnimate(border_node_builder, animate_node_builder,
-                                  content_box_offset);
+      child_box->RenderAndAnimate(border_node_builder, content_box_offset);
     }
   }
   // Render all positioned children with non-negative z-index values.
   //   https://www.w3.org/TR/CSS21/visuren.html#z-index
   RenderAndAnimateStackingContextChildren(
-      non_negative_z_index_child_, border_node_builder, animate_node_builder,
-      content_box_offset);
+      non_negative_z_index_child_, border_node_builder, content_box_offset);
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
