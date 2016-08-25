@@ -20,8 +20,13 @@
 
       'sources': [
         'offscreen_render_coordinate_mapping.cc',
+        'offscreen_render_coordinate_mapping.h',
+        'scratch_surface_cache.cc',
+        'scratch_surface_cache.h',
         'streaming_best_fit_line.cc',
+        'streaming_best_fit_line.h',
         'surface_cache.cc',
+        'surface_cache.h',
       ],
 
       'dependencies': [
