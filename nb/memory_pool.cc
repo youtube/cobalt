@@ -20,7 +20,10 @@
 
 namespace nb {
 
-MemoryPool::MemoryPool(void* buffer, std::size_t size, bool thread_safe)
+MemoryPool::MemoryPool(void* buffer,
+                       std::size_t size,
+                       bool thread_safe,
+                       bool verify_full_capacity)
     : no_free_allocator_(buffer, size),
       reuse_allocator_(
           scoped_ptr<Allocator>(new ReuseAllocator(&no_free_allocator_)),
@@ -28,18 +31,11 @@ MemoryPool::MemoryPool(void* buffer, std::size_t size, bool thread_safe)
   SB_DCHECK(buffer);
   SB_DCHECK(size != 0U);
 
-  // Try to allocate the whole budget and free it immediately.  This can:
-  // 1. Ensure the size is accurate after accounting for all implicit alignment
-  //    enforced by the underlying allocators.
-  // 2. The |reuse_allocator_| contains a free block of the whole budget.  As
-  //    the |reuse_allocator_| doesn't support extending of free block, an
-  //    allocation that is larger than the both biggest free block in the
-  //   |reuse_allocator_| and the remaining memory inside the
-  //   |no_free_allocator_| will fail even the combination of both can fulfill
-  //   the allocation.
-  void* p = Allocate(size);
-  SB_DCHECK(p);
-  Free(p);
+  if (verify_full_capacity) {
+    void* p = Allocate(size);
+    SB_DCHECK(p);
+    Free(p);
+  }
 }
 
 void MemoryPool::PrintAllocations() const {
