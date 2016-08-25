@@ -74,11 +74,6 @@ namespace browser {
 // accessed from only one thread.
 class WebModule {
  public:
-  // TODO: These numbers should be adjusted according to the size of
-  // client memory.
-  static const uint32 kImageCacheCapacity = 64U * 1024 * 1024;
-  static const uint32 kRemoteTypefaceCacheCapacity = 5U * 1024 * 1024;
-
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>()>
         CreateObjectFunction;
@@ -86,15 +81,8 @@ class WebModule {
         InjectedWindowAttributes;
 
     // All optional parameters defined in this structure should have their
-    // values
-    // initialized in the default constructor to useful defaults.
-    Options()
-        : name("WebModule"),
-          layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-          image_cache_capacity(kImageCacheCapacity),
-          csp_enforcement_mode(dom::kCspEnforcementEnable),
-          csp_insecure_allowed_token(0),
-          track_event_stats(false) {}
+    // values initialized in the default constructor to useful defaults.
+    Options();
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -133,7 +121,10 @@ class WebModule {
     std::string location_policy;
 
     // Image cache capaticy in bytes.
-    uint32 image_cache_capacity;
+    int image_cache_capacity;
+
+    // Typeface cache capacity in bytes.
+    int remote_typeface_cache_capacity;
 
     // Content Security Policy enforcement mode for this web module.
     dom::CspEnforcementType csp_enforcement_mode;

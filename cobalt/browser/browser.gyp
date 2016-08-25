@@ -46,6 +46,10 @@
         'web_module_stat_tracker.cc',
         'web_module_stat_tracker.h',
       ],
+      'defines': [
+        'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
+        'COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES=<(remote_typeface_cache_size_in_bytes)',
+      ],
       'dependencies': [
         '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
