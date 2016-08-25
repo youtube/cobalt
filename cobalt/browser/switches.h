@@ -29,6 +29,7 @@ extern const char kDebugConsoleMode[];
 extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
 extern const char kIgnoreCertificateErrors[];
+extern const char kImageCacheSizeInBytes[];
 extern const char kInitialURL[];
 extern const char kInputFuzzer[];
 extern const char kNullAudioStreamer[];
@@ -36,15 +37,16 @@ extern const char kNullSavegame[];
 extern const char kPartialLayout[];
 extern const char kProxy[];
 extern const char kRemoteDebuggingPort[];
-extern const char kShutdownAfter[];
-extern const char kStubImageDecoder[];
-extern const char kTimedTrace[];
-extern const char kViewport[];
-extern const char kVideoDecoderStub[];
-extern const char kWebDriverPort[];
-extern const char kSurfaceCacheSizeInBytes[];
+extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
+extern const char kShutdownAfter[];
 extern const char kSkiaCacheSizeInBytes[];
+extern const char kStubImageDecoder[];
+extern const char kSurfaceCacheSizeInBytes[];
+extern const char kTimedTrace[];
+extern const char kVideoDecoderStub[];
+extern const char kViewport[];
+extern const char kWebDriverPort[];
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 }  // namespace switches
