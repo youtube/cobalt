@@ -54,12 +54,14 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SbBlitterDevice device, SbBlitterContext context,
     const RenderState& render_state,
     skia::SoftwareRasterizer* software_rasterizer,
+    ScratchSurfaceCache* scratch_surface_cache,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache)
     : software_rasterizer_(software_rasterizer),
       device_(device),
       context_(context),
       render_state_(render_state),
+      scratch_surface_cache_(scratch_surface_cache),
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
@@ -135,16 +137,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 
     // Render our source subtree to an offscreen surface, and then we will
     // re-render it to our main render target with an alpha value applied to it.
-    OffscreenRender offscreen_render = RenderToOffscreenSurface(source);
-    if (!SbBlitterIsSurfaceValid(offscreen_render.surface)) {
+    scoped_ptr<OffscreenRender> offscreen_render =
+        RenderToOffscreenSurface(source);
+    if (!offscreen_render) {
       // This can happen if the output area of the source node is 0, in which
       // case we're trivially done.
       return;
     }
 
-    SbBlitterSurfaceInfo offscreen_surface_info;
-    CHECK(SbBlitterGetSurfaceInfo(offscreen_render.surface,
-                                  &offscreen_surface_info));
+    SbBlitterSurface offscreen_surface =
+        offscreen_render->scratch_surface->GetSurface();
 
     // Now blit our offscreen surface to our main render target with opacity
     // applied.
@@ -154,15 +156,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         context_,
         SbBlitterColorFromRGBA(255, 255, 255, static_cast<int>(255 * opacity)));
     SbBlitterBlitRectToRect(
-        context_, offscreen_render.surface,
-        SbBlitterMakeRect(0, 0, offscreen_surface_info.width,
-                          offscreen_surface_info.height),
-        SbBlitterMakeRect(
-            offscreen_render.position.x(), offscreen_render.position.y(),
-            offscreen_surface_info.width, offscreen_surface_info.height));
-
-    // Destroy our temporary offscreeen surface now that we are done with it.
-    SbBlitterDestroySurface(offscreen_render.surface);
+        context_, offscreen_surface,
+        SbBlitterMakeRect(0, 0, offscreen_render->destination_rect.width(),
+                          offscreen_render->destination_rect.height()),
+        RectFToBlitterRect(offscreen_render->destination_rect));
   }
 }
 
@@ -456,7 +453,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   SbBlitterDestroySurface(surface);
 }
 
-RenderTreeNodeVisitor::OffscreenRender
+scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>
 RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
   common::OffscreenRenderCoordinateMapping coord_mapping =
       common::GetOffscreenRenderCoordinateMapping(
@@ -464,9 +461,7 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
           render_state_.bounds_stack.Top());
   if (coord_mapping.output_bounds.IsEmpty()) {
     // There's nothing to render if the bounds are 0.
-    OffscreenRender ret;
-    ret.surface = kSbBlitterInvalidSurface;
-    return ret;
+    return scoped_ptr<OffscreenRender>();
   }
   DCHECK_GE(0.001f, std::abs(1.0f -
                              render_state_.transform.scale().x() *
@@ -475,20 +470,13 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
                              render_state_.transform.scale().y() *
                                  coord_mapping.output_post_scale.y()));
 
-  SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
-      device_, coord_mapping.output_bounds.width(),
-      coord_mapping.output_bounds.height(), kSbBlitterSurfaceFormatRGBA8);
+  scoped_ptr<CachedScratchSurface> scratch_surface(new CachedScratchSurface(
+      scratch_surface_cache_, coord_mapping.output_bounds.size()));
+  SbBlitterSurface surface = scratch_surface->GetSurface();
   SbBlitterRenderTarget render_target =
       SbBlitterGetRenderTargetFromSurface(surface);
 
   SbBlitterSetRenderTarget(context_, render_target);
-
-  // Clear the background to fully transparent before we begin rendering the
-  // subtree.
-  SbBlitterSetBlending(context_, false);
-  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
-  SbBlitterFillRect(
-      context_, RectToBlitterRect(Rect(coord_mapping.output_bounds.size())));
 
   // Render to the sub-surface.
   RenderTreeNodeVisitor sub_visitor(
@@ -496,7 +484,8 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
       RenderState(
           render_target, Transform(coord_mapping.sub_render_transform),
           BoundsStack(context_, Rect(coord_mapping.output_bounds.size()))),
-      software_rasterizer_, surface_cache_delegate_, surface_cache_);
+      software_rasterizer_, scratch_surface_cache_, surface_cache_delegate_,
+      surface_cache_);
   node->Accept(&sub_visitor);
 
   // Restore our original render target.
@@ -509,11 +498,12 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
                               coord_mapping.output_pre_translate +
                               render_state_.transform.translate();
 
-  OffscreenRender ret;
-  ret.position.SetPoint(output_point.x(), output_point.y());
-  ret.surface = surface;
+  scoped_ptr<OffscreenRender> ret(new OffscreenRender());
+  ret->destination_rect =
+      math::RectF(output_point, coord_mapping.output_bounds.size());
+  ret->scratch_surface = scratch_surface.Pass();
 
-  return ret;
+  return ret.Pass();
 }
 
 }  // namespace blitter

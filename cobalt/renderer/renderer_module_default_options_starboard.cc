@@ -53,7 +53,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
-          graphics_context, options.surface_cache_size_in_bytes));
+          graphics_context, options.scratch_surface_cache_size_in_bytes,
+          options.surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #else
 #error "Either GLES2 or the Starboard Blitter API must be available."
