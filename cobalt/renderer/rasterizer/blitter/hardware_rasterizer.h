@@ -21,6 +21,7 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/renderer/rasterizer/blitter/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 
 #if SB_HAS(BLITTER)
@@ -37,6 +38,7 @@ namespace blitter {
 class HardwareRasterizer : public Rasterizer {
  public:
   explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
+                              int scratch_surface_size_in_bytes,
                               int surface_cache_size_in_bytes);
   virtual ~HardwareRasterizer();
 

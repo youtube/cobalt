@@ -38,6 +38,7 @@ namespace blitter {
 class HardwareRasterizer::Impl {
  public:
   explicit Impl(backend::GraphicsContext* graphics_context,
+                int scratch_surface_size_in_bytes,
                 int surface_cache_size_in_bytes);
   ~Impl();
 
@@ -57,16 +58,21 @@ class HardwareRasterizer::Impl {
 
   int64 submit_count_;
 
+  ScratchSurfaceCache scratch_surface_cache_;
   base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
   base::optional<common::SurfaceCache> surface_cache_;
 };
 
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                               int scratch_surface_size_in_bytes,
                                int surface_cache_size_in_bytes)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
           graphics_context)),
       software_rasterizer_(0),
-      submit_count_(0) {
+      submit_count_(0),
+      scratch_surface_cache_(context_->GetSbBlitterDevice(),
+                             context_->GetSbBlitterContext(),
+                             scratch_surface_size_in_bytes) {
   resource_provider_ = scoped_ptr<render_tree::ResourceProvider>(
       new ResourceProvider(context_->GetSbBlitterDevice(),
                            software_rasterizer_.GetResourceProvider()));
@@ -126,7 +132,7 @@ void HardwareRasterizer::Impl::Submit(
         RenderState(render_target_blitter->GetSbRenderTarget(), Transform(),
                     BoundsStack(context_->GetSbBlitterContext(),
                                 math::Rect(render_target_blitter->GetSize()))),
-        &software_rasterizer_,
+        &software_rasterizer_, &scratch_surface_cache_,
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
@@ -144,8 +150,10 @@ render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
 }
 
 HardwareRasterizer::HardwareRasterizer(
-    backend::GraphicsContext* graphics_context, int surface_cache_size_in_bytes)
-    : impl_(new Impl(graphics_context, surface_cache_size_in_bytes)) {}
+    backend::GraphicsContext* graphics_context,
+    int scratch_surface_size_in_bytes, int surface_cache_size_in_bytes)
+    : impl_(new Impl(graphics_context, scratch_surface_size_in_bytes,
+                     surface_cache_size_in_bytes)) {}
 
 HardwareRasterizer::~HardwareRasterizer() {}
 
