@@ -365,6 +365,11 @@ SB_EXPORT void SbSystemSort(void* base,
                             size_t element_width,
                             SbSystemComparator comparator);
 
+// Hides the system splash screen, on systems that support a splash screen that
+// is displayed while the application is loading. This function may be called
+// from any thread and must be idempotent.
+SB_EXPORT void SbSystemHideSplashScreen();
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
