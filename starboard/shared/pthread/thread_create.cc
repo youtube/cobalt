@@ -63,6 +63,14 @@ SbThread SbThreadCreate(int64_t stack_size,
     return kSbThreadInvalid;
   }
 
+#if defined(ADDRESS_SANITIZER)
+  // Set a big thread stack size when in ADDRESS_SANITIZER mode.
+  // This eliminates buffer overflows for deeply nested callstacks.
+  if (stack_size == 0) {
+    stack_size = 4096 * 1024;  // 4MB
+  }
+#endif
+
   pthread_attr_t attributes;
   int result = pthread_attr_init(&attributes);
   if (!IsSuccess(result)) {
