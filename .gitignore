@@ -150,6 +150,7 @@ v8.log
 /starboard
 /testing/gmock
 /testing/gtest
+/testing/gtest-parallel
 /testing/iossim/third_party/
 /testserver.log
 /third_party/GTM
