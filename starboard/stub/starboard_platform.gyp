@@ -184,6 +184,7 @@
         '<(DEPTH)/starboard/shared/stub/system_get_stack.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_has_capability.cc',
+        '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_is_debugger_attached.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_stop.cc',
