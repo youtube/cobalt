@@ -45,6 +45,38 @@ const int kStandardOutputSampleRate = 48000;
 
 #if defined(SB_USE_SB_AUDIO_SINK)
 
+namespace {
+// Helper function to compute the size of the two valid starboard audio sample
+// types.
+size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
+  switch (sample_type) {
+    case kSbMediaAudioSampleTypeFloat32:
+      return sizeof(float);
+    case kSbMediaAudioSampleTypeInt16:
+      return sizeof(int16);
+  }
+  NOTREACHED();
+  return 0u;
+}
+
+const float kMaxInt16AsFloat32 = 32767.0f;
+
+template <typename SourceType, typename DestType>
+DestType ConvertSample(SourceType sample);
+
+template <>
+int16 ConvertSample<float, int16>(float sample) {
+  DCHECK(-1.0 <= sample && sample <= 1.0)
+      << "Sample of type float32 must lie on interval [-1.0, 1.0]";
+  return static_cast<int16>(sample * kMaxInt16AsFloat32);
+}
+
+template <>
+float ConvertSample<float, float>(float sample) {
+  return sample;
+}
+}  // namespace
+
 class AudioDevice::Impl {
  public:
   Impl(int number_of_channels, RenderCallback* callback);
@@ -62,7 +94,11 @@ class AudioDevice::Impl {
 
   void FillOutputAudioBus();
 
+  template <typename OutputType>
+  inline void FillOutputAudioBusForType();
+
   int number_of_channels_;
+  SbMediaAudioSampleType output_sample_type_;
   RenderCallback* render_callback_;
 
   // The |render_callback_| returns audio data in planar form.  So we read it
@@ -70,7 +106,8 @@ class AudioDevice::Impl {
   // |output_frame_buffer_|.
   ShellAudioBus input_audio_bus_;
 
-  std::vector<float> output_frame_buffer_;
+  scoped_array<uint8> output_frame_buffer_;
+
   void* frame_buffers_[1];
   int64 frames_rendered_;  // Frames retrieved from |render_callback_|.
   int64 frames_consumed_;  // Accumulated frames consumed reported by the sink.
@@ -85,11 +122,16 @@ class AudioDevice::Impl {
 // AudioDevice::Impl.
 AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
     : number_of_channels_(number_of_channels),
+      output_sample_type_(
+          SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+              ? kSbMediaAudioSampleTypeFloat32
+              : kSbMediaAudioSampleTypeInt16),
       render_callback_(callback),
       input_audio_bus_(static_cast<size_t>(number_of_channels),
                        static_cast<size_t>(kRenderBufferSizeFrames),
                        ShellAudioBus::kFloat32, ShellAudioBus::kPlanar),
-      output_frame_buffer_(kFramesPerChannel * number_of_channels),
+      output_frame_buffer_(new uint8[kFramesPerChannel * number_of_channels_ *
+                                       GetSampleSize(output_sample_type_)]),
       frames_rendered_(0),
       frames_consumed_(0),
       was_silence_last_update_(false),
@@ -100,15 +142,14 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
   DCHECK(SbAudioSinkIsAudioFrameStorageTypeSupported(
       kSbMediaAudioFrameStorageTypeInterleaved))
       << "Only interleaved frame storage is supported.";
-  DCHECK(SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32))
-      << "Only float sample is supported.";
+  DCHECK(SbAudioSinkIsAudioSampleTypeSupported(output_sample_type_))
+      << "Output sample type " << output_sample_type_ << " is not supported";
 
-  frame_buffers_[0] = &output_frame_buffer_[0];
+  frame_buffers_[0] = output_frame_buffer_.get();
   audio_sink_ = SbAudioSinkCreate(
-      number_of_channels_, kStandardOutputSampleRate,
-      kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypeInterleaved,
-      frame_buffers_, kFramesPerChannel,
-      &AudioDevice::Impl::UpdateSourceStatusFunc,
+      number_of_channels_, kStandardOutputSampleRate, output_sample_type_,
+      kSbMediaAudioFrameStorageTypeInterleaved, frame_buffers_,
+      kFramesPerChannel, &AudioDevice::Impl::UpdateSourceStatusFunc,
       &AudioDevice::Impl::ConsumeFramesFunc, this);
   DCHECK(SbAudioSinkIsValid(audio_sink_));
 }
@@ -185,19 +226,31 @@ void AudioDevice::Impl::ConsumeFrames(int frames_consumed) {
   frames_consumed_ += frames_consumed;
 }
 
-void AudioDevice::Impl::FillOutputAudioBus() {
+template <typename OutputType>
+inline void AudioDevice::Impl::FillOutputAudioBusForType() {
   // Determine the offset into the audio bus that represents the tail of
   // buffered data.
   uint64 channel_offset = frames_rendered_ % kFramesPerChannel;
 
-  float* output_buffer = &output_frame_buffer_[0];
+  OutputType* output_buffer =
+      reinterpret_cast<OutputType*>(output_frame_buffer_.get());
   output_buffer += channel_offset * number_of_channels_;
-
   for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
     for (size_t channel = 0; channel < input_audio_bus_.channels(); ++channel) {
-      *output_buffer = input_audio_bus_.GetFloat32Sample(channel, frame);
+      *output_buffer = ConvertSample<float, OutputType>(
+          input_audio_bus_.GetFloat32Sample(channel, frame));
       ++output_buffer;
     }
+  }
+}
+
+void AudioDevice::Impl::FillOutputAudioBus() {
+  if (output_sample_type_ == kSbMediaAudioSampleTypeFloat32) {
+    FillOutputAudioBusForType<float>();
+  } else if (output_sample_type_ == kSbMediaAudioSampleTypeInt16) {
+    FillOutputAudioBusForType<int16>();
+  } else {
+    NOTREACHED();
   }
 }
 
