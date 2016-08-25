@@ -57,7 +57,8 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
               kGPUMemoryBufferBudget);
     gpu_memory_pool_.reset(new nb::MemoryPool(
         gpu_memory_buffer_space_->GetMemory(),
-        gpu_memory_buffer_space_->GetSizeInBytes(), true /* thread_safe */));
+        gpu_memory_buffer_space_->GetSizeInBytes(), true, /* thread_safe */
+        true /* verify_full_capacity */));
   }
 
   DCHECK_LE(0, kMainMemoryBufferBudget > 0);
@@ -66,7 +67,8 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
   DCHECK(main_memory_buffer_space_);
   main_memory_pool_.reset(new nb::MemoryPool(main_memory_buffer_space_.get(),
                                              kMainMemoryBufferBudget,
-                                             true /* thread_safe */));
+                                             true, /* thread_safe */
+                                             true /* verify_full_capacity */));
 
   ShellBufferFactory::Initialize();
   ShellAudioStreamer::Initialize();
