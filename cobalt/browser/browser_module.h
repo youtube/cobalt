@@ -195,6 +195,12 @@ class BrowserModule {
       scoped_ptr<webdriver::WindowDriver>* out_window_driver);
 #endif
 
+#if defined(OS_STARBOARD)
+  // Called when a renderer submission has been rasterized. Used to hide the
+  // system splash screen after the first render has completed.
+  void OnRendererSubmissionRasterized();
+#endif  // OS_STARBOARD
+
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
   //     own where it can ensure that its tasks are all resolved when it is
@@ -221,6 +227,12 @@ class BrowserModule {
   URLHandlerCollection url_handlers_;
 
   storage::StorageManager storage_manager_;
+
+#if defined(OS_STARBOARD)
+  // Whether the browser module has yet rendered anything. On the very first
+  // render, we hide the system splash screen.
+  bool is_rendered_;
+#endif  // OS_STARBOARD
 
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
