@@ -109,6 +109,9 @@ BrowserModule::BrowserModule(const GURL& url,
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
       self_message_loop_(MessageLoop::current()),
       storage_manager_(options.storage_manager_options),
+#if defined(OS_STARBOARD)
+      is_rendered_(false),
+#endif  // OS_STARBOARD
       renderer_module_(system_window, options.renderer_module_options),
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       array_buffer_allocator_(new ResourceProviderArrayBufferAllocator(
@@ -325,8 +328,13 @@ void BrowserModule::RequestScreenshotToBuffer(
 void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-  render_tree_combiner_.UpdateMainRenderTree(renderer::Submission(
-      layout_results.render_tree, layout_results.layout_time));
+  renderer::Submission renderer_submission(layout_results.render_tree,
+                                           layout_results.layout_time);
+#if defined(OS_STARBOARD)
+  renderer_submission.on_rasterized_callback = base::Bind(
+      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
+#endif  // OS_STARBOARD
+  render_tree_combiner_.UpdateMainRenderTree(renderer_submission);
 
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
@@ -546,6 +554,16 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
   // NetworkModule will ensure this happens on the correct thread.
   network_module_.SetProxy(proxy_rules);
 }
+
+#if defined(OS_STARBOARD)
+void BrowserModule::OnRendererSubmissionRasterized() {
+  if (!is_rendered_) {
+    // Hide the system splash screen when the first render has completed.
+    is_rendered_ = true;
+    SbSystemHideSplashScreen();
+  }
+}
+#endif  // OS_STARBOARD
 
 }  // namespace browser
 }  // namespace cobalt
