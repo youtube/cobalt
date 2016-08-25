@@ -33,6 +33,7 @@
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
+#include "cobalt/renderer/rasterizer/blitter/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
@@ -62,6 +63,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   RenderTreeNodeVisitor(SbBlitterDevice device, SbBlitterContext context,
                         const RenderState& render_state,
                         skia::SoftwareRasterizer* software_rasterizer,
+                        ScratchSurfaceCache* scratch_surface_cache,
                         SurfaceCacheDelegate* surface_cache_delegate,
                         common::SurfaceCache* surface_cache);
 
@@ -92,10 +94,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // Uses a Blitter API sub-visitor to render the provided render tree to a
   // offscreen SbBlitterSurface which is then returned.
   struct OffscreenRender {
-    math::Point position;
-    SbBlitterSurface surface;
+    math::RectF destination_rect;
+    scoped_ptr<CachedScratchSurface> scratch_surface;
   };
-  OffscreenRender RenderToOffscreenSurface(render_tree::Node* node);
+  scoped_ptr<OffscreenRender> RenderToOffscreenSurface(render_tree::Node* node);
 
   // We maintain an instance of a software skia rasterizer which is used to
   // render anything that we cannot render via the Blitter API directly.
@@ -106,6 +108,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   // Keeps track of our current render target, transform and clip stack.
   RenderState render_state_;
+
+  // Manager for scratch surfaces used for intermediate rendering during render
+  // tree traversal.
+  ScratchSurfaceCache* scratch_surface_cache_;
 
   SurfaceCacheDelegate* surface_cache_delegate_;
   common::SurfaceCache* surface_cache_;
