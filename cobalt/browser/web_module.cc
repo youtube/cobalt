@@ -246,16 +246,18 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.network_module, data.options.extra_web_file_dir));
   DCHECK(fetcher_factory_);
 
+  DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
       base::StringPrintf("Memory.%s.ImageCache", name_.c_str()),
-      data.options.image_cache_capacity, data.resource_provider,
-      fetcher_factory_.get());
+      static_cast<uint32>(data.options.image_cache_capacity),
+      data.resource_provider, fetcher_factory_.get());
   DCHECK(image_cache_);
 
+  DCHECK_LE(0, data.options.remote_typeface_cache_capacity);
   remote_typeface_cache_ = loader::font::CreateRemoteTypefaceCache(
       base::StringPrintf("Memory.%s.RemoteTypefaceCache", name_.c_str()),
-      kRemoteTypefaceCacheCapacity, data.resource_provider,
-      fetcher_factory_.get());
+      static_cast<uint32>(data.options.remote_typeface_cache_capacity),
+      data.resource_provider, fetcher_factory_.get());
   DCHECK(remote_typeface_cache_);
 
   local_storage_database_.reset(
@@ -511,6 +513,16 @@ WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)
 void WebModule::DestructionObserver::WillDestroyCurrentMessageLoop() {
   web_module_->impl_.reset();
 }
+
+WebModule::Options::Options()
+    : name("WebModule"),
+      layout_trigger(layout::LayoutManager::kOnDocumentMutation),
+      image_cache_capacity(COBALT_IMAGE_CACHE_SIZE_IN_BYTES),
+      remote_typeface_cache_capacity(
+          COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
+      csp_enforcement_mode(dom::kCspEnforcementEnable),
+      csp_insecure_allowed_token(0),
+      track_event_stats(false) {}
 
 WebModule::WebModule(
     const GURL& initial_url,

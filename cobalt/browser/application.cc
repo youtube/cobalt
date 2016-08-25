@@ -190,6 +190,14 @@ void ApplyCommandLineSettingsToRendererOptions(
   SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
                           &options->skia_cache_size_in_bytes);
 }
+
+void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
+  SetIntegerIfSwitchIsSet(browser::switches::kImageCacheSizeInBytes,
+                          &options->image_cache_capacity);
+  SetIntegerIfSwitchIsSet(browser::switches::kRemoteTypefaceCacheSizeInBytes,
+                          &options->remote_typeface_cache_capacity);
+}
+
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 // Restrict navigation to a couple of whitelisted URLs by default.
@@ -290,6 +298,7 @@ Application::Application(const base::Closure& quit_closure)
 
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
+  ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           browser::switches::kNullSavegame)) {
