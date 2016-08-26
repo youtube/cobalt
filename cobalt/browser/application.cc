@@ -535,25 +535,15 @@ void Application::OnApplicationEvent(const base::Event* event) {
   if (app_event->type() == system_window::ApplicationEvent::kQuit) {
     DLOG(INFO) << "Got quit event.";
     app_status_ = kWillQuitAppStatus;
-#if !defined(OS_STARBOARD)
-    browser_module_->SetWillQuit();
-    browser_module_->SetPaused(false);
-#endif  // !defined(OS_STARBOARD)
     Quit();
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
     app_status_ = kPausedAppStatus;
     ++app_suspend_count_;
-#if !defined(OS_STARBOARD)
-    browser_module_->SetPaused(true);
-#endif  // !defined(OS_STARBOARD)
   } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
     DLOG(INFO) << "Got resume event.";
     app_status_ = kRunningAppStatus;
     ++app_resume_count_;
-#if !defined(OS_STARBOARD)
-    browser_module_->SetPaused(false);
-#endif  // !defined(OS_STARBOARD)
   }
 }
 
