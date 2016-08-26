@@ -14,10 +14,13 @@
 
 #include "starboard/shared/alsa/alsa_audio_sink_type.h"
 
+#include <alsa/asoundlib.h>
+
 #include <algorithm>
 #include <vector>
 
 #include "starboard/condition_variable.h"
+#include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/alsa/alsa_util.h"
 #include "starboard/thread.h"
@@ -49,6 +52,23 @@ const int kMinimumFramesInALSA = 2048;
 // that is too large can waste some memory as the extra buffer is never used.
 const int kALSABufferSizeInFrames = 8192;
 
+// Helper function to compute the size of the two valid starboard audio sample
+// types.
+size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
+  switch (sample_type) {
+    case kSbMediaAudioSampleTypeFloat32:
+      return sizeof(float);
+    case kSbMediaAudioSampleTypeInt16:
+      return sizeof(int16_t);
+  }
+  SB_NOTREACHED();
+  return 0u;
+}
+
+void* IncrementPointerByBytes(void* pointer, size_t offset) {
+  return static_cast<void*>(static_cast<uint8_t*>(pointer) + offset);
+}
+
 // This class is an ALSA based audio sink with the following features:
 // 1. It doesn't cache any data internally and maintains minimum data inside
 //    the ALSA buffer.  It relies on pulling data from its source in high
@@ -61,6 +81,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   AlsaAudioSink(Type* type,
                 int channels,
                 int sampling_frequency_hz,
+                SbMediaAudioSampleType sample_type,
                 SbAudioSinkFrameBuffers frame_buffers,
                 int frames_per_channel,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -95,6 +116,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
 
   int channels_;
   int sampling_frequency_hz_;
+  SbMediaAudioSampleType sample_type_;
 
   SbThread audio_out_thread_;
   starboard::Mutex mutex_;
@@ -104,9 +126,9 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
 
   bool destroying_;
 
-  float* frame_buffer_;
+  void* frame_buffer_;
   int frames_per_channel_;
-  std::vector<float> silence_frames_;
+  void* silence_frames_;
 
   void* playback_handle_;
 };
@@ -115,6 +137,7 @@ AlsaAudioSink::AlsaAudioSink(
     Type* type,
     int channels,
     int sampling_frequency_hz,
+    SbMediaAudioSampleType sample_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -123,6 +146,7 @@ AlsaAudioSink::AlsaAudioSink(
     : type_(type),
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
+      sample_type_(sample_type),
       update_source_status_func_(update_source_status_func),
       consume_frame_func_(consume_frame_func),
       context_(context),
@@ -131,23 +155,28 @@ AlsaAudioSink::AlsaAudioSink(
       time_to_wait_(kFramesPerRequest * kSbTimeSecond / sampling_frequency_hz /
                     2),
       destroying_(false),
-      frame_buffer_(reinterpret_cast<float*>(frame_buffers[0])),
+      frame_buffer_(frame_buffers[0]),
       frames_per_channel_(frames_per_channel),
-      silence_frames_(channels * kFramesPerRequest),
+      silence_frames_(new uint8_t[channels * kFramesPerRequest *
+                                  GetSampleSize(sample_type)]),
       playback_handle_(NULL) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frame_func_);
   SB_DCHECK(frame_buffer_);
+  SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
 
   ScopedLock lock(mutex_);
   audio_out_thread_ =
       SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
                      "alsa_audio_out", &AlsaAudioSink::ThreadEntryPoint, this);
   SB_DCHECK(SbThreadIsValid(audio_out_thread_));
+  SbMemorySet(silence_frames_, 0,
+         channels * kFramesPerRequest * GetSampleSize(sample_type));
   creation_signal_.Wait();
 }
 
 AlsaAudioSink::~AlsaAudioSink() {
+  delete[] static_cast<uint8_t*>(silence_frames_);
   {
     ScopedLock lock(mutex_);
     destroying_ = true;
@@ -165,9 +194,13 @@ void* AlsaAudioSink::ThreadEntryPoint(void* context) {
 }
 
 void AlsaAudioSink::AudioThreadFunc() {
+  snd_pcm_format_t alsa_sample_type =
+      sample_type_ == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
+                                                     : SND_PCM_FORMAT_S16;
+
   playback_handle_ = starboard::shared::alsa::AlsaOpenPlaybackDevice(
       channels_, sampling_frequency_hz_, kFramesPerRequest,
-      kALSABufferSizeInFrames);
+      kALSABufferSizeInFrames, alsa_sample_type);
   creation_signal_.Signal();
   if (!playback_handle_) {
     return;
@@ -206,7 +239,7 @@ bool AlsaAudioSink::IdleLoop() {
     }
     int delayed_frame = AlsaGetBufferedFrames(playback_handle_);
     if (delayed_frame < kMinimumFramesInALSA) {
-      AlsaWriteFrames(playback_handle_, &silence_frames_[0], kFramesPerRequest);
+      AlsaWriteFrames(playback_handle_, silence_frames_, kFramesPerRequest);
     } else {
       SbThreadSleep(time_to_wait_);
     }
@@ -255,9 +288,11 @@ void AlsaAudioSink::WriteFrames(int frames_to_write,
 
   int frames_to_buffer_end = frames_per_channel_ - offset_in_frames;
   if (frames_to_write > frames_to_buffer_end) {
-    int consumed = AlsaWriteFrames(playback_handle_,
-                                   frame_buffer_ + offset_in_frames * channels_,
-                                   frames_to_buffer_end);
+    int consumed = AlsaWriteFrames(
+        playback_handle_,
+        IncrementPointerByBytes(frame_buffer_, offset_in_frames * channels_ *
+                                                   GetSampleSize(sample_type_)),
+        frames_to_buffer_end);
     consume_frame_func_(consumed, context_);
     if (consumed != frames_to_buffer_end) {
       return;
@@ -267,9 +302,11 @@ void AlsaAudioSink::WriteFrames(int frames_to_write,
     offset_in_frames = 0;
   }
 
-  int consumed = AlsaWriteFrames(playback_handle_,
-                                 frame_buffer_ + offset_in_frames * channels_,
-                                 frames_to_write);
+  int consumed = AlsaWriteFrames(
+      playback_handle_,
+      IncrementPointerByBytes(frame_buffer_, offset_in_frames * channels_ *
+                                                 GetSampleSize(sample_type_)),
+      frames_to_write);
   consume_frame_func_(consumed, context_);
 }
 
@@ -286,8 +323,9 @@ SbAudioSink AlsaAudioSinkType::Create(
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
   AlsaAudioSink* audio_sink = new AlsaAudioSink(
-      this, channels, sampling_frequency_hz, frame_buffers, frames_per_channel,
-      update_source_status_func, consume_frames_func, context);
+      this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      frames_per_channel, update_source_status_func, consume_frames_func,
+      context);
   if (!audio_sink->is_valid()) {
     delete audio_sink;
     return kSbAudioSinkInvalid;
