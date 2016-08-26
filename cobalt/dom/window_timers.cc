@@ -73,7 +73,10 @@ int WindowTimers::GetFreeTimerHandle() {
 void WindowTimers::RunTimerCallback(int handle) {
   Timers::iterator timer = timers_.find(handle);
   DCHECK(timer != timers_.end());
-  timer->second->callback_reference().value().Run();
+  // Keep a |TimerInfo| reference, so it won't be released when running the
+  // callback.
+  scoped_refptr<TimerInfo> timer_info = timer->second;
+  timer_info->callback_reference().value().Run();
   // After running the callback, double check whether the timer is still there
   // since it might be deleted inside the callback.
   timer = timers_.find(handle);
