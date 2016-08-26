@@ -164,7 +164,13 @@ WindowDriver::WindowDriver(
       get_global_object_proxy_(get_global_object_proxy_function),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
-      next_element_id_(0) {}
+      next_element_id_(0) {
+  // The WindowDriver may have been created on some arbitrary thread (i.e. the
+  // thread that owns the Window). Detach the thread checker so it can be
+  // re-bound to the next thread that calls a webdriver API, which should be
+  // the WebDriver thread.
+  thread_checker_.DetachFromThread();
+}
 
 WindowDriver::~WindowDriver() {
   DCHECK(thread_checker_.CalledOnValidThread());
