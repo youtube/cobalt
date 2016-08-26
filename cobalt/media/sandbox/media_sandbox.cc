@@ -85,7 +85,7 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   renderer_module_.reset(
       new renderer::RendererModule(system_window_.get(), renderer_options));
   MediaModule::Options media_module_options;
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   // Use string literals directly to avoid dependency on browser::switches.
   if (command_line->HasSwitch("audio_decoder_stub")) {
@@ -97,7 +97,7 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   if (command_line->HasSwitch("video_decoder_stub")) {
     media_module_options.use_video_decoder_stub = true;
   }
-#endif  // defined(ENABLE_COMMAND_LINE_SWITCHES)
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
   media_module_ =
       MediaModule::Create(renderer_module_->render_target()->GetSize(),
