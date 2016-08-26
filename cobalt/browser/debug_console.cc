@@ -77,14 +77,14 @@ std::string DebugConsoleModeIntToString(int mode) {
 // Returns the debug console mode as specified by the command line.
 // If unspecified by the command line, base::nullopt is returned.
 base::optional<int> GetDebugConsoleModeFromCommandLine() {
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
     const std::string debug_console_mode_string =
         command_line->GetSwitchValueASCII(switches::kDebugConsoleMode);
     return DebugConsoleModeStringToInt(debug_console_mode_string);
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   return base::nullopt;
 }

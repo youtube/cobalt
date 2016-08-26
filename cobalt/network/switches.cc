@@ -20,7 +20,7 @@ namespace cobalt {
 namespace network {
 namespace switches {
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 // Log network events using Chromium's network logger. If a parameter is
 // specified, the parameter shall be interpreted as a file path and the network
 // log will be written into the file. Otherwise, logging will be written to
@@ -30,7 +30,7 @@ const char kNetLog[] = "net_log";
 // Corresponds to the levels described in the NetLog::LogLevel enum defined in
 // net/base/net_log.h
 const char kNetLogLevel[] = "net_log_level";
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 }  // namespace switches
 }  // namespace network

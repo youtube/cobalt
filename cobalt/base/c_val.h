@@ -217,7 +217,7 @@ std::string ValToPrettyString(const T& value) {
 
 }  // namespace CValDetail
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
 // This class is passed back to the CVal modified event handlers so that they
 // can examine the new CVal value.  This class knows its type, which can be
 // checked through GetType, and then the actual value can be retrieved by
@@ -281,7 +281,7 @@ class CValSpecificValue : public CValGenericValue {
 };
 
 }  // namespace CValDetail
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 
 // Manager class required for the CVal tracking system to function.
 // This class is designed to be a singleton, instanced only through the methods
@@ -292,7 +292,7 @@ class CValManager {
   // Method to get the singleton instance of this class.
   static CValManager* GetInstance();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
   // In order for a system to receive notifications when a tracked CVal changes,
   // it should create a subclass of OnChangedHook with OnValueChanged. When
   // instantiated, OnChangedHook will be called whenever a CVal changes.
@@ -304,7 +304,7 @@ class CValManager {
     virtual void OnValueChanged(const std::string& name,
                                 const CValGenericValue& value) = 0;
   };
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 
   friend struct StaticMemorySingletonTraits<CValManager>;
 
@@ -332,22 +332,22 @@ class CValManager {
   void RegisterCVal(const CValDetail::CValBase* cval);
   void UnregisterCVal(const CValDetail::CValBase* cval);
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
   // Called whenever a CVal is modified, and does the work of notifying all
   // hooks.
   void PushValueChangedEvent(const CValDetail::CValBase* cval,
                              const CValGenericValue& value);
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 
   // Helper function to remove code duplication between GetValueAsString
   // and GetValueAsPrettyString.
   optional<std::string> GetCValStringValue(const std::string& name,
                                            bool pretty);
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
   // Lock that protects against changes to hooks.
   base::Lock hooks_lock_;
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 
   // Lock that protects against CVals being registered/deregistered.
   base::Lock cvals_lock_;
@@ -359,11 +359,11 @@ class CValManager {
   typedef base::hash_map<std::string, const CValDetail::CValBase*> NameVarMap;
   NameVarMap* registered_vars_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
   // The set of hooks that we should notify whenever a CVal is modified.
   typedef base::hash_set<OnChangedHook*> OnChangeHookSet;
   OnChangeHookSet* on_changed_hook_set_;
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 
   template <typename T>
   friend class CValDetail::CValImpl;
@@ -427,11 +427,11 @@ class CValImpl : public CValBase {
         value_ = rhs;
       }
     }
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
     if (value_changed) {
       OnValueChanged();
     }
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
     return *this;
   }
 
@@ -440,9 +440,9 @@ class CValImpl : public CValBase {
       base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
       value_ += rhs;
     }
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
     return *this;
   }
 
@@ -451,9 +451,9 @@ class CValImpl : public CValBase {
       base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
       value_ -= rhs;
     }
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
     return *this;
   }
 
@@ -462,9 +462,9 @@ class CValImpl : public CValBase {
       base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
       ++value_;
     }
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
     return *this;
   }
 
@@ -473,9 +473,9 @@ class CValImpl : public CValBase {
       base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
       --value_;
     }
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
     return *this;
   }
 
@@ -505,13 +505,13 @@ class CValImpl : public CValBase {
     }
   }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
   void OnValueChanged() {
     // Push the value changed event to all listeners.
     CValManager::GetInstance()->PushValueChangedEvent(
         this, CValSpecificValue<T>(value_));
   }
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 
   T value_;
   mutable bool registered_;
