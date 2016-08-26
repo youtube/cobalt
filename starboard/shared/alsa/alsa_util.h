@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_ALSA_ALSA_UTIL_H_
 #define STARBOARD_SHARED_ALSA_ALSA_UTIL_H_
 
+#include <alsa/asoundlib.h>
+
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -26,10 +28,11 @@ namespace alsa {
 void* AlsaOpenPlaybackDevice(int channel,
                              int sample_rate,
                              int frames_per_request,
-                             int buffer_size_in_frames);
+                             int buffer_size_in_frames,
+                             snd_pcm_format_t sample_type);
 bool AlsaStartPlay(void* playback_handle);
 int AlsaWriteFrames(void* playback_handle,
-                    const float* buffer,
+                    const void* buffer,
                     int frames_to_write);
 int AlsaGetBufferedFrames(void* playback_handle);
 void AlsaCloseDevice(void* playback_handle);

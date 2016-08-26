@@ -92,7 +92,11 @@ class PcmHandle : public AutoClose<snd_pcm_t*, int (*)(snd_pcm_t*)> {
 void* AlsaOpenPlaybackDevice(int channel,
                              int sample_rate,
                              int frames_per_request,
-                             int buffer_size_in_frames) {
+                             int buffer_size_in_frames,
+                             snd_pcm_format_t sample_type) {
+  SB_DCHECK(sample_type == SND_PCM_FORMAT_FLOAT_LE ||
+            sample_type == SND_PCM_FORMAT_S16);
+
   PcmHandle playback_handle;
   int error =
       snd_pcm_open(&playback_handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
@@ -111,8 +115,7 @@ void* AlsaOpenPlaybackDevice(int channel,
                                        SND_PCM_ACCESS_RW_INTERLEAVED);
   ALSA_CHECK(error, snd_pcm_hw_params_set_access, NULL);
 
-  error = snd_pcm_hw_params_set_format(playback_handle, hw_params,
-                                       SND_PCM_FORMAT_FLOAT_LE);
+  error = snd_pcm_hw_params_set_format(playback_handle, hw_params, sample_type);
   ALSA_CHECK(error, snd_pcm_hw_params_set_format, NULL);
 
   error =
@@ -159,7 +162,7 @@ void* AlsaOpenPlaybackDevice(int channel,
 }
 
 int AlsaWriteFrames(void* playback_handle,
-                    const float* buffer,
+                    const void* buffer,
                     int frames_to_write) {
   if (frames_to_write == 0) {
     return 0;
