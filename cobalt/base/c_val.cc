@@ -29,15 +29,15 @@ CValManager::CValManager() {
   // and so this allows its size to be more consistent (and avoids compiler
   // warnings on some platforms).
   registered_vars_ = new NameVarMap();
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
   on_changed_hook_set_ = new base::hash_set<OnChangedHook*>();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 }
 
 CValManager::~CValManager() {
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
   delete on_changed_hook_set_;
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
   delete registered_vars_;
 }
 
@@ -62,7 +62,7 @@ void CValManager::UnregisterCVal(const CValDetail::CValBase* cval) {
   }
 }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUG_C_VAL)
 void CValManager::PushValueChangedEvent(const CValDetail::CValBase* cval,
                                         const CValGenericValue& value) {
   base::AutoLock auto_lock(hooks_lock_);
@@ -92,7 +92,7 @@ CValManager::OnChangedHook::~OnChangedHook() {
   size_t values_erased ALLOW_UNUSED = cvm->on_changed_hook_set_->erase(this);
   DCHECK_EQ(values_erased, 1);
 }
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUG_C_VAL
 
 std::set<std::string> CValManager::GetOrderedCValNames() {
   std::set<std::string> ret;
