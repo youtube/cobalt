@@ -21,10 +21,10 @@ namespace cobalt {
 namespace network {
 namespace switches {
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 extern const char kNetLog[];
 extern const char kNetLogLevel[];
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 }  // namespace switches
 }  // namespace network
