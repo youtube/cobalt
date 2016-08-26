@@ -44,10 +44,12 @@ int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
     mmap_protect |= PROT_WRITE;
     flag_set = true;
   }
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
   if (sb_flags & kSbMemoryMapProtectExec) {
     mmap_protect |= PROT_EXEC;
     flag_set = true;
   }
+#endif
   if (!flag_set) {
     mmap_protect = PROT_NONE;
   }
