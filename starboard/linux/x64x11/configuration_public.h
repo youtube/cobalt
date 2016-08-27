@@ -83,6 +83,9 @@
 // wildly varying number of cores.
 #define SB_HAS_MANY_CORES 1
 
+// Whether the current platform is expected to have exactly 1 core.
+#define SB_HAS_1_CORE 0
+
 // Whether the current platform is expected to have exactly 2 cores.
 #define SB_HAS_2_CORES 0
 
