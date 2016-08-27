@@ -234,18 +234,12 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// Specifies whether this platform has support for direct access to a decoder
-// for at least H.264/AAC. The decoder is likely to be faster-than-realtime, and
-// it is up to the client to retain decoded frames and display them synchronized
-// with the audio. The decoder must be wired up to the DRM system such that it
-// accepts encrypted samples.
-#define SB_HAS_DECODER 0
-
-// Specifies whether this platform has support for a decrypting elementary
-// stream player for at least AES128-CTR/H.264/AAC. A player is responsible for
-// ingesting an audio and video elementary stream, optionally-encrypted, and
-// ultimately producing synchronized audio/video. If a player is defined, it
-// must choose one of the supported composition methods below.
+// Specifies whether this platform has support for a possibly-decrypting
+// elementary stream player for at least H.264/AAC (and AES-128-CTR, if
+// decrypting). A player is responsible for ingesting an audio and video
+// elementary stream, optionally-encrypted, and ultimately producing
+// synchronized audio/video. If a player is defined, it must choose one of the
+// supported composition methods below.
 #define SB_HAS_PLAYER 1
 
 // Specifies whether this platform's player will produce an OpenGL texture that
