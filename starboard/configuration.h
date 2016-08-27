@@ -58,7 +58,8 @@
 #define SB_IS(SB_FEATURE) (defined(SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
 
 // Determines at compile-time whether this platform has a quirk.
-#define SB_HAS_QUIRK(SB_FEATURE) (defined(SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
+#define SB_HAS_QUIRK(SB_FEATURE) \
+  (defined(SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
 
 // Determines at compile-time if this platform implements a given Starboard API
 // version number (or above).
@@ -335,10 +336,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
 #endif
 
-#if !SB_HAS(DECODER) && !SB_HAS(PLAYER)
-#error "Your platform must have either a decoder or a player (or both)."
-#endif
-
 #if SB_HAS(PLAYER)
 #if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
     !SB_IS(PLAYER_PRODUCING_TEXTURE)
@@ -356,17 +353,15 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
     SB_IS(PLAYER_PRODUCING_TEXTURE)
 #error "Your player can't have a composition method if it doesn't exist."
 #endif
-
-#if !SB_HAS(DECODER)
-#error "Your platform must have either a decoder or a player."
-#endif
 #endif  // SB_HAS(PLAYER)
 
-#if (SB_HAS(MANY_CORES) &&                                       \
-     (SB_HAS(2_CORES) || SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
-    (SB_HAS(2_CORES) && (SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
+#if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
+                            SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
+    (SB_HAS(1_CORE) &&                                              \
+     (SB_HAS(2_CORES) || SB_HAS(4_CORES) || SB_HAS(6_CORES))) ||    \
+    (SB_HAS(2_CORES) && (SB_HAS(4_CORES) || SB_HAS(6_CORES))) ||    \
     (SB_HAS(4_CORES) && SB_HAS(6_CORES))
-#error "Only one of SB_HAS_{MANY, 2, 4, 6}_CORES can be defined per platform."
+#error "Only one SB_HAS_{MANY, 1, 2, 4, 6}_CORE[S] can be defined per platform."
 #endif
 
 #if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
