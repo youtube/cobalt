@@ -22,9 +22,8 @@ namespace media {
 
 ShellVideoFrameProvider::ShellVideoFrameProvider(
     scoped_refptr<VideoFrame> punch_out)
-    : punch_out_(punch_out), has_consumed_frames_(false) {
+    : punch_out_(punch_out), has_consumed_frames_(false), dropped_frames_(0) {
 #if !defined(__LB_SHELL__FOR_RELEASE__)
-  dropped_frames_ = 0;
   max_delay_in_microseconds_ = 0;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 }
@@ -67,20 +66,21 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
         frame_time + kEpsilonInMicroseconds >= media_time.InMicroseconds())
       break;
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-    const bool kLogFrameDrops ALLOW_UNUSED = false;
     if (current_frame_ != frames_[0]) {
       ++dropped_frames_;
+
+#if !defined(__LB_SHELL__FOR_RELEASE__)
       if (media_time.InMicroseconds() - frame_time > max_delay_in_microseconds_)
         max_delay_in_microseconds_ = media_time.InMicroseconds() - frame_time;
+      const bool kLogFrameDrops ALLOW_UNUSED = false;
       LOG_IF(WARNING, kLogFrameDrops)
           << "dropped one frame with timestamp "
           << frames_[0]->GetTimestamp().InMicroseconds() << " at media time "
           << media_time.InMicroseconds() << " total dropped " << dropped_frames_
           << " frames with a max delay of " << max_delay_in_microseconds_
           << " ms";
-    }
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+    }
 
     if (frames_.size() == 1) {
       current_frame_ = frames_[0];
@@ -109,6 +109,7 @@ void ShellVideoFrameProvider::Stop() {
   base::AutoLock auto_lock(frames_lock_);
   frames_.clear();
   current_frame_ = NULL;
+  dropped_frames_ = 0;
 }
 
 size_t ShellVideoFrameProvider::GetNumOfFramesCached() const {
@@ -126,6 +127,13 @@ bool ShellVideoFrameProvider::QueryAndResetHasConsumedFrames() {
   bool previous_value = has_consumed_frames_;
   has_consumed_frames_ = false;
   return previous_value;
+}
+
+int ShellVideoFrameProvider::ResetAndReturnDroppedFrames() {
+  base::AutoLock auto_lock(frames_lock_);
+  int dropped_frames = dropped_frames_;
+  dropped_frames_ = 0;
+  return dropped_frames;
 }
 
 }  // namespace media
