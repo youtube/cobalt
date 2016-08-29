@@ -140,6 +140,7 @@
         '../dom/Uint32Array.idl',
         '../dom/Uint8Array.idl',
         '../dom/URL.idl',
+        '../dom/VideoPlaybackQuality.idl',
         '../dom/Window.idl',
         '../dom/XMLDocument.idl',
         '../dom/XMLSerializer.idl',
