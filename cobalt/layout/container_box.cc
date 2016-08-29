@@ -93,6 +93,9 @@ Boxes::const_iterator ContainerBox::InsertSplitSiblingOfDirectChild(
     split_sibling->GetStackingContext()->are_cross_references_valid_ = false;
   }
 
+  // Invalidate the render tree nodes now that the children have changed.
+  InvalidateRenderTreeNodesOfBoxAndAncestors();
+
   return split_sibling_position;
 }
 
@@ -138,6 +141,9 @@ void ContainerBox::MoveDirectChildrenToSplitSibling(
       !non_negative_z_index_child_.empty()) {
     are_cross_references_valid_ = false;
   }
+
+  // Invalidate the render tree nodes now that the children have changed.
+  InvalidateRenderTreeNodesOfBoxAndAncestors();
 }
 
 // Returns true if the given style allows a container box to act as a containing

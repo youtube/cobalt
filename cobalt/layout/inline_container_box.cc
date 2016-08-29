@@ -222,10 +222,17 @@ bool InlineContainerBox::DoesFulfillEllipsisPlacementRequirement() const {
   return false;
 }
 
-void InlineContainerBox::ResetEllipses() {
+void InlineContainerBox::DoPreEllipsisPlacementProcessing() {
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    (*child_box_iterator)->ResetEllipses();
+    (*child_box_iterator)->DoPreEllipsisPlacementProcessing();
+  }
+}
+
+void InlineContainerBox::DoPostEllipsisPlacementProcessing() {
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
+    (*child_box_iterator)->DoPostEllipsisPlacementProcessing();
   }
 }
 

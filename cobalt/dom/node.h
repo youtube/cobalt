@@ -239,6 +239,8 @@ class Node : public EventTarget {
   virtual void InvalidateLayoutBoxSizesFromNode() {}
   // Invalidate the cross references within the layout boxes of this node.
   virtual void InvalidateLayoutBoxCrossReferencesFromNode() {}
+  // Invalidate the render tree nodes within the layout boxes of this node.
+  virtual void InvalidateRenderTreeNodesFromNode() {}
 
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();
