@@ -23,6 +23,7 @@
 
     'bindings_dependencies': [
       '../h5vcc/h5vcc.gyp:h5vcc',
+      '../webdriver/webdriver.gyp:webdriver',
     ],
 
     # Bindings for the interfaces in this list will be generated, and there must
