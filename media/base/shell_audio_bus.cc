@@ -50,10 +50,8 @@ inline void ConvertSample(ShellAudioBus::SampleType src_type,
 
 }  // namespace
 
-ShellAudioBus::ShellAudioBus(size_t channels,
-                             size_t frames,
-                             SampleType sample_type,
-                             StorageType storage_type)
+ShellAudioBus::ShellAudioBus(size_t channels, size_t frames,
+                             SampleType sample_type, StorageType storage_type)
     : channels_(channels),
       frames_(frames),
       sample_type_(sample_type),
@@ -220,6 +218,44 @@ void ShellAudioBus::Assign(const ShellAudioBus& source,
   }
 }
 
+template <ShellAudioBus::StorageType T>
+inline uint8* ShellAudioBus::GetSamplePtrForType(size_t channel,
+                                                 size_t frame) const {
+  DCHECK_LT(channel, channels_);
+  DCHECK_LT(frame, frames_);
+
+  if (T == kInterleaved) {
+    return channel_data_[0] + sizeof(float) * (channels_ * frame + channel);
+  } else if (T == kPlanar) {
+    return channel_data_[channel] + sizeof(float) * frame;
+  } else {
+    NOTREACHED();
+  }
+
+  return NULL;
+}
+
+template <ShellAudioBus::StorageType T>
+inline float ShellAudioBus::GetFloat32SampleForType(size_t channel,
+                                                    size_t frame) const {
+  return *reinterpret_cast<const float*>(
+      GetSamplePtrForType<T>(channel, frame));
+}
+
+template <ShellAudioBus::StorageType SourceStorageType,
+          ShellAudioBus::StorageType DestStorageType>
+void ShellAudioBus::MixForType(const ShellAudioBus& source) {
+  const size_t frames = std::min(frames_, source.frames_);
+
+  for (size_t channel = 0; channel < channels_; ++channel) {
+    for (size_t frame = 0; frame < frames; ++frame) {
+      *reinterpret_cast<float*>(
+          GetSamplePtrForType<DestStorageType>(channel, frame)) +=
+          source.GetFloat32SampleForType<SourceStorageType>(channel, frame);
+    }
+  }
+}
+
 void ShellAudioBus::Mix(const ShellAudioBus& source) {
   DCHECK_EQ(channels_, source.channels_);
   DCHECK_EQ(sample_type_, kFloat32);
@@ -230,12 +266,20 @@ void ShellAudioBus::Mix(const ShellAudioBus& source) {
     return;
   }
 
-  size_t frames = std::min(frames_, source.frames_);
-  for (size_t channel = 0; channel < channels_; ++channel) {
-    for (size_t frame = 0; frame < frames; ++frame) {
-      *reinterpret_cast<float*>(GetSamplePtr(channel, frame)) +=
-          source.GetFloat32Sample(channel, frame);
-    }
+  // Profiling has identified this area of code as hot, so instead of calling
+  // GetSamplePtr, which branches on storage_type_ each time it is called, we
+  // branch once before we loop and inline the branch of the function we want.
+  DCHECK_EQ(GetSampleSizeInBytes(), sizeof(float));
+  if (source.storage_type_ == kInterleaved && storage_type_ == kInterleaved) {
+    MixForType<kInterleaved, kInterleaved>(source);
+  } else if (source.storage_type_ == kInterleaved && storage_type_ == kPlanar) {
+    MixForType<kInterleaved, kPlanar>(source);
+  } else if (source.storage_type_ == kPlanar && storage_type_ == kInterleaved) {
+    MixForType<kPlanar, kInterleaved>(source);
+  } else if (source.storage_type_ == kPlanar && storage_type_ == kPlanar) {
+    MixForType<kPlanar, kPlanar>(source);
+  } else {
+    NOTREACHED();
   }
 }
 
