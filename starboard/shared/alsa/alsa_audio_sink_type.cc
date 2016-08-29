@@ -171,17 +171,18 @@ AlsaAudioSink::AlsaAudioSink(
                      "alsa_audio_out", &AlsaAudioSink::ThreadEntryPoint, this);
   SB_DCHECK(SbThreadIsValid(audio_out_thread_));
   SbMemorySet(silence_frames_, 0,
-         channels * kFramesPerRequest * GetSampleSize(sample_type));
+              channels * kFramesPerRequest * GetSampleSize(sample_type));
   creation_signal_.Wait();
 }
 
 AlsaAudioSink::~AlsaAudioSink() {
-  delete[] static_cast<uint8_t*>(silence_frames_);
   {
     ScopedLock lock(mutex_);
     destroying_ = true;
   }
   SbThreadJoin(audio_out_thread_, NULL);
+
+  delete[] static_cast<uint8_t*>(silence_frames_);
 }
 
 // static
