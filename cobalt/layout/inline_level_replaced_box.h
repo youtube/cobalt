@@ -48,7 +48,8 @@ class InlineLevelReplacedBox : public ReplacedBox {
   Level GetLevel() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
-  void ResetEllipses() OVERRIDE;
+  void DoPreEllipsisPlacementProcessing() OVERRIDE;
+  void DoPostEllipsisPlacementProcessing() OVERRIDE;
   bool IsHiddenByEllipsis() const OVERRIDE;
 
  protected:
@@ -76,6 +77,11 @@ class InlineLevelReplacedBox : public ReplacedBox {
   // the applicable edge(s) of the line as necessary to fit the ellipsis."
   //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   bool is_hidden_by_ellipsis_;
+  // Tracking of the previous value of |is_hidden_by_ellipsis_|, which allows
+  // for determination of whether or not the value changed during ellipsis
+  // placement. When this occurs, the cached render tree nodes of this box and
+  // its ancestors are invalidated.
+  bool was_hidden_by_ellipsis_;
 };
 
 }  // namespace layout

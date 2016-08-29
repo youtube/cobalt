@@ -58,7 +58,8 @@ class InlineContainerBox : public ContainerBox {
   Box* GetSplitSibling() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
-  void ResetEllipses() OVERRIDE;
+  void DoPreEllipsisPlacementProcessing() OVERRIDE;
+  void DoPostEllipsisPlacementProcessing() OVERRIDE;
 
   bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;

@@ -1817,6 +1817,38 @@ TEST(PromoteToComputedStyle,
 }
 
 TEST(PromoteToComputedStyle,
+     DeclaredPropertiesInheritedFromParentShouldRemainValidWhenSetToSameValue) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  parent_computed_style->set_color(
+      new RGBAColorValue(uint8(10), uint8(10), uint8(10), uint8(10)));
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  // Verify that we're testing an inherited and animatable property.
+  ASSERT_TRUE(GetPropertyInheritance(kColorProperty) &&
+              GetPropertyAnimatable(kColorProperty));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, math::Size(), NULL);
+
+  // Verify that the declared properties inherited from the parent are valid.
+  ASSERT_TRUE(computed_style->AreDeclaredPropertiesInheritedFromParentValid());
+
+  parent_computed_style = new CSSComputedStyleData();
+  parent_computed_style->set_color(
+      new RGBAColorValue(uint8(10), uint8(10), uint8(10), uint8(10)));
+  parent_computed_style_declaration->SetData(parent_computed_style);
+
+  // Verify that the declared properties inherited from the parent are still
+  // valid.
+  ASSERT_TRUE(computed_style->AreDeclaredPropertiesInheritedFromParentValid());
+}
+
+TEST(PromoteToComputedStyle,
      InheritedAnimatablePropertyShouldRetainValueAfterParentValueChanges) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
