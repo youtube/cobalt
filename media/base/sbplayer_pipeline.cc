@@ -649,7 +649,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   bool is_encrypted = IsEncrypted(stream);
   SbDrmSampleInfo drm_info;
 
-  if (is_encrypted) {
+  if (is_encrypted && !buffer->IsEndOfStream()) {
     FillDrmSampleInfo(buffer, &drm_info);
   }
 
