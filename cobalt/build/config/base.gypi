@@ -191,6 +191,11 @@
     # as expected, rather than requiring it to be set for each platform.
     #'javascript_engine%': 'javascriptcore',
 
+    # Enable jit by default. It can be set to 0 to run in interpreter-only mode.
+    # Setting this to 1 on a platform or engine for which there is no JIT
+    # implementation is a no-op.
+    'cobalt_enable_jit%': 1,
+
     # Customize variables used by Chromium's build/common.gypi.
 
     # Disable a check that looks for an official google api key.
