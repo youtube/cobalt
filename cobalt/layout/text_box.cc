@@ -46,6 +46,7 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
       truncated_text_end_position_(text_end_position),
+      previous_truncated_text_end_position_(text_end_position),
       truncated_text_offset_from_left_(0),
       used_font_(used_style_provider->GetUsedFontList(
           css_computed_style_declaration->data()->font_family(),
@@ -225,8 +226,15 @@ bool TextBox::DoesFulfillEllipsisPlacementRequirement() const {
   return GetNonCollapsedTextStartPosition() < GetNonCollapsedTextEndPosition();
 }
 
-void TextBox::ResetEllipses() {
+void TextBox::DoPreEllipsisPlacementProcessing() {
+  previous_truncated_text_end_position_ = truncated_text_end_position_;
   truncated_text_end_position_ = text_end_position_;
+}
+
+void TextBox::DoPostEllipsisPlacementProcessing() {
+  if (previous_truncated_text_end_position_ != truncated_text_end_position_) {
+    InvalidateRenderTreeNodesOfBoxAndAncestors();
+  }
 }
 
 void TextBox::SplitBidiLevelRuns() {}
@@ -380,23 +388,15 @@ void TextBox::RenderAndAnimateContent(
         text_shadow != cssom::KeywordValue::GetNone()) {
       int32 text_start_position = GetNonCollapsedTextStartPosition();
       int32 text_length = GetVisibleTextLength();
-      // Generate the glyph buffer if it does not already exist or the position
-      // it covers has changed. Otherwise, just use the cached glyph buffer.
-      if (!cached_glyph_buffer_info_.glyph_buffer ||
-          text_start_position != cached_glyph_buffer_info_.start_position ||
-          text_length != cached_glyph_buffer_info_.length) {
-        cached_glyph_buffer_info_.start_position = text_start_position;
-        cached_glyph_buffer_info_.length = text_length;
-        cached_glyph_buffer_info_.glyph_buffer = used_font_->CreateGlyphBuffer(
-            paragraph_->GetTextBuffer() +
-                cached_glyph_buffer_info_.start_position,
-            cached_glyph_buffer_info_.length,
-            paragraph_->IsRTL(text_start_position));
-      }
+
+      scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
+          used_font_->CreateGlyphBuffer(
+              paragraph_->GetTextBuffer() + text_start_position, text_length,
+              paragraph_->IsRTL(text_start_position));
 
       render_tree::TextNode::Builder text_node_builder(
           math::Vector2dF(truncated_text_offset_from_left_, ascent_),
-          cached_glyph_buffer_info_.glyph_buffer, used_color);
+          glyph_buffer, used_color);
 
       if (text_shadow != cssom::KeywordValue::GetNone()) {
         cssom::PropertyListValue* shadow_list =

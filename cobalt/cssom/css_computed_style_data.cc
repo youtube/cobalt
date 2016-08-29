@@ -359,11 +359,40 @@ bool CSSComputedStyleData::AreDeclaredPropertiesInheritedFromParentValid()
   for (PropertyKeyVector::const_iterator iter =
            declared_properties_inherited_from_parent_.begin();
        iter != declared_properties_inherited_from_parent_.end(); ++iter) {
-    if (GetPropertyValueReference(*iter) !=
-        parent_computed_style_data->GetPropertyValueReference(*iter)) {
+    if (!GetPropertyValueReference(*iter)->Equals(
+            *parent_computed_style_data->GetPropertyValueReference(*iter))) {
       return false;
     }
   }
+  return true;
+}
+
+bool CSSComputedStyleData::DoDeclaredPropertiesMatch(
+    const scoped_refptr<const CSSComputedStyleData>& other) const {
+  // If the bitsets don't match, then there's no need to check the values;
+  // the declared properties are guaranteed to not match.
+  if (declared_properties_ != other->declared_properties_) {
+    return false;
+  }
+
+  // Verify that the same number of declared property values exist within the
+  // two CSSComputedStyleData objects. This should be guaranteed by the
+  // bitsets matching.
+  DCHECK_EQ(declared_property_values_.size(),
+            other->declared_property_values_.size());
+
+  // Walk the two lists of declared property values looking for any keys or
+  // values that don't match.
+  PropertyValues::const_iterator iter1 = declared_property_values_.begin();
+  PropertyValues::const_iterator iter2 =
+      other->declared_property_values_.begin();
+  for (; iter1 != declared_property_values_.end(); ++iter1, ++iter2) {
+    if (iter1->first != iter2->first ||
+        !iter1->second->Equals(*iter2->second)) {
+      return false;
+    }
+  }
+
   return true;
 }
 

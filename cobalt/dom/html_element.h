@@ -232,6 +232,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
   void InvalidateLayoutBoxSizesFromNode() OVERRIDE;
   void InvalidateLayoutBoxCrossReferencesFromNode() OVERRIDE;
+  void InvalidateRenderTreeNodesFromNode() OVERRIDE;
 
   // Determines whether this element is focusable.
   bool IsFocusable() const { return HasAttribute("tabindex"); }

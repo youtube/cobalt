@@ -81,6 +81,8 @@ class LayoutBoxes {
   // Invalidate the cross references, which relates to both positioned children
   // of containing blocks and z-index children of stacking contexts.
   virtual void InvalidateCrossReferences() = 0;
+  // Invalidate the layout box's render tree nodes.
+  virtual void InvalidateRenderTreeNodes() = 0;
 
  protected:
   LayoutBoxes() {}
