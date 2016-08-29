@@ -300,14 +300,17 @@ void VideoRendererBase::ThreadMain() {
   uint32 frames_dropped = 0;
 
   for (;;) {
-    if (frames_dropped > 0) {
 #if defined(__LB_SHELL__) || defined(COBALT)
+    frames_dropped =
+        static_cast<uint32>(frame_provider_->ResetAndReturnDroppedFrames());
+    if (frames_dropped > 0) {
       SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_DROP);
+    }
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
+    if (frames_dropped > 0) {
       PipelineStatistics statistics;
       statistics.video_frames_dropped = frames_dropped;
       statistics_cb_.Run(statistics);
-
       frames_dropped = 0;
     }
 
