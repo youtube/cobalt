@@ -16,11 +16,17 @@
 // this is hooked up to something.
 
 #include "starboard/system.h"
+#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
+
+void* ThreadFunc(void* context) {
+  SbSystemHideSplashScreen();
+  return NULL;
+}
 
 TEST(SbSystemHideSplashScreenTest, SunnyDay) {
   // Function returns no result, and correct execution cannot be determined
@@ -28,6 +34,16 @@ TEST(SbSystemHideSplashScreenTest, SunnyDay) {
   // crashing.
   SbSystemHideSplashScreen();
   SbSystemHideSplashScreen();
+}
+
+TEST(SbSystemHideSplashScreenTest, SunnyDayNewThread) {
+  // We should be able to call the function from any thread.
+  const char kThreadName[] = "HideSplashTest";
+  SbThread thread = SbThreadCreate(0 /*stack_size*/, kSbThreadPriorityNormal,
+                                   kSbThreadNoAffinity, true /*joinable*/,
+                                   kThreadName, ThreadFunc, NULL /*context*/);
+  EXPECT_TRUE(SbThreadIsValid(thread));
+  SbThreadJoin(thread, NULL /*out_return*/);
 }
 
 }  // namespace
