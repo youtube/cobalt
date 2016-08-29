@@ -61,13 +61,13 @@ void DumpStackSignalSafe(int signal_id) {
 
 void InstallCrashSignalHandlers() {
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kSignalsToTrap); ++i) {
-    ::signal(i, &DumpStackSignalSafe);
+    ::signal(kSignalsToTrap[i], &DumpStackSignalSafe);
   }
 }
 
 void UninstallCrashSignalHandlers() {
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kSignalsToTrap); ++i) {
-    ::signal(i, SIG_DFL);
+    ::signal(kSignalsToTrap[i], SIG_DFL);
   }
 }
 
