@@ -64,6 +64,9 @@ class ShellVideoFrameProvider
   // queue since the last time this was called.
   bool QueryAndResetHasConsumedFrames();
 
+  // Return the value of |dropped_frames_| and reset it to 0.
+  int ResetAndReturnDroppedFrames();
+
  private:
   base::TimeDelta GetMediaTime_Locked() const;
 
@@ -74,9 +77,9 @@ class ShellVideoFrameProvider
   std::vector<scoped_refptr<VideoFrame> > frames_;
   scoped_refptr<VideoFrame> current_frame_;
   bool has_consumed_frames_;
+  int dropped_frames_;
 
 #if !defined(__LB_SHELL__FOR_RELEASE__)
-  int dropped_frames_;
   int max_delay_in_microseconds_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
