@@ -497,10 +497,11 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxCrossReferencesYes, new NumberValue(1.0f));
 
   // https://www.w3.org/TR/css-overflow-3/#overflow-properties
-  SetPropertyDefinition(
-      kOverflowProperty, "overflow", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
-      kImpactsBoxCrossReferencesNo, KeywordValue::GetVisible());
+  SetPropertyDefinition(kOverflowProperty, "overflow", kInheritedNo,
+                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetVisible());
 
   // https://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kOverflowWrapProperty, "overflow-wrap", kInheritedYes,
@@ -580,7 +581,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   SetPropertyDefinition(kTextOverflowProperty, "text-overflow", kInheritedNo,
                         kAnimatableNo, kImpactsChildDeclaredStyleNo,
-                        kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetClip());
 
   // https://www.w3.org/TR/css-text-decor-3/#text-shadow-property

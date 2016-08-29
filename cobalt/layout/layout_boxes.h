@@ -58,6 +58,7 @@ class LayoutBoxes : public dom::LayoutBoxes {
 
   void InvalidateSizes() OVERRIDE;
   void InvalidateCrossReferences() OVERRIDE;
+  void InvalidateRenderTreeNodes() OVERRIDE;
 
   // Other
   //

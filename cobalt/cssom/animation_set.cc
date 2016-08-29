@@ -99,7 +99,7 @@ scoped_refptr<TimingFunction> GetTimingFunction(size_t index,
 }
 }  // namespace
 
-void AnimationSet::Update(const base::TimeDelta& current_time,
+bool AnimationSet::Update(const base::TimeDelta& current_time,
                           const CSSComputedStyleData& style,
                           const CSSKeyframesRule::NameMap& keyframes_map) {
   const std::vector<scoped_refptr<PropertyValue> >& names =
@@ -115,8 +115,11 @@ void AnimationSet::Update(const base::TimeDelta& current_time,
       names[0] == KeywordValue::GetNone()) {
     // If we have no current animations playing and no animations were
     // specified, there is nothing to do so we can return immediately.
-    return;
+    return false;
   }
+
+  // Whether or not the animations have been modified by this update.
+  bool animations_modified = false;
 
   // Build a set of all animations in the new declared animation set, so that
   // we can later use this to decide which old animations are no longer active.
@@ -172,6 +175,8 @@ void AnimationSet::Update(const base::TimeDelta& current_time,
     if (event_handler_) {
       event_handler_->OnAnimationStarted(inserted->second);
     }
+
+    animations_modified = true;
   }
 
   // Finally check for any animations that are now ended.
@@ -189,10 +194,16 @@ void AnimationSet::Update(const base::TimeDelta& current_time,
       animations_to_end.push_back(iter->first);
     }
   }
-  for (std::vector<std::string>::iterator iter = animations_to_end.begin();
-       iter != animations_to_end.end(); ++iter) {
-    animations_.erase(*iter);
+  if (!animations_to_end.empty()) {
+    for (std::vector<std::string>::iterator iter = animations_to_end.begin();
+         iter != animations_to_end.end(); ++iter) {
+      animations_.erase(*iter);
+    }
+
+    animations_modified = true;
   }
+
+  return animations_modified;
 }
 
 }  // namespace cssom

@@ -57,7 +57,8 @@ class TextBox : public Box {
   Box* GetSplitSibling() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
-  void ResetEllipses() OVERRIDE;
+  void DoPreEllipsisPlacementProcessing() OVERRIDE;
+  void DoPostEllipsisPlacementProcessing() OVERRIDE;
 
   void SplitBidiLevelRuns() OVERRIDE;
   bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
@@ -93,14 +94,6 @@ class TextBox : public Box {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
-  struct CachedGlyphBufferInfo {
-    CachedGlyphBufferInfo() : start_position(-1), length(0) {}
-
-    scoped_refptr<render_tree::GlyphBuffer> glyph_buffer;
-    int32 start_position;
-    int32 length;
-  };
-
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
       BaseDirection base_direction, LayoutUnit desired_offset,
@@ -160,6 +153,11 @@ class TextBox : public Box {
   // the applicable edge(s) of the line as necessary to fit the ellipsis."
   //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   int32 truncated_text_end_position_;
+  // Tracking of the previous value of |truncated_text_end_position_|, which
+  // allows for determination of whether or not the value changed during
+  // ellipsis placement. When this occurs, the cached render tree nodes of this
+  // box and its ancestors are invalidated.
+  int32 previous_truncated_text_end_position_;
   // The horizontal offset to apply to rendered text as a result of an ellipsis
   // truncating the text. This value can be non-zero when the text box is in a
   // line with a right-to-left base direction. In this case, when an ellipsis is
@@ -195,11 +193,6 @@ class TextBox : public Box {
   // The width of the portion of the text that is unaffected by whitespace
   // collapsing.
   base::optional<LayoutUnit> non_collapsible_text_width_;
-
-  // Glyph buffer caching is used to prevent it from needing to be recalculated
-  // during each call to RenderAndAnimateContent. It is mutable as a result of
-  // RenderAndAnimateContent being const.
-  mutable CachedGlyphBufferInfo cached_glyph_buffer_info_;
 };
 
 }  // namespace layout

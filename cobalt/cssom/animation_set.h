@@ -48,7 +48,8 @@ class AnimationSet {
   // Update the internal state of animations based on our previous state and the
   // passed in computed style.  Animations may be started or ended when this
   // method is called.
-  void Update(const base::TimeDelta& current_time,
+  // Returns whether or not the update modified the animations.
+  bool Update(const base::TimeDelta& current_time,
               const CSSComputedStyleData& style,
               const CSSKeyframesRule::NameMap& keyframes_map);
 

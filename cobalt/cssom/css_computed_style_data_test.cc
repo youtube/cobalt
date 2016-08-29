@@ -1128,5 +1128,68 @@ TEST(CSSComputedStyleDataTest, DisplayIsBlockWhenPositionIsAbsoluteOrFixed) {
   EXPECT_EQ(KeywordValue::GetBlock(), style->display());
 }
 
+TEST(CSSComputedStyleDataTest,
+     DoDeclaredPropertiesMatchWorksWithUnequalNumberOfDeclaredProperties) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->set_font_size(new LengthValue(50, kPixelsUnit));
+
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+
+  ASSERT_FALSE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_FALSE(style2->DoDeclaredPropertiesMatch(style1));
+}
+
+TEST(CSSComputedStyleDataTest,
+     DoDeclaredPropertiesMatchWorksWithSingleUnequalProperty) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->set_font_size(new LengthValue(50, kPixelsUnit));
+
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->set_font_size(new LengthValue(30, kPixelsUnit));
+
+  ASSERT_FALSE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_FALSE(style2->DoDeclaredPropertiesMatch(style1));
+}
+
+TEST(CSSComputedStyleDataTest,
+     DoDeclaredPropertiesMatchWorksWithSingleEqualProperty) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->set_font_size(new LengthValue(50, kPixelsUnit));
+
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->set_font_size(new LengthValue(50, kPixelsUnit));
+
+  ASSERT_TRUE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_TRUE(style2->DoDeclaredPropertiesMatch(style1));
+}
+
+TEST(CSSComputedStyleDataTest,
+     DoDeclaredPropertiesMatchWorksWithMultipleUnequalProperties) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->set_position(KeywordValue::GetAbsolute());
+  style1->set_font_size(new LengthValue(50, kPixelsUnit));
+
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->set_position(KeywordValue::GetAbsolute());
+  style2->set_font_size(new LengthValue(30, kPixelsUnit));
+
+  ASSERT_FALSE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_FALSE(style2->DoDeclaredPropertiesMatch(style1));
+}
+
+TEST(CSSComputedStyleDataTest,
+     DoDeclaredPropertiesMatchWorksWithMultipleEqualProperty) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->set_position(KeywordValue::GetAbsolute());
+  style1->set_font_size(new LengthValue(50, kPixelsUnit));
+
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->set_position(KeywordValue::GetAbsolute());
+  style2->set_font_size(new LengthValue(50, kPixelsUnit));
+
+  ASSERT_TRUE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_TRUE(style2->DoDeclaredPropertiesMatch(style1));
+}
+
 }  // namespace cssom
 }  // namespace cobalt

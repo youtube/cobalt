@@ -86,6 +86,7 @@ class MockLayoutBoxes : public dom::LayoutBoxes {
 
   MOCK_METHOD0(InvalidateSizes, void());
   MOCK_METHOD0(InvalidateCrossReferences, void());
+  MOCK_METHOD0(InvalidateRenderTreeNodes, void());
 };
 
 // Takes the fist child of the given element repeatedly to the given depth.
