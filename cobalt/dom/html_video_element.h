@@ -20,6 +20,7 @@
 #include <string>
 
 #include "cobalt/dom/html_media_element.h"
+#include "cobalt/dom/video_playback_quality.h"
 #include "media/base/shell_video_frame_provider.h"
 
 namespace cobalt {
@@ -43,6 +44,7 @@ class HTMLVideoElement : public HTMLMediaElement {
   void set_height(uint32 height);
   uint32 video_width() const;
   uint32 video_height() const;
+  scoped_refptr<VideoPlaybackQuality> GetVideoPlaybackQuality() const;
 
   // Custom, not in any spec
   //

@@ -71,6 +71,17 @@ uint32 HTMLVideoElement::video_height() const {
   return static_cast<uint32>(player()->GetNaturalSize().height());
 }
 
+scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality()
+    const {
+  // TODO: Provide all attributes with valid values.
+  return new VideoPlaybackQuality(
+      0.,   // creation_time
+      player() ? static_cast<uint32>(player()->GetDecodedFrameCount()) : 0,
+      player() ? static_cast<uint32>(player()->GetDroppedFrameCount()) : 0,
+      0,    // corrupted_video_frames
+      0.);  // total_frame_delay
+}
+
 scoped_refptr<ShellVideoFrameProvider>
 HTMLVideoElement::GetVideoFrameProvider() {
   DCHECK(thread_checker_.CalledOnValidThread());
