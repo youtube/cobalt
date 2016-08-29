@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/html5/embedded-content-0.html#the-video-element
+// https://www.w3.org/TR/media-source/#idl-def-VideoPlaybackQuality
 
-interface HTMLVideoElement : HTMLMediaElement {
-  attribute unsigned long width;
-  attribute unsigned long height;
-  readonly attribute unsigned long videoWidth;
-  readonly attribute unsigned long videoHeight;
-
-  // https://www.w3.org/TR/media-source/#widl-HTMLVideoElement-getVideoPlaybackQuality-VideoPlaybackQuality
-  VideoPlaybackQuality getVideoPlaybackQuality();
+interface VideoPlaybackQuality {
+  readonly attribute DOMHighResTimeStamp creationTime;
+  readonly attribute unsigned long totalVideoFrames;
+  readonly attribute unsigned long droppedVideoFrames;
+  readonly attribute unsigned long corruptedVideoFrames;
+  readonly attribute double totalFrameDelay;
 };
+
+typedef double DOMHighResTimeStamp;
