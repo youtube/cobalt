@@ -681,6 +681,12 @@ void HTMLElement::InvalidateLayoutBoxCrossReferencesFromNode() {
   }
 }
 
+void HTMLElement::InvalidateRenderTreeNodesFromNode() {
+  if (layout_boxes_) {
+    layout_boxes_->InvalidateRenderTreeNodes();
+  }
+}
+
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
       directionality_(kNoExplicitDirectionality),
@@ -763,7 +769,8 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>&
         previous_computed_style,
     cssom::TransitionSet* css_transitions, cssom::AnimationSet* css_animations,
-    const cssom::CSSKeyframesRule::NameMap& keyframes_map) {
+    const cssom::CSSKeyframesRule::NameMap& keyframes_map,
+    bool* animations_modified) {
   // Select the winning value for each property by performing the cascade,
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
@@ -789,12 +796,29 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     css_transitions->UpdateTransitions(
         style_change_event_time, *previous_computed_style, *computed_style);
   }
-  // Update the set of currently running animations.
-  css_animations->Update(style_change_event_time, *computed_style,
-                         keyframes_map);
+  // Update the set of currently running animations and track whether or not the
+  // animations changed.
+  *animations_modified = css_animations->Update(style_change_event_time,
+                                                *computed_style, keyframes_map);
 
   return computed_style;
 }
+
+// Flags tracking which cached values must be invalidated.
+struct UpdateComputedStyleInvalidationFlags {
+  UpdateComputedStyleInvalidationFlags()
+      : invalidate_descendant_computed_styles(false),
+        invalidate_layout_boxes(false),
+        invalidate_sizes(false),
+        invalidate_cross_references(false),
+        invalidate_render_tree_nodes(false) {}
+
+  bool invalidate_descendant_computed_styles;
+  bool invalidate_layout_boxes;
+  bool invalidate_sizes;
+  bool invalidate_cross_references;
+  bool invalidate_render_tree_nodes;
+};
 
 bool NewComputedStyleInvalidatesDescendantComputedStyles(
     const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
@@ -831,6 +855,42 @@ bool NewComputedStyleInvalidatesCrossReferences(
                                          new_computed_style);
 }
 
+void UpdateInvalidationFlagsForNewComputedStyle(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style,
+    bool animations_modified, UpdateComputedStyleInvalidationFlags* flags) {
+  if (old_computed_style) {
+    if (!flags->invalidate_descendant_computed_styles &&
+        NewComputedStyleInvalidatesDescendantComputedStyles(
+            old_computed_style, new_computed_style)) {
+      flags->invalidate_descendant_computed_styles = true;
+      flags->invalidate_layout_boxes = true;
+    } else if (!flags->invalidate_layout_boxes) {
+      if (NewComputedStyleInvalidatesLayoutBoxes(old_computed_style,
+                                                 new_computed_style)) {
+        flags->invalidate_layout_boxes = true;
+      } else {
+        if (!flags->invalidate_sizes &&
+            NewComputedStyleInvalidatesSizes(old_computed_style,
+                                             new_computed_style)) {
+          flags->invalidate_sizes = true;
+          flags->invalidate_render_tree_nodes = true;
+        }
+        if (!flags->invalidate_cross_references &&
+            NewComputedStyleInvalidatesCrossReferences(old_computed_style,
+                                                       new_computed_style)) {
+          flags->invalidate_cross_references = true;
+          flags->invalidate_render_tree_nodes = true;
+        }
+
+        flags->invalidate_render_tree_nodes =
+            flags->invalidate_render_tree_nodes || animations_modified ||
+            !new_computed_style->DoDeclaredPropertiesMatch(old_computed_style);
+      }
+    }
+  }
+}
+
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
@@ -841,6 +901,10 @@ void HTMLElement::UpdateComputedStyle(
   Document* document = node_document();
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
+
+  // If there is no previous computed style, there should also be no layout
+  // boxes.
+  DCHECK(computed_style() || NULL == layout_boxes());
 
   dom_stat_tracker_->OnUpdateComputedStyle();
 
@@ -877,42 +941,22 @@ void HTMLElement::UpdateComputedStyle(
       document->url_as_gurl();
 
   // Flags tracking which cached values must be invalidated.
-  bool invalidate_descendant_computed_styles = false;
-  bool invalidate_layout_boxes = false;
-  bool invalidate_sizes = false;
-  bool invalidate_cross_references = false;
+  UpdateComputedStyleInvalidationFlags invalidation_flags;
 
   if (generate_computed_style) {
+    bool animations_modified = false;
+
     scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
         PromoteMatchingRulesToComputedStyle(
             matching_rules(), &property_key_to_base_url_map, style_->data(),
             parent_computed_style_declaration, root_computed_style,
             document->viewport_size(), style_change_event_time,
             computed_style(), &css_transitions_, &css_animations_,
-            document->keyframes_map());
+            document->keyframes_map(), &animations_modified);
 
-    // If there is no previous computed style, there should also be no layout
-    // boxes, and nothing has to be invalidated.
-    DCHECK(computed_style() || NULL == layout_boxes());
-    if (computed_style()) {
-      if (NewComputedStyleInvalidatesDescendantComputedStyles(
-              computed_style(), new_computed_style)) {
-        invalidate_descendant_computed_styles = true;
-        invalidate_layout_boxes = true;
-      } else if (NewComputedStyleInvalidatesLayoutBoxes(computed_style(),
-                                                        new_computed_style)) {
-        invalidate_layout_boxes = true;
-      } else {
-        if (NewComputedStyleInvalidatesSizes(computed_style(),
-                                             new_computed_style)) {
-          invalidate_sizes = true;
-        }
-        if (NewComputedStyleInvalidatesCrossReferences(computed_style(),
-                                                       new_computed_style)) {
-          invalidate_cross_references = true;
-        }
-      }
-    }
+    UpdateInvalidationFlagsForNewComputedStyle(
+        computed_style(), new_computed_style, animations_modified,
+        &invalidation_flags);
 
     css_computed_style_declaration_->SetData(new_computed_style);
 
@@ -934,6 +978,8 @@ void HTMLElement::UpdateComputedStyle(
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
+      bool animations_modified = false;
+
       scoped_refptr<cssom::CSSComputedStyleData> pseudo_element_computed_style =
           PromoteMatchingRulesToComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
@@ -943,36 +989,12 @@ void HTMLElement::UpdateComputedStyle(
               pseudo_elements_[pseudo_element_type]->computed_style(),
               pseudo_elements_[pseudo_element_type]->css_transitions(),
               pseudo_elements_[pseudo_element_type]->css_animations(),
-              document->keyframes_map());
+              document->keyframes_map(), &animations_modified);
 
-      if (pseudo_elements_[pseudo_element_type]->computed_style()) {
-        if (!invalidate_descendant_computed_styles &&
-            NewComputedStyleInvalidatesDescendantComputedStyles(
-                pseudo_elements_[pseudo_element_type]->computed_style(),
-                pseudo_element_computed_style)) {
-          invalidate_descendant_computed_styles = true;
-          invalidate_layout_boxes = true;
-        } else if (!invalidate_layout_boxes) {
-          if (NewComputedStyleInvalidatesLayoutBoxes(
-                  pseudo_elements_[pseudo_element_type]->computed_style(),
-                  pseudo_element_computed_style)) {
-            invalidate_layout_boxes = true;
-          } else {
-            if (!invalidate_sizes &&
-                NewComputedStyleInvalidatesSizes(
-                    pseudo_elements_[pseudo_element_type]->computed_style(),
-                    pseudo_element_computed_style)) {
-              invalidate_sizes = true;
-            }
-            if (!invalidate_cross_references &&
-                NewComputedStyleInvalidatesCrossReferences(
-                    pseudo_elements_[pseudo_element_type]->computed_style(),
-                    pseudo_element_computed_style)) {
-              invalidate_cross_references = true;
-            }
-          }
-        }
-      }
+      UpdateInvalidationFlagsForNewComputedStyle(
+          pseudo_elements_[pseudo_element_type]->computed_style(),
+          pseudo_element_computed_style, animations_modified,
+          &invalidation_flags);
 
       pseudo_elements_[pseudo_element_type]
           ->css_computed_style_declaration()
@@ -980,19 +1002,22 @@ void HTMLElement::UpdateComputedStyle(
     }
   }
 
-  if (invalidate_descendant_computed_styles) {
+  if (invalidation_flags.invalidate_descendant_computed_styles) {
     InvalidateComputedStylesRecursively();
   }
 
-  if (invalidate_layout_boxes) {
+  if (invalidation_flags.invalidate_layout_boxes) {
     InvalidateLayoutBoxesFromNodeAndAncestors();
     InvalidateLayoutBoxesFromNodeAndDescendants();
   } else {
-    if (invalidate_sizes) {
+    if (invalidation_flags.invalidate_sizes) {
       InvalidateLayoutBoxSizesFromNode();
     }
-    if (invalidate_cross_references) {
+    if (invalidation_flags.invalidate_cross_references) {
       InvalidateLayoutBoxCrossReferencesFromNode();
+    }
+    if (invalidation_flags.invalidate_render_tree_nodes) {
+      InvalidateRenderTreeNodesFromNode();
     }
   }
 

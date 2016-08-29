@@ -110,6 +110,10 @@ void Box::UpdateSize(const LayoutParams& layout_params) {
   UpdateBorders();
   UpdatePaddings(layout_params);
   UpdateContentSizeAndMargins(layout_params);
+
+  // After a size update, this portion of the render tree must be updated, so
+  // invalidate any cached render tree nodes.
+  InvalidateRenderTreeNodesOfBoxAndAncestors();
 }
 
 bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
@@ -187,6 +191,13 @@ LayoutUnit Box::GetStaticPositionTop() const {
 void Box::InvalidateCrossReferencesOfBoxAndAncestors() {
   if (parent_) {
     parent_->InvalidateCrossReferencesOfBoxAndAncestors();
+  }
+}
+
+void Box::InvalidateRenderTreeNodesOfBoxAndAncestors() {
+  cached_render_tree_node_info_ = base::nullopt;
+  if (parent_) {
+    parent_->InvalidateRenderTreeNodesOfBoxAndAncestors();
   }
 }
 
@@ -385,8 +396,24 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
 
 void Box::RenderAndAnimate(
     CompositionNode::Builder* parent_content_node_builder,
-    const math::Vector2dF& offset_from_parent_node) const {
-  AnimateNode::Builder animate_node_builder;
+    const math::Vector2dF& offset_from_parent_node) {
+  math::Vector2dF border_box_offset(left().toFloat() + margin_left().toFloat(),
+                                    top().toFloat() + margin_top().toFloat());
+  border_box_offset += offset_from_parent_node;
+
+  // If there's a pre-existing cached render tree node that is located at the
+  // border box offset, then simply use it. There's no more work to do.
+  if (cached_render_tree_node_info_ &&
+      cached_render_tree_node_info_->offset_ == border_box_offset) {
+    if (cached_render_tree_node_info_->node_) {
+      parent_content_node_builder->AddChild(
+          cached_render_tree_node_info_->node_);
+    }
+    return;
+  }
+
+  // Initialize the cached render tree node with the border box offset.
+  cached_render_tree_node_info_ = CachedRenderTreeNodeInfo(border_box_offset);
 
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
                       computed_style()->opacity().get())
@@ -407,10 +434,8 @@ void Box::RenderAndAnimate(
     return;
   }
 
-  math::Vector2dF border_box_offset(left().toFloat() + margin_left().toFloat(),
-                                    top().toFloat() + margin_top().toFloat());
-  border_box_offset += offset_from_parent_node;
   render_tree::CompositionNode::Builder border_node_builder(border_box_offset);
+  AnimateNode::Builder animate_node_builder;
 
   UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
   computed_style()->border_radius()->Accept(&border_radius_provider);
@@ -499,11 +524,13 @@ void Box::RenderAndAnimate(
     border_node = RenderAndAnimateTransform(border_node, &animate_node_builder,
                                             border_box_offset);
 
-    parent_content_node_builder->AddChild(
+    cached_render_tree_node_info_->node_ =
         animate_node_builder.empty()
             ? border_node
             : scoped_refptr<render_tree::Node>(
-                  new AnimateNode(animate_node_builder, border_node)));
+                  new AnimateNode(animate_node_builder, border_node));
+
+    parent_content_node_builder->AddChild(cached_render_tree_node_info_->node_);
   }
 }
 
@@ -814,7 +841,7 @@ namespace {
 // CSS transform style property.  If the object does not have a transform
 // style property set, this will be the identity matrix.  Otherwise, it is
 // calculated from the property value and returned.  The transform-origin
-// style property will also be taken into account, and therefore the layed
+// style property will also be taken into account, and therefore the laid
 // out size of the object is also required in order to resolve a
 // percentage-based transform-origin.
 math::Matrix3F GetCSSTransform(
@@ -901,7 +928,7 @@ bool HasAnimatedBorder(const web_animations::AnimationSet* animation_set) {
 void Box::RenderAndAnimateBoxShadow(
     const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
-    AnimateNode::Builder* animate_node_builder) const {
+    AnimateNode::Builder* animate_node_builder) {
   UNREFERENCED_PARAMETER(animate_node_builder);
 
   if (computed_style()->box_shadow() != cssom::KeywordValue::GetNone()) {
@@ -965,7 +992,7 @@ void Box::RenderAndAnimateBoxShadow(
 void Box::RenderAndAnimateBorder(
     const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
-    AnimateNode::Builder* animate_node_builder) const {
+    AnimateNode::Builder* animate_node_builder) {
   // If the border is absent or all borders are transparent, there is no need
   // to render border.
   if (border_insets_.zero() || AreAllBordersTransparent(computed_style())) {
@@ -991,7 +1018,7 @@ void Box::RenderAndAnimateBorder(
 void Box::RenderAndAnimateBackgroundColor(
     const base::optional<RoundedCorners>& rounded_corners,
     render_tree::CompositionNode::Builder* border_node_builder,
-    AnimateNode::Builder* animate_node_builder) const {
+    AnimateNode::Builder* animate_node_builder) {
   // Only create the RectNode if the background color is not the initial value
   // (which we know is transparent) and not transparent.  If it's animated,
   // add it no matter what since its value may change over time to be
@@ -1027,7 +1054,7 @@ void Box::RenderAndAnimateBackgroundColor(
 void Box::RenderAndAnimateBackgroundImage(
     const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
-    AnimateNode::Builder* animate_node_builder) const {
+    AnimateNode::Builder* animate_node_builder) {
   UNREFERENCED_PARAMETER(animate_node_builder);
 
   math::RectF image_frame(
@@ -1071,7 +1098,7 @@ void Box::RenderAndAnimateBackgroundImage(
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     const scoped_refptr<render_tree::Node>& border_node,
     AnimateNode::Builder* animate_node_builder, float opacity,
-    bool opacity_animated) const {
+    bool opacity_animated) {
   if (opacity < 1.0f || opacity_animated) {
     FilterNode::Builder filter_node_builder(border_node);
 
@@ -1098,7 +1125,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const base::optional<render_tree::RoundedCorners>& rounded_corners,
     const scoped_refptr<render_tree::Node>& content_node, AnimateNode::Builder*
     /* animate_node_builder */,
-    const math::Vector2dF& border_node_offset) const {
+    const math::Vector2dF& border_node_offset) {
   bool overflow_hidden =
       computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
 
@@ -1127,7 +1154,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     const scoped_refptr<render_tree::Node>& border_node,
     AnimateNode::Builder* animate_node_builder,
-    const math::Vector2dF& border_node_offset) const {
+    const math::Vector2dF& border_node_offset) {
   if (IsTransformable() &&
       animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout

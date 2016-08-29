@@ -695,6 +695,11 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
     return &declared_property_values_;
   }
 
+  // Returns whether or not the declared properties in the passed in
+  // CSSComputedStyleData matches those declared within this one.
+  bool DoDeclaredPropertiesMatch(
+      const scoped_refptr<const CSSComputedStyleData>& other) const;
+
   // Set the parent computed style for tracking inherited properties.
   void SetParentComputedStyleDeclaration(
       const scoped_refptr<CSSComputedStyleDeclaration>&

@@ -144,7 +144,8 @@ InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
                                        layout_stat_tracker),
       paragraph_(paragraph),
       text_position_(text_position),
-      is_hidden_by_ellipsis_(false) {}
+      is_hidden_by_ellipsis_(false),
+      was_hidden_by_ellipsis_(false) {}
 
 InlineLevelBlockContainerBox::~InlineLevelBlockContainerBox() {}
 
@@ -216,8 +217,15 @@ bool InlineLevelBlockContainerBox::DoesFulfillEllipsisPlacementRequirement()
   return true;
 }
 
-void InlineLevelBlockContainerBox::ResetEllipses() {
+void InlineLevelBlockContainerBox::DoPreEllipsisPlacementProcessing() {
+  was_hidden_by_ellipsis_ = is_hidden_by_ellipsis_;
   is_hidden_by_ellipsis_ = false;
+}
+
+void InlineLevelBlockContainerBox::DoPostEllipsisPlacementProcessing() {
+  if (was_hidden_by_ellipsis_ != is_hidden_by_ellipsis_) {
+    InvalidateRenderTreeNodesOfBoxAndAncestors();
+  }
 }
 
 bool InlineLevelBlockContainerBox::IsHiddenByEllipsis() const {
