@@ -444,6 +444,11 @@ void Document::OnCSSMutation() {
   are_font_faces_dirty_ = true;
   are_keyframes_dirty_ = true;
 
+  scoped_refptr<HTMLHtmlElement> current_html = html();
+  if (current_html) {
+    current_html->InvalidateComputedStylesRecursively();
+  }
+
   RecordMutation();
 }
 
