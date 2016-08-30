@@ -17,13 +17,11 @@
 
   'sources': [
     'config/SkUserConfig.h',
-    'egl/src/gpu/cobalt/GrGpuFactory.cc',
     'src/effects/SkNV122RGBShader.cc',
     'src/effects/SkNV122RGBShader.h',
     'src/effects/SkYUV2RGBShader.cc',
     'src/effects/SkYUV2RGBShader.h',
     'src/google_logging.cc',
-    'src/gpu/gl/GrGLCreateNativeInterface_cobalt.cc',
     'src/ports/SkFontConfigParser_cobalt.cc',
     'src/ports/SkFontConfigParser_cobalt.h',
     'src/ports/SkFontMgr_cobalt.cc',
@@ -44,6 +42,12 @@
     ['OS=="starboard"', {
       'sources': [
         'src/ports/SkMemory_starboard.cc',
+      ],
+    }],
+    ['gl_type != "none"', {
+      'sources': [
+        'egl/src/gpu/cobalt/GrGpuFactory.cc',
+        'src/gpu/gl/GrGLCreateNativeInterface_cobalt.cc',
       ],
     }],
   ],
