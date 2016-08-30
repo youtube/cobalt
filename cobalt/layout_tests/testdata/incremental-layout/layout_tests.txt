@@ -1,4 +1,5 @@
 added_inline_child_of_inline_box_gets_rendered
+child-being-moved-to-new-parent-should-trigger-inherited-style-update
 computed_style_change_gets_rendered
 cross_references_style_change_should_trigger_containing_block_update
 cross_references_style_change_should_trigger_stacking_context_update
