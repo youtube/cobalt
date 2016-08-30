@@ -308,7 +308,7 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ReturnValueRange) {
   if (TypeParam::min_value() >= 0) {
     expected_result = "18446744073709550000";
     EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
-        .WillOnce(Return(18446744073709550000l));
+        .WillOnce(Return(18446744073709550000ull));
     EXPECT_TRUE(this->EvaluateScript(script, &result));
     EXPECT_STREQ(expected_result.c_str(), result.c_str());
   }
@@ -363,7 +363,7 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, SetPropertyRange) {
   // Unsigned : send 18446744073709550000 (between 2^53
   // and uint64_t max) to 18446744073709549568.
   if (TypeParam::min_value() >= 0) {
-    EXPECT_CALL(this->test_mock(), mock_set_property(18446744073709549568));
+    EXPECT_CALL(this->test_mock(), mock_set_property(18446744073709549568ull));
     EXPECT_TRUE(this->EvaluateScript(
         StringPrintf("test.%sProperty = 18446744073709550000;",
                      TypeParam::type_string()),
@@ -408,7 +408,8 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ArgumentOperationRange) {
   // Unsigned : send 18446744073709550000 (between 2^53
   // and uint64_t max) to 18446744073709549568.
   if (TypeParam::min_value() >= 0) {
-    EXPECT_CALL(this->test_mock(), MockArgumentOperation(18446744073709549568));
+    EXPECT_CALL(this->test_mock(),
+                MockArgumentOperation(18446744073709549568ull));
     EXPECT_TRUE(this->EvaluateScript(
         StringPrintf("test.%sArgumentOperation(18446744073709550000);",
                      TypeParam::type_string()),

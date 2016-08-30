@@ -542,6 +542,9 @@ WebModule::WebModule(
 #if defined(ADDRESS_SANITIZER)
   // ASAN requires a much bigger stack size here.
   const int kStackSize = 4096 * 1024;
+#elif defined(COBALT_BUILD_TYPE_DEBUG)
+  // Non-optimized builds require a bigger stack size.
+  const int kStackSize = 2 * 1024 * 1024;
 #else
   const int kStackSize = 256 * 1024;
 #endif
