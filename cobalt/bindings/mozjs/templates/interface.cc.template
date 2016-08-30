@@ -779,9 +779,6 @@ JSObject* {{binding_class}}::CreateProxy(
   JSAutoCompartment auto_compartment(context, global_object);
   bool success = JS_InitStandardClasses(context, global_object);
 
-  JS::RootedObject parent_prototype(
-      context, JS_GetObjectPrototype(context, global_object));
-
   JS::RootedObject prototype(
       context, {{binding_class}}::GetPrototype(context, global_object));
   DCHECK(prototype);
@@ -808,7 +805,10 @@ JSObject* {{binding_class}}::CreateProxy(
 // static
 JSObject* {{binding_class}}::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
-  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  JS::RootedObject global_object(
+      context,
+      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -828,7 +828,10 @@ JSObject* {{binding_class}}::CreateProxy(
 //static
 const JSClass* {{binding_class}}::PrototypeClass(
       JSContext* context) {
-  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  JS::RootedObject global_object(
+      context,
+      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
