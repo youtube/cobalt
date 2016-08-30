@@ -31,6 +31,7 @@ std::string StackTraceToString(const std::vector<StackFrame>& stack_frames) {
     if (!stack_frames[i].source_url.empty()) {
       backtrace_stream << " @ " << stack_frames[i].source_url << ':'
                        << stack_frames[i].line_number;
+      backtrace_stream << ":" << stack_frames[i].column_number;
     }
   }
   return backtrace_stream.str();

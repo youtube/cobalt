@@ -41,7 +41,7 @@ std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
   for (int i = 0; i < max_frames; ++i) {
     StackFrame sf;
     sf.line_number = stack_trace[i].lineno;
-    sf.column_number = 0;
+    sf.column_number = stack_trace[i].columnno;
     sf.function_name = "global code";
     if (stack_trace[i].fun) {
       JS::RootedString rooted_string(context,

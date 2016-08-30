@@ -40,7 +40,8 @@
         'defines': [
         # SpiderMonkey bindings implements indexed deleters.
         'ENGINE_SUPPORTS_INDEXED_DELETERS',
-        'ENGINE_SUPPORTS_INT64', ],
+        'ENGINE_SUPPORTS_INT64',
+        'ENGINE_SUPPORTS_STACK_TRACE_COLUMNS', ],
       },
       'conditions' :[
         ['cobalt_enable_jit == 1', {
