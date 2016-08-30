@@ -411,7 +411,10 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 // static
 JSObject* MozjsAnonymousIndexedGetterInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
-  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  JS::RootedObject global_object(
+      context,
+      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -430,7 +433,10 @@ JSObject* MozjsAnonymousIndexedGetterInterface::CreateProxy(
 //static
 const JSClass* MozjsAnonymousIndexedGetterInterface::PrototypeClass(
       JSContext* context) {
-  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  JS::RootedObject global_object(
+      context,
+      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
