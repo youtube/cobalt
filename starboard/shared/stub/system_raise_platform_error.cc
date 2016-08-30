@@ -38,5 +38,5 @@ SbSystemPlatformError SbSystemRaisePlatformError(
       break;
   }
   SB_DLOG(INFO) << "SbSystemRaisePlatformError: " << message;
-  return false;
+  return kSbSystemPlatformErrorInvalid;
 }
