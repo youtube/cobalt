@@ -643,9 +643,6 @@ JSObject* MozjsWindow::CreateProxy(
   JSAutoCompartment auto_compartment(context, global_object);
   bool success = JS_InitStandardClasses(context, global_object);
 
-  JS::RootedObject parent_prototype(
-      context, JS_GetObjectPrototype(context, global_object));
-
   JS::RootedObject prototype(
       context, MozjsWindow::GetPrototype(context, global_object));
   DCHECK(prototype);
@@ -671,7 +668,10 @@ JSObject* MozjsWindow::CreateProxy(
 //static
 const JSClass* MozjsWindow::PrototypeClass(
       JSContext* context) {
-  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  JS::RootedObject global_object(
+      context,
+      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
