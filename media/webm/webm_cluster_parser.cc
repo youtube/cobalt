@@ -23,6 +23,80 @@ static std::string GenerateCounterBlock(const uint8* iv, int iv_size) {
   return counter_block;
 }
 
+namespace {
+
+uint32 ReadInteger(const uint8* buf, int size) {
+  // Read in the big-endian integer.
+  uint32 value = 0;
+  for (int i = 0; i < size; ++i)
+    value = (value << 8) | buf[i];
+  return value;
+}
+
+bool ExtractSubsamples(const uint8* buf,
+                       size_t frame_data_size,
+                       size_t num_partitions,
+                       std::vector<SubsampleEntry>* subsample_entries) {
+  subsample_entries->clear();
+  uint32 clear_bytes = 0;
+  // Partition is the wall between alternating sections. Partition offsets are
+  // relative to the start of the actual frame data.
+  // Size of clear/cipher sections can be calculated from the difference between
+  // adjacent partition offsets.
+  // Here is an example with 4 partitions (5 sections):
+  //   "clear |1 cipher |2 clear |3 cipher |4 clear"
+  // With the first and the last implicit partition included:
+  //   "|0 clear |1 cipher |2 clear |3 cipher |4 clear |5"
+  //   where partition_offset_0 = 0, partition_offset_5 = frame_data_size
+  // There are three subsamples in the above example:
+  //   Subsample0.clear_bytes = partition_offset_1 - partition_offset_0
+  //   Subsample0.cypher_bytes = partition_offset_2 - partition_offset_1
+  //   ...
+  //   Subsample2.clear_bytes = partition_offset_5 - partition_offset_4
+  //   Subsample2.cypher_bytes = 0
+  uint32 partition_offset = 0;
+  for (size_t i = 0, offset = 0; i <= num_partitions; ++i) {
+    const uint32 prev_partition_offset = partition_offset;
+    partition_offset =
+        (i == num_partitions)
+            ? frame_data_size
+            : ReadInteger(buf + offset, kWebMEncryptedFramePartitionOffsetSize);
+    offset += kWebMEncryptedFramePartitionOffsetSize;
+    if (partition_offset < prev_partition_offset) {
+      DVLOG(1) << "Partition should not be decreasing " << prev_partition_offset
+               << " " << partition_offset;
+      return false;
+    }
+
+    uint32 cypher_bytes = 0;
+    bool new_subsample_entry = false;
+    // Alternating clear and cipher sections.
+    if ((i % 2) == 0) {
+      clear_bytes = partition_offset - prev_partition_offset;
+      // Generate a new subsample when finishing reading partition offsets.
+      new_subsample_entry = i == num_partitions;
+    } else {
+      cypher_bytes = partition_offset - prev_partition_offset;
+      // Generate a new subsample after seeing a cipher section.
+      new_subsample_entry = true;
+    }
+
+    if (new_subsample_entry) {
+      if (clear_bytes == 0 && cypher_bytes == 0) {
+        DVLOG(1) << "Not expecting >2 partitions with the same offsets.";
+        return false;
+      }
+      SubsampleEntry entry;
+      entry.clear_bytes = clear_bytes;
+      entry.cypher_bytes = cypher_bytes;
+      subsample_entries->push_back(entry);
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
 WebMClusterParser::WebMClusterParser(
     int64 timecode_scale, int audio_track_num, int video_track_num,
     const std::string& audio_encryption_key_id,
@@ -247,13 +321,14 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
           << "Got a block from an encrypted stream with no data.";
       return false;
     }
-    uint8 signal_byte = data[0];
+    const uint8 signal_byte = data[0];
     int data_offset = sizeof(signal_byte);
 
     // Setting the DecryptConfig object of the buffer while leaving the
     // initialization vector empty will tell the decryptor that the frame is
     // unencrypted.
     std::string counter_block;
+    std::vector<SubsampleEntry> subsample_entries;
 
     if (signal_byte & kWebMFlagEncryptedFrame) {
       if (size < kWebMSignalByteSize + kWebMIvSize) {
@@ -263,6 +338,34 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
       }
       counter_block = GenerateCounterBlock(data + data_offset, kWebMIvSize);
       data_offset += kWebMIvSize;
+
+      if (signal_byte & kWebMFlagEncryptedFramePartitioned) {
+        if (size < data_offset + kWebMEncryptedFrameNumPartitionsSize) {
+          DVLOG(1) << "Got a partitioned encrypted block with not enough data "
+                   << size;
+          return false;
+        }
+
+        const size_t num_partitions = data[data_offset];
+        if (num_partitions == 0) {
+          DVLOG(1) << "Got a partitioned encrypted block with 0 partitions.";
+          return false;
+        }
+        data_offset += kWebMEncryptedFrameNumPartitionsSize;
+        const uint8* partition_data_start = data + data_offset;
+        data_offset += kWebMEncryptedFramePartitionOffsetSize * num_partitions;
+        if (size <= data_offset) {
+          DVLOG(1) << "Got a partitioned encrypted block with "
+                   << num_partitions << " partitions but not enough data "
+                   << size;
+          return false;
+        }
+        const size_t frame_data_size = size - data_offset;
+        if (!ExtractSubsamples(partition_data_start, frame_data_size,
+                               num_partitions, &subsample_entries)) {
+          return false;
+        }
+      }
     }
 
 #if defined(__LB_SHELL__) || defined(COBALT)
@@ -276,13 +379,12 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     // frames after the CDM API is finalized.
     // Unencrypted frames of potentially encrypted streams currently set
     // DecryptConfig.
-    buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
-        encryption_key_id,
-        counter_block,
+    buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(
+        new DecryptConfig(encryption_key_id, counter_block,
 #if !defined(__LB_SHELL__) && !defined(COBALT)
-        data_offset,
+                          data_offset,
 #endif  // !defined(__LB_SHELL__) && !defined(COBALT)
-        std::vector<SubsampleEntry>())));
+                          subsample_entries)));
   }
 
   buffer->SetTimestamp(timestamp);
