@@ -231,6 +231,8 @@ class Node : public EventTarget {
   // removed from to its owner document.
   virtual void OnRemovedFromDocument();
 
+  // Invalidate computed styles from this node and all child nodes.
+  virtual void InvalidateComputedStylesRecursively();
   // Invalidate layout boxes from this node and all parent nodes.
   virtual void InvalidateLayoutBoxesFromNodeAndAncestors();
   // Invalidate layout boxes from this node and all child nodes.

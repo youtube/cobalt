@@ -618,13 +618,7 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
 
 void HTMLElement::InvalidateComputedStylesRecursively() {
   computed_style_valid_ = false;
-
-  for (Element* element = first_element_child(); element;
-       element = element->next_element_sibling()) {
-    HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    html_element->InvalidateComputedStylesRecursively();
-  }
+  Node::InvalidateComputedStylesRecursively();
 }
 
 void HTMLElement::UpdateComputedStyleRecursively(
@@ -1068,6 +1062,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 
 void HTMLElement::OnBackgroundImageLoaded() {
   node_document()->RecordMutation();
+  InvalidateRenderTreeNodesFromNode();
 }
 
 bool HTMLElement::IsRootElement() {
