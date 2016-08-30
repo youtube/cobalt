@@ -16,6 +16,7 @@
 
 #include "media/filters/shell_parser.h"
 
+#include "base/logging.h"
 #include "media/filters/shell_flv_parser.h"
 #include "media/filters/shell_mp4_parser.h"
 
@@ -27,33 +28,27 @@ namespace media {
 const int ShellParser::kInitialHeaderSize = 9;
 
 // static
-scoped_refptr<ShellParser> ShellParser::Construct(
+PipelineStatus ShellParser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
-    const PipelineStatusCB& status_cb) {
-  scoped_refptr<ShellParser> parser;
+    scoped_refptr<ShellParser>* parser) {
+  DCHECK(parser);
+  *parser = NULL;
 
   // download first 16 bytes of stream to determine file type and extract basic
   // container-specific stream configuration information
   uint8 header[kInitialHeaderSize];
   int bytes_read = reader->BlockingRead(0, kInitialHeaderSize, header);
   if (bytes_read != kInitialHeaderSize) {
-    status_cb.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
-    return NULL;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // attempt to construct mp4 parser from this header
-  parser = ShellMP4Parser::Construct(reader, header, status_cb);
+  PipelineStatus status = ShellMP4Parser::Construct(reader, header, parser);
+  if (status == PIPELINE_OK) {
+    return status;
+  }
   // ok, attempt FLV
-  if (!parser) {
-    parser = ShellFLVParser::Construct(reader, header, status_cb);
-  }
-  // no additional supported container formats, set error and return
-  if (!parser) {
-    status_cb.Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
-    return NULL;
-  }
-
-  return parser;
+  return ShellFLVParser::Construct(reader, header, parser);
 }
 
 ShellParser::ShellParser(scoped_refptr<ShellDataSourceReader> reader)

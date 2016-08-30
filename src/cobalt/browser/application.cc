@@ -36,7 +36,7 @@
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
 #endif
 #include "cobalt/system_window/application_event.h"
@@ -45,7 +45,7 @@
 #if defined(__LB_SHELL__)
 #if !defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_manager.h"
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 
@@ -64,7 +64,7 @@ const char kDefaultURL[] = "https://www.youtube.com/tv";
 int GetRemoteDebuggingPort() {
   const int kDefaultRemoteDebuggingPort = 9222;
   int remote_debugging_port = kDefaultRemoteDebuggingPort;
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kRemoteDebuggingPort)) {
     const std::string switchValue =
@@ -76,13 +76,13 @@ int GetRemoteDebuggingPort() {
       remote_debugging_port = kDefaultRemoteDebuggingPort;
     }
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   return remote_debugging_port;
 }
 #endif  // ENABLE_REMOTE_DEBUGGING
 
 #if defined(ENABLE_WEBDRIVER)
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 int GetWebDriverPort() {
   // The default port on which the webdriver server should listen for incoming
   // connections.
@@ -101,11 +101,11 @@ int GetWebDriverPort() {
   }
   return webdriver_port;
 }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
 
 GURL GetInitialURL() {
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   // Allow the user to override the default URL via a command line parameter.
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
@@ -116,13 +116,13 @@ GURL GetInitialURL() {
       DLOG(INFO) << "URL from parameter is not valid, using default URL.";
     }
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   return GURL(kDefaultURL);
 }
 
 base::TimeDelta GetTimedTraceDuration() {
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   int duration_in_seconds = 0;
   if (command_line->HasSwitch(switches::kTimedTrace) &&
@@ -131,7 +131,7 @@ base::TimeDelta GetTimedTraceDuration() {
           &duration_in_seconds)) {
     return base::TimeDelta::FromSeconds(duration_in_seconds);
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   return base::TimeDelta();
 }
@@ -140,7 +140,7 @@ FilePath GetExtraWebFileDir() {
   // Default is empty, command line can override.
   FilePath result;
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kExtraWebFileDir)) {
     result =
@@ -153,18 +153,19 @@ FilePath GetExtraWebFileDir() {
     }
     DLOG(INFO) << "Extra web file dir: " << result.value();
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   return result;
 }
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 void EnableUsingStubImageDecoderIfRequired() {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kStubImageDecoder)) {
     loader::image::ImageDecoder::UseStubImageDecoder();
   }
 }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
   if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
@@ -190,7 +191,13 @@ void ApplyCommandLineSettingsToRendererOptions(
   SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
                           &options->skia_cache_size_in_bytes);
 }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+
+void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
+  SetIntegerIfSwitchIsSet(browser::switches::kImageCacheSizeInBytes,
+                          &options->image_cache_capacity);
+  SetIntegerIfSwitchIsSet(browser::switches::kRemoteTypefaceCacheSizeInBytes,
+                          &options->remote_typeface_cache_capacity);
+}
 
 // Restrict navigation to a couple of whitelisted URLs by default.
 const char kYouTubeTvLocationPolicy[] =
@@ -288,11 +295,13 @@ Application::Application(const base::Closure& quit_closure)
   options.language = language;
   options.network_module_options.preferred_language = language;
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
+  ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
-  if (CommandLine::ForCurrentProcess()->HasSwitch(
-          browser::switches::kNullSavegame)) {
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
     options.storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
@@ -311,8 +320,7 @@ Application::Application(const base::Closure& quit_closure)
 
   math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kProxy)) {
     options.network_module_options.custom_proxy =
         command_line->GetSwitchValueASCII(browser::switches::kProxy);
@@ -343,6 +351,20 @@ Application::Application(const base::Closure& quit_closure)
 #endif  // !defined(COBALT_FORCE_HTTPS)
 
   EnableUsingStubImageDecoderIfRequired();
+
+  if (command_line->HasSwitch(switches::kAudioDecoderStub)) {
+    DLOG(INFO) << "Use ShellRawAudioDecoderStub";
+    options.media_module_options.use_audio_decoder_stub = true;
+  }
+  if (command_line->HasSwitch(switches::kNullAudioStreamer)) {
+    DLOG(INFO) << "Use null audio";
+    options.media_module_options.use_null_audio_streamer = true;
+  }
+  if (command_line->HasSwitch(switches::kVideoDecoderStub)) {
+    DLOG(INFO) << "Use ShellRawVideoDecoderStub";
+    options.media_module_options.use_video_decoder_stub = true;
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (command_line->HasSwitch(browser::switches::kViewport)) {
     const std::string switchValue =
@@ -381,19 +403,6 @@ Application::Application(const base::Closure& quit_closure)
       }
     }
   }
-  if (command_line->HasSwitch(switches::kAudioDecoderStub)) {
-    DLOG(INFO) << "Use ShellRawAudioDecoderStub";
-    options.media_module_options.use_audio_decoder_stub = true;
-  }
-  if (command_line->HasSwitch(switches::kNullAudioStreamer)) {
-    DLOG(INFO) << "Use null audio";
-    options.media_module_options.use_null_audio_streamer = true;
-  }
-  if (command_line->HasSwitch(switches::kVideoDecoderStub)) {
-    DLOG(INFO) << "Use ShellRawVideoDecoderStub";
-    options.media_module_options.use_video_decoder_stub = true;
-  }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   system_window_ =
       system_window::CreateSystemWindow(&event_dispatcher_, viewport_size);
@@ -419,7 +428,7 @@ Application::Application(const base::Closure& quit_closure)
                                      application_event_callback_);
 
 #if defined(ENABLE_WEBDRIVER)
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
     int webdriver_port = GetWebDriverPort();
     web_driver_module_.reset(new webdriver::WebDriverModule(
@@ -431,7 +440,7 @@ Application::Application(const base::Closure& quit_closure)
                    base::Unretained(browser_module_.get())),
         base::Bind(&Application::Quit, base::Unretained(this))));
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
@@ -442,7 +451,7 @@ Application::Application(const base::Closure& quit_closure)
                  base::Unretained(browser_module_.get()))));
 #endif  // ENABLE_REMOTE_DEBUGGING
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   int duration_in_seconds = 0;
   if (command_line->HasSwitch(switches::kShutdownAfter) &&
       base::StringToInt(
@@ -455,7 +464,7 @@ Application::Application(const base::Closure& quit_closure)
         FROM_HERE, quit_closure_,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 }
 
 Application::~Application() {
@@ -526,25 +535,15 @@ void Application::OnApplicationEvent(const base::Event* event) {
   if (app_event->type() == system_window::ApplicationEvent::kQuit) {
     DLOG(INFO) << "Got quit event.";
     app_status_ = kWillQuitAppStatus;
-#if !defined(OS_STARBOARD)
-    browser_module_->SetWillQuit();
-    browser_module_->SetPaused(false);
-#endif  // !defined(OS_STARBOARD)
     Quit();
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
     app_status_ = kPausedAppStatus;
     ++app_suspend_count_;
-#if !defined(OS_STARBOARD)
-    browser_module_->SetPaused(true);
-#endif  // !defined(OS_STARBOARD)
   } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
     DLOG(INFO) << "Got resume event.";
     app_status_ = kRunningAppStatus;
     ++app_resume_count_;
-#if !defined(OS_STARBOARD)
-    browser_module_->SetPaused(false);
-#endif  // !defined(OS_STARBOARD)
   }
 }
 
@@ -629,7 +628,7 @@ void Application::UpdatePeriodicStats() {
         static_cast<size_t>(memory_info.application_memory);
     c_val_stats_.exe_memory = static_cast<size_t>(memory_info.executable_size);
   }
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(__LB_SHELL__FOR_RELEASE__)
   // If the memory stats have not been updated yet, then simply use the
   // unallocated memory as the available memory.
   if (!memory_stats_updated) {

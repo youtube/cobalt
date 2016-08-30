@@ -64,8 +64,6 @@
         'document_type.h',
         'dom_animatable.cc',
         'dom_animatable.h',
-        'dom_exception.cc',
-        'dom_exception.h',
         'dom_implementation.cc',
         'dom_implementation.h',
         'dom_parser.cc',
@@ -248,6 +246,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
+        '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/media/media.gyp:media',
         # Interface layer to avoid directly depending on network.

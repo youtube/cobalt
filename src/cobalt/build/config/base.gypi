@@ -106,11 +106,27 @@
     #   "cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found"
     'gl_type%': 'system_gles2',
 
+    # Cache parameters
+
+    # The following set of parameters define how much memory is reserved for
+    # different Cobalt caches.  These caches affect CPU *and* GPU memory usage.
+    #
+    # The sum of the following caches effectively describes the maximum GPU
+    # texture memory usage (though it doesn't consider video textures and
+    # display color buffers):
+    #   - skia_cache_size_in_bytes (GLES2 rasterizer only)
+    #   - scratch_surface_cache_size_in_bytes
+    #   - surface_cache_size_in_bytes
+    #   - image_cache_size_in_bytes
+    #
+    # The other caches affect CPU memory usage.
+
     # Determines the capacity of the skia cache.  The Skia cache is maintained
     # within Skia and is used to cache the results of complicated effects such
     # as shadows, so that Skia draw calls that are used repeatedly across
     # frames can be cached into surfaces.  This setting is only relevant when
-    # using the hardware-accelerated Skia rasterizer.
+    # using the hardware-accelerated Skia rasterizer (e.g. as opposed to the
+    # Blitter API).
     'skia_cache_size_in_bytes%': 4 * 1024 * 1024,
 
     # Determines the capacity of the scratch surface cache.  The scratch
@@ -123,6 +139,15 @@
     # which render tree nodes are being re-used across frames and stores the
     # nodes that are most CPU-expensive to render into surfaces.
     'surface_cache_size_in_bytes%': 0,
+
+    # Determines the capacity of the image cache which manages image surfaces
+    # downloaded from a web page.  While it depends on the platform, often (and
+    # ideally) these images are cached within GPU memory.
+    'image_cache_size_in_bytes%': 64 * 1024 * 1024,
+
+    # Determines the capacity of the remote typefaces cache which manages all
+    # typefaces downloaded from a web page.
+    'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
 
     # Compiler configuration.
 
@@ -165,6 +190,11 @@
     # TODO: Figure out how to massage gyp the right way to make this work
     # as expected, rather than requiring it to be set for each platform.
     #'javascript_engine%': 'javascriptcore',
+
+    # Enable jit by default. It can be set to 0 to run in interpreter-only mode.
+    # Setting this to 1 on a platform or engine for which there is no JIT
+    # implementation is a no-op.
+    'cobalt_enable_jit%': 1,
 
     # Customize variables used by Chromium's build/common.gypi.
 
@@ -287,7 +317,7 @@
           'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
           '_DEBUG',
-          'ENABLE_COMMAND_LINE_SWITCHES',
+          'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
           'ENABLE_DIR_SOURCE_ROOT_ACCESS',
@@ -310,7 +340,7 @@
           '_DEBUG',
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_DEVEL',
-          'ENABLE_COMMAND_LINE_SWITCHES',
+          'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
           'ENABLE_DIR_SOURCE_ROOT_ACCESS',
@@ -332,7 +362,7 @@
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_QA',
-          'ENABLE_COMMAND_LINE_SWITCHES',
+          'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
           'ENABLE_DIR_SOURCE_ROOT_ACCESS',

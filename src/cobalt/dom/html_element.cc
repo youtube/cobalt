@@ -77,18 +77,22 @@ struct HtmlElementCountLog {
 
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
+    cssom::PropertyKeyVector computed_style_invalidation_properties;
     cssom::PropertyKeyVector layout_box_invalidation_properties;
     cssom::PropertyKeyVector size_invalidation_properties;
     cssom::PropertyKeyVector cross_references_invalidation_properties;
 
     for (int i = 0; i <= cssom::kMaxLonghandPropertyKey; ++i) {
       cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
-      // TODO: Only invalidate layout boxes when a property that is used
-      // for box generation is modified. We currently have to also invalidate
-      // when any inheritable property is modified, because AnonymousBlockBox
-      // and TextBox use GetComputedStyleOfAnonymousBox() to store a copy of
-      // them that won't automatically get updated when the style() in a
-      // CSSComputedStyleDeclaration gets updated.
+
+      if (cssom::GetPropertyImpactsChildDeclaredStyle(property_key) ==
+          cssom::kImpactsChildDeclaredStyleYes) {
+        computed_style_invalidation_properties.push_back(property_key);
+      }
+
+      // TODO: Revisit inherited property handling. Currently, all boxes are
+      // invalidated if an inherited property changes, but now that inherited
+      // properties dynamically update, this is likely no longer necessary.
       if (cssom::GetPropertyInheritance(property_key) == cssom::kInheritedYes ||
           cssom::GetPropertyImpactsBoxGeneration(property_key) ==
               cssom::kImpactsBoxGenerationYes) {
@@ -105,6 +109,9 @@ struct NonTrivialStaticFields {
       }
     }
 
+    computed_style_invalidation_property_checker =
+        cssom::CSSComputedStyleData::PropertySetMatcher(
+            computed_style_invalidation_properties);
     layout_box_invalidation_property_checker =
         cssom::CSSComputedStyleData::PropertySetMatcher(
             layout_box_invalidation_properties);
@@ -116,6 +123,8 @@ struct NonTrivialStaticFields {
             cross_references_invalidation_properties);
   }
 
+  cssom::CSSComputedStyleData::PropertySetMatcher
+      computed_style_invalidation_property_checker;
   cssom::CSSComputedStyleData::PropertySetMatcher
       layout_box_invalidation_property_checker;
   cssom::CSSComputedStyleData::PropertySetMatcher
@@ -570,9 +579,13 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
   }
 
   matching_rules_valid_ = false;
-  computed_style_valid_ = false;
 
-  matching_rules_.clear();
+  // Move |matching_rules_| into |old_matching_rules_|. This is used for
+  // determining whether or not the matching rules actually changed when they
+  // are updated.
+  old_matching_rules_.swap(matching_rules_);
+
+  matching_rules_->clear();
   rule_matching_state_.matching_nodes.clear();
   rule_matching_state_.descendant_potential_nodes.clear();
   rule_matching_state_.following_sibling_potential_nodes.clear();
@@ -603,17 +616,28 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
   }
 }
 
+void HTMLElement::InvalidateComputedStylesRecursively() {
+  computed_style_valid_ = false;
+
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    DCHECK(html_element);
+    html_element->InvalidateComputedStylesRecursively();
+  }
+}
+
 void HTMLElement::UpdateComputedStyleRecursively(
-    const scoped_refptr<const cssom::CSSComputedStyleData>&
-        parent_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
     const base::TimeDelta& style_change_event_time, bool ancestors_were_valid) {
   // Update computed style for this element.
-  bool is_valid = ancestors_were_valid && computed_style_valid_;
+  bool is_valid =
+      ancestors_were_valid && matching_rules_valid_ && computed_style_valid_;
   if (!is_valid) {
-    UpdateComputedStyle(parent_computed_style, root_computed_style,
+    UpdateComputedStyle(parent_computed_style_declaration, root_computed_style,
                         style_change_event_time);
-    computed_style_valid_ = true;
   }
 
   // Do not update computed style for descendants of "display: none" elements,
@@ -630,8 +654,8 @@ void HTMLElement::UpdateComputedStyleRecursively(
     HTMLElement* html_element = element->AsHTMLElement();
     DCHECK(html_element);
     html_element->UpdateComputedStyleRecursively(
-        computed_style(), root_computed_style, style_change_event_time,
-        is_valid);
+        css_computed_style_declaration(), root_computed_style,
+        style_change_event_time, is_valid);
   }
 }
 
@@ -657,6 +681,12 @@ void HTMLElement::InvalidateLayoutBoxCrossReferencesFromNode() {
   }
 }
 
+void HTMLElement::InvalidateRenderTreeNodesFromNode() {
+  if (layout_boxes_) {
+    layout_boxes_->InvalidateRenderTreeNodes();
+  }
+}
+
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
       directionality_(kNoExplicitDirectionality),
@@ -670,6 +700,8 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           animations_adapter_(new DOMAnimatable(this))),
       css_animations_(&animations_adapter_),
+      old_matching_rules_(new cssom::RulesWithCascadePrecedence()),
+      matching_rules_(new cssom::RulesWithCascadePrecedence()),
       matching_rules_valid_(false),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()) {
   css_computed_style_declaration_->set_animations(animations());
@@ -729,16 +761,16 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     cssom::RulesWithCascadePrecedence* matching_rules,
     cssom::GURLMap* property_key_to_base_url_map,
     const scoped_refptr<const cssom::CSSDeclaredStyleData>& inline_style,
-    const scoped_refptr<const cssom::CSSComputedStyleData>&
-        parent_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
     const math::Size& viewport_size,
     const base::TimeDelta& style_change_event_time,
-    cssom::TransitionSet* css_transitions,
     const scoped_refptr<const cssom::CSSComputedStyleData>&
         previous_computed_style,
-    cssom::AnimationSet* css_animations,
-    const cssom::CSSKeyframesRule::NameMap& keyframes_map) {
+    cssom::TransitionSet* css_transitions, cssom::AnimationSet* css_animations,
+    const cssom::CSSKeyframesRule::NameMap& keyframes_map,
+    bool* animations_modified) {
   // Select the winning value for each property by performing the cascade,
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
@@ -754,9 +786,9 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
   // properties, like "font-family", computed value is the same as specified
   // value. Declarations that cannot be absolutized easily, like "width: auto;",
   // will be resolved during layout.
-  cssom::PromoteToComputedStyle(computed_style, parent_computed_style,
-                                root_computed_style, viewport_size,
-                                property_key_to_base_url_map);
+  cssom::PromoteToComputedStyle(
+      computed_style, parent_computed_style_declaration, root_computed_style,
+      viewport_size, property_key_to_base_url_map);
 
   if (previous_computed_style) {
     // Now that we have updated our computed style, compare it to the previous
@@ -764,11 +796,37 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     css_transitions->UpdateTransitions(
         style_change_event_time, *previous_computed_style, *computed_style);
   }
-  // Update the set of currently running animations.
-  css_animations->Update(style_change_event_time, *computed_style,
-                         keyframes_map);
+  // Update the set of currently running animations and track whether or not the
+  // animations changed.
+  *animations_modified = css_animations->Update(style_change_event_time,
+                                                *computed_style, keyframes_map);
 
   return computed_style;
+}
+
+// Flags tracking which cached values must be invalidated.
+struct UpdateComputedStyleInvalidationFlags {
+  UpdateComputedStyleInvalidationFlags()
+      : invalidate_descendant_computed_styles(false),
+        invalidate_layout_boxes(false),
+        invalidate_sizes(false),
+        invalidate_cross_references(false),
+        invalidate_render_tree_nodes(false) {}
+
+  bool invalidate_descendant_computed_styles;
+  bool invalidate_layout_boxes;
+  bool invalidate_sizes;
+  bool invalidate_cross_references;
+  bool invalidate_render_tree_nodes;
+};
+
+bool NewComputedStyleInvalidatesDescendantComputedStyles(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
+  return !non_trivial_static_fields.Get()
+              .computed_style_invalidation_property_checker
+              .DoDeclaredPropertiesMatch(old_computed_style,
+                                         new_computed_style);
 }
 
 bool NewComputedStyleInvalidatesLayoutBoxes(
@@ -797,24 +855,82 @@ bool NewComputedStyleInvalidatesCrossReferences(
                                          new_computed_style);
 }
 
+void UpdateInvalidationFlagsForNewComputedStyle(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style,
+    bool animations_modified, UpdateComputedStyleInvalidationFlags* flags) {
+  if (old_computed_style) {
+    if (!flags->invalidate_descendant_computed_styles &&
+        NewComputedStyleInvalidatesDescendantComputedStyles(
+            old_computed_style, new_computed_style)) {
+      flags->invalidate_descendant_computed_styles = true;
+      flags->invalidate_layout_boxes = true;
+    } else if (!flags->invalidate_layout_boxes) {
+      if (NewComputedStyleInvalidatesLayoutBoxes(old_computed_style,
+                                                 new_computed_style)) {
+        flags->invalidate_layout_boxes = true;
+      } else {
+        if (!flags->invalidate_sizes &&
+            NewComputedStyleInvalidatesSizes(old_computed_style,
+                                             new_computed_style)) {
+          flags->invalidate_sizes = true;
+          flags->invalidate_render_tree_nodes = true;
+        }
+        if (!flags->invalidate_cross_references &&
+            NewComputedStyleInvalidatesCrossReferences(old_computed_style,
+                                                       new_computed_style)) {
+          flags->invalidate_cross_references = true;
+          flags->invalidate_render_tree_nodes = true;
+        }
+
+        flags->invalidate_render_tree_nodes =
+            flags->invalidate_render_tree_nodes || animations_modified ||
+            !new_computed_style->DoDeclaredPropertiesMatch(old_computed_style);
+      }
+    }
+  }
+}
+
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
-    const scoped_refptr<const cssom::CSSComputedStyleData>&
-        parent_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
     const base::TimeDelta& style_change_event_time) {
   Document* document = node_document();
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
 
+  // If there is no previous computed style, there should also be no layout
+  // boxes.
+  DCHECK(computed_style() || NULL == layout_boxes());
+
   dom_stat_tracker_->OnUpdateComputedStyle();
+
+  // The computed style must be generated if either the computed style is
+  // invalid or no computed style has been created yet.
+  bool generate_computed_style = !computed_style_valid_ || !computed_style();
 
   // Update matching rules if necessary.
   if (!matching_rules_valid_) {
     dom_stat_tracker_->OnUpdateMatchingRules();
     UpdateMatchingRules(this);
     matching_rules_valid_ = true;
+
+    // Check for whether the matching rules have changed. If they have, then a
+    // new computed style must be generated from them.
+    if (!generate_computed_style && *old_matching_rules_ != *matching_rules_) {
+      generate_computed_style = true;
+    }
+  }
+
+  // If any declared properties inherited from the parent are no longer valid,
+  // then a new computed style must be generated with the updated inherited
+  // values.
+  if (!generate_computed_style &&
+      !computed_style()->AreDeclaredPropertiesInheritedFromParentValid()) {
+    generate_computed_style = true;
   }
 
   // TODO: It maybe helpful to generalize this mapping framework in the
@@ -824,95 +940,88 @@ void HTMLElement::UpdateComputedStyle(
   property_key_to_base_url_map[cssom::kBackgroundImageProperty] =
       document->url_as_gurl();
 
-  scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
-      PromoteMatchingRulesToComputedStyle(
-          matching_rules(), &property_key_to_base_url_map, style_->data(),
-          parent_computed_style, root_computed_style, document->viewport_size(),
-          style_change_event_time, &css_transitions_, computed_style(),
-          &css_animations_, document->keyframes_map());
+  // Flags tracking which cached values must be invalidated.
+  UpdateComputedStyleInvalidationFlags invalidation_flags;
 
-  // If there is no previous computed style, there should also be no layout
-  // boxes, and nothing has to be invalidated.
-  bool invalidate_layout_boxes = false;
-  bool invalidate_sizes = false;
-  bool invalidate_cross_references = false;
+  if (generate_computed_style) {
+    bool animations_modified = false;
 
-  DCHECK(computed_style() || NULL == layout_boxes());
-  if (computed_style()) {
-    if (NewComputedStyleInvalidatesLayoutBoxes(computed_style(),
-                                               new_computed_style)) {
-      invalidate_layout_boxes = true;
-    } else {
-      if (NewComputedStyleInvalidatesSizes(computed_style(),
-                                           new_computed_style)) {
-        invalidate_sizes = true;
-      }
-      if (NewComputedStyleInvalidatesCrossReferences(computed_style(),
-                                                     new_computed_style)) {
-        invalidate_cross_references = true;
-      }
-    }
+    scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
+        PromoteMatchingRulesToComputedStyle(
+            matching_rules(), &property_key_to_base_url_map, style_->data(),
+            parent_computed_style_declaration, root_computed_style,
+            document->viewport_size(), style_change_event_time,
+            computed_style(), &css_transitions_, &css_animations_,
+            document->keyframes_map(), &animations_modified);
+
+    UpdateInvalidationFlagsForNewComputedStyle(
+        computed_style(), new_computed_style, animations_modified,
+        &invalidation_flags);
+
+    css_computed_style_declaration_->SetData(new_computed_style);
+
+    // Update cached background images after resolving the urls in
+    // background_image CSS property of the computed style, so we have all the
+    // information to get the cached background images.
+    UpdateCachedBackgroundImagesFromComputedStyle();
+  } else {
+    // Update the inherited data if a new style was not generated. The ancestor
+    // data with inherited properties may have changed.
+    css_computed_style_declaration_->UpdateInheritedData();
   }
 
-  set_computed_style(new_computed_style);
-
-  // Update cached background images after resolving the urls in
-  // background_image CSS property of the computed style, so we have all the
-  // information to get the cached background images.
-  UpdateCachedBackgroundImagesFromComputedStyle();
+  // NOTE: Currently, pseudo elements computed styles are always generated. If
+  // this becomes a performance bottleneck, change the logic so that it only
+  // occurs when needed.
 
   // Promote the matching rules for all known pseudo elements.
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
+      bool animations_modified = false;
+
       scoped_refptr<cssom::CSSComputedStyleData> pseudo_element_computed_style =
           PromoteMatchingRulesToComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
-              &property_key_to_base_url_map, style_->data(), computed_style(),
-              root_computed_style, document->viewport_size(),
-              style_change_event_time,
-              pseudo_elements_[pseudo_element_type]->css_transitions(),
+              &property_key_to_base_url_map, style_->data(),
+              css_computed_style_declaration(), root_computed_style,
+              document->viewport_size(), style_change_event_time,
               pseudo_elements_[pseudo_element_type]->computed_style(),
+              pseudo_elements_[pseudo_element_type]->css_transitions(),
               pseudo_elements_[pseudo_element_type]->css_animations(),
-              document->keyframes_map());
+              document->keyframes_map(), &animations_modified);
 
-      if (!invalidate_layout_boxes &&
-          pseudo_elements_[pseudo_element_type]->computed_style()) {
-        if (NewComputedStyleInvalidatesLayoutBoxes(
-                pseudo_elements_[pseudo_element_type]->computed_style(),
-                pseudo_element_computed_style)) {
-          invalidate_layout_boxes = true;
-        } else {
-          if (!invalidate_sizes &&
-              NewComputedStyleInvalidatesSizes(
-                  pseudo_elements_[pseudo_element_type]->computed_style(),
-                  pseudo_element_computed_style)) {
-            invalidate_sizes = true;
-          }
-          if (!invalidate_cross_references &&
-              NewComputedStyleInvalidatesCrossReferences(
-                  pseudo_elements_[pseudo_element_type]->computed_style(),
-                  pseudo_element_computed_style)) {
-            invalidate_cross_references = true;
-          }
-        }
-      }
-      pseudo_elements_[pseudo_element_type]->set_computed_style(
-          pseudo_element_computed_style);
+      UpdateInvalidationFlagsForNewComputedStyle(
+          pseudo_elements_[pseudo_element_type]->computed_style(),
+          pseudo_element_computed_style, animations_modified,
+          &invalidation_flags);
+
+      pseudo_elements_[pseudo_element_type]
+          ->css_computed_style_declaration()
+          ->SetData(pseudo_element_computed_style);
     }
   }
 
-  if (invalidate_layout_boxes) {
+  if (invalidation_flags.invalidate_descendant_computed_styles) {
+    InvalidateComputedStylesRecursively();
+  }
+
+  if (invalidation_flags.invalidate_layout_boxes) {
     InvalidateLayoutBoxesFromNodeAndAncestors();
     InvalidateLayoutBoxesFromNodeAndDescendants();
   } else {
-    if (invalidate_sizes) {
+    if (invalidation_flags.invalidate_sizes) {
       InvalidateLayoutBoxSizesFromNode();
     }
-    if (invalidate_cross_references) {
+    if (invalidation_flags.invalidate_cross_references) {
       InvalidateLayoutBoxCrossReferencesFromNode();
     }
+    if (invalidation_flags.invalidate_render_tree_nodes) {
+      InvalidateRenderTreeNodesFromNode();
+    }
   }
+
+  computed_style_valid_ = true;
 }
 
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {

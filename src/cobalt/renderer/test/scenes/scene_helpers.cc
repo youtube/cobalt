@@ -36,8 +36,8 @@ namespace renderer {
 namespace test {
 namespace scenes {
 
-RenderTreeWithAnimations AddBlankBackgroundToScene(
-    const RenderTreeWithAnimations& scene,
+scoped_refptr<render_tree::Node> AddBlankBackgroundToScene(
+    const scoped_refptr<render_tree::Node>& scene,
     const SizeF& output_dimensions) {
   // Declare a rectangle that fills the background to effectively clear the
   // screen.
@@ -45,10 +45,10 @@ RenderTreeWithAnimations AddBlankBackgroundToScene(
   with_background_scene_builder.AddChild(make_scoped_refptr(new RectNode(
       RectF(output_dimensions),
       scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f))))));
-  with_background_scene_builder.AddChild(scene.render_tree);
+  with_background_scene_builder.AddChild(scene);
 
-  return RenderTreeWithAnimations(new CompositionNode(
-      with_background_scene_builder.Pass()), scene.animations);
+  return new render_tree::animations::AnimateNode(
+      new CompositionNode(with_background_scene_builder.Pass()));
 }
 
 }  // namespace scenes

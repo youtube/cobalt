@@ -20,7 +20,7 @@ namespace cobalt {
 namespace browser {
 namespace switches {
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 // Allow insecure HTTP network connections.
 const char kAllowHttp[] = "allow_http";
 
@@ -71,31 +71,12 @@ const char kPartialLayout[] = "partial_layout";
 // Creates a remote debugging server and listens on the specified port.
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
 
-// Determines the capacity of the scratch surface cache.  The scratch surface
-// cache facilitates the reuse of temporary offscreen surfaces within a single
-// frame.  This setting is only relevant when using the hardware-accelerated
-// Skia rasterizer.
-const char kScratchSurfaceCacheSizeInBytes[] =
-    "scratch_surface_cache_size_in_bytes";
-
 // If this flag is set, Cobalt will automatically shutdown after the specified
 // number of seconds have passed.
 const char kShutdownAfter[] = "shutdown_after";
 
-// Determines the capacity of the skia cache.  The Skia cache is maintained
-// within Skia and is used to cache the results of complicated effects such as
-// shadows, so that Skia draw calls that are used repeatedly across frames can
-// be cached into surfaces.  This setting is only relevant when using the
-// hardware-accelerated Skia rasterizer.
-const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
-
 // Decode all images using StubImageDecoder.
 const char kStubImageDecoder[] = "stub_image_decoder";
-
-// Determines the capacity of the surface cache.  The surface cache tracks which
-// render tree nodes are being re-used across frames and stores the nodes that
-// are most CPU-expensive to render into surfaces.
-const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
 
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on
 // Cobalt startup.  A value must also be specified for this switch, which is
@@ -104,16 +85,48 @@ const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
 // "timed_trace.json" in the log output directory.
 const char kTimedTrace[] = "timed_trace";
 
-// Specifies the viewport size: width ['x' height]
-const char kViewport[] = "viewport";
-
 // Decode video data using ShellRawVideoDecoderStub.
 extern const char kVideoDecoderStub[] = "video_decoder_stub";
 
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";
 
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+// Determines the capacity of the image cache which manages image surfaces
+// downloaded from a web page.  While it depends on the platform, often (and
+// ideally) these images are cached within GPU memory.
+const char kImageCacheSizeInBytes[] = "image_cache_size_in_bytes";
+
+// Determines the capacity of the remote typefaces cache which manages all
+// typefaces downloaded from a web page.
+const char kRemoteTypefaceCacheSizeInBytes[] =
+    "remote_typeface_cache_size_in_bytes";
+
+// Determines the capacity of the scratch surface cache.  The scratch surface
+// cache facilitates the reuse of temporary offscreen surfaces within a single
+// frame.  This setting is only relevant when using the hardware-accelerated
+// Skia rasterizer.  While it depends on the platform, this setting may affect
+// GPU memory usage.
+const char kScratchSurfaceCacheSizeInBytes[] =
+    "scratch_surface_cache_size_in_bytes";
+
+// Determines the capacity of the skia cache.  The Skia cache is maintained
+// within Skia and is used to cache the results of complicated effects such as
+// shadows, so that Skia draw calls that are used repeatedly across frames can
+// be cached into surfaces.  This setting is only relevant when using the
+// hardware-accelerated Skia rasterizer.  While it depends on the platform, this
+// setting may affect GPU memory usage.
+const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
+
+// Determines the capacity of the surface cache.  The surface cache tracks which
+// render tree nodes are being re-used across frames and stores the nodes that
+// are most CPU-expensive to render into surfaces.  While it depends on the
+// platform, this setting may affect GPU memory usage.
+const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
+
+// Specifies the viewport size: width ['x' height]
+const char kViewport[] = "viewport";
 
 }  // namespace switches
 }  // namespace browser

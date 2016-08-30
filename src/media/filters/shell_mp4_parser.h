@@ -67,13 +67,13 @@ static const uint32 kAtomType_vmhd = 0x766d6864;  // skip whole atom
 
 class ShellMP4Parser : public ShellAVCParser {
  public:
-  // attempts to make sense of the provided bytes of the top of a file as an
-  // mp4, and if it does make sense returns a ShellMP4Parser initialized with
-  // some basic state. If it doesn't make sense this returns NULL
-  static scoped_refptr<ShellParser> Construct(
-      scoped_refptr<ShellDataSourceReader> reader,
-      const uint8* construction_header,
-      const PipelineStatusCB& status_cb);
+  // Attempts to make sense of the provided bytes of the top of a file as an
+  // flv, and if it does make sense returns PIPELINE_OK and |*parser| contains a
+  // ShellMP4Parser initialized with some basic state.  If it doesn't make sense
+  // this returns an error status and |*parser| contains NULL.
+  static PipelineStatus Construct(scoped_refptr<ShellDataSourceReader> reader,
+                                  const uint8* construction_header,
+                                  scoped_refptr<ShellParser>* parser);
   ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
                  uint32 ftyp_atom_size);
   virtual ~ShellMP4Parser();

@@ -16,10 +16,7 @@
 
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
 
-#include <limits>
-
-#include "base/debug/trace_event.h"
-
+#include "cobalt/base/polymorphic_downcast.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 
 namespace cobalt {
@@ -29,160 +26,68 @@ namespace skia {
 
 namespace {
 
-// Approximate the memory usage of a given surface size.
-size_t ApproximateSurfaceMemory(const math::Size& size) {
-  // Here we assume that we use 4 bytes per pixel.
-  return size.width() * size.height() * 4;
-}
+class SkiaSurface : public common::ScratchSurfaceCache::Surface {
+ public:
+  SkiaSurface(SkSurface* surface, const math::Size& size)
+      : surface_(surface), size_(size) {}
 
+  math::Size GetSize() const OVERRIDE { return size_; }
+
+  SkSurface* sk_surface() { return surface_.get(); }
+
+ private:
+  SkAutoTUnref<SkSurface> surface_;
+  math::Size size_;
+};
 }  // namespace
 
 ScratchSurfaceCache::ScratchSurfaceCache(
-    const CreateSkSurfaceFunction& create_sk_surface_function,
+    CreateSkSurfaceFunction create_sk_surface_function,
     int cache_capacity_in_bytes)
-    : create_sk_surface_function_(create_sk_surface_function),
-      cache_capacity_in_bytes_(cache_capacity_in_bytes),
-      surface_memory_(0) {}
+    : delegate_(create_sk_surface_function),
+      cache_(&delegate_, cache_capacity_in_bytes) {}
 
-ScratchSurfaceCache::~ScratchSurfaceCache() {
-  DCHECK(surface_stack_.empty());
-  for (std::vector<SkSurface*>::iterator iter = unused_surfaces_.begin();
-       iter != unused_surfaces_.end(); ++iter) {
-    (*iter)->unref();
-  }
+ScratchSurfaceCache::Delegate::Delegate(
+    CreateSkSurfaceFunction create_sk_surface_function)
+    : create_sk_surface_function_(create_sk_surface_function) {}
+
+common::ScratchSurfaceCache::Surface*
+ScratchSurfaceCache::Delegate::CreateSurface(const math::Size& size) {
+  return new SkiaSurface(create_sk_surface_function_.Run(size), size);
 }
 
-SkSurface* ScratchSurfaceCache::AcquireScratchSurface(const math::Size& size) {
-  TRACE_EVENT2("cobalt::renderer",
-               "ScratchSurfaceCache::AcquireScratchSurface()", "width",
-               size.width(), "height", size.height());
+void ScratchSurfaceCache::Delegate::DestroySurface(
+    common::ScratchSurfaceCache::Surface* surface) {
+  delete surface;
+}
 
-  // First check if we can find a suitable surface in our cache that is at
-  // least the size requested.
-  SkSurface* surface = FindBestCachedSurface(size);
+void ScratchSurfaceCache::Delegate::PrepareForUse(
+    common::ScratchSurfaceCache::Surface* surface, const math::Size& area) {
+  SkSurface* sk_surface =
+      base::polymorphic_downcast<SkiaSurface*>(surface)->sk_surface();
 
-  // If we didn't have any suitable surfaces in our cache, create a new one.
-  if (!surface) {
-    // Increase our total memory used on surfaces, and then initiate a purge
-    // to reduce memory to below our cache limit, if necessary.
-    surface_memory_ += ApproximateSurfaceMemory(size);
-    Purge();
-
-    // Create the surface.
-    surface = create_sk_surface_function_.Run(size);
-
-    if (!surface) {
-      // We were unable to allocate a scratch surface, either because we are
-      // low on memory or because the requested surface has large dimensions.
-      // Return null.
-      surface_memory_ -= ApproximateSurfaceMemory(size);
-      return NULL;
-    }
-  }
-
-  DCHECK(surface);
-
-  // Track that we have handed out this surface.
-  surface_stack_.push_back(surface);
-
-  // Reset the surface's canvas settings such as transform matrix and clip.
-  SkCanvas* canvas = surface->getCanvas();
+  // Reset the sk_surface's canvas settings such as transform matrix and clip.
+  SkCanvas* canvas = sk_surface->getCanvas();
   canvas->restoreToCount(1);
   // Setup a save marker on the reset canvas so that we can restore this reset
-  // state when re-using the surface.
+  // state when re-using the sk_surface.
   canvas->save();
 
-  // Setup a clip rect on the surface to the requested size.  This can save
-  // us from drawing to pixels outside of the requested size, since the actual
-  // surface returned may be larger than the requested size.
-  canvas->clipRect(SkRect::MakeWH(size.width(), size.height()),
+  // Setup a clip rect on the sk_surface to the requested area.  This can save
+  // us from drawing to pixels outside of the requested area, since the actual
+  // sk_surface returned may be larger than the requested area.
+  canvas->clipRect(SkRect::MakeWH(area.width(), area.height()),
                    SkRegion::kReplace_Op);
 
   // Clear the draw area to RGBA(0, 0, 0, 0), as expected for a fresh scratch
-  // surface, before returning.
+  // sk_surface, before returning.
   canvas->drawARGB(0, 0, 0, 0, SkXfermode::kClear_Mode);
-
-  return surface;
 }
 
-void ScratchSurfaceCache::ReleaseScratchSurface(SkSurface* surface) {
-  TRACE_EVENT2("cobalt::renderer",
-               "ScratchSurfaceCache::ReleaseScratchSurface()", "width",
-               surface->width(), "height", surface->height());
-
-  DCHECK_EQ(surface_stack_.back(), surface);
-  surface_stack_.pop_back();
-
-  // Add this surface to the end (where most recently used surfaces go) of the
-  // unused surfaces list, so that it can be returned by later calls to acquire
-  // a surface.
-  unused_surfaces_.push_back(surface);
-}
-
-namespace {
-
-float GetMatchScoreForSurfaceAndSize(SkSurface* surface,
-                                     const math::Size& size) {
-  // We use the negated sum of the squared differences between the requested
-  // width/height and the surface width/height as the score.
-  // This promotes returning the smallest surface possible that has a similar
-  // ratio.
-  int width_diff = surface->width() - size.width();
-  int height_diff = surface->height() - size.height();
-
-  return -width_diff * width_diff - height_diff * height_diff;
-}
-
-}  // namespace
-
-SkSurface* ScratchSurfaceCache::FindBestCachedSurface(const math::Size& size) {
-  // Iterate through all cached surfaces to find the one that is the best match
-  // for the given size.  The function GetMatchScoreForSurfaceAndSize() is
-  // responsible for assigning a score to a SkSurface/math::Size pair.
-  float max_surface_score = -std::numeric_limits<float>::infinity();
-  std::vector<SkSurface*>::iterator max_iter = unused_surfaces_.end();
-  for (std::vector<SkSurface*>::iterator iter = unused_surfaces_.begin();
-       iter != unused_surfaces_.end(); ++iter) {
-    SkSurface* current_surface = *iter;
-    if (current_surface->width() >= size.width() &&
-        current_surface->height() >= size.height()) {
-      float surface_score =
-          GetMatchScoreForSurfaceAndSize(current_surface, size);
-
-      if (surface_score > max_surface_score) {
-        max_surface_score = surface_score;
-        max_iter = iter;
-      }
-    }
-  }
-
-  // If any of the cached unused surfaces had at least the specified
-  // width/height, return the one that had the highest score.
-  if (max_iter != unused_surfaces_.end()) {
-    SkSurface* surface = *max_iter;
-    // Remove this surface from the list of unused surfaces.
-    unused_surfaces_.erase(max_iter);
-    // Return the cached surface.
-    return surface;
-  } else {
-    // Otherwise return NULL to indicate that we do not have any suitable cached
-    // surfaces.
-    return NULL;
-  }
-}
-
-void ScratchSurfaceCache::Purge() {
-  // Delete surfaces from the front (least recently used) of |unused_surfaces_|
-  // until we have deleted all surfaces or lowered our memory usage to under
-  // |cache_capacity_in_bytes_|.
-  while (!unused_surfaces_.empty() &&
-         surface_memory_ > cache_capacity_in_bytes_) {
-    SkSurface* to_free = unused_surfaces_.front();
-    surface_memory_ -= ApproximateSurfaceMemory(
-        math::Size(to_free->width(), to_free->height()));
-    to_free->unref();
-    unused_surfaces_.erase(unused_surfaces_.begin());
-  }
+SkSurface* CachedScratchSurface::GetSurface() {
+  return base::polymorphic_downcast<SkiaSurface*>(
+             common_scratch_surface_.GetSurface())
+      ->sk_surface();
 }
 
 }  // namespace skia

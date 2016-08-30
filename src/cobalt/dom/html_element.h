@@ -178,7 +178,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   //
   // Returns the cached matching rules of this element.
   cssom::RulesWithCascadePrecedence* matching_rules() {
-    return &matching_rules_;
+    return matching_rules_.get();
   }
   // Returns the rule matching state of this element.
   RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
@@ -199,13 +199,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       const {
     return css_computed_style_declaration_->data();
   }
-  void set_computed_style(
-      const scoped_refptr<cssom::CSSComputedStyleData>& computed_style) {
-    css_computed_style_declaration_->set_data(computed_style);
-  }
+
+  // Invalidates the cached computed style of this element and its descendants.
+  void InvalidateComputedStylesRecursively();
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
-      const scoped_refptr<const cssom::CSSComputedStyleData>&
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           parent_computed_style,
       const scoped_refptr<const cssom::CSSComputedStyleData>&
           root_computed_style,
@@ -213,8 +212,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       bool ancestors_were_valid);
   // Updates the cached computed style of this element.
   void UpdateComputedStyle(
-      const scoped_refptr<const cssom::CSSComputedStyleData>&
-          parent_computed_style,
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          parent_computed_style_declaration,
       const scoped_refptr<const cssom::CSSComputedStyleData>&
           root_computed_style,
       const base::TimeDelta& style_change_event_time);
@@ -233,6 +232,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
   void InvalidateLayoutBoxSizesFromNode() OVERRIDE;
   void InvalidateLayoutBoxCrossReferencesFromNode() OVERRIDE;
+  void InvalidateRenderTreeNodesFromNode() OVERRIDE;
 
   // Determines whether this element is focusable.
   bool IsFocusable() const { return HasAttribute("tabindex"); }
@@ -313,7 +313,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   cssom::AnimationSet css_animations_;
 
   // The following fields are used in rule matching.
-  cssom::RulesWithCascadePrecedence matching_rules_;
+  scoped_ptr<cssom::RulesWithCascadePrecedence> old_matching_rules_;
+  scoped_ptr<cssom::RulesWithCascadePrecedence> matching_rules_;
   RuleMatchingState rule_matching_state_;
 
   // This contains information about the boxes generated from the element.

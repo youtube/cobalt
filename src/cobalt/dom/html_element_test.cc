@@ -86,6 +86,7 @@ class MockLayoutBoxes : public dom::LayoutBoxes {
 
   MOCK_METHOD0(InvalidateSizes, void());
   MOCK_METHOD0(InvalidateCrossReferences, void());
+  MOCK_METHOD0(InvalidateRenderTreeNodes, void());
 };
 
 // Takes the fist child of the given element repeatedly to the given depth.
@@ -136,7 +137,7 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
         document_->CreateElement(*null_terminated_element_names)
             ->AsHTMLElement());
     DCHECK(child_html_element);
-    child_html_element->set_computed_style(
+    child_html_element->css_computed_style_declaration()->SetData(
         make_scoped_refptr(new cssom::CSSComputedStyleData()));
 
     if (parent_html_element) {
@@ -442,7 +443,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
       make_scoped_refptr(new cssom::CSSComputedStyleData());
   computed_style_relative->set_position(cssom::KeywordValue::GetRelative());
   GetFirstChildAtDepth(root_html_element, 2)
-      ->set_computed_style(computed_style_relative);
+      ->css_computed_style_declaration()
+      ->SetData(computed_style_relative);
 
   // Return ancestor if it is the HTML body element.
   EXPECT_EQ(GetFirstChildAtDepth(root_html_element, 2)->offset_parent(),
@@ -454,7 +456,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
       make_scoped_refptr(new cssom::CSSComputedStyleData());
   computed_style_fixed->set_position(cssom::KeywordValue::GetFixed());
   GetFirstChildAtDepth(root_html_element, 3)
-      ->set_computed_style(computed_style_fixed);
+      ->css_computed_style_declaration()
+      ->SetData(computed_style_fixed);
   EXPECT_FALSE(GetFirstChildAtDepth(root_html_element, 3)->offset_parent());
 
   // Return ancestor if its computed value of the 'position' property is not

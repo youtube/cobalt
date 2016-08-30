@@ -23,6 +23,7 @@
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/css_computed_style_data.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -2484,16 +2485,18 @@ class CalculateComputedStyleContext {
  public:
   CalculateComputedStyleContext(
       CSSComputedStyleData* cascaded_style,
-      const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
+      const scoped_refptr<CSSComputedStyleDeclaration>&
+          parent_computed_style_declaration,
       const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
       const math::Size& viewport_size,
       GURLMap* const property_key_to_base_url_map)
       : cascaded_style_(cascaded_style),
-        parent_computed_style_(*parent_computed_style),
+        parent_computed_style_(*parent_computed_style_declaration->data()),
         root_computed_style_(*root_computed_style),
         viewport_size_(viewport_size),
         property_key_to_base_url_map_(property_key_to_base_url_map) {
-    cascaded_style_->SetParentComputedStyle(parent_computed_style);
+    cascaded_style_->SetParentComputedStyleDeclaration(
+        parent_computed_style_declaration);
   }
 
   // Updates the property specified by the iterator to its computed value.
@@ -2689,6 +2692,11 @@ void CalculateComputedStyleContext::ComputeValue(PropertyKey key) {
 bool CalculateComputedStyleContext::HandleInheritOrInitial(
     PropertyKey key, scoped_refptr<PropertyValue>* value) {
   if (*value == KeywordValue::GetInherit()) {
+    // Add this property to the list of those that inherited their declared
+    // value from the parent. This allows the computed style to later determine
+    // if a value that was explicitly inherited from the parent is no longer
+    // valid.
+    cascaded_style_->AddDeclaredPropertyInheritedFromParent(key);
     *value = parent_computed_style_.GetPropertyValue(key);
     return true;
   } else if (*value == KeywordValue::GetInitial()) {
@@ -3067,22 +3075,39 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
 
 void PromoteToComputedStyle(
     const scoped_refptr<CSSComputedStyleData>& cascaded_style,
-    const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
+    const scoped_refptr<CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration,
     const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
     const math::Size& viewport_size,
     GURLMap* const property_key_to_base_url_map) {
   DCHECK(cascaded_style);
-  DCHECK(parent_computed_style);
+  DCHECK(parent_computed_style_declaration);
   DCHECK(root_computed_style);
 
   // Create a context for calculating the computed style.  This object is useful
   // because it can cache computed style values that are depended upon by other
   // properties' computed style calculations.
   CalculateComputedStyleContext calculate_computed_style_context(
-      cascaded_style.get(), parent_computed_style, root_computed_style,
-      viewport_size, property_key_to_base_url_map);
+      cascaded_style.get(), parent_computed_style_declaration,
+      root_computed_style, viewport_size, property_key_to_base_url_map);
 
-  // Go through all values declared values and calculate their computed values.
+  // For each inherited, animatable property, set the property value to
+  // inherited if it is not already declared. This causes the value to be
+  // explicitly set within the CSSComputedStyleData and ensures that the
+  // original value will be available for transitions (which need to know the
+  // before and after state of the property) even when the property is inherited
+  // from a parent that has changed.
+  const PropertyKeyVector& inherited_animatable_properties =
+      GetInheritedAnimatableProperties();
+  for (PropertyKeyVector::const_iterator iter =
+           inherited_animatable_properties.begin();
+       iter != inherited_animatable_properties.end(); ++iter) {
+    if (!cascaded_style->IsDeclared(*iter)) {
+      cascaded_style->SetPropertyValue(*iter, KeywordValue::GetInherit());
+    }
+  }
+
+  // Go through all declared values and calculate their computed values.
   CSSComputedStyleData::PropertyValues* declared_property_values =
       cascaded_style->declared_property_values();
   for (CSSComputedStyleData::PropertyValues::iterator property_value_iterator =
@@ -3095,11 +3120,13 @@ void PromoteToComputedStyle(
 }
 
 scoped_refptr<CSSComputedStyleData> GetComputedStyleOfAnonymousBox(
-    const scoped_refptr<const CSSComputedStyleData>& parent_computed_style) {
+    const scoped_refptr<CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration) {
   scoped_refptr<CSSComputedStyleData> computed_style =
       new CSSComputedStyleData();
-  PromoteToComputedStyle(computed_style, parent_computed_style,
-                         parent_computed_style, math::Size(), NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style_declaration->data(),
+                         math::Size(), NULL);
   return computed_style;
 }
 

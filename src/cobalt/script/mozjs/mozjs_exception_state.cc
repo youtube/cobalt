@@ -49,7 +49,18 @@ std::string SimpleExceptionToString(ExceptionState::SimpleExceptionType type) {
 void MozjsExceptionState::SetException(
     const scoped_refptr<ScriptException>& exception) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  NOTIMPLEMENTED();
+  DCHECK(!is_exception_set_);
+
+  MozjsGlobalObjectProxy* global_object_proxy =
+      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context_));
+
+  JS::RootedObject exception_object(
+      context_,
+      global_object_proxy->wrapper_factory()->GetWrapperProxy(exception));
+  JS::RootedValue exception_value(context_, OBJECT_TO_JSVAL(exception_object));
+  JS_SetPendingException(context_, exception_value);
+
+  is_exception_set_ = true;
 }
 
 void MozjsExceptionState::SetSimpleException(

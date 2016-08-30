@@ -46,7 +46,7 @@
 namespace cobalt {
 namespace layout {
 
-using render_tree::animations::NodeAnimationsMap;
+using render_tree::animations::AnimateNode;
 using render_tree::CompositionNode;
 using render_tree::ImageNode;
 using render_tree::PunchThroughVideoNode;
@@ -239,8 +239,7 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
 }  // namespace
 
 void ReplacedBox::RenderAndAnimateContent(
-    CompositionNode::Builder* border_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+    CompositionNode::Builder* border_node_builder) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
   }
@@ -257,11 +256,13 @@ void ReplacedBox::RenderAndAnimateContent(
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
-  node_animations_map_builder->Add(
+  AnimateNode::Builder animate_node_builder;
+  animate_node_builder.Add(
       composition_node,
       base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
 
-  border_node_builder->AddChild(composition_node);
+  border_node_builder->AddChild(
+      new AnimateNode(animate_node_builder, composition_node));
 }
 
 void ReplacedBox::UpdateContentSizeAndMargins(

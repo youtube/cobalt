@@ -86,17 +86,6 @@ class BrowserModule {
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
 
-  // Pauses/resumes all media players and blocks the browser thread. Should
-  // be called on a thread other than |self_message_loop_|.
-  void SetPaused(bool paused);
-
-  // Lets the web browser know that the application is about to quit. We use
-  // this not to start the web players when the thread is unpaused.
-  void SetWillQuit();
-
-  // Whether |SetWillQuit| has been called.
-  bool WillQuit();
-
 #if defined(ENABLE_SCREENSHOT)
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
@@ -172,10 +161,6 @@ class BrowserModule {
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen();
 
-  // Pauses all active web players and blocks the main thread until the
-  // |has_resumed_| event is signalled. Must be called on |self_message_loop_|.
-  void Pause();
-
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Toggles the input fuzzer on/off.  Ignores the parameter.
   void OnFuzzerToggle(const std::string&);
@@ -194,6 +179,12 @@ class BrowserModule {
       const webdriver::protocol::WindowId& window_id,
       scoped_ptr<webdriver::WindowDriver>* out_window_driver);
 #endif
+
+#if defined(OS_STARBOARD)
+  // Called when a renderer submission has been rasterized. Used to hide the
+  // system splash screen after the first render has completed.
+  void OnRendererSubmissionRasterized();
+#endif  // OS_STARBOARD
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -221,6 +212,12 @@ class BrowserModule {
   URLHandlerCollection url_handlers_;
 
   storage::StorageManager storage_manager_;
+
+#if defined(OS_STARBOARD)
+  // Whether the browser module has yet rendered anything. On the very first
+  // render, we hide the system splash screen.
+  bool is_rendered_;
+#endif  // OS_STARBOARD
 
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.

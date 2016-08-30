@@ -27,7 +27,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
 #include "cobalt/base/c_val_time_interval_timer.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
@@ -124,6 +124,13 @@ class Pipeline {
 #if defined(ENABLE_DEBUG_CONSOLE)
   void OnDumpCurrentRenderTree(const std::string&);
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  // Render trees may contain a number of AnimateNodes (or none).  In order
+  // to optimize for applying the animations on the rasterizer thread, this
+  // function searches the tree for AnimateNodes and collects all of their
+  // information into a single AnimateNode at the root of the returned
+  // render tree.
+  Submission CollectAnimations(const Submission& render_tree_submission);
 
   base::WaitableEvent rasterizer_created_event_;
 

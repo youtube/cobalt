@@ -33,6 +33,9 @@ using cobalt::math::Matrix3F;
 using cobalt::math::RectF;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
@@ -45,9 +48,6 @@ using cobalt::render_tree::RectNode;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::SolidColorBrush;
 using cobalt::render_tree::TextNode;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace renderer {
@@ -85,11 +85,11 @@ void AnimateMarqueeElement(base::TimeDelta start_time, const RectF& text_bounds,
 
 }  // namespace
 
-RenderTreeWithAnimations CreateMarqueeScene(
+scoped_refptr<render_tree::Node> CreateMarqueeScene(
     ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
     base::TimeDelta start_time) {
   CompositionNode::Builder marquee_scene_builder;
-  NodeAnimationsMap::Builder animations;
+  AnimateNode::Builder animations;
 
   const std::string kMarqueeText("YouTube");
 
@@ -130,8 +130,7 @@ RenderTreeWithAnimations CreateMarqueeScene(
   animations.Add(marquee_node, base::Bind(&AnimateMarqueeElement, start_time,
                                           text_bounds, output_dimensions));
 
-  return RenderTreeWithAnimations(marquee_node,
-                                  new NodeAnimationsMap(animations.Pass()));
+  return new AnimateNode(animations, marquee_node);
 }
 
 }  // namespace scenes

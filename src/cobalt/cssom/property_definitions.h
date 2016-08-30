@@ -157,16 +157,33 @@ enum Animatable {
   kAnimatableYes,
 };
 
+// Any property that is referenced when calculating the declared property values
+// of children should have this set to true.
+// NOTE: This currently occurs within CalculateComputedStyleContext.
+enum ImpactsChildDeclaredStyle {
+  kImpactsChildDeclaredStyleNo,
+  kImpactsChildDeclaredStyleYes,
+};
+
+// Any property that is referenced during box generation should have this set to
+// true.
+// NOTE: This currently occurs within BoxGenerator.
 enum ImpactsBoxGeneration {
   kImpactsBoxGenerationNo,
   kImpactsBoxGenerationYes,
 };
 
+// Any property that is referenced when updating the size of boxes should have
+// this set to true.
+// NOTE: This currently occurs within Box::UpdateSize().
 enum ImpactsBoxSizes {
   kImpactsBoxSizesNo,
   kImpactsBoxSizesYes,
 };
 
+// Any property that is referenced when generating cross references should have
+// this set to true.
+// NOTE: This currently occurs within ContainerBox::UpdateCrossReferences().
 enum ImpactsBoxCrossReferences {
   kImpactsBoxCrossReferencesNo,
   kImpactsBoxCrossReferencesYes,
@@ -183,12 +200,14 @@ const scoped_refptr<PropertyValue>& GetPropertyInitialValue(PropertyKey key);
 
 Inherited GetPropertyInheritance(PropertyKey key);
 Animatable GetPropertyAnimatable(PropertyKey key);
+ImpactsChildDeclaredStyle GetPropertyImpactsChildDeclaredStyle(PropertyKey key);
 ImpactsBoxGeneration GetPropertyImpactsBoxGeneration(PropertyKey key);
 ImpactsBoxSizes GetPropertyImpactsBoxSizes(PropertyKey key);
 ImpactsBoxCrossReferences GetPropertyImpactsBoxCrossReferences(PropertyKey key);
 
-typedef std::vector<PropertyKey> AnimatablePropertyList;
-const AnimatablePropertyList& GetAnimatableProperties();
+typedef std::vector<PropertyKey> PropertyKeyVector;
+const PropertyKeyVector& GetAnimatableProperties();
+const PropertyKeyVector& GetInheritedAnimatableProperties();
 
 PropertyKey GetLexicographicalLonghandPropertyKey(const size_t index);
 
@@ -203,7 +222,6 @@ typedef std::set<PropertyKey> LonghandPropertySet;
 const LonghandPropertySet& ExpandShorthandProperty(PropertyKey key);
 
 typedef std::bitset<kNumLonghandProperties> LonghandPropertiesBitset;
-typedef std::vector<PropertyKey> PropertyKeyVector;
 
 }  // namespace cssom
 }  // namespace cobalt

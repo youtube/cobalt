@@ -109,6 +109,9 @@ BrowserModule::BrowserModule(const GURL& url,
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
       self_message_loop_(MessageLoop::current()),
       storage_manager_(options.storage_manager_options),
+#if defined(OS_STARBOARD)
+      is_rendered_(false),
+#endif  // OS_STARBOARD
       renderer_module_(system_window, options.renderer_module_options),
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       array_buffer_allocator_(new ResourceProviderArrayBufferAllocator(
@@ -156,12 +159,12 @@ BrowserModule::BrowserModule(const GURL& url,
   web_module_options_.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
-#if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
     OnFuzzerToggle(std::string());
   }
-#endif  // ENABLE_DEBUG_CONSOLE && ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_DEBUG_CONSOLE && ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
       base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
@@ -266,49 +269,6 @@ bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
   return web_module_loaded_.TimedWait(timeout);
 }
 
-void BrowserModule::SetPaused(bool paused) {
-  // This method should not be called on the browser's own thread, as
-  // we will be unable to signal the |has_resumed_| event when the
-  // |Pause| method blocks the thread.
-  DCHECK_NE(MessageLoop::current(), self_message_loop_);
-
-  if (paused) {
-    has_resumed_.Reset();
-    self_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&BrowserModule::Pause, base::Unretained(this)));
-  } else {
-    has_resumed_.Signal();
-  }
-}
-
-void BrowserModule::SetWillQuit() {
-  base::AutoLock lock(quit_lock_);
-  will_quit_ = true;
-}
-
-bool BrowserModule::WillQuit() {
-  base::AutoLock lock(quit_lock_);
-  return will_quit_;
-}
-
-void BrowserModule::Pause() {
-  // This method must be called on the browser's own thread.
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-
-  media_module_->PauseAllPlayers();
-
-  // Block the thread until the browser has been resumed.
-  DLOG(INFO) << "Pausing browser loop with " << self_message_loop_->Size()
-             << " items in queue.";
-  has_resumed_.Wait();
-  DLOG(INFO) << "Resuming browser loop with " << self_message_loop_->Size()
-             << " items in queue.";
-
-  if (!WillQuit()) {
-    media_module_->ResumeAllPlayers();
-  }
-}
-
 #if defined(ENABLE_SCREENSHOT)
 void BrowserModule::RequestScreenshotToFile(const FilePath& path,
                                             const base::Closure& done_cb) {
@@ -325,14 +285,17 @@ void BrowserModule::RequestScreenshotToBuffer(
 void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-  render_tree_combiner_.UpdateMainRenderTree(renderer::Submission(
-      layout_results.render_tree, layout_results.animations,
-      layout_results.layout_time));
+  renderer::Submission renderer_submission(layout_results.render_tree,
+                                           layout_results.layout_time);
+#if defined(OS_STARBOARD)
+  renderer_submission.on_rasterized_callback = base::Bind(
+      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
+#endif  // OS_STARBOARD
+  render_tree_combiner_.UpdateMainRenderTree(renderer_submission);
 
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
-      layout_results.render_tree, layout_results.animations,
-      layout_results.layout_time));
+      layout_results.render_tree, layout_results.layout_time));
 #endif
 }
 
@@ -361,8 +324,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
-      layout_results.render_tree, layout_results.animations,
-      layout_results.layout_time));
+      layout_results.render_tree, layout_results.layout_time));
 }
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -549,6 +511,16 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
   // NetworkModule will ensure this happens on the correct thread.
   network_module_.SetProxy(proxy_rules);
 }
+
+#if defined(OS_STARBOARD)
+void BrowserModule::OnRendererSubmissionRasterized() {
+  if (!is_rendered_) {
+    // Hide the system splash screen when the first render has completed.
+    is_rendered_ = true;
+    SbSystemHideSplashScreen();
+  }
+}
+#endif  // OS_STARBOARD
 
 }  // namespace browser
 }  // namespace cobalt

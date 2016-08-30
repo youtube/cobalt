@@ -47,10 +47,8 @@ class AnonymousBlockBox : public BlockContainerBox {
 
   bool HasTrailingLineBreak() const OVERRIDE;
 
-  void RenderAndAnimateContent(
-      render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const OVERRIDE;
+  void RenderAndAnimateContent(render_tree::CompositionNode::Builder*
+                                   border_node_builder) const OVERRIDE;
 
   // From |ContainerBox|.
 

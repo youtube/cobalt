@@ -23,6 +23,7 @@
 
     'bindings_dependencies': [
       '../h5vcc/h5vcc.gyp:h5vcc',
+      '../webdriver/webdriver.gyp:webdriver',
     ],
 
     # Bindings for the interfaces in this list will be generated, and there must
@@ -139,6 +140,7 @@
         '../dom/Uint32Array.idl',
         '../dom/Uint8Array.idl',
         '../dom/URL.idl',
+        '../dom/VideoPlaybackQuality.idl',
         '../dom/Window.idl',
         '../dom/XMLDocument.idl',
         '../dom/XMLSerializer.idl',

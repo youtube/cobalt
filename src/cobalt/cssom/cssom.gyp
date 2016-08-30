@@ -227,6 +227,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         'embed_resources_as_header_files',

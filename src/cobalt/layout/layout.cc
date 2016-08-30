@@ -28,7 +28,7 @@
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/used_style.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 
 namespace cobalt {
 namespace layout {
@@ -73,8 +73,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
   // Create initial containing block.
   InitialContainingBlockCreationResults
       initial_containing_block_creation_results = CreateInitialContainingBlock(
-          document->initial_computed_style(), document, used_style_provider,
-          layout_stat_tracker);
+          document->initial_computed_style_data(), document,
+          used_style_provider, layout_stat_tracker);
   *initial_containing_block = initial_containing_block_creation_results.box;
 
   // Generate boxes.
@@ -128,7 +128,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
   }
 }
 
-RenderTreeWithAnimations Layout(
+scoped_refptr<render_tree::Node> Layout(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,
@@ -141,8 +141,6 @@ RenderTreeWithAnimations Layout(
       line_break_iterator, character_break_iterator, initial_containing_block);
 
   // Add to render tree.
-  render_tree::animations::NodeAnimationsMap::Builder
-      node_animations_map_builder;
   render_tree::CompositionNode::Builder render_tree_root_builder;
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatRenderAndAnimate);
@@ -151,14 +149,18 @@ RenderTreeWithAnimations Layout(
         base::StopWatch::kAutoStartOn, layout_stat_tracker);
 
     (*initial_containing_block)
-        ->RenderAndAnimate(&render_tree_root_builder,
-                           &node_animations_map_builder, math::Vector2dF(0, 0));
+        ->RenderAndAnimate(&render_tree_root_builder, math::Vector2dF(0, 0));
   }
 
-  return RenderTreeWithAnimations(
-      new render_tree::CompositionNode(render_tree_root_builder.Pass()),
-      new render_tree::animations::NodeAnimationsMap(
-          node_animations_map_builder.Pass()));
+  render_tree::CompositionNode* static_root_node =
+      new render_tree::CompositionNode(render_tree_root_builder.Pass());
+
+  // Make it easy to animate the entire tree by placing an AnimateNode at the
+  // root to merge any sub-AnimateNodes.
+  render_tree::animations::AnimateNode* animate_node =
+      new render_tree::animations::AnimateNode(static_root_node);
+
+  return animate_node;
 }
 
 }  // namespace layout

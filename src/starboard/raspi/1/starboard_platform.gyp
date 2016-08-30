@@ -120,8 +120,6 @@
         '<(DEPTH)/starboard/shared/nouser/user_get_property.cc',
         '<(DEPTH)/starboard/shared/nouser/user_get_signed_in.cc',
         '<(DEPTH)/starboard/shared/nouser/user_internal.cc',
-        '<(DEPTH)/starboard/shared/nouser/user_is_age_restricted.cc',
-        '<(DEPTH)/starboard/shared/nouser/user_start_sign_in.cc',
         '<(DEPTH)/starboard/shared/posix/directory_create.cc',
         '<(DEPTH)/starboard/shared/posix/file_can_open.cc',
         '<(DEPTH)/starboard/shared/posix/file_close.cc',
@@ -269,6 +267,7 @@
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
+        '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
       ],
       'defines': [

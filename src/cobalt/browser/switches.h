@@ -21,7 +21,7 @@ namespace cobalt {
 namespace browser {
 namespace switches {
 
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 extern const char kAllowHttp[];
 extern const char kAudioDecoderStub[];
 extern const char kCspMode[];
@@ -39,13 +39,16 @@ extern const char kRemoteDebuggingPort[];
 extern const char kShutdownAfter[];
 extern const char kStubImageDecoder[];
 extern const char kTimedTrace[];
-extern const char kViewport[];
 extern const char kVideoDecoderStub[];
 extern const char kWebDriverPort[];
-extern const char kSurfaceCacheSizeInBytes[];
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+extern const char kImageCacheSizeInBytes[];
+extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
+extern const char kSurfaceCacheSizeInBytes[];
+extern const char kViewport[];
 
 }  // namespace switches
 }  // namespace browser

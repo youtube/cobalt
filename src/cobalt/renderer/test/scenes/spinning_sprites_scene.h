@@ -29,7 +29,7 @@ namespace scenes {
 
 // This scene will create a plurality of randomly positioned and sized sprites
 // that are all spinning at different rates.
-RenderTreeWithAnimations CreateSpinningSpritesScene(
+scoped_refptr<render_tree::Node> CreateSpinningSpritesScene(
     render_tree::ResourceProvider* resource_provider,
     const math::SizeF& output_dimensions, base::TimeDelta start_time);
 

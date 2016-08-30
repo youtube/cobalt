@@ -37,7 +37,7 @@
 #include "cobalt/layout/vector2d_layout_unit.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/web_animations/animation_set.h"
 
@@ -314,8 +314,15 @@ class Box : public base::RefCounted<Box> {
   // element on a line."
   //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   virtual bool DoesFulfillEllipsisPlacementRequirement() const { return false; }
-  // Reset all ellipses-related state within the box.
-  virtual void ResetEllipses() {}
+  // Do any processing needed prior to ellipsis placement. This involves caching
+  // the old value and resetting the current value so it can be determined
+  // whether or not the ellipsis state within a box changed as a a result of
+  // ellipsis placement.
+  virtual void DoPreEllipsisPlacementProcessing() {}
+  // Do any processing needed following ellipsis placement. This involves
+  // checking the old value against the new value and resetting the cached
+  // render tree node if the ellipsis state changed.
+  virtual void DoPostEllipsisPlacementProcessing() {}
   // Whether or not the box is fully hidden by an ellipsis. This applies to
   // atomic inline-level elements that have had an ellipsis placed before them
   // on a line. https://www.w3.org/TR/css3-ui/#propdef-text-overflow
@@ -401,14 +408,16 @@ class Box : public base::RefCounted<Box> {
   // time they are needed.
   virtual void InvalidateCrossReferencesOfBoxAndAncestors();
 
+  // Invalidating the render tree nodes causes them to be re-generated the next
+  // time they are needed.
+  void InvalidateRenderTreeNodesOfBoxAndAncestors();
+
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
   // on the subclasses to provide the actual content.
   void RenderAndAnimate(
       render_tree::CompositionNode::Builder* parent_content_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
-      const math::Vector2dF& offset_from_parent_node) const;
+      const math::Vector2dF& offset_from_parent_node);
 
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
@@ -528,9 +537,7 @@ class Box : public base::RefCounted<Box> {
 
   // Renders the content of the box.
   virtual void RenderAndAnimateContent(
-      render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const = 0;
+      render_tree::CompositionNode::Builder* border_node_builder) const = 0;
 
   // A transformable element is an element whose layout is governed by the CSS
   // box model which is either a block-level or atomic inline-level element.
@@ -564,6 +571,14 @@ class Box : public base::RefCounted<Box> {
       const base::optional<LayoutUnit>& possibly_overconstrained_margin_right);
 
  private:
+  struct CachedRenderTreeNodeInfo {
+    explicit CachedRenderTreeNodeInfo(const math::Vector2dF& offset)
+        : offset_(offset) {}
+
+    math::Vector2dF offset_;
+    scoped_refptr<render_tree::Node> node_;
+  };
+
   // Updates used values of "border" properties.
   void UpdateBorders();
   // Updates used values of "padding" properties.
@@ -583,47 +598,40 @@ class Box : public base::RefCounted<Box> {
   void RenderAndAnimateBorder(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBackgroundColor(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBackgroundImage(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBoxShadow(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
 
   // If opacity is animated or other than 1, wraps a border node into a filter
   // node. Otherwise returns the original border node.
   scoped_refptr<render_tree::Node> RenderAndAnimateOpacity(
       const scoped_refptr<render_tree::Node>& border_node,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
-      float opacity, bool opacity_animated) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
+      float opacity, bool opacity_animated);
 
   scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       const scoped_refptr<render_tree::Node>& border_node,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
-      const math::Vector2dF& border_node_offset) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
+      const math::Vector2dF& border_node_offset);
 
   // If transform is not "none", wraps a border node in a MatrixTransformNode.
   // If transform is "none", returns the original border node and leaves
   // |border_node_transform| intact.
   scoped_refptr<render_tree::Node> RenderAndAnimateTransform(
       const scoped_refptr<render_tree::Node>& border_node,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder,
-      const math::Vector2dF& border_node_offset) const;
+      render_tree::animations::AnimateNode::Builder* animate_node_builder,
+      const math::Vector2dF& border_node_offset);
 
   // The css_computed_style_declaration_ member references the
   // cssom::CSSComputedStyleDeclaration object owned by the HTML Element from
@@ -680,6 +688,10 @@ class Box : public base::RefCounted<Box> {
   // Referenced and updated by ValidateUpdateSizeInputs() to memoize the
   // parameters we were passed during in last call to UpdateSizes().
   base::optional<LayoutParams> last_update_size_params_;
+
+  // Render tree node caching is used to prevent the node from needing to be
+  // recalculated during each call to RenderAndAnimateContent.
+  base::optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;

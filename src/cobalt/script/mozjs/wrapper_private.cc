@@ -39,11 +39,13 @@ void WrapperPrivate::RemoveReferencedObject(JS::HandleObject referee) {
 }
 
 // static
-void WrapperPrivate::AddPrivateData(JS::HandleObject wrapper_proxy,
+void WrapperPrivate::AddPrivateData(JSContext* context,
+                                    JS::HandleObject wrapper_proxy,
                                     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(js::IsProxy(wrapper_proxy));
   WrapperPrivate* private_data = new WrapperPrivate(wrappable, wrapper_proxy);
-  JSObject* target_object = js::GetProxyTargetObject(wrapper_proxy);
+  JS::RootedObject target_object(context,
+                                 js::GetProxyTargetObject(wrapper_proxy));
   JS_SetPrivate(target_object, private_data);
   DCHECK_EQ(JS_GetPrivate(target_object), private_data);
 }
@@ -113,6 +115,8 @@ WrapperPrivate::WrapperPrivate(const scoped_refptr<Wrappable>& wrappable,
     : wrappable_(wrappable), wrapper_proxy_(wrapper_proxy) {
   DCHECK(js::IsProxy(wrapper_proxy));
 }
+
+WrapperPrivate::~WrapperPrivate() { wrapper_proxy_ = NULL; }
 
 }  // namespace mozjs
 }  // namespace script

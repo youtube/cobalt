@@ -17,10 +17,11 @@
   ],
   'variables': {
     'common_jit_defines': [
+      'ENABLE_JIT=1',
+      'ENABLE_YARR_JIT=1',
       'JS_ION=1',
       'JS_METHODJIT=1',
       'JS_METHODJIT_TYPED_ARRAY=1',
-      'ENABLE_YARR_JIT=1',
     ],
   },
   'target_defaults': {
@@ -47,20 +48,22 @@
         'defines': [
           'JS_CPU_X64=1',
           'JS_PUNBOX64=1',
-          '<@(common_jit_defines)',
         ],
       }],
       [ 'target_arch == "x86"', {
         'defines': [
           'JS_CPU_X86=1',
           'JS_NUNBOX32=1',
-          '<@(common_jit_defines)',
         ],
       }],
       [ 'target_arch == "arm"', {
         'defines': [
           'JS_CPU_ARM=1',
           'JS_NUNBOX32=1',
+        ],
+      }],
+      [ 'cobalt_enable_jit == 1', {
+        'defines': [
           '<@(common_jit_defines)',
         ],
       }],
@@ -98,7 +101,7 @@
         'js-confdefs.h',
       ],
       'conditions': [
-        [ 'target_arch == "x64"', {
+        [ 'target_arch == "x64" and cobalt_enable_jit == 1', {
           'sources': [
             'js/src/assembler/assembler/MacroAssemblerX86Common.cpp',
             'js/src/jit/shared/Assembler-x86-shared.cpp',
@@ -119,7 +122,7 @@
             '<@(mozjs_jit_sources)',
           ],
         }],
-        [ 'target_arch == "x86"', {
+        [ 'target_arch == "x86" and cobalt_enable_jit == 1', {
           'sources': [
             'js/src/assembler/assembler/MacroAssemblerX86Common.cpp',
             'js/src/jit/shared/Assembler-x86-shared.cpp',
@@ -140,7 +143,7 @@
             '<@(mozjs_jit_sources)',
           ],
         }],
-        [ 'target_arch == "arm"', {
+        [ 'target_arch == "arm" and cobalt_enable_jit == 1', {
           'sources': [
             'js/src/assembler/assembler/ARMAssembler.cpp',
             'js/src/assembler/assembler/MacroAssemblerARM.cpp',

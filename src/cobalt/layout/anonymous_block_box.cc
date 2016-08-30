@@ -62,11 +62,8 @@ bool AnonymousBlockBox::HasTrailingLineBreak() const {
 }
 
 void AnonymousBlockBox::RenderAndAnimateContent(
-    render_tree::CompositionNode::Builder* border_node_builder,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) const {
-  ContainerBox::RenderAndAnimateContent(border_node_builder,
-                                        node_animations_map_builder);
+    render_tree::CompositionNode::Builder* border_node_builder) const {
+  ContainerBox::RenderAndAnimateContent(border_node_builder);
 
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
@@ -125,23 +122,19 @@ void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
 
 scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
-  // Check to see if ellipses are enabled:
-  // If they are, then retrieve the ellipsis width for the font and reset the
-  // ellipsis boxes on all child boxes because they are no longer valid.
-  // Otherwise, set the width to 0, which indicates that ellipses are not being
-  // used. In this case, child boxes do not need to have ellipses reset, as they
-  // could not have previously been set.
-  float ellipsis_width;
-  if (AreEllipsesEnabled()) {
-    ellipsis_width = used_font_->GetEllipsisWidth();
-
-    for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
-         child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-      (*child_box_iterator)->ResetEllipses();
-    }
-  } else {
-    ellipsis_width = 0;
+  // Do any processing needed prior to ellipsis placement on all of the
+  // children.
+  for (Boxes::const_iterator child_ellipsis_iterator = child_boxes().begin();
+       child_ellipsis_iterator != child_boxes().end();
+       ++child_ellipsis_iterator) {
+    (*child_ellipsis_iterator)->DoPreEllipsisPlacementProcessing();
   }
+
+  // If ellipses are enabled then retrieve the ellipsis width for the font;
+  // otherwise, set the width to 0, which indicates that ellipses are not being
+  // used.
+  float ellipsis_width =
+      AreEllipsesEnabled() ? used_font_->GetEllipsisWidth() : 0;
 
   // Lay out child boxes in the normal flow.
   //   https://www.w3.org/TR/CSS21/visuren.html#normal-flow
@@ -204,6 +197,15 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
   }
   inline_formatting_context->EndUpdates();
   ellipses_coordinates_ = inline_formatting_context->GetEllipsesCoordinates();
+
+  // Do any processing needed following ellipsis placement on all of the
+  // children.
+  for (Boxes::const_iterator child_ellipsis_iterator = child_boxes().begin();
+       child_ellipsis_iterator != child_boxes().end();
+       ++child_ellipsis_iterator) {
+    (*child_ellipsis_iterator)->DoPostEllipsisPlacementProcessing();
+  }
+
   return inline_formatting_context.PassAs<FormattingContext>();
 }
 

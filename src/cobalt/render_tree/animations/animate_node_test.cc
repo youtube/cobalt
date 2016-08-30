@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -46,12 +46,12 @@ using ::cobalt::math::RectF;
 // Helper function to create an animation set for a render tree that consists
 // of only one animation targeting only one node in the render tree.
 template <typename T>
-scoped_refptr<NodeAnimationsMap> CreateSingleAnimation(
+scoped_refptr<AnimateNode> CreateSingleAnimation(
     const scoped_refptr<T>& target,
     typename Animation<T>::Function anim_function) {
-  NodeAnimationsMap::Builder animations_builder;
+  AnimateNode::Builder animations_builder;
   animations_builder.Add(target, anim_function);
-  return new NodeAnimationsMap(animations_builder.Pass());
+  return new AnimateNode(animations_builder, target);
 }
 
 class ImageFake : public Image {
@@ -68,16 +68,16 @@ void AnimateText(TextNode::Builder* text_node, base::TimeDelta time_elapsed) {
   UNREFERENCED_PARAMETER(time_elapsed);
   text_node->color = ColorRGBA(.5f, .5f, .5f);
 }
-TEST(NodeAnimationsMapTest, EnsureSingleTextNodeAnimates) {
+TEST(AnimateNodeTest, EnsureSingleTextNodeAnimates) {
   scoped_refptr<TextNode> text_node(
       new TextNode(math::Vector2dF(0, 0), new GlyphBuffer(RectF(0, 0, 1, 1)),
                    ColorRGBA(1.0f, 1.0f, 1.0f)));
 
-  scoped_refptr<NodeAnimationsMap> animations =
+  scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(text_node, base::Bind(&AnimateText));
 
   scoped_refptr<Node> animated_render_tree =
-      animations->Apply(text_node, base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
   TextNode* animated_text_node =
       dynamic_cast<TextNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_text_node);
@@ -89,15 +89,15 @@ void AnimateImage(ImageNode::Builder* image_node,
   UNREFERENCED_PARAMETER(time_elapsed);
   image_node->destination_rect = RectF(2.0f, 2.0f);
 }
-TEST(NodeAnimationsMapTest, EnsureSingleImageNodeAnimates) {
+TEST(AnimateNodeTest, EnsureSingleImageNodeAnimates) {
   scoped_refptr<ImageNode> image_node(
       new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
 
-  scoped_refptr<NodeAnimationsMap> animations =
+  scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(image_node, base::Bind(&AnimateImage));
 
   scoped_refptr<Node> animated_render_tree =
-      animations->Apply(image_node, base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
   ImageNode* animated_image_node =
       dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
@@ -109,16 +109,16 @@ void AnimateRect(RectNode::Builder* rect_node, base::TimeDelta time_elapsed) {
   UNREFERENCED_PARAMETER(time_elapsed);
   rect_node->rect = RectF(2.0f, 2.0f);
 }
-TEST(NodeAnimationsMapTest, EnsureSingleRectNodeAnimates) {
+TEST(AnimateNodeTest, EnsureSingleRectNodeAnimates) {
   scoped_refptr<RectNode> rect_node(new RectNode(
       RectF(1.0f, 1.0f),
       scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
-  scoped_refptr<NodeAnimationsMap> animations =
+  scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(rect_node, base::Bind(&AnimateRect));
 
   scoped_refptr<Node> animated_render_tree =
-      animations->Apply(rect_node, base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
   RectNode* animated_rect_node =
       dynamic_cast<RectNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_rect_node);
@@ -135,33 +135,32 @@ void AnimateImageAddWithTime(ImageNode::Builder* image_node,
       static_cast<float>(time_elapsed.InSecondsF()),
       static_cast<float>(time_elapsed.InSecondsF()));
 }
-TEST(NodeAnimationsMapTest,
-     SingleImageNodeAnimatesOverTimeRepeatedlyCorrectly) {
+TEST(AnimateNodeTest, SingleImageNodeAnimatesOverTimeRepeatedlyCorrectly) {
   scoped_refptr<ImageNode> image_node(
       new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
 
-  scoped_refptr<NodeAnimationsMap> animations =
+  scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(image_node, base::Bind(&AnimateImageAddWithTime));
 
   scoped_refptr<Node> animated_render_tree;
   ImageNode* animated_image_node;
 
   animated_render_tree =
-      animations->Apply(image_node, base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
   animated_image_node = dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
   EXPECT_TRUE(animated_image_node);
   EXPECT_FLOAT_EQ(3.0f, animated_image_node->data().destination_rect.width());
 
   animated_render_tree =
-      animations->Apply(image_node, base::TimeDelta::FromSeconds(2));
+      with_animations->Apply(base::TimeDelta::FromSeconds(2));
   animated_image_node = dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
   EXPECT_TRUE(animated_image_node);
   EXPECT_FLOAT_EQ(5.0f, animated_image_node->data().destination_rect.width());
 
   animated_render_tree =
-      animations->Apply(image_node, base::TimeDelta::FromSeconds(4));
+      with_animations->Apply(base::TimeDelta::FromSeconds(4));
   animated_image_node = dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
   EXPECT_TRUE(animated_image_node);
@@ -177,8 +176,7 @@ void AnimateImageScaleWithTime(ImageNode::Builder* image_node,
                    static_cast<float>(time_elapsed.InSecondsF()));
   image_node->destination_rect.set_size(image_size);
 }
-TEST(NodeAnimationsMapTest,
-     MultipleAnimationsTargetingOneNodeApplyInCorrectOrder) {
+TEST(AnimateNodeTest, MultipleAnimationsTargetingOneNodeApplyInCorrectOrder) {
   scoped_refptr<ImageNode> image_node(
       new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
 
@@ -192,15 +190,15 @@ TEST(NodeAnimationsMapTest,
   animation_list_builder.animations.push_back(
       base::Bind(&AnimateImageScaleWithTime));
 
-  NodeAnimationsMap::Builder animations_builder;
+  AnimateNode::Builder animations_builder;
   animations_builder.Add(image_node,
                          make_scoped_refptr(new AnimationList<ImageNode>(
                              animation_list_builder.Pass())));
-  scoped_refptr<NodeAnimationsMap> animations(
-      new NodeAnimationsMap(animations_builder.Pass()));
+  scoped_refptr<AnimateNode> with_animations(
+      new AnimateNode(animations_builder, image_node));
 
   scoped_refptr<Node> animated_render_tree =
-      animations->Apply(image_node, base::TimeDelta::FromSeconds(3));
+      with_animations->Apply(base::TimeDelta::FromSeconds(3));
 
   ImageNode* animated_image_node =
       dynamic_cast<ImageNode*>(animated_render_tree.get());
@@ -216,21 +214,20 @@ void AnimateTransform(MatrixTransformNode::Builder* transform_node,
   UNREFERENCED_PARAMETER(time_elapsed);
   transform_node->transform = math::TranslateMatrix(2.0f, 2.0f);
 }
-TEST(NodeAnimationsMapTest, AnimatingTransformNodeDoesNotAffectSourceChild) {
+TEST(AnimateNodeTest, AnimatingTransformNodeDoesNotAffectSourceChild) {
   scoped_refptr<ImageNode> image_node(
       new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
   scoped_refptr<MatrixTransformNode> transform_node(
       new MatrixTransformNode(image_node, math::Matrix3F::Identity()));
 
-  scoped_refptr<NodeAnimationsMap> animations =
+  scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(transform_node, base::Bind(&AnimateTransform));
 
   scoped_refptr<Node> animated_render_tree =
-      animations->Apply(transform_node, base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
 
   MatrixTransformNode* animated_transform_node =
       dynamic_cast<MatrixTransformNode*>(animated_render_tree.get());
-  EXPECT_TRUE(animated_transform_node);
   EXPECT_TRUE(animated_transform_node);
 
   EXPECT_EQ(math::TranslateMatrix(2.0f, 2.0f),
@@ -241,7 +238,7 @@ TEST(NodeAnimationsMapTest, AnimatingTransformNodeDoesNotAffectSourceChild) {
 // Test that animating a child correctly adjusts sub-node parameters but
 // not parent node parameters, though both child and parent are different nodes
 // now.  The animated child's sibling should be left untouched.
-TEST(NodeAnimationsMapTest,
+TEST(AnimateNodeTest,
      AnimatingCompositionChildNodeAffectsParentAsWellButNotSibling) {
   scoped_refptr<ImageNode> image_node_a(
       new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
@@ -253,11 +250,13 @@ TEST(NodeAnimationsMapTest,
   scoped_refptr<CompositionNode> composition_node(
       new CompositionNode(composition_node_builder.Pass()));
 
-  scoped_refptr<NodeAnimationsMap> animations =
-      CreateSingleAnimation(image_node_a, base::Bind(&AnimateImage));
+  AnimateNode::Builder animation_builder;
+  animation_builder.Add(image_node_a, base::Bind(&AnimateImage));
+  scoped_refptr<AnimateNode> with_animations =
+      new AnimateNode(animation_builder, composition_node);
 
   scoped_refptr<Node> animated_render_tree =
-      animations->Apply(composition_node, base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
 
   CompositionNode* animated_composition_node =
       dynamic_cast<CompositionNode*>(animated_render_tree.get());
@@ -271,6 +270,76 @@ TEST(NodeAnimationsMapTest,
   ImageNode* animated_image_node_b = dynamic_cast<ImageNode*>(
       animated_composition_node->data().children()[1].get());
   EXPECT_EQ(image_node_b.get(), animated_image_node_b);
+}
+
+TEST(AnimateNodeTest, SimpleSubAnimateNode) {
+  // Test that we can properly animate trees that built upon multiple
+  // AnimateNodes.
+  scoped_refptr<ImageNode> image_node(
+      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+  scoped_refptr<AnimateNode> image_animation =
+      CreateSingleAnimation(image_node, base::Bind(&AnimateImage));
+
+  scoped_refptr<MatrixTransformNode> transform_node(
+      new MatrixTransformNode(image_animation, math::Matrix3F::Identity()));
+
+  scoped_refptr<AnimateNode> with_animations =
+      CreateSingleAnimation(transform_node, base::Bind(&AnimateTransform));
+
+  scoped_refptr<Node> animated_render_tree =
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+
+  MatrixTransformNode* animated_transform_node =
+      dynamic_cast<MatrixTransformNode*>(animated_render_tree.get());
+  EXPECT_TRUE(animated_transform_node);
+
+  // Check that the matrix transform node is animated.
+  EXPECT_EQ(math::TranslateMatrix(2.0f, 2.0f),
+            animated_transform_node->data().transform);
+
+  // Check also that the image node is animated.
+  ImageNode* animated_image_node =
+      dynamic_cast<ImageNode*>(animated_transform_node->data().source.get());
+  EXPECT_TRUE(animated_image_node);
+  EXPECT_EQ(RectF(2.0f, 2.0f), animated_image_node->data().destination_rect);
+}
+
+TEST(AnimateNodeTest, SubAnimateNodeWithTwoAncestors) {
+  // Test that we can properly animate trees that built upon multiple
+  // AnimateNodes.
+  scoped_refptr<ImageNode> image_node(
+      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+  scoped_refptr<AnimateNode> image_animation =
+      CreateSingleAnimation(image_node, base::Bind(&AnimateImage));
+
+  // This node is used to make it so there is more than one node on the path
+  // between the two AnimateNodes.
+  scoped_refptr<MatrixTransformNode> transform_node_a(
+      new MatrixTransformNode(image_animation, math::Matrix3F::Identity()));
+
+  scoped_refptr<MatrixTransformNode> transform_node_b(
+      new MatrixTransformNode(transform_node_a, math::Matrix3F::Identity()));
+
+  scoped_refptr<AnimateNode> with_animations =
+      new AnimateNode(transform_node_b);
+
+  scoped_refptr<Node> animated_render_tree =
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+
+  MatrixTransformNode* animated_transform_node =
+      dynamic_cast<MatrixTransformNode*>(animated_render_tree.get());
+  EXPECT_TRUE(animated_transform_node);
+
+  // Check that the image node is animated.
+  MatrixTransformNode* animated_dummy_transform_node =
+      dynamic_cast<MatrixTransformNode*>(
+          animated_transform_node->data().source.get());
+  EXPECT_TRUE(animated_dummy_transform_node);
+
+  ImageNode* animated_image_node = dynamic_cast<ImageNode*>(
+      animated_dummy_transform_node->data().source.get());
+  EXPECT_TRUE(animated_image_node);
+  EXPECT_EQ(RectF(2.0f, 2.0f), animated_image_node->data().destination_rect);
 }
 
 }  // namespace animations

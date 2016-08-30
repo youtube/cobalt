@@ -42,6 +42,14 @@ typedef struct SbAudioSinkPrivate* SbAudioSink;
 // audio frame buffer passed to SbAudioSinkCreate as |frame_buffers|.  As
 // |frame_buffers| is a circular buffer, |offset_in_frames| can be used to
 // calculate the number of continuous frames towards the end of the buffer.
+// The audio sink can play the frames only when |is_playing| is true.  It should
+// pause the playback when |is_playing| is false.
+// The audio sink may cache certain amount of audio frames before start
+// playback.  It will start playback immediately when |is_eos_reached| is true
+// even if the amount of cached audio frames are not enough as no more frames
+// will be appended into the buffer when |is_eos_reached| is true.
+// It is possible for a host to set |is_eos_reached| to false after setting it
+// to true, usually this is caused by a seek.
 // All parameters except |context| cannot be NULL.
 // Note that this function only reports the status of the source, it doesn't
 // remove audio data from the source frame buffer.

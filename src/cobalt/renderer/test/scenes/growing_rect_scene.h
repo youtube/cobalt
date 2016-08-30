@@ -28,7 +28,7 @@ namespace scenes {
 
 // This scene gives a gray rectangle centered in the screen that slowly grows
 // to fill the screen.
-RenderTreeWithAnimations CreateGrowingRectScene(
+scoped_refptr<render_tree::Node> CreateGrowingRectScene(
     const math::SizeF& output_dimensions, base::TimeDelta start_time);
 
 }  // namespace scenes

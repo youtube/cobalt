@@ -1,4 +1,0 @@
-# This file is used by gcl to get repository specific information.
-GERRIT_HOST: lbshell-internal-review.googlesource.com
-GERRIT_AUTODETECT_BRANCH: true
-CODE_REVIEW_SERVER: lbshell-internal-review.googlesource.com

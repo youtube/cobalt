@@ -15,13 +15,18 @@
  */
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 
+#include <algorithm>
 #include <utility>
 
+#include "base/lazy_instance.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_source_code.h"
+#include "cobalt/script/mozjs/mozjs_wrapper_handle.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
+#include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 #include "third_party/mozjs/js/src/jsfun.h"
 #include "third_party/mozjs/js/src/jsobj.h"
@@ -66,6 +71,52 @@ const uint32_t kStackChunkSize = 8192;
 
 // This is the default in the spidermonkey shell.
 const uint32_t kMaxCodeCacheBytes = 16 * 1024 * 1024;
+
+// DOM proxies have an extra slot for the expando object at index
+// kJSProxySlotExpando.
+// The expando object is a plain JSObject whose properties correspond to
+// "expandos" (custom properties set by the script author).
+// The exact value stored in the kJSProxySlotExpando slot depends on whether
+// the interface is annotated with the [OverrideBuiltins] extended attribute.
+const uint32_t kJSProxySlotExpando = 0;
+
+// The DOMProxyShadowsCheck function will be called to check if the property for
+// id should be gotten from the prototype, or if there is an own property that
+// shadows it.
+js::DOMProxyShadowsResult DOMProxyShadowsCheck(JSContext* context,
+                                               JS::HandleObject proxy,
+                                               JS::HandleId id) {
+  DCHECK(IsProxy(proxy));
+  JS::Value value = js::GetProxyExtra(proxy, kJSProxySlotExpando);
+  DCHECK(value.isUndefined() || value.isObject());
+
+  // [OverrideBuiltins] extended attribute is not supported.
+  NOTIMPLEMENTED();
+
+  // If DoesntShadow is returned then the slot at listBaseExpandoSlot should
+  // either be undefined or point to an expando object that would contain the
+  // own property.
+  return js::DoesntShadow;
+}
+
+class MozjsStubHandler : public ProxyHandler {
+ public:
+  MozjsStubHandler()
+      : ProxyHandler(indexed_property_hooks, named_property_hooks) {}
+
+ private:
+  static NamedPropertyHooks named_property_hooks;
+  static IndexedPropertyHooks indexed_property_hooks;
+};
+
+ProxyHandler::NamedPropertyHooks MozjsStubHandler::named_property_hooks = {
+    NULL, NULL, NULL, NULL, NULL,
+};
+ProxyHandler::IndexedPropertyHooks MozjsStubHandler::indexed_property_hooks = {
+    NULL, NULL, NULL, NULL, NULL,
+};
+
+static base::LazyInstance<MozjsStubHandler> proxy_handler;
 }  // namespace
 
 MozjsGlobalObjectProxy::MozjsGlobalObjectProxy(JSRuntime* runtime)
@@ -82,16 +133,18 @@ MozjsGlobalObjectProxy::MozjsGlobalObjectProxy(JSRuntime* runtime)
 
   JS_SetGCParameterForThread(context_, JSGC_MAX_CODE_CACHE_BYTES,
                              kMaxCodeCacheBytes);
-
   uint32_t options =
       JSOPTION_TYPE_INFERENCE |
       JSOPTION_VAROBJFIX |       // Recommended to enable this in the API docs.
       JSOPTION_COMPILE_N_GO |    // Compiled scripts will be run only once.
       JSOPTION_UNROOTED_GLOBAL;  // Global handle must be visited to ensure it
                                  // is not GC'd.
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+#if ENGINE_SUPPORTS_JIT
   options |= JSOPTION_BASELINE |  // Enable baseline compiler.
              JSOPTION_ION;        // Enable IonMonkey
+  // This is required by baseline and IonMonkey.
+  js::SetDOMProxyInformation(0 /*domProxyHandlerFamily*/, kJSProxySlotExpando,
+                             DOMProxyShadowsCheck);
 #endif
 #if !defined(COBALT_BUILD_TYPE_GOLD) && !defined(COBALT_BUILD_TYPE_QA)
   options |= JSOPTION_EXTRA_WARNINGS;
@@ -101,6 +154,7 @@ MozjsGlobalObjectProxy::MozjsGlobalObjectProxy(JSRuntime* runtime)
   JS_SetErrorReporter(context_, &MozjsGlobalObjectProxy::ReportErrorHandler);
 
   wrapper_factory_.reset(new WrapperFactory(context_));
+
   JS_AddExtraGCRootsTracer(runtime, TraceFunction, this);
 }
 
@@ -111,7 +165,7 @@ MozjsGlobalObjectProxy::~MozjsGlobalObjectProxy() {
 
 void MozjsGlobalObjectProxy::CreateGlobalObject() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(!global_object_);
+  DCHECK(!global_object_proxy_);
 
   // The global object is automatically rooted unless the
   // JSOPTION_UNROOTED_GLOBAL option is set.
@@ -128,7 +182,11 @@ void MozjsGlobalObjectProxy::CreateGlobalObject() {
   JSAutoCompartment auto_compartment(context_, global_object);
   bool success = JS_InitStandardClasses(context_, global_object);
   DCHECK(success);
-  SetGlobalObject(global_object);
+
+  JS::RootedObject proxy(
+      context_, ProxyHandler::NewProxy(context_, global_object, NULL, NULL,
+                                       proxy_handler.Pointer()));
+  global_object_proxy_ = proxy;
 }
 
 bool MozjsGlobalObjectProxy::EvaluateScript(
@@ -142,12 +200,14 @@ bool MozjsGlobalObjectProxy::EvaluateScript(
   const base::SourceLocation location = mozjs_source_code->location();
 
   JSAutoRequest auto_request(context_);
-  JSAutoCompartment auto_comparment(context_, global_object_);
+  JSAutoCompartment auto_comparment(context_, global_object_proxy_);
   JS::RootedValue result_value(context_);
   std::string error_message;
   last_error_message_ = &error_message;
+  JS::RootedObject global_object(
+      context_, js::GetProxyTargetObject(global_object_proxy_));
   bool success = JS_EvaluateScript(
-      context_, global_object_, script.c_str(), script.size(),
+      context_, global_object, script.c_str(), script.size(),
       location.file_path.c_str(), location.line_number, result_value.address());
   if (out_result_utf8) {
     if (success) {
@@ -160,6 +220,11 @@ bool MozjsGlobalObjectProxy::EvaluateScript(
   }
   last_error_message_ = NULL;
   return success;
+}
+
+std::vector<StackFrame> MozjsGlobalObjectProxy::GetStackTrace(int max_frames) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::GetStackTrace(context_, max_frames);
 }
 
 void MozjsGlobalObjectProxy::DisableEval(const std::string& message) {
@@ -183,11 +248,14 @@ void MozjsGlobalObjectProxy::SetReportEvalCallback(
 void MozjsGlobalObjectProxy::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
   JSAutoRequest auto_request(context_);
-  JSAutoCompartment auto_comparment(context_, global_object_);
+  JSAutoCompartment auto_comparment(context_, global_object_proxy_);
+
   JS::RootedObject wrapper_proxy(context_,
                                  wrapper_factory_->GetWrapperProxy(impl));
+  JS::RootedObject global_object(
+      context_, js::GetProxyTargetObject(global_object_proxy_));
   JS::Value wrapper_value = OBJECT_TO_JSVAL(wrapper_proxy);
-  bool success = JS_SetProperty(context_, global_object_, identifier.c_str(),
+  bool success = JS_SetProperty(context_, global_object, identifier.c_str(),
                                 &wrapper_value);
   DCHECK(success);
 }
@@ -206,6 +274,28 @@ MozjsGlobalObjectProxy* MozjsGlobalObjectProxy::GetFromContext(
       static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
   DCHECK(global_proxy);
   return global_proxy;
+}
+
+void MozjsGlobalObjectProxy::SetGlobalObjectProxyAndWrapper(
+    JS::HandleObject global_object_proxy,
+    const scoped_refptr<Wrappable>& wrappable) {
+  DCHECK(!global_object_proxy_);
+  DCHECK(global_object_proxy);
+  DCHECK(JS_IsGlobalObject(js::GetProxyTargetObject(global_object_proxy)));
+  DCHECK(IsObjectProxy(global_object_proxy));
+
+  global_object_proxy_ = global_object_proxy;
+
+  // Global object cached wrapper is not set as usual object.
+  // Set the global object cached wrapper, so we can get the object proxy
+  // through wrapper handle.
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromProxyObject(context_, global_object_proxy_);
+  DCHECK(wrapper_private);
+
+  scoped_ptr<Wrappable::WeakWrapperHandle> object_handle(
+      new MozjsWrapperHandle(wrapper_private));
+  SetCachedWrapper(wrappable.get(), object_handle.Pass());
 }
 
 void MozjsGlobalObjectProxy::CacheInterfaceData(intptr_t key,
@@ -235,15 +325,16 @@ void MozjsGlobalObjectProxy::ReportErrorHandler(JSContext* context,
 }
 
 void MozjsGlobalObjectProxy::TraceFunction(JSTracer* trace, void* data) {
-  MozjsGlobalObjectProxy* global_object_proxy =
+  MozjsGlobalObjectProxy* global_object_environment =
       reinterpret_cast<MozjsGlobalObjectProxy*>(data);
-  if (global_object_proxy->global_object_) {
-    JS_CallHeapObjectTracer(trace, &global_object_proxy->global_object_,
+  if (global_object_environment->global_object_proxy_) {
+    JS_CallHeapObjectTracer(trace,
+                            &global_object_environment->global_object_proxy_,
                             "MozjsGlobalObjectProxy");
   }
   for (CachedInterfaceData::iterator it =
-           global_object_proxy->cached_interface_data_.begin();
-       it != global_object_proxy->cached_interface_data_.end(); ++it) {
+           global_object_environment->cached_interface_data_.begin();
+       it != global_object_environment->cached_interface_data_.end(); ++it) {
     InterfaceData* data = it->second;
     JS_CallHeapObjectTracer(trace, &data->prototype, "MozjsGlobalObjectProxy");
     JS_CallHeapObjectTracer(trace, &data->interface_object,

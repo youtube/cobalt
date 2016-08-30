@@ -21,8 +21,10 @@
 #include "base/string_util.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/source_code.h"
 #include "cobalt/script/standalone_javascript_runner.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsproxy.h"
 
 namespace cobalt {
 namespace script {
@@ -50,6 +52,8 @@ JSBool Print(JSContext* context, uint32_t argc, JS::Value* arguments_value) {
 }
 
 void SetupBindings(JSContext* context, JSObject* global_object) {
+  DCHECK(JS_IsGlobalObject(global_object));
+
   JSAutoRequest auto_request(context);
   JSAutoCompartment auto_comparment(context, global_object);
   JS_DefineFunction(context, global_object, "print", &Print, 0,
@@ -58,18 +62,43 @@ void SetupBindings(JSContext* context, JSObject* global_object) {
 
 int MozjsMain(int argc, char** argv) {
   cobalt::script::StandaloneJavascriptRunner standalone_runner;
-  MozjsGlobalObjectProxy* global_object_proxy =
+  MozjsGlobalObjectProxy* global_object_environment =
       static_cast<MozjsGlobalObjectProxy*>(
           standalone_runner.global_object_proxy().get());
 
-  SetupBindings(global_object_proxy->context(),
-                global_object_proxy->global_object());
+  SetupBindings(global_object_environment->context(),
+                global_object_environment->global_object());
 
-  CommandLine command_line(argc, argv);
-  CommandLine::StringVector args = command_line.GetArgs();
-  if (!args.empty()) {
-    FilePath source_file(args[0]);
-    standalone_runner.ExecuteFile(source_file);
+  if (argc > 1) {
+    // Command line arguments will be flag-value pairs of the form
+    // -f filename
+    // and
+    // -e "inline script"
+    // and will be evaluated in order.
+    for (int i = 1; (i + 1) < argc; ++i) {
+      if (std::string(argv[i]) == "-f") {
+        std::string filename = std::string(argv[i + 1]);
+        // Execute source file.
+        FilePath source_file(filename);
+        standalone_runner.ExecuteFile(source_file);
+        ++i;
+      } else if (std::string(argv[i]) == "-e") {
+        // Execute inline script.
+        scoped_refptr<SourceCode> source = SourceCode::CreateSourceCode(
+            argv[i + 1], base::SourceLocation("[stdin]", 1, 1));
+
+        // Execute the script and get the results of execution.
+        std::string result;
+        bool success =
+            global_object_environment->EvaluateScript(source, &result);
+        // Echo the results to stdout.
+        if (!success) {
+          std::cout << "Exception: ";
+        }
+        std::cout << result << std::endl;
+        ++i;
+      }
+    }
   } else {
     standalone_runner.RunInteractive();
   }

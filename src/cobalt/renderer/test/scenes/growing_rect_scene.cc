@@ -27,15 +27,15 @@ using cobalt::math::Matrix3F;
 using cobalt::math::ScaleMatrix;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::SolidColorBrush;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace renderer {
@@ -62,13 +62,13 @@ void AnimateGrowingRectComposition(base::TimeDelta start_time,
 
 }  // namespace
 
-RenderTreeWithAnimations CreateGrowingRectScene(
+scoped_refptr<render_tree::Node> CreateGrowingRectScene(
     const math::SizeF& output_dimensions, base::TimeDelta start_time) {
   // Create a centered, sawtoothed-growing black rectangle.  We need a
   // composition node for this so that the rectangle's position can be set
   // and animated.  We also use the composition node to animate the RectNode's
   // size.
-  NodeAnimationsMap::Builder animations;
+  AnimateNode::Builder animations;
 
   scoped_refptr<RectNode> growing_rect_node(new RectNode(
       math::RectF(output_dimensions),
@@ -81,8 +81,7 @@ RenderTreeWithAnimations CreateGrowingRectScene(
                  base::Bind(&AnimateGrowingRectComposition, start_time,
                             output_dimensions));
 
-  return RenderTreeWithAnimations(transformed_growing_rect,
-                                  new NodeAnimationsMap(animations.Pass()));
+  return new AnimateNode(animations, transformed_growing_rect);
 }
 
 }  // namespace scenes

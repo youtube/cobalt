@@ -17,4 +17,6 @@
 interface Window : GlobalInterfaceParent {
   void windowOperation();
   attribute DOMString windowProperty;
+  readonly attribute Window window;
+  [CallWith=StackTrace] DOMString getStackTrace();
 };

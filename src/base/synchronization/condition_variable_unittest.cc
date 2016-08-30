@@ -350,6 +350,9 @@ TEST_F(ConditionVariableTest, LargeFastTaskTest) {
   // Game consoles don't support that many threads. We have a max threads
   // macro in pthread.h. Leave a few to system and test with the rest.
   const int kThreadCount = SHELL_MAX_THREADS - 8;
+#elif defined(ADDRESS_SANITIZER)
+  // AddressSanitizer adds additional stack space to the threads.
+  const int kThreadCount = 50;
 #elif defined(OS_STARBOARD)
   const int kThreadCount = SB_MAX_THREADS - 8;
 #else

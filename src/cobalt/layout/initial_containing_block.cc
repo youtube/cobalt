@@ -98,7 +98,7 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
 
   scoped_refptr<cssom::CSSComputedStyleDeclaration> initial_style_state =
       new cssom::CSSComputedStyleDeclaration();
-  initial_style_state->set_data(initial_containing_block_style);
+  initial_style_state->SetData(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
 
   results.box = make_scoped_refptr(new BlockLevelBlockContainerBox(

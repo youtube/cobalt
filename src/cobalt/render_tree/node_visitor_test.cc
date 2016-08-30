@@ -20,6 +20,7 @@
 
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/font.h"
@@ -33,6 +34,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::render_tree::animations::AnimateNode;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::BrushVisitor;
 using cobalt::render_tree::ColorRGBA;
@@ -53,6 +55,7 @@ using cobalt::render_tree::TextNode;
 
 class MockNodeVisitor : public NodeVisitor {
  public:
+  MOCK_METHOD1(Visit, void(AnimateNode* animate));
   MOCK_METHOD1(Visit, void(CompositionNode* composition));
   MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
@@ -98,6 +101,15 @@ class DummyBrush : public Brush {
 };
 
 }  // namespace
+
+TEST(NodeVisitorTest, VisitsAnimate) {
+  scoped_refptr<DummyImage> dummy_image = make_scoped_refptr(new DummyImage());
+  scoped_refptr<ImageNode> dummy_image_node(new ImageNode(dummy_image));
+  scoped_refptr<AnimateNode> animate_node(new AnimateNode(dummy_image_node));
+  MockNodeVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, Visit(animate_node.get()));
+  animate_node->Accept(&mock_visitor);
+}
 
 TEST(NodeVisitorTest, VisitsImage) {
   scoped_refptr<DummyImage> image = make_scoped_refptr(new DummyImage());

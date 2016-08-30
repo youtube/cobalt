@@ -1033,14 +1033,6 @@
 #define ENABLE_REPAINT_THROTTLING 0
 #endif
 
-#if defined(WTF_OS_STARBOARD)
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
-#define ENABLE_JIT 1
-#else
-#define ENABLE_JIT 0
-#endif
-#endif
-
 /* Disable the JIT on versions of GCC prior to 4.1 */
 #if !defined(ENABLE_JIT) && WTF_COMPILER_GCC && !GCC_VERSION_AT_LEAST(4, 1, 0)
 #define ENABLE_JIT 0
@@ -1050,7 +1042,7 @@
 #if !defined(ENABLE_JIT) \
     && (WTF_CPU_X86 || WTF_CPU_X86_64 || WTF_CPU_ARM || WTF_CPU_SPARC32 || WTF_CPU_MIPS) \
     && (WTF_OS_DARWIN || !WTF_COMPILER_GCC || GCC_VERSION_AT_LEAST(4, 1, 0)) \
-    && !WTF_OS_WINCE
+    && !WTF_OS_WINCE && !defined(WTF_OS_STARBOARD)
 #define ENABLE_JIT 1
 #endif
 

@@ -12,7 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/user.h"
+// Here we are not trying to do anything fancy, just to really sanity check that
+// this is hooked up to something.
 
-void SbUserStartSignIn() {
+#include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace nplb {
+namespace {
+
+TEST(SbSystemHideSplashScreenTest, SunnyDay) {
+  // Function returns no result, and correct execution cannot be determined
+  // programatically, but we should at least be able to call it twice without
+  // crashing.
+  SbSystemHideSplashScreen();
+  SbSystemHideSplashScreen();
 }
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

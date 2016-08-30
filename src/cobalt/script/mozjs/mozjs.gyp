@@ -27,6 +27,7 @@
         'mozjs_property_enumerator.cc',
         'mozjs_source_code.cc',
         'proxy_handler.cc',
+        'util/exception_helpers.cc',
         'wrapper_factory.cc',
         'wrapper_private.cc',
       ],
@@ -41,6 +42,11 @@
         'ENGINE_SUPPORTS_INDEXED_DELETERS',
         'ENGINE_SUPPORTS_INT64', ],
       },
+      'conditions' :[
+        ['cobalt_enable_jit == 1', {
+          'defines': [ 'ENGINE_SUPPORTS_JIT', ],
+        }],
+      ],
     },
 
     {

@@ -46,6 +46,7 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
       truncated_text_end_position_(text_end_position),
+      previous_truncated_text_end_position_(text_end_position),
       truncated_text_offset_from_left_(0),
       used_font_(used_style_provider->GetUsedFontList(
           css_computed_style_declaration->data()->font_family(),
@@ -225,8 +226,15 @@ bool TextBox::DoesFulfillEllipsisPlacementRequirement() const {
   return GetNonCollapsedTextStartPosition() < GetNonCollapsedTextEndPosition();
 }
 
-void TextBox::ResetEllipses() {
+void TextBox::DoPreEllipsisPlacementProcessing() {
+  previous_truncated_text_end_position_ = truncated_text_end_position_;
   truncated_text_end_position_ = text_end_position_;
+}
+
+void TextBox::DoPostEllipsisPlacementProcessing() {
+  if (previous_truncated_text_end_position_ != truncated_text_end_position_) {
+    InvalidateRenderTreeNodesOfBoxAndAncestors();
+  }
 }
 
 void TextBox::SplitBidiLevelRuns() {}
@@ -299,6 +307,14 @@ LayoutUnit TextBox::GetBaselineOffsetFromTopMarginEdge() const {
 }
 
 namespace {
+void PopulateBaseStyleForTextNode(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+  // NOTE: Properties set by PopulateBaseStyleForTextNode() should match the
+  // properties used by SetupTextNodeFromStyle().
+  destination_style->set_color(source_style->color());
+}
+
 void SetupTextNodeFromStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     render_tree::TextNode::Builder* text_node_builder) {
@@ -340,11 +356,7 @@ void AddTextShadows(render_tree::TextNode::Builder* builder,
 }  // namespace
 
 void TextBox::RenderAndAnimateContent(
-    render_tree::CompositionNode::Builder* border_node_builder,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) const {
-  UNREFERENCED_PARAMETER(node_animations_map_builder);
-
+    render_tree::CompositionNode::Builder* border_node_builder) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
   }
@@ -376,23 +388,15 @@ void TextBox::RenderAndAnimateContent(
         text_shadow != cssom::KeywordValue::GetNone()) {
       int32 text_start_position = GetNonCollapsedTextStartPosition();
       int32 text_length = GetVisibleTextLength();
-      // Generate the glyph buffer if it does not already exist or the position
-      // it covers has changed. Otherwise, just use the cached glyph buffer.
-      if (!cached_glyph_buffer_info_.glyph_buffer ||
-          text_start_position != cached_glyph_buffer_info_.start_position ||
-          text_length != cached_glyph_buffer_info_.length) {
-        cached_glyph_buffer_info_.start_position = text_start_position;
-        cached_glyph_buffer_info_.length = text_length;
-        cached_glyph_buffer_info_.glyph_buffer = used_font_->CreateGlyphBuffer(
-            paragraph_->GetTextBuffer() +
-                cached_glyph_buffer_info_.start_position,
-            cached_glyph_buffer_info_.length,
-            paragraph_->IsRTL(text_start_position));
-      }
+
+      scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
+          used_font_->CreateGlyphBuffer(
+              paragraph_->GetTextBuffer() + text_start_position, text_length,
+              paragraph_->IsRTL(text_start_position));
 
       render_tree::TextNode::Builder text_node_builder(
           math::Vector2dF(truncated_text_offset_from_left_, ascent_),
-          cached_glyph_buffer_info_.glyph_buffer, used_color);
+          glyph_buffer, used_color);
 
       if (text_shadow != cssom::KeywordValue::GetNone()) {
         cssom::PropertyListValue* shadow_list =
@@ -407,13 +411,20 @@ void TextBox::RenderAndAnimateContent(
 
       // The render tree API considers text coordinates to be a position
       // of a baseline, offset the text node accordingly.
-      border_node_builder->AddChild(text_node);
+      scoped_refptr<render_tree::Node> node_to_add;
       if (is_color_animated) {
+        render_tree::animations::AnimateNode::Builder animate_node_builder;
         AddAnimations<render_tree::TextNode>(
+            base::Bind(&PopulateBaseStyleForTextNode),
             base::Bind(&SetupTextNodeFromStyle),
             *css_computed_style_declaration(), text_node,
-            node_animations_map_builder);
+            &animate_node_builder);
+        node_to_add = new render_tree::animations::AnimateNode(
+            animate_node_builder, text_node);
+      } else {
+        node_to_add = text_node;
       }
+      border_node_builder->AddChild(node_to_add);
     }
   }
 }

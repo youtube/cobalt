@@ -24,7 +24,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/network/network_module.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/pipeline.h"
@@ -85,7 +85,7 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   renderer_module_.reset(
       new renderer::RendererModule(system_window_.get(), renderer_options));
   MediaModule::Options media_module_options;
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   // Use string literals directly to avoid dependency on browser::switches.
   if (command_line->HasSwitch("audio_decoder_stub")) {
@@ -97,7 +97,7 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   if (command_line->HasSwitch("video_decoder_stub")) {
     media_module_options.use_video_decoder_stub = true;
   }
-#endif  // defined(ENABLE_COMMAND_LINE_SWITCHES)
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
   media_module_ =
       MediaModule::Create(renderer_module_->render_target()->GetSize(),
@@ -124,16 +124,15 @@ void MediaSandbox::Impl::AnimateCB(render_tree::ImageNode::Builder* image_node,
 void MediaSandbox::Impl::SetupAndSubmitScene() {
     scoped_refptr<render_tree::ImageNode> image_node =
         new render_tree::ImageNode(NULL);
-    render_tree::animations::NodeAnimationsMap::Builder
-        node_animations_map_builder;
+    render_tree::animations::AnimateNode::Builder animate_node_builder;
 
-    node_animations_map_builder.Add(
+    animate_node_builder.Add(
         image_node, base::Bind(&Impl::AnimateCB, base::Unretained(this)));
 
-    renderer_module_->pipeline()->Submit(renderer::Submission(
-        image_node, new render_tree::animations::NodeAnimationsMap(
-                        node_animations_map_builder.Pass()),
-        base::TimeDelta()));
+    renderer_module_->pipeline()->Submit(
+        renderer::Submission(new render_tree::animations::AnimateNode(
+                                 animate_node_builder, image_node),
+                             base::TimeDelta()));
 }
 
 MediaSandbox::MediaSandbox(int argc, char** argv,

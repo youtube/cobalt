@@ -26,8 +26,10 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/mozjs/interface_data.h"
+#include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsproxy.h"
 
 namespace cobalt {
 namespace script {
@@ -35,7 +37,8 @@ namespace mozjs {
 
 // Manages a handle to a JavaScript engine's global object. The lifetime of
 // the global object is not necessarily tied to the lifetime of the proxy.
-class MozjsGlobalObjectProxy : public GlobalObjectProxy {
+class MozjsGlobalObjectProxy : public GlobalObjectProxy,
+                               public Wrappable::CachedWrapperAccessor {
  public:
   explicit MozjsGlobalObjectProxy(JSRuntime* runtime);
   ~MozjsGlobalObjectProxy() OVERRIDE;
@@ -53,10 +56,7 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy {
     return false;
   }
 
-  std::vector<StackFrame> GetStackTrace(int max_frames) OVERRIDE {
-    NOTIMPLEMENTED();
-    return std::vector<StackFrame>();
-  }
+  std::vector<StackFrame> GetStackTrace(int max_frames = 0) OVERRIDE;
 
   void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) OVERRIDE {
@@ -79,7 +79,10 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy {
 
   JSContext* context() const { return context_; }
 
-  JSObject* global_object() const { return global_object_; }
+  JSObject* global_object_proxy() const { return global_object_proxy_; }
+  JSObject* global_object() const {
+    return js::GetProxyTargetObject(global_object_proxy_);
+  }
 
   WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
@@ -94,11 +97,9 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy {
     return environment_settings_;
   }
 
-  void SetGlobalObject(JS::HandleObject global_object) {
-    DCHECK(!global_object_);
-    DCHECK(global_object);
-    global_object_ = global_object;
-  }
+  void SetGlobalObjectProxyAndWrapper(
+      JS::HandleObject global_object_proxy,
+      const scoped_refptr<Wrappable>& wrappable);
 
   // Any tracked InterfaceData will have it's GC handles visited and marked as
   // roots. The MozjsGlobalObjectProxy takes ownership of the InterfaceData
@@ -135,7 +136,7 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy {
   STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;
   ContextDestructor context_destructor_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
-  JS::Heap<JSObject*> global_object_;
+  JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;
 
   // If non-NULL, the error message from the ReportErrorHandler will get

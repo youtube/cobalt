@@ -2328,7 +2328,9 @@ Proxy::getOwnPropertyDescriptor(JSContext *cx, HandleObject proxy, HandleId id,
     AutoEnterPolicy policy(cx, handler, proxy, id, BaseProxyHandler::GET, true);
     if (!policy.allowed())
         return policy.returnValue();
-    return handler->getOwnPropertyDescriptor(cx, proxy, id, desc, flags);
+    bool ok = handler->getOwnPropertyDescriptor(cx, proxy, id, desc, flags);
+    MOZ_ASSERT_IF(ok && desc.isShared(), desc.hasGetterOrSetterObject());
+    return ok;
 }
 
 bool

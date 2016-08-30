@@ -21,4 +21,7 @@ interface HTMLVideoElement : HTMLMediaElement {
   attribute unsigned long height;
   readonly attribute unsigned long videoWidth;
   readonly attribute unsigned long videoHeight;
+
+  // https://www.w3.org/TR/media-source/#widl-HTMLVideoElement-getVideoPlaybackQuality-VideoPlaybackQuality
+  VideoPlaybackQuality getVideoPlaybackQuality();
 };

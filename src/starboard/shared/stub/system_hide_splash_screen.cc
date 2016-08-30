@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/user.h"
+#include "starboard/system.h"
 
-bool SbUserIsAgeRestricted(SbUser /*user*/) {
-  return false;
-}
+void SbSystemHideSplashScreen() {}
