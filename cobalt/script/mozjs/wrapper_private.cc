@@ -101,12 +101,24 @@ void WrapperPrivate::Finalizer(JSFreeOp* /* free_op */, JSObject* object) {
 void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
   WrapperPrivate* wrapper_private =
       reinterpret_cast<WrapperPrivate*>(JS_GetPrivate(object));
-  DCHECK(wrapper_private);
-  for (ReferencedObjectVector::iterator it =
-           wrapper_private->referenced_objects_.begin();
-       it != wrapper_private->referenced_objects_.end(); ++it) {
-    JS::Heap<JSObject*>* referenced_object = *it;
-    JS_CallHeapObjectTracer(trace, referenced_object, "WrapperPrivate::Trace");
+  // Verify that this trace function is called for the object (rather than the
+  // proxy object).
+  DCHECK(!js::IsProxy(object));
+
+  // The GC could run on this object before we've had a chance to set its
+  // private data, so we must handle the case where JS_GetPrivate returns NULL.
+  if (wrapper_private) {
+    // Verify that WrapperPrivate::wrapper_proxy_'s target object is this
+    // object.
+    DCHECK_EQ(object,
+              js::GetProxyTargetObject(wrapper_private->wrapper_proxy_));
+    for (ReferencedObjectVector::iterator it =
+             wrapper_private->referenced_objects_.begin();
+         it != wrapper_private->referenced_objects_.end(); ++it) {
+      JS::Heap<JSObject*>* referenced_object = *it;
+      JS_CallHeapObjectTracer(trace, referenced_object,
+                              "WrapperPrivate::Trace");
+    }
   }
 }
 
