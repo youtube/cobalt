@@ -204,6 +204,8 @@ const char kYouTubeTvLocationPolicy[] =
     "h5vcc-location-src "
     "https://www.youtube.com/tv "
     "https://web-release-qa.youtube.com/tv "
+    "https://www.youtube.com/tv_kids "
+    "https://web-release-qa.youtube.com/tv_kids "
 #if defined(ENABLE_ABOUT_SCHEME)
     "about: "
 #endif
