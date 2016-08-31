@@ -707,6 +707,7 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
 HTMLElement::~HTMLElement() {
   --(non_trivial_static_fields.Get().html_element_count_log.count);
   dom_stat_tracker_->OnHtmlElementDestroyed();
+  style_->set_mutation_observer(NULL);
 }
 
 void HTMLElement::CopyDirectionality(const HTMLElement& other) {
