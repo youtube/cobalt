@@ -49,7 +49,11 @@ class MozjsUserObjectHolder
         wrapper_factory_(wrapper_factory) {}
 
   void RegisterOwner(Wrappable* owner) OVERRIDE {
+    JSAutoRequest auto_request(context_);
+    JSAutoCompartment compartment(context_, js_object());
+
     JS::RootedObject owned_object(context_, js_object());
+    // GetFromWrappable could create a new JSObject.
     WrapperPrivate* wrapper_private =
         WrapperPrivate::GetFromWrappable(owner, context_, wrapper_factory_);
     wrappable_and_private_hash_map_.insert(
@@ -58,6 +62,10 @@ class MozjsUserObjectHolder
   }
 
   void DeregisterOwner(Wrappable* owner) OVERRIDE {
+    // Don't use JSAutoRequest or JSAutoCompartment here because this could be
+    // called while the GC is running.
+    // The functions below should not make any API calls.
+
     JS::RootedObject owned_object(context_, js_object());
     WrappableAndPrivateHashMap::iterator it =
         wrappable_and_private_hash_map_.find(owner);
