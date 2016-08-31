@@ -390,7 +390,6 @@ void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
 void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::SwapBuffers()");
 
-  GL_CALL(glFlush());
   EGL_CALL(eglSwapBuffers(display_, surface->GetSurface()));
 
   surface->increment_swap_count();
