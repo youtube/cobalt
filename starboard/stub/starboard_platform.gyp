@@ -164,6 +164,7 @@
         '<(DEPTH)/starboard/shared/stub/string_format_wide.cc',
         '<(DEPTH)/starboard/shared/stub/string_get_length.cc',
         '<(DEPTH)/starboard/shared/stub/string_get_length_wide.cc',
+        '<(DEPTH)/starboard/shared/stub/string_parse_double.cc',
         '<(DEPTH)/starboard/shared/stub/string_parse_signed_integer.cc',
         '<(DEPTH)/starboard/shared/stub/string_parse_uint64.cc',
         '<(DEPTH)/starboard/shared/stub/string_parse_unsigned_integer.cc',

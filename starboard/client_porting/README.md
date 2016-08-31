@@ -22,6 +22,13 @@ The rule we use is that these headers must ONLY be included in implementation
 files, not headers, so that the preprocessor replacements don't spread
 uncontrollably.
 
+For each `poem`, we try to name files in a consistent, formulaic manner.  With
+this scheme, we can easily determine the correct poem header while porting.
+This can also come handy if one were to write a script to assist in porting
+third party libraries.  In theory, the script would just look for includes
+in .cc files, where we have available poems and then wrap unprotected includes
+in #if !defined(STARBOARD), and include the poems if STARBOARD is defined.
+
 
 # "eztime" - Easy Time Functions
 
@@ -35,3 +42,4 @@ EzTime can be used directly by including
 `starboard/client_porting/eztime/eztime.h`, or you can include
 `starboard/client_porting/poem/eztime_poem.h` in your implementation file to
 automatically simulate POSIXy time functions.
+
