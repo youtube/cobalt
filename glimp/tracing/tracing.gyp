@@ -13,7 +13,7 @@
 # limitations under the License.
 
 {
-  # When GLIMP_TRACING_ENABLED is defined to 1 in tracing.h, the many
+  # When ENABLE_GLIMP_TRACING is defined in glimp_settings.gypi, the many
   # implementation functions that are annotated with GLIMP_TRACE_EVENT0 calls
   # will activate and allow profiling and flow visualization within glimp.
   #
@@ -33,6 +33,9 @@
       'sources': [
         'tracing.h',
         'tracing.cc',
+      ],
+      'includes': [
+        '../glimp_settings.gypi',
       ],
     },
   ],

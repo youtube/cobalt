@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+#include <cstddef>
+
 #include "glimp/tracing/tracing.h"
 
-#if GLIMP_TRACING_ENABLED
+#if defined(ENABLE_GLIMP_TRACING)
 
 namespace glimp {
 
@@ -42,4 +44,4 @@ void SetTraceEventImplementation(TraceEventImpl* impl) {
 
 }  // namespace glimp
 
-#endif  // #if GLIMP_TRACING_ENABLED
+#endif  // #if defined(ENABLE_GLIMP_TRACING)

@@ -26,5 +26,7 @@
     # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
     'GLIMP_EGLPLATFORM_INCLUDE="../../<(target_arch)/eglplatform_public.h"',
     'GLIMP_KHRPLATFORM_INCLUDE="../../<(target_arch)/khrplatform_public.h"',
+    # Uncomment the define below to enable and use tracing inside glimp.
+    # 'ENABLE_GLIMP_TRACING',
 ],
 }
