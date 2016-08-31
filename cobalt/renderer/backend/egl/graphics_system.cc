@@ -16,6 +16,9 @@
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 
+#if defined(ENABLE_GLIMP_TRACING)
+#include "base/debug/trace_event.h"
+#endif
 #if defined(GLES3_SUPPORTED)
 #include "cobalt/renderer/backend/egl/texture_data_pbo.h"
 #else
@@ -26,12 +29,34 @@
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#if defined(ENABLE_GLIMP_TRACING)
+#include "glimp/tracing/tracing.h"
+#endif
 
 namespace cobalt {
 namespace renderer {
 namespace backend {
 
+#if defined(ENABLE_GLIMP_TRACING)
+// Hookup glimp tracing to Chromium's base trace_event tracing.
+class GlimpToBaseTraceEventBridge : public glimp::TraceEventImpl {
+ public:
+  void BeginTrace(const char* name) OVERRIDE {
+    TRACE_EVENT_BEGIN0("glimp", name);
+  }
+  void EndTrace(const char* name) OVERRIDE { TRACE_EVENT_END0("glimp", name); }
+};
+
+GlimpToBaseTraceEventBridge s_glimp_to_base_trace_event_bridge;
+#endif  // #if defined(ENABLE_GLIMP_TRACING)
+
 GraphicsSystemEGL::GraphicsSystemEGL() {
+#if defined(ENABLE_GLIMP_TRACING)
+  // If glimp tracing is enabled, hook up glimp trace calls to Chromium's
+  // base trace_event calls.
+  glimp::SetTraceEventImplementation(&s_glimp_to_base_trace_event_bridge);
+#endif  // #if defined(ENABLE_GLIMP_TRACING)
+
   display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   CHECK_NE(EGL_NO_DISPLAY, display_);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
