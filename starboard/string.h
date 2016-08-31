@@ -36,16 +36,18 @@ SB_EXPORT size_t SbStringGetLengthWide(const wchar_t* str);
 
 // Copies as much |source| as possible into |out_destination| and
 // null-terminates it, given that it has |destination_size| characters of
-// storage available. Returns the length of |source|.
+// storage available.  Returns the length of |source|.  Meant to be a drop-in
+// replacement for strlcpy
 SB_EXPORT int SbStringCopy(char* out_destination,
                            const char* source,
                            int destination_size);
 
 // Inline wrapper for an unsafe SbStringCopy that assumes |out_destination| is
 // big enough. Meant to be a drop-in replacement for strcpy.
-static SB_C_INLINE int SbStringCopyUnsafe(char* out_destination,
-                                          const char* source) {
-  return SbStringCopy(out_destination, source, INT_MAX);
+static SB_C_INLINE char* SbStringCopyUnsafe(char* out_destination,
+                                            const char* source) {
+  SbStringCopy(out_destination, source, INT_MAX);
+  return out_destination;
 }
 
 // Same as SbStringCopy but for wide characters.
@@ -54,14 +56,16 @@ SB_EXPORT int SbStringCopyWide(wchar_t* out_destination,
                                int destination_size);
 
 // Concatenates |source| onto the end of |out_destination|, presuming it has
-// |destination_size| total characters of storage available. Returns the length
-// of |source|.
+// |destination_size| total characters of storage available. Returns
+// length of |source|. Meant to be a drop-in replacement for strlcpy
+// Note: This function's signature is NOT compatible with strncat
 SB_EXPORT int SbStringConcat(char* out_destination,
                              const char* source,
                              int destination_size);
 
 // Inline wrapper for an unsafe SbStringConcat that assumes |out_destination| is
-// big enough. Meant to be a drop-in replacement for strcat.
+// big enough.
+// Note: This function's signature is NOT compatible with strcat.
 static SB_C_INLINE int SbStringConcatUnsafe(char* out_destination,
                                             const char* source) {
   return SbStringConcat(out_destination, source, INT_MAX);
@@ -77,13 +81,15 @@ SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
 SB_EXPORT char* SbStringDuplicate(const char* source);
 
 // Finds the first occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found. Meant to be a
-// drop-in replacement for strchr.
+// the found character in the given string, or NULL if not found.
+// NOTE: The function signature of this function does NOT match the function
+// strchr.
 SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
 
 // Finds the last occurrence of |character| in |str|, returning a pointer to the
-// found character in the given string, or NULL if not found. Meant to be a
-// drop-in replacement for strrchr.
+// found character in the given string, or NULL if not found.
+// NOTE: The function signature of this function does NOT match the function
+// strrchr.
 SB_EXPORT const char* SbStringFindLastCharacter(const char* str,
                                                 char character);
 
@@ -233,7 +239,7 @@ static SB_C_INLINE long SbStringAToL(const char* value) {
 // Parses a string at the beginning of |start| into a unsigned integer in the
 // given |base|.  It will place the pointer to the end of the consumed portion
 // of the string in |out_end|, if it is provided. Meant to be a drop-in
-// replacement for strtol.
+// replacement for strtoul.
 // NOLINTNEXTLINE(runtime/int)
 SB_EXPORT unsigned long SbStringParseUnsignedInteger(const char* start,
                                                      char** out_end,
@@ -246,6 +252,12 @@ SB_EXPORT unsigned long SbStringParseUnsignedInteger(const char* start,
 SB_EXPORT uint64_t SbStringParseUInt64(const char* start,
                                        char** out_end,
                                        int base);
+
+// Parses a string at the beginning of |start| into a double.
+// It will place the pointer to the end of the consumed
+// portion of the string in |out_end|, if it is provided. Meant to be a drop-in
+// replacement for strtod, but explicity declared to return double.
+SB_EXPORT double SbStringParseDouble(const char* start, char** out_end);
 
 #ifdef __cplusplus
 }  // extern "C"
