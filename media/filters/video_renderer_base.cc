@@ -329,9 +329,11 @@ void VideoRendererBase::ThreadMain() {
     }
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
     if (frames_dropped > 0) {
-      PipelineStatistics statistics;
-      statistics.video_frames_dropped = frames_dropped;
-      statistics_cb_.Run(statistics);
+      if (!statistics_cb_.is_null()) {
+        PipelineStatistics statistics;
+        statistics.video_frames_dropped = frames_dropped;
+        statistics_cb_.Run(statistics);
+      }
       frames_dropped = 0;
     }
 
