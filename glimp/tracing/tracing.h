@@ -17,15 +17,11 @@
 #ifndef GLIMP_TRACING_TRACING_H_
 #define GLIMP_TRACING_TRACING_H_
 
-#if !defined(GLIMP_TRACING_ENABLED)
-#define GLIMP_TRACING_ENABLED 0
-#endif
-
-#if !GLIMP_TRACING_ENABLED
+#if !defined(ENABLE_GLIMP_TRACING)
 
 #define GLIMP_TRACE_EVENT0(event)
 
-#else  // #if GLIMP_TRACING_ENABLED
+#else  // !defined(ENABLE_GLIMP_TRACING)
 
 #define GLIMP_TRACE_EVENT0(event) \
   glimp::ScopedTraceEvent profileScope##__LINE__(event)
@@ -56,6 +52,6 @@ void SetTraceEventImplementation(TraceEventImpl* impl);
 
 }  // namespace glimp
 
-#endif  // #if GLIMP_TRACING_ENABLED
+#endif  // !defined(ENABLE_GLIMP_TRACING)
 
 #endif  // GLIMP_TRACING_TRACING_H_
