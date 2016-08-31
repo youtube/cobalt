@@ -119,6 +119,7 @@
         '<(DEPTH)/starboard/shared/iso/string_find_string.cc',
         '<(DEPTH)/starboard/shared/iso/string_get_length.cc',
         '<(DEPTH)/starboard/shared/iso/string_get_length_wide.cc',
+        '<(DEPTH)/starboard/shared/iso/string_parse_double.cc',
         '<(DEPTH)/starboard/shared/iso/string_parse_signed_integer.cc',
         '<(DEPTH)/starboard/shared/iso/string_parse_uint64.cc',
         '<(DEPTH)/starboard/shared/iso/string_parse_unsigned_integer.cc',
