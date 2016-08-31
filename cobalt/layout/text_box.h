@@ -40,7 +40,7 @@ class TextBox : public Box {
               css_computed_style_declaration,
           const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
           int32 text_end_position, bool triggers_line_break,
-          UsedStyleProvider* used_style_provider,
+          bool is_created_from_split, UsedStyleProvider* used_style_provider,
           LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
@@ -179,6 +179,10 @@ class TextBox : public Box {
 
   // A vertical offset of the baseline relatively to the origin of the text box.
   base::optional<LayoutUnit> baseline_offset_from_top_;
+
+  // Specifies whether or not this text box was created as a result of the split
+  // of a text box.
+  const bool is_product_of_split_;
 
   // A reference to the next text box in a linked list of text boxes produced
   // from splits of the initial text box. This enables HTMLElement to retain
