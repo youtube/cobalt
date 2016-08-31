@@ -232,7 +232,7 @@
         '<(DEPTH)/starboard/shared/pthread/thread_join.cc',
         '<(DEPTH)/starboard/shared/pthread/thread_set_local_value.cc',
         '<(DEPTH)/starboard/shared/pthread/thread_yield.cc',
-        '<(DEPTH)/starboard/shared/signal/crash_signals.cc',
+        '<(DEPTH)/starboard/shared/signal/crash_signals_sigaction.cc',
         '<(DEPTH)/starboard/shared/signal/crash_signals.h',
         '<(DEPTH)/starboard/shared/starboard/application.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_create.cc',
