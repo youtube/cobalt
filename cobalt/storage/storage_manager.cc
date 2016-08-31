@@ -108,6 +108,30 @@ void SqlUpdateDatabaseUserVersion(sql::Connection* connection) {
   DCHECK(ok);
 }
 
+const std::string& GetFirstValidDatabaseFile(
+    const std::vector<std::string>& filenames) {
+  // Caller must ensure at least one file exists.
+  DCHECK_GT(filenames.size(), size_t(0));
+
+  for (size_t i = 0; i < filenames.size(); ++i) {
+    sql::Connection connection;
+    bool is_opened = connection.Open(FilePath(filenames[i]));
+    if (!is_opened) {
+      continue;
+    }
+    int err = connection.ExecuteAndReturnErrorCode("pragma schema_version;");
+    if (err != SQLITE_OK) {
+      continue;
+    }
+    // File can be opened as a database.
+    return filenames[i];
+  }
+
+  // Caller must handle case where a valid database file cannot be found.
+  DLOG(WARNING) << "Cannot find valid database file in save data";
+  return filenames[0];
+}
+
 }  // namespace
 
 StorageManager::StorageManager(const Options& options)
@@ -253,11 +277,9 @@ void StorageManager::FinishInit() {
     filenames.push_back(kDefaultSaveFile);
   }
 
-  // Not a limitation of the VFS- we just need to figure out how to handle
-  // the case where there are multiple files in here.
-  DCHECK_EQ(1, filenames.size());
-
-  const std::string& save_name = filenames[0];
+  // Legacy Steel save data may contain multiple files (e.g. db-journal as well
+  // as db), so use the first one that looks like a valid database file.
+  const std::string& save_name = GetFirstValidDatabaseFile(filenames);
   bool ok = connection_->Open(FilePath(save_name));
   DCHECK(ok);
 
