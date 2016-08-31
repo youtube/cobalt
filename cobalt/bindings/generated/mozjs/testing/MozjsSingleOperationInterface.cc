@@ -79,7 +79,8 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
 
     // Call the function.
     JS::RootedValue return_value(context_);
-    JSFunction* function = JS_ValueToFunction(context_, callable);
+    JS::RootedFunction function(
+        context_, JS_ValueToFunction(context_, callable));
     DCHECK(function);
     success = JS::Call(context_, this_value, function, kNumArguments, args,
                        return_value.address());
