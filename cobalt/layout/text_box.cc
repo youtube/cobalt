@@ -37,7 +37,7 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                      css_computed_style_declaration,
                  const scoped_refptr<Paragraph>& paragraph,
                  int32 text_start_position, int32 text_end_position,
-                 bool has_trailing_line_break,
+                 bool has_trailing_line_break, bool is_product_of_split,
                  UsedStyleProvider* used_style_provider,
                  LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
@@ -58,6 +58,7 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
       has_trailing_line_break_(has_trailing_line_break),
+      is_product_of_split_(is_product_of_split),
       update_size_results_valid_(false),
       ascent_(0) {
   DCHECK(text_start_position_ <= text_end_position_);
@@ -177,10 +178,19 @@ WrapResult TextBox::TryWrapAt(WrapAtPolicy wrap_at_policy,
   }
 
   // Even when the text box's style prevents wrapping, wrapping can still occur
-  // before the box if the line's existence has already been justified and
-  // whitespace precedes the box.
+  // before the box if the following requirements are met:
+  // - The text box is not the product of a split. If it is, and this box's
+  //   style prevents text wrapping, then the previous box also prevents text
+  //   wrapping, and no wrap should occur between them.
+  // - The line's existence has already been justified. Wrapping cannot occur
+  //   prior to that.
+  // - Whitespace precedes the text box. This can only occur in the case where
+  //   the preceding box allows wrapping, otherwise a no-breaking space will
+  //   have been appended (the one exception to this is when this box was the
+  //   product of a split, but that case is already handled above).
   if (!DoesAllowTextWrapping(computed_style()->white_space())) {
-    if (is_line_existence_justified && text_start_position_ > 0 &&
+    if (!is_product_of_split_ && is_line_existence_justified &&
+        text_start_position_ > 0 &&
         paragraph_->IsCollapsibleWhiteSpace(text_start_position_ - 1)) {
       return kWrapResultWrapBefore;
     } else {
@@ -640,10 +650,12 @@ void TextBox::SplitAtPosition(int32 split_start_position) {
   update_size_results_valid_ = false;
   non_collapsible_text_width_ = base::nullopt;
 
+  const bool kIsProductOfSplitTrue = true;
+
   scoped_refptr<TextBox> box_after_split(new TextBox(
       css_computed_style_declaration(), paragraph_, split_start_position,
-      split_end_position, has_trailing_line_break_, used_style_provider(),
-      layout_stat_tracker()));
+      split_end_position, has_trailing_line_break_, kIsProductOfSplitTrue,
+      used_style_provider(), layout_stat_tracker()));
 
   // Update the split sibling links.
   box_after_split->split_sibling_ = split_sibling_;

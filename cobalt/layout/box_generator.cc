@@ -325,9 +325,13 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
   DCHECK(*paragraph_);
   int32 text_position = (*paragraph_)->GetTextEndPosition();
 
-  scoped_refptr<TextBox> br_text_box = new TextBox(
-      css_computed_style_declaration, *paragraph_, text_position, text_position,
-      true, context_->used_style_provider, context_->layout_stat_tracker);
+  const bool kTriggersLineBreakTrue = true;
+  const bool kIsProductOfSplitFalse = false;
+
+  scoped_refptr<TextBox> br_text_box =
+      new TextBox(css_computed_style_declaration, *paragraph_, text_position,
+                  text_position, kTriggersLineBreakTrue, kIsProductOfSplitFalse,
+                  context_->used_style_provider, context_->layout_stat_tracker);
 
   // Add a line feed code point to the paragraph to signify the new line for
   // the line breaking and bidirectional algorithms.
@@ -953,10 +957,12 @@ void BoxGenerator::Visit(dom::Text* text) {
         (*paragraph_)->AppendUtf8String(modifiable_text, transform);
     int32 text_end_position = (*paragraph_)->GetTextEndPosition();
 
+    const bool kIsProductOfSplitFalse = false;
+
     boxes_.push_back(new TextBox(
         css_computed_style_declaration, *paragraph_, text_start_position,
-        text_end_position, generates_newline, context_->used_style_provider,
-        context_->layout_stat_tracker));
+        text_end_position, generates_newline, kIsProductOfSplitFalse,
+        context_->used_style_provider, context_->layout_stat_tracker));
 
     // Newline sequences should be transformed into a preserved line feed.
     //   https://www.w3.org/TR/css3-text/#line-break-transform
