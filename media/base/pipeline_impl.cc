@@ -407,7 +407,6 @@ void PipelineImpl::OnVideoTimeUpdate(TimeDelta max_time) {
 }
 
 void PipelineImpl::SetDuration(TimeDelta duration) {
-  DCHECK(IsRunning());
   media_log_->AddEvent(
       media_log_->CreateTimeEvent(
           MediaLogEvent::DURATION_SET, "duration", duration));
