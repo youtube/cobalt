@@ -76,6 +76,18 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
   return this;
 }
 
+scoped_refptr<Node> HTMLScriptElement::Duplicate() const {
+  // The cloning steps for script elements must set the "already started" flag
+  // on the copy if it is set on the element being cloned.
+  //   https://www.w3.org/TR/html5/scripting-1.html#already-started
+  scoped_refptr<HTMLScriptElement> new_script = HTMLElement::Duplicate()
+                                                    ->AsElement()
+                                                    ->AsHTMLElement()
+                                                    ->AsHTMLScriptElement();
+  new_script->is_already_started_ = is_already_started_;
+  return new_script;
+}
+
 HTMLScriptElement::~HTMLScriptElement() {
   // Remove the script from the list of scripts that will execute in order as
   // soon as possible associated with the Document, only if the document still
