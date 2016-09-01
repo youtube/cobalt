@@ -25,6 +25,7 @@
       'target_name': 'render_tree',
       'type': 'static_library',
       'sources': [
+        'blur_filter.h',
         'border.cc',
         'border.h',
         'brush.cc',
@@ -43,6 +44,7 @@
         'glyph_buffer.h',
         'image_node.cc',
         'image_node.h',
+        'map_to_mesh_filter.h',
         'matrix_transform_node.cc',
         'matrix_transform_node.h',
         'node.h',

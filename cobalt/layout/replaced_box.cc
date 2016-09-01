@@ -29,7 +29,9 @@
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/map_to_mesh_filter.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
@@ -48,10 +50,12 @@ namespace layout {
 
 using render_tree::animations::AnimateNode;
 using render_tree::CompositionNode;
+using render_tree::FilterNode;
 using render_tree::ImageNode;
 using render_tree::PunchThroughVideoNode;
 using render_tree::RectNode;
 using render_tree::SolidColorBrush;
+using render_tree::MapToMeshFilter;
 
 namespace {
 
@@ -261,6 +265,7 @@ void ReplacedBox::RenderAndAnimateContent(
       composition_node,
       base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
 
+  // TODO: Apply map to mesh filter if present.
   border_node_builder->AddChild(
       new AnimateNode(animate_node_builder, composition_node));
 }

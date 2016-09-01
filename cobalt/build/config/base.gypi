@@ -50,12 +50,16 @@
     # force a stub graphics implementation or software graphics implementation.
     # It can be one of the following options:
     #   'hardware' -- As much hardware acceleration of graphics commands as
-    #                 possible.
+    #                 possible. Required for 360 rendering.
     #   'software' -- Perform most rasterization using the CPU and only interact
     #                 with the GPU to send the final image to the output window.
     #   'stub'     -- Stub graphics rasterization.  A rasterizer object will
     #                 still be available and valid, but it will do nothing.
     'rasterizer_type%': 'hardware',
+
+    # Modify this value to adjust the default rasterizer setting for your
+    # platform.
+    'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
 
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
