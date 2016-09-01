@@ -113,7 +113,6 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
-  DCHECK_EQ(fetcher_.get(), source);
   if (fetcher_.get() != source) {
     return;
   }
