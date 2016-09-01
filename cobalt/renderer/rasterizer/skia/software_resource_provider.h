@@ -21,6 +21,7 @@
 
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/text_shaper.h"
+#include "third_party/skia/include/ports/SkFontMgr.h"
 
 namespace cobalt {
 namespace renderer {
@@ -31,6 +32,8 @@ namespace skia {
 // are to be consumed by this skia software rasterizer.
 class SoftwareResourceProvider : public render_tree::ResourceProvider {
  public:
+  SoftwareResourceProvider();
+
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
 
@@ -79,6 +82,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
                      render_tree::FontVector* maybe_used_fonts) OVERRIDE;
 
  private:
+  SkAutoTUnref<SkFontMgr> font_manager_;
   TextShaper text_shaper_;
 };
 
