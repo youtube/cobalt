@@ -75,14 +75,13 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   static void Trace(JSTracer* trace, JSObject* object);
 
  private:
-  typedef ScopedVector<JS::Heap<JSObject*> > ReferencedObjectVector;
-  WrapperPrivate(const scoped_refptr<Wrappable>& wrappable,
+  WrapperPrivate(JSContext* context, const scoped_refptr<Wrappable>& wrappable,
                  JS::HandleObject wrapper_proxy);
   ~WrapperPrivate();
 
+  JSContext* context_;
   scoped_refptr<Wrappable> wrappable_;
   JS::Heap<JSObject*> wrapper_proxy_;
-  ReferencedObjectVector referenced_objects_;
 };
 
 }  // namespace mozjs
