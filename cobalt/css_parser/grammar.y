@@ -2381,8 +2381,7 @@ color:
         break;
       }
       default:
-        parser_impl->LogWarning(@1, "invalid color value");
-        $$ = NULL;
+        YYERROR;
         break;
     }
   }
