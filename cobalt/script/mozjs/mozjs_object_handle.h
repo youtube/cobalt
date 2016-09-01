@@ -19,6 +19,7 @@
 #include "base/optional.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/type_traits.h"
+#include "cobalt/script/mozjs/weak_heap_object.h"
 #include "cobalt/script/opaque_handle.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
@@ -33,17 +34,14 @@ namespace mozjs {
 class MozjsObjectHandle : public OpaqueHandle {
  public:
   typedef OpaqueHandle BaseType;
-  JSObject* handle() const { return handle_; }
+  JSObject* handle() const { return handle_.Get(); }
 
  private:
-  MozjsObjectHandle(JSContext*, JS::HandleObject object)
-      : handle_(object) {}
+  MozjsObjectHandle(JSContext* context, JS::HandleObject object)
+      : handle_(context, object) {}
   ~MozjsObjectHandle() {}
 
-  // Note that this class does not root this JS::Heap<> object. Rooting of this
-  // object is done in MozjsUserObjectHolder when ownership of a reference to
-  // this is registered.
-  JS::Heap<JSObject*> handle_;
+  WeakHeapObject handle_;
 
   friend class MozjsUserObjectHolder<MozjsObjectHandle>;
   friend class base::optional<MozjsObjectHandle>;

@@ -16,6 +16,8 @@
 
 #include "cobalt/script/mozjs/wrapper_private.h"
 
+#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/referenced_object_map.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
 
@@ -23,27 +25,13 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
-void WrapperPrivate::AddReferencedObject(JS::HandleObject referee) {
-  referenced_objects_.push_back(new JS::Heap<JSObject*>(referee));
-}
-
-void WrapperPrivate::RemoveReferencedObject(JS::HandleObject referee) {
-  for (ReferencedObjectVector::iterator it = referenced_objects_.begin();
-       it != referenced_objects_.end(); ++it) {
-    if ((**it) == referee) {
-      referenced_objects_.erase(it);
-      return;
-    }
-  }
-  NOTREACHED();
-}
-
 // static
 void WrapperPrivate::AddPrivateData(JSContext* context,
                                     JS::HandleObject wrapper_proxy,
                                     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(js::IsProxy(wrapper_proxy));
-  WrapperPrivate* private_data = new WrapperPrivate(wrappable, wrapper_proxy);
+  WrapperPrivate* private_data =
+      new WrapperPrivate(context, wrappable, wrapper_proxy);
   JS::RootedObject target_object(context,
                                  js::GetProxyTargetObject(wrapper_proxy));
   JS_SetPrivate(target_object, private_data);
@@ -112,19 +100,25 @@ void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
     // object.
     DCHECK_EQ(object,
               js::GetProxyTargetObject(wrapper_private->wrapper_proxy_));
-    for (ReferencedObjectVector::iterator it =
-             wrapper_private->referenced_objects_.begin();
-         it != wrapper_private->referenced_objects_.end(); ++it) {
-      JS::Heap<JSObject*>* referenced_object = *it;
-      JS_CallHeapObjectTracer(trace, referenced_object,
-                              "WrapperPrivate::Trace");
-    }
+
+    // The wrapper's proxy object will keep the wrapper object alive, but the
+    // reverse is not true, so we must trace it explicitly.
+    JS_CallHeapObjectTracer(trace, &wrapper_private->wrapper_proxy_,
+                            "WrapperPrivate::Trace");
+
+    MozjsGlobalObjectProxy* global_environment =
+        MozjsGlobalObjectProxy::GetFromContext(wrapper_private->context_);
+    intptr_t key = ReferencedObjectMap::GetKeyForWrappable(
+        wrapper_private->wrappable_.get());
+    global_environment->referenced_objects()->TraceReferencedObjects(trace,
+                                                                     key);
   }
 }
 
-WrapperPrivate::WrapperPrivate(const scoped_refptr<Wrappable>& wrappable,
+WrapperPrivate::WrapperPrivate(JSContext* context,
+                               const scoped_refptr<Wrappable>& wrappable,
                                JS::HandleObject wrapper_proxy)
-    : wrappable_(wrappable), wrapper_proxy_(wrapper_proxy) {
+    : context_(context), wrappable_(wrappable), wrapper_proxy_(wrapper_proxy) {
   DCHECK(js::IsProxy(wrapper_proxy));
 }
 
