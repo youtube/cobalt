@@ -73,6 +73,10 @@ void ScratchSurfaceCache::Delegate::PrepareForUse(
   // state when re-using the sk_surface.
   canvas->save();
 
+  // Indicate that we do not care about the existing state of the canvas, which
+  // can allow for optimization on tile-based renderers.
+  canvas->discard();
+
   // Setup a clip rect on the sk_surface to the requested area.  This can save
   // us from drawing to pixels outside of the requested area, since the actual
   // sk_surface returned may be larger than the requested area.
