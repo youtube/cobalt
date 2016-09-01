@@ -402,6 +402,7 @@ Node::Node(Document* document)
 Node::~Node() {
   Node* node = last_child_;
   while (node) {
+    node->parent_ = NULL;
     node->next_sibling_ = NULL;
     node = node->previous_sibling_;
   }
