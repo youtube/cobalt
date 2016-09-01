@@ -21,6 +21,7 @@
     'in_app_dial%': 0,
     'sysroot%': '/',
     'gl_type': 'system_gles2',
+    'image_cache_size_in_bytes': 32 * 1024 * 1024,
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
