@@ -32,6 +32,7 @@ $var MAX_ARITY = 7
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/convert_callback_return_value.h"
+#include "cobalt/script/mozjs/weak_heap_object.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jscntxt.h"
 
@@ -66,55 +67,60 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
   typedef CallbackFunction<R($for ARG , [[A$(ARG)]])> BaseType;
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), function_(function) {
+      : context_(context), weak_function_(context, function) {
     DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function_));
+    DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
   CallbackResult<R> Run($for ARG , [[
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
-    JSAutoRequest auto_request(context_);
-    JSAutoCompartment auto_compartment(context_, function_);
+    CallbackResult<R> callback_result;
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
+      JSAutoRequest auto_request(context_);
+      JSAutoCompartment auto_compartment(context_, function);
 
-    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-    // Callback 'this' is set to null, unless overridden by other specifications
-    JS::Value this_value(JS::NullValue());
-    JS::RootedValue return_value(context_);
-    const int kNumArguments = $(ARITY);
+      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+      // Callback 'this' is set to null, unless overridden by other specifications
+      JS::Value this_value(JS::NullValue());
+      JS::RootedValue return_value(context_);
+      const int kNumArguments = $(ARITY);
 
 
 $if ARITY > 0 [[
-    JS::Value args[$(ARITY)];
-    js::SetValueRangeToNull(args, kNumArguments);
-    js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-    $for ARG [[ToJSValue(context_, a$(ARG), auto_array_rooter.handleAt($(ARG - 1)));
-    ]]
+      JS::Value args[$(ARITY)];
+      js::SetValueRangeToNull(args, kNumArguments);
+      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
+      $for ARG [[ToJSValue(context_, a$(ARG), auto_array_rooter.handleAt($(ARG - 1)));
+      ]]
 
-    JSBool call_result = JS::Call(context_, this_value, function_,
-        kNumArguments, args, return_value.address());
+      JSBool call_result = JS::Call(context_, this_value, function,
+          kNumArguments, args, return_value.address());
 ]] $else [[
-    JSBool call_result = JS::Call(context_, this_value, function_, 0, NULL,
-        return_value.address());
+      JSBool call_result = JS::Call(context_, this_value, function, 0, NULL,
+          return_value.address());
 ]]
 
-
-    CallbackResult<R> callback_result;
-    if (!call_result) {
-      DLOG(WARNING) << "Exception in callback.";
-      callback_result.exception = true;
-    } else {
-      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
+      if (!call_result) {
+        DLOG(WARNING) << "Exception in callback.";
+        callback_result.exception = true;
+      } else {
+        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
+      }
     }
     return callback_result;
   }
 
-  JSObject* handle() const { return function_; }
+  JSObject* handle() const { return weak_function_.Get(); }
 
  private:
   JSContext* context_;
-  mutable JS::Heap<JSObject*> function_;
+  WeakHeapObject weak_function_;
 };
 
 ]]
