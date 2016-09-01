@@ -77,6 +77,9 @@ class HTMLScriptElement : public HTMLElement {
 
   DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
 
+ protected:
+  scoped_refptr<Node> Duplicate() const OVERRIDE;
+
  private:
   ~HTMLScriptElement() OVERRIDE;
 
