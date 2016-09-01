@@ -24,6 +24,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/text_shaper.h"
 #include "third_party/skia/include/gpu/GrContext.h"
+#include "third_party/skia/include/ports/SkFontMgr.h"
 
 namespace cobalt {
 namespace renderer {
@@ -89,6 +90,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   backend::GraphicsContextEGL* cobalt_context_;
   GrContext* gr_context_;
 
+  SkAutoTUnref<SkFontMgr> font_manager_;
   TextShaper text_shaper_;
 
   // We keep a handle to the message loop that this resource provider was
