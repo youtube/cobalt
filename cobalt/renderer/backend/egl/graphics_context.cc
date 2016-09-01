@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-#include "cobalt/renderer/backend/egl/graphics_context.h"
-
 #include <GLES2/gl2.h>
-
 #include <algorithm>
+
+#include "cobalt/renderer/backend/egl/graphics_context.h"
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -155,16 +154,14 @@ void GraphicsContextEGL::SetupBlitObjects() {
   blit_program_ = glCreateProgram();
 
   blit_vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-  const char* blit_vertex_shader_source = "\
-      attribute vec2 a_position;\
-      attribute vec2 a_tex_coord;\
-      varying vec2 v_tex_coord;\
-      \
-      void main() {\
-        gl_Position = vec4(a_position.x, a_position.y, 0, 1);\
-        v_tex_coord = a_tex_coord;\
-      }\
-      ";
+  const char* blit_vertex_shader_source =
+      "attribute vec2 a_position;"
+      "attribute vec2 a_tex_coord;"
+      "varying vec2 v_tex_coord;"
+      "void main() {"
+      "  gl_Position = vec4(a_position.x, a_position.y, 0, 1);"
+      "  v_tex_coord = a_tex_coord;"
+      "}";
   int blit_vertex_shader_source_length = strlen(blit_vertex_shader_source);
   GL_CALL(glShaderSource(blit_vertex_shader_, 1, &blit_vertex_shader_source,
                          &blit_vertex_shader_source_length));
@@ -172,15 +169,13 @@ void GraphicsContextEGL::SetupBlitObjects() {
   GL_CALL(glAttachShader(blit_program_, blit_vertex_shader_));
 
   blit_fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-  const char* blit_fragment_shader_source = "\
-      precision mediump float;\
-      varying vec2 v_tex_coord;\
-      uniform sampler2D texture;\
-      \
-      void main() {\
-      gl_FragColor = texture2D(texture, v_tex_coord);\
-      }\
-      ";
+  const char* blit_fragment_shader_source =
+      "precision mediump float;"
+      "varying vec2 v_tex_coord;"
+      "uniform sampler2D texture;"
+      "void main() {"
+      "  gl_FragColor = texture2D(texture, v_tex_coord);"
+      "}";
   int blit_fragment_shader_source_length = strlen(blit_fragment_shader_source);
   GL_CALL(glShaderSource(blit_fragment_shader_, 1, &blit_fragment_shader_source,
                          &blit_fragment_shader_source_length));
@@ -202,7 +197,7 @@ void GraphicsContextEGL::SetupBlitObjects() {
     float tex_coord_u;
     float tex_coord_v;
   };
-  const QuadVertex kQuadVerts[4] = {
+  const QuadVertex kBlitQuadVerts[4] = {
       {-1.0f, -1.0f, 0.0f, 1.0f},
       {-1.0f, 1.0f, 0.0f, 0.0f},
       {1.0f, -1.0f, 1.0f, 1.0f},
@@ -210,13 +205,12 @@ void GraphicsContextEGL::SetupBlitObjects() {
   };
   GL_CALL(glGenBuffers(1, &blit_vertex_buffer_));
   GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, blit_vertex_buffer_));
-  GL_CALL(glBufferData(
-      GL_ARRAY_BUFFER, sizeof(kQuadVerts), kQuadVerts, GL_STATIC_DRAW));
+  GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(kBlitQuadVerts), kBlitQuadVerts,
+                       GL_STATIC_DRAW));
 }
 
 GraphicsContextEGL::~GraphicsContextEGL() {
   MakeCurrent();
-
   GL_CALL(glDeleteBuffers(1, &blit_vertex_buffer_));
   GL_CALL(glDeleteProgram(blit_program_));
   GL_CALL(glDeleteShader(blit_fragment_shader_));
@@ -399,8 +393,8 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
 }
 
 void GraphicsContextEGL::SecurityClear() {
-  // Clear the screen to a color that is bright and gross to exagerate that this
-  // is a problem if it is witnessed.
+  // Clear the screen to a color that is bright and gross to exaggerate that
+  // this is a problem if it is witnessed.
   GL_CALL(glClearColor(1.0f, 0.4f, 1.0f, 1.0f));
   GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
 }

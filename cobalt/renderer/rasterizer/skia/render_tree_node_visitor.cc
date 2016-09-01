@@ -363,6 +363,11 @@ bool SourceCanRenderWithOpacity(render_tree::Node* source) {
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+  if (filter_node->data().map_to_mesh_filter) {
+    // TODO: Implement support for MapToMeshFilter.
+    return;
+  }
+
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(FilterNode)");
 
