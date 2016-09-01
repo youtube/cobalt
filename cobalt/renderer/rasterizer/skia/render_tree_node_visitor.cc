@@ -685,6 +685,12 @@ void SkiaBrushVisitor::Visit(
     const cobalt::render_tree::SolidColorBrush* solid_color_brush) {
   const cobalt::render_tree::ColorRGBA& color = solid_color_brush->color();
 
+  if (color.a() == 1.0f) {
+    paint_->setXfermodeMode(SkXfermode::kSrc_Mode);
+  } else {
+    paint_->setXfermodeMode(SkXfermode::kSrcOver_Mode);
+  }
+
   paint_->setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
                   color.b() * 255);
 }
@@ -695,8 +701,14 @@ namespace {
 // methods will easily accept.
 struct SkiaColorStops {
   explicit SkiaColorStops(const render_tree::ColorStopList& color_stops)
-      : colors(color_stops.size()), positions(color_stops.size()) {
+      : colors(color_stops.size()),
+        positions(color_stops.size()),
+        has_alpha(false) {
     for (size_t i = 0; i < color_stops.size(); ++i) {
+      if (color_stops[i].color.a() < 1.0f) {
+        has_alpha = true;
+      }
+
       colors[i] = ToSkColor(color_stops[i].color);
       positions[i] = color_stops[i].position;
     }
@@ -704,6 +716,7 @@ struct SkiaColorStops {
 
   std::vector<SkColor> colors;
   std::vector<SkScalar> positions;
+  bool has_alpha;
 };
 
 }  // namespace
@@ -722,6 +735,12 @@ void SkiaBrushVisitor::Visit(
       linear_gradient_brush->color_stops().size(), SkShader::kClamp_TileMode,
       SkGradientShader::kInterpolateColorsInPremul_Flag, NULL));
   paint_->setShader(shader);
+
+  if (!skia_color_stops.has_alpha) {
+    paint_->setXfermodeMode(SkXfermode::kSrc_Mode);
+  } else {
+    paint_->setXfermodeMode(SkXfermode::kSrcOver_Mode);
+  }
 }
 
 void SkiaBrushVisitor::Visit(
@@ -751,6 +770,12 @@ void SkiaBrushVisitor::Visit(
       radial_gradient_brush->color_stops().size(), SkShader::kClamp_TileMode,
       SkGradientShader::kInterpolateColorsInPremul_Flag, &local_matrix));
   paint_->setShader(shader);
+
+  if (!skia_color_stops.has_alpha) {
+    paint_->setXfermodeMode(SkXfermode::kSrc_Mode);
+  } else {
+    paint_->setXfermodeMode(SkXfermode::kSrcOver_Mode);
+  }
 }
 
 void DrawRectWithBrush(SkCanvas* render_target,
@@ -820,6 +845,11 @@ void DrawQuadWithColorIfBorderIsSolid(render_tree::BorderStyle border_style,
     paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
                   color.b() * 255);
     paint.setAntiAlias(anti_alias);
+    if (color.a() == 1.0f) {
+      paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+    } else {
+      paint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
+    }
 
     SkPath path;
     path.addPoly(points, 4, true);
@@ -902,6 +932,11 @@ void DrawSolidRoundedRectBorderToRenderTarget(
   const render_tree::ColorRGBA& color = border.top.color;
   paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
                 color.b() * 255);
+  if (color.a() == 1.0f) {
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+  } else {
+    paint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
+  }
 
   render_target->drawDRRect(
       RoundedRectToSkia(rect, rounded_corners),
