@@ -1631,7 +1631,7 @@ scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
 
   size_t size = specified_position->value().size();
   DCHECK_GE(size, 1u);
-  DCHECK_LE(size, 2u);
+  DCHECK_LE(size, 4u);
 
   ComputedPositionHelper position_helper(
       computed_font_size, root_computed_font_size, viewport_size);
