@@ -1186,7 +1186,7 @@ bool HTMLMediaElement::CouldPlayIfEnoughData() const {
 }
 
 void HTMLMediaElement::ConfigureMediaControls() {
-  DCHECK(!controls_) << "media control is not supported";
+  DLOG_IF(WARNING, controls_) << "media control is not supported";
 }
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
