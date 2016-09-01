@@ -37,6 +37,9 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
+SoftwareResourceProvider::SoftwareResourceProvider()
+    : font_manager_(SkFontMgr::RefDefault()) {}
+
 bool SoftwareResourceProvider::PixelFormatSupported(
     render_tree::PixelFormat pixel_format) {
   return RenderTreeSurfaceFormatToSkia(pixel_format) == kN32_SkColorType;
@@ -99,8 +102,8 @@ bool SoftwareResourceProvider::HasLocalFontFamily(
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::HasLocalFontFamily()");
 
-  SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkFontStyleSet> style_set(fm->matchFamily(font_family_name));
+  SkAutoTUnref<SkFontStyleSet> style_set(
+      font_manager_->matchFamily(font_family_name));
   return style_set->count() > 0;
 }
 
@@ -108,8 +111,7 @@ scoped_refptr<render_tree::Typeface> SoftwareResourceProvider::GetLocalTypeface(
     const char* font_family_name, render_tree::FontStyle font_style) {
   TRACE_EVENT0("cobalt::renderer", "SoftwareResourceProvider::GetLocalFont()");
 
-  SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(fm->matchFamilyStyle(
+  SkAutoTUnref<SkTypeface> typeface(font_manager_->matchFamilyStyle(
       font_family_name, CobaltFontStyleToSkFontStyle(font_style)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
@@ -121,10 +123,9 @@ SoftwareResourceProvider::GetCharacterFallbackTypeface(
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::GetCharacterFallbackTypeface()");
 
-  SkAutoTUnref<SkFontMgr> fm(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(
-      fm->matchFamilyStyleCharacter(0, CobaltFontStyleToSkFontStyle(font_style),
-                                    language.c_str(), character));
+  SkAutoTUnref<SkTypeface> typeface(font_manager_->matchFamilyStyleCharacter(
+      0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
+      character));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
