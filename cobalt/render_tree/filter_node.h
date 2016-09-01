@@ -21,6 +21,7 @@
 #include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/render_tree/blur_filter.h"
+#include "cobalt/render_tree/map_to_mesh_filter.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/opacity_filter.h"
 #include "cobalt/render_tree/shadow.h"
@@ -47,6 +48,9 @@ class FilterNode : public Node {
     Builder(const BlurFilter& blur_filter,
             const scoped_refptr<render_tree::Node>& source);
 
+    Builder(const MapToMeshFilter& map_to_mesh_filter,
+            const scoped_refptr<render_tree::Node>& source);
+
     math::RectF GetBounds() const;
 
     // The source tree, which will be used as the input to the filters specified
@@ -65,6 +69,11 @@ class FilterNode : public Node {
     // If set, then a Gaussian blur will be applied to the source with a
     // Gaussian kernel of standard deviation |blur_sigma|.
     base::optional<BlurFilter> blur_filter;
+
+    // If set, indicates that the rasterized output of the source content should
+    // be used as a texture which is then mapped onto a 3D mesh specified by the
+    // filter.
+    base::optional<MapToMeshFilter> map_to_mesh_filter;
   };
 
   explicit FilterNode(const Builder& builder) : data_(builder) {}
@@ -76,6 +85,9 @@ class FilterNode : public Node {
              const scoped_refptr<render_tree::Node>& source);
 
   FilterNode(const BlurFilter& blur_filter,
+             const scoped_refptr<render_tree::Node>& source);
+
+  FilterNode(const MapToMeshFilter& map_to_mesh_filter,
              const scoped_refptr<render_tree::Node>& source);
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
