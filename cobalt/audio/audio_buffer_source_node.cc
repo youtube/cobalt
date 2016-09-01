@@ -55,15 +55,17 @@ void AudioBufferSourceNode::Start(double when, double offset,
 }
 
 // TODO: Fully implement start and stop method. The starting time is
-// based on the current time of AudioContext. We only support start at 0
-// currently.
+// based on the current time of AudioContext. We only support start at 0 and
+// stop at 0 currently.
 void AudioBufferSourceNode::Start(double when, double offset, double duration,
                                   script::ExceptionState* exception_state) {
   AudioLock::AutoLock lock(audio_lock());
 
-  DCHECK_EQ(when, 0);
-  DCHECK_EQ(offset, 0);
-  DCHECK_EQ(duration, 0);
+  if (when != 0 || offset != 0 || duration != 0) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
 
   if (state_ != kNone) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
@@ -77,7 +79,11 @@ void AudioBufferSourceNode::Stop(double when,
                                  script::ExceptionState* exception_state) {
   AudioLock::AutoLock lock(audio_lock());
 
-  DCHECK_EQ(when, 0);
+  if (when != 0) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
 
   if (state_ != kStarted) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
