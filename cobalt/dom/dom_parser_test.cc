@@ -73,5 +73,11 @@ TEST_F(DOMParserTest, ParsesXML) {
   EXPECT_TRUE(document->IsXMLDocument());
 }
 
+TEST_F(DOMParserTest, InvalidType) {
+  scoped_refptr<Document> document =
+      dom_parser_->ParseFromString("", DOMParser::kMaxSupportedType);
+  EXPECT_FALSE(document);
+}
+
 }  // namespace dom
 }  // namespace cobalt
