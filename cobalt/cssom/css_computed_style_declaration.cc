@@ -56,7 +56,7 @@ base::optional<std::string> CSSComputedStyleDeclaration::Item(
 
 std::string CSSComputedStyleDeclaration::GetDeclaredPropertyValueStringByKey(
     const PropertyKey key) const {
-  if (!data_) {
+  if (!data_ || key == kNoneProperty) {
     return std::string();
   }
   const scoped_refptr<PropertyValue>& property_value =
