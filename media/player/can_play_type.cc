@@ -24,8 +24,31 @@
 #include "media/audio/shell_audio_streamer.h"
 #include "media/player/crypto/key_systems.h"
 #include "media/player/mime_util.h"
+#if defined(OS_STARBOARD)
+#include "starboard/media.h"
+#endif  // defined(OS_STARBOARD)
 
 namespace media {
+
+#if defined(OS_STARBOARD)
+
+std::string CanPlayType(const std::string& content_type,
+                        const std::string& key_system) {
+  SbMediaSupportType type =
+      SbMediaCanPlayMimeAndKeySystem(content_type.c_str(), key_system.c_str());
+  switch (type) {
+    case kSbMediaSupportTypeNotSupported:
+      return "";
+    case kSbMediaSupportTypeMaybe:
+      return "maybe";
+    case kSbMediaSupportTypeProbably:
+      return "probably";
+  }
+  NOTREACHED();
+  return "";
+}
+
+#else  // defined(OS_STARBOARD)
 
 namespace {
 
@@ -153,5 +176,7 @@ std::string CanPlayType(const std::string& content_type,
 
   return kProbably;
 }
+
+#endif  // defined(OS_STARBOARD)
 
 }  // namespace media
