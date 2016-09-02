@@ -502,6 +502,10 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(),
                                  runs_->is_keyframe());
 #endif
+  if (!stream_buf) {
+    DLOG(WARNING) << "Failed to create StreamParserBuffer";
+    return false;
+  }
 
   if (decrypt_config)
     stream_buf->SetDecryptConfig(decrypt_config.Pass());
