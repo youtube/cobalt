@@ -72,7 +72,8 @@ class ConsoleCommandManager {
 
   // Handles a command by posting the message to the handler registered for
   // the specified channel, if any.
-  void HandleCommand(const std::string& channel, const std::string& message);
+  void HandleCommand(const std::string& channel,
+                     const std::string& message) const;
 
   // Returns a set of all the currently registered channels.
   std::set<std::string> GetRegisteredChannels() const;
@@ -96,7 +97,7 @@ class ConsoleCommandManager {
   void RegisterCommandHandler(const CommandHandler* handler);
   void UnregisterCommandHandler(const CommandHandler* handler);
 
-  base::Lock lock_;
+  mutable base::Lock lock_;
 
   // Map of command handlers, one for each channel.
   CommandHandlerMap command_channel_map_;
