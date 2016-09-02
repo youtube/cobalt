@@ -48,7 +48,7 @@ scoped_refptr<Document> DOMParser::ParseFromString(const std::string& str,
       return html_element_context_->dom_parser()->ParseXMLDocument(
           str, GetInlineSourceLocation());
     default:
-      NOTREACHED();
+      LOG(WARNING) << "DOMParse.ParseFromString received invalid type value.";
       return NULL;
   }
 }
