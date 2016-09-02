@@ -134,9 +134,13 @@ int CalculateCheckSum(const std::vector<uint8>& data) {
 // This function replace the original data inside the original file with the
 // fuzzed data to created a valid container with fuzzed AUs.  |filename| should
 // contain a file that inside a path readable by the host.
+// The following statement can be used inside RawVideoDecoderFuzzerApp::Fuzz()
+// to save the fuzzing content back into its original container format.
+//   DumpFuzzedData(filename, GetFileContent(file_name), *demuxers_[file_name],
+//                  fuzzing_content);
 void DumpFuzzedData(const std::string& filename, std::vector<uint8> container,
                     const MediaSourceDemuxer& demuxer,
-                    const ZzufFuzzer& fuzzer) {
+                    const std::vector<uint8>& fuzzing_content) {
   std::vector<uint8>::iterator last_found = container.begin();
   for (size_t i = 0; i < demuxer.GetFrameCount(); ++i) {
     MediaSourceDemuxer::AUDescriptor desc = demuxer.GetFrame(i);
@@ -145,9 +149,8 @@ void DumpFuzzedData(const std::string& filename, std::vector<uint8> container,
     std::vector<uint8>::const_iterator end = begin + desc.size;
     std::vector<uint8>::iterator offset =
         std::search(last_found, container.end(), begin, end);
-    std::copy(fuzzer.GetFuzzedContent().begin() + desc.offset,
-              fuzzer.GetFuzzedContent().begin() + desc.offset + desc.size,
-              offset);
+    std::copy(fuzzing_content.begin() + desc.offset,
+              fuzzing_content.begin() + desc.offset + desc.size, offset);
     last_found = offset + desc.size + 1;
   }
   file_util::WriteFile(FilePath(filename),
@@ -170,7 +173,7 @@ class RawVideoDecoderFuzzerApp : public FuzzerApp {
       const std::string& file_name,
       const std::vector<uint8>& file_content) OVERRIDE {
     std::string ext = FilePath(file_name).Extension();
-    if (ext != ".webm" && ext != ".mp4") {
+    if (ext != ".webm" && ext != ".mp4" && ext != ".ivf") {
       LOG(ERROR) << "Skip unsupported file " << file_name;
       return std::vector<uint8>();
     }
