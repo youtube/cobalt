@@ -27,12 +27,15 @@ namespace css_parser {
 // This helps parsing and verifying syntax of background shorthand property
 // values.
 struct BackgroundShorthandLayer {
+  BackgroundShorthandLayer() : error(false) {}
+
   bool IsBackgroundPropertyOverlapped(
       const BackgroundShorthandLayer& that) const;
   void IntegrateNonOverlapped(const BackgroundShorthandLayer& that);
 
   void ReplaceNullWithInitialValues();
 
+  bool error;
   scoped_refptr<cssom::PropertyValue> background_color;
   scoped_refptr<cssom::PropertyValue> background_image;
   scoped_refptr<cssom::PropertyValue> background_position;
