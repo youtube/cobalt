@@ -420,20 +420,32 @@ void ReplacedBox::UpdateContentSizeAndMargins(
               // Constraint: (w < min-width) and (h < min-height), where
               // (min-width/w > min-height/h)
               set_width(min_width);
-              set_height(std::min(*max_height,
-                                  min_width * (h.toFloat() / w.toFloat())));
+              LayoutUnit height = min_width * (h.toFloat() / w.toFloat());
+              if (max_height) {
+                set_height(std::min(*max_height, height));
+              } else {
+                set_height(height);
+              }
             } else {
               // Constraint: (w < min-width) and (h < min-height), where
               // (min-width/w <= min-height/h)
-              set_width(std::min(*max_width,
-                                 min_height * (w.toFloat() / h.toFloat())));
+              LayoutUnit width = min_height * (w.toFloat() / h.toFloat());
+              if (max_width) {
+                set_width(std::min(*max_width, width));
+              } else {
+                set_width(width);
+              }
               set_height(min_height);
             }
           } else {  // not h < min-height
             // Constraint: w < min-width
             set_width(min_width);
-            set_height(
-                std::min(min_width * (h.toFloat() / w.toFloat()), *max_height));
+            LayoutUnit height = min_width * (h.toFloat() / w.toFloat());
+            if (max_height) {
+              set_height(std::min(height, *max_height));
+            } else {
+              set_height(height);
+            }
           }
         }
       } else {  // not w < min_width
@@ -445,8 +457,12 @@ void ReplacedBox::UpdateContentSizeAndMargins(
         } else {  // not h_greater_than_max_height
           if (h < min_height) {
             // Constraint: h < min-height
-            set_width(
-                std::min(min_height * (w.toFloat() / h.toFloat()), *max_width));
+            LayoutUnit width = min_height * (w.toFloat() / h.toFloat());
+            if (max_width) {
+              set_width(std::min(width, *max_width));
+            } else {
+              set_width(width);
+            }
             set_height(min_height);
           } else {  // not h < min_height
             // Constraint: none
