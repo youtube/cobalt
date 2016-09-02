@@ -19,6 +19,7 @@
 
 #if defined(ENABLE_ABOUT_SCHEME)
 
+#include "base/memory/weak_ptr.h"
 #include "cobalt/loader/fetcher.h"
 
 namespace cobalt {
@@ -29,6 +30,11 @@ namespace loader {
 class AboutFetcher : public Fetcher {
  public:
   explicit AboutFetcher(Handler* handler);
+
+  void Fetch();
+
+ private:
+  base::WeakPtrFactory<AboutFetcher> weak_ptr_factory_;
 };
 
 }  // namespace loader
