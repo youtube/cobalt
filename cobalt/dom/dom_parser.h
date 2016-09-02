@@ -41,6 +41,7 @@ class DOMParser : public script::Wrappable {
     kApplicationXml,
     kApplicationXhtmlXml,
     kImageSvgXml,
+    kMaxSupportedType,
   };
 
   explicit DOMParser(script::EnvironmentSettings* environment_settings);
