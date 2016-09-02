@@ -57,6 +57,13 @@ void HTMLLinkElement::Obtain() {
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::Obtain()");
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // If the document has no browsing context, do not obtain, parse or apply the
+  // style sheet.
+  if (!document->html_element_context()) {
+    return;
+  }
+
   DCHECK(MessageLoop::current());
   DCHECK(!loader_);
 
