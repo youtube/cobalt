@@ -45,7 +45,7 @@ const char* CSSDeclaredStyleData::Item(unsigned int index) const {
 }
 
 bool CSSDeclaredStyleData::IsSupportedPropertyKey(PropertyKey key) const {
-  return key >= kNoneProperty && key <= kMaxLonghandPropertyKey;
+  return key > kNoneProperty && key <= kMaxLonghandPropertyKey;
 }
 
 scoped_refptr<PropertyValue> CSSDeclaredStyleData::GetPropertyValue(

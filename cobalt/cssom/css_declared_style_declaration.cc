@@ -105,7 +105,8 @@ base::optional<std::string> CSSDeclaredStyleDeclaration::Item(
 
 std::string CSSDeclaredStyleDeclaration::GetDeclaredPropertyValueStringByKey(
     const PropertyKey key) const {
-  return data_ ? data_->GetPropertyValueString(key) : std::string();
+  return (data_ && key != kNoneProperty) ? data_->GetPropertyValueString(key)
+                                         : std::string();
 }
 
 void CSSDeclaredStyleDeclaration::SetPropertyValue(
