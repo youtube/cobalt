@@ -58,6 +58,8 @@ void HTMLLinkElement::Obtain() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  Document* document = node_document();
+
   // If the document has no browsing context, do not obtain, parse or apply the
   // style sheet.
   if (!document->html_element_context()) {
@@ -85,7 +87,6 @@ void HTMLLinkElement::Obtain() {
   // the mode being the current state of the element's crossorigin content
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
-  Document* document = node_document();
   csp::SecurityCallback csp_callback = base::Bind(
       &CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
       CspDelegate::kStyle);
