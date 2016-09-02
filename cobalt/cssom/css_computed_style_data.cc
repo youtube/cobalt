@@ -104,6 +104,8 @@ CSSComputedStyleData::GetPropertyValueReference(PropertyKey key) const {
 
 scoped_refptr<PropertyValue>&
 CSSComputedStyleData::GetDeclaredPropertyValueReference(PropertyKey key) {
+  DCHECK_GT(key, kNoneProperty);
+  DCHECK_LE(key, kMaxLonghandPropertyKey);
   DCHECK(declared_properties_[key]);
   return declared_property_values_.find(key)->second;
 }
@@ -329,6 +331,8 @@ std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {
 
 void CSSComputedStyleData::AddDeclaredPropertyInheritedFromParent(
     PropertyKey key) {
+  DCHECK_GT(key, kNoneProperty);
+  DCHECK_LE(key, kMaxLonghandPropertyKey);
   declared_properties_inherited_from_parent_.push_back(key);
 }
 
