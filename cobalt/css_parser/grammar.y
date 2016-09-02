@@ -5072,19 +5072,26 @@ transition_property_value:
 
     scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
 
-    if (property_list_builder.size() == 1 &&
-        property_list_builder[0] == cssom::kNoneProperty) {
+    if (property_list_builder.empty() ||
+        (property_list_builder.size() == 1 &&
+         property_list_builder[0] == cssom::kNoneProperty)) {
       transition->property_list = cssom::KeywordValue::GetNone();
     } else {
       transition->property_list = new cssom::PropertyKeyListValue(
           transition_builder->property_list_builder.Pass());
     }
-    transition->duration_list = new cssom::TimeListValue(
-        transition_builder->duration_list_builder.Pass());
-    transition->timing_function_list = new cssom::TimingFunctionListValue(
-        transition_builder->timing_function_list_builder.Pass());
-    transition->delay_list = new cssom::TimeListValue(
-        transition_builder->delay_list_builder.Pass());
+    if (!transition_builder->duration_list_builder->empty()) {
+      transition->duration_list = new cssom::TimeListValue(
+          transition_builder->duration_list_builder.Pass());
+    }
+    if (!transition_builder->timing_function_list_builder->empty()) {
+      transition->timing_function_list = new cssom::TimingFunctionListValue(
+          transition_builder->timing_function_list_builder.Pass());
+    }
+    if (!transition_builder->delay_list_builder->empty()) {
+      transition->delay_list = new cssom::TimeListValue(
+          transition_builder->delay_list_builder.Pass());
+    }
 
     $$ = transition.release();
   }
