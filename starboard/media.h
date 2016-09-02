@@ -63,6 +63,20 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecVorbis,
 } SbMediaAudioCodec;
 
+// Types of media support which is a direct map as the result of canPlayType()
+// specified in the following link:
+// https://www.w3.org/TR/2011/WD-html5-20110113/video.html#dom-navigator-canplaytype
+typedef enum SbMediaSupportType {
+  // The media type cannot be played.
+  kSbMediaSupportTypeNotSupported,
+
+  // Cannot determinate if the media type is playable without playing it.
+  kSbMediaSupportTypeMaybe,
+
+  // The media type seems to be playable.
+  kSbMediaSupportTypeProbably,
+} SbMediaSupportType;
+
 // Possible audio connector types.
 typedef enum SbMediaAudioConnector {
   kSbMediaAudioConnectorNone,
@@ -222,6 +236,22 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 // return false.
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaVideoCodec audio_codec,
                                        int64_t bitrate);
+
+// Returns information on whether the playback of the specific media described
+// by |mime| and encrypted using |key_system| can be played.
+// |mime| contains the mime information of the media in the form of 'video/webm'
+// or 'video/mp4; codecs="avc1.42001E"'.  It may include arbitrary parameters
+// like "codecs", "channels", etc..
+// |key_system| should be a lower case in fhe form of
+// "com.example.somesystem" as suggested by
+// https://w3c.github.io/encrypted-media/#key-system
+// that can be matched exactly with known DRM key systems of the platform.
+// When |key_system| is an empty string, the return value is an indication for
+// non-encrypted media.
+// Note that both |mime| and |key_system| cannot be NULL.  This function returns
+// kSbMediaSupportNotSupported if any of them is NULL.
+SB_EXPORT SbMediaSupportType
+SbMediaCanPlayMimeAndKeySystem(const char* mime, const char* key_system);
 
 // Returns the number of audio outputs currently available on this device.  It
 // is expected that, even if the number of outputs or their audio configurations
