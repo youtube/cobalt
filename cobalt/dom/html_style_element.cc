@@ -56,6 +56,13 @@ scoped_refptr<HTMLStyleElement> HTMLStyleElement::AsHTMLStyleElement() {
 
 void HTMLStyleElement::Process() {
   Document* document = node_document();
+
+  // If the document has no browsing context, do not parse or apply the style
+  // sheet.
+  if (!document->html_element_context()) {
+    return;
+  }
+
   CspDelegate* csp_delegate = document->csp_delegate();
   // If the style element has a valid nonce, we always permit it.
   const bool bypass_csp = csp_delegate->IsValidNonce(
