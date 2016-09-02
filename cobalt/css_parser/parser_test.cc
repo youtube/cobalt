@@ -1352,6 +1352,53 @@ TEST_F(ParserTest, InvalidBackgroundWithTwoPositions) {
   EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundSizeProperty));
 }
 
+TEST_F(ParserTest, InvalidBackgroundWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:38: error: background-color value "
+                      "declared twice in background."));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: 0 0 rgba(255,255,255,.1) rgba(255,255,255,.1)",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundImageProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundPositionProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundRepeatProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundSizeProperty));
+}
+
+TEST_F(ParserTest, InvalidBackgroundWithTwoImages) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:26: error: background-image value "
+                      "declared twice in background."));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("background: url(foo.png) url(bar.png)",
+                                        source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundImageProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundPositionProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundRepeatProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundSizeProperty));
+}
+
+TEST_F(ParserTest, InvalidBackgroundWithTwoPositionsAndTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:11: error: background-position or "
+                      "background-repeat declared twice in background."));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: 0 0 rgba(255,255,255,.1) 100% rgba(255,255,255,.1) 100%",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundImageProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundPositionProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundRepeatProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundSizeProperty));
+}
+
 TEST_F(ParserTest, LinearGradientWithOneColorStopIsError) {
   EXPECT_CALL(
       parser_observer_,
@@ -2957,6 +3004,159 @@ TEST_F(ParserTest, ParsesBorderWithInvaildValue) {
       parser_.ParseStyleDeclarationList("border: foo, bar;", source_location_);
 }
 
+TEST_F(ParserTest, InvalidBorderWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:30: error: border-color value "
+                      "declared twice in border."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: invalid border"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border: rgba(255,255,255,.1) rgba(255,255,255,.1)",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomColorProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidBorderBottomWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:37: error: border-color value "
+                      "declared twice in border."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: invalid border-bottom"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-bottom: rgba(255,255,255,.1) rgba(255,255,255,.1)",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidBorderLeftWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:35: error: border-color value "
+                      "declared twice in border."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: invalid border-left"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-left: rgba(255,255,255,.1) rgba(255,255,255,.1)",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidBorderRightWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:36: error: border-color value "
+                      "declared twice in border."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: invalid border-right"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-right: rgba(255,255,255,.1) rgba(255,255,255,.1)",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidBorderTopWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:34: error: border-color value "
+                      "declared twice in border."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: invalid border-right"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-top: rgba(255,255,255,.1) rgba(255,255,255,.1)",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidBorderWithTwoStyles) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:15: error: border-style value "
+                      "declared twice in border."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: invalid border"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border: solid hidden",
+                                        source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomColorProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidBorderWithTwoWidths) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:7: error: border-width value "
+                      "declared twice in border."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: invalid border"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border: 10px 20px", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomColorProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomWidthProperty));
+}
+
 TEST_F(ParserTest, ParsesBorderColorWidth) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("border: gray 20px;", source_location_);
@@ -3610,7 +3810,37 @@ TEST_F(ParserTest, ParsesBoxShadowWithNone) {
             style->GetPropertyValue(cssom::kBoxShadowProperty));
 }
 
-TEST_F(ParserTest, ParsesBoxShadowWith2Lengths) {
+TEST_F(ParserTest, InvalidBoxShadowWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:18: error: color value declared "
+                      "twice in box shadow."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:11: warning: invalid box shadow "
+                        "property."));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "box-shadow: gray green .2em 20px .3em;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBoxShadowProperty));
+}
+
+TEST_F(ParserTest, InvalidBoxShadowWithNegativeBlurRadius) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:23: error: negative values of "
+                      "blur radius are illegal"));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:11: warning: invalid box shadow "
+                        "property."));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("box-shadow: .2em 20px -10px;",
+                                        source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBoxShadowProperty));
+}
+
+TEST_F(ParserTest, ParsesBoxShadowWithTwoLengths) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("box-shadow: .2em 20px;",
                                         source_location_);
@@ -3638,7 +3868,7 @@ TEST_F(ParserTest, ParsesBoxShadowWith2Lengths) {
   EXPECT_FALSE(box_shadow->has_inset());
 }
 
-TEST_F(ParserTest, ParsesBoxShadowWith3LengthsAndColor) {
+TEST_F(ParserTest, ParsesBoxShadowWithThreeLengthsAndColor) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("box-shadow: gray .2em 20px .3em;",
                                         source_location_);
@@ -3670,7 +3900,7 @@ TEST_F(ParserTest, ParsesBoxShadowWith3LengthsAndColor) {
   EXPECT_FALSE(box_shadow->has_inset());
 }
 
-TEST_F(ParserTest, ParsesBoxShadowWith4LengthsInsetAndColor) {
+TEST_F(ParserTest, ParsesBoxShadowWithFourLengthsInsetAndColor) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
           "box-shadow: .2em 20px .3em 0 "
@@ -5689,7 +5919,37 @@ TEST_F(ParserTest, ParsesTextShadowWithNone) {
             style->GetPropertyValue(cssom::kTextShadowProperty));
 }
 
-TEST_F(ParserTest, ParsesTextShadowWith2Lengths) {
+TEST_F(ParserTest, InvalidTextShadowWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:19: error: color value declared "
+                      "twice in text shadow."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:12: warning: invalid text "
+                        "shadow property."));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "text-shadow: gray green .2em 20px .3em;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kTextShadowProperty));
+}
+
+TEST_F(ParserTest, InvalidTextShadowWithNegativeBlurRadius) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:24: error: negative values of "
+                      "blur radius are illegal"));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:12: warning: invalid text "
+                        "shadow property."));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-shadow: .2em 20px -10px;",
+                                        source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kTextShadowProperty));
+}
+
+TEST_F(ParserTest, ParsesTextShadowWithTwoLengths) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-shadow: 0.04em 1px;",
                                         source_location_);
@@ -5717,7 +5977,7 @@ TEST_F(ParserTest, ParsesTextShadowWith2Lengths) {
   EXPECT_FALSE(text_shadow->has_inset());
 }
 
-TEST_F(ParserTest, ParsesTextShadowWith3LengthsAndColor) {
+TEST_F(ParserTest, ParsesTextShadowWithThreeLengthsAndColor) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-shadow: 0.04em 1px .2em #123;",
                                         source_location_);
