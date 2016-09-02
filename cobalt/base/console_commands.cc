@@ -47,7 +47,7 @@ ConsoleCommandManager::CommandHandler::~CommandHandler() {
 }
 
 void ConsoleCommandManager::HandleCommand(const std::string& channel,
-                                          const std::string& message) {
+                                          const std::string& message) const {
   DCHECK_GT(channel.length(), size_t(0));
   base::AutoLock auto_lock(lock_);
   CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
@@ -60,6 +60,7 @@ void ConsoleCommandManager::HandleCommand(const std::string& channel,
 
 std::set<std::string> ConsoleCommandManager::GetRegisteredChannels() const {
   std::set<std::string> result;
+  base::AutoLock auto_lock(lock_);
   for (CommandHandlerMap::const_iterator iter = command_channel_map_.begin();
        iter != command_channel_map_.end(); ++iter) {
     result.insert(iter->first);
@@ -69,6 +70,7 @@ std::set<std::string> ConsoleCommandManager::GetRegisteredChannels() const {
 
 std::string ConsoleCommandManager::GetShortHelp(
     const std::string& channel) const {
+  base::AutoLock auto_lock(lock_);
   CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
   if (iter != command_channel_map_.end()) {
     return iter->second->short_help();
@@ -78,6 +80,7 @@ std::string ConsoleCommandManager::GetShortHelp(
 
 std::string ConsoleCommandManager::GetLongHelp(
     const std::string& channel) const {
+  base::AutoLock auto_lock(lock_);
   CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
   if (iter != command_channel_map_.end()) {
     return iter->second->long_help();
@@ -114,7 +117,7 @@ ConsoleCommandManager::CommandHandler::CommandHandler(
 ConsoleCommandManager::CommandHandler::~CommandHandler() {}
 
 void ConsoleCommandManager::HandleCommand(const std::string& channel,
-                                          const std::string& message) {
+                                          const std::string& message) const {
   UNREFERENCED_PARAMETER(channel);
   UNREFERENCED_PARAMETER(message);
 }
