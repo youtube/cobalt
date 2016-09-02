@@ -48,6 +48,24 @@ scoped_refptr<CSSComputedStyleDeclaration> CreateComputedStyleDeclaration(
   return computed_style_declaration;
 }
 
+TEST(PromoteToComputedStyle, UnknownPropertyValueShouldBeEmpty) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> computed_style_declaration(
+      CreateComputedStyleDeclaration(computed_style));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, math::Size(), NULL);
+
+  EXPECT_EQ(
+      computed_style_declaration->GetPropertyValue("cobalt_cobalt_cobalt"), "");
+}
+
 TEST(PromoteToComputedStyle, FontWeightShouldBeBoldAsSpecified) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
