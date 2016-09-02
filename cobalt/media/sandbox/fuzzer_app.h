@@ -17,6 +17,7 @@
 #ifndef COBALT_MEDIA_SANDBOX_FUZZER_APP_H_
 #define COBALT_MEDIA_SANDBOX_FUZZER_APP_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -52,17 +53,19 @@ class FuzzerApp {
  protected:
   ~FuzzerApp() {}
 
+  const std::vector<uint8>& GetFileContent(const std::string& filename) const;
+
  private:
   struct FileEntry {
-    std::string file_name;
     std::vector<uint8> file_content;
     ZzufFuzzer fuzzer;
 
-    FileEntry(const std::string& file_name,
-              const std::vector<uint8>& file_content,
+    FileEntry(const std::vector<uint8>& file_content,
               const std::vector<uint8>& fuzz_content, double min_ratio,
               double max_ratio, int initial_seed);
   };
+
+  typedef std::map<std::string, FileEntry> FileEntries;
 
   bool ParseInitialSeedAndNumberOfIterations(int argc, char* argv[],
                                              int* initial_seed);
@@ -72,7 +75,8 @@ class FuzzerApp {
                int initial_seed);
 
   int number_of_iterations_;
-  std::vector<FileEntry> file_entries_;
+  // Map from filename to file data.
+  FileEntries file_entries_;
 };
 
 }  // namespace sandbox
