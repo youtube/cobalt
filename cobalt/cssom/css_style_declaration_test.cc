@@ -1387,6 +1387,16 @@ TEST(CSSStyleDeclarationTest, PropertyValueGetter) {
             "center");
 }
 
+TEST(CSSStyleDeclarationTest, UnknownDeclaredStylePropertyValueShouldBeEmpty) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleData> initial_style =
+      new CSSDeclaredStyleData();
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(initial_style, &css_parser);
+
+  EXPECT_EQ(style->GetPropertyValue("cobalt_cobalt_cobalt"), "");
+}
+
 TEST(CSSStyleDeclarationTest, LengthAttributeGetterEmpty) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
