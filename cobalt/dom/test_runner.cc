@@ -24,21 +24,21 @@ namespace dom {
 TestRunner::TestRunner() : should_wait_(false) {}
 
 void TestRunner::NotifyDone() {
-  DCHECK(should_wait_);
-  should_wait_ = false;
-  if (!trigger_layout_callback_.is_null()) {
-    trigger_layout_callback_.Run();
+  if (should_wait_) {
+    should_wait_ = false;
+    if (!trigger_layout_callback_.is_null()) {
+      trigger_layout_callback_.Run();
+    }
+    // Reset |should_wait_| to prevent a second layout if the document onLoad
+    // event occurs after the layout trigger.
+    should_wait_ = true;
   }
-  // Reset |should_wait_| to prevent a second layout if the document onLoad
-  // event occurs after the layout trigger.
-  should_wait_ = true;
 }
 
 void TestRunner::WaitUntilDone() { should_wait_ = true; }
 
 void TestRunner::DoNonMeasuredLayout() {
-  DCHECK(should_wait_);
-  if (!trigger_layout_callback_.is_null()) {
+  if (should_wait_ && !trigger_layout_callback_.is_null()) {
     trigger_layout_callback_.Run();
   }
 }
