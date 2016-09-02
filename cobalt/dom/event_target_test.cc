@@ -308,6 +308,58 @@ TEST(EventTargetTest, RaiseException) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
+TEST(EventTargetTest, AddSameListenerMultipleTimes) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  FakeScriptObject script_object(event_listener.get());
+
+  InSequence in_sequence;
+  event_listener->ExpectHandleEventCall(event, event_target);
+
+  // The same listener should only get added once.
+  event_target->AddEventListener("fired", script_object, false);
+  event_target->AddEventListener("fired", script_object, false);
+  event_target->AddEventListener("fired", script_object, false);
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
+}
+
+TEST(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  FakeScriptObject script_object(event_listener.get());
+
+  InSequence in_sequence;
+  event_listener->ExpectHandleEventCall(event, event_target);
+
+  // The same listener should only get added once.
+  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
+}
+
+TEST(EventTargetTest, SameEventListenerAsAttribute) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  FakeScriptObject script_object(event_listener.get());
+
+  InSequence in_sequence;
+  event_listener->ExpectHandleEventCall(event, event_target);
+  event_listener->ExpectHandleEventCall(event, event_target);
+
+  // The same script object can be registered as both an attribute and
+  // non-attribute listener. Both should be fired.
+  event_target->AddEventListener("fired", script_object, false);
+  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
+}
+
 }  // namespace
 }  // namespace dom
 }  // namespace cobalt
