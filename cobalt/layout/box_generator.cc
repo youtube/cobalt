@@ -26,6 +26,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/cssom/url_value.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_video_element.h"
@@ -629,6 +630,12 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
   void VisitString(cssom::StringValue* string_value) OVERRIDE {
     content_string_ = string_value->value();
     is_element_generated_ = true;
+  }
+
+  void VisitURL(cssom::URLValue* url_value) OVERRIDE {
+    // TODO: Implement support for 'content: url(foo)'.
+    DLOG(ERROR) << "Unsupported content property value: "
+                << url_value->ToString();
   }
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
