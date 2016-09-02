@@ -664,25 +664,22 @@ void InitializePrototypeAndInterfaceObject(
   {% if parent_interface %}
   JS::RootedObject parent_prototype(
       context, {{parent_interface}}::GetPrototype(context, global_object));
+  {% elif is_exception_interface %}
+  // Get Error prototype.
+  JS::RootedObject parent_prototype(context);
+  bool success_check = js_GetClassPrototype(
+      context, GetExceptionProtoKey(JSEXN_ERR), &parent_prototype);
+  DCHECK(success_check);
   {% else %}
   JS::RootedObject parent_prototype(
       context, JS_GetObjectPrototype(context, global_object));
   {% endif %}
   DCHECK(parent_prototype);
 
-{% if is_exception_interface %}
-  JS::RootedObject prototype(context);
-  // Get Error prototype.
-  bool success_check = js_GetClassPrototype(
-      context, GetExceptionProtoKey(JSEXN_ERR), &prototype);
-  DCHECK(success_check);
-  interface_data->prototype = prototype;
-{% else %}
   // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
       context, &interface_data->prototype_class_definition, parent_prototype,
       NULL);
-{% endif %}
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
