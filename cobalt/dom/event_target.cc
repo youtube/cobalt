@@ -193,10 +193,10 @@ void EventTarget::AddEventListenerInternal(
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->type == type &&
         (*iter)->listener.referenced_object().EqualTo(listener) &&
-        (*iter)->use_capture == use_capture) {
+        (*iter)->use_capture == use_capture &&
+        (*iter)->listener_type == listener_type) {
       // Attribute listeners should have already been removed.
       DCHECK_EQ(listener_type, EventListener::kNotAttribute);
-      DCHECK_EQ(listener_type, (*iter)->listener_type);
       return;
     }
   }
