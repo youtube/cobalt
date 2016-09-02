@@ -1,5 +1,6 @@
 body {
   overflow: hidden;
+  font-size: 1.4815vh;  /* Corresponds to 16px at 1080p. */
 }
 
 #splash {
