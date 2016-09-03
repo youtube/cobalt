@@ -464,6 +464,9 @@ inline void ToJSValue(
     case EnumerationInterface::kGamma:
       ToJSValue(context, std::string("gamma"), out_value);
       return;
+    default:
+      NOTREACHED();
+      out_value.set(JS::UndefinedValue());
   }
 }
 
