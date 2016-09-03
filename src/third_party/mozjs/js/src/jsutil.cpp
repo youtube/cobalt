@@ -20,6 +20,10 @@
 
 #include "js/Utility.h"
 
+#ifdef USE_ZLIB
+#include "zlib.h"
+#endif
+
 using namespace js;
 
 using mozilla::PodArrayZero;
@@ -36,6 +40,32 @@ zlib_free(void *cx, void *addr)
 {
     js_free(addr);
 }
+
+class Compressor
+{
+    /* Number of bytes we should hand to zlib each compressMore() call. */
+    static const size_t CHUNKSIZE = 2048;
+    z_stream zs;
+    const unsigned char *inp;
+    size_t inplen;
+    size_t outbytes;
+
+  public:
+    enum Status {
+        MOREOUTPUT,
+        DONE,
+        CONTINUE,
+        OOM
+    };
+
+    Compressor(const unsigned char *inp, size_t inplen);
+    ~Compressor();
+    bool init();
+    void setOutput(unsigned char *out, size_t outlen);
+    size_t outWritten() const { return outbytes; }
+    /* Compress some of the input. Return true if it should be called again. */
+    Status compressMore();
+};
 
 Compressor::Compressor(const unsigned char *inp, size_t inplen)
     : inp(inp),

@@ -50,9 +50,7 @@ class MEDIA_EXPORT ShellAudioBus {
 
   enum StorageType { kInterleaved, kPlanar };
 
-  ShellAudioBus(size_t channels,
-                size_t frames,
-                SampleType sample_type,
+  ShellAudioBus(size_t channels, size_t frames, SampleType sample_type,
                 StorageType storage_type);
   ShellAudioBus(size_t frames, const std::vector<float*>& samples);
   ShellAudioBus(size_t channels, size_t frames, float* samples);
@@ -110,6 +108,20 @@ class MEDIA_EXPORT ShellAudioBus {
   }
   uint8* GetSamplePtr(size_t channel, size_t frame);
   const uint8* GetSamplePtr(size_t channel, size_t frame) const;
+
+  // The *ForType functions below are optimized versions that assume what
+  // storage type the bus is using.  They are meant to be called after checking
+  // what storage type the bus is once, and then performing a batch of
+  // operations, where it is known that the type will not change.
+  // Note: The bus must have storage type of kFloat32.
+  template <StorageType T>
+  inline uint8* GetSamplePtrForType(size_t channel, size_t frame) const;
+
+  template <StorageType T>
+  inline float GetFloat32SampleForType(size_t channel, size_t frame) const;
+
+  template <StorageType SourceStorageType, StorageType DestStorageType>
+  void MixForType(const ShellAudioBus& source);
 
   // Contiguous block of channel memory if the memory is owned by this object.
   scoped_ptr_malloc<uint8, base::ScopedPtrAlignedFree> data_;

@@ -271,16 +271,17 @@ void InitializePrototypeAndInterfaceObject(
   DCHECK(!interface_data->interface_object);
   DCHECK(JS_IsGlobalObject(global_object));
 
-  JS::RootedObject parent_prototype(
-      context, JS_GetObjectPrototype(context, global_object));
+  // Get Error prototype.
+  JS::RootedObject parent_prototype(context);
+  bool success_check = js_GetClassPrototype(
+      context, GetExceptionProtoKey(JSEXN_ERR), &parent_prototype);
+  DCHECK(success_check);
   DCHECK(parent_prototype);
 
-  JS::RootedObject prototype(context);
-  // Get Error prototype.
-  bool success_check = js_GetClassPrototype(
-      context, GetExceptionProtoKey(JSEXN_ERR), &prototype);
-  DCHECK(success_check);
-  interface_data->prototype = prototype;
+  // Create the Prototype object.
+  interface_data->prototype = JS_NewObjectWithGivenProto(
+      context, &interface_data->prototype_class_definition, parent_prototype,
+      NULL);
   bool success = JS_DefineProperties(
       context, interface_data->prototype, prototype_properties);
   DCHECK(success);
@@ -351,7 +352,10 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 // static
 JSObject* MozjsExceptionObjectInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
-  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  JS::RootedObject global_object(
+      context,
+      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -370,7 +374,10 @@ JSObject* MozjsExceptionObjectInterface::CreateProxy(
 //static
 const JSClass* MozjsExceptionObjectInterface::PrototypeClass(
       JSContext* context) {
-  JS::RootedObject global_object(context, JS_GetGlobalForScopeChain(context));
+  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  JS::RootedObject global_object(
+      context,
+      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));

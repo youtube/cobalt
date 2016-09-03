@@ -182,8 +182,10 @@ js::ObjectImpl::checkShapeConsistency()
 {
     static int throttle = -1;
     if (throttle < 0) {
+#if !defined(STARBOARD)
         if (const char *var = getenv("JS_CHECK_SHAPE_THROTTLE"))
             throttle = atoi(var);
+#endif
         if (throttle < 0)
             throttle = 0;
     }

@@ -19,6 +19,8 @@
 #include "base/hash_tables.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/referenced_object_map.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/script_object.h"
@@ -50,22 +52,26 @@ class MozjsUserObjectHolder
 
   void RegisterOwner(Wrappable* owner) OVERRIDE {
     JS::RootedObject owned_object(context_, js_object());
-    WrapperPrivate* wrapper_private =
-        WrapperPrivate::GetFromWrappable(owner, context_, wrapper_factory_);
-    wrappable_and_private_hash_map_.insert(
-        std::make_pair(owner, wrapper_private->AsWeakPtr()));
-    wrapper_private->AddReferencedObject(owned_object);
+    DLOG_IF(WARNING, !owned_object)
+        << "Owned object has been garbage collected.";
+    if (owned_object) {
+      MozjsGlobalObjectProxy* global_environment =
+          MozjsGlobalObjectProxy::GetFromContext(context_);
+      intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
+      global_environment->referenced_objects()->AddReferencedObject(
+          key, owned_object);
+    }
   }
 
   void DeregisterOwner(Wrappable* owner) OVERRIDE {
+    // |owner| may be in the process of being destructed, so don't use it.
     JS::RootedObject owned_object(context_, js_object());
-    WrappableAndPrivateHashMap::iterator it =
-        wrappable_and_private_hash_map_.find(owner);
-    if (it != wrappable_and_private_hash_map_.end() && it->second) {
-      JS::RootedObject object_proxy(context_, it->second->js_object_proxy());
-      if (object_proxy) {
-        it->second->RemoveReferencedObject(owned_object);
-      }
+    if (owned_object) {
+      MozjsGlobalObjectProxy* global_environment =
+          MozjsGlobalObjectProxy::GetFromContext(context_);
+      intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
+      global_environment->referenced_objects()->RemoveReferencedObject(
+          key, owned_object);
     }
   }
 
@@ -104,7 +110,6 @@ class MozjsUserObjectHolder
   JSContext* context_;
   base::optional<MozjsUserObjectType> object_handle_;
   WrapperFactory* wrapper_factory_;
-  WrappableAndPrivateHashMap wrappable_and_private_hash_map_;
 };
 
 }  // namespace mozjs

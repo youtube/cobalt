@@ -966,8 +966,11 @@ JS::DescribeStack(JSContext *cx, unsigned maxFrames)
     for (NonBuiltinScriptFrameIter i(cx); !i.done(); ++i) {
         FrameDescription desc;
         desc.script = i.script();
-        desc.lineno = PCToLineNumber(i.script(), i.pc());
+        unsigned column = 0;
+        desc.lineno = PCToLineNumber(i.script(), i.pc(), &column);
         desc.fun = i.maybeCallee();
+        // Don't zero index.
+        desc.columnno = column + 1;
         if (!frames.append(desc))
             return NULL;
         if (frames.length() == maxFrames)

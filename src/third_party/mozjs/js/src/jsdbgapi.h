@@ -18,6 +18,7 @@ struct FrameDescription
     JSScript *script;
     unsigned lineno;
     JSFunction *fun;
+    unsigned columnno;
 };
 
 struct StackDescription

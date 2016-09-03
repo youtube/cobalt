@@ -344,6 +344,9 @@ Shape::dumpSubtree(JSContext *cx, int level, FILE *fp) const
 void
 js::PropertyTree::dumpShapes(JSRuntime *rt)
 {
+#if defined(STARBOARD)
+    return;
+#else
     static bool init = false;
     static FILE *dumpfp = NULL;
     if (!init) {
@@ -372,5 +375,6 @@ js::PropertyTree::dumpShapes(JSRuntime *rt)
         }
         */
     }
+#endif
 }
 #endif

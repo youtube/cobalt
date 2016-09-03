@@ -638,6 +638,13 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 
   GURL url = initial_url;
 
+  if (!url.is_valid()) {
+    // Try to filter out invalid urls as GURL::spec() DCHECKs if the url is
+    // valid.
+    NoneSupported();
+    return;
+  }
+
   DCHECK(!media_source_);
   if (url.SchemeIs(kMediaSourceUrlProtocol)) {
     // Check whether url is allowed by security policy.
@@ -1186,7 +1193,7 @@ bool HTMLMediaElement::CouldPlayIfEnoughData() const {
 }
 
 void HTMLMediaElement::ConfigureMediaControls() {
-  DCHECK(!controls_) << "media control is not supported";
+  DLOG_IF(WARNING, controls_) << "media control is not supported";
 }
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {

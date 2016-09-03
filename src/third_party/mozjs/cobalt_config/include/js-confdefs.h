@@ -20,6 +20,11 @@
 #define RELEASE_BUILD 1
 #endif
 
+#if defined(COBALT_BUILD_TYPE_DEBUG)
+#define DEBUG 1
+#define JS_DEBUG 1
+#endif
+
 // Disabling this will fall back to getenv for locale-specific number
 // formatting.
 // This can be removed when ENABLE_INTL_API is enabled, which requires a newer

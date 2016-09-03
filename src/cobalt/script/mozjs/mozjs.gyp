@@ -27,7 +27,12 @@
         'mozjs_property_enumerator.cc',
         'mozjs_source_code.cc',
         'proxy_handler.cc',
+        'referenced_object_map.cc',
         'util/exception_helpers.cc',
+        'weak_heap_object.cc',
+        'weak_heap_object.h',
+        'weak_heap_object_manager.cc',
+        'weak_heap_object_manager.h',
         'wrapper_factory.cc',
         'wrapper_private.cc',
       ],
@@ -40,7 +45,8 @@
         'defines': [
         # SpiderMonkey bindings implements indexed deleters.
         'ENGINE_SUPPORTS_INDEXED_DELETERS',
-        'ENGINE_SUPPORTS_INT64', ],
+        'ENGINE_SUPPORTS_INT64',
+        'ENGINE_SUPPORTS_STACK_TRACE_COLUMNS', ],
       },
       'conditions' :[
         ['cobalt_enable_jit == 1', {

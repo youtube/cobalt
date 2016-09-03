@@ -201,7 +201,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   // Invalidates the cached computed style of this element and its descendants.
-  void InvalidateComputedStylesRecursively();
+  void InvalidateComputedStylesRecursively() OVERRIDE;
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&

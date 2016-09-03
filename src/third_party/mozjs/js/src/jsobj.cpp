@@ -279,7 +279,6 @@ js::GetOwnPropertyDescriptor(JSContext *cx, HandleObject obj, HandleId id,
     if (pobj->isNative()) {
         desc->attrs = GetShapeAttributes(shape);
         if (desc->attrs & (JSPROP_GETTER | JSPROP_SETTER)) {
-            MOZ_ASSERT(desc.isShared());
             doGet = false;
             if (desc->attrs & JSPROP_GETTER)
                 desc->getter = CastAsPropertyOp(shape->getterObject());

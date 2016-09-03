@@ -26,6 +26,7 @@
 #include "cobalt/script/mozjs/mozjs_source_code.h"
 #include "cobalt/script/mozjs/mozjs_wrapper_handle.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
+#include "cobalt/script/mozjs/referenced_object_map.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 #include "third_party/mozjs/js/src/jsfun.h"
@@ -154,6 +155,7 @@ MozjsGlobalObjectProxy::MozjsGlobalObjectProxy(JSRuntime* runtime)
   JS_SetErrorReporter(context_, &MozjsGlobalObjectProxy::ReportErrorHandler);
 
   wrapper_factory_.reset(new WrapperFactory(context_));
+  referenced_objects_.reset(new ReferencedObjectMap(context_));
 
   JS_AddExtraGCRootsTracer(runtime, TraceFunction, this);
 }
@@ -268,6 +270,12 @@ InterfaceData* MozjsGlobalObjectProxy::GetInterfaceData(intptr_t key) {
   return NULL;
 }
 
+void MozjsGlobalObjectProxy::DoSweep() {
+  weak_object_manager_.SweepUnmarkedObjects();
+  // Remove NULL references after sweeping weak references.
+  referenced_objects_->RemoveNullReferences();
+}
+
 MozjsGlobalObjectProxy* MozjsGlobalObjectProxy::GetFromContext(
     JSContext* context) {
   MozjsGlobalObjectProxy* global_proxy =
@@ -336,9 +344,16 @@ void MozjsGlobalObjectProxy::TraceFunction(JSTracer* trace, void* data) {
            global_object_environment->cached_interface_data_.begin();
        it != global_object_environment->cached_interface_data_.end(); ++it) {
     InterfaceData* data = it->second;
-    JS_CallHeapObjectTracer(trace, &data->prototype, "MozjsGlobalObjectProxy");
-    JS_CallHeapObjectTracer(trace, &data->interface_object,
-                            "MozjsGlobalObjectProxy");
+    // Check whether prototype and interface object for this interface have been
+    // created yet or not before attempting to trace them.
+    if (data->prototype) {
+      JS_CallHeapObjectTracer(trace, &data->prototype,
+                              "MozjsGlobalObjectProxy");
+    }
+    if (data->interface_object) {
+      JS_CallHeapObjectTracer(trace, &data->interface_object,
+                              "MozjsGlobalObjectProxy");
+    }
   }
 }
 

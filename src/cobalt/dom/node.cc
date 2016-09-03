@@ -402,6 +402,7 @@ Node::Node(Document* document)
 Node::~Node() {
   Node* node = last_child_;
   while (node) {
+    node->parent_ = NULL;
     node->next_sibling_ = NULL;
     node = node->previous_sibling_;
   }
@@ -428,6 +429,14 @@ void Node::OnRemovedFromDocument() {
   Node* child = first_child_;
   while (child) {
     child->OnRemovedFromDocument();
+    child = child->next_sibling_;
+  }
+}
+
+void Node::InvalidateComputedStylesRecursively() {
+  Node* child = first_child_;
+  while (child) {
+    child->InvalidateComputedStylesRecursively();
     child = child->next_sibling_;
   }
 }
@@ -566,8 +575,13 @@ void Node::Insert(const scoped_refptr<Node>& node,
   // Custom, not in any spec.
 
   OnMutation();
-  InvalidateLayoutBoxesFromNodeAndAncestors();
   node->UpdateGenerationForNodeAndAncestors();
+
+  // Invalidate the layout boxes of the new parent as a result of its children
+  // being changed.
+  // NOTE: The added node does not have any invalidations done, because they
+  // occur on the remove and are guaranteed to not be needed at this point.
+  InvalidateLayoutBoxesFromNodeAndAncestors();
 
   if (inserted_into_document_) {
     node->OnInsertedIntoDocument();
@@ -600,9 +614,16 @@ void Node::Remove(const scoped_refptr<Node>& node) {
   DCHECK(node);
 
   OnMutation();
-  InvalidateLayoutBoxesFromNodeAndAncestors();
-  node->InvalidateLayoutBoxesFromNodeAndDescendants();
   node->UpdateGenerationForNodeAndAncestors();
+
+  // Invalidate the layout boxes of the previous parent as a result of its
+  // children being changed.
+  InvalidateLayoutBoxesFromNodeAndAncestors();
+  // Invalidate the styles and layout boxes of the node being removed from
+  // the tree. These are no longer valid as a result of the child and its
+  // descendants losing their inherited styles.
+  node->InvalidateComputedStylesRecursively();
+  node->InvalidateLayoutBoxesFromNodeAndDescendants();
 
   bool was_inserted_to_document = node->inserted_into_document_;
   if (was_inserted_to_document) {

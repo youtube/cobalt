@@ -38,11 +38,9 @@ size_t GetYV12SizeInBytes(int32_t width, int32_t height) {
 }
 
 int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame) {
-  SB_DCHECK(codec_context->pix_fmt == PIX_FMT_YUV420P ||
-            codec_context->pix_fmt == PIX_FMT_YUVJ420P)
-      << "Invalid pix_fmt " << codec_context->pix_fmt;
   if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
       codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
+    SB_DLOG(WARNING) << "Unsupported pix_fmt " << codec_context->pix_fmt;
     return AVERROR(EINVAL);
   }
 

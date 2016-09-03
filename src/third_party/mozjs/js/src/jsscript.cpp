@@ -40,6 +40,10 @@
 #include "vm/RegExpObject-inl.h"
 #include "vm/ScopeObject-inl.h"
 
+#ifdef USE_ZLIB
+#include "zlib.h"
+#endif
+
 using namespace js;
 using namespace js::gc;
 using namespace js::frontend;

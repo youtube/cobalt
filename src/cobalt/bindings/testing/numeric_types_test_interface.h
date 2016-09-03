@@ -246,7 +246,7 @@ class UnsignedLongLongTypeTest : public NumericTypesTestInterfaceT<uint64_t> {
 
   static const char* type_string() { return "unsignedLongLong"; }
 
-  static uint64_t max_value() { return 18446744073709551615; }
+  static uint64_t max_value() { return 18446744073709551615ull; }
   static uint64_t min_value() { return 0; }
   // This is what the value 18446744073709551615 maps to in javascript.
   static const char* max_value_string() { return "18446744073709552000"; }

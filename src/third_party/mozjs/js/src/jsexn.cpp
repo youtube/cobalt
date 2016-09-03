@@ -76,6 +76,7 @@ struct JSStackTraceElemImpl
     T                   funName;
     const char          *filename;
     unsigned            ulineno;
+    unsigned            ucolumnno;
 };
 
 typedef JSStackTraceElemImpl<HeapPtrString> JSStackTraceElem;
@@ -282,7 +283,10 @@ InitExnPrivate(JSContext *cx, HandleObject exnObject, HandleString message,
             if (!cfilename)
                 cfilename = "";
             frame.filename = cfilename;
-            frame.ulineno = PCToLineNumber(script, i.pc());
+            uint32_t column = 0;
+            frame.ulineno = PCToLineNumber(script, i.pc(), &column);
+            // Don't zero index.
+            frame.ucolumnno = column + 1;
         }
     }
 
@@ -327,6 +331,7 @@ InitExnPrivate(JSContext *cx, HandleObject exnObject, HandleString message,
         if (!priv->stackElems[i].filename)
             return false;
         priv->stackElems[i].ulineno = frames[i].ulineno;
+        priv->stackElems[i].ucolumnno = frames[i].ucolumnno;
     }
 
     SetExnPrivate(exnObject, priv);
@@ -510,7 +515,8 @@ StackTraceToString(JSContext *cx, JSExnPrivate *priv)
             if (!sb.appendInflated(element->filename, strlen(element->filename)))
                 return NULL;
         }
-        if (!sb.append(':') || !NumberValueToStringBuffer(cx, NumberValue(element->ulineno), sb) || 
+        if (!sb.append(':') || !NumberValueToStringBuffer(cx, NumberValue(element->ulineno), sb) ||
+            !sb.append(':') || !NumberValueToStringBuffer(cx, NumberValue(element->ucolumnno), sb) ||
             !sb.append('\n'))
         {
             return NULL;

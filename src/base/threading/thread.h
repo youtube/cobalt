@@ -167,8 +167,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Called just after the message loop ends
   virtual void CleanUp() {}
 
-  static void SetThreadWasQuitProperly(bool flag);
-  static bool GetThreadWasQuitProperly();
+  void ThreadQuitHelper();
+  void SetThreadWasQuitProperly(bool flag);
+  bool GetThreadWasQuitProperly();
 
   void set_message_loop(MessageLoop* message_loop) {
     message_loop_ = message_loop;
@@ -217,6 +218,14 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   // The name of the thread.  Used for debugging purposes.
   std::string name_;
+
+#ifndef NDEBUG
+  // We use this member variable to record whether or not a thread exited
+  // because its Stop method was called.  This allows us to catch cases where
+  // MessageLoop::Quit() is called directly, which is unexpected when using a
+  // Thread to setup and run a MessageLoop.
+  bool was_quit_properly_;
+#endif
 
   friend void ThreadQuitHelper();
 

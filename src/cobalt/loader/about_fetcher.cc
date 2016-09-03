@@ -22,10 +22,15 @@
 namespace cobalt {
 namespace loader {
 
-AboutFetcher::AboutFetcher(Handler* handler) : Fetcher(handler) {
+AboutFetcher::AboutFetcher(Handler* handler)
+    : Fetcher(handler),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(&Handler::OnDone, base::Unretained(handler), this));
+      FROM_HERE,
+      base::Bind(&AboutFetcher::Fetch, weak_ptr_factory_.GetWeakPtr()));
 }
+
+void AboutFetcher::Fetch() { handler()->OnDone(this); }
 
 }  // namespace loader
 }  // namespace cobalt

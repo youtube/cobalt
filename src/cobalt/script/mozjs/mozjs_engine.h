@@ -16,6 +16,8 @@
 #ifndef COBALT_SCRIPT_MOZJS_MOZJS_ENGINE_H_
 #define COBALT_SCRIPT_MOZJS_MOZJS_ENGINE_H_
 
+#include <vector>
+
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/javascript_engine.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -34,11 +36,19 @@ class MozjsEngine : public JavaScriptEngine {
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
 
  private:
+  static JSBool ContextCallback(JSContext* context, unsigned context_op);
+  static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
+                               JSBool is_compartment);
+
   base::ThreadChecker thread_checker_;
 
   // Top-level object that represents the Javascript engine. Typically there is
   // one per process, but it's allowed to have multiple.
   JSRuntime* runtime_;
+
+  // A list of all contexts created for this JSRuntime.
+  typedef std::vector<JSContext*> ContextVector;
+  ContextVector contexts_;
 };
 }  // namespace mozjs
 }  // namespace script

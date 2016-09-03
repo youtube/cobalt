@@ -26,6 +26,15 @@
 
 #include "selfhosted.out.h"
 
+#if defined(DEBUG) && defined(STARBOARD)
+// On Starboard platforms, DEBUG will get #undef'd when we #include zlib.h
+#define STARBOARD_DEBUG
+#endif
+
+#ifdef USE_ZLIB
+#include "zlib.h"
+#endif
+
 using namespace js;
 using namespace js::selfhosted;
 
@@ -186,7 +195,7 @@ js::intrinsic_ThrowError(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 intrinsic_AssertionFailed(JSContext *cx, unsigned argc, Value *vp)
 {
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
     CallArgs args = CallArgsFromVp(argc, vp);
     if (args.length() > 0) {
         // try to dump the informative string
@@ -304,7 +313,7 @@ intrinsic_SetScriptHints(JSContext *cx, unsigned argc, Value *vp)
     return true;
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
 /*
  * Dump(val): Dumps a value for debugging, even in parallel mode.
  */
@@ -630,7 +639,7 @@ const JSFunctionSpec intrinsic_functions[] = {
     JS_FN("intl_numberingSystem", intl_numberingSystem, 1,0),
     JS_FN("intl_patternForSkeleton", intl_patternForSkeleton, 2,0),
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
     JS_FN("Dump",                 intrinsic_Dump,                 1,0),
 #endif
 

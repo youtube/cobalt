@@ -27,6 +27,7 @@
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/mozjs/interface_data.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
+#include "cobalt/script/mozjs/weak_heap_object_manager.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
@@ -34,6 +35,9 @@
 namespace cobalt {
 namespace script {
 namespace mozjs {
+
+class ReferencedObjectMap;
+class WeakHandle;
 
 // Manages a handle to a JavaScript engine's global object. The lifetime of
 // the global object is not necessarily tied to the lifetime of the proxy.
@@ -86,6 +90,12 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
 
   WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
+  ReferencedObjectMap* referenced_objects() {
+    return referenced_objects_.get();
+  }
+
+  WeakHeapObjectManager* weak_object_manager() { return &weak_object_manager_; }
+
   // Used for CallWith=EnvironmentSettings
   void SetEnvironmentSettings(EnvironmentSettings* environment_settings) {
     DCHECK(!environment_settings_);
@@ -106,6 +116,11 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
   // instances and will destroy them.
   void CacheInterfaceData(intptr_t key, InterfaceData* interface_data);
   InterfaceData* GetInterfaceData(intptr_t key);
+
+  // This will be called during garbage collection after GC objects have been
+  // marked, but before they have been finalized. This allows an opportunity to
+  // sweep away references to GC objects that will be deleted.
+  void DoSweep();
 
   static MozjsGlobalObjectProxy* GetFromContext(JSContext* context);
 
@@ -132,6 +147,8 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
 
   base::ThreadChecker thread_checker_;
   JSContext* context_;
+  WeakHeapObjectManager weak_object_manager_;
+  scoped_ptr<ReferencedObjectMap> referenced_objects_;
   CachedInterfaceData cached_interface_data_;
   STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;
   ContextDestructor context_destructor_;

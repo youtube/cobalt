@@ -744,7 +744,7 @@ CountHeap(JSContext *cx, unsigned argc, jsval *vp)
     return true;
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(JS_USE_CUSTOM_ALLOCATOR)
 static JSBool
 OOMAfterAllocations(JSContext *cx, unsigned argc, jsval *vp)
 {
@@ -1028,7 +1028,7 @@ static JSFunctionSpecWithHelp TestingFunctions[] = {
 "  count all things or one of 'object', 'double', 'string', 'function'\n"
 "  to count only things of that kind."),
 
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(JS_USE_CUSTOM_ALLOCATOR)
     JS_FN_HELP("oomAfterAllocations", OOMAfterAllocations, 1, 0,
 "oomAfterAllocations(count)",
 "  After 'count' js_malloc memory allocations, fail every following allocation\n"

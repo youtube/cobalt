@@ -65,6 +65,19 @@ VideoRendererBase::VideoRendererBase(
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
 }
 
+VideoRendererBase::~VideoRendererBase() {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(state_ == kStopped || state_ == kUninitialized) << state_;
+  DCHECK_EQ(thread_, base::kNullThreadHandle);
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  ++videos_played_;
+  DLOG_IF(INFO, late_frames_ != 0) << "Finished playing back with "
+                                   << late_frames_ << " late frames.";
+  DLOG_IF(INFO, late_frames_ == 0)
+      << "Finished playing back with no late frame.";
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+}
+
 void VideoRendererBase::Play(const base::Closure& callback) {
 #if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::Play()");
@@ -154,7 +167,12 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
     return;
   }
 
-  decoder_->Stop(callback);
+  if (decoder_) {
+    decoder_->Stop(callback);
+    return;
+  }
+
+  callback.Run();
 }
 
 void VideoRendererBase::StopDecoder(const base::Closure& callback) {
@@ -223,6 +241,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
   error_cb_ = error_cb;
   get_time_cb_ = get_time_cb;
   get_duration_cb_ = get_duration_cb;
+  state_ = kInitializing;
 
   scoped_ptr<VideoDecoderSelector> decoder_selector(
       new VideoDecoderSelector(base::MessageLoopProxy::current(),
@@ -249,6 +268,8 @@ void VideoRendererBase::OnDecoderSelected(
 
   if (state_ == kStopped)
     return;
+
+  DCHECK_EQ(state_, kInitializing);
 
   if (!selected_decoder) {
     state_ = kUninitialized;
@@ -308,9 +329,11 @@ void VideoRendererBase::ThreadMain() {
     }
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
     if (frames_dropped > 0) {
-      PipelineStatistics statistics;
-      statistics.video_frames_dropped = frames_dropped;
-      statistics_cb_.Run(statistics);
+      if (!statistics_cb_.is_null()) {
+        PipelineStatistics statistics;
+        statistics.video_frames_dropped = frames_dropped;
+        statistics_cb_.Run(statistics);
+      }
       frames_dropped = 0;
     }
 
@@ -545,18 +568,6 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   }
 }
 
-VideoRendererBase::~VideoRendererBase() {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(state_ == kUninitialized || state_ == kStopped) << state_;
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-  ++videos_played_;
-  DLOG_IF(INFO, late_frames_ != 0)
-      << "Finished playing back with " << late_frames_ << " late frames.";
-  DLOG_IF(INFO, late_frames_ == 0)
-      << "Finished playing back with no late frame.";
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
-}
-
 void VideoRendererBase::FrameReady(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& incoming_frame) {
@@ -771,6 +782,7 @@ void VideoRendererBase::AttemptRead_Locked() {
       return;
 
     case kUninitialized:
+    case kInitializing:
     case kPrerolled:
     case kFlushingDecoder:
     case kFlushed:
@@ -827,22 +839,10 @@ void VideoRendererBase::UpdateUnderflowStatusToDecoder_Locked() {
 
 void VideoRendererBase::OnDecoderResetDone() {
   base::AutoLock auto_lock(lock_);
-  // The state_ can be kStopped if video playback is stopped when a seek is in
-  // progress.  The easist way to reproduce this is to repost to
-  // OnDecoderResetDone() here until state_ is kStopped and manually quit
-  // playing a video when the first seek is in progress.
-  // To keep running the function when state_ is kStopped is safe, because the
-  // flush_cb_ will be handled by SerialRunner::RunNextInSeries() which is
-  // posted on a weak pointer.  The SerialRunner should already be destroyed in
-  // Pipeline::DoStop() when pending_callbacks_ is overwritten.
-  // Note that this part has been properly handled in the upstream as the video
-  // renderer is owned by Pipeline and all related tasks are posted with a weak
-  // pointer of the video renderer.  When the Pipeline is stopped, it will
-  // destroy the video renderer and this callback will not be called.  So don't
-  // apply this change during rebase.
-  if (state_ != kStopped) {
-    DCHECK_EQ(kFlushingDecoder, state_);
-  }
+  if (state_ == kStopped)
+    return;
+
+  DCHECK_EQ(kFlushingDecoder, state_);
   DCHECK(!pending_read_);
 
   state_ = kFlushing;
