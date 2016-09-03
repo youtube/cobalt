@@ -108,7 +108,6 @@ void HTMLLinkElement::Obtain() {
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK_EQ(rel(), "stylesheet");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 
   Document* document = node_document();
