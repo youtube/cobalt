@@ -58,7 +58,8 @@ int SbSocketReceiveFrom(SbSocket socket,
       return static_cast<int>(bytes_read);
     }
 
-    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+    if (errno != EAGAIN && errno != EWOULDBLOCK &&
+        socket->error != sbposix::TranslateSocketErrno(errno)) {
       SB_DLOG(ERROR) << "recv failed, errno = " << errno;
     }
     socket->error = sbposix::TranslateSocketErrno(errno);
@@ -81,7 +82,8 @@ int SbSocketReceiveFrom(SbSocket socket,
       return static_cast<int>(bytes_read);
     }
 
-    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+    if (errno != EAGAIN && errno != EWOULDBLOCK &&
+        socket->error != sbposix::TranslateSocketErrno(errno)) {
       SB_DLOG(ERROR) << "recvfrom failed, errno = " << errno;
     }
     socket->error = sbposix::TranslateSocketErrno(errno);
