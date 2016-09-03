@@ -56,7 +56,8 @@ typedef enum SbSystemPathId {
   kSbSystemPathExecutableFile,
 } SbSystemPathId;
 
-// System properties that can be queried for.
+// System properties that can be queried for. Many of these are used in
+// User-Agent string generation.
 typedef enum SbSystemPropertyId {
   // The full model number of the main platform chipset, including any
   // vendor-specific prefixes.
@@ -68,19 +69,27 @@ typedef enum SbSystemPropertyId {
 
   // A friendly name for this actual device. It may include user-personalization
   // like "Upstairs Bedroom." It may be displayed to users as part of some kind
-  // of device selection.
+  // of device selection (e.g. in-app DIAL).
   kSbSystemPropertyFriendlyName,
 
-  // The name of the device manufacturer.
+  // A deprecated alias for |kSbSystemPropertyBrandName|.
   kSbSystemPropertyManufacturerName,
 
-  // The name of the device model.
+  // The name of the brand under which the device is being sold.
+  kSbSystemPropertyBrandName = kSbSystemPropertyManufacturerName,
+
+  // The final production model number of the device.
   kSbSystemPropertyModelName,
 
-  // The name of the network operator that owns the target device.
+  // The year the device was launched, e.g. "2016".
+  kSbSystemPropertyModelYear,
+
+  // The name of the network operator that owns the target device, if
+  // applicable.
   kSbSystemPropertyNetworkOperatorName,
 
-  // The name of this platform, suitable for inclusion in a User-Agent, say.
+  // The name of the operating system and platform, suitable for inclusion in a
+  // User-Agent, say.
   kSbSystemPropertyPlatformName,
 
   // A universally-unique ID for the current user.
@@ -239,9 +248,6 @@ SB_EXPORT int64_t SbSystemGetTotalMemory();
 
 // Returns the type of the device.
 SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
-
-// Returns whether the device is a TV device.
-SB_EXPORT bool SbSystemIsTvDeviceType(SbSystemDeviceType device_type);
 
 // Returns the device's current network connection type.
 SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
