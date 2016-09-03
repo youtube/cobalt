@@ -17,9 +17,13 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STRINGS_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STRINGS_POEM_H_
 
+#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+
 #include "starboard/string.h"
 
 #define strcasecmp(s1, s2) SbStringCompareNoCase(s1, s2)
 #define strncasecmp(s1, s2) SbStringCompareNoCaseN(s1, s2)
+
+#endif  // POEM_FULL_EMULATION
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRINGS_POEM_H_

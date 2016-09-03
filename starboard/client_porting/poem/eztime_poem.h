@@ -18,6 +18,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_EZTIME_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_EZTIME_POEM_H_
 
+// #if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+
 #include "starboard/client_porting/eztime/eztime.h"
 
 #undef time_t
@@ -36,5 +38,7 @@
 #define time(x) EzTimeTGetNow(x)
 #define timegm(x) EzTimeTImplodeUTC(x)
 #define timelocal(x) EzTimeTImplodeLocal(x)
+
+// #endif // POEM_FULL_EMULATION
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_EZTIME_POEM_H_
