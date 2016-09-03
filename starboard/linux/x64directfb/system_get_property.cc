@@ -19,7 +19,7 @@
 
 namespace {
 
-const char* kFriendlyName = "My Linux";
+const char* kFriendlyName = "Linux Desktop";
 const char* kPlatformName = "DirectFB; Linux x86_64";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
@@ -41,10 +41,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
   }
 
   switch (property_id) {
+    case kSbSystemPropertyBrandName:
     case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyFirmwareVersion:
-    case kSbSystemPropertyManufacturerName:
     case kSbSystemPropertyModelName:
+    case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
       return false;
 
