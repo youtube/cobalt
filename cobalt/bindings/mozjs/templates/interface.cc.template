@@ -933,6 +933,9 @@ inline void ToJSValue(
       ToJSValue(context, std::string("{{idl_value}}"), out_value);
       return;
 {% endfor %}
+    default:
+      NOTREACHED();
+      out_value.set(JS::UndefinedValue());
   }
 }
 
