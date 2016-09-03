@@ -14,8 +14,12 @@
 
 // Test basic functionality of abs()
 
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#ifndef POEM_FULL_EMULATION
+#define POEM_FULL_EMULATION (1)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
 
 namespace starboard {
 namespace nplb {
