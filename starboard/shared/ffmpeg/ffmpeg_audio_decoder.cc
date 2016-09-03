@@ -90,9 +90,14 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   int frame_decoded = 0;
   int result =
       avcodec_decode_audio4(codec_context_, av_frame_, &frame_decoded, &packet);
-  SB_DCHECK(result == input_buffer.size())
-      << result << " " << input_buffer.size() << " " << frame_decoded;
-  SB_DCHECK(frame_decoded == 1);
+  if (result != input_buffer.size() || frame_decoded != 1) {
+    // TODO: Consider fill it with silence.
+    SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
+                     << " with input buffer size: " << input_buffer.size()
+                     << " and frame decoded: " << frame_decoded;
+    output->clear();
+    return;
+  }
 
   int decoded_audio_size = av_samples_get_buffer_size(
       NULL, codec_context_->channels, av_frame_->nb_samples,
@@ -106,6 +111,7 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
         audio_header_.samples_per_second, av_frame_->nb_samples,
         av_frame_->extended_data, reinterpret_cast<uint8_t*>(&(*output)[0]));
   } else {
+    // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << "Decoded audio frame is empty.";
     output->clear();
   }
