@@ -19,8 +19,8 @@
 
 namespace {
 
-const char* kFriendlyName = "My Linux";
-const char* kPlatformName = "Linux armv7l";
+const char* kFriendlyName = "Raspberry Pi";
+const char* kPlatformName = "Raspian Linux armv7l";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -41,10 +41,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
   }
 
   switch (property_id) {
+    case kSbSystemPropertyBrandName:
     case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyFirmwareVersion:
-    case kSbSystemPropertyManufacturerName:
     case kSbSystemPropertyModelName:
+    case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
       return false;
 
