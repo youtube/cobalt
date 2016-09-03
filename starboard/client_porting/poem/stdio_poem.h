@@ -17,6 +17,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STDIO_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STDIO_POEM_H_
 
+#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+
 #include "starboard/string.h"
 
 #define wcsncmp(s1, s2, c) SbStringCompareWide(s1, s2, c)
@@ -29,5 +31,7 @@
 #define sprintf SbStringFormatUnsafeF
 #define vsscanf SbStringScan
 #define sscanf SbStringScanF
+
+#endif  // POEM_FULL_EMULATION
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STDIO_POEM_H_

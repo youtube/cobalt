@@ -17,6 +17,16 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STDLIB_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STDLIB_POEM_H_
 
+#include "starboard/configuration.h"
+
+SB_C_INLINE int PoemAbs(int x) {
+  if (x < 0)
+    return -x;
+  return x;
+}
+
+#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+
 #include "starboard/string.h"
 #include "starboard/system.h"
 
@@ -28,12 +38,11 @@
 #define strtoul(s, o, b) SbStringParseUnsignedInteger(s, o, b)
 #define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
 #define strtod(s, o) SbStringParseDouble(s, o)
+
 #define qsort(b, ec, ew, c) SbSystemSort(b, ec, ew, c);
 
-SB_C_INLINE int abs(int x) {
-  if (x < 0)
-    return -x;
-  return x;
-}
+#define abs(x) PoemAbs(x)
+
+#endif  // POEM_FULL_EMULATION
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STDLIB_POEM_H_
