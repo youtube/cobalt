@@ -91,6 +91,8 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
   return PoemConcat(out_destination, source, INT_MAX);
 }
 
+#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+
 #define strlen(s) SbStringGetLength(s)
 #define strcpy(o, s) SbStringCopyUnsafe(dst, src)
 #define strncpy(o, s, ds) SbStringCopy(o, s, ds)
@@ -111,5 +113,7 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
 #define strtoul(s, o, b) SbStringParseUnsignedInteger(s, o, b)
 #define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
 #define strtod(s, o) SbStringParseDouble(s, o)
+
+#endif  // POEM_FULL_EMULATION
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_
