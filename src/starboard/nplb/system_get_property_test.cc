@@ -26,6 +26,21 @@ namespace {
 // Size of appropriate value buffer.
 const size_t kValueSize = 1024;
 
+bool IsCEDevice(SbSystemDeviceType device_type) {
+  switch (device_type) {
+    case kSbSystemDeviceTypeBlueRayDiskPlayer:
+    case kSbSystemDeviceTypeGameConsole:
+    case kSbSystemDeviceTypeOverTheTopBox:
+    case kSbSystemDeviceTypeSetTopBox:
+    case kSbSystemDeviceTypeTV:
+      return true;
+    case kSbSystemDeviceTypeDesktopPC:
+    case kSbSystemDeviceTypeUnknown:
+    default:
+      return false;
+  }
+}
+
 void BasicTest(SbSystemPropertyId id,
                bool expect_result,
                bool expected_result,
@@ -48,14 +63,23 @@ void BasicTest(SbSystemPropertyId id,
 }
 
 TEST(SbSystemGetPropertyTest, ReturnsRequired) {
-  BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
-  BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
   BasicTest(kSbSystemPropertyFriendlyName, true, true, __LINE__);
-  BasicTest(kSbSystemPropertyManufacturerName, false, true, __LINE__);
-  BasicTest(kSbSystemPropertyModelName, false, true, __LINE__);
-  BasicTest(kSbSystemPropertyNetworkOperatorName, false, true, __LINE__);
   BasicTest(kSbSystemPropertyPlatformName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyPlatformUuid, true, true, __LINE__);
+
+  BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
+  BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
+  BasicTest(kSbSystemPropertyNetworkOperatorName, false, true, __LINE__);
+
+  if (IsCEDevice(SbSystemGetDeviceType())) {
+    BasicTest(kSbSystemPropertyBrandName, true, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelYear, true, true, __LINE__);
+  } else {
+    BasicTest(kSbSystemPropertyBrandName, false, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelName, false, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
+  }
 }
 
 TEST(SbSystemGetPropertyTest, FailsGracefullyZeroBufferLength) {
