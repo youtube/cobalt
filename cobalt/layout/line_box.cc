@@ -55,6 +55,7 @@ LineBox::LineBox(LayoutUnit top, bool position_children_relative_to_baseline,
       ellipsis_width_(ellipsis_width),
       has_overflowed_(false),
       at_end_(false),
+      num_absolutely_positioned_boxes_before_first_box_justifying_line_(0),
       shrink_to_fit_width_(indent_offset_),
       height_(0),
       baseline_offset_from_top_(0),
@@ -62,8 +63,12 @@ LineBox::LineBox(LayoutUnit top, bool position_children_relative_to_baseline,
       placed_ellipsis_offset_(0) {}
 
 Box* LineBox::TryAddChildAndMaybeWrap(Box* child_box) {
-  DCHECK(!child_box->IsAbsolutelyPositioned());
   DCHECK(!at_end_);
+
+  if (child_box->IsAbsolutelyPositioned()) {
+    BeginEstimateStaticPositionForAbsolutelyPositionedChild(child_box);
+    return NULL;
+  }
 
   UpdateSizePreservingTrailingWhiteSpace(child_box);
 
@@ -131,50 +136,13 @@ Box* LineBox::TryAddChildAndMaybeWrap(Box* child_box) {
 }
 
 void LineBox::BeginAddChildAndMaybeOverflow(Box* child_box) {
-  DCHECK(!child_box->IsAbsolutelyPositioned());
+  if (child_box->IsAbsolutelyPositioned()) {
+    BeginEstimateStaticPositionForAbsolutelyPositionedChild(child_box);
+    return;
+  }
 
   UpdateSizePreservingTrailingWhiteSpace(child_box);
   BeginAddChildInternal(child_box);
-}
-
-void LineBox::BeginEstimateStaticPosition(Box* child_box) {
-  DCHECK(child_box->IsAbsolutelyPositioned());
-
-  // The term "static position" (of an element) refers, roughly, to the position
-  // an element would have had in the normal flow. More precisely:
-  //
-  // The static-position containing block is the containing block of a
-  // hypothetical box that would have been the first box of the element if its
-  // specified 'position' value had been 'static'.
-  //
-  // The static position for 'left' is the distance from the left edge of the
-  // containing block to the left margin edge of a hypothetical box that would
-  // have been the first box of the element if its 'position' property had been
-  // 'static' and 'float' had been 'none'. The value is negative if the
-  // hypothetical box is to the left of the containing block.
-  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
-
-  // For the purposes of this section and the next, the term "static position"
-  // (of an element) refers, roughly, to the position an element would have had
-  // in the normal flow. More precisely, the static position for 'top' is the
-  // distance from the top edge of the containing block to the top margin edge
-  // of a hypothetical box that would have been the first box of the element if
-  // its specified 'position' value had been 'static'.
-  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
-
-  switch (child_box->GetLevel()) {
-    case Box::kInlineLevel:
-      // NOTE: This case is never reached due to a bug.
-      child_box->SetStaticPositionLeftFromParent(shrink_to_fit_width_);
-      break;
-    case Box::kBlockLevel:
-      child_box->SetStaticPositionLeftFromParent(LayoutUnit());
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
-  child_box->SetStaticPositionTopFromParent(LayoutUnit());
 }
 
 void LineBox::EndUpdates() {
@@ -186,6 +154,12 @@ void LineBox::EndUpdates() {
     CollapseTrailingWhiteSpace();
   }
 
+  // Set the leading and trailing white space flags now. This ensures that the
+  // values returned by HasLeadingWhiteSpace() and HasTrailingWhiteSpace()
+  // remain valid even after bidi reversals.
+  has_leading_white_space_ = HasLeadingWhiteSpace();
+  has_trailing_white_space_ = HasTrailingWhiteSpace();
+
   ReverseChildBoxesByBidiLevels();
   UpdateChildBoxLeftPositions();
   SetLineBoxHeightFromChildBoxes();
@@ -194,15 +168,31 @@ void LineBox::EndUpdates() {
 }
 
 bool LineBox::HasLeadingWhiteSpace() const {
-  return first_non_collapsed_child_box_index_ &&
-         child_boxes_[*first_non_collapsed_child_box_index_]
-             ->HasLeadingWhiteSpace();
+  // |has_leading_white_space_| should only ever be set by EndUpdates() after
+  // |at_end_| has been set to true;
+  DCHECK(at_end_ || !has_leading_white_space_);
+
+  // If |has_leading_white_space_| has been set, then use it. Otherwise, grab
+  // the leading white space state from the first non-collapsed child box.
+  return has_leading_white_space_
+             ? *has_leading_white_space_
+             : first_non_collapsed_child_box_index_ &&
+                   child_boxes_[*first_non_collapsed_child_box_index_]
+                       ->HasLeadingWhiteSpace();
 }
 
 bool LineBox::HasTrailingWhiteSpace() const {
-  return last_non_collapsed_child_box_index_ &&
-         child_boxes_[*last_non_collapsed_child_box_index_]
-             ->HasTrailingWhiteSpace();
+  // |has_trailing_white_space_| should only ever be set by EndUpdates() after
+  // |at_end_| has been set to true;
+  DCHECK(at_end_ || !has_trailing_white_space_);
+
+  // If |has_trailing_white_space_| has been set, then use it. Otherwise, grab
+  // the trailing white space state from the last non-collapsed child box.
+  return has_trailing_white_space_
+             ? *has_trailing_white_space_
+             : last_non_collapsed_child_box_index_ &&
+                   child_boxes_[*last_non_collapsed_child_box_index_]
+                       ->HasTrailingWhiteSpace();
 }
 
 bool LineBox::IsCollapsed() const {
@@ -215,7 +205,8 @@ bool LineBox::LineExists() const {
 
 size_t LineBox::GetFirstBoxJustifyingLineExistenceIndex() const {
   return first_box_justifying_line_existence_index_.value_or(
-      child_boxes_.size());
+             child_boxes_.size()) +
+         num_absolutely_positioned_boxes_before_first_box_justifying_line_;
 }
 
 bool LineBox::IsEllipsisPlaced() const { return is_ellipsis_placed_; }
@@ -472,6 +463,49 @@ bool LineBox::TryWrapChildrenAtLastOpportunity(
   }
 
   return false;
+}
+
+void LineBox::BeginEstimateStaticPositionForAbsolutelyPositionedChild(
+    Box* child_box) {
+  if (!first_box_justifying_line_existence_index_) {
+    ++num_absolutely_positioned_boxes_before_first_box_justifying_line_;
+  }
+
+  // The term "static position" (of an element) refers, roughly, to the position
+  // an element would have had in the normal flow. More precisely:
+  //
+  // The static-position containing block is the containing block of a
+  // hypothetical box that would have been the first box of the element if its
+  // specified 'position' value had been 'static'.
+  //
+  // The static position for 'left' is the distance from the left edge of the
+  // containing block to the left margin edge of a hypothetical box that would
+  // have been the first box of the element if its 'position' property had been
+  // 'static' and 'float' had been 'none'. The value is negative if the
+  // hypothetical box is to the left of the containing block.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+
+  // For the purposes of this section and the next, the term "static position"
+  // (of an element) refers, roughly, to the position an element would have had
+  // in the normal flow. More precisely, the static position for 'top' is the
+  // distance from the top edge of the containing block to the top margin edge
+  // of a hypothetical box that would have been the first box of the element if
+  // its specified 'position' value had been 'static'.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
+
+  switch (child_box->GetLevel()) {
+    case Box::kInlineLevel:
+      // NOTE: This case is never reached due to a bug.
+      child_box->SetStaticPositionLeftFromParent(shrink_to_fit_width_);
+      break;
+    case Box::kBlockLevel:
+      child_box->SetStaticPositionLeftFromParent(LayoutUnit());
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+  child_box->SetStaticPositionTopFromParent(LayoutUnit());
 }
 
 void LineBox::BeginAddChildInternal(Box* child_box) {
