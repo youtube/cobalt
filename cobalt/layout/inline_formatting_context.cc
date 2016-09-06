@@ -48,8 +48,6 @@ InlineFormattingContext::InlineFormattingContext(
 InlineFormattingContext::~InlineFormattingContext() {}
 
 Box* InlineFormattingContext::TryAddChildAndMaybeWrap(Box* child_box) {
-  DCHECK(child_box->GetLevel() == Box::kInlineLevel);
-
   // When an inline box exceeds the width of a line box, it is split into
   // several boxes and these boxes are distributed across several line boxes.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
@@ -63,10 +61,6 @@ Box* InlineFormattingContext::TryAddChildAndMaybeWrap(Box* child_box) {
     CreateLineBox();
   }
   return child_box_before_wrap;
-}
-
-void InlineFormattingContext::BeginEstimateStaticPosition(Box* child_box) {
-  line_box_->BeginEstimateStaticPosition(child_box);
 }
 
 void InlineFormattingContext::EndUpdates() {
