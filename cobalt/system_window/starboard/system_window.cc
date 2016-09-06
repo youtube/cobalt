@@ -35,8 +35,19 @@ void StarboardDialogCallback(SbSystemPlatformErrorResponse response) {
 }  // namespace
 
 SystemWindowStarboard::SystemWindowStarboard(
+    base::EventDispatcher* event_dispatcher)
+    : SystemWindow(event_dispatcher),
+      window_(kSbWindowInvalid),
+      key_down_(false) {
+  window_ = SbWindowCreate(NULL);
+  DCHECK(SbWindowIsValid(window_));
+  DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
+  g_the_window = this;
+}
+
+SystemWindowStarboard::SystemWindowStarboard(
     base::EventDispatcher* event_dispatcher, const math::Size& window_size)
-    : SystemWindow(event_dispatcher, window_size),
+    : SystemWindow(event_dispatcher),
       window_(kSbWindowInvalid),
       key_down_(false) {
   SbWindowOptions options;
@@ -55,6 +66,12 @@ SystemWindowStarboard::~SystemWindowStarboard() {
     g_the_window = NULL;
   }
   SbWindowDestroy(window_);
+}
+
+math::Size SystemWindowStarboard::GetWindowSize() const {
+  SbWindowSize window_size;
+  SbWindowGetSize(window_, &window_size);
+  return math::Size(window_size.width, window_size.height);
 }
 
 SbWindow SystemWindowStarboard::GetSbWindow() { return window_; }
@@ -140,9 +157,15 @@ void SystemWindowStarboard::HandleDialogClose(
 }
 
 scoped_ptr<SystemWindow> CreateSystemWindow(
-    base::EventDispatcher* event_dispatcher, const math::Size& window_size) {
-  return scoped_ptr<SystemWindow>(
-      new SystemWindowStarboard(event_dispatcher, window_size));
+    base::EventDispatcher* event_dispatcher,
+    const base::optional<math::Size>& window_size) {
+  if (window_size) {
+    return scoped_ptr<SystemWindow>(
+        new SystemWindowStarboard(event_dispatcher, *window_size));
+  } else {
+    return scoped_ptr<SystemWindow>(
+        new SystemWindowStarboard(event_dispatcher));
+  }
 }
 
 // Returns true if the event was handled.

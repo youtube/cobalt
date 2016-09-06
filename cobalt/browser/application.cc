@@ -53,9 +53,6 @@ namespace cobalt {
 namespace browser {
 
 namespace {
-const int kDefaultViewportWidth = 1920;
-const int kDefaultViewportHeight = 1080;
-
 const int kStatUpdatePeriodMs = 1000;
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
@@ -318,8 +315,6 @@ Application::Application(const base::Closure& quit_closure)
   // The main web module's stat tracker tracks event stats.
   options.web_module_options.track_event_stats = true;
 
-  math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
-
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kProxy)) {
     options.network_module_options.custom_proxy =
@@ -366,40 +361,34 @@ Application::Application(const base::Closure& quit_closure)
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+  base::optional<math::Size> viewport_size;
   if (command_line->HasSwitch(browser::switches::kViewport)) {
     const std::string switchValue =
         command_line->GetSwitchValueASCII(browser::switches::kViewport);
     std::vector<std::string> lengths;
     base::SplitString(switchValue, 'x', &lengths);
     if (lengths.size() >= 1) {
-      int width;
-      if (!base::StringToInt(lengths[0], &width) || width < 1) {
-        DLOG(ERROR) << "Invalid value specified for viewport width: "
-                    << switchValue
-                    << ". Using default viewport: " << viewport_size.width()
-                    << "x" << viewport_size.height();
-      } else {
-        viewport_size.set_width(width);
-        if (lengths.size() >= 2) {
-          int height;
-          if (!base::StringToInt(lengths[1], &height) || height < 1) {
-            DLOG(ERROR) << "Invalid value specified for viewport height: "
-                        << switchValue << ". Using default viewport height: "
-                        << viewport_size.width() << "x"
-                        << viewport_size.height();
-          } else {
-            viewport_size.set_height(height);
-          }
-        } else {
+      int width = -1;
+      if (base::StringToInt(lengths[0], &width) && width >= 1) {
+        int height = -1;
+        if (lengths.size() < 2) {
           // Allow shorthand specification of the viewport by only giving the
           // width. This calculates the height at 4:3 aspect ratio for smaller
           // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-          if (viewport_size.width() >= 1280) {
-            viewport_size.set_height(9 * viewport_size.width() / 16);
+          if (width >= 1280) {
+            viewport_size.emplace(width, 9 * width / 16);
           } else {
-            viewport_size.set_height(3 * viewport_size.width() / 4);
+            viewport_size.emplace(width, 3 * width / 4);
           }
+        } else if (base::StringToInt(lengths[1], &height) && height >= 1) {
+          viewport_size.emplace(width, height);
+        } else {
+          DLOG(ERROR) << "Invalid value specified for viewport height: "
+                      << switchValue << ". Using default viewport size.";
         }
+      } else {
+        DLOG(ERROR) << "Invalid value specified for viewport width: "
+                    << switchValue << ". Using default viewport size.";
       }
     }
   }
