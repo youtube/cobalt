@@ -34,10 +34,13 @@ namespace system_window {
 // received and processed.
 class SystemWindowWin : public SystemWindow {
  public:
-  explicit SystemWindowWin(base::EventDispatcher* event_dispatcher,
-                           const math::Size& window_size);
+  explicit SystemWindowWin(base::EventDispatcher* event_dispatcher);
+  SystemWindowWin(base::EventDispatcher* event_dispatcher,
+                  const math::Size& window_size);
 
   ~SystemWindowWin() OVERRIDE;
+
+  math::Size GetWindowSize() const OVERRIDE { return window_size_; }
 
   HWND window_handle() const { return window_handle_; }
 
@@ -56,6 +59,7 @@ class SystemWindowWin : public SystemWindow {
   base::Thread thread;
   base::WaitableEvent window_initialized;
   HWND window_handle_;
+  math::Size window_size_;
 };
 
 }  // namespace system_window
