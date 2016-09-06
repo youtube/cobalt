@@ -30,9 +30,12 @@ namespace system_window {
 
 class SystemWindowStarboard : public SystemWindow {
  public:
-  explicit SystemWindowStarboard(base::EventDispatcher* event_dispatcher,
-                                 const math::Size& window_size);
+  explicit SystemWindowStarboard(base::EventDispatcher* event_dispatcher);
+  SystemWindowStarboard(base::EventDispatcher* event_dispatcher,
+                        const math::Size& window_size);
   ~SystemWindowStarboard() OVERRIDE;
+
+  math::Size GetWindowSize() const OVERRIDE;
 
   // Returns a handle to the Starboard window object.
   SbWindow GetSbWindow();
