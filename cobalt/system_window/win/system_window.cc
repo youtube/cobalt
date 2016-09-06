@@ -68,12 +68,22 @@ unsigned int GetModifierKeyState() {
 }
 }  // namespace
 
-SystemWindowWin::SystemWindowWin(base::EventDispatcher* event_dispatcher,
-                                 const math::Size& window_size)
-    : SystemWindow(event_dispatcher, window_size),
+SystemWindowWin::SystemWindowWin(base::EventDispatcher* event_dispatcher)
+    : SystemWindow(event_dispatcher),
       thread(kThreadName),
       window_initialized(true, false),
-      window_handle_(NULL) {
+      window_handle_(NULL),
+      window_size_(math::Size(1920, 1080)) {
+  StartWindow();
+}
+
+SystemWindowWin::SystemWindowWin(base::EventDispatcher* event_dispatcher,
+                                 const math::Size& window_size)
+    : SystemWindow(event_dispatcher),
+      thread(kThreadName),
+      window_initialized(true, false),
+      window_handle_(NULL),
+      window_size_(window_size) {
   StartWindow();
 }
 
@@ -160,8 +170,8 @@ void SystemWindowWin::Win32WindowThread() {
   window_handle_ = CreateWindowEx(
       WS_EX_APPWINDOW | WS_EX_WINDOWEDGE, kClassName, kWindowTitle,
       WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW, 0, 0,
-      window_size().width(), window_size().height(), NULL, NULL,
-      module_instance, NULL);
+      window_size_.width(), window_size_.height(), NULL, NULL, module_instance,
+      NULL);
   CHECK(window_handle_);
 
   ShowWindow(window_handle_, SW_SHOW);
@@ -181,9 +191,14 @@ void SystemWindowWin::Win32WindowThread() {
 }
 
 scoped_ptr<SystemWindow> CreateSystemWindow(
-    base::EventDispatcher* event_dispatcher, const math::Size& window_size) {
-  return scoped_ptr<SystemWindow>(
-      new SystemWindowWin(event_dispatcher, window_size));
+    base::EventDispatcher* event_dispatcher,
+    const base::optional<math::Size>& window_size) {
+  if (window_size) {
+    return scoped_ptr<SystemWindow>(
+        new SystemWindowWin(event_dispatcher, *window_size));
+  } else {
+    return scoped_ptr<SystemWindow>(new SystemWindowWin(event_dispatcher));
+  }
 }
 
 }  // namespace system_window
