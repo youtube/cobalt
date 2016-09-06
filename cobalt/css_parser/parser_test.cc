@@ -7630,34 +7630,19 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
       parser_.ParseStyleDeclarationList(
           "transition: 1s voodoo-magic; display: inline;", source_location_);
 
-  // Test transition-property was set properly.
-  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
-      dynamic_cast<cssom::PropertyKeyListValue*>(
-          style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
-  ASSERT_TRUE(property_name_list.get());
-  ASSERT_EQ(0, property_name_list->value().size());
+  // Test transition-property was not set.
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            style->GetPropertyValue(cssom::kTransitionPropertyProperty));
 
-  // Test transition-duration was set properly.
-  scoped_refptr<cssom::TimeListValue> duration_list =
-      dynamic_cast<cssom::TimeListValue*>(
-          style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
-  ASSERT_TRUE(duration_list.get());
-  ASSERT_EQ(0, duration_list->value().size());
+  // Test transition-duration was not set.
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kTransitionDurationProperty));
 
-  // Test transition-timing-function was set properly.
-  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
-      dynamic_cast<cssom::TimingFunctionListValue*>(
-          style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
-              .get());
-  ASSERT_TRUE(timing_function_list.get());
-  ASSERT_EQ(0, timing_function_list->value().size());
+  // Test transition-timing-function was not set.
+  EXPECT_FALSE(
+      style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty));
 
-  // Test transition-delay was set properly.
-  scoped_refptr<cssom::TimeListValue> delay_list =
-      dynamic_cast<cssom::TimeListValue*>(
-          style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
-  ASSERT_TRUE(delay_list.get());
-  ASSERT_EQ(0, delay_list->value().size());
+  // Test transition-delay was not set.
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kTransitionDelayProperty));
 
   // Test that despite the error, display inline was still set correctly.
   EXPECT_EQ(cssom::KeywordValue::GetInline(),
@@ -7674,34 +7659,20 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSpace) {
       parser_.ParseStyleDeclarationList("transition: 1s voodoo-magic 2s;",
                                         source_location_);
 
-  // Test transition-property was set properly.
-  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
-      dynamic_cast<cssom::PropertyKeyListValue*>(
-          style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
-  ASSERT_TRUE(property_name_list.get());
-  ASSERT_EQ(0, property_name_list->value().size());
+  // Test transition-property was not set.
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
 
-  // Test transition-duration was set properly.
-  scoped_refptr<cssom::TimeListValue> duration_list =
-      dynamic_cast<cssom::TimeListValue*>(
-          style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
-  ASSERT_TRUE(duration_list.get());
-  ASSERT_EQ(0, duration_list->value().size());
+  // Test transition-duration was not set.
+  EXPECT_FALSE(
+      style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
 
-  // Test transition-timing-function was set properly.
-  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
-      dynamic_cast<cssom::TimingFunctionListValue*>(
-          style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
-              .get());
-  ASSERT_TRUE(timing_function_list.get());
-  ASSERT_EQ(0, timing_function_list->value().size());
+  // Test transition-timing-function was not set.
+  EXPECT_FALSE(
+      style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty).get());
 
-  // Test transition-delay was set properly.
-  scoped_refptr<cssom::TimeListValue> delay_list =
-      dynamic_cast<cssom::TimeListValue*>(
-          style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
-  ASSERT_TRUE(delay_list.get());
-  ASSERT_EQ(0, delay_list->value().size());
+  // Test transition-delay was not set.
+  ASSERT_FALSE(style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
 }
 
 TEST_F(ParserTest,
