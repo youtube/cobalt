@@ -582,8 +582,12 @@ void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (status == PIPELINE_OK) {
-    DCHECK(!audio_read_in_progress_);
-    DCHECK(!video_read_in_progress_);
+    if (audio_read_in_progress_ || video_read_in_progress_) {
+      message_loop_->PostTask(
+          FROM_HERE,
+          base::Bind(&SbPlayerPipeline::OnDemuxerSeeked, this, status));
+      return;
+    }
     ++ticket_;
     SbPlayerSeek(player_, seek_time_, ticket_);
   }
