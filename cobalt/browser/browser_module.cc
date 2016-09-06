@@ -174,7 +174,7 @@ BrowserModule::BrowserModule(const GURL& url,
   debug_console_.reset(new DebugConsole(
       base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      media_module_.get(), &network_module_, system_window->window_size(),
+      media_module_.get(), &network_module_, system_window->GetWindowSize(),
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
