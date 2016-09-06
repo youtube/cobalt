@@ -84,10 +84,6 @@ class LineBox {
   // Asynchronously adds the given child box to the line, ignoring any possible
   // overflow. The used values will be undefined until |EndUpdates| is called.
   void BeginAddChildAndMaybeOverflow(Box* child_box);
-  // Asynchronously estimates the static position of the given child box.
-  // In CSS 2.1 the static position is only defined for absolutely positioned
-  // boxes. The used values will be undefined until |EndUpdates| is called.
-  void BeginEstimateStaticPosition(Box* child_box);
   // Ensures that the calculation of used values for all previously seen child
   // boxes is completed.
   void EndUpdates();
@@ -108,6 +104,8 @@ class LineBox {
   // treated as not existing for any other purpose.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   bool LineExists() const;
+  // Returns the first box justifing the line's existence.
+  // NOTE: This includes absolutely positioned children.
   size_t GetFirstBoxJustifyingLineExistenceIndex() const;
 
   bool IsEllipsisPlaced() const;
@@ -147,6 +145,11 @@ class LineBox {
   bool TryWrapChildrenAtLastOpportunity(
       WrapOpportunityPolicy wrap_opportunity_policy);
 
+  // Asynchronously estimates the static position of the given child box.
+  // In CSS 2.1 the static position is only defined for absolutely positioned
+  // boxes. The used values will be undefined until |EndUpdates| is called.
+  void BeginEstimateStaticPositionForAbsolutelyPositionedChild(Box* child_box);
+
   void BeginAddChildInternal(Box* child_box);
 
   void ReverseChildBoxesByBidiLevels();
@@ -183,9 +186,20 @@ class LineBox {
   typedef std::vector<Box*> ChildBoxes;
   ChildBoxes child_boxes_;
 
+  int num_absolutely_positioned_boxes_before_first_box_justifying_line_;
+
+  // Accessing boxes indicated by these indices are only valid before
+  // EndUpdates() is called, because the positions of the boxes may change
+  // during bidirectional sorting.
   base::optional<size_t> first_box_justifying_line_existence_index_;
   base::optional<size_t> first_non_collapsed_child_box_index_;
   base::optional<size_t> last_non_collapsed_child_box_index_;
+
+  // These flags are set when EndUpdates() is called. This allows the leading
+  // and trailing white space state of the line to be accessible even after
+  // the boxes have been moved as a result of bidirectional sorting.
+  base::optional<bool> has_leading_white_space_;
+  base::optional<bool> has_trailing_white_space_;
 
   LayoutUnit shrink_to_fit_width_;
   LayoutUnit height_;
