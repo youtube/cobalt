@@ -150,46 +150,42 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
   while (child_box_iterator != child_boxes().end()) {
     Box* child_box = *child_box_iterator;
 
-    if (child_box->IsAbsolutelyPositioned()) {
-      inline_formatting_context->BeginEstimateStaticPosition(child_box);
-    } else {
-      // Attempt to add the child box to the inline formatting context.
-      Box* child_box_before_wrap =
-          inline_formatting_context->TryAddChildAndMaybeWrap(child_box);
-      // If |child_box_before_wrap| is non-NULL, then trying to add the child
-      // box caused a line wrap to occur, and |child_box_before_wrap| is set to
-      // the last box that was successfully placed on the line. This can
-      // potentially be any of the child boxes previously added. Any boxes
-      // following the returned box, including ones that were previously
-      // added, still need to be added to the inline formatting context.
-      if (child_box_before_wrap) {
-        // Iterate backwards until the last box added to the line is found, and
-        // then increment the iterator, so that it is pointing at the location
-        // of the first box to add the next time through the loop.
-        while (*child_box_iterator != child_box_before_wrap) {
-          --child_box_iterator;
-        }
+    // Attempt to add the child box to the inline formatting context.
+    Box* child_box_before_wrap =
+        inline_formatting_context->TryAddChildAndMaybeWrap(child_box);
+    // If |child_box_before_wrap| is non-NULL, then trying to add the child
+    // box caused a line wrap to occur, and |child_box_before_wrap| is set to
+    // the last box that was successfully placed on the line. This can
+    // potentially be any of the child boxes previously added. Any boxes
+    // following the returned box, including ones that were previously
+    // added, still need to be added to the inline formatting context.
+    if (child_box_before_wrap) {
+      // Iterate backwards until the last box added to the line is found, and
+      // then increment the iterator, so that it is pointing at the location
+      // of the first box to add the next time through the loop.
+      while (*child_box_iterator != child_box_before_wrap) {
+        --child_box_iterator;
+      }
 
-        // If |child_box_before_wrap| has a split sibling, then this potentially
-        // means that a split occurred during the wrap, and a new box needs to
-        // be added to the container (this will also need to be the first box
-        // added to the inline formatting context).
-        //
-        // If the split sibling is from a previous split, then it would have
-        // already been added to the line and |child_box_iterator| should
-        // be currently pointing at it. If this is not the case, then we know
-        // that this is a new box produced during the wrap, and it must be
-        // added to the container. This will be the first box added during
-        // the next iteration of the loop.
-        Box* split_child_after_wrap = child_box_before_wrap->GetSplitSibling();
-        Boxes::const_iterator next_child_box_iterator = child_box_iterator + 1;
-        if (split_child_after_wrap &&
-            (next_child_box_iterator == child_boxes().end() ||
-             *next_child_box_iterator != split_child_after_wrap)) {
-          child_box_iterator =
-              InsertSplitSiblingOfDirectChild(child_box_iterator);
-          continue;
-        }
+      // If |child_box_before_wrap| has a split sibling, then this potentially
+      // means that a split occurred during the wrap, and a new box needs to
+      // be added to the container (this will also need to be the first box
+      // added to the inline formatting context).
+      //
+      // If the split sibling is from a previous split, then it would have
+      // already been added to the line and |child_box_iterator| should
+      // be currently pointing at it. If this is not the case, then we know
+      // that this is a new box produced during the wrap, and it must be
+      // added to the container. This will be the first box added during
+      // the next iteration of the loop.
+      Box* split_child_after_wrap = child_box_before_wrap->GetSplitSibling();
+      Boxes::const_iterator next_child_box_iterator = child_box_iterator + 1;
+      if (split_child_after_wrap &&
+          (next_child_box_iterator == child_boxes().end() ||
+           *next_child_box_iterator != split_child_after_wrap)) {
+        child_box_iterator =
+            InsertSplitSiblingOfDirectChild(child_box_iterator);
+        continue;
       }
     }
 

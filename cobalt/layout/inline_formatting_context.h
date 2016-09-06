@@ -79,10 +79,6 @@ class InlineFormattingContext : public FormattingContext {
   // child boxes. The used values will be undefined until |EndUpdates| is
   // called.
   Box* TryAddChildAndMaybeWrap(Box* child_box);
-  // Asynchronously estimates the static position of the given child box.
-  // In CSS 2.1 the static position is only defined for absolutely positioned
-  // boxes. The position is undefined until |EndUpdates| is called.
-  void BeginEstimateStaticPosition(Box* child_box);
   // Ensures that the calculation of used values for all previously seen child
   // boxes is completed.
   void EndUpdates();
