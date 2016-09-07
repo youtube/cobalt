@@ -204,6 +204,8 @@ class Window : public EventTarget {
 
   void ClearInterval(int handle);
 
+  void DestroyTimers();
+
   // Web API: Storage (implements)
   scoped_refptr<Storage> local_storage() const;
   scoped_refptr<Storage> session_storage() const;
