@@ -194,7 +194,13 @@ namespace player {
 // static
 AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
                                    const SbMediaAudioHeader& audio_header) {
-  return new ffmpeg::AudioDecoder(audio_codec, audio_header);
+  ffmpeg::AudioDecoder* decoder =
+      new ffmpeg::AudioDecoder(audio_codec, audio_header);
+  if (decoder->is_valid()) {
+    return decoder;
+  }
+  delete decoder;
+  return NULL;
 }
 
 }  // namespace player

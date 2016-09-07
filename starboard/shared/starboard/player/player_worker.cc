@@ -119,9 +119,19 @@ void PlayerWorker::RunLoop() {
 }
 
 bool PlayerWorker::ProcessInitEvent() {
-  audio_renderer_ = new AudioRenderer(
-      AudioDecoder::Create(audio_codec_, audio_header_), audio_header_);
-  video_renderer_ = new VideoRenderer(VideoDecoder::Create(video_codec_));
+  AudioDecoder* audio_decoder =
+      AudioDecoder::Create(audio_codec_, audio_header_);
+  VideoDecoder* video_decoder = VideoDecoder::Create(video_codec_);
+
+  if (!audio_decoder || !video_decoder) {
+    delete audio_decoder;
+    delete video_decoder;
+    UpdatePlayerState(kSbPlayerStateError);
+    return false;
+  }
+
+  audio_renderer_ = new AudioRenderer(audio_decoder, audio_header_);
+  video_renderer_ = new VideoRenderer(video_decoder);
   if (audio_renderer_->is_valid() && video_renderer_->is_valid()) {
     UpdatePlayerState(kSbPlayerStateInitialized);
     return true;

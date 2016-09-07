@@ -293,7 +293,12 @@ namespace player {
 
 // static
 VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
-  return new ffmpeg::VideoDecoder(video_codec);
+  ffmpeg::VideoDecoder* decoder = new ffmpeg::VideoDecoder(video_codec);
+  if (decoder->is_valid()) {
+    return decoder;
+  }
+  delete decoder;
+  return NULL;
 }
 
 }  // namespace player
