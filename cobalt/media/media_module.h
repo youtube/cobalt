@@ -47,10 +47,12 @@ class MediaModule : public CanPlayTypeHandler,
     Options()
         : use_audio_decoder_stub(false),
           use_null_audio_streamer(false),
-          use_video_decoder_stub(false) {}
+          use_video_decoder_stub(false),
+          disable_webm_vp9(false) {}
     bool use_audio_decoder_stub;
     bool use_null_audio_streamer;
     bool use_video_decoder_stub;
+    bool disable_webm_vp9;
   };
 
   typedef ::media::WebMediaPlayer WebMediaPlayer;

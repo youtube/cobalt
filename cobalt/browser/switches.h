@@ -26,6 +26,7 @@ extern const char kAllowHttp[];
 extern const char kAudioDecoderStub[];
 extern const char kCspMode[];
 extern const char kDebugConsoleMode[];
+extern const char kDisableWebmVp9[];
 extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
 extern const char kIgnoreCertificateErrors[];
