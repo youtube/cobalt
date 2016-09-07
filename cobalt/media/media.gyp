@@ -21,6 +21,7 @@
       'target_name': 'media',
       'type': 'static_library',
       'sources': [
+        'can_play_type_handler.h',
         'fetcher_buffered_data_source.cc',
         'fetcher_buffered_data_source.h',
         'media_module.h',

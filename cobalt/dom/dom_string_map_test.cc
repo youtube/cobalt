@@ -45,7 +45,7 @@ class DOMStringMapTest : public ::testing::Test {
 
 DOMStringMapTest::DOMStringMapTest()
     : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, ""),
+                            NULL, NULL, NULL, ""),
       document_(new Document(&html_element_context_)),
       element_(new Element(document_, base::Token("element"))),
       dom_string_map_(new DOMStringMap(element_)) {}

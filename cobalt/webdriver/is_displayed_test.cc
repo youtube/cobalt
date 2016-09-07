@@ -58,6 +58,7 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
         html_element_context_(
             &fetcher_factory_, css_parser_.get(), dom_parser_.get(),
+            NULL /* can_play_type_handler  */,
             NULL /* web_media_player_factory */, &script_runner_,
             NULL /* media_source_registry */, resource_provider_stub_.get(),
             image_cache_.get(), NULL /* remote_font_cache */,
