@@ -347,6 +347,10 @@ Application::Application(const base::Closure& quit_closure)
 
   EnableUsingStubImageDecoderIfRequired();
 
+  if (command_line->HasSwitch(browser::switches::kDisableWebmVp9)) {
+    DLOG(INFO) << "Webm/Vp9 disabled";
+    options.media_module_options.disable_webm_vp9 = true;
+  }
   if (command_line->HasSwitch(switches::kAudioDecoderStub)) {
     DLOG(INFO) << "Use ShellRawAudioDecoderStub";
     options.media_module_options.use_audio_decoder_stub = true;

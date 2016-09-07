@@ -36,6 +36,9 @@ const char kCspMode[] = "csp_mode";
 // Switches different debug console modes: on | hud | off
 const char kDebugConsoleMode[] = "debug_console";
 
+// Disable webm/vp9.
+const char kDisableWebmVp9[] = "disable_webm_vp9";
+
 // Create WebDriver server.
 const char kEnableWebDriver[] = "enable_webdriver";
 
