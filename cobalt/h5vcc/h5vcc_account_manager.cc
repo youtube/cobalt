@@ -17,6 +17,7 @@
 #include "cobalt/h5vcc/h5vcc_account_manager.h"
 
 #include "base/memory/scoped_ptr.h"
+#include "starboard/ps4/application_linking.h"
 #include "starboard/user.h"
 
 namespace cobalt {
