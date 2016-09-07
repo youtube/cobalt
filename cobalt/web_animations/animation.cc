@@ -26,7 +26,9 @@ Animation::Animation(const scoped_refptr<AnimationEffectReadOnly>& effect,
     : effect_(effect) {
   const KeyframeEffectReadOnly* keyframe_effect =
       base::polymorphic_downcast<const KeyframeEffectReadOnly*>(effect.get());
-  keyframe_effect->target()->Register(this);
+  if (keyframe_effect) {
+    keyframe_effect->target()->Register(this);
+  }
   set_timeline(timeline);
 }
 
@@ -34,17 +36,22 @@ void Animation::set_timeline(const scoped_refptr<AnimationTimeline>& timeline) {
   if (timeline_) {
     timeline_->Deregister(this);
   }
-  timeline->Register(this);
+
+  if (timeline) {
+    timeline->Register(this);
+  }
+
   timeline_ = timeline;
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#playing-an-animation-section
 void Animation::Play() {
   // This is currently a simplified version of steps 8.2.
-  DCHECK(timeline_);
-  DCHECK(timeline_->current_time());
-  if (!data_.start_time()) {
-    set_start_time(timeline_->current_time());
+  if (timeline_) {
+    DCHECK(timeline_->current_time());
+    if (!data_.start_time()) {
+      set_start_time(timeline_->current_time());
+    }
   }
 
   UpdatePendingTasks();
@@ -103,7 +110,9 @@ Animation::~Animation() {
   if (timeline_) {
     timeline_->Deregister(this);
   }
-  keyframe_effect->target()->Deregister(this);
+  if (keyframe_effect) {
+    keyframe_effect->target()->Deregister(this);
+  }
 }
 
 void Animation::UpdatePendingTasks() {
@@ -114,17 +123,24 @@ void Animation::UpdatePendingTasks() {
     // the "after phase".
     on_enter_after_phase_.reset();
   } else {
+    if (!effect_) {
+      return;
+    }
+
     base::TimeDelta local_time =
         base::TimeDelta::FromMillisecondsD(*local_time_in_ms);
+
     base::TimeDelta time_to_after_phase =
         effect_->timing()->data().time_until_after_phase(local_time);
     if (time_to_after_phase >= base::TimeDelta() &&
         time_to_after_phase != base::TimeDelta::Max()) {
       // Setup the "upon entering the after phase" event to fire at the
       // specified timeline time.
-      on_enter_after_phase_ = timeline_->QueueTask(
-          *data_.start_time() + time_to_after_phase,
-          base::Bind(&Animation::OnEnterAfterPhase, base::Unretained(this)));
+      if (timeline_) {
+        on_enter_after_phase_ = timeline_->QueueTask(
+            *data_.start_time() + time_to_after_phase,
+            base::Bind(&Animation::OnEnterAfterPhase, base::Unretained(this)));
+      }
     } else {
       // We are already in the after phase, so clear this task.
       on_enter_after_phase_.reset();
