@@ -42,6 +42,8 @@ class VideoDecoder : public starboard::player::VideoDecoder {
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
 
+  bool is_valid() const { return codec_context_ != NULL; }
+
  private:
   enum EventType {
     kInvalid,
