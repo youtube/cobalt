@@ -792,6 +792,27 @@ TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
   EXPECT_EQ(kPixelsUnit, border_radius->unit());
 }
 
+TEST(PromoteToComputedStyle, BorderColorWithInitialValue) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_border_bottom_color(KeywordValue::GetInitial());
+  computed_style->set_color(RGBAColorValue::GetAqua());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, math::Size(), NULL);
+
+  scoped_refptr<RGBAColorValue> border_bottom_color =
+      dynamic_cast<RGBAColorValue*>(
+          computed_style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0x00FFFFFF, border_bottom_color->value());
+}
+
 TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
