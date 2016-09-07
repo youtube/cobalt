@@ -225,6 +225,8 @@ class WebModule {
   // perform any other initialization required on the dedicated thread.
   void Initialize(const ConstructionData& data);
 
+  void ClearAllIntervalsAndTimeouts();
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   void OnPartialLayoutConsoleCommandReceived(const std::string& message);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
