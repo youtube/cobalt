@@ -55,6 +55,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
         dom_stat_tracker_(new DomStatTracker("HTMLElementFactoryTest")),
         html_element_context_(
             &fetcher_factory_, &stub_css_parser_, dom_parser_.get(),
+            NULL /* can_play_type_handler */,
             NULL /* web_media_player_factory */, &stub_script_runner_,
             NULL /* media_source_registry */, NULL /* resource_provider */,
             NULL /* image_cache */, NULL /* remote_typeface_cache */,

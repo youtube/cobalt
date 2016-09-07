@@ -16,6 +16,8 @@
 
 #include "cobalt/media/media_module_stub.h"
 
+#include <string>
+
 #include "base/compiler_specific.h"
 
 namespace cobalt {
@@ -94,6 +96,13 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
 }  // namespace
 
 using ::media::WebMediaPlayer;
+
+std::string MediaModuleStub::CanPlayType(const std::string& mime_type,
+                                         const std::string& key_system) {
+  UNREFERENCED_PARAMETER(mime_type);
+  UNREFERENCED_PARAMETER(key_system);
+  return "";  // Cannot play.
+}
 
 scoped_ptr<WebMediaPlayer> MediaModuleStub::CreateWebMediaPlayer(
     ::media::WebMediaPlayerClient* client) {
