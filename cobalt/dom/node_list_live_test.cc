@@ -30,7 +30,7 @@ class NodeListLiveTest : public ::testing::Test {
   NodeListLiveTest()
       : dom_stat_tracker_("NodeListLiveTest"),
         html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, &dom_stat_tracker_, ""),
+                              NULL, NULL, &dom_stat_tracker_, ""),
         document_(new Document(&html_element_context_)) {}
 
   ~NodeListLiveTest() OVERRIDE {}

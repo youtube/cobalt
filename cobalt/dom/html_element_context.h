@@ -28,6 +28,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
 
@@ -43,6 +44,7 @@ class HTMLElementContext {
  public:
   HTMLElementContext(loader::FetcherFactory* fetcher_factory,
                      cssom::CSSParser* css_parser, Parser* dom_parser,
+                     media::CanPlayTypeHandler* can_play_type_handler,
                      media::WebMediaPlayerFactory* web_media_player_factory,
                      script::ScriptRunner* script_runner,
                      MediaSource::Registry* media_source_registry,
@@ -59,6 +61,9 @@ class HTMLElementContext {
 
   Parser* dom_parser() { return dom_parser_; }
 
+  media::CanPlayTypeHandler* can_play_type_handler() {
+    return can_play_type_handler_;
+  }
   media::WebMediaPlayerFactory* web_media_player_factory() {
     return web_media_player_factory_;
   }
@@ -92,6 +97,7 @@ class HTMLElementContext {
   loader::FetcherFactory* const fetcher_factory_;
   cssom::CSSParser* const css_parser_;
   Parser* const dom_parser_;
+  media::CanPlayTypeHandler* can_play_type_handler_;
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
   MediaSource::Registry* const media_source_registry_;
