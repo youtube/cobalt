@@ -379,12 +379,19 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     // frames after the CDM API is finalized.
     // Unencrypted frames of potentially encrypted streams currently set
     // DecryptConfig.
-    buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(
-        new DecryptConfig(encryption_key_id, counter_block,
-#if !defined(__LB_SHELL__) && !defined(COBALT)
-                          data_offset,
-#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
-                          subsample_entries)));
+    if (buffer) {
+      buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(
+          new DecryptConfig(encryption_key_id, counter_block,
+  #if !defined(__LB_SHELL__) && !defined(COBALT)
+                            data_offset,
+  #endif  // !defined(__LB_SHELL__) && !defined(COBALT)
+                            subsample_entries)));
+    }
+  }
+
+  if (!buffer) {
+    DLOG(WARNING) << "Failed to create StreamParserBuffer";
+    return false;
   }
 
   buffer->SetTimestamp(timestamp);
