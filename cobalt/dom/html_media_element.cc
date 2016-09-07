@@ -168,13 +168,15 @@ void HTMLMediaElement::Load() {
   LoadInternal();
 }
 
-std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) const {
+std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) {
   return CanPlayType(mime_type, "");
 }
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
-                                          const std::string& key_system) const {
-  std::string result = ::media::CanPlayType(mime_type, key_system);
+                                          const std::string& key_system) {
+  std::string result =
+      html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
+                                                                   key_system);
   DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
              << key_system << ") -> " << result;
   return result;

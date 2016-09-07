@@ -69,9 +69,9 @@ class HTMLMediaElement : public HTMLElement,
 
   scoped_refptr<TimeRanges> buffered() const;
   void Load();
-  std::string CanPlayType(const std::string& mimeType) const;
+  std::string CanPlayType(const std::string& mimeType);
   std::string CanPlayType(const std::string& mimeType,
-                          const std::string& key_system) const;
+                          const std::string& key_system);
   void GenerateKeyRequest(
       const std::string& key_system,
       const base::optional<scoped_refptr<Uint8Array> >& init_data,
