@@ -23,7 +23,8 @@ namespace dom {
 
 HTMLElementContext::HTMLElementContext(
     loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
-    Parser* dom_parser, media::WebMediaPlayerFactory* web_media_player_factory,
+    Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
+    media::WebMediaPlayerFactory* web_media_player_factory,
     script::ScriptRunner* script_runner,
     MediaSource::Registry* media_source_registry,
     render_tree::ResourceProvider* resource_provider,
@@ -33,6 +34,7 @@ HTMLElementContext::HTMLElementContext(
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
+      can_play_type_handler_(can_play_type_handler),
       web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner),
       media_source_registry_(media_source_registry),

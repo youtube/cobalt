@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,28 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_MEDIA_MEDIA_MODULE_STUB_H_
-#define COBALT_MEDIA_MEDIA_MODULE_STUB_H_
+#ifndef COBALT_MEDIA_CAN_PLAY_TYPE_HANDLER_H_
+#define COBALT_MEDIA_CAN_PLAY_TYPE_HANDLER_H_
 
 #include <string>
-
-#include "cobalt/media/media_module.h"
 
 namespace cobalt {
 namespace media {
 
-class MediaModuleStub : public MediaModule {
+class CanPlayTypeHandler {
  public:
-  MediaModuleStub() {}
+  virtual std::string CanPlayType(const std::string& mime_type,
+                                  const std::string& key_system) = 0;
 
-  std::string CanPlayType(const std::string& mime_type,
-                          const std::string& key_system) OVERRIDE;
-  scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      ::media::WebMediaPlayerClient* client) OVERRIDE;
+ protected:
+  CanPlayTypeHandler() {}
+  ~CanPlayTypeHandler() {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CanPlayTypeHandler);
 };
 
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_MEDIA_MODULE_STUB_H_
+#endif  // COBALT_MEDIA_CAN_PLAY_TYPE_HANDLER_H_

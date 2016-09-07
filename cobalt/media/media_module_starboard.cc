@@ -30,6 +30,7 @@
 #include "media/filters/shell_raw_video_decoder_stub.h"
 #include "media/filters/shell_video_decoder_impl.h"
 #include "media/player/web_media_player_impl.h"
+#include "starboard/media.h"
 
 namespace cobalt {
 namespace media {
@@ -45,6 +46,21 @@ class MediaModuleStarboard : public MediaModule {
                        const Options& options)
       : options_(options), media_platform_(resource_provider) {}
 
+  std::string CanPlayType(const std::string& mime_type,
+                          const std::string& key_system) OVERRIDE {
+    SbMediaSupportType type =
+        SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
+    switch (type) {
+      case kSbMediaSupportTypeNotSupported:
+        return "";
+      case kSbMediaSupportTypeMaybe:
+        return "maybe";
+      case kSbMediaSupportTypeProbably:
+        return "probably";
+    }
+    NOTREACHED();
+    return "";
+  }
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       ::media::WebMediaPlayerClient* client) OVERRIDE {
     scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
