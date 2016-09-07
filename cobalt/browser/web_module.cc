@@ -84,6 +84,10 @@ class WebModule::Impl {
                          const base::SourceLocation& script_location,
                          base::WaitableEvent* got_result, std::string* result);
 
+  // Clears disables timer related objects
+  // so that the message loop can easily exit
+  void ClearAllIntervalsAndTimeouts();
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   void OnPartialLayoutConsoleCommandReceived(const std::string& message);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -416,6 +420,12 @@ void WebModule::Impl::ExecuteJavascript(
   got_result->Signal();
 }
 
+void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(window_);
+  window_->DestroyTimers();
+}
+
 void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
   // Notify the stat tracker that a render tree has been produced. This signals
@@ -609,6 +619,9 @@ WebModule::~WebModule() {
                             base::Unretained(&did_register_shutdown_observer)));
   did_register_shutdown_observer.Wait();
 
+  // This will cancel the timers for tasks, which help the thread exit
+  ClearAllIntervalsAndTimeouts();
+
   // Stop the thread. This will cause the destruction observer to be notified.
   thread_.Stop();
 }
@@ -644,6 +657,18 @@ std::string WebModule::ExecuteJavascript(
                             script_location, &got_result, &result));
   got_result.Wait();
   return result;
+}
+
+void WebModule::ClearAllIntervalsAndTimeouts() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::ClearAllIntervalsAndTimeouts()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+
+  if (impl_) {
+    message_loop()->PostTask(
+        FROM_HERE, base::Bind(&WebModule::Impl::ClearAllIntervalsAndTimeouts,
+                              base::Unretained(impl_.get())));
+  }
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
