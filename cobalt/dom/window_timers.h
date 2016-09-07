@@ -44,6 +44,8 @@ class WindowTimers {
 
   void ClearInterval(int handle);
 
+  void ClearAllIntervalsAndTimeouts();
+
  private:
   class TimerInfo : public base::RefCounted<TimerInfo> {
    public:

@@ -27,6 +27,12 @@ namespace dom {
 int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
   int handle = GetFreeTimerHandle();
   DCHECK(handle);
+
+  if (handle == 0) {  // unable to get a free timer handle
+    // avoid accidentally overwriting existing timers
+    return 0;
+  }
+
   scoped_ptr<base::Timer> timer(new base::OneShotTimer<TimerInfo>());
   timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
                base::Bind(&WindowTimers::RunTimerCallback,
@@ -40,6 +46,12 @@ void WindowTimers::ClearTimeout(int handle) { timers_.erase(handle); }
 int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
   int handle = GetFreeTimerHandle();
   DCHECK(handle);
+
+  if (handle == 0) {  // unable to get a free timer handle
+    // avoid accidentally overwriting existing timers
+    return 0;
+  }
+
   scoped_ptr<base::Timer> timer(new base::RepeatingTimer<TimerInfo>());
   timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
                base::Bind(&WindowTimers::RunTimerCallback,
@@ -49,6 +61,8 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
 }
 
 void WindowTimers::ClearInterval(int handle) { timers_.erase(handle); }
+
+void WindowTimers::ClearAllIntervalsAndTimeouts() { timers_.clear(); }
 
 int WindowTimers::GetFreeTimerHandle() {
   int next_timer_index = current_timer_index_;
