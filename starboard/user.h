@@ -108,55 +108,6 @@ SB_EXPORT bool SbUserGetProperty(SbUser user,
                                  SbUserPropertyId property_id,
                                  char* out_value,
                                  int value_size);
-
-#if SB_HAS(USER_APPLICATION_LINKING_SUPPORT)
-// Initiates a process to link |user| with a per-application authentication
-// token. On success, |out_token| is populated with the authentication token
-// and |out_expiry| is set to the number of seconds until the token expires. An
-// expiration of 0 indicates that the token never expires.
-// This call will block until the linking process is complete, which may involve
-// user input.
-// After this call completes successfully, subsequent calls to
-// SbUserRequestAuthenticationToken will return valid tokens.
-// Returns false if |user| is invalid, |token_results| is NULL,
-// |token_results.token_buffer| is NULL or if the token is larger than
-// |token_results.token_buffer_size|.
-// Returns true if process to link the token succeeded, and false if the process
-// failed for any reason including user cancellation.
-SB_EXPORT bool SbUserRequestApplicationLinking(
-    SbUser user,
-    SbUserApplicationTokenResults* token_results);
-
-// Remove the link between |user| and the per-application authentication token.
-// This call will block until the linking process is complete, which may involve
-// user input.
-// After this call completes successfully, subsequent calls to
-// SbUserRequestAuthenticationToken will fail.
-// Returns false if |user| is invalid.
-// Returns true if the process to unlink the token succeeded. Returns false if
-// the process failed for any reason including user cancellation.
-SB_EXPORT bool SbUserRequestApplicationUnlinking(SbUser user);
-
-// Requests a new per-application authentication token. On success, |out_token|
-// is populated with the authentication token and |out_expiry| is set to the
-// number of seconds until the token expires. An expiration of 0 indicates that
-// the token never expires.
-// This call will block until the token has been received.
-// Returns false if |user| is invalid, |out_token| or |out_expiration| are NULL,
-// or if the token is larger than |out_token_size|.
-// Returns false if the user account is not linked with an application. In this
-// case, SbUserRequestApplicationLinking should be called.
-// Returns true if process to link the token succeeded, and false if the process
-// failed for any reason including user cancellation.
-SB_EXPORT bool SbUserRequestAuthenticationToken(
-    SbUser user,
-    SbUserApplicationTokenResults* token_results);
-
-// Gets the maximum size of an authentication token as returned by
-// SbUserRequestApplicationLinking and SbUserRequestAuthenticationToken.
-SB_EXPORT size_t SbUserMaxAuthenticationTokenSizeInBytes();
-#endif  // SB_HAS(USER_APPLICATION_LINKING_SUPPORT)
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
