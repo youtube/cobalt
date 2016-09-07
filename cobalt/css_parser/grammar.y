@@ -955,8 +955,7 @@ media_feature_with_value:
     $$ = AddRef(new cssom::MediaFeature($1, $4));
   }
   | kZeroOrOneMediaFeatureTypeToken maybe_whitespace colon zero_or_one {
-    $$ = AddRef(new cssom::MediaFeature($1,
-                                        AddRef(new cssom::NumberValue($4))));
+    $$ = AddRef(new cssom::MediaFeature($1, new cssom::IntegerValue($4)));
   }
   ;
 
@@ -967,8 +966,7 @@ media_feature_allowing_operator_with_value:
   }
   | kNonNegativeIntegerMediaFeatureTypeToken maybe_whitespace colon
     non_negative_integer {
-    $$ = AddRef(new cssom::MediaFeature($1,
-                                        AddRef(new cssom::NumberValue($4))));
+    $$ = AddRef(new cssom::MediaFeature($1, new cssom::IntegerValue($4)));
   }
   | kRatioMediaFeatureTypeToken maybe_whitespace colon ratio {
     $$ = AddRef(new cssom::MediaFeature($1, MakeScopedRefPtrAndRelease($4)));
