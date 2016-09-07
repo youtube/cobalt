@@ -418,6 +418,10 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
     // Return all prepended tokens before actual input.
     if (!prepended_tokens_.empty()) {
       Token prepended_token = prepended_tokens_.front();
+      if ((prepended_token == kMediaListEntryPointToken) ||
+          (prepended_token == kMediaQueryEntryPointToken)) {
+        parsing_mode_ = kMediaQueryMode;
+      }
       prepended_tokens_.pop_front();
       return prepended_token;
     }
