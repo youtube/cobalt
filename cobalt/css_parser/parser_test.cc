@@ -8236,5 +8236,31 @@ TEST_F(ParserTest, ParsesValidMediaList) {
   ASSERT_EQ(media_list->media_text(), ", ");
 }
 
+TEST_F(ParserTest, ParsesValidMediaQueryWithIntegers) {
+  scoped_refptr<cssom::MediaQuery> media_query =
+      parser_.ParseMediaQuery(
+                 "(color: 8) and (grid:0) and (color) and (scan: progressive)",
+                 source_location_)
+          .get();
+  ASSERT_TRUE(media_query.get());
+
+  // TODO: Update when media query serialization is implemented.
+  ASSERT_EQ(media_query->media_query(), "");
+  math::Size size;
+  EXPECT_TRUE(media_query->EvaluateConditionValue(size));
+}
+
+TEST_F(ParserTest, ParsesValidMediaListWithIntegers) {
+  scoped_refptr<cssom::MediaList> media_list =
+      parser_.ParseMediaList("(color: 0), (grid:0)", source_location_).get();
+  ASSERT_TRUE(media_list.get());
+  EXPECT_EQ(media_list->length(), 2);
+
+  // TODO: Update when media query serialization is implemented.
+  ASSERT_EQ(media_list->media_text(), ", ");
+  math::Size size;
+  EXPECT_TRUE(media_list->EvaluateConditionValue(size));
+}
+
 }  // namespace css_parser
 }  // namespace cobalt
