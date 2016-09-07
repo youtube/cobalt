@@ -89,21 +89,20 @@ TEST_P(LayoutTest, LayoutTest) {
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
       GetParam().url, viewport_size, pixel_tester.GetResourceProvider());
 
-  render_tree::animations::AnimateNode* animated_node =
-      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
-          layout_results.render_tree.get());
+  scoped_refptr<render_tree::animations::AnimateNode> animate_node =
+      new render_tree::animations::AnimateNode(layout_results.render_tree);
+  scoped_refptr<render_tree::Node> animated_tree =
+      animate_node->Apply(layout_results.layout_time);
 
   bool results =
-      pixel_tester.TestTree(animated_node->Apply(layout_results.layout_time),
-                            GetParam().base_file_path);
+      pixel_tester.TestTree(animated_tree, GetParam().base_file_path);
   EXPECT_TRUE(results);
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline) ||
       (!results &&
        CommandLine::ForCurrentProcess()->HasSwitch(
            switches::kRebaselineFailedTests))) {
-    pixel_tester.Rebaseline(layout_results.render_tree,
-                            GetParam().base_file_path);
+    pixel_tester.Rebaseline(animated_tree, GetParam().base_file_path);
   }
 }
 
