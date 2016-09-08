@@ -17,13 +17,17 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_WCHAR_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_WCHAR_POEM_H_
 
-#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+#if defined(STARBOARD)
+
+#if !defined(POEM_NO_EMULATION)
 
 #include "starboard/string.h"
 
 #define vswprintf SbStringFormatWide
 #define wcsncmp(s1, s2, c) SbStringCompareWide(s1, s2, c)
 
-#endif  // POEM_FULL_EMULATION
+#endif  // POEM_NO_EMULATION
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_WCHAR_POEM_H_
