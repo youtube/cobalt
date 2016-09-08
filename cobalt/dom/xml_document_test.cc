@@ -18,13 +18,16 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_element_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
 
 TEST(XMLDocumentTest, IsXMLDocument) {
-  scoped_refptr<Document> document = new XMLDocument();
+  HTMLElementContext html_element_context(NULL, NULL, NULL, NULL, NULL, NULL,
+                                          NULL, NULL, NULL, NULL, NULL, "");
+  scoped_refptr<Document> document = new XMLDocument(&html_element_context);
   EXPECT_TRUE(document->IsXMLDocument());
 }
 

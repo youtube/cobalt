@@ -22,6 +22,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
@@ -71,12 +72,16 @@ class NodeTest : public ::testing::Test {
   NodeTest();
   ~NodeTest() OVERRIDE;
 
+  HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
 
-NodeTest::NodeTest() {
+NodeTest::NodeTest()
+    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, "") {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
-  document_ = new Document(NULL);
+
+  document_ = new Document(&html_element_context_);
 }
 
 NodeTest::~NodeTest() {
@@ -225,7 +230,7 @@ TEST_F(NodeTest, InsertIntoAnotherDocument) {
   scoped_refptr<Node> root = new Element(document_);
   EXPECT_EQ(document_, root->node_document());
 
-  scoped_refptr<Document> new_document = new Document(NULL);
+  scoped_refptr<Document> new_document = new Document(&html_element_context_);
   new_document->AppendChild(root);
   EXPECT_EQ(new_document, root->node_document());
 }
@@ -361,7 +366,7 @@ TEST_F(NodeTest, AdoptIntoDocument) {
   document_->AppendChild(element);
   EXPECT_EQ(document_, element->node_document());
 
-  scoped_refptr<Document> new_document = new Document(NULL);
+  scoped_refptr<Document> new_document = new Document(&html_element_context_);
   element->AdoptIntoDocument(new_document);
   EXPECT_EQ(new_document, element->node_document());
   EXPECT_EQ(NULL, element->parent_node());
