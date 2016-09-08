@@ -14,16 +14,17 @@
 
 #include "starboard/system.h"
 
+#include <unistd.h>
+
 #include "starboard/log.h"
 
-bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
-  switch (capability_id) {
-    case kSbSystemCapabilityReversedEnterAndBack:
-      return false;
-    case kSbSystemCapabilityCanQueryGPUMemoryStats:
-      return false;
+int64_t SbSystemGetTotalCPUMemory() {
+  long pages = sysconf(_SC_PHYS_PAGES);     // NOLINT[runtime/int]
+  long page_size = sysconf(_SC_PAGE_SIZE);  // NOLINT[runtime/int]
+  if (pages == -1 || page_size == -1) {
+    SB_NOTREACHED();
+    return 0;
   }
 
-  SB_DLOG(WARNING) << "Unrecognized capability: " << capability_id;
-  return false;
+  return static_cast<int64_t>(pages) * page_size;
 }

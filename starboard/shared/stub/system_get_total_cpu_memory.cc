@@ -14,16 +14,6 @@
 
 #include "starboard/system.h"
 
-#include "starboard/log.h"
-
-bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
-  switch (capability_id) {
-    case kSbSystemCapabilityReversedEnterAndBack:
-      return false;
-    case kSbSystemCapabilityCanQueryGPUMemoryStats:
-      return false;
-  }
-
-  SB_DLOG(WARNING) << "Unrecognized capability: " << capability_id;
-  return false;
+int64_t SbSystemGetTotalCPUMemory() {
+  return 0;
 }
