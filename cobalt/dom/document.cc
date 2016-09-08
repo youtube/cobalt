@@ -42,7 +42,6 @@
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
@@ -63,29 +62,25 @@ Document::Document(HTMLElementContext* html_element_context,
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
       html_element_context_(html_element_context),
       window_(options.window),
-      implementation_(new DOMImplementation()),
+      implementation_(new DOMImplementation(html_element_context)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(font_cache_(new FontCache(
-          html_element_context_ ? html_element_context_->resource_provider()
-                                : NULL,
-          html_element_context_ ? html_element_context_->remote_typeface_cache()
-                                : NULL,
-          base::Bind(&Document::OnTypefaceLoadEvent, base::Unretained(this)),
-          html_element_context_ ? html_element_context_->language()
-                                : "en-US"))),
       loading_counter_(0),
       should_dispatch_load_event_(true),
       is_selector_tree_dirty_(true),
       is_computed_style_dirty_(true),
       are_font_faces_dirty_(true),
       are_keyframes_dirty_(true),
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+      partial_layout_is_enabled_(true),
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))),
       user_agent_style_sheet_(options.user_agent_style_sheet),
       initial_computed_style_declaration_(
           new cssom::CSSComputedStyleDeclaration()) {
+  DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
   if (options.viewport_size) {
@@ -109,28 +104,29 @@ Document::Document(HTMLElementContext* html_element_context,
       base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
                  CspDelegate::kLocation));
 
-  if (IsActiveDocument()) {
-    if (html_element_context_ &&
-        html_element_context_->remote_typeface_cache()) {
+  font_cache_.reset(new FontCache(
+      html_element_context_->resource_provider(),
+      html_element_context_->remote_typeface_cache(),
+      base::Bind(&Document::OnTypefaceLoadEvent, base::Unretained(this)),
+      html_element_context_->language()));
+
+  if (HasBrowsingContext()) {
+    if (html_element_context_->remote_typeface_cache()) {
       html_element_context_->remote_typeface_cache()->set_security_callback(
           base::Bind(&CspDelegate::CanLoad,
                      base::Unretained(csp_delegate_.get()),
                      CspDelegate::kFont));
     }
 
-    if (html_element_context_ && html_element_context_->image_cache()) {
+    if (html_element_context_->image_cache()) {
       html_element_context_->image_cache()->set_security_callback(base::Bind(
           &CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
           CspDelegate::kImage));
     }
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-    partial_layout_is_enabled_ = true;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
-    // Sample the timeline upon initialization.
-    SampleTimelineTime();
   }
+
+  // Sample the timeline upon initialization.
+  SampleTimelineTime();
 
   // Call OnInsertedIntoDocument() immediately to ensure that the Document
   // object itself is considered to be "in the document".
@@ -179,7 +175,6 @@ scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
   } else {
     std::string lower_local_name = local_name;
     StringToLowerASCII(&lower_local_name);
-    DCHECK(html_element_context_);
     DCHECK(html_element_context_->html_element_factory());
     return html_element_context_->html_element_factory()->CreateHTMLElement(
         this, base::Token(lower_local_name));
@@ -531,8 +526,6 @@ void UpdateSelectorTreeFromCSSStyleSheet(
 void Document::UpdateComputedStyles() {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
 
-  DCHECK(IsActiveDocument());
-
   UpdateSelectorTree();
   UpdateKeyframes();
   UpdateFontFaces();
@@ -650,7 +643,7 @@ void Document::UpdateSelectorTree() {
 void Document::DispatchOnLoadEvent() {
   TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
 
-  if (IsActiveDocument()) {
+  if (HasBrowsingContext()) {
     // Update the current timeline sample time and then update computed styles
     // before dispatching the onload event.  This guarantees that computed
     // styles have been calculated before JavaScript executes onload event

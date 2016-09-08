@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/dom/#domimplementation
 
+[ConstructorCallWith=EnvironmentSettings]
 interface DOMImplementation {
   [NewObject] XMLDocument createDocument(DOMString? namespaceName, [TreatNullAs=EmptyString] DOMString qualifiedName, optional DocumentType? doctype = null);
 };
