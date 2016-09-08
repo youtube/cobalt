@@ -37,6 +37,10 @@ namespace browser {
 
 namespace {
 
+// The maximum number of element depth in the DOM tree. Elements at a level
+// deeper than this could be discarded, and will not be rendered.
+const int kDOMMaxElementDepth = 32;
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 // Help string for the 'partial_layout' command.
 const char kPartialLayoutCommandShortHelp[] =
@@ -243,6 +247,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(css_parser_);
 
   dom_parser_.reset(new dom_parser::Parser(
+      kDOMMaxElementDepth,
       base::Bind(&WebModule::Impl::OnError, base::Unretained(this))));
   DCHECK(dom_parser_);
 
@@ -310,7 +315,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(window_weak_);
 
   environment_settings_.reset(new dom::DOMSettings(
-      fetcher_factory_.get(), data.network_module, window_,
+      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
       media_source_registry_.get(), javascript_engine_.get(),
       global_object_proxy_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
@@ -327,8 +332,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   layout_manager_.reset(new layout::LayoutManager(
       window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
                                 base::Unretained(this)),
-      data.options.layout_trigger, data.layout_refresh_rate,
-      data.network_module->preferred_language(),
+      data.options.layout_trigger, data.dom_max_element_depth,
+      data.layout_refresh_rate, data.network_module->preferred_language(),
       web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
 
@@ -545,8 +550,8 @@ WebModule::WebModule(
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, render_tree_produced_callback, error_callback, media_module,
-      network_module, window_dimensions, resource_provider, layout_refresh_rate,
-      options);
+      network_module, window_dimensions, resource_provider, kDOMMaxElementDepth,
+      layout_refresh_rate, options);
 
 #if defined(ADDRESS_SANITIZER)
   // ASAN requires a much bigger stack size.

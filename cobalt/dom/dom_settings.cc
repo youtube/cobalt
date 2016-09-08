@@ -21,14 +21,16 @@
 namespace cobalt {
 namespace dom {
 
-DOMSettings::DOMSettings(loader::FetcherFactory* fetcher_factory,
+DOMSettings::DOMSettings(const int max_dom_element_depth,
+                         loader::FetcherFactory* fetcher_factory,
                          network::NetworkModule* network_module,
                          const scoped_refptr<Window>& window,
                          MediaSource::Registry* media_source_registry,
                          script::JavaScriptEngine* engine,
                          script::GlobalObjectProxy* global_object_proxy,
                          const Options& options)
-    : fetcher_factory_(fetcher_factory),
+    : max_dom_element_depth_(max_dom_element_depth),
+      fetcher_factory_(fetcher_factory),
       network_module_(network_module),
       window_(window),
       array_buffer_allocator_(options.array_buffer_allocator),
