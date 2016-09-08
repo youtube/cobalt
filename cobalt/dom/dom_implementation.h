@@ -23,10 +23,14 @@
 #include "base/optional.h"
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/xml_document.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
+
+class DOMSettings;
+class HTMLElementContext;
 
 // The DOMImplementation interface represent an object providing methods which
 // are not dependent on any particular document. Such an object is returned by
@@ -34,7 +38,9 @@ namespace dom {
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#interface-domimplementation
 class DOMImplementation : public script::Wrappable {
  public:
-  DOMImplementation() {}
+  explicit DOMImplementation(script::EnvironmentSettings* settings);
+  explicit DOMImplementation(HTMLElementContext* html_element_context)
+      : html_element_context_(html_element_context) {}
   ~DOMImplementation() OVERRIDE {}
 
   // Web API: DOMImplementation
@@ -48,6 +54,8 @@ class DOMImplementation : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(DOMImplementation);
 
  private:
+  HTMLElementContext* html_element_context_;
+
   DISALLOW_COPY_AND_ASSIGN(DOMImplementation);
 };
 

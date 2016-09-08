@@ -18,6 +18,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/xml_document.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -25,7 +26,10 @@ namespace cobalt {
 namespace dom {
 
 TEST(DOMImplementationTest, CreateDocumentShouldCreateXMLDocument) {
-  scoped_refptr<DOMImplementation> dom_implementation = new DOMImplementation();
+  HTMLElementContext html_element_context(NULL, NULL, NULL, NULL, NULL, NULL,
+                                          NULL, NULL, NULL, NULL, NULL, "");
+  scoped_refptr<DOMImplementation> dom_implementation =
+      new DOMImplementation(&html_element_context);
   scoped_refptr<Document> document =
       dom_implementation->CreateDocument(base::optional<std::string>(""), "");
   EXPECT_TRUE(document->IsXMLDocument());

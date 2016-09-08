@@ -199,7 +199,6 @@ void Window::CancelAnimationFrame(int32 handle) {
 }
 
 scoped_refptr<MediaQueryList> Window::MatchMedia(const std::string& query) {
-  DCHECK(html_element_context_);
   DCHECK(html_element_context_->css_parser());
   scoped_refptr<cssom::MediaList> media_list =
       html_element_context_->css_parser()->ParseMediaList(

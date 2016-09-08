@@ -16,8 +16,17 @@
 
 #include "cobalt/dom/dom_implementation.h"
 
+#include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/window.h"
+
 namespace cobalt {
 namespace dom {
+
+DOMImplementation::DOMImplementation(script::EnvironmentSettings* settings) {
+  html_element_context_ = base::polymorphic_downcast<DOMSettings*>(settings)
+                              ->window()
+                              ->html_element_context();
+}
 
 scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
     base::optional<std::string> namespace_name,
@@ -31,7 +40,7 @@ scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
   UNREFERENCED_PARAMETER(namespace_name);
   UNREFERENCED_PARAMETER(qualified_name);
   DCHECK(!doctype);
-  return new XMLDocument();
+  return new XMLDocument(html_element_context_);
 }
 
 }  // namespace dom
