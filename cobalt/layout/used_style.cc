@@ -757,7 +757,7 @@ void InterpolateUnspecifiedColorStopPositions(
   }
 }
 
-// compares ColorStops by position
+// Compares ColorStops by position.
 bool ColorStopPositionComparator(const render_tree::ColorStop& x,
                                  const render_tree::ColorStop& y) {
   return x.position < y.position;
@@ -825,9 +825,9 @@ render_tree::ColorStopList ConvertToRenderTreeColorStopList(
 
   InterpolateUnspecifiedColorStopPositions(&ret);
 
-  // according to the spec @ https://www.w3.org/TR/css3-images/#linear-gradients
+  // According to the spec @ https://www.w3.org/TR/css3-images/#linear-gradients
   // the color-stops can be in unsorted order.  The color-stops are sorted
-  // to make the rendering code easier to write and faster to execute
+  // to make the rendering code easier to write and faster to execute.
   std::sort(ret.begin(), ret.end(), ColorStopPositionComparator);
 
   return ret;
