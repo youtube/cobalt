@@ -84,6 +84,8 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
     } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other specifications
@@ -112,6 +114,7 @@ $if ARITY > 0 [[
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
