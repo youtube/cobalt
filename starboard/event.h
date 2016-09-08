@@ -68,8 +68,8 @@ typedef enum SbEventType {
 
   // A navigational link has come from the system, and the application should
   // consider handling it by navigating to the corresponding application
-  // location. The contents of the link are application-specific.
-  // SbEventLinkData is passed as the data argument.
+  // location. The data argument is an application-specific, null-terminated
+  // string.
   kSbEventTypeLink,
 
   // The beginning of a vertical sync has been detected. This event is very
@@ -114,16 +114,6 @@ typedef void (*SbEventDataDestructor)(void* data);
 // An ID that can be used to refer to a scheduled event.
 typedef uint32_t SbEventId;
 
-// Event data for kSbEventTypeLink and kSbEventTypeStart events.
-typedef struct SbEventLinkData {
-  // A buffer of data comprising the link information. The format of this data
-  // will be platform-specific.
-  const void* link_data;
-
-  // The number of bytes of data provided in link_data.
-  int link_data_size;
-} SbEventLinkData;
-
 // Event data for kSbEventTypeStart events.
 typedef struct SbEventStartData {
   // The command-line argument values (argv).
@@ -132,8 +122,8 @@ typedef struct SbEventStartData {
   // The command-line argument count (argc).
   int argument_count;
 
-  // The startup link data, if any.
-  SbEventLinkData link_data;
+  // The startup link, if any.
+  const char* link;
 } SbEventStartData;
 
 #define kSbEventIdInvalid (SbEventId)0
