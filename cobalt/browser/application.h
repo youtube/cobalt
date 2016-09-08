@@ -128,8 +128,8 @@ class Application {
     CValStats();
 
     base::CVal<size_t, base::CValPublic> free_memory;
-#if !defined(__LB_SHELL__FOR_RELEASE__)
     base::CVal<size_t, base::CValPublic> used_memory;
+#if !defined(__LB_SHELL__FOR_RELEASE__)
     base::CVal<size_t, base::CValPublic> exe_memory;
 #endif
 
