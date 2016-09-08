@@ -66,6 +66,22 @@ TEST_F(StackTraceTest, GetStackTrace) {
   EXPECT_TRUE(position != std::string::npos);
 }
 
+TEST_F(StackTraceTest, UnnamedFunction) {
+  std::string result;
+
+  // There should be a stack entry for the anonymous function.
+  std::string script =
+      "function foo(fun) {\n"
+      "  return fun();\n"
+      "}\n"
+      "foo(function() { return getStackTrace();})";
+  EXPECT_TRUE(EvaluateScript(script, &result));
+
+  std::string match_line = "[object BindingsTestBase]:4";
+  size_t position = result.find(match_line);
+  EXPECT_TRUE(position != std::string::npos);
+}
+
 #if defined(ENGINE_SUPPORTS_STACK_TRACE_COLUMNS)
 // Test for column numbers in stack trace. Behavior varies somewhat
 // across engines & versions so, don't check actual column values.
