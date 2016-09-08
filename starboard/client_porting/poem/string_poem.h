@@ -17,7 +17,10 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_
 
+#if defined(STARBOARD)
+
 #include "starboard/string.h"
+#include "starboard/memory.h"
 
 #ifdef __cplusplus
 // Finds the last occurrence of |character| in |str|, returning a pointer to
@@ -91,7 +94,7 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
   return PoemConcat(out_destination, source, INT_MAX);
 }
 
-#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+#if !defined(POEM_NO_EMULATION)
 
 #define strlen(s) SbStringGetLength(s)
 #define strcpy(o, s) SbStringCopyUnsafe(o, s)
@@ -105,6 +108,11 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
 #define strncmp(s1, s2, c) SbStringCompare(s1, s2, c)
 #define strcmp(s1, s2) SbStringCompareAll(s1, s2)
 
+#define memset(s, c, n) SbMemorySet(s, c, n)
+#define memcpy(d, s, c) SbMemoryCopy(d, s, c)
+#define memcmp(s1, s2, n) SbMemoryCompare(s1, s2, n)
+#define memmove(d, s, n) SbMemoryMove(d, s, n)
+
 // number conversion functions
 #define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
 #define atoi(v) SbStringAToI(v)
@@ -114,6 +122,8 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
 #define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
 #define strtod(s, o) SbStringParseDouble(s, o)
 
-#endif  // POEM_FULL_EMULATION
+#endif  // POEM_NO_EMULATION
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_
