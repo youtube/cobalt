@@ -37,7 +37,7 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
 
 // static
 int64 SysInfo::AmountOfPhysicalMemory() {
-  return SbSystemGetTotalMemory();
+  return SbSystemGetTotalCPUMemory();
 }
 
 }  // namespace base
