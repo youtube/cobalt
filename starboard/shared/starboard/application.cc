@@ -43,8 +43,7 @@ void DispatchStart(int argc, char** argv) {
   SbEventStartData start_data;
   start_data.argument_values = argv;
   start_data.argument_count = argc;
-  start_data.link_data.link_data = NULL;
-  start_data.link_data.link_data_size = 0;
+  start_data.link = NULL;
   Dispatch(kSbEventTypeStart, &start_data, NULL);
 }
 
