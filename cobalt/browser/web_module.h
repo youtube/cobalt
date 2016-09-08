@@ -185,7 +185,8 @@ class WebModule {
         network::NetworkModule* network_module,
         const math::Size& window_dimensions,
         render_tree::ResourceProvider* resource_provider,
-        float layout_refresh_rate, const Options& options)
+        int dom_max_element_depth, float layout_refresh_rate,
+        const Options& options)
         : initial_url(initial_url),
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
@@ -193,6 +194,7 @@ class WebModule {
           network_module(network_module),
           window_dimensions(window_dimensions),
           resource_provider(resource_provider),
+          dom_max_element_depth(dom_max_element_depth),
           layout_refresh_rate(layout_refresh_rate),
           options(options) {}
 
@@ -203,6 +205,7 @@ class WebModule {
     network::NetworkModule* network_module;
     math::Size window_dimensions;
     render_tree::ResourceProvider* resource_provider;
+    int dom_max_element_depth;
     float layout_refresh_rate;
     Options options;
   };

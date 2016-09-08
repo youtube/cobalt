@@ -39,8 +39,9 @@ class LayoutManager::Impl : public dom::DocumentObserver {
  public:
   Impl(const scoped_refptr<dom::Window>& window,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
-       LayoutTrigger layout_trigger, float layout_refresh_rate,
-       const std::string& language, LayoutStatTracker* layout_stat_tracker);
+       LayoutTrigger layout_trigger, int dom_max_element_depth,
+       float layout_refresh_rate, const std::string& language,
+       LayoutStatTracker* layout_stat_tracker);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -78,6 +79,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   scoped_ptr<icu::BreakIterator> character_break_iterator_;
 
   base::Timer layout_timer_;
+  int dom_max_element_depth_;
   float layout_refresh_rate_;
 
   LayoutStatTracker* const layout_stat_tracker_;
@@ -92,8 +94,9 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 LayoutManager::Impl::Impl(
     const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    LayoutTrigger layout_trigger, float layout_refresh_rate,
-    const std::string& language, LayoutStatTracker* layout_stat_tracker)
+    LayoutTrigger layout_trigger, int dom_max_element_depth,
+    float layout_refresh_rate, const std::string& language,
+    LayoutStatTracker* layout_stat_tracker)
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
       used_style_provider_(
@@ -103,6 +106,7 @@ LayoutManager::Impl::Impl(
       layout_trigger_(layout_trigger),
       layout_dirty_(true),
       layout_timer_(true, true, true),
+      dom_max_element_depth_(dom_max_element_depth),
       layout_refresh_rate_(layout_refresh_rate),
       layout_stat_tracker_(layout_stat_tracker) {
   window_->document()->AddObserver(this);
@@ -163,9 +167,10 @@ void LayoutManager::Impl::OnMutation() {
 void LayoutManager::Impl::DoSynchronousLayout() {
   TRACE_EVENT0("cobalt::layout", "LayoutManager::Impl::DoSynchronousLayout()");
   layout::UpdateComputedStylesAndLayoutBoxTree(
-      locale_, window_->document(), used_style_provider_.get(),
-      layout_stat_tracker_, line_break_iterator_.get(),
-      character_break_iterator_.get(), &initial_containing_block_);
+      locale_, window_->document(), dom_max_element_depth_,
+      used_style_provider_.get(), layout_stat_tracker_,
+      line_break_iterator_.get(), character_break_iterator_.get(),
+      &initial_containing_block_);
 }
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -240,9 +245,10 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 
     scoped_refptr<render_tree::Node> render_tree_root = layout::Layout(
-        locale_, window_->document(), used_style_provider_.get(),
-        layout_stat_tracker_, line_break_iterator_.get(),
-        character_break_iterator_.get(), &initial_containing_block_);
+        locale_, window_->document(), dom_max_element_depth_,
+        used_style_provider_.get(), layout_stat_tracker_,
+        line_break_iterator_.get(), character_break_iterator_.get(),
+        &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
 #if defined(ENABLE_TEST_RUNNER)
     if (layout_trigger_ == kTestRunnerMode &&
@@ -265,10 +271,12 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 LayoutManager::LayoutManager(
     const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    LayoutTrigger layout_trigger, float layout_refresh_rate,
-    const std::string& language, LayoutStatTracker* layout_stat_tracker)
+    LayoutTrigger layout_trigger, const int dom_max_element_depth,
+    const float layout_refresh_rate, const std::string& language,
+    LayoutStatTracker* layout_stat_tracker)
     : impl_(new Impl(window, on_render_tree_produced, layout_trigger,
-                     layout_refresh_rate, language, layout_stat_tracker)) {}
+                     dom_max_element_depth, layout_refresh_rate, language,
+                     layout_stat_tracker)) {}
 
 LayoutManager::~LayoutManager() {}
 

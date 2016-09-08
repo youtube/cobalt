@@ -29,6 +29,8 @@
 namespace cobalt {
 namespace dom_parser {
 
+const int kDOMMaxElementDepth = 32;
+
 class MockErrorCallback : public base::Callback<void(const std::string&)> {
  public:
   MOCK_METHOD1(Run, void(const std::string&));
@@ -52,9 +54,9 @@ XMLDecoderTest::XMLDecoderTest()
 TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
   const std::string input = "<ELEMENT></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -76,9 +78,9 @@ TEST_F(XMLDecoderTest, CanParseCDATASection) {
       "]]>"
       "</ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -99,9 +101,9 @@ TEST_F(XMLDecoderTest, CanParseCDATASection) {
 TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
   const std::string input = "<ELEMENT a=\"1\" b=\"2\"></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -119,9 +121,9 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
 TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
   const std::string input = "<ELEMENT><element></element></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -137,9 +139,9 @@ TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
 TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
   const std::string input = "<ELEMENT A=\"1\" a=\"2\"></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -159,9 +161,9 @@ TEST_F(XMLDecoderTest, CanDealWithFileAttack) {
       "<!DOCTYPE doc [ <!ENTITY ent SYSTEM \"file:///dev/tty\"> ]>"
       "<element>&ent;</element>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -175,9 +177,9 @@ TEST_F(XMLDecoderTest, CanDealWithHTMLAttack) {
       "<!DOCTYPE doc [ <!ENTITY ent SYSTEM \"file:///dev/tty\"> ]>"
       "<element>&ent;</element>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -191,9 +193,9 @@ TEST_F(XMLDecoderTest, CanDealWithAttack) {
       "<!DOCTYPE doc [ <!ENTITY % ent SYSTEM \"http://www.google.com/\"> ]>"
       "<element>&ent;</element>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -207,9 +209,9 @@ TEST_F(XMLDecoderTest, CanDealWithPEAttack) {
       "<!DOCTYPE doc [ <!ENTITY % ent SYSTEM \"file:///dev/tty\"> ]>"
       "<element>hey</element>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -223,9 +225,9 @@ TEST_F(XMLDecoderTest, CanDealWithDTDAttack) {
       "<!DOCTYPE doc SYSTEM \"file:///dev/tty\">"
       "<element>hey</element>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -255,9 +257,9 @@ TEST_F(XMLDecoderTest, CanDealWithLaughsAttack) {
       "]>"
       "<element>&ha15;</element>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -275,9 +277,9 @@ TEST_F(XMLDecoderTest, CanDealWithXIncludeAttack) {
       "</child>"
       "</root>";
   xml_decoder_.reset(new XMLDecoder(
-      document_, document_, NULL, source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_))));
+      document_, document_, NULL, kDOMMaxElementDepth, source_location_,
+      base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
