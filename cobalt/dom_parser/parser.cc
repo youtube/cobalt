@@ -28,6 +28,7 @@ namespace dom_parser {
 scoped_refptr<dom::Document> Parser::ParseDocument(
     const std::string& input, dom::HTMLElementContext* html_element_context,
     const base::SourceLocation& input_location) {
+  DCHECK(html_element_context);
   scoped_refptr<dom::Document> document =
       new dom::Document(html_element_context, dom::Document::Options());
   HTMLDecoder html_decoder(document, document, NULL, dom_max_element_depth_,
@@ -38,8 +39,11 @@ scoped_refptr<dom::Document> Parser::ParseDocument(
 }
 
 scoped_refptr<dom::XMLDocument> Parser::ParseXMLDocument(
-    const std::string& input, const base::SourceLocation& input_location) {
-  scoped_refptr<dom::XMLDocument> xml_document = new dom::XMLDocument();
+    const std::string& input, dom::HTMLElementContext* html_element_context,
+    const base::SourceLocation& input_location) {
+  DCHECK(html_element_context);
+  scoped_refptr<dom::XMLDocument> xml_document =
+      new dom::XMLDocument(html_element_context);
   XMLDecoder xml_decoder(
       xml_document, xml_document, NULL, dom_max_element_depth_, input_location,
       base::Closure(),

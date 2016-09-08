@@ -46,7 +46,7 @@ scoped_refptr<Document> DOMParser::ParseFromString(const std::string& str,
     case kApplicationXhtmlXml:
     case kImageSvgXml:
       return html_element_context_->dom_parser()->ParseXMLDocument(
-          str, GetInlineSourceLocation());
+          str, html_element_context_, GetInlineSourceLocation());
     case kMaxSupportedType:
     default:
       LOG(WARNING) << "DOMParse.ParseFromString received invalid type value.";

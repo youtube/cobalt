@@ -20,6 +20,7 @@
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/xml_document.h"
@@ -41,6 +42,7 @@ class XMLDecoderTest : public ::testing::Test {
   XMLDecoderTest();
   ~XMLDecoderTest() OVERRIDE {}
 
+  dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::XMLDocument> document_;
   base::SourceLocation source_location_;
   MockErrorCallback mock_error_callback_;
@@ -48,7 +50,9 @@ class XMLDecoderTest : public ::testing::Test {
 };
 
 XMLDecoderTest::XMLDecoderTest()
-    : document_(new dom::XMLDocument(dom::Document::Options())),
+    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, ""),
+      document_(new dom::XMLDocument(&html_element_context_)),
       source_location_(base::SourceLocation("[object XMLDecoderTest]", 1, 1)) {}
 
 TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
