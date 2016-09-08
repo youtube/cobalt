@@ -13,17 +13,18 @@
 // limitations under the License.
 
 #include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include "starboard/log.h"
+namespace starboard {
+namespace nplb {
+namespace {
 
-bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
-  switch (capability_id) {
-    case kSbSystemCapabilityReversedEnterAndBack:
-      return false;
-    case kSbSystemCapabilityCanQueryGPUMemoryStats:
-      return false;
+TEST(SbSystemGetUsedGPUMemoryTest, SunnyDay) {
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    EXPECT_LE(0, SbSystemGetUsedGPUMemory());
   }
-
-  SB_DLOG(WARNING) << "Unrecognized capability: " << capability_id;
-  return false;
 }
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard
