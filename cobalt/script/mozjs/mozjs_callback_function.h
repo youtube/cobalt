@@ -57,12 +57,16 @@ class MozjsCallbackFunction<R(void)>
 
   CallbackResult<R> Run()
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -79,6 +83,7 @@ class MozjsCallbackFunction<R(void)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
@@ -105,12 +110,16 @@ class MozjsCallbackFunction<R(A1)>
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -132,6 +141,7 @@ class MozjsCallbackFunction<R(A1)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
@@ -159,12 +169,16 @@ class MozjsCallbackFunction<R(A1, A2)>
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -187,6 +201,7 @@ class MozjsCallbackFunction<R(A1, A2)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
@@ -215,12 +230,16 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -244,6 +263,7 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
@@ -273,12 +293,16 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -303,6 +327,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
@@ -334,12 +359,16 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -365,6 +394,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
@@ -397,12 +427,16 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -429,6 +463,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
@@ -462,12 +497,16 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6,
       typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
       const OVERRIDE {
-    JS::RootedObject function(context_, weak_function_.Get());
     CallbackResult<R> callback_result;
-    DLOG_IF(WARNING, !function) << "Function was garbage collected.";
-    if (function) {
+    JS::RootedObject function(context_, weak_function_.Get());
+    if (!function) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+    } else {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
+      JSExceptionState* previous_exception_state =
+          JS_SaveExceptionState(context_);
 
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
@@ -495,6 +534,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
       }
+      JS_RestoreExceptionState(context_, previous_exception_state);
     }
     return callback_result;
   }
