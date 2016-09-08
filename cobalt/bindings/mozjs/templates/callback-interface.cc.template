@@ -56,6 +56,7 @@ namespace {{component}} {
 {% if overload.type != 'void' %}
   {{overload.type}} cobalt_return_value;
 {% endif %}
+  JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
 
   // This could be set to NULL if it was garbage collected.
   JS::RootedObject implementing_object(context_, implementing_object_.Get());
@@ -102,6 +103,7 @@ namespace {{component}} {
   }
 
   *had_exception = !success;
+  JS_RestoreExceptionState(context_, previous_exception_state);
 {% if overload.type != 'void' %}
   return cobalt_return_value;
 {% endif %}
