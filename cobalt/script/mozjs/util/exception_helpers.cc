@@ -46,10 +46,15 @@ std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
     if (stack_trace[i].fun) {
       JS::RootedString rooted_string(context,
                                      JS_GetFunctionId(stack_trace[i].fun));
-      JS::RootedValue rooted_value(context, STRING_TO_JSVAL(rooted_string));
-      MozjsExceptionState exception_state(context);
-      FromJSValue(context, rooted_value, kNoConversionFlags, &exception_state,
-                  &sf.function_name);
+      if (rooted_string) {
+        JS::RootedValue rooted_value(context, STRING_TO_JSVAL(rooted_string));
+        MozjsExceptionState exception_state(context);
+        FromJSValue(context, rooted_value, kNoConversionFlags, &exception_state,
+                    &sf.function_name);
+      } else {
+        // anonymous function
+        sf.function_name = "(anonymous function)";
+      }
     }
     if (stack_trace[i].script) {
       sf.source_url = stack_trace[i].script->filename();
