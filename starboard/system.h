@@ -142,6 +142,12 @@ typedef enum SbSystemConnectionType {
 typedef enum SbSystemCapabilityId {
   // Whether this system has reversed Enter and Back keys.
   kSbSystemCapabilityReversedEnterAndBack,
+
+  // Whether this system has the ability to report on GPU memory usage.
+  // If (and only if) a system has this capcability will
+  // SbSystemGetTotalGPUMemory() and SbSystemGetUsedGPUMemory() be valid to
+  // call.
+  kSbSystemCapabilityCanQueryGPUMemoryStats,
 } SbSystemCapabilityId;
 
 // Enumeration of possible values for the |type| parameter passed to  the
@@ -241,10 +247,27 @@ SB_EXPORT bool SbSystemIsDebuggerAttached();
 // sandboxed limit.
 SB_EXPORT int SbSystemGetNumberOfProcessors();
 
-// Gets the total memory potentially available to this application. If the
-// process is sandboxed to a maximum allowable limit, it will return the lesser
-// of the physical and sandbox limits.
-SB_EXPORT int64_t SbSystemGetTotalMemory();
+// Gets the total CPU memory (in bytes) potentially available to this
+// application. If the process is sandboxed to a maximum allowable limit, it
+// will return the lesser of the physical and sandbox limits.
+SB_EXPORT int64_t SbSystemGetTotalCPUMemory();
+
+// Returns the total physical CPU memory (in bytes) used by this application.
+// This value should always be less than (or in particularly exciting
+// situations, equal to) SbSystemGetTotalCPUMemory().
+SB_EXPORT int64_t SbSystemGetUsedCPUMemory();
+
+// Returns the total GPU memory available (in bytes) for use by this
+// application.
+// This function may only be called if true is the return value for calls to
+// SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats).
+SB_EXPORT int64_t SbSystemGetTotalGPUMemory();
+
+// Returns the current amount of GPU memory (in bytes) that is currently being
+// used by this application.
+// This function may only be called if true is the return value for calls to
+// SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats).
+SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
 
 // Returns the type of the device.
 SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
