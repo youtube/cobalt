@@ -24,12 +24,14 @@ namespace dom {
 
 class XMLDocument : public Document {
  public:
-  explicit XMLDocument(const Options& options = Options())
-      : Document(NULL, options) {}
+  XMLDocument(HTMLElementContext* html_element_context,
+              const Options& options = Options())
+      : Document(html_element_context, options) {}
 
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new XMLDocument(Document::Options(url_as_gurl()));
+    return new XMLDocument(html_element_context(),
+                           Document::Options(url_as_gurl()));
   }
 
   // Custom, not in any spec: Document.

@@ -49,7 +49,7 @@ class Parser : public dom::Parser {
       const base::SourceLocation& input_location) OVERRIDE;
 
   scoped_refptr<dom::XMLDocument> ParseXMLDocument(
-      const std::string& input,
+      const std::string& input, dom::HTMLElementContext* html_element_context,
       const base::SourceLocation& input_location) OVERRIDE;
 
   void ParseDocumentFragment(
