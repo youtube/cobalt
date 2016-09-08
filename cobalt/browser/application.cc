@@ -551,9 +551,9 @@ void Application::WebModuleRecreated() {
 Application::CValStats::CValStats()
     : free_memory("Memory.CPU.Free", 0,
                   "Total free application memory remaining."),
-#if !defined(__LB_SHELL__FOR_RELEASE__)
       used_memory("Memory.CPU.Used", 0,
                   "Total memory allocated via the app's allocators."),
+#if !defined(__LB_SHELL__FOR_RELEASE__)
       exe_memory("Memory.CPU.Exe", 0,
                  "Total memory occupied by the size of the executable."),
 #endif
@@ -627,9 +627,14 @@ void Application::UpdatePeriodicStats() {
   if (!memory_stats_updated) {
     available_memory_ = lb_get_unallocated_memory();
     c_val_stats_.free_memory = static_cast<size_t>(available_memory_);
+    c_val_stats_.used_memory =
+        lb_get_total_system_memory() - lb_get_unallocated_memory();
   }
 #elif defined(OS_STARBOARD)
-// TODO: Need to expose memory tracking through starboard.
+  int64_t used_memory = SbSystemGetUsedCPUMemory();
+  available_memory_ = SbSystemGetTotalCPUMemory() - used_memory;
+  c_val_stats_.free_memory = available_memory_;
+  c_val_stats_.used_memory = used_memory;
 #endif
 
   lifetime_in_ms_ = (base::TimeTicks::Now() - start_time_).InMilliseconds();
