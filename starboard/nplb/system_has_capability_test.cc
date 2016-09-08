@@ -26,11 +26,18 @@ TEST(SbSystemHasCapabilityTest, SunnyDay) {
   // Ensure that this doesn't crash, but we don't know if it should legitimately
   // be true or false.
   SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
+  SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats);
 }
 
 TEST(SbSystemHasCapabilityTest, SunnyDayNoChange) {
-  bool a = SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
+  bool a;
+
+  a = SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
   EXPECT_EQ(a, SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack));
+
+  a = SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats);
+  EXPECT_EQ(a,
+            SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats));
 }
 
 TEST(SbSystemHasCapabilityTest, RainyDayNoSuchCapability) {
