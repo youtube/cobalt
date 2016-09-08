@@ -20,6 +20,7 @@ namespace cobalt {
 namespace css_parser {
 
 bool ShadowPropertyInfo::IsShadowPropertyValid(ShadowType type) {
+  if (error) return false;
   switch (type) {
     case kBoxShadow:
       //  https://www.w3.org/TR/css3-background/#box-shadow

@@ -26,6 +26,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/math/size.h"
+#include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -38,17 +39,20 @@ namespace cobalt {
 namespace media {
 
 // TODO: Collapse MediaModule into ShellMediaPlatform.
-class MediaModule : public WebMediaPlayerFactory,
+class MediaModule : public CanPlayTypeHandler,
+                    public WebMediaPlayerFactory,
                     public ::media::WebMediaPlayerDelegate {
  public:
   struct Options {
     Options()
         : use_audio_decoder_stub(false),
           use_null_audio_streamer(false),
-          use_video_decoder_stub(false) {}
+          use_video_decoder_stub(false),
+          disable_webm_vp9(false) {}
     bool use_audio_decoder_stub;
     bool use_null_audio_streamer;
     bool use_video_decoder_stub;
+    bool disable_webm_vp9;
   };
 
   typedef ::media::WebMediaPlayer WebMediaPlayer;

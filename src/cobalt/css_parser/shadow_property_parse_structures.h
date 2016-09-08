@@ -35,10 +35,11 @@ enum ShadowType {
 };
 
 struct ShadowPropertyInfo {
-  ShadowPropertyInfo() : has_inset(false) {}
+  ShadowPropertyInfo() : error(false), has_inset(false) {}
 
   bool IsShadowPropertyValid(ShadowType type);
 
+  bool error;
   std::vector<scoped_refptr<cssom::LengthValue> > length_vector;
   scoped_refptr<cssom::RGBAColorValue> color;
   bool has_inset;

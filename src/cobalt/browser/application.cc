@@ -53,9 +53,6 @@ namespace cobalt {
 namespace browser {
 
 namespace {
-const int kDefaultViewportWidth = 1920;
-const int kDefaultViewportHeight = 1080;
-
 const int kStatUpdatePeriodMs = 1000;
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
@@ -318,8 +315,6 @@ Application::Application(const base::Closure& quit_closure)
   // The main web module's stat tracker tracks event stats.
   options.web_module_options.track_event_stats = true;
 
-  math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
-
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kProxy)) {
     options.network_module_options.custom_proxy =
@@ -352,6 +347,10 @@ Application::Application(const base::Closure& quit_closure)
 
   EnableUsingStubImageDecoderIfRequired();
 
+  if (command_line->HasSwitch(browser::switches::kDisableWebmVp9)) {
+    DLOG(INFO) << "Webm/Vp9 disabled";
+    options.media_module_options.disable_webm_vp9 = true;
+  }
   if (command_line->HasSwitch(switches::kAudioDecoderStub)) {
     DLOG(INFO) << "Use ShellRawAudioDecoderStub";
     options.media_module_options.use_audio_decoder_stub = true;
@@ -366,40 +365,34 @@ Application::Application(const base::Closure& quit_closure)
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+  base::optional<math::Size> viewport_size;
   if (command_line->HasSwitch(browser::switches::kViewport)) {
     const std::string switchValue =
         command_line->GetSwitchValueASCII(browser::switches::kViewport);
     std::vector<std::string> lengths;
     base::SplitString(switchValue, 'x', &lengths);
     if (lengths.size() >= 1) {
-      int width;
-      if (!base::StringToInt(lengths[0], &width) || width < 1) {
-        DLOG(ERROR) << "Invalid value specified for viewport width: "
-                    << switchValue
-                    << ". Using default viewport: " << viewport_size.width()
-                    << "x" << viewport_size.height();
-      } else {
-        viewport_size.set_width(width);
-        if (lengths.size() >= 2) {
-          int height;
-          if (!base::StringToInt(lengths[1], &height) || height < 1) {
-            DLOG(ERROR) << "Invalid value specified for viewport height: "
-                        << switchValue << ". Using default viewport height: "
-                        << viewport_size.width() << "x"
-                        << viewport_size.height();
-          } else {
-            viewport_size.set_height(height);
-          }
-        } else {
+      int width = -1;
+      if (base::StringToInt(lengths[0], &width) && width >= 1) {
+        int height = -1;
+        if (lengths.size() < 2) {
           // Allow shorthand specification of the viewport by only giving the
           // width. This calculates the height at 4:3 aspect ratio for smaller
           // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-          if (viewport_size.width() >= 1280) {
-            viewport_size.set_height(9 * viewport_size.width() / 16);
+          if (width >= 1280) {
+            viewport_size.emplace(width, 9 * width / 16);
           } else {
-            viewport_size.set_height(3 * viewport_size.width() / 4);
+            viewport_size.emplace(width, 3 * width / 4);
           }
+        } else if (base::StringToInt(lengths[1], &height) && height >= 1) {
+          viewport_size.emplace(width, height);
+        } else {
+          DLOG(ERROR) << "Invalid value specified for viewport height: "
+                      << switchValue << ". Using default viewport size.";
         }
+      } else {
+        DLOG(ERROR) << "Invalid value specified for viewport width: "
+                    << switchValue << ". Using default viewport size.";
       }
     }
   }
@@ -558,9 +551,9 @@ void Application::WebModuleRecreated() {
 Application::CValStats::CValStats()
     : free_memory("Memory.CPU.Free", 0,
                   "Total free application memory remaining."),
-#if !defined(__LB_SHELL__FOR_RELEASE__)
       used_memory("Memory.CPU.Used", 0,
                   "Total memory allocated via the app's allocators."),
+#if !defined(__LB_SHELL__FOR_RELEASE__)
       exe_memory("Memory.CPU.Exe", 0,
                  "Total memory occupied by the size of the executable."),
 #endif
@@ -634,9 +627,14 @@ void Application::UpdatePeriodicStats() {
   if (!memory_stats_updated) {
     available_memory_ = lb_get_unallocated_memory();
     c_val_stats_.free_memory = static_cast<size_t>(available_memory_);
+    c_val_stats_.used_memory =
+        lb_get_total_system_memory() - lb_get_unallocated_memory();
   }
 #elif defined(OS_STARBOARD)
-// TODO: Need to expose memory tracking through starboard.
+  int64_t used_memory = SbSystemGetUsedCPUMemory();
+  available_memory_ = SbSystemGetTotalCPUMemory() - used_memory;
+  c_val_stats_.free_memory = available_memory_;
+  c_val_stats_.used_memory = used_memory;
 #endif
 
   lifetime_in_ms_ = (base::TimeTicks::Now() - start_time_).InMilliseconds();

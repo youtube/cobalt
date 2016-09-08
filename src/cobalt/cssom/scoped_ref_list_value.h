@@ -40,6 +40,7 @@ class ScopedRefListValue : public PropertyValue {
   explicit ScopedRefListValue(scoped_ptr<Builder> value)
       : value_(value.Pass()) {
     DCHECK(value_.get());
+    DCHECK(!value_->empty());
   }
 
   const scoped_refptr<T>& get_item_modulo_size(int index) const {

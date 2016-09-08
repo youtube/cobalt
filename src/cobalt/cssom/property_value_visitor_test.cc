@@ -36,6 +36,7 @@
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -185,9 +186,11 @@ TEST(PropertyValueVisitorTest, VisitsPercentageValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsPropertyKeyListValue) {
+  scoped_ptr<ListValue<PropertyKey>::Builder> builder(
+      new PropertyKeyListValue::Builder());
+  builder->push_back(kWidthProperty);
   scoped_refptr<PropertyKeyListValue> property_key_list_value =
-      new PropertyKeyListValue(
-          make_scoped_ptr(new PropertyKeyListValue::Builder()));
+      new PropertyKeyListValue(builder.Pass());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
               VisitPropertyKeyList(property_key_list_value.get()));
@@ -195,8 +198,11 @@ TEST(PropertyValueVisitorTest, VisitsPropertyKeyListValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsPropertyListValue) {
-  scoped_refptr<PropertyListValue> property_list_value = new PropertyListValue(
-      make_scoped_ptr(new ScopedRefListValue<PropertyValue>::Builder()));
+  scoped_ptr<ScopedRefListValue<PropertyValue>::Builder> builder(
+      new ScopedRefListValue<PropertyValue>::Builder());
+  builder->push_back(cssom::KeywordValue::GetNone());
+  scoped_refptr<PropertyListValue> property_list_value =
+      new PropertyListValue(builder.Pass());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitPropertyList(property_list_value.get()));
   property_list_value->Accept(&mock_visitor);
@@ -252,17 +258,21 @@ TEST(PropertyValueVisitorTest, VisitsStringValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsTimeListValue) {
+  scoped_ptr<TimeListValue::Builder> builder(new TimeListValue::Builder());
+  builder->push_back(base::TimeDelta());
   scoped_refptr<TimeListValue> time_list_value =
-      new TimeListValue(make_scoped_ptr(new TimeListValue::Builder()));
+      new TimeListValue(builder.Pass());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTimeList(time_list_value.get()));
   time_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsTimingFunctionListValue) {
+  scoped_ptr<TimingFunctionListValue::Builder> builder(
+      new TimingFunctionListValue::Builder());
+  builder->push_back(TimingFunction::GetLinear());
   scoped_refptr<TimingFunctionListValue> timing_function_list_value =
-      new TimingFunctionListValue(
-          make_scoped_ptr(new TimingFunctionListValue::Builder()));
+      new TimingFunctionListValue(builder.Pass());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
               VisitTimingFunctionList(timing_function_list_value.get()));
@@ -270,8 +280,10 @@ TEST(PropertyValueVisitorTest, VisitsTimingFunctionListValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
+  TransformFunctionListValue::Builder builder;
+  builder.push_back(new RotateFunction(0.0f));
   scoped_refptr<TransformFunctionListValue> transform_list_value =
-      new TransformFunctionListValue(TransformFunctionListValue::Builder());
+      new TransformFunctionListValue(builder.Pass());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
               VisitTransformFunctionList(transform_list_value.get()));

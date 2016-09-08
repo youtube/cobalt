@@ -159,8 +159,17 @@ void LibxmlParserWrapper::OnStartElement(
     element->SetAttribute(attributes[i].name.as_string(),
                           attributes[i].value.as_string());
   }
-  element->OnParserStartTag(GetSourceLocation());
-  node_stack_.top()->InsertBefore(element, reference_node_);
+
+  if (node_stack_.size() < kMaxStackDepth) {
+    element->OnParserStartTag(GetSourceLocation());
+    node_stack_.top()->InsertBefore(element, reference_node_);
+  } else {
+    if (!depth_limit_exceeded_) {
+      depth_limit_exceeded_ = true;
+      LOG(WARNING) << "Parser discarded deeply nested elements.";
+    }
+  }
+
   node_stack_.push(element);
 }
 
@@ -168,7 +177,11 @@ void LibxmlParserWrapper::OnEndElement(const std::string& name) {
   while (!node_stack_.empty()) {
     scoped_refptr<dom::Element> element = node_stack_.top()->AsElement();
     node_stack_.pop();
-    element->OnParserEndTag();
+
+    if (node_stack_.size() < kMaxStackDepth) {
+      element->OnParserEndTag();
+    }
+
     if (element->node_name() == name) {
       return;
     }

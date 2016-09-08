@@ -35,7 +35,9 @@ class ScopedListValue : public PropertyValue {
  public:
   typedef ScopedVector<T> Builder;
 
-  explicit ScopedListValue(Builder value) : value_(value.Pass()) {}
+  explicit ScopedListValue(Builder value) : value_(value.Pass()) {
+    DCHECK(!value_.empty());
+  }
 
   const T& get_item_modulo_size(int index) const {
     return *value_[index % value_.size()];

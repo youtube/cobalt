@@ -94,7 +94,7 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
 #if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
 
 #define strlen(s) SbStringGetLength(s)
-#define strcpy(o, s) SbStringCopyUnsafe(dst, src)
+#define strcpy(o, s) SbStringCopyUnsafe(o, s)
 #define strncpy(o, s, ds) SbStringCopy(o, s, ds)
 #define strcat(o, s) PoemConcatUnsafe(o, s)
 #define strncat(o, s, ds) PoemConcat(o, s, ds)

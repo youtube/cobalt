@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,18 +13,20 @@
 // limitations under the License.
 
 #include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include <unistd.h>
+namespace starboard {
+namespace nplb {
+namespace {
 
-#include "starboard/log.h"
-
-int64_t SbSystemGetTotalMemory() {
-  long pages = sysconf(_SC_PHYS_PAGES);     // NOLINT[runtime/int]
-  long page_size = sysconf(_SC_PAGE_SIZE);  // NOLINT[runtime/int]
-  if (pages == -1 || page_size == -1) {
-    SB_NOTREACHED();
-    return 0;
+TEST(SbSystemGetTotalGPUMemoryTest, SunnyDay) {
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    // If we claim to have GPU memory reporting capabilities, then this value
+    // should be larger than 0.
+    EXPECT_LT(0, SbSystemGetTotalCPUMemory());
   }
-
-  return static_cast<int64_t>(pages) * page_size;
 }
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

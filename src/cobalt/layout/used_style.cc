@@ -757,14 +757,23 @@ void InterpolateUnspecifiedColorStopPositions(
   }
 }
 
+// Compares ColorStops by position.
+bool ColorStopPositionComparator(const render_tree::ColorStop& x,
+                                 const render_tree::ColorStop& y) {
+  return x.position < y.position;
+}
+
 render_tree::ColorStopList ConvertToRenderTreeColorStopList(
     const cssom::ColorStopList& css_color_stop_list,
     float gradient_line_length) {
   render_tree::ColorStopList ret;
 
+  ret.reserve(css_color_stop_list.size());
+
   // The description of this process is defined here:
   //   https://www.w3.org/TR/css3-images/#color-stop-syntax
   float largest_position = 0.0f;
+  const float kMaxPositionSupported = 1.0f;
   for (size_t i = 0; i < css_color_stop_list.size(); ++i) {
     const cssom::ColorStop& css_color_stop = *css_color_stop_list[i];
 
@@ -791,6 +800,10 @@ render_tree::ColorStopList ConvertToRenderTreeColorStopList(
 
       // Ensure that it is larger than all previous stop positions.
       render_tree_position = std::max(largest_position, render_tree_position);
+      DLOG_IF(WARNING, render_tree_position > kMaxPositionSupported)
+          << "Color stop's position which is larger than 1.0 is not supported";
+      render_tree_position =
+          std::min(render_tree_position, kMaxPositionSupported);
       largest_position = render_tree_position;
     } else {
       // If the position is not specified, fill it in as 0 if it is the first,
@@ -811,6 +824,11 @@ render_tree::ColorStopList ConvertToRenderTreeColorStopList(
   }
 
   InterpolateUnspecifiedColorStopPositions(&ret);
+
+  // According to the spec @ https://www.w3.org/TR/css3-images/#linear-gradients
+  // the color-stops can be in unsorted order.  The color-stops are sorted
+  // to make the rendering code easier to write and faster to execute.
+  std::sort(ret.begin(), ret.end(), ColorStopPositionComparator);
 
   return ret;
 }

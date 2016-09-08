@@ -66,6 +66,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                loader::image::ImageCache* image_cache,
                loader::font::RemoteTypefaceCache* remote_typeface_cache,
                LocalStorageDatabase* local_storage_database,
+               media::CanPlayTypeHandler* can_play_type_handler,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ExecutionState* execution_state,
                script::ScriptRunner* script_runner,
@@ -83,9 +84,10 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
-          fetcher_factory, css_parser, dom_parser, web_media_player_factory,
-          script_runner, media_source_registry, resource_provider, image_cache,
-          remote_typeface_cache, dom_stat_tracker, language)),
+          fetcher_factory, css_parser, dom_parser, can_play_type_handler,
+          web_media_player_factory, script_runner, media_source_registry,
+          resource_provider, image_cache, remote_typeface_cache,
+          dom_stat_tracker, language)),
       performance_(new Performance(new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
@@ -214,22 +216,50 @@ int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
   DLOG_IF(WARNING, timeout < 0)
       << "Window::SetTimeout received negative timeout: " << timeout;
   timeout = std::max(timeout, 0);
-  return window_timers_->SetTimeout(handler, timeout);
+
+  int return_value = 0;
+  if (window_timers_) {
+    return_value = window_timers_->SetTimeout(handler, timeout);
+  } else {
+    DLOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
+  }
+
+  return return_value;
 }
 
-void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
+void Window::ClearTimeout(int handle) {
+  if (window_timers_) {
+    window_timers_->ClearTimeout(handle);
+  } else {
+    DLOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
+  }
+}
 
 int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
                         int timeout) {
   DLOG_IF(WARNING, timeout < 0)
       << "Window::SetInterval received negative timeout: " << timeout;
   timeout = std::max(timeout, 0);
-  return window_timers_->SetInterval(handler, timeout);
+
+  int return_value = 0;
+  if (window_timers_) {
+    return_value = window_timers_->SetInterval(handler, timeout);
+  } else {
+    DLOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
+  }
+
+  return return_value;
 }
 
 void Window::ClearInterval(int handle) {
-  window_timers_->ClearInterval(handle);
+  if (window_timers_) {
+    window_timers_->ClearInterval(handle);
+  } else {
+    DLOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
+  }
 }
+
+void Window::DestroyTimers() { window_timers_.reset(); }
 
 scoped_refptr<Storage> Window::local_storage() const { return local_storage_; }
 

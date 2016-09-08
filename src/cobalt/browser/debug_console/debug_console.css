@@ -1,3 +1,7 @@
+body {
+  font-size: 1.4815vh;  /* Corresponds to 16px at 1080p. */
+}
+
 #hudFrame {
   position: absolute;
   top: 85%;
@@ -10,16 +14,16 @@
 
 #hud {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  bottom: 10px;
-  right: 10px;
+  top: 0.625em;
+  left: 0.625em;
+  bottom: 0.625em;
+  right: 0.625em;
   background-color: rgba(0, 0, 0, 0.6);
   color: #FFFFFF;
-  border: 1px;
+  border: 0.0625em;
   border-color: #606060;
   border-style: solid;
-  padding: 10px;
+  padding: 0.625em;
 }
 
 #consoleFrame {
@@ -35,37 +39,37 @@
 
 #messageContainerFrame {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  bottom: 40px;
-  right: 10px;
+  top: 0.625em;
+  left: 0.625em;
+  bottom: 2.5em;
+  right: 0.625em;
   background-color: rgba(0, 0, 0, 0.6);
   color: #FFFFFF;
   overflow: hidden;
-  border: 1px;
+  border: 0.0625em;
   border-color: #606060;
   border-style: solid;
-  padding: 10px;
+  padding: 0.625em;
 }
 
 #messageContainer {
   position: absolute;
-  bottom: 10px;
+  bottom: 0.625em;
   font-family: monospace;
 }
 
 #in {
   position: absolute;
-  left: 10px;
+  left: 0.625em;
   bottom: 0;
-  right: 10px;
-  height: 20px;
+  right: 0.625em;
+  height: 1.25em;
   background-color: rgba(0, 0, 0, 0.6);
   color: #FFFFFF;
   white-space: pre;
   font-family: monospace;
-  border: 1px;
+  border: 0.0625em;
   border-color: #606060;
   border-style: solid;
-  padding: 10px;
+  padding: 0.625em;
 }

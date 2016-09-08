@@ -98,7 +98,7 @@ static size_t computeRAMSize()
         return ramSizeGuess;
     return mst.st_size;
 #elif OS(STARBOARD)
-    return SbSystemGetTotalMemory();
+    return SbSystemGetTotalCPUMemory();
 #endif
 }
 

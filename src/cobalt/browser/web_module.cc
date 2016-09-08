@@ -84,6 +84,10 @@ class WebModule::Impl {
                          const base::SourceLocation& script_location,
                          base::WaitableEvent* got_result, std::string* result);
 
+  // Clears disables timer related objects
+  // so that the message loop can easily exit
+  void ClearAllIntervalsAndTimeouts();
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   void OnPartialLayoutConsoleCommandReceived(const std::string& message);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -288,8 +292,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
       data.resource_provider, image_cache_.get(), remote_typeface_cache_.get(),
-      local_storage_database_.get(), data.media_module, execution_state_.get(),
-      script_runner_.get(), media_source_registry_.get(),
+      local_storage_database_.get(), data.media_module, data.media_module,
+      execution_state_.get(), script_runner_.get(),
+      media_source_registry_.get(),
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
       data.network_module->preferred_language(),
@@ -413,6 +418,12 @@ void WebModule::Impl::ExecuteJavascript(
   DCHECK(script_runner_);
   *result = script_runner_->Execute(script_utf8, script_location);
   got_result->Signal();
+}
+
+void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(window_);
+  window_->DestroyTimers();
 }
 
 void WebModule::Impl::OnRenderTreeProduced(
@@ -608,6 +619,9 @@ WebModule::~WebModule() {
                             base::Unretained(&did_register_shutdown_observer)));
   did_register_shutdown_observer.Wait();
 
+  // This will cancel the timers for tasks, which help the thread exit
+  ClearAllIntervalsAndTimeouts();
+
   // Stop the thread. This will cause the destruction observer to be notified.
   thread_.Stop();
 }
@@ -643,6 +657,18 @@ std::string WebModule::ExecuteJavascript(
                             script_location, &got_result, &result));
   got_result.Wait();
   return result;
+}
+
+void WebModule::ClearAllIntervalsAndTimeouts() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::ClearAllIntervalsAndTimeouts()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+
+  if (impl_) {
+    message_loop()->PostTask(
+        FROM_HERE, base::Bind(&WebModule::Impl::ClearAllIntervalsAndTimeouts,
+                              base::Unretained(impl_.get())));
+  }
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)

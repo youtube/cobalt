@@ -141,7 +141,8 @@
         '<(DEPTH)/starboard/shared/linux/socket_get_local_interface_address.cc',
         '<(DEPTH)/starboard/shared/linux/system_get_random_data.cc',
         '<(DEPTH)/starboard/shared/linux/system_get_stack.cc',
-        '<(DEPTH)/starboard/shared/linux/system_get_total_memory.cc',
+        '<(DEPTH)/starboard/shared/linux/system_get_total_cpu_memory.cc',
+        '<(DEPTH)/starboard/shared/linux/system_get_used_cpu_memory.cc',
         '<(DEPTH)/starboard/shared/linux/system_is_debugger_attached.cc',
         '<(DEPTH)/starboard/shared/linux/system_symbolize.cc',
         '<(DEPTH)/starboard/shared/linux/thread_get_id.cc',
@@ -305,6 +306,8 @@
         '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
+        '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
+        '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
       ],
       'include_dirs': [
         '/usr/include/directfb',

@@ -13,7 +13,18 @@
 // limitations under the License.
 
 #include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-int64_t SbSystemGetTotalMemory() {
-  return 0;
+namespace starboard {
+namespace nplb {
+namespace {
+
+TEST(SbSystemGetUsedCPUMemoryTest, SunnyDay) {
+  // We expect this number to be larger than 0, since at least this test is
+  // resident in process memory.
+  EXPECT_LT(0, SbSystemGetUsedCPUMemory());
 }
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

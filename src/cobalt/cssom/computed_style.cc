@@ -2701,7 +2701,9 @@ bool CalculateComputedStyleContext::HandleInheritOrInitial(
     return true;
   } else if (*value == KeywordValue::GetInitial()) {
     *value = GetPropertyInitialValue(key);
-    return true;
+    // If the initial value is current color, it still requires to do further
+    // processing.
+    return *value == KeywordValue::GetCurrentColor() ? false : true;
   } else {
     return false;
   }

@@ -174,7 +174,7 @@ BrowserModule::BrowserModule(const GURL& url,
   debug_console_.reset(new DebugConsole(
       base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      media_module_.get(), &network_module_, system_window->window_size(),
+      media_module_.get(), &network_module_, system_window->GetWindowSize(),
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
@@ -285,6 +285,14 @@ void BrowserModule::RequestScreenshotToBuffer(
 void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnRenderTreeProduced, weak_this_,
+                   layout_results));
+    return;
+  }
+
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
 #if defined(OS_STARBOARD)
@@ -323,6 +331,14 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced, weak_this_,
+                   layout_results));
+    return;
+  }
+
   render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
 }

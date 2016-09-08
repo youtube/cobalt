@@ -17,6 +17,8 @@
 #ifndef COBALT_MEDIA_MEDIA_MODULE_STUB_H_
 #define COBALT_MEDIA_MEDIA_MODULE_STUB_H_
 
+#include <string>
+
 #include "cobalt/media/media_module.h"
 
 namespace cobalt {
@@ -26,6 +28,8 @@ class MediaModuleStub : public MediaModule {
  public:
   MediaModuleStub() {}
 
+  std::string CanPlayType(const std::string& mime_type,
+                          const std::string& key_system) OVERRIDE;
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       ::media::WebMediaPlayerClient* client) OVERRIDE;
 };

@@ -311,11 +311,6 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
       StreamParserBuffer::CopyFrom(data, size, is_keyframe);
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
 
-  if (!buffer) {
-    DLOG(WARNING) << "Failed to create StreamParserBuffer";
-    return false;
-  }
-
   // Every encrypted Block has a signal byte and IV prepended to it. Current
   // encrypted WebM request for comments specification is here
   // http://wiki.webmproject.org/encryption/webm-encryption-rfc
@@ -379,21 +374,24 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     buffer = StreamParserBuffer::CopyFrom(data + data_offset,
                                           size - data_offset, is_keyframe);
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
-    if (!buffer) {
-      DLOG(WARNING) << "Failed to create StreamParserBuffer";
-      return false;
-    }
 
     // TODO(fgalligan): Revisit if DecryptConfig needs to be set on unencrypted
     // frames after the CDM API is finalized.
     // Unencrypted frames of potentially encrypted streams currently set
     // DecryptConfig.
-    buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(
-        new DecryptConfig(encryption_key_id, counter_block,
-#if !defined(__LB_SHELL__) && !defined(COBALT)
-                          data_offset,
-#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
-                          subsample_entries)));
+    if (buffer) {
+      buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(
+          new DecryptConfig(encryption_key_id, counter_block,
+  #if !defined(__LB_SHELL__) && !defined(COBALT)
+                            data_offset,
+  #endif  // !defined(__LB_SHELL__) && !defined(COBALT)
+                            subsample_entries)));
+    }
+  }
+
+  if (!buffer) {
+    DLOG(WARNING) << "Failed to create StreamParserBuffer";
+    return false;
   }
 
   buffer->SetTimestamp(timestamp);

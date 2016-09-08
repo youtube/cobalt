@@ -80,6 +80,15 @@
 #include "TraceLogging.h"
 #endif
 
+#if defined(DEBUG) && defined(STARBOARD)
+// On Starboard platforms, DEBUG will get #undef'd when we #include zlib.h
+#define STARBOARD_DEBUG
+#endif
+
+#ifdef USE_ZLIB
+#include "zlib.h"
+#endif
+
 using namespace js;
 using namespace js::cli;
 
@@ -172,7 +181,7 @@ static bool reportWarnings = true;
 static bool compileOnly = false;
 static bool fuzzingSafe = false;
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
 static bool OOM_printAllocationCount = false;
 #endif
 
@@ -1684,7 +1693,7 @@ PCToLine(JSContext *cx, unsigned argc, jsval *vp)
     return true;
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
 
 static void
 UpdateSwitchTableBounds(JSContext *cx, HandleScript script, unsigned offset,
@@ -3172,7 +3181,7 @@ Parse(JSContext *cx, unsigned argc, jsval *vp)
     ParseNode *pn = parser.parse(NULL);
     if (!pn)
         return false;
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
     DumpParseTree(pn);
     fputc('\n', stderr);
 #endif
@@ -3510,7 +3519,7 @@ EnableStackWalkingAssertion(JSContext *cx, unsigned argc, jsval *vp)
         return false;
     }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
     cx->stackIterAssertionEnabled = JSVAL_TO_BOOLEAN(JS_ARGV(cx, vp)[0]);
 #endif
 
@@ -3649,7 +3658,7 @@ static const JSFunctionSpecWithHelp shell_functions[] = {
 "throwError()",
 "  Throw an error from JS_ReportError."),
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
     JS_FN_HELP("disassemble", DisassembleToString, 1, 0,
 "disassemble([fun])",
 "  Return the disassembly for the given function."),
@@ -3751,7 +3760,7 @@ static const JSFunctionSpecWithHelp shell_functions[] = {
 "  Create object with resolve hook that copies properties\n"
 "  from src. If proto is omitted, use Object.prototype."),
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
     JS_FN_HELP("arrayInfo", js_ArrayInfo, 1, 0,
 "arrayInfo(a1, a2, ...)",
 "  Report statistics about arrays."),
@@ -4531,7 +4540,7 @@ dom_genericSetter(JSContext* cx, unsigned argc, JS::Value *vp);
 static JSBool
 dom_genericMethod(JSContext *cx, unsigned argc, JS::Value *vp);
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
 static JSClass *GetDomClass();
 #endif
 
@@ -4622,7 +4631,7 @@ static JSClass dom_class = {
     JSCLASS_NO_INTERNAL_MEMBERS
 };
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
 static JSClass *GetDomClass() {
     return &dom_class;
 }
@@ -5245,7 +5254,7 @@ main(int argc, char **argv, char **envp)
         || !op.addBoolOption('a', "always-mjit", "No-op (still used by fuzzers)")
         || !op.addBoolOption('D', "dump-bytecode", "Dump bytecode with exec count for all scripts")
         || !op.addBoolOption('b', "print-timing", "Print sub-ms runtime for each file that's run")
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
         || !op.addBoolOption('O', "print-alloc", "Print the number of allocations at exit")
 #endif
         || !op.addOptionalStringArg("script", "A script to execute (after all options)")
@@ -5325,7 +5334,7 @@ main(int argc, char **argv, char **envp)
     if (op.getHelpOption())
         return EXIT_SUCCESS;
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(STARBOARD_DEBUG)
     /*
      * Process OOM options as early as possible so that we can observe as many
      * allocations as possible.
@@ -5376,7 +5385,7 @@ main(int argc, char **argv, char **envp)
 
     result = Shell(cx, &op, envp);
 
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(JS_USE_CUSTOM_ALLOCATOR)
     if (OOM_printAllocationCount)
         printf("OOM max count: %u\n", OOM_counter);
 #endif

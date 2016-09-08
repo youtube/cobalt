@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSystemGetTotalMemoryTest, SunnyDay) {
-  // We are currently expecting this number to be over 80 megabytes.
-  EXPECT_LE(SB_INT64_C(80) * 1024 * 1024, SbSystemGetTotalMemory());
+TEST(SbSystemGetUsedGPUMemoryTest, SunnyDay) {
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    EXPECT_LE(0, SbSystemGetUsedGPUMemory());
+  }
 }
 
 }  // namespace

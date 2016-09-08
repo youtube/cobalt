@@ -46,6 +46,7 @@
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
+#include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
@@ -90,6 +91,7 @@ class Window : public EventTarget {
          loader::image::ImageCache* image_cache,
          loader::font::RemoteTypefaceCache* remote_typeface_cache,
          LocalStorageDatabase* local_storage_database,
+         media::CanPlayTypeHandler* can_play_type_handler,
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,
          script::ScriptRunner* script_runner,
@@ -201,6 +203,8 @@ class Window : public EventTarget {
   int SetInterval(const WindowTimers::TimerCallbackArg& handler, int timeout);
 
   void ClearInterval(int handle);
+
+  void DestroyTimers();
 
   // Web API: Storage (implements)
   scoped_refptr<Storage> local_storage() const;

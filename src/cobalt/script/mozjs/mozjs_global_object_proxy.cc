@@ -208,9 +208,19 @@ bool MozjsGlobalObjectProxy::EvaluateScript(
   last_error_message_ = &error_message;
   JS::RootedObject global_object(
       context_, js::GetProxyTargetObject(global_object_proxy_));
-  bool success = JS_EvaluateScript(
-      context_, global_object, script.c_str(), script.size(),
-      location.file_path.c_str(), location.line_number, result_value.address());
+
+  size_t length = script.size();
+  jschar* inflated_buffer =
+      js::InflateUTF8String(context_, script.c_str(), &length);
+  DCHECK(inflated_buffer);
+  bool success = false;
+  if (inflated_buffer) {
+    success = JS_EvaluateUCScript(context_, global_object, inflated_buffer,
+                                  length, location.file_path.c_str(),
+                                  location.line_number, result_value.address());
+    js_free(inflated_buffer);
+  }
+
   if (out_result_utf8) {
     if (success) {
       MozjsExceptionState exception_state(context_);
