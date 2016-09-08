@@ -43,7 +43,7 @@ class UsedStyleProvider;
 // Update the computed styles, then generate and layout the box tree.
 void UpdateComputedStylesAndLayoutBoxTree(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider,
+    int dom_max_element_depth, UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
@@ -54,7 +54,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
 // result of recursive layout of the given HTML element.
 scoped_refptr<render_tree::Node> Layout(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider,
+    int dom_max_element_depth, UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
