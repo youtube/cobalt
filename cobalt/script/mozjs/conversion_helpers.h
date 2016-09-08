@@ -380,7 +380,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
   JS::RootedObject js_object(context);
-  if (value.isNull()) {
+  if (value.isNull() || value.isUndefined()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
       exception_state->SetSimpleException(ExceptionState::kTypeError,
                                           kNotNullableType);
