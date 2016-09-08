@@ -247,6 +247,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Destroy resources held.
   void Destroy();
 
+  void GetMediaTimeAndSeekingState(base::TimeDelta* media_time,
+                                   bool* is_seeking) const;
+
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();
 
@@ -365,7 +368,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // unimportant.
   bool suppress_destruction_errors_;
 
-  base::Callback<base::TimeDelta()> media_time_cb_;
+  base::Callback<void(base::TimeDelta*, bool*)>
+      media_time_and_seeking_state_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };
