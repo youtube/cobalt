@@ -257,6 +257,12 @@ TEST_F(UserObjectBindingsTest, SetNonObject) {
   EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
 }
 
+TEST_F(UserObjectBindingsTest, SetUndefinedObject) {
+  std::string result;
+  EXPECT_FALSE(EvaluateScript("test.arbitraryObject = undefined;", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+}
+
 TEST_F(UserObjectBindingsTest, SetWrongObjectType) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.arbitraryObject = new Object()", &result));
