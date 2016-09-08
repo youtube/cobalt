@@ -168,7 +168,7 @@ TEST(SbStringParseDoubleTest, HugeNeg) {
 
 // Some platforms do not support denormals
 // Denormal support is unnecessary for Cobalt as of Sep 7, 2016
-TEST(SbStringParseDoubleTest, DISABLE_Small) {
+TEST(SbStringParseDoubleTest, DISABLED_Small) {
   const char kDouble[] = "1e-310";
   const double kExpected = DBL_MIN;
   char* end = NULL;
@@ -180,7 +180,7 @@ TEST(SbStringParseDoubleTest, DISABLE_Small) {
 
 // Some platforms do not support denormals
 // Denormal support is unnecessary for Cobalt as of Sep 7, 2016
-TEST(SbStringParseDoubleTest, DISABLE_SmallNeg) {
+TEST(SbStringParseDoubleTest, DISABLED_SmallNeg) {
   const char kDouble[] = "-1e-310";
   const double kExpected = -DBL_MIN;
   char* end = NULL;
