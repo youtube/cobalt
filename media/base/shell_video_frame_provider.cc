@@ -28,21 +28,22 @@ ShellVideoFrameProvider::ShellVideoFrameProvider(
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 }
 
-void ShellVideoFrameProvider::RegisterMediaTimeCB(
-    const MediaTimeCB& media_time_cb) {
-  DCHECK(!media_time_cb.is_null());
+void ShellVideoFrameProvider::RegisterMediaTimeAndSeekingStateCB(
+    const MediaTimeAndSeekingStateCB& media_time_and_seeking_state_cb) {
+  DCHECK(!media_time_and_seeking_state_cb.is_null());
   base::AutoLock auto_lock(frames_lock_);
-  media_time_cb_ = media_time_cb;
+  media_time_and_seeking_state_cb_ = media_time_and_seeking_state_cb;
 }
 
-void ShellVideoFrameProvider::UnregisterMediaTimeCB(
-    const MediaTimeCB& media_time_cb) {
+void ShellVideoFrameProvider::UnregisterMediaTimeAndSeekingStateCB(
+    const MediaTimeAndSeekingStateCB& media_time_and_seeking_state_cb) {
   base::AutoLock auto_lock(frames_lock_);
   // It is possible that the register of a new callback happens earlier than the
   // unregister of the previous callback.  Always ensure that the callback
   // passed in is the current one before resetting.
-  if (media_time_cb_.Equals(media_time_cb)) {
-    media_time_cb_.Reset();
+  if (media_time_and_seeking_state_cb_.Equals(
+          media_time_and_seeking_state_cb)) {
+    media_time_and_seeking_state_cb_.Reset();
   }
 }
 
@@ -57,7 +58,9 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
 
   base::AutoLock auto_lock(frames_lock_);
 
-  base::TimeDelta media_time = GetMediaTime_Locked();
+  base::TimeDelta media_time;
+  bool is_seeking;
+  GetMediaTimeAndSeekingState_Locked(&media_time, &is_seeking);
   while (!frames_.empty()) {
     int64_t frame_time = frames_[0]->GetTimestamp().InMicroseconds();
     if (frame_time >= media_time.InMicroseconds())
@@ -66,7 +69,7 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
         frame_time + kEpsilonInMicroseconds >= media_time.InMicroseconds())
       break;
 
-    if (current_frame_ != frames_[0]) {
+    if (current_frame_ != frames_[0] && !is_seeking) {
       ++dropped_frames_;
 
 #if !defined(__LB_SHELL__FOR_RELEASE__)
@@ -117,9 +120,18 @@ size_t ShellVideoFrameProvider::GetNumOfFramesCached() const {
   return frames_.size();
 }
 
-base::TimeDelta ShellVideoFrameProvider::GetMediaTime_Locked() const {
+void ShellVideoFrameProvider::GetMediaTimeAndSeekingState_Locked(
+    base::TimeDelta* media_time,
+    bool* is_seeking) const {
+  DCHECK(media_time);
+  DCHECK(is_seeking);
   frames_lock_.AssertAcquired();
-  return media_time_cb_.is_null() ? base::TimeDelta() : media_time_cb_.Run();
+  if (media_time_and_seeking_state_cb_.is_null()) {
+    *media_time = base::TimeDelta();
+    *is_seeking = false;
+    return;
+  }
+  media_time_and_seeking_state_cb_.Run(media_time, is_seeking);
 }
 
 bool ShellVideoFrameProvider::QueryAndResetHasConsumedFrames() {

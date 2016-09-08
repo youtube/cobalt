@@ -18,13 +18,13 @@
 #include "base/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "media/audio/shell_audio_sink.h"
-#include "media/filters/shell_audio_renderer.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/filter_collection.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
 #include "media/base/video_frame.h"
 #include "media/filters/chunk_demuxer.h"
+#include "media/filters/shell_audio_renderer.h"
 #include "media/filters/shell_demuxer.h"
 #include "media/filters/video_renderer_base.h"
 #include "media/player/web_media_player_proxy.h"
@@ -173,8 +173,11 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 #endif  // defined(COBALT_USE_PUNCHOUT)
 
   if (video_frame_provider_) {
-    media_time_cb_ = base::Bind(&Pipeline::GetMediaTime, pipeline_);
-    video_frame_provider_->RegisterMediaTimeCB(media_time_cb_);
+    media_time_and_seeking_state_cb_ =
+        base::Bind(&WebMediaPlayerImpl::GetMediaTimeAndSeekingState,
+                   base::Unretained(this));
+    video_frame_provider_->RegisterMediaTimeAndSeekingStateCB(
+        media_time_and_seeking_state_cb_);
   }
   if (delegate_) {
     delegate_->RegisterPlayer(this);
@@ -189,9 +192,10 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   }
 
   if (video_frame_provider_) {
-    DCHECK(!media_time_cb_.is_null());
-    video_frame_provider_->UnregisterMediaTimeCB(media_time_cb_);
-    media_time_cb_.Reset();
+    DCHECK(!media_time_and_seeking_state_cb_.is_null());
+    video_frame_provider_->UnregisterMediaTimeAndSeekingStateCB(
+        media_time_and_seeking_state_cb_);
+    media_time_and_seeking_state_cb_.Reset();
   }
 
 #if defined(__LB_ANDROID__)
@@ -1162,6 +1166,15 @@ void WebMediaPlayerImpl::Destroy() {
     proxy_->Detach();
     proxy_ = NULL;
   }
+}
+
+void WebMediaPlayerImpl::GetMediaTimeAndSeekingState(
+    base::TimeDelta* media_time,
+    bool* is_seeking) const {
+  DCHECK(media_time);
+  DCHECK(is_seeking);
+  *media_time = pipeline_->GetMediaTime();
+  *is_seeking = state_.seeking;
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {
