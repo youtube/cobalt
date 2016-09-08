@@ -50,9 +50,9 @@ TEST(SbMemoryMapTest, AllocatesOnePage) {
 
 TEST(SbMemoryMapTest, DoesNotLeak) {
   // Map 4x the amount of system memory (sequentially, not at once).
-  int64_t bytes_mapped = SbSystemGetTotalMemory() / 4;
+  int64_t bytes_mapped = SbSystemGetTotalCPUMemory() / 4;
   for (int64_t total_bytes_mapped = 0;
-       total_bytes_mapped < SbSystemGetTotalMemory() * 4;
+       total_bytes_mapped < SbSystemGetTotalCPUMemory() * 4;
        total_bytes_mapped += bytes_mapped) {
     void* memory = SbMemoryMap(bytes_mapped, kSbMemoryMapProtectWrite, "test");
     ASSERT_NE(kFailed, memory);
