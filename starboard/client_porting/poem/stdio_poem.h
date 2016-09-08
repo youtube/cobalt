@@ -17,9 +17,12 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STDIO_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STDIO_POEM_H_
 
-#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+#if defined(STARBOARD)
+
+#if !defined(POEM_NO_EMULATION)
 
 #include "starboard/string.h"
+#include "starboard/memory.h"
 
 #define wcsncmp(s1, s2, c) SbStringCompareWide(s1, s2, c)
 
@@ -31,7 +34,12 @@
 #define sprintf SbStringFormatUnsafeF
 #define vsscanf SbStringScan
 #define sscanf SbStringScanF
+#define malloc(sz) SbMemoryAllocateUnchecked(sz)
+#define free(a) SbMemoryFree(a)
+#define realloc(m, sz) SbMemoryReallocateUnchecked(m, sz)
 
-#endif  // POEM_FULL_EMULATION
+#endif  // POEM_NO_EMULATION
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STDIO_POEM_H_
