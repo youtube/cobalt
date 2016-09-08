@@ -72,11 +72,13 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_css_computed_style_declaration,
     const scoped_refptr<const web_animations::AnimationSet>& parent_animations,
-    scoped_refptr<Paragraph>* paragraph, const Context* context)
+    scoped_refptr<Paragraph>* paragraph, const int dom_element_depth,
+    const Context* context)
     : parent_css_computed_style_declaration_(
           parent_css_computed_style_declaration),
       parent_animations_(parent_animations),
       paragraph_(paragraph),
+      dom_element_depth_(dom_element_depth),
       context_(context) {}
 
 BoxGenerator::~BoxGenerator() {
@@ -92,6 +94,11 @@ BoxGenerator::~BoxGenerator() {
 }
 
 void BoxGenerator::Visit(dom::Element* element) {
+  if (dom_element_depth_ > context_->dom_max_element_depth) {
+    LOG(WARNING) << "Elements too deep in the DOM tree are ignored in layout.";
+    return;
+  }
+
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK(html_element);
   generating_html_element_ = html_element;
@@ -784,7 +791,7 @@ void BoxGenerator::AppendPseudoElementToLine(
             pseudo_element->css_computed_style_declaration(),
             use_html_element_animations ? html_element->animations()
                                         : pseudo_element->animations(),
-            paragraph_, context_);
+            paragraph_, dom_element_depth_ + 1, context_);
         child_node->Accept(&child_box_generator);
         const Boxes& child_boxes = child_box_generator.boxes();
         for (Boxes::const_iterator child_box_iterator = child_boxes.begin();
@@ -855,7 +862,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     BoxGenerator child_box_generator(
         html_element->css_computed_style_declaration(),
         html_element->css_computed_style_declaration()->animations(),
-        paragraph_, context_);
+        paragraph_, dom_element_depth_ + 1, context_);
     child_node->Accept(&child_box_generator);
     const Boxes& child_boxes = child_box_generator.boxes();
     for (Boxes::const_iterator child_box_iterator = child_boxes.begin();

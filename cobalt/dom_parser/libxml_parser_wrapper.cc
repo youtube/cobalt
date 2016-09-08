@@ -160,7 +160,7 @@ void LibxmlParserWrapper::OnStartElement(
                           attributes[i].value.as_string());
   }
 
-  if (node_stack_.size() < kMaxStackDepth) {
+  if (static_cast<int>(node_stack_.size()) <= dom_max_element_depth_) {
     element->OnParserStartTag(GetSourceLocation());
     node_stack_.top()->InsertBefore(element, reference_node_);
   } else {
@@ -178,7 +178,7 @@ void LibxmlParserWrapper::OnEndElement(const std::string& name) {
     scoped_refptr<dom::Element> element = node_stack_.top()->AsElement();
     node_stack_.pop();
 
-    if (node_stack_.size() < kMaxStackDepth) {
+    if (static_cast<int>(node_stack_.size()) <= dom_max_element_depth_) {
       element->OnParserEndTag();
     }
 
