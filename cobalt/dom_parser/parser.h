@@ -29,11 +29,17 @@ namespace dom_parser {
 class Parser : public dom::Parser {
  public:
   Parser()
-      : ALLOW_THIS_IN_INITIALIZER_LIST(error_callback_(
+      : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
+        ALLOW_THIS_IN_INITIALIZER_LIST(error_callback_(
             base::Bind(&Parser::ErrorCallback, base::Unretained(this)))) {}
   explicit Parser(
       const base::Callback<void(const std::string&)>& error_callback)
-      : error_callback_(error_callback) {}
+      : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
+        error_callback_(error_callback) {}
+  Parser(const int dom_max_element_depth,
+         const base::Callback<void(const std::string&)>& error_callback)
+      : dom_max_element_depth_(dom_max_element_depth),
+        error_callback_(error_callback) {}
   ~Parser() OVERRIDE {}
 
   // From dom::Parser.
@@ -68,9 +74,12 @@ class Parser : public dom::Parser {
       const base::SourceLocation& input_location) OVERRIDE;
 
  private:
-  void ErrorCallback(const std::string& error);
+  static const int kDefaultDOMMaxElementDepth = 32;
 
+  const int dom_max_element_depth_;
   const base::Callback<void(const std::string&)> error_callback_;
+
+  void ErrorCallback(const std::string& error);
 
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };

@@ -78,19 +78,17 @@ class LibxmlParserWrapper {
   };
   typedef std::vector<ParserAttribute> ParserAttributeVector;
 
-  // This restricts the depth of the nodes in the DOM tree. All elements at a
-  // depth deeper than this will be discarded.
-  static const size_t kMaxStackDepth = 32;
-
   LibxmlParserWrapper(
       const scoped_refptr<dom::Document>& document,
       const scoped_refptr<dom::Node>& parent_node,
       const scoped_refptr<dom::Node>& reference_node,
+      const int dom_max_element_depth,
       const base::SourceLocation& first_chunk_location,
       const base::Callback<void(const std::string&)>& error_callback)
       : document_(document),
         parent_node_(parent_node),
         reference_node_(reference_node),
+        dom_max_element_depth_(dom_max_element_depth),
         first_chunk_location_(first_chunk_location),
         error_callback_(error_callback),
         depth_limit_exceeded_(false),
@@ -140,8 +138,12 @@ class LibxmlParserWrapper {
   const scoped_refptr<dom::Document> document_;
   const scoped_refptr<dom::Node> parent_node_;
   const scoped_refptr<dom::Node> reference_node_;
+  // Max number the depth of the elements in the DOM tree. All elements at a
+  // depth deeper than this will be discarded.
+  const int dom_max_element_depth_;
   const base::SourceLocation first_chunk_location_;
   const base::Callback<void(const std::string&)> error_callback_;
+
   bool depth_limit_exceeded_;
   IssueSeverity issue_level_;
 

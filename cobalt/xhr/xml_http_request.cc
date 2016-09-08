@@ -911,7 +911,7 @@ scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
   // well-formedness error, etc.), return null.
   scoped_refptr<dom::XMLDocument> xml_document = new dom::XMLDocument();
   dom_parser::XMLDecoder xml_decoder(
-      xml_document, xml_document, NULL,
+      xml_document, xml_document, NULL, settings_->max_dom_element_depth(),
       base::SourceLocation("[object XMLHttpRequest]", 1, 1), base::Closure(),
       base::Bind(&XMLHttpRequest::XMLDecoderErrorCallback,
                  base::Unretained(this)));
