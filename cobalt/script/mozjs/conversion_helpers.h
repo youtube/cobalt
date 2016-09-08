@@ -34,6 +34,7 @@
 #include "cobalt/script/mozjs/union_type_conversion_forward.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
+#include "third_party/mozjs/js/src/jsstr.h"
 
 namespace cobalt {
 namespace script {
@@ -72,9 +73,21 @@ enum ConversionFlags {
 // std::string -> JSValue
 inline void ToJSValue(JSContext* context, const std::string& in_string,
                       JS::MutableHandleValue out_value) {
+  size_t length = in_string.length();
+  jschar* inflated_buffer =
+      js::InflateUTF8String(context, in_string.c_str(), &length);
+  DCHECK(inflated_buffer);
+
+  if (!inflated_buffer) {
+    LOG(ERROR) << "Failed to inflate UTF8 string.";
+    out_value.setNull();
+    return;
+  }
+
   JS::RootedString rooted_string(
-      context,
-      JS_NewStringCopyN(context, in_string.c_str(), in_string.length()));
+      context, JS_NewUCStringCopyN(context, inflated_buffer, length));
+  js_free(inflated_buffer);
+
   out_value.set(JS::StringValue(rooted_string));
 }
 

@@ -45,12 +45,36 @@ TEST_F(DOMStringBindingsTest, SetProperty) {
   EXPECT_STREQ("mock_value", result.c_str());
 }
 
+TEST_F(DOMStringBindingsTest, SetPropertyWithJapanese) {
+  EXPECT_CALL(test_mock(), set_property(std::string("かわいいです")));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.property = \"かわいいです\";", &result));
+  EXPECT_STREQ("かわいいです", result.c_str());
+}
+
+TEST_F(DOMStringBindingsTest, SetPropertyWithChinese) {
+  EXPECT_CALL(test_mock(), set_property(std::string("的")));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.property = \"\xe7\x9a\x84\";", &result));
+  EXPECT_STREQ("的", result.c_str());
+}
+
 TEST_F(DOMStringBindingsTest, GetReadOnlyProperty) {
   EXPECT_CALL(test_mock(), read_only_property()).WillOnce(Return("mock_value"));
 
   std::string result;
   EXPECT_TRUE(EvaluateScript("test.readOnlyProperty;", &result));
   EXPECT_STREQ("mock_value", result.c_str());
+}
+
+TEST_F(DOMStringBindingsTest, GetReadOnlyPropertyWithKorean) {
+  EXPECT_CALL(test_mock(), read_only_property()).WillOnce(Return("대박"));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.readOnlyProperty;", &result));
+  EXPECT_STREQ("대박", result.c_str());
 }
 
 TEST_F(DOMStringBindingsTest, SetReadOnlyProperty) {
