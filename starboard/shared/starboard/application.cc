@@ -18,6 +18,8 @@
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
@@ -39,11 +41,11 @@ void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
 }
 
 // Dispatches a Start event to the system event handler.
-void DispatchStart(int argc, char** argv) {
+void DispatchStart(int argc, char** argv, const char* link) {
   SbEventStartData start_data;
   start_data.argument_values = argv;
   start_data.argument_count = argc;
-  start_data.link = NULL;
+  start_data.link = link;
   Dispatch(kSbEventTypeStart, &start_data, NULL);
 }
 
@@ -54,7 +56,8 @@ volatile SbAtomic32 g_next_event_id = 0;
 
 Application* Application::g_instance = NULL;
 
-Application::Application() : error_level_(0), thread_(SbThreadGetCurrent()) {
+Application::Application()
+    : error_level_(0), thread_(SbThreadGetCurrent()), start_link_(NULL) {
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
@@ -71,11 +74,12 @@ Application::~Application() {
           reinterpret_cast<SbAtomicPtr>(NULL)));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
+  SbMemoryFree(start_link_);
 }
 
 int Application::Run(int argc, char** argv) {
   Initialize();
-  DispatchStart(argc, argv);
+  DispatchStart(argc, argv, start_link_);
 
   for (;;) {
     if (!DispatchAndDelete(GetNextEvent())) {
@@ -107,6 +111,15 @@ void Application::Cancel(SbEventId id) {
 
 void Application::HandleFrame(const player::VideoFrame& frame) {
   AcceptFrame(frame);
+}
+
+void Application::SetStartLink(const char* start_link) {
+  SbMemoryFree(start_link_);
+  if (start_link) {
+    start_link_ = SbStringDuplicate(start_link);
+  } else {
+    start_link_ = NULL;
+  }
 }
 
 bool Application::DispatchAndDelete(Application::Event* event) {
