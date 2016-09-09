@@ -26,7 +26,7 @@
 #endif
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
-#include "third_party/skia/include/core/SkCanvas.h"
+#include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor_draw_state.h"
 #include "third_party/skia/include/core/SkSurface.h"
 
 namespace cobalt {
@@ -76,7 +76,6 @@ class SurfaceCacheDelegate : public common::SurfaceCache::Delegate {
 
  public:
   typedef base::Callback<SkSurface*(const math::Size&)> CreateSkSurfaceFunction;
-  typedef base::Callback<void(SkCanvas*)> SetCanvasFunction;
 
   // Creating a ScopedContext object declares a render tree visitor context,
   // and so there should be one ScopedContext per render tree visitor.  Since
@@ -85,35 +84,28 @@ class SurfaceCacheDelegate : public common::SurfaceCache::Delegate {
   // SurfaceCacheDelegate object.
   class ScopedContext {
    public:
-    ScopedContext(SurfaceCacheDelegate* delegate, SkCanvas* canvas,
-                  const SetCanvasFunction& set_canvas_function)
-        : delegate_(delegate),
-          old_canvas_(delegate_->canvas_),
-          old_set_canvas_function_(delegate_->set_canvas_function_) {
-      // Setup our new canvas to the provided one.  Remember a new method
-      // to set the canvas for the current rendering context in case we need
-      // to start recording on a offscreen surface.
-      delegate_->canvas_ = canvas;
-      delegate_->set_canvas_function_ = set_canvas_function;
+    ScopedContext(SurfaceCacheDelegate* delegate,
+                  RenderTreeNodeVisitorDrawState* draw_state)
+        : delegate_(delegate), old_draw_state_(delegate_->draw_state_) {
+      // Setup our new draw state (including render target) to the provided one.
+      delegate_->draw_state_ = draw_state;
 
       // A new canvas may mean a new total matrix, so inform our delegate to
       // refresh its scale.
       delegate_->UpdateCanvasScale();
     }
     ~ScopedContext() {
-      // Restore the canvas to the old setting.
-      delegate_->set_canvas_function_ = old_set_canvas_function_;
-      delegate_->canvas_ = old_canvas_;
+      // Restore the draw state to the old setting.
+      delegate_->draw_state_ = old_draw_state_;
 
-      if (delegate_->canvas_) {
+      if (delegate_->draw_state_) {
         delegate_->UpdateCanvasScale();
       }
     }
 
    private:
     SurfaceCacheDelegate* delegate_;
-    SkCanvas* old_canvas_;
-    SetCanvasFunction old_set_canvas_function_;
+    RenderTreeNodeVisitorDrawState* old_draw_state_;
   };
 
   SurfaceCacheDelegate(
@@ -134,16 +126,17 @@ class SurfaceCacheDelegate : public common::SurfaceCache::Delegate {
  private:
   // Defines a set of data that is relevant only while recording.
   struct RecordingData {
-    RecordingData(SkCanvas* original_canvas,
+    RecordingData(const RenderTreeNodeVisitorDrawState& original_draw_state,
                   const common::OffscreenRenderCoordinateMapping& coord_mapping,
                   SkSurface* surface)
-        : original_canvas(original_canvas),
+        : original_draw_state(original_draw_state),
           coord_mapping(coord_mapping),
           surface(surface) {}
 
-    // The original canvas that the recorded draw calls would have otherwise
-    // targeted if we were not recording.
-    SkCanvas* original_canvas;
+    // The original draw state (including render target/canvas) that the
+    // recorded draw calls would have otherwise targeted if we were not
+    // recording.
+    RenderTreeNodeVisitorDrawState original_draw_state;
 
     // Information about how to map the offscreen cached surface to the main
     // render target.
@@ -161,25 +154,21 @@ class SurfaceCacheDelegate : public common::SurfaceCache::Delegate {
   // something new.
   CreateSkSurfaceFunction create_sk_surface_function_;
 
-  // A function that can be used to change the current canvas in order to
-  // redirect Skia rasterization commands to an offscreen cached surface.
-  SetCanvasFunction set_canvas_function_;
-
   // The maximum size of an SkSurface.
   math::Size max_surface_size_;
 
-  // The current canvas that is being targeted, whether its the main onscreen
-  // surface or a cached surface.
-  SkCanvas* canvas_;
+  // The current draw state (including the SkCanvas) that is being targeted,
+  // whether its the main onscreen surface or a cached surface.
+  RenderTreeNodeVisitorDrawState* draw_state_;
 
   // If we are currently recording, this will contain all of the data relevant
   // to that recording.
   base::optional<RecordingData> recording_data_;
 
-  // The current scale of canvas_->getTotalMatrix().  This lets us quickly check
-  // if the scale of a render node changes from the last time we observed it,
-  // which may happen if an animation is targeting a MatrixTransformNode render
-  // tree node.
+  // The current scale of draw_state_->render_target->getTotalMatrix().  This
+  // lets us quickly check if the scale of a render node changes from the last
+  // time we observed it, which may happen if an animation is targeting a
+  // MatrixTransformNode render tree node.
   math::Vector2dF scale_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
