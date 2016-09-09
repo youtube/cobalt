@@ -62,6 +62,13 @@ class Application {
     delete static_cast<T*>(value);
   }
 
+  // Destructor function that deletes the value as an array of the
+  // parameterized type.
+  template <typename T>
+  static void DeleteArrayDestructor(void* value) {
+    delete[] static_cast<T*>(value);
+  }
+
   // A Starboard event and its destructor. Takes ownership of the event, thus
   // deleting the event and calling the destructor on its data when it is
   // deleted.
@@ -172,7 +179,11 @@ class Application {
   // kSbTimeMax if there are no queued TimedEvents.
   virtual SbTimeMonotonic GetNextTimedEventTargetTime() = 0;
 
-  bool IsCurrentThread() {
+  // Sets the launch deep link string, if any, which is passed in the start
+  // event that initializes and starts Cobalt.
+  void SetStartLink(const char* start_link);
+
+  bool IsCurrentThread() const {
     return SbThreadIsEqual(thread_, SbThreadGetCurrent());
   }
 
@@ -191,6 +202,10 @@ class Application {
   // The thread that this application was created on, which is assumed to be the
   // main thread.
   SbThread thread_;
+
+  // The deep link included in the Start event sent to Cobalt. Initially NULL,
+  // derived classes may set it during initialization using |SetStartLink|.
+  char* start_link_;
 };
 
 }  // namespace starboard
