@@ -11,6 +11,7 @@
 
 #if !UCONFIG_NO_COLLATION && !UCONFIG_NO_BREAK_ITERATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/stsearch.h"
 #include "usrchimp.h"
 #include "cmemory.h"

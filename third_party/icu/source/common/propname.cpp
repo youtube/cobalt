@@ -9,6 +9,7 @@
 * 2010nov19 Markus Scherer  Rewrite for formatVersion 2.
 **********************************************************************
 */
+#include "starboard/client_porting/poem/string_poem.h"
 #include "propname.h"
 #include "unicode/uchar.h"
 #include "unicode/udata.h"

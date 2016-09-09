@@ -29,6 +29,7 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/dtfmtsym.h"
 #include "unicode/ures.h"
@@ -67,6 +68,9 @@
 #include <stdio.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 // *****************************************************************************
 // class SimpleDateFormat
 // *****************************************************************************

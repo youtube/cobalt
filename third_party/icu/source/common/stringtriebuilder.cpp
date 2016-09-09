@@ -12,6 +12,9 @@
 *   created by: Markus W. Scherer
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "utypeinfo.h"  // for 'typeid' to work
 #include "unicode/utypes.h"
 #include "unicode/stringtriebuilder.h"
@@ -334,7 +337,9 @@ StringTrieBuilder::registerNode(Node *newNode, UErrorCode &errorCode) {
     int32_t oldValue=  // Only in debug mode to avoid a compiler warning about unused oldValue.
 #endif
     uhash_puti(nodes, newNode, 1, &errorCode);
+#if U_DEBUG
     U_ASSERT(oldValue==0);
+#endif
     if(U_FAILURE(errorCode)) {
         delete newNode;
         return NULL;
@@ -363,7 +368,9 @@ StringTrieBuilder::registerFinalValue(int32_t value, UErrorCode &errorCode) {
     int32_t oldValue=  // Only in debug mode to avoid a compiler warning about unused oldValue.
 #endif
     uhash_puti(nodes, newNode, 1, &errorCode);
+#if U_DEBUG
     U_ASSERT(oldValue==0);
+#endif
     if(U_FAILURE(errorCode)) {
         delete newNode;
         return NULL;

@@ -19,6 +19,9 @@
 #ifndef _PLATFORM_H
 #define _PLATFORM_H
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
 #include "unicode/uconfig.h"
 #include "unicode/uvernum.h"
 
@@ -135,9 +138,15 @@
 #define U_PF_OS390 9000
 /** "IBM i" is the current name of what used to be i5/OS and earlier OS/400. @internal */
 #define U_PF_OS400 9400
+/* Starboard is an API abstraction used for the Cobalt browser to help ports. */
+// 9864 was chosen to not conflict with other values in platform.h.  The number
+// itself was almost arbitrarily chosen, and it avoids windows and linux ranges.
+#define U_STARBOARD 9864
 
 #ifdef U_PLATFORM
     /* Use the predefined value. */
+#elif defined(STARBOARD)
+#   define U_PLATFORM U_STARBOARD
 #elif defined(__MINGW32__)
 #   define U_PLATFORM U_PF_MINGW
 #elif defined(__CYGWIN__)
@@ -210,6 +219,8 @@
  */
 #ifdef U_PLATFORM_USES_ONLY_WIN32_API
     /* Use the predefined value. */
+#elif defined(__LB_XB1__)
+#   define U_PLATFORM_USES_ONLY_WIN32_API 1
 #elif (U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_MINGW) || defined(CYGWINMSVC)
 #   define U_PLATFORM_USES_ONLY_WIN32_API 1
 #else
@@ -239,6 +250,8 @@
  */
 #ifdef U_PLATFORM_IMPLEMENTS_POSIX
     /* Use the predefined value. */
+#elif U_PLATFORM == U_STARBOARD
+#   define U_PLATFORM_IMPLEMENTS_POSIX 0
 #elif U_PLATFORM_USES_ONLY_WIN32_API
 #   define U_PLATFORM_IMPLEMENTS_POSIX 0
 #else
@@ -377,6 +390,14 @@
  * Determines the endianness of the platform.
  * @internal
  */
+#if defined(STARBOARD)
+#  if SB_IS(BIG_ENDIAN)
+#    define U_IS_BIG_ENDIAN 1
+#  else
+#    define U_IS_BIG_ENDIAN 0
+#  endif
+#endif
+
 #ifdef U_IS_BIG_ENDIAN
     /* Use the predefined value. */
 #elif defined(BYTE_ORDER) && defined(BIG_ENDIAN)
@@ -408,6 +429,8 @@
  */
 #ifdef U_HAVE_PLACEMENT_NEW
     /* Use the predefined value. */
+#elif U_PLATFORM == U_STARBOARD
+#   define U_HAVE_PLACEMENT_NEW 0
 #elif defined(__BORLANDC__)
 #   define U_HAVE_PLACEMENT_NEW 0
 #else
@@ -633,6 +656,8 @@
  */
 #ifdef U_HAVE_WCHAR_H
     /* Use the predefined value. */
+#elif U_PLATFORM == U_STARBOARD
+#    define U_HAVE_WCHAR_H      0
 #elif U_PLATFORM == U_PF_ANDROID && __ANDROID_API__ < 9
     /*
      * Android before Gingerbread (Android 2.3, API level 9) did not support wchar_t.
@@ -652,6 +677,12 @@
  */
 #ifdef U_SIZEOF_WCHAR_T
     /* Use the predefined value. */
+#elif (U_PLATFORM == U_STARBOARD)
+#  if SB_IS(WCHAR_T_UTF16)
+#    define U_SIZEOF_WCHAR_T    2
+#  else
+#    define U_SIZEOF_WCHAR_T    4
+#  endif
 #elif (U_PLATFORM == U_PF_ANDROID && __ANDROID_API__ < 9)
     /*
      * Classic Mac OS and Mac OS X before 10.3 (Panther) did not support wchar_t or wstring.
@@ -753,6 +784,8 @@
  */
 #ifdef U_DECLARE_UTF16
     /* Use the predefined value. */
+#elif defined(__LB_XB1__)
+#define U_DECLARE_UTF16(string) L ## string
 #elif U_HAVE_CHAR16_T \
     || (defined(__xlC__) && defined(__IBM_UTF_LITERAL) && U_SIZEOF_WCHAR_T != 2) \
     || (defined(__HP_aCC) && __HP_aCC >= 035000) \
@@ -771,10 +804,18 @@
 /** @{ Symbol import-export control                                          */
 /*===========================================================================*/
 
+#ifndef U_STATIC_IMPLEMENTATION
+#ifdef STARBOARD
+#error "We should use static build for now."
+#endif
+#endif
+
 #ifdef U_EXPORT
     /* Use the predefined value. */
 #elif defined(U_STATIC_IMPLEMENTATION)
 #   define U_EXPORT
+#elif defined(STARBOARD)
+#   define U_EXPORT SB_EXPORT_PLATFORM
 #elif defined(__GNUC__)
 #   define U_EXPORT __attribute__((visibility("default")))
 #elif (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x550) \
@@ -799,6 +840,8 @@
 
 #ifdef U_IMPORT
     /* Use the predefined value. */
+#elif U_PLATFORM == U_STARBOARD
+#   define U_IMPORT SB_IMPORT_PLATFORM
 #elif defined(_MSC_VER)
     /* Windows needs to export/import data. */
 #   define U_IMPORT __declspec(dllimport)

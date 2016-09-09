@@ -23,6 +23,7 @@
  *   The data tables for each are built separately, each from its own definitions
  */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/uspoof.h"
 #include "unicode/unorm.h"

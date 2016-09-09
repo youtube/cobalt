@@ -24,7 +24,12 @@
 ******************************************************************************
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "digitlst.h"
+// Must go after digitlst.h, or a compile error occurs.
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/wchar_poem.h"
 
 #if !UCONFIG_NO_FORMATTING
 #include "unicode/putil.h"
@@ -35,10 +40,12 @@
 #include "putilimp.h"
 #include "uassert.h"
 #include "digitinterval.h" 
+#if !defined(STARBOARD)
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
 #include <stdio.h>
+#endif
 #include <limits>
 
 // ***************************************************************************

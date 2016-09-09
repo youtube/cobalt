@@ -10,6 +10,7 @@
 * created by: Andy Heninger
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 
 #include "unicode/uchar.h"

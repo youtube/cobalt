@@ -122,7 +122,7 @@
  * @stable ICU 2.2
  */
 #ifndef U_OVERRIDE_CXX_ALLOCATION
-#define U_OVERRIDE_CXX_ALLOCATION 1
+#define U_OVERRIDE_CXX_ALLOCATION 0
 #endif
 
 /**
@@ -179,6 +179,13 @@
  * 1 if a custom library suffix is set.
  * @internal
  */
+
+#if defined(STARBOARD) || defined(__LB_XB1__) || defined(__LB_PS3__)
+#define U_LIB_SUFFIX_C_NAME
+#define U_LIB_SUFFIX_C_NAME_STRING ""
+#define U_HAVE_LIB_SUFFIX 0
+#endif
+
 #ifdef U_HAVE_LIB_SUFFIX
     /* Use the predefined value. */
 #elif defined(U_LIB_SUFFIX_C_NAME)

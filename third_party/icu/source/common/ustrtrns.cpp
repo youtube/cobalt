@@ -23,7 +23,7 @@
  *******************************************************************************
  */
 
-
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/putil.h"
 #include "unicode/ustring.h"
 #include "unicode/utf.h"

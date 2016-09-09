@@ -20,7 +20,9 @@
 #ifndef __UTRACE_H__
 #define __UTRACE_H__
 
+#if !defined(STARBOARD)
 #include <stdarg.h>
+#endif
 #include "unicode/utypes.h"
 
 /**

@@ -18,6 +18,7 @@
 *   charset families (ASCII<->EBCDIC).
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include <stdarg.h>
 #include "unicode/utypes.h"
 #include "unicode/udata.h" /* UDataInfo */

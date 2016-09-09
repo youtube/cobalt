@@ -5,6 +5,7 @@
 **********************************************************************
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "uvector.h"
 
 U_NAMESPACE_BEGIN
