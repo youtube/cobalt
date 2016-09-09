@@ -48,6 +48,7 @@
 #include "JSCExceptionObjectInterface.h"
 #include "JSCExceptionsInterface.h"
 #include "JSCExtendedIDLAttributesInterface.h"
+#include "JSCGarbageCollectionTestInterface.h"
 #include "JSCGetOpaqueRootInterface.h"
 #include "JSCGlobalInterfaceParent.h"
 #include "JSCImplementedInterface.h"
@@ -92,6 +93,7 @@
 #include "cobalt/bindings/testing/exception_object_interface.h"
 #include "cobalt/bindings/testing/exceptions_interface.h"
 #include "cobalt/bindings/testing/extended_idl_attributes_interface.h"
+#include "cobalt/bindings/testing/garbage_collection_test_interface.h"
 #include "cobalt/bindings/testing/get_opaque_root_interface.h"
 #include "cobalt/bindings/testing/global_interface_parent.h"
 #include "cobalt/bindings/testing/implemented_interface.h"
@@ -165,6 +167,7 @@ using cobalt::bindings::testing::EnumerationInterface;
 using cobalt::bindings::testing::ExceptionObjectInterface;
 using cobalt::bindings::testing::ExceptionsInterface;
 using cobalt::bindings::testing::ExtendedIDLAttributesInterface;
+using cobalt::bindings::testing::GarbageCollectionTestInterface;
 using cobalt::bindings::testing::GetOpaqueRootInterface;
 using cobalt::bindings::testing::GlobalInterfaceParent;
 using cobalt::bindings::testing::ImplementedInterface;
@@ -194,6 +197,7 @@ using cobalt::bindings::testing::JSCEnumerationInterface;
 using cobalt::bindings::testing::JSCExceptionObjectInterface;
 using cobalt::bindings::testing::JSCExceptionsInterface;
 using cobalt::bindings::testing::JSCExtendedIDLAttributesInterface;
+using cobalt::bindings::testing::JSCGarbageCollectionTestInterface;
 using cobalt::bindings::testing::JSCGetOpaqueRootInterface;
 using cobalt::bindings::testing::JSCGlobalInterfaceParent;
 using cobalt::bindings::testing::JSCImplementedInterface;
@@ -769,6 +773,10 @@ script::javascriptcore::JSCGlobalObject* JSCWindow::Create(
       ExtendedIDLAttributesInterface::ExtendedIDLAttributesInterfaceWrappableType(),
       JSCExtendedIDLAttributesInterface::s_classinfo(),
       JSCExtendedIDLAttributesInterface::GetCreateWrapperFunction());
+  wrapper_factory->RegisterWrappableType(
+      GarbageCollectionTestInterface::GarbageCollectionTestInterfaceWrappableType(),
+      JSCGarbageCollectionTestInterface::s_classinfo(),
+      JSCGarbageCollectionTestInterface::GetCreateWrapperFunction());
   wrapper_factory->RegisterWrappableType(
       GetOpaqueRootInterface::GetOpaqueRootInterfaceWrappableType(),
       JSCGetOpaqueRootInterface::s_classinfo(),
