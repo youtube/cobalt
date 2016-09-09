@@ -400,10 +400,7 @@ namespace {
 
 Vector2dLayoutUnit GetOffsetFromContainingBlockToStackingContext(
     Box* child_box) {
-  DCHECK((child_box->computed_style()->position() ==
-          cssom::KeywordValue::GetFixed()) ||
-         (child_box->computed_style()->position() ==
-          cssom::KeywordValue::GetAbsolute()));
+  DCHECK(child_box->IsPositioned());
 
   Vector2dLayoutUnit relative_position;
   for (Box *containing_block = child_box->GetContainingBlock(),
@@ -411,14 +408,19 @@ Vector2dLayoutUnit GetOffsetFromContainingBlockToStackingContext(
        current_box != containing_block;
        current_box = current_box->GetContainingBlock()) {
     if (!current_box) {
-      NOTREACHED() << "Unable to find stacking context while "
-                      "traversing containing blocks.";
+      DLOG(WARNING)
+          << "Unsupported stacking context and containing block relation.";
       break;
     }
+#if !defined(NDEBUG)
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
-    DCHECK(!current_box->IsTransformed());
+    if (current_box->IsTransformed()) {
+      DLOG(WARNING) << "Boxes with stacking contexts above containing blocks "
+                       "with transforms may not be positioned correctly.";
+    }
+#endif
 
     relative_position += current_box->GetContentBoxOffsetFromMarginBox();
     relative_position += current_box->margin_box_offset_from_containing_block();
@@ -450,15 +452,20 @@ Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
        current_box != stacking_context;
        current_box = current_box->GetContainingBlock()) {
     if (!current_box) {
-      // Elements with absolute position may have their containing block farther
+      // Positioned elements may have their containing block farther
       // up the hierarchy than the stacking context, so handle this case here.
-      DCHECK(child_box_position == cssom::KeywordValue::GetAbsolute());
+      DCHECK(child_box->IsPositioned());
       return -GetOffsetFromContainingBlockToStackingContext(child_box);
     }
+#if !defined(NDEBUG)
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
-    DCHECK(!current_box->IsTransformed());
+    if (current_box->IsTransformed()) {
+      DLOG(WARNING) << "Boxes with stacking contexts below containing blocks "
+                       "with transforms may not be positioned correctly.";
+    }
+#endif
 
     relative_position += current_box->GetContentBoxOffsetFromMarginBox();
     relative_position += current_box->margin_box_offset_from_containing_block();
