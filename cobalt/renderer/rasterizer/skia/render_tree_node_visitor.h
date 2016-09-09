@@ -29,6 +29,7 @@
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
+#include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor_draw_state.h"
 #include "cobalt/renderer/rasterizer/skia/surface_cache_delegate.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 
@@ -93,11 +94,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // then apply the filter to the offscreen surface.
   void RenderFilterViaOffscreenSurface(
       const render_tree::FilterNode::Builder& filter_node);
-  void SetRenderTarget(SkCanvas* render_target) {
-    render_target_ = render_target;
-  }
 
-  SkCanvas* render_target_;
+  RenderTreeNodeVisitorDrawState draw_state_;
   const CreateScratchSurfaceFunction* create_scratch_surface_function_;
   Type visitor_type_;
 
