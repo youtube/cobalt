@@ -21,11 +21,14 @@
 #define U_ASSERT_H
 /* utypes.h is included to get the proper define for uint8_t */
 #include "unicode/utypes.h"
+#include "starboard/configuration.h"
 #if U_DEBUG
+#if !defined(STARBOARD)
 #   include <assert.h>
+#endif
 #   define U_ASSERT(exp) assert(exp)
 #else
-#   define U_ASSERT(exp)
+#   define U_ASSERT(exp) SB_UNREFERENCED_PARAMETER(exp)
 #endif
 #endif
 

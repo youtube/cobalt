@@ -18,6 +18,7 @@
 */
 
 /* set import/export definitions */
+#include "starboard/client_porting/poem/assert_poem.h"
 #ifndef U_UTF8_IMPL
 #   define U_UTF8_IMPL
 #endif

@@ -13,6 +13,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/measfmt.h"
 #include "unicode/numfmt.h"
 #include "currfmt.h"

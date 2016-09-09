@@ -22,6 +22,7 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unorm.h"
 #include "unicode/ustring.h"
 #include "cmemory.h"

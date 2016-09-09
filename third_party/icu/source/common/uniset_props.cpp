@@ -16,6 +16,8 @@
 *   Character property dependent functions moved here from uniset.cpp
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/uniset.h"
 #include "unicode/parsepos.h"

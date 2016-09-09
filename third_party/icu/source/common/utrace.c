@@ -10,6 +10,7 @@
 */
 
 #define   UTRACE_IMPL
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/utrace.h"
 #include "utracimp.h"
 #include "cstring.h"

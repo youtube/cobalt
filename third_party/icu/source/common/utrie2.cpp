@@ -26,6 +26,8 @@
 #   include <stdio.h>
 #endif
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/utf.h"
 #include "unicode/utf8.h"

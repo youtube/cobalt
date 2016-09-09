@@ -117,7 +117,14 @@ U_INTERNAL void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCo
  * Example: '/' and ':' on Unix, '\\' and ';' on Windows.
  * @stable ICU 2.0
  */
-#if U_PLATFORM_USES_ONLY_WIN32_API
+#if (U_PLATFORM == U_STARBOARD)
+#   define U_FILE_SEP_CHAR SB_FILE_SEP_CHAR
+#   define U_FILE_ALT_SEP_CHAR SB_FILE_ALT_SEP_CHAR
+#   define U_PATH_SEP_CHAR SB_PATH_SEP_CHAR
+#   define U_FILE_SEP_STRING SB_FILE_SEP_STRING
+#   define U_FILE_ALT_SEP_STRING SB_FILE_ALT_SEP_STRING
+#   define U_PATH_SEP_STRING SB_PATH_SEP_STRING
+#elif U_PLATFORM_USES_ONLY_WIN32_API || defined(__LB_XB1__)
 #   define U_FILE_SEP_CHAR '\\'
 #   define U_FILE_ALT_SEP_CHAR '/'
 #   define U_PATH_SEP_CHAR ';'

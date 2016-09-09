@@ -18,6 +18,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/tznames.h"
 #include "unicode/ures.h"
 #include "unicode/locid.h"

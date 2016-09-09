@@ -242,7 +242,9 @@ class StringByteSink : public ByteSink {
    * @param n the number of bytes; must be non-negative
    * @stable ICU 4.2
    */
-  virtual void Append(const char* data, int32_t n) { dest_->append(data, n); }
+  virtual void Append(const char* data, int32_t n) {
+    dest_->append(data, static_cast<typename StringClass::size_type>(n));
+  }
  private:
   StringClass* dest_;
   StringByteSink(); ///< default constructor not implemented 

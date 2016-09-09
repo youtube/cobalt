@@ -8,6 +8,8 @@
 
 #if !UCONFIG_NO_SERVICE || !UCONFIG_NO_TRANSLITERATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/resbund.h"
 #include "cmemory.h"
 #include "ustrfmt.h"

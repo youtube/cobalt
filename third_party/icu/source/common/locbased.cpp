@@ -8,6 +8,7 @@
 * Since: ICU 2.8
 **********************************************************************
 */
+#include "starboard/client_porting/poem/string_poem.h"
 #include "locbased.h"
 #include "cstring.h"
 
