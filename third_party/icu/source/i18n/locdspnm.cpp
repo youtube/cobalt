@@ -9,6 +9,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/locdspnm.h"
 #include "unicode/msgfmt.h"
 #include "unicode/ures.h"

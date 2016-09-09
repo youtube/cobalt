@@ -19,6 +19,7 @@
 *   code also builds UnicodeSets from patterns and needs uniset_props.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/brkiter.h"
 #include "unicode/locid.h"
 #include "unicode/parsepos.h"

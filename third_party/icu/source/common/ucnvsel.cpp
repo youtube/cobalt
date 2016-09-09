@@ -28,7 +28,11 @@
 
 #if !UCONFIG_NO_CONVERSION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#if !defined(STARBOARD)
 #include <string.h>
+#endif
 
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"

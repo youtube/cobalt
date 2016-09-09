@@ -18,10 +18,13 @@
 // This file was generated from the java source file BreakIterator.java
 // *****************************************************************************
 
+#include "unicode/ptypes.h"
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/rbbi.h"
 #include "unicode/brkiter.h"
 #include "unicode/udata.h"

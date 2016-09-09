@@ -5,6 +5,7 @@
 **********************************************************************
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/ures.h"
 #include "unicode/putil.h"

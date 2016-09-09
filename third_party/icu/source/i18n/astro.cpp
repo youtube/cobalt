@@ -9,15 +9,22 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/math_poem.h"
 #include "unicode/calendar.h"
+#if !defined(STARBOARD)
 #include <math.h>
 #include <float.h>
+#endif
 #include "unicode/putil.h"
 #include "uhash.h"
 #include "umutex.h"
 #include "ucln_in.h"
 #include "putilimp.h"
+#if !defined(STARBOARD)
 #include <stdio.h>  // for toString()
+#endif
 
 #if defined (PI) 
 #undef PI

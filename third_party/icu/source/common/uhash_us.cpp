@@ -10,6 +10,7 @@
 ******************************************************************************
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "hash.h"
 
 /**

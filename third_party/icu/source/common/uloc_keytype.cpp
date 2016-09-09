@@ -4,6 +4,7 @@
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 */
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/utypes.h"
 
 #include "cstring.h"

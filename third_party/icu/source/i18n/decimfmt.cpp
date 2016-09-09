@@ -41,6 +41,8 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/uniset.h"
 #include "unicode/currpinf.h"
 #include "unicode/plurrule.h"

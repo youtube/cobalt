@@ -28,6 +28,9 @@
      l = lang, C = ctry, M = charmap, V = variant
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "unicode/uloc.h"
@@ -43,7 +46,9 @@
 #include "uenumimp.h"
 #include "uassert.h"
 
+#if !defined(STARBOARD)
 #include <stdio.h> /* for sprintf */
+#endif
 
 /* ### Declarations **************************************************/
 

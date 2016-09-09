@@ -9,6 +9,7 @@
 * created by: Markus W. Scherer & Maxime Serrano
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "dictionarydata.h"
 #include "unicode/ucharstrie.h"
 #include "unicode/bytestrie.h"

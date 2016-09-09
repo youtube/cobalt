@@ -16,6 +16,7 @@
 
 #if !UCONFIG_NO_IDNA
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/idna.h"
 #include "unicode/normalizer2.h"
 #include "unicode/uscript.h"

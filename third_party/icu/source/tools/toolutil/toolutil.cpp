@@ -17,7 +17,6 @@
 *	
 *   This file contains utility functions for ICU tools like genccode.
 */
-
 #include "unicode/platform.h"
 #if U_PLATFORM == U_PF_MINGW
 // *cough* - for struct stat
