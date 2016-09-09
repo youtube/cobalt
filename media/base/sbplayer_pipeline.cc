@@ -157,6 +157,13 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   PipelineStatistics GetStatistics() const OVERRIDE;
 
  private:
+  // A map from raw data pointer returned by DecoderBuffer::GetData() to the
+  // DecoderBuffer and a reference count.  The reference count indicates how
+  // many instances of the DecoderBuffer is currently being decoded in the
+  // pipeline.
+  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int> >
+      DecodingBuffers;
+
   void StartTask();
 
   // DataSourceHost (by way of DemuxerHost) implementation.
@@ -276,7 +283,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
 
   SbPlayer player_;
 
-  std::map<const void*, scoped_refptr<DecoderBuffer> > decoding_buffers_;
+  DecodingBuffers decoding_buffers_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -663,9 +670,12 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
       SbPlayerWriteEndOfStream(player_, kSbMediaTypeAudio);
       return;
     }
-    DCHECK(decoding_buffers_.find(buffer->GetData()) ==
-           decoding_buffers_.end());
-    decoding_buffers_[buffer->GetData()] = buffer;
+    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->GetData());
+    if (iter == decoding_buffers_.end()) {
+      decoding_buffers_[buffer->GetData()] = std::make_pair(buffer, 1);
+    } else {
+      ++iter->second.second;
+    }
     SbPlayerWriteSample(player_, kSbMediaTypeAudio, buffer->GetData(),
                         buffer->GetDataSize(),
                         TimeDeltaToSbMediaTime(buffer->GetTimestamp()), NULL,
@@ -683,8 +693,12 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   video_info.is_key_frame = false;
   video_info.frame_width = 1;
   video_info.frame_height = 1;
-  DCHECK(decoding_buffers_.find(buffer->GetData()) == decoding_buffers_.end());
-  decoding_buffers_[buffer->GetData()] = buffer;
+  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->GetData());
+  if (iter == decoding_buffers_.end()) {
+    decoding_buffers_[buffer->GetData()] = std::make_pair(buffer, 1);
+  } else {
+    ++iter->second.second;
+  }
   SbPlayerWriteSample(player_, kSbMediaTypeVideo, buffer->GetData(),
                       buffer->GetDataSize(),
                       TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
@@ -768,8 +782,17 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
 
 void SbPlayerPipeline::OnDeallocateSample(const void* sample_buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(decoding_buffers_.find(sample_buffer) != decoding_buffers_.end());
-  decoding_buffers_.erase(decoding_buffers_.find(sample_buffer));
+  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
+  DCHECK(iter != decoding_buffers_.end());
+  if (iter == decoding_buffers_.end()) {
+    LOG(ERROR) << "SbPlayerPipeline::OnDeallocateSample encounters unknown "
+               << "sample_buffer " << sample_buffer;
+    return;
+  }
+  --iter->second.second;
+  if (iter->second.second == 0) {
+    decoding_buffers_.erase(iter);
+  }
 }
 
 // static
