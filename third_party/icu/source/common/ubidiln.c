@@ -14,6 +14,8 @@
 *   created by: Markus W. Scherer, updated by Matitiahu Allouche
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "cmemory.h"
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"

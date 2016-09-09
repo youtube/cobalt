@@ -13,6 +13,7 @@
 * 03/12/2004  weiv      Creation
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/ustring.h"
 #include "unicode/udata.h"
 #include "unicode/utf16.h"

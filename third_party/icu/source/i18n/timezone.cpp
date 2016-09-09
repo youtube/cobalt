@@ -35,6 +35,7 @@
 *                           available IDs code.  Misc. cleanup.
 *********************************************************************************/
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "utypeinfo.h"  // for 'typeid' to work
 
 #include "unicode/utypes.h"
@@ -477,7 +478,7 @@ TimeZone::detectHostTimeZone()
     hostStrID.truncate(hostStrID.length()-1);
     hostZone = createSystemTimeZone(hostStrID);
 
-#if U_PLATFORM_USES_ONLY_WIN32_API
+#if U_PLATFORM_USES_ONLY_WIN32_API || defined(__LB_XB1__)
     // hostID points to a heap-allocated location on Windows.
     uprv_free(const_cast<char *>(hostID));
 #endif

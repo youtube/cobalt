@@ -27,8 +27,10 @@
   #define DECVERSION    "decNumber 3.61" /* Package Version [16 max.] */
   #define DECNLAUTHOR   "Mike Cowlishaw"              /* Who to blame */
 
+#if !defined(STARBOARD)
   #include <stdlib.h>         /* for abs                              */
   #include <string.h>         /* for memset, strcpy                   */
+#endif
 
   /* Conditional code flag -- set this to match hardware platform     */
   #if !defined(DECLITEND)

@@ -20,8 +20,11 @@
 /* context structures.                                                */
 /* ------------------------------------------------------------------ */
 
+#include "starboard/client_porting/poem/string_poem.h"
+#if !defined(STARBOARD)
 #include <string.h>           /* for strcmp  */
 #include <stdio.h>            /* for printf if DECCHECK  */
+#endif
 #include "decContext.h"       /* context and base types  */
 #include "decNumberLocal.h"   /* decNumber local types, etc.  */
 

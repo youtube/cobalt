@@ -14,6 +14,7 @@
  *   11/16/09    kirtig      Improved version
  ********************************************************************/
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "utypeinfo.h"  // for 'typeid' to work
 
 #include "unicode/messagepattern.h"

@@ -18,6 +18,7 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/coleitr.h"
 #include "unicode/tblcoll.h"
 #include "unicode/ucoleitr.h"

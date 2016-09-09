@@ -23,6 +23,8 @@
 
 #if !UCONFIG_NO_CONVERSION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/putil.h"
 #include "unicode/udata.h"
 #include "unicode/ucnv.h"

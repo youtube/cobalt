@@ -13,6 +13,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/ucal.h"
 #include "uresimp.h"
 #include "cstring.h"

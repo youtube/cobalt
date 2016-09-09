@@ -13,6 +13,7 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "collation.h"
 #include "uassert.h"
 

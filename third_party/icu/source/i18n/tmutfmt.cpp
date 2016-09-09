@@ -9,6 +9,8 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/decimfmt.h"
 #include "plurrule_impl.h"
 #include "uvector.h"

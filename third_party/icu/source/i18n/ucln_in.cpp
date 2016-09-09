@@ -14,6 +14,7 @@
 *   created by: George Rhoten
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "ucln.h"
 #include "ucln_in.h"
 #include "mutex.h"

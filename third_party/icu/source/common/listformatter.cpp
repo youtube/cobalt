@@ -14,6 +14,7 @@
 *   created by: Umesh P. Nair
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/listformatter.h"
 #include "simplepatternformatter.h"
 #include "mutex.h"

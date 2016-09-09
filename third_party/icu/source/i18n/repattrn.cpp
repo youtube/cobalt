@@ -11,6 +11,8 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 
 #include "unicode/regex.h"
 #include "unicode/uclean.h"

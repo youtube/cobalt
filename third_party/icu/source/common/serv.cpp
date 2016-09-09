@@ -9,6 +9,7 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "serv.h"
 #include "umutex.h"
 

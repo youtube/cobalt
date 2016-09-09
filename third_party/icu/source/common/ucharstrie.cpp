@@ -12,6 +12,7 @@
 *   created by: Markus W. Scherer
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/appendable.h"
 #include "unicode/ucharstrie.h"

@@ -47,7 +47,9 @@
  * ANSI C headers:
  * stddef.h defines wchar_t
  */
+#if !defined(STARBOARD)
 #include <stddef.h>
+#endif
 
 /*==========================================================================*/
 /* For C wrappers, we use the symbol U_STABLE.                                */

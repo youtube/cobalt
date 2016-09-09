@@ -20,6 +20,8 @@
 
 #if !UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/uset.h"
 #include "ucnv_bld.h"
 #include "ucnv_cnv.h"
