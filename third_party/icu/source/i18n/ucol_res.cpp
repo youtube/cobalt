@@ -26,6 +26,8 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/coll.h"
 #include "unicode/localpointer.h"
 #include "unicode/locid.h"
@@ -615,7 +617,11 @@ static const UEnumeration defaultKeywordValues = {
     ulist_reset_keyword_values_iterator
 };
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #include <stdio.h>
+#endif
 
 U_CAPI UEnumeration* U_EXPORT2
 ucol_getKeywordValuesForLocale(const char* /*key*/, const char* locale,

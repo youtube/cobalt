@@ -5,12 +5,16 @@
  * file name: visibledigits.cpp
  */
 
+#if !defined(STARBOARD)
 #include <math.h>
+#endif
 
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "cstring.h"
 #include "decNumber.h"
 #include "digitlst.h"

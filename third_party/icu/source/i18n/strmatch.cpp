@@ -12,6 +12,7 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "strmatch.h"
 #include "rbt_data.h"
 #include "util.h"

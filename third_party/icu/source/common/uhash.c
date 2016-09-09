@@ -10,6 +10,7 @@
 ******************************************************************************
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "uhash.h"
 #include "unicode/ustring.h"
 #include "cstring.h"

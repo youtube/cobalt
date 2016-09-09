@@ -11,6 +11,7 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS
+#include "starboard/client_porting/poem/string_poem.h"
 #include "regeximp.h"
 #include "unicode/utf16.h"
 

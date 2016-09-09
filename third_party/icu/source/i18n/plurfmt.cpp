@@ -8,6 +8,8 @@
 *******************************************************************************
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/decimfmt.h"
 #include "unicode/messagepattern.h"
 #include "unicode/plurfmt.h"

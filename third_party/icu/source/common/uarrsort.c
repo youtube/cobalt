@@ -16,6 +16,7 @@
 *   Internal function for sorting arrays.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #include "uarrsort.h"

@@ -17,6 +17,7 @@
 *   for better modularization.
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "udataswp.h"

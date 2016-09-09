@@ -10,6 +10,7 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/resbund.h"
 #include "uresimp.h"
 #include "cmemory.h"

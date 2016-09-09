@@ -11,6 +11,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/tzrule.h"
 #include "unicode/ucal.h"
 #include "gregoimp.h"

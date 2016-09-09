@@ -41,8 +41,14 @@
 // Must be before any other #includes.
 #include "uposixdefs.h"
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/math_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 /* include ICU headers */
 #include "unicode/utypes.h"
+#include "unicode/platform.h"
 #include "unicode/putil.h"
 #include "unicode/ustring.h"
 #include "putilimp.h"
@@ -55,20 +61,28 @@
 #include "charstr.h"
 
 /* Include standard headers. */
+#if !defined(STARBOARD)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <locale.h>
 #include <float.h>
+#endif
 
 #ifndef U_COMMON_IMPLEMENTATION
 #error U_COMMON_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see http://userguide.icu-project.org/howtouseicu
 #endif
 
-
 /* include system headers */
-#if U_PLATFORM_USES_ONLY_WIN32_API
+#if (U_PLATFORM == U_STARBOARD)
+#   include "starboard/system.h"
+#   include "starboard/time.h"
+#   include "starboard/time_zone.h"
+#   define getenv(x) NULL
+#elif defined(__LB_XB1__)
+#   include "wintz.h"
+#elif U_PLATFORM_USES_ONLY_WIN32_API
     /*
      * TODO: U_PLATFORM_USES_ONLY_WIN32_API includes MinGW.
      * Should Cygwin be included as well (U_PLATFORM_HAS_WIN32_API)
@@ -654,7 +668,7 @@ uprv_timezone()
 extern U_IMPORT char *U_TZNAME[];
 #endif
 
-#if !UCONFIG_NO_FILE_IO && ((U_PLATFORM_IS_DARWIN_BASED && (U_PLATFORM != U_PF_IPHONE || defined(U_TIMEZONE))) || U_PLATFORM_IS_LINUX_BASED || U_PLATFORM == U_PF_BSD || U_PLATFORM == U_PF_SOLARIS)
+#if !UCONFIG_NO_FILE_IO && ((U_PLATFORM_IS_DARWIN_BASED && (U_PLATFORM != U_PF_IPHONE || defined(U_TIMEZONE))) || U_PLATFORM_IS_LINUX_BASED || U_PLATFORM == U_PF_BSD || U_PLATFORM == U_PF_SOLARIS) && (U_PLATFORM != U_STARBOARD)
 /* These platforms are likely to use Olson timezone IDs. */
 #define CHECK_LOCALTIME_LINK 1
 #if U_PLATFORM_IS_DARWIN_BASED
@@ -983,7 +997,12 @@ U_CAPI const char* U_EXPORT2
 uprv_tzname(int n)
 {
     const char *tzid = NULL;
-#if U_PLATFORM_USES_ONLY_WIN32_API
+#if (U_PLATFORM == U_STARBOARD)
+    tzid = SbTimeZoneGetName();
+    if (tzid != NULL) {
+        return tzid;
+    }
+#elif U_PLATFORM_USES_ONLY_WIN32_API || defined(__LB_XB1__)
     tzid = uprv_detectWindowsTimeZone();
 
     if (tzid != NULL) {
@@ -1079,7 +1098,7 @@ uprv_tzname(int n)
 #endif
 
 #ifdef U_TZNAME
-#if U_PLATFORM_USES_ONLY_WIN32_API
+#if U_PLATFORM_USES_ONLY_WIN32_API || defined(__LB_XB1__)
     /* The return value is free'd in timezone.cpp on Windows because
      * the other code path returns a pointer to a heap location. */
     return uprv_strdup(U_TZNAME[n]);
@@ -1366,6 +1385,9 @@ u_setTimeZoneFilesDirectory(const char *path, UErrorCode *status) {
 static const char *uprv_getPOSIXIDForCategory(int category)
 {
     const char* posixID = NULL;
+#if (U_PLATFORM == U_STARBOARD)
+    posixID = SbSystemGetLocaleId();
+#else
     if (category == LC_MESSAGES || category == LC_CTYPE) {
         /*
         * On Solaris two different calls to setlocale can result in
@@ -1407,6 +1429,7 @@ static const char *uprv_getPOSIXIDForCategory(int category)
         /* Nothing worked.  Give it a nice POSIX default value. */
         posixID = "en_US_POSIX";
     }
+#endif
     return posixID;
 }
 
@@ -1417,7 +1440,11 @@ static const char *uprv_getPOSIXIDForDefaultLocale(void)
 {
     static const char* posixID = NULL;
     if (posixID == 0) {
+#if (U_PLATFORM == U_STARBOARD)
+        posixID = uprv_getPOSIXIDForCategory(0);
+#else  // U_PLATFORM == U_STARBOARD
         posixID = uprv_getPOSIXIDForCategory(LC_MESSAGES);
+#endif  // U_PLATFORM == U_STARBOARD
     }
     return posixID;
 }
@@ -1430,7 +1457,11 @@ static const char *uprv_getPOSIXIDForDefaultCodepage(void)
 {
     static const char* posixID = NULL;
     if (posixID == 0) {
+#if (U_PLATFORM == U_STARBOARD)
+        posixID = uprv_getPOSIXIDForCategory(0);
+#else  // U_PLATFORM == U_STARBOARD
         posixID = uprv_getPOSIXIDForCategory(LC_CTYPE);
+#endif  // U_PLATFORM == U_STARBOARD
     }
     return posixID;
 }

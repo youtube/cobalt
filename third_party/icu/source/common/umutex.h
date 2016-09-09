@@ -26,8 +26,12 @@
 
 // Forward Declarations. UMutex is not in the ICU namespace (yet) because
 //                       there are some remaining references from plain C.
+#if !defined(U_USER_ATOMICS_H)
+// Postponing the defines gives the user flexibility.  E.g. UMutex and
+// UConditionVar can now be typedefs.
 struct UMutex;
 struct UConditionVar;
+#endif
 
 U_NAMESPACE_BEGIN
 struct UInitOnce;
@@ -45,6 +49,10 @@ U_NAMESPACE_END
  ****************************************************************************/
 #if defined (U_USER_ATOMICS_H)
 #include U_MUTEX_XSTR(U_USER_ATOMICS_H)
+
+#if defined(STARBOARD)
+#define ATOMIC_INT32_T_INITIALIZER(val) (val)
+#endif
 
 #elif U_HAVE_STD_ATOMICS
 
@@ -228,6 +236,7 @@ struct UInitOnce {
 
 U_COMMON_API UBool U_EXPORT2 umtx_initImplPreInit(UInitOnce &);
 U_COMMON_API void  U_EXPORT2 umtx_initImplPostInit(UInitOnce &);
+
 
 template<class T> void umtx_initOnce(UInitOnce &uio, T *obj, void (T::*fp)()) {
     if (umtx_loadAcquire(uio.fState) == 2) {

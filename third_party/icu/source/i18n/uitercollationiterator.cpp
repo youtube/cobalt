@@ -13,6 +13,8 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/uiter.h"
 #include "charstr.h"
 #include "cmemory.h"

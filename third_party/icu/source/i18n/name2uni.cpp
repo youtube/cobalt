@@ -12,6 +12,7 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unifilt.h"
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"

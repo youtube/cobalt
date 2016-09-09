@@ -17,6 +17,7 @@
 *   uniset_props.cpp, split off for modularization.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
 #include "unicode/uset.h"

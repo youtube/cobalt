@@ -13,6 +13,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "gregoimp.h" // Math
 #include "uassert.h"
 #include "ucln_in.h"

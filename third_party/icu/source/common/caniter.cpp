@@ -7,6 +7,7 @@
 
 #include "unicode/utypes.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/caniter.h"

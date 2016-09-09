@@ -70,8 +70,14 @@
     typedef void *MemoryMap;
 
 #   define IS_MAP(map) ((map)!=NULL)
-#endif
+#elif MAP_IMPLEMENTATION==MAP_STARBOARD
+#   include "starboard/file.h"
+#   include "cmemory.h"
 
+    typedef void *MemoryMap;
+
+#   define IS_MAP(map) ((map)!=NULL)
+#endif
 /*----------------------------------------------------------------------------*
  *                                                                            *
  *   Memory Mapped File support.  Platform dependent implementation of        *
@@ -279,6 +285,61 @@
         }
     }
 
+
+#elif MAP_IMPLEMENTATION==MAP_STARBOARD
+    U_CFUNC UBool
+    uprv_mapFile(UDataMemory *pData, const char *path) {
+        UDataMemory_init(pData); /* Clear the output struct.        */
+
+        /* open the input file */
+        SbFile file = SbFileOpen(path, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+        if (!SbFileIsValid(file)) {
+            return FALSE;
+        }
+
+        /* get the file length */
+        SbFileInfo info;
+        if (!SbFileGetInfo(file, &info)) {
+            SbFileClose(file);
+            return FALSE;
+        }
+
+        int32_t fileLength = info.size;
+        if (fileLength <= 20) {
+            SbFileClose(file);
+            return FALSE;
+        }
+
+        /* allocate the memory to hold the file data */
+        void *p = uprv_malloc(fileLength);
+        if (!p) {
+            SbFileClose(file);
+            return FALSE;
+        }
+
+        /* read the file */
+        if (fileLength != SbFileRead(file, p, fileLength)) {
+            uprv_free(p);
+            SbFileClose(file);
+            return FALSE;
+        }
+
+        SbFileClose(file);
+        pData->map=p;
+        pData->pHeader=(const DataHeader *)p;
+        pData->mapAddr=p;
+        return TRUE;
+    }
+
+    U_CFUNC void
+    uprv_unmapFile(UDataMemory *pData) {
+        if(pData!=NULL && pData->map!=NULL) {
+            uprv_free(pData->map);
+            pData->map     = NULL;
+            pData->mapAddr = NULL;
+            pData->pHeader = NULL;
+        }
+    }
 
 #elif MAP_IMPLEMENTATION==MAP_390DLL
     /*  390 specific Library Loading.

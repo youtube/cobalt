@@ -15,6 +15,7 @@
 *
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "cmemory.h"
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
@@ -107,6 +108,7 @@
  */
 
 /* to avoid some conditional statements, use tiny constant arrays */
+#include "starboard/client_porting/poem/string_poem.h"
 static const Flags flagLR[2]={ DIRPROP_FLAG(L), DIRPROP_FLAG(R) };
 static const Flags flagE[2]={ DIRPROP_FLAG(LRE), DIRPROP_FLAG(RLE) };
 static const Flags flagO[2]={ DIRPROP_FLAG(LRO), DIRPROP_FLAG(RLO) };

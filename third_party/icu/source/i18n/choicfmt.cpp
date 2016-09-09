@@ -27,6 +27,8 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
 #include "unicode/choicfmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/locid.h"
@@ -35,8 +37,10 @@
 #include "messageimpl.h"
 #include "putilimp.h"
 #include "uassert.h"
+#if !defined(STARBOARD)
 #include <stdio.h>
 #include <float.h>
+#endif
 
 // *****************************************************************************
 // class ChoiceFormat

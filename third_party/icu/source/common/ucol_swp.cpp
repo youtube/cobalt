@@ -16,6 +16,7 @@
 *   Swap collation binaries.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/udata.h" /* UDataInfo */
 #include "utrie.h"
 #include "utrie2.h"

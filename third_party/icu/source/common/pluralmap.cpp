@@ -3,6 +3,7 @@
  * others. All Rights Reserved.
  */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unistr.h"
 #include "charstr.h"
 #include "cstring.h"
