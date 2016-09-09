@@ -9,7 +9,17 @@
   'variables': {
     'use_system_icu%': 0,
     'icu_use_data_file_flag%': 0,
-    'want_separate_host_toolset%': 1,
+    'want_separate_host_toolset%': 0,
+    'conditions': [
+      # On Windows MSVS's library archive tool won't create an empty
+      # library given zero object input. Therefore we set target type as
+      # none. On other platforms use static_library.
+      ['actual_target_arch=="win"', {
+        'icudata_target_type': 'none',
+      }, {
+        'icudata_target_type': 'static_library',
+      }],
+    ],
   },
   'target_defaults': {
     'direct_dependent_settings': {
@@ -35,12 +45,21 @@
       # No dependency on the default platform encoding.
       # Will cut down the code size.
       'U_CHARSET_IS_UTF8=1',
+      # Use starboard atomics and mutexes
+      'U_USER_ATOMICS_H=third_party/icu/source/starboard/atomic_sb.h',
+      'U_USER_MUTEX_H=third_party/icu/source/starboard/mutex_sb.h',
+      'U_USER_MUTEX_CPP=third_party/icu/source/starboard/mutex_sb.cpp'
     ],
     'conditions': [
       ['component=="static_library"', {
         'defines': [
           'U_STATIC_IMPLEMENTATION',
         ],
+        'direct_dependent_settings': {
+          'defines': [
+            'U_STATIC_IMPLEMENTATION',
+          ]
+        },
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
@@ -83,23 +102,39 @@
     ['use_system_icu==0 or want_separate_host_toolset==1', {
       'targets': [
         {
-          'target_name': 'copy_icudtl_dat',
+          'target_name': 'copy_icudt_dat',
           'type': 'none',
           # icudtl.dat is the same for both host/target, so this only supports a
           # single toolset. If a target requires that the .dat file be copied
           # to the output directory, it should explicitly depend on this target
-          # with the host toolset (like copy_icudtl_dat#host).
+          # with the host toolset (like copy_icudt_dat#host).
           'toolsets': [ 'host' ],
           'copies': [{
             'destination': '<(PRODUCT_DIR)',
             'conditions': [
+              [ 'cobalt==1', {
+                # TODO: ICU data handling should be unified with
+                # the Chromium code.
+                'includes': [
+                  '../../cobalt/build/copy_icu_data.gypi',
+                ],
+              }],
               ['OS == "android"', {
                 'files': [
                   'android/icudtl.dat',
                 ],
               } , { # else: OS != android
-                'files': [
-                  'common/icudtl.dat',
+                'conditions': [
+                  # Big Endian
+                  [ 'target_arch=="mips" or target_arch=="mips64"', {
+                    'files': [
+                      'common/icudtb.dat',
+                    ],
+                  } , {  # else: ! Big Endian = Little Endian
+                    'files': [
+                      'common/icudtl.dat',
+                    ],
+                  }],
                 ],
               }],
             ],
@@ -112,13 +147,6 @@
             'U_HIDE_DATA_SYMBOL',
           ],
           'sources': [
-             # These are hand-generated, but will do for now.  The linux
-             # version is an identical copy of the (mac) icudtl_dat.S file,
-             # modulo removal of the .private_extern and .const directives and
-             # with no leading underscore on the icudt52_dat symbol.
-             'android/icudtl_dat.S',
-             'linux/icudtl_dat.S',
-             'mac/icudtl_dat.S',
           ],
           'conditions': [
             [ 'use_system_icu==1 and want_separate_host_toolset==1', {
@@ -129,6 +157,13 @@
             }],
             [ 'use_system_icu==0 and want_separate_host_toolset==0', {
               'toolsets': ['target'],
+            }],
+            [ 'cobalt==1', {
+              # TODO: ICU data handling should be unified with
+              # the Chromium code.
+              'includes': [
+                '../../cobalt/build/copy_icu_data.gypi',
+              ],
             }],
             [ 'OS == "win" and icu_use_data_file_flag==0', {
               'type': 'none',
@@ -144,13 +179,13 @@
             [ 'icu_use_data_file_flag==1', {
               'type': 'none',
               # Remove any assembly data file.
-              'sources/': [['exclude', 'icudtl_dat']],
+              'sources/': [['exclude', 'icudt[lb]_dat']],
 
               # Make sure any binary depending on this gets the data file.
               'conditions': [
                 ['OS != "ios"', {
                   'dependencies': [
-                    'copy_icudtl_dat#host',
+                    'copy_icudt_dat#host',
                   ],
                 } , { # else: OS=="ios"
                   'link_settings': {
@@ -162,21 +197,6 @@
               ], # conditions
             }], # icu_use_data_file_flag
           ], # conditions
-          'target_conditions': [
-            [ 'OS == "win" or OS == "mac" or OS == "ios" or '
-              '(OS == "android" and (_toolset != "host" or host_os != "linux")) or '
-              '(OS == "qnx" and (_toolset == "host" and host_os != "linux"))', {
-              'sources!': ['linux/icudtl_dat.S'],
-            }],
-            [ 'OS != "android" or _toolset == "host"', {
-              'sources!': ['android/icudtl_dat.S'],
-            }],
-            [ 'OS != "mac" and OS != "ios" and '
-              '((OS != "android" and OS != "qnx") or '
-              '_toolset != "host" or host_os != "mac")', {
-              'sources!': ['mac/icudtl_dat.S'],
-            }],
-          ], # target_conditions
         },
         {
           'target_name': 'icui18n',
@@ -244,6 +264,25 @@
                 'cflags': [
                     '-fno-builtin-sin',
                 ],
+            }],
+            ['OS=="lb_shell" or OS=="starboard"', {
+              'defines': [
+                'U_HAVE_NL_LANGINFO_CODESET=0',
+                'U_HAVE_NL_LANGINFO=0'
+              ],
+              'sources': [
+                'source/stubdata/stubdata.c',
+              ],
+            }],
+            ['OS=="lb_shell"', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }],
+            ['OS=="starboard"', {
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
             }],
             [ 'OS == "win" and clang==1', {
               # Note: General clang warnings should go in the
@@ -356,6 +395,39 @@
               ],
               'defines': [
                 'U_ICUDATAENTRY_IN_COMMON',
+              ],
+            }],
+            ['(OS == "lb_shell" or OS=="starboard") and target_arch == "ps3"', {
+              'cflags_cc': [
+                '-Xc+=rtti',
+              ],
+            }],
+            ['OS=="lb_shell"', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }],
+            ['OS=="starboard"', {
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
+            }],
+            ['(OS=="lb_shell" or OS=="starboard") and target_arch=="android"', {
+              'cflags_cc': [
+                '-frtti',
+              ],
+              'link_settings': {
+                'libraries': [
+                  '-lgabi++_static',
+                ],
+              },
+            }],
+            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="linux" or clang==1)', {
+              'cflags_cc': [
+                '-frtti',
+              ],
+              'cflags_cc!': [
+                '-fno-rtti',
               ],
             }],
             [ 'OS == "win" and clang==1', {

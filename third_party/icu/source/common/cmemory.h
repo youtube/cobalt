@@ -26,8 +26,10 @@
 
 #include "unicode/utypes.h"
 
+#if !defined(STARBOARD)
 #include <stddef.h>
 #include <string.h>
+#endif
 #include "unicode/localpointer.h"
 
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)

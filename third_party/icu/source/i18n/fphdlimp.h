@@ -13,6 +13,7 @@
 #include "unicode/utypes.h"
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
+#include "unicode/localpointer.h"
 
 U_NAMESPACE_BEGIN
 
@@ -54,8 +55,8 @@ class FieldPositionIteratorHandler : public FieldPositionHandler {
   // to be destroyed before status goes out of scope.  Easiest thing is to
   // allocate us on the stack in the same (or narrower) scope as status has.
   // This attempts to encourage that by blocking heap allocation.
-  void *operator new(size_t s);
-  void *operator new[](size_t s);
+  void *operator new(size_t s) IGNORE_DECLARATION;
+  void *operator new[](size_t s) IGNORE_DECLARATION;
 
  public:
   FieldPositionIteratorHandler(FieldPositionIterator* posIter, UErrorCode& status);

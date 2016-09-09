@@ -25,6 +25,7 @@
  * 08/23/01     george      Convert to C
  */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "locmap.h"
 #include "cstring.h"
 #include "cmemory.h"

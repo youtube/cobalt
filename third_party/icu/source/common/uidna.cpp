@@ -18,6 +18,8 @@
 
 #if !UCONFIG_NO_IDNA
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/uidna.h"
 #include "unicode/ustring.h"
 #include "unicode/usprep.h"

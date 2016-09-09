@@ -8,6 +8,8 @@
 **********************************************************************
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "uvectr32.h"
 #include "cmemory.h"
 #include "putilimp.h"

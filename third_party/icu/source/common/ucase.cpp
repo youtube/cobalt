@@ -17,6 +17,7 @@
 *   Much code moved here (and modified) from uchar.c.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/unistr.h"
 #include "unicode/uset.h"

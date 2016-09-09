@@ -17,6 +17,7 @@
 
 #if U_HAVE_RBNF
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/localpointer.h"
 #include "unicode/rbnf.h"
 #include "unicode/tblcoll.h"

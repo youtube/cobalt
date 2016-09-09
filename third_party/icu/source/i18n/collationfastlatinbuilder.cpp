@@ -11,14 +11,18 @@
 
 #define DEBUG_COLLATION_FAST_LATIN_BUILDER 0  // 0 or 1 or 2
 #if DEBUG_COLLATION_FAST_LATIN_BUILDER
+#if !defined(STARBOARD)
 #include <stdio.h>
 #include <string>
+#endif
 #endif
 
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_COLLATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/ucol.h"
 #include "unicode/ucharstrie.h"
 #include "unicode/unistr.h"

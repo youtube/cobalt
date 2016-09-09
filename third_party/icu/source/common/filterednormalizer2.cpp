@@ -18,6 +18,7 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/normalizer2.h"
 #include "unicode/uniset.h"
 #include "unicode/unistr.h"

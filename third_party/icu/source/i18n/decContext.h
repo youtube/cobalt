@@ -58,8 +58,10 @@
   #if !defined(int32_t)
 /* #include <stdint.h>   */         /* C99 standard integers           */
   #endif
+#if !defined(STARBOARD)
   #include <stdio.h>               /* for printf, etc.                */
   #include <signal.h>              /* for traps                       */
+#endif
 
   /* Extended flags setting -- set this to 0 to use only IEEE flags   */
   #if !defined(DECEXTFLAG)

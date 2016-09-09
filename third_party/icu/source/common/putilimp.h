@@ -85,6 +85,8 @@ typedef size_t uintptr_t;
 
 #ifdef U_HAVE_NL_LANGINFO_CODESET
     /* Use the predefined value. */
+#elif U_PLATFORM == U_STARBOARD
+#   define U_HAVE_NL_LANGINFO_CODESET 0
 #elif U_PLATFORM_HAS_WIN32_API || U_PLATFORM == U_PF_ANDROID || U_PLATFORM == U_PF_QNX
 #   define U_HAVE_NL_LANGINFO_CODESET 0
 #else
@@ -107,6 +109,8 @@ typedef size_t uintptr_t;
 #   define U_TZSET _tzset
 #elif U_PLATFORM == U_PF_OS400
    /* not defined */
+#elif U_PLATFORM == U_STARBOARD
+#   undef  U_TZSET
 #else
 #   define U_TZSET tzset
 #endif
@@ -132,6 +136,8 @@ typedef size_t uintptr_t;
    /* not defined */
 #elif U_PLATFORM == U_PF_IPHONE
    /* not defined */
+#elif U_PLATFORM == U_STARBOARD
+#   undef  U_TIMEZONE
 #else
 #   define U_TIMEZONE timezone
 #endif
@@ -142,12 +148,16 @@ typedef size_t uintptr_t;
 #   define U_TZNAME _tzname
 #elif U_PLATFORM == U_PF_OS400
    /* not defined */
+#elif U_PLATFORM == U_STARBOARD
+#   undef  U_TZNAME
 #else
 #   define U_TZNAME tzname
 #endif
 
 #ifdef U_HAVE_MMAP
     /* Use the predefined value. */
+#elif (U_PLATFORM == U_STARBOARD) || defined(__LB_XB1__) || defined(__LB_PS3__)
+#   define U_HAVE_MMAP 0
 #elif U_PLATFORM_HAS_WIN32_API
 #   define U_HAVE_MMAP 0
 #else
@@ -156,6 +166,8 @@ typedef size_t uintptr_t;
 
 #ifdef U_HAVE_POPEN
     /* Use the predefined value. */
+#elif (U_PLATFORM == U_STARBOARD) || defined(__LB_XB1__) || defined(__LB_PS3__)
+#   define U_HAVE_POPEN 0
 #elif U_PLATFORM_USES_ONLY_WIN32_API
 #   define U_HAVE_POPEN 0
 #elif U_PLATFORM == U_PF_OS400
@@ -171,6 +183,10 @@ typedef size_t uintptr_t;
  */
 #ifdef U_HAVE_DIRENT_H
     /* Use the predefined value. */
+#elif U_PLATFORM == U_STARBOARD
+#   define U_HAVE_DIRENT_H 0
+#elif defined(__LB_PS3__)
+#   define U_HAVE_DIRENT_H 1
 #elif U_PLATFORM_HAS_WIN32_API
 #   define U_HAVE_DIRENT_H 0
 #else
@@ -189,6 +205,8 @@ typedef size_t uintptr_t;
  */
 #ifdef U_HAVE_GCC_ATOMICS
     /* Use the predefined value. */
+#elif U_PLATFORM == U_STARBOARD
+    #define U_HAVE_GCC_ATOMICS 0
 #elif U_PLATFORM == U_PF_MINGW
     #define U_HAVE_GCC_ATOMICS 0
 #elif U_GCC_MAJOR_MINOR >= 404 || defined(__clang__)

@@ -37,8 +37,12 @@
 #define __STDC_LIMIT_MACROS
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/types.h"
+#else
 /* NULL, size_t, wchar_t */
 #include <stddef.h>
+#endif // defined(STARBOARD)
 
 /*
  * If all compilers provided all of the C99 headers and types,
