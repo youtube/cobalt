@@ -35,7 +35,7 @@ SurfaceCacheDelegate::SurfaceCacheDelegate(
     const math::Size& max_surface_size)
     : create_sk_surface_function_(create_sk_surface_function),
       max_surface_size_(max_surface_size),
-      canvas_(NULL)
+      draw_state_(NULL)
 #if defined(ENABLE_DEBUG_CONSOLE)
       ,
       toggle_cache_highlights_(false),
@@ -51,7 +51,8 @@ SurfaceCacheDelegate::SurfaceCacheDelegate(
 }
 
 void SurfaceCacheDelegate::UpdateCanvasScale() {
-  math::Matrix3F total_matrix = SkiaMatrixToCobalt(canvas_->getTotalMatrix());
+  math::Matrix3F total_matrix =
+      SkiaMatrixToCobalt(draw_state_->render_target->getTotalMatrix());
   math::Vector3dF column_0(total_matrix.column(0));
   math::Vector3dF column_1(total_matrix.column(1));
   scale_ = math::Vector2dF(column_0.Length(), column_1.Length());
@@ -73,8 +74,8 @@ void SurfaceCacheDelegate::ApplySurface(
     return;
   }
 
-  canvas_->save();
-  SkMatrix total_matrix = canvas_->getTotalMatrix();
+  draw_state_->render_target->save();
+  SkMatrix total_matrix = draw_state_->render_target->getTotalMatrix();
   // We "preScale()" the "post scale" because skia uses "pre" to mean that the
   // transform will be applied before the other transforms, whereas
   // common::OffscreenRenderCoordinateMapping() uses "post" to mean that the
@@ -83,10 +84,13 @@ void SurfaceCacheDelegate::ApplySurface(
                         skia_surface->output_post_scale().y());
   total_matrix.postTranslate(skia_surface->output_pre_translate().x(),
                              skia_surface->output_pre_translate().y());
-  canvas_->setMatrix(total_matrix);
+  draw_state_->render_target->setMatrix(total_matrix);
 
   SkPaint paint;
   paint.setFilterLevel(SkPaint::kLow_FilterLevel);
+  if (draw_state_->opacity < 1.0f) {
+    paint.setAlpha(draw_state_->opacity * 255);
+  }
 
   SkRect dest_rect = SkRect::MakeXYWH(skia_surface->output_bounds().x(),
                                       skia_surface->output_bounds().y(),
@@ -99,15 +103,15 @@ void SurfaceCacheDelegate::ApplySurface(
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (toggle_cache_highlights_) {
     paint.setARGB(128, 255, 128, 128);
-    canvas_->drawRect(dest_rect, paint);
+    draw_state_->render_target->drawRect(dest_rect, paint);
   } else  // NOLINT(readability/braces)
 #endif
   {
-    canvas_->drawImageRect(skia_surface->image(), &source_rect, dest_rect,
-                           &paint);
+    draw_state_->render_target->drawImageRect(skia_surface->image(),
+                                              &source_rect, dest_rect, &paint);
   }
 
-  canvas_->restore();
+  draw_state_->render_target->restore();
 }
 
 void SurfaceCacheDelegate::StartRecording(const math::RectF& local_bounds) {
@@ -121,8 +125,9 @@ void SurfaceCacheDelegate::StartRecording(const math::RectF& local_bounds) {
   // suffer.
   math::Vector2dF inv_scale(scale_.x() < 1.0f ? 1.0f / scale_.x() : 1.0f,
                             scale_.y() < 1.0f ? 1.0f / scale_.y() : 1.0f);
-  math::Matrix3F total_matrix = SkiaMatrixToCobalt(canvas_->getTotalMatrix()) *
-                                math::ScaleMatrix(inv_scale);
+  math::Matrix3F total_matrix =
+      SkiaMatrixToCobalt(draw_state_->render_target->getTotalMatrix()) *
+      math::ScaleMatrix(inv_scale);
 
   // Figure where we should render to the offscreen surface and then how to map
   // that later to the onscreen surface when applying the cached surface.  We
@@ -133,7 +138,7 @@ void SurfaceCacheDelegate::StartRecording(const math::RectF& local_bounds) {
   // If the output has an area of 0 then there is nothing to cache.  This should
   // not be common.
   if (coord_mapping.output_bounds.size().GetArea() == 0) {
-    recording_data_.emplace(canvas_, coord_mapping,
+    recording_data_.emplace(*draw_state_, coord_mapping,
                             static_cast<SkSurface*>(NULL));
     return;
   }
@@ -145,17 +150,17 @@ void SurfaceCacheDelegate::StartRecording(const math::RectF& local_bounds) {
                  coord_mapping.output_bounds.height()));
   CHECK(surface);
 
-  recording_data_.emplace(canvas_, coord_mapping, surface);
+  recording_data_.emplace(*draw_state_, coord_mapping, surface);
 
   SkCanvas* offscreen_canvas = surface->getCanvas();
-  set_canvas_function_.Run(offscreen_canvas);
-  canvas_ = offscreen_canvas;
+  draw_state_->render_target = offscreen_canvas;
+  draw_state_->opacity = 1.0f;
 
   // Clear the draw area to RGBA(0, 0, 0, 0) for a fresh scratch surface before
   // returning.
-  canvas_->drawARGB(0, 0, 0, 0, SkXfermode::kClear_Mode);
+  draw_state_->render_target->drawARGB(0, 0, 0, 0, SkXfermode::kClear_Mode);
 
-  offscreen_canvas->setMatrix(
+  draw_state_->render_target->setMatrix(
       CobaltMatrixToSkia(coord_mapping.sub_render_transform));
 }
 
@@ -163,8 +168,7 @@ common::SurfaceCache::CachedSurface* SurfaceCacheDelegate::EndRecording() {
   TRACE_EVENT0("cobalt::renderer", "SurfaceCacheDelegate::EndRecording()");
   DCHECK(recording_data_);
 
-  set_canvas_function_.Run(recording_data_->original_canvas);
-  canvas_ = recording_data_->original_canvas;
+  *draw_state_ = recording_data_->original_draw_state;
 
   // Save the results as a CachedSurface and return them.
   CachedSurface* cached_surface =
