@@ -458,8 +458,7 @@ JSBool fcn_indexedGetter(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -511,8 +510,7 @@ JSBool fcn_indexedSetter(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -570,8 +568,7 @@ JSBool fcn_namedGetter(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -623,8 +620,7 @@ JSBool fcn_namedSetter(
       wrapper_private->wrappable<NamedIndexedGetterInterface>().get();
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments

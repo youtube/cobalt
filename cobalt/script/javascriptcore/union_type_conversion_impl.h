@@ -101,9 +101,9 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     }
   }
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer
-  //     DataView, TypedArrayName, callback functions, dictionary, array type.
-  //     and sequences if necessary.
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
+  //       TypedArrayName, callback functions, dictionary, array type.
+  //       And sequences if necessary.
 
   // 14. If V is a Boolean value, then:
   //   1. If types includes a boolean, then return the result of converting V
@@ -182,8 +182,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   }
 
   // 19. Throw a TypeError.
-  exception_state->SetSimpleException(
-      ExceptionState::kTypeError, "Value is not a member of the union type.");
+  exception_state->SetSimpleException(kNotUnionType);
 }
 
 template <typename T1, typename T2, typename T3>
@@ -270,9 +269,9 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     }
   }
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer
-  //     DataView, TypedArrayName, callback functions, dictionary, array type.
-  //     and sequences if necessary.
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
+  //       TypedArrayName, callback functions, dictionary, array type.
+  //       And sequences if necessary.
 
   // 14. If V is a Boolean value, then:
   //   1. If types includes a boolean, then return the result of converting V
@@ -379,8 +378,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   }
 
   // 19. Throw a TypeError.
-  exception_state->SetSimpleException(
-      ExceptionState::kTypeError, "Value is not a member of the union type.");
+  exception_state->SetSimpleException(kNotUnionType);
 }
 
 template <typename T1, typename T2, typename T3, typename T4>
@@ -480,9 +478,9 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     }
   }
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer
-  //     DataView, TypedArrayName, callback functions, dictionary, array type.
-  //     and sequences if necessary.
+  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
+  //       TypedArrayName, callback functions, dictionary, array type.
+  //       And sequences if necessary.
 
   // 14. If V is a Boolean value, then:
   //   1. If types includes a boolean, then return the result of converting V
@@ -617,8 +615,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   }
 
   // 19. Throw a TypeError.
-  exception_state->SetSimpleException(
-      ExceptionState::kTypeError, "Value is not a member of the union type.");
+  exception_state->SetSimpleException(kNotUnionType);
 }
 
 }  // namespace javascriptcore

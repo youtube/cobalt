@@ -64,8 +64,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   if (value.isNull()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
-      exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                          kNotNullableType);
+      exception_state->SetSimpleException(kNotNullableType);
     }
     // If it is a nullable type, just return.
     return;
@@ -78,8 +77,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     object = JSVAL_TO_OBJECT(value);
   }
   if (!object || !JS_ObjectIsFunction(context, object)) {
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        "Value is not a function.");
+    exception_state->SetSimpleException(kNotFunctionValue);
     return;
   }
 
