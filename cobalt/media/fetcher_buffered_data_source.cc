@@ -56,7 +56,6 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
       pending_read_data_(NULL),
       security_callback_(security_callback) {
   DCHECK(message_loop_);
-  DCHECK(!url.path().empty());
   DCHECK(network_module);
 }
 
