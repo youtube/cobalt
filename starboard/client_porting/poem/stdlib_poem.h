@@ -21,11 +21,19 @@
 
 #include "starboard/configuration.h"
 
-SB_C_INLINE int PoemAbs(int x) {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static SB_C_INLINE int PoemAbs(int x) {
   if (x < 0)
     return -x;
   return x;
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #if !defined(POEM_NO_EMULATION)
 
