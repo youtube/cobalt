@@ -650,8 +650,7 @@ JSBool fcn_byteArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -731,8 +730,7 @@ JSBool fcn_doubleArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -812,8 +810,7 @@ JSBool fcn_longArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -859,8 +856,7 @@ JSBool fcn_longLongArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -974,8 +970,7 @@ JSBool fcn_octetArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1055,8 +1050,7 @@ JSBool fcn_shortArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1136,8 +1130,7 @@ JSBool fcn_unrestrictedDoubleArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1217,8 +1210,7 @@ JSBool fcn_unsignedLongArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1264,8 +1256,7 @@ JSBool fcn_unsignedLongLongArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1379,8 +1370,7 @@ JSBool fcn_unsignedShortArgumentOperation(
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments

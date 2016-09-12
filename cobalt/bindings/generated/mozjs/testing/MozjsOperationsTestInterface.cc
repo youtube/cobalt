@@ -326,8 +326,7 @@ JSBool fcn_optionalArguments(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -511,8 +510,7 @@ JSBool fcn_overloadedFunction2(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -558,8 +556,7 @@ JSBool fcn_overloadedFunction3(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -605,8 +602,7 @@ JSBool fcn_overloadedFunction4(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 3;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -676,8 +672,7 @@ JSBool fcn_overloadedFunction5(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 3;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -781,8 +776,7 @@ JSBool fcn_overloadedFunction(
   // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
   // 4. If S is empty, then throw a TypeError.
   MozjsExceptionState exception_state(context);
-  exception_state.SetSimpleException(
-      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
   return false;
 }
 
@@ -810,8 +804,7 @@ JSBool fcn_overloadedNullable1(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -857,8 +850,7 @@ JSBool fcn_overloadedNullable2(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -906,8 +898,7 @@ JSBool fcn_overloadedNullable(
   // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
   // 4. If S is empty, then throw a TypeError.
   MozjsExceptionState exception_state(context);
-  exception_state.SetSimpleException(
-      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
   return false;
 }
 
@@ -1103,8 +1094,7 @@ JSBool fcn_voidFunctionLongArg(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1178,8 +1168,7 @@ JSBool fcn_voidFunctionObjectArg(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1225,8 +1214,7 @@ JSBool fcn_voidFunctionStringArg(
       wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1256,8 +1244,7 @@ JSBool staticfcn_overloadedFunction1(
 
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1287,8 +1274,7 @@ JSBool staticfcn_overloadedFunction2(
 
   const size_t kMinArguments = 2;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -1349,8 +1335,7 @@ JSBool staticfcn_overloadedFunction(
   // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
   // 4. If S is empty, then throw a TypeError.
   MozjsExceptionState exception_state(context);
-  exception_state.SetSimpleException(
-      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
   return false;
 }
 

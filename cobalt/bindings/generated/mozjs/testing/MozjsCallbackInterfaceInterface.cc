@@ -258,8 +258,7 @@ JSBool fcn_registerCallback(
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments

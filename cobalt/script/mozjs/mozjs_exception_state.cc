@@ -16,34 +16,42 @@
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 
 #include <string>
+#include <vector>
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
+#include "base/string_util.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
-#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 
 namespace {
-std::string SimpleExceptionToString(ExceptionState::SimpleExceptionType type) {
+
+JSExnType ConvertToMozjsExceptionType(SimpleExceptionType type) {
   switch (type) {
-    case ExceptionState::kError:
-      return "Error";
-    case ExceptionState::kTypeError:
-      return "TypeError";
-    case ExceptionState::kRangeError:
-      return "RangeError";
-    case ExceptionState::kReferenceError:
-      return "ReferenceError";
-    case ExceptionState::kSyntaxError:
-      return "SyntaxError";
-    case ExceptionState::kURIError:
-      return "URIError";
+    case kError:
+      return JSEXN_ERR;
+    case kTypeError:
+      return JSEXN_TYPEERR;
+    case kRangeError:
+      return JSEXN_RANGEERR;
+    case kReferenceError:
+      return JSEXN_REFERENCEERR;
+    case kSyntaxError:
+      return JSEXN_SYNTAXERR;
+    case kURIError:
+      return JSEXN_URIERR;
   }
-  NOTREACHED();
-  return "";
 }
+
+// JSErrorCallback.
+const JSErrorFormatString* GetErrorMessage(void* user_ref, const char* locale,
+                                           const unsigned error_number) {
+  return static_cast<JSErrorFormatString*>(user_ref);
+}
+
 }  // namespace
 
 void MozjsExceptionState::SetException(
@@ -63,17 +71,28 @@ void MozjsExceptionState::SetException(
   is_exception_set_ = true;
 }
 
-void MozjsExceptionState::SetSimpleException(
-    SimpleExceptionType simple_exception, const std::string& message) {
+void MozjsExceptionState::SetSimpleException(MessageType message_type, ...) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!is_exception_set_);
 
-  std::stringstream stream;
-  stream << SimpleExceptionToString(simple_exception) << ": " << message;
-  // JS_ReportError first builds an error message from the given sprintf-style
-  // format string and any additional arguments passed after it. The resulting
-  // error message is passed to the context's JSErrorReporter callback.
-  JS_ReportError(context_, stream.str().c_str());
+  va_list arguments;
+  va_start(arguments, message_type);
+  std::string error_message =
+      base::StringPrintV(GetExceptionMessageFormat(message_type), arguments);
+  JSErrorFormatString format_string;
+  format_string.format = error_message.c_str();
+  // Already fed arguments for format.
+  format_string.argCount = 0;
+  format_string.exnType =
+      ConvertToMozjsExceptionType(GetSimpleExceptionType(message_type));
+
+  // This function creates a JSErrorReport, populate it with an error message
+  // obtained from the given JSErrorCallback. The resulting error message is
+  // passed to the context's JSErrorReporter callback.
+  JS_ReportErrorNumber(context_, GetErrorMessage,
+                       static_cast<void*>(&format_string), message_type);
+  va_end(arguments);
+
   is_exception_set_ = true;
 }
 
