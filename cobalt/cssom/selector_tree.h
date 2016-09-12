@@ -49,7 +49,7 @@ class SelectorTree {
 
   class Node;
 
-  // This class can be used to store unique Nodes.  It stores the Nodes in its
+  // This class can be used to store Nodes.  It stores the Nodes in its
   // internal buffer whose size can be configured via template parameter.
   // After the internal buffer is used up the extra Nodes will be stored inside
   // the contained std::vector.
@@ -75,13 +75,19 @@ class SelectorTree {
     };
 
     NodeSet() : size_(0) {}
-    void insert(const Node* node) {
-      // Check if we already have it.
-      for (size_t i = 0; i < size_; ++i) {
-        if (GetNode(i) == node) {
-          return;
+    void insert(const Node* node, bool check_for_duplicate = false) {
+      // If |check_for_duplicate| is true, then check if the node is already
+      // contained. In nearly all cases, this check is unnecessary because it is
+      // already known that the node is not a duplicate. As a result, the caller
+      // must explicitly request the check when needed.
+      if (check_for_duplicate) {
+        for (size_t i = 0; i < size_; ++i) {
+          if (GetNode(i) == node) {
+            return;
+          }
         }
       }
+
       if (size_ < InternalCacheSize) {
         nodes_[size_] = node;
       } else {
@@ -90,9 +96,10 @@ class SelectorTree {
       ++size_;
     }
     template <class ConstIterator>
-    void insert(ConstIterator begin, ConstIterator end) {
+    void insert(ConstIterator begin, ConstIterator end,
+                bool check_for_duplicate = false) {
       while (begin != end) {
-        insert(*begin);
+        insert(*begin, check_for_duplicate);
         ++begin;
       }
     }
@@ -149,7 +156,12 @@ class SelectorTree {
 
   typedef std::vector<SimpleSelectorNode> SimpleSelectorNodes;
   typedef std::vector<PseudoClassNode> PseudoClassNodes;
-  typedef std::map<base::Token, SimpleSelectorNodes> SelectorTextToNodesMap;
+  // The vast majority of SelectorTextToNodesMap objects have 4 or fewer
+  // selectors. However, they occasionally can number in the hundreds. Using
+  // a SmallMap with an array size of 4, allows both cases to be handled
+  // quickly.
+  typedef base::SmallMap<base::hash_map<base::Token, SimpleSelectorNodes>, 4>
+      SelectorTextToNodesMap;
 
   class Node {
    public:
@@ -166,6 +178,7 @@ class SelectorTree {
     const PseudoClassNodes& pseudo_class_nodes() const {
       return pseudo_class_nodes_;
     }
+    bool HasAnyPseudoClass() const { return pseudo_class_mask_ != 0; }
     bool HasPseudoClass(PseudoClassType pseudo_class_type,
                         CombinatorType combinator_type) const {
       return (pseudo_class_mask_ &
@@ -180,8 +193,8 @@ class SelectorTree {
           (1u << (pseudo_class_type * kCombinatorCount + combinator_type));
     }
 
-    const SelectorTextToNodesMap& selector_nodes_map() const {
-      return selector_nodes_map_;
+    const SelectorTextToNodesMap* selector_nodes_map() const {
+      return selector_nodes_map_.get();
     }
     bool HasSimpleSelector(SimpleSelectorType simple_selector_type,
                            CombinatorType combinator_type) const {
@@ -191,9 +204,15 @@ class SelectorTree {
     void AppendSimpleSelector(base::Token name,
                               SimpleSelectorType simple_selector_type,
                               CombinatorType combinator_type, Node* node) {
+      // Create the SelectorTextToNodesMap if this is the first simple selector
+      // being appended.
+      if (!selector_nodes_map_) {
+        selector_nodes_map_.reset(new SelectorTextToNodesMap());
+      }
+
       SimpleSelectorNode child_node = {simple_selector_type, combinator_type,
                                        node};
-      selector_nodes_map_[name].push_back(child_node);
+      (*selector_nodes_map_)[name].push_back(child_node);
       selector_mask_ |=
           (1u << (simple_selector_type * kCombinatorCount + combinator_type));
     }
@@ -214,8 +233,9 @@ class SelectorTree {
     // Sum of specificity from root to this node.
     Specificity cumulative_specificity_;
 
-    // Indexes for the children.
-    SelectorTextToNodesMap selector_nodes_map_;
+    // Indexes for the children. This is a scoped_ptr because the majority of
+    // nodes do not contain any children.
+    scoped_ptr<SelectorTextToNodesMap> selector_nodes_map_;
     // Bit mask used to quickly reject a certain selector type and combinator
     // combination.
     uint32 selector_mask_;

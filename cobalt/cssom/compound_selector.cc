@@ -40,7 +40,10 @@ bool SimpleSelectorsLessThan(const SimpleSelector* lhs,
 
 }  // namespace
 
-CompoundSelector::CompoundSelector() : left_combinator_(NULL) {}
+CompoundSelector::CompoundSelector()
+    : left_combinator_(NULL),
+      has_pseudo_element_(false),
+      requires_rule_matching_verification_visit_(false) {}
 
 CompoundSelector::~CompoundSelector() {}
 
@@ -51,6 +54,21 @@ void CompoundSelector::Accept(SelectorVisitor* visitor) {
 void CompoundSelector::AppendSelector(
     scoped_ptr<SimpleSelector> simple_selector) {
   specificity_.AddFrom(simple_selector->GetSpecificity());
+  has_pseudo_element_ =
+      has_pseudo_element_ || simple_selector->AsPseudoElement() != NULL;
+
+  // There are two cases where the selectors require a visit:
+  // 1. There are multiple selectors. Gathering only tests against the first
+  //    selector and the later selectors must also be verified to match.
+  // 2. The single selector's AlwaysRequiresRuleMatchingVerificationVisit() call
+  //    returns true. This indicates that being gathered as a candidate is not
+  //    sufficient to prove a match and that additional verification checks are
+  //    required.
+  requires_rule_matching_verification_visit_ =
+      requires_rule_matching_verification_visit_ ||
+      !simple_selectors_.empty() ||
+      simple_selector->AlwaysRequiresRuleMatchingVerificationVisit();
+
   bool should_sort =
       !simple_selectors_.empty() &&
       SimpleSelectorsLessThan(simple_selector.get(), simple_selectors_.back());

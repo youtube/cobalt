@@ -170,19 +170,6 @@ std::string DOMTokenList::AnonymousStringifier() const {
   return result;
 }
 
-base::Token DOMTokenList::NonNullItem(unsigned int index) const {
-  MaybeRefresh();
-
-  // 1. If index is equal to or greater than the number of tokens in tokens,
-  //    return an empty string rather than NULL.
-  if (index >= tokens_.size()) {
-    return base::Token();
-  }
-
-  // 2. Return the indexth token in tokens.
-  return tokens_[index];
-}
-
 bool DOMTokenList::ContainsValid(base::Token valid_token) const {
   MaybeRefresh();
 
@@ -199,6 +186,11 @@ bool DOMTokenList::ContainsValid(base::Token valid_token) const {
   }
 
   return false;
+}
+
+const std::vector<base::Token>& DOMTokenList::GetTokens() const {
+  MaybeRefresh();
+  return tokens_;
 }
 
 DOMTokenList::~DOMTokenList() { GlobalStats::GetInstance()->Remove(this); }
@@ -230,8 +222,10 @@ void DOMTokenList::MaybeRefresh() const {
     element_node_generation_ = element_->node_generation();
     std::string attribute = element_->GetAttribute(attr_name_).value_or("");
     std::vector<std::string> tokens;
+    tokens.reserve(tokens_.size());
     base::SplitStringAlongWhitespace(attribute, &tokens);
     tokens_.clear();
+    tokens_.reserve(tokens.size());
     for (size_t i = 0; i < tokens.size(); ++i) {
       tokens_.push_back(base::Token(tokens[i]));
     }

@@ -47,13 +47,12 @@ class DOMTokenList : public script::Wrappable {
 
   // Custom, not in any spec.
 
-  // This is a variation of Item that should only be called in cases where NULL
-  // is not needed for invalid indices.
-  base::Token NonNullItem(unsigned int index) const;
-
   // This is a variation of Contains that should only be called in cases where
   // the token has already been validated.
   bool ContainsValid(base::Token valid_token) const;
+
+  // Returns a reference to the contained tokens for rapid iteration.
+  const std::vector<base::Token>& GetTokens() const;
 
   // The associated element.
   Element* element() { return element_; }
