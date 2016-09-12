@@ -34,12 +34,17 @@ void JSCExceptionState::SetException(
   DCHECK(exception_->isErrorInstance());
 }
 
-void JSCExceptionState::SetSimpleException(SimpleExceptionType simple_exception,
-                                           const std::string& message) {
+void JSCExceptionState::SetSimpleException(MessageType message_type, ...) {
   DCHECK(thread_checker_.CalledOnValidThread());
   JSC::JSLockHolder lock(&global_object_->globalData());
-  WTF::String error_string = ToWTFString(message);
-  switch (simple_exception) {
+
+  va_list arguments;
+  va_start(arguments, message_type);
+  WTF::String error_string = ToWTFString(
+      base::StringPrintV(GetExceptionMessageFormat(message_type), arguments));
+  va_end(arguments);
+
+  switch (GetSimpleExceptionType(message_type)) {
     case kError:
       exception_ = JSC::createError(global_object_, error_string);
       break;
