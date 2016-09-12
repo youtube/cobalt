@@ -23,6 +23,11 @@
 #include "starboard/memory.h"
 
 #ifdef __cplusplus
+
+// declaring the following 4 functions static inline is not necessary in C++
+// see:
+// http://stackoverflow.com/questions/10847176/should-i-define-static-inline-methods-in-header-file
+
 // Finds the last occurrence of |character| in |str|, returning a pointer to
 // the found character in the given string, or NULL if not found.
 // Meant to be a drop-in replacement for strchr, C++ signature
@@ -62,7 +67,7 @@ inline const char* PoemFindCharacter(const char* str, int character) {
 // Finds the first occurrence of |character| in |str|, returning a pointer to
 // the found character in the given string, or NULL if not found.
 // Meant to be a drop-in replacement for strchr
-SB_C_INLINE char* PoemFindCharacter(const char* str, int character) {
+static SB_C_INLINE char* PoemFindCharacter(const char* str, int character) {
   // C-style cast used for C code
   return (char*)(SbStringFindCharacter(str, character));
 }
@@ -70,18 +75,22 @@ SB_C_INLINE char* PoemFindCharacter(const char* str, int character) {
 // Finds the last occurrence of |character| in |str|, returning a pointer to
 // the found character in the given string, or NULL if not found.
 // Meant to be a drop-in replacement for strchr
-SB_C_INLINE char* PoemFindLastCharacter(const char* str, int character) {
+static SB_C_INLINE char* PoemFindLastCharacter(const char* str, int character) {
   // C-style cast used for C code
   return (char*)(SbStringFindLastCharacter(str, character));
 }
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Concatenates |source| onto the end of |out_destination|, presuming it has
 // |destination_size| total characters of storage available. Returns
 // |out_destination|.  This method is a drop-in replacement for strncat
-SB_C_INLINE char* PoemConcat(char* out_destination,
-                             const char* source,
-                             int destination_size) {
+static SB_C_INLINE char* PoemConcat(char* out_destination,
+                                    const char* source,
+                                    int destination_size) {
   SbStringConcat(out_destination, source, destination_size);
   return out_destination;
 }
@@ -93,6 +102,10 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
                                           const char* source) {
   return PoemConcat(out_destination, source, INT_MAX);
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #if !defined(POEM_NO_EMULATION)
 
