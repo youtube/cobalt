@@ -17,6 +17,7 @@
 #include "cobalt/dom/rule_matching.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/callback.h"
@@ -169,8 +170,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // tree.
   //   https://www.w3.org/TR/selectors4/#type-selector
   void VisitTypeSelector(cssom::TypeSelector* type_selector) OVERRIDE {
-    if (!LowerCaseEqualsASCII(type_selector->element_name().c_str(),
-                              element_->tag_name().c_str())) {
+    if (type_selector->element_name() != element_->tag_name()) {
       element_ = NULL;
     }
   }
@@ -259,6 +259,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   void VisitCompoundSelector(
       cssom::CompoundSelector* compound_selector) OVERRIDE {
     DCHECK_GT(compound_selector->simple_selectors().size(), 0U);
+
     // Iterate through all the simple selectors. If any of the simple selectors
     // doesn't match, the compound selector doesn't match.
     for (cssom::CompoundSelector::SimpleSelectors::const_iterator
@@ -305,6 +306,7 @@ Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element,
   if (!element) {
     return NULL;
   }
+
   SelectorMatcher selector_matcher(element, matching_combinators);
   selector->Accept(&selector_matcher);
   return selector_matcher.element();
@@ -364,12 +366,10 @@ void AddRulesOnNodeToElement(HTMLElement* element,
 void GatherCandidateNodesFromMap(
     cssom::SimpleSelectorType simple_selector_type,
     cssom::CombinatorType combinator_type,
-    const SelectorTree::SelectorTextToNodesMap& map, base::Token key,
+    const SelectorTree::SelectorTextToNodesMap* map, base::Token key,
     SelectorTree::NodeSet<kRuleMatchingNodeSetSize>* candidate_nodes) {
-  // TODO: The hit rate here is only ~20%, use a Token specific map
-  // to pre-check if the key is in the map.
-  SelectorTree::SelectorTextToNodesMap::const_iterator it = map.find(key);
-  if (it != map.end()) {
+  SelectorTree::SelectorTextToNodesMap::const_iterator it = map->find(key);
+  if (it != map->end()) {
     const SelectorTree::SimpleSelectorNodes& nodes = it->second;
     for (SelectorTree::SimpleSelectorNodes::const_iterator nodes_iterator =
              nodes.begin();
@@ -403,6 +403,12 @@ void ForEachChildOnNodes(
     HTMLElement* element,
     base::Callback<void(HTMLElement* element, const SelectorTree::Node*)>
         callback) {
+  // Gathering Phase: Generate candidate nodes from the node set.
+  SelectorTree::NodeSet<kRuleMatchingNodeSetSize> candidate_nodes;
+
+  const std::vector<base::Token>& element_class_list =
+      element->class_list()->GetTokens();
+
   // Iterate through all nodes in node_set.
   for (typename NodeSet::const_iterator node_iterator = node_set.begin();
        node_iterator != node_set.end(); ++node_iterator) {
@@ -412,72 +418,87 @@ void ForEachChildOnNodes(
       continue;
     }
 
-    SelectorTree::NodeSet<kRuleMatchingNodeSetSize> candidate_nodes;
-
     // Gather candidate sets in node's children under the given combinator.
 
-    // Universal selector.
-    if (node->HasSimpleSelector(cssom::kUniversalSelector, combinator_type)) {
-      GatherCandidateNodesFromMap(cssom::kUniversalSelector, combinator_type,
-                                  node->selector_nodes_map(), base::Token(),
-                                  &candidate_nodes);
-    }
+    const SelectorTree::SelectorTextToNodesMap* selector_nodes_map =
+        node->selector_nodes_map();
+    if (selector_nodes_map) {
+      // Universal selector.
+      if (node->HasSimpleSelector(cssom::kUniversalSelector, combinator_type)) {
+        GatherCandidateNodesFromMap(cssom::kUniversalSelector, combinator_type,
+                                    selector_nodes_map, base::Token(),
+                                    &candidate_nodes);
+      }
 
-    // Type selector.
-    if (node->HasSimpleSelector(cssom::kTypeSelector, combinator_type)) {
-      GatherCandidateNodesFromMap(cssom::kTypeSelector, combinator_type,
-                                  node->selector_nodes_map(),
-                                  element->tag_name(), &candidate_nodes);
-    }
+      // Type selector.
+      if (node->HasSimpleSelector(cssom::kTypeSelector, combinator_type)) {
+        GatherCandidateNodesFromMap(cssom::kTypeSelector, combinator_type,
+                                    selector_nodes_map, element->tag_name(),
+                                    &candidate_nodes);
+      }
 
-    // Class selector.
-    if (node->HasSimpleSelector(cssom::kClassSelector, combinator_type)) {
-      scoped_refptr<DOMTokenList> class_list = element->class_list();
-      for (unsigned int index = 0; index < class_list->length(); ++index) {
-        GatherCandidateNodesFromMap(
-            cssom::kClassSelector, combinator_type, node->selector_nodes_map(),
-            class_list->NonNullItem(index), &candidate_nodes);
+      // Class selector.
+      if (node->HasSimpleSelector(cssom::kClassSelector, combinator_type)) {
+        for (size_t index = 0; index < element_class_list.size(); ++index) {
+          GatherCandidateNodesFromMap(
+              cssom::kClassSelector, combinator_type, selector_nodes_map,
+              element_class_list[index], &candidate_nodes);
+        }
+      }
+
+      // Id selector.
+      if (node->HasSimpleSelector(cssom::kIdSelector, combinator_type)) {
+        GatherCandidateNodesFromMap(cssom::kIdSelector, combinator_type,
+                                    selector_nodes_map, element->id(),
+                                    &candidate_nodes);
       }
     }
 
-    // Id selector.
-    if (node->HasSimpleSelector(cssom::kIdSelector, combinator_type)) {
-      GatherCandidateNodesFromMap(cssom::kIdSelector, combinator_type,
-                                  node->selector_nodes_map(), element->id(),
-                                  &candidate_nodes);
-    }
-
-    // Empty pseudo class.
-    if (node->HasPseudoClass(cssom::kEmptyPseudoClass, combinator_type) &&
-        element->IsEmpty()) {
-      GatherCandidateNodesFromSet(cssom::kEmptyPseudoClass, combinator_type,
-                                  node->pseudo_class_nodes(), &candidate_nodes);
-    }
-
-    // Focus pseudo class.
-    if (node->HasPseudoClass(cssom::kFocusPseudoClass, combinator_type) &&
-        element->HasFocus()) {
-      GatherCandidateNodesFromSet(cssom::kFocusPseudoClass, combinator_type,
-                                  node->pseudo_class_nodes(), &candidate_nodes);
-    }
-
-    // Not pseudo class.
-    if (node->HasPseudoClass(cssom::kNotPseudoClass, combinator_type)) {
-      GatherCandidateNodesFromSet(cssom::kNotPseudoClass, combinator_type,
-                                  node->pseudo_class_nodes(), &candidate_nodes);
-    }
-
-    // Check all candidate nodes and run callback for matching nodes.
-    for (SelectorTree::NodeSet<kRuleMatchingNodeSetSize>::const_iterator
-             candidate_node_iterator = candidate_nodes.begin();
-         candidate_node_iterator != candidate_nodes.end();
-         ++candidate_node_iterator) {
-      const SelectorTree::Node* candidate_node = *candidate_node_iterator;
-
-      if (MatchSelectorAndElement(candidate_node->compound_selector(), element,
-                                  false)) {
-        callback.Run(element, candidate_node);
+    if (node->HasAnyPseudoClass()) {
+      // Empty pseudo class.
+      if (node->HasPseudoClass(cssom::kEmptyPseudoClass, combinator_type) &&
+          element->IsEmpty()) {
+        GatherCandidateNodesFromSet(cssom::kEmptyPseudoClass, combinator_type,
+                                    node->pseudo_class_nodes(),
+                                    &candidate_nodes);
       }
+
+      // Focus pseudo class.
+      if (node->HasPseudoClass(cssom::kFocusPseudoClass, combinator_type) &&
+          element->HasFocus()) {
+        GatherCandidateNodesFromSet(cssom::kFocusPseudoClass, combinator_type,
+                                    node->pseudo_class_nodes(),
+                                    &candidate_nodes);
+      }
+
+      // Not pseudo class.
+      if (node->HasPseudoClass(cssom::kNotPseudoClass, combinator_type)) {
+        GatherCandidateNodesFromSet(cssom::kNotPseudoClass, combinator_type,
+                                    node->pseudo_class_nodes(),
+                                    &candidate_nodes);
+      }
+    }
+  }
+
+  // Verifying Phase: Check all candidate nodes and run callback for matching
+  // nodes.
+  for (SelectorTree::NodeSet<kRuleMatchingNodeSetSize>::const_iterator
+           candidate_node_iterator = candidate_nodes.begin();
+       candidate_node_iterator != candidate_nodes.end();
+       ++candidate_node_iterator) {
+    const SelectorTree::Node* candidate_node = *candidate_node_iterator;
+
+    // Verify that this node is a match:
+    // 1. If the candidate node's compound selector doesn't require a visit to
+    //    verify the match, then the act of gathering the node as a candidate
+    //    proved the match.
+    // 2. Otherwise, the node requires additional verification checks, so call
+    //    MatchSelectorAndElement().
+    if (!candidate_node->compound_selector()
+             ->requires_rule_matching_verification_visit() ||
+        MatchSelectorAndElement(candidate_node->compound_selector(), element,
+                                false)) {
+      callback.Run(element, candidate_node);
     }
   }
 }
@@ -559,9 +580,20 @@ void UpdateMatchingRules(HTMLElement* current_element) {
     current_element->rule_matching_state()->descendant_potential_nodes.insert(
         selector_tree->root());
   }
-  current_element->rule_matching_state()->descendant_potential_nodes.insert(
-      current_element->rule_matching_state()->matching_nodes.begin(),
-      current_element->rule_matching_state()->matching_nodes.end());
+  // Walk all of the matching nodes, adding any that have a descendant
+  // combinator as a descendant potential node. Any missing that combinator can
+  // never match descendants.
+  for (dom::HTMLElement::MatchingNodes::const_iterator iter =
+           current_element->rule_matching_state()->matching_nodes.begin();
+       iter != current_element->rule_matching_state()->matching_nodes.end();
+       ++iter) {
+    if ((*iter)->HasCombinator(cssom::kDescendantCombinator)) {
+      // It is possible for the two lists to contain duplicate nodes, so only
+      // add the node if it isn't a duplicate.
+      current_element->rule_matching_state()->descendant_potential_nodes.insert(
+          *iter, true /*check_for_duplicate*/);
+    }
+  }
 
   // Calculate current element's following sibling potential nodes.
   if (selector_tree->has_sibling_combinators()) {
@@ -573,10 +605,21 @@ void UpdateMatchingRules(HTMLElement* current_element) {
               previous_sibling->rule_matching_state()
                   ->following_sibling_potential_nodes.end());
     }
-    current_element->rule_matching_state()
-        ->following_sibling_potential_nodes.insert(
-            current_element->rule_matching_state()->matching_nodes.begin(),
-            current_element->rule_matching_state()->matching_nodes.end());
+    // Walk all of the matching nodes, adding any that have a following sibling
+    // combinator as a following sibling potential node. Any missing that
+    // combinator can never match following siblings..
+    for (dom::HTMLElement::MatchingNodes::const_iterator iter =
+             current_element->rule_matching_state()->matching_nodes.begin();
+         iter != current_element->rule_matching_state()->matching_nodes.end();
+         ++iter) {
+      if ((*iter)->HasCombinator(cssom::kFollowingSiblingCombinator)) {
+        // It is possible for the two lists to contain duplicate nodes, so only
+        // add the node if it isn't a duplicate.
+        current_element->rule_matching_state()
+            ->following_sibling_potential_nodes.insert(
+                *iter, true /*check_for_duplicate*/);
+      }
+    }
   }
 }
 
