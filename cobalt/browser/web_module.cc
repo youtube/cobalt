@@ -555,21 +555,21 @@ WebModule::WebModule(
 
 #if defined(ADDRESS_SANITIZER)
   // ASAN requires a much bigger stack size.
-  const int kAsanAdditionalStackSize = 4 * 1024 * 1024;
+  const size_t kAsanAdditionalStackSize = 4 * 1024 * 1024;
 #else
-  const int kAsanAdditionalStackSize = 0;
+  const size_t kAsanAdditionalStackSize = 0;
 #endif  // defined(ADDRESS_SANITIZER)
 
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   // Non-optimized builds require a bigger stack size.
-  const int kBaseStackSize = 2 * 1024 * 1024;
+  const size_t kBaseStackSize = 2 * 1024 * 1024;
 #else
-  const int kBaseStackSize = 256 * 1024;
+  const size_t kBaseStackSize = 256 * 1024;
 #endif
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  int stack_size = kBaseStackSize + kAsanAdditionalStackSize;
+  size_t stack_size = kBaseStackSize + kAsanAdditionalStackSize;
   thread_.StartWithOptions(
       base::Thread::Options(MessageLoop::TYPE_DEFAULT, stack_size));
   DCHECK(message_loop());
