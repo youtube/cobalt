@@ -43,16 +43,14 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   JS::RootedString string(context, JS_ValueToString(context, value));
   if (!string) {
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        "Not supported type.");
+    exception_state->SetSimpleException(kConvertToStringFailed);
     return;
   }
 
   JSAutoByteString auto_byte_string;
   char* utf8_chars = auto_byte_string.encodeUtf8(context, string);
   if (!utf8_chars) {
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        "Failed to convert to utf8.");
+    exception_state->SetSimpleException(kConvertToUTF8Failed);
     return;
   }
 
@@ -86,8 +84,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   // 1. If Type(V) is not Object, throw a TypeError
   // We'll handle the null case below.
   if (!value.isObjectOrNull()) {
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotObjectType);
+    exception_state->SetSimpleException(kNotObjectType);
     return;
   }
 
@@ -95,8 +92,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   if (!js_object) {
     // Set an exception if this is not nullable.
     if (!(conversion_flags & kConversionFlagNullable)) {
-      exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                          kNotNullableType);
+      exception_state->SetSimpleException(kNotNullableType);
     }
     // Return here even for the non-exception case.
     return;

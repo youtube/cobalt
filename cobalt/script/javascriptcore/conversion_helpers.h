@@ -45,14 +45,6 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
-const char kNotAnObject[] = "Value is not an object.";
-const char kNotAnObjectOrFunction[] = "Value is not an object or function.";
-const char kNotAFunction[] = "Value is not a function.";
-const char kNotNullableType[] = "Value is null but type is not nullable.";
-const char kNotObjectType[] = "Value is not an object.";
-const char kDoesNotImplementInterface[] =
-    "Value does not implement the interface type.";
-
 // Flags that can be used as a bitmask for special conversion behaviour.
 enum ConversionFlags {
   kNoConversionFlags = 0,
@@ -128,8 +120,7 @@ inline T* JSObjectToWrappable(JSC::ExecState* exec_state,
         global_object->wrapper_factory()->GetClassInfo(base::GetTypeId<T>());
   } else {
     // This is not a platform object. Return a type error.
-    out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                      kDoesNotImplementInterface);
+    out_exception->SetSimpleException(kDoesNotImplementInterface);
     return NULL;
   }
 
@@ -137,8 +128,7 @@ inline T* JSObjectToWrappable(JSC::ExecState* exec_state,
   if (js_object->inherits(class_info)) {
     return base::polymorphic_downcast<T*>(wrappable);
   } else {
-    out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                      kDoesNotImplementInterface);
+    out_exception->SetSimpleException(kDoesNotImplementInterface);
     return NULL;
   }
 }
@@ -388,8 +378,7 @@ inline void FromJSValue(
   double double_value = jsvalue.toNumber(exec_state);
   if (!isfinite(double_value) &&
       (conversion_flags & kConversionFlagRestricted)) {
-    out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                      "Non-finite floating-point value.");
+    out_exception->SetSimpleException(kNotFinite);
     return;
   }
   *out_number = double_value;
@@ -423,16 +412,14 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   JSC::JSObject* js_object = NULL;
   if (jsvalue.isNull()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
-      out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotNullableType);
+      out_exception->SetSimpleException(kNotNullableType);
       return;
     }
   } else {
     // Returns NULL if jsvalue is not an object.
     js_object = jsvalue.getObject();
     if (!js_object) {
-      out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotObjectType);
+      out_exception->SetSimpleException(kNotObjectType);
       return;
     }
   }
@@ -485,8 +472,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
       << "No conversion flags supported.";
   if (jsvalue.isNull()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
-      out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotNullableType);
+      out_exception->SetSimpleException(kNotNullableType);
     }
     // If it is a nullable type, just return.
     return;
@@ -498,8 +484,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // https://www.w3.org/TR/WebIDL/#es-callback-function
   // 1. If V is not a Function object, throw a TypeError
   if (!jsvalue.isFunction()) {
-    out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                      kNotAFunction);
+    out_exception->SetSimpleException(kNotFunctionValue);
     return;
   }
 
@@ -522,8 +507,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
       << "No conversion flags supported.";
   if (jsvalue.isNull()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
-      out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotNullableType);
+      out_exception->SetSimpleException(kNotNullableType);
     }
     // If it is a nullable type, just return.
     return;
@@ -538,8 +522,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // on the callback interface is run.
 
   if (!jsvalue.isFunction() && !jsvalue.isObject()) {
-    out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                      kNotAnObjectOrFunction);
+    out_exception->SetSimpleException(kNotObjectOrFunction);
     return;
   }
 
@@ -559,8 +542,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   JSC::JSObject* js_object = NULL;
   if (jsvalue.isNull()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
-      out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotNullableType);
+      out_exception->SetSimpleException(kNotNullableType);
     }
     // Return here whether an exception was set or not.
     return;
@@ -569,8 +551,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     // 1. If Type(V) is not Object, throw a TypeError
     js_object = jsvalue.getObject();
     if (!js_object) {
-      out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotObjectType);
+      out_exception->SetSimpleException(kNotObjectType);
       return;
     }
   }

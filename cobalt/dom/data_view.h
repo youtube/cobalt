@@ -105,9 +105,7 @@ class DataView : public script::Wrappable {
   ElementType GetElement(uint32 byte_offset, bool little_endian,
                          script::ExceptionState* exception_state) const {
     if (byte_offset + sizeof(ElementType) > byte_length_) {
-      exception_state->SetSimpleException(
-          script::ExceptionState::kRangeError,
-          "Offset is outside the bounds of the DataView.");
+      exception_state->SetSimpleException(script::kOutsideBounds);
       // The return value will be ignored.
       return ElementType();
     }
@@ -121,9 +119,7 @@ class DataView : public script::Wrappable {
   void SetElement(uint32 byte_offset, ElementType value, bool little_endian,
                   script::ExceptionState* exception_state) {
     if (byte_offset + sizeof(ElementType) > byte_length_) {
-      exception_state->SetSimpleException(
-          script::ExceptionState::kRangeError,
-          "Offset is outside the bounds of the DataView.");
+      exception_state->SetSimpleException(script::kOutsideBounds);
       return;
     }
     CopyBytes(reinterpret_cast<uint8*>(&value), sizeof(value), little_endian,

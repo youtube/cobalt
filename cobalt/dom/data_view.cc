@@ -25,9 +25,7 @@ DataView::DataView(const scoped_refptr<ArrayBuffer>& buffer,
       byte_offset_(0),
       byte_length_(buffer ? buffer->byte_length() : 0) {
   if (!buffer) {
-    exception_state->SetSimpleException(
-        script::ExceptionState::kTypeError,
-        "First argument to DataView constructor must be an ArrayBuffer.");
+    exception_state->SetSimpleException(script::kNotAnArrayBuffer);
   }
 }
 
@@ -37,13 +35,9 @@ DataView::DataView(const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset,
       byte_offset_(byte_offset),
       byte_length_(buffer ? buffer->byte_length() - byte_offset : 0) {
   if (!buffer) {
-    exception_state->SetSimpleException(
-        script::ExceptionState::kTypeError,
-        "First argument to DataView constructor must be an ArrayBuffer.");
+    exception_state->SetSimpleException(script::kNotAnArrayBuffer);
   } else if (byte_offset_ > buffer_->byte_length()) {
-    exception_state->SetSimpleException(
-        script::ExceptionState::kRangeError,
-        "Start offset is outside the bounds of the buffer.");
+    exception_state->SetSimpleException(script::kOutsideBounds);
   }
 }
 
@@ -51,16 +45,11 @@ DataView::DataView(const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset,
                    uint32 byte_length, script::ExceptionState* exception_state)
     : buffer_(buffer), byte_offset_(byte_offset), byte_length_(byte_length) {
   if (!buffer) {
-    exception_state->SetSimpleException(
-        script::ExceptionState::kTypeError,
-        "First argument to DataView constructor must be an ArrayBuffer.");
+    exception_state->SetSimpleException(script::kNotAnArrayBuffer);
   } else if (byte_offset_ > buffer_->byte_length()) {
-    exception_state->SetSimpleException(
-        script::ExceptionState::kRangeError,
-        "Start offset is outside the bounds of the buffer.");
+    exception_state->SetSimpleException(script::kOutsideBounds);
   } else if (byte_offset_ + byte_length_ > buffer_->byte_length()) {
-    exception_state->SetSimpleException(script::ExceptionState::kRangeError,
-                                        "Invalid data view length.");
+    exception_state->SetSimpleException(script::kInvalidLength);
   }
 }
 

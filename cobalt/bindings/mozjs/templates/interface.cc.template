@@ -505,8 +505,7 @@ JSBool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
   {{impl_class}}* impl =
       wrapper_private->wrappable<{{impl_class}}>().get();
   if (!impl) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Stringifier problem.");
+    exception_state.SetSimpleException(cobalt::script::kStringifierProblem);
     NOTREACHED();
     return false;
   }
@@ -958,9 +957,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
     *out_enum = {{impl_class}}::{{value}};
   }{% endfor %} else {
     // 2. If S is not one of E's enumeration values, then throw a TypeError.
-    exception_state->
-        SetSimpleException(ExceptionState::kTypeError,
-                           "Cannot convert JavaScript value to Enum.");
+    exception_state->SetSimpleException(cobalt::script::kConvertToEnumFailed);
     return;
   }
 }

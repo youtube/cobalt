@@ -40,11 +40,6 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
-const char kNotNullableType[] = "Value is null but type is not nullable.";
-const char kNotObjectType[] = "Value is not an object.";
-const char kDoesNotImplementInterface[] =
-    "Value does not implement the interface type.";
-
 // Flags that can be used as a bitmask for special conversion behaviour.
 enum ConversionFlags {
   kNoConversionFlags = 0,
@@ -177,9 +172,7 @@ inline void FromJSValue(
   JSBool success = JS_ValueToInt64(context, value, &out);
   DCHECK(success);
   if (!success) {
-    exception_state->SetSimpleException(
-        ExceptionState::kTypeError,
-        "Cannot convert a JavaScript value to int64_t.");
+    exception_state->SetSimpleException(kNotInt64Type);
     return;
   }
   *out_number = static_cast<T>(out);
@@ -251,9 +244,7 @@ inline void FromJSValue(
   JSBool success = JS_ValueToUint64(context, value, &out);
   DCHECK(success);
   if (!success) {
-    exception_state->SetSimpleException(
-        ExceptionState::kTypeError,
-        "Cannot convert a JavaScript value to uint64_t.");
+    exception_state->SetSimpleException(kNotUint64Type);
     return;
   }
   *out_number = static_cast<T>(out);
@@ -294,16 +285,13 @@ inline void FromJSValue(
   DCHECK(out_number);
   double double_value;
   if (!JS::ToNumber(context, value, &double_value)) {
-    exception_state->SetSimpleException(
-        ExceptionState::kError,
-        "Cannot convert a JavaScript value to a number.");
+    exception_state->SetSimpleException(kNotNumberType);
     return;
   }
 
   if (!mozilla::IsFinite(double_value) &&
       (conversion_flags & kConversionFlagRestricted)) {
-    exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                        "Non-finite floating-point value.");
+    exception_state->SetSimpleException(kNotFinite);
     return;
   }
 
@@ -395,15 +383,12 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   JS::RootedObject js_object(context);
   if (value.isNull() || value.isUndefined()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
-      exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                          kNotNullableType);
+      exception_state->SetSimpleException(kNotNullableType);
     }
     return;
   }
   if (!JS_ValueToObject(context, value, js_object.address())) {
-    exception_state->SetSimpleException(
-        ExceptionState::kTypeError,
-        "Cannot convert a JavaScript value to an object.");
+    exception_state->SetSimpleException(kNotObjectType);
     return;
   }
   DCHECK(js_object);
@@ -418,8 +403,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
           wrapper_factory->DoesObjectImplementInterface(js_object,
                                                         base::GetTypeId<T>());
       if (!object_implements_interface) {
-        exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                            kDoesNotImplementInterface);
+        exception_state->SetSimpleException(kDoesNotImplementInterface);
         return;
       }
       WrapperPrivate* wrapper_private =
@@ -429,8 +413,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
   // This is not a platform object. Return a type error.
-  exception_state->SetSimpleException(ExceptionState::kTypeError,
-                                      kDoesNotImplementInterface);
+  exception_state->SetSimpleException(kDoesNotImplementInterface);
 }
 
 // CallbackInterface -> JSValue
@@ -473,8 +456,7 @@ inline void FromJSValue(
       << "No conversion flags supported.";
   if (value.isNull()) {
     if (!(conversion_flags & kConversionFlagNullable)) {
-      out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                        kNotNullableType);
+      out_exception->SetSimpleException(kNotNullableType);
     }
     // If it is a nullable type, just return.
     return;
@@ -485,8 +467,7 @@ inline void FromJSValue(
   // checking if the correct properties exist will happen when the operation
   // on the callback interface is run.
   if (!value.isObject()) {
-    out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                      kNotObjectType);
+    out_exception->SetSimpleException(kNotObjectType);
     return;
   }
 
