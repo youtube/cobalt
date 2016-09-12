@@ -403,7 +403,12 @@ WebDriverModule::WebDriverModule(
                             base::Unretained(this), server_port));
 }
 
-WebDriverModule::~WebDriverModule() { webdriver_thread_.Stop(); }
+WebDriverModule::~WebDriverModule() {
+  webdriver_thread_.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebDriverModule::StopServer,
+                            base::Unretained(this)));
+  webdriver_thread_.Stop();
+}
 
 void WebDriverModule::OnWindowRecreated() {
   if (MessageLoop::current() != webdriver_thread_.message_loop()) {
@@ -425,6 +430,10 @@ void WebDriverModule::StartServer(int server_port) {
       server_port,
       base::Bind(&WebDriverDispatcher::HandleWebDriverServerRequest,
                  base::Unretained(webdriver_dispatcher_.get()))));
+}
+
+void WebDriverModule::StopServer() {
+  webdriver_server_.reset();
 }
 
 SessionDriver* WebDriverModule::GetSessionDriver(
