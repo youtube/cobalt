@@ -49,6 +49,10 @@ class SimpleSelector : public Selector {
   // Rest of public methods.
   virtual PseudoElement* AsPseudoElement() { return NULL; }
 
+  virtual bool AlwaysRequiresRuleMatchingVerificationVisit() const {
+    return false;
+  }
+
   // Used to sort simple selectors when normalizing compound selector.
   SimpleSelectorType type() const { return type_; }
 

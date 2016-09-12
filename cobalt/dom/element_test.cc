@@ -305,13 +305,6 @@ TEST_F(ElementTest, ClassList) {
   EXPECT_EQ(std::string("d"), class_list->Item(1));
   EXPECT_EQ(std::string("c"), class_list->Item(2));
   EXPECT_EQ(base::nullopt, class_list->Item(3));
-
-  // Custom, not in any spec
-  // NonNullItem
-  EXPECT_EQ(std::string("b"), class_list->NonNullItem(0));
-  EXPECT_EQ(std::string("d"), class_list->NonNullItem(1));
-  EXPECT_EQ(std::string("c"), class_list->NonNullItem(2));
-  EXPECT_EQ(std::string(""), class_list->NonNullItem(3));
 }
 
 TEST_F(ElementTest, GetElementsByClassName) {
