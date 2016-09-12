@@ -91,10 +91,14 @@ enum PseudoElementType {
 //   https://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
+  typedef cssom::SelectorTree::NodeSet<12> MatchingNodes;
+  typedef cssom::SelectorTree::NodeSet<40> DescendantPotentialNodes;
+  typedef cssom::SelectorTree::NodeSet<8> FollowingSiblingPotentialNodes;
+
   struct RuleMatchingState {
-    cssom::SelectorTree::NodeSet<12> matching_nodes;
-    cssom::SelectorTree::NodeSet<40> descendant_potential_nodes;
-    cssom::SelectorTree::NodeSet<8> following_sibling_potential_nodes;
+    MatchingNodes matching_nodes;
+    DescendantPotentialNodes descendant_potential_nodes;
+    FollowingSiblingPotentialNodes following_sibling_potential_nodes;
   };
 
   // Web API: HTMLElement

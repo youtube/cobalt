@@ -43,6 +43,10 @@ class NotPseudoClass : public PseudoClass {
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   // From SimpleSelector.
+  bool AlwaysRequiresRuleMatchingVerificationVisit() const OVERRIDE {
+    return true;
+  }
+
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
