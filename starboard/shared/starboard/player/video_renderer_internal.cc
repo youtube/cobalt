@@ -81,11 +81,11 @@ const VideoFrame& VideoRenderer::GetCurrentFrame(SbMediaTime media_time) {
   }
   // Remove any frames with timestamps earlier than |media_time|, but always
   // keep at least one of the frames.
-  while (frames_.size() > 1 && frames_.begin()->pts() < media_time) {
-    frames_.erase(frames_.begin());
+  while (frames_.size() > 1 && frames_.front().pts() < media_time) {
+    frames_.pop_front();
   }
 
-  return *frames_.begin();
+  return frames_.front();
 }
 
 bool VideoRenderer::IsEndOfStreamPlayed() const {

@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_RENDERER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_RENDERER_INTERNAL_H_
 
-#include <vector>
+#include <list>
 
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -50,7 +50,7 @@ class VideoRenderer : private VideoDecoder::Host {
   bool IsSeekingInProgress() const;
 
  private:
-  typedef std::vector<VideoFrame> Frames;
+  typedef std::list<VideoFrame> Frames;
 
   // Preroll considered finished after either kPrerollFrames is cached or EOS
   // is reached.
