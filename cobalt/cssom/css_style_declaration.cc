@@ -1066,7 +1066,19 @@ scoped_refptr<CSSRule> CSSStyleDeclaration::parent_rule() const { return NULL; }
 
 std::string CSSStyleDeclaration::GetPropertyValue(
     const std::string& property_name) {
-  return GetDeclaredPropertyValueStringByKey(GetPropertyKey(property_name));
+  PropertyKey key = GetPropertyKey(property_name);
+  if (key > kMaxLonghandPropertyKey) {
+    // Shorthand properties are never directly stored as declared properties,
+    // but are expanded into their longhand property components during parsing.
+    // TODO: Implement serialization of css values, see
+    // https://www.w3.org/TR/cssom-1/#serializing-css-values
+    DCHECK_LE(key, kMaxEveryPropertyKey);
+    DLOG(WARNING) << "Unsupported property query for \"" << property_name
+                  << "\": Returning of property value strings is only "
+                     "supported for longhand properties.";
+    return std::string();
+  }
+  return GetDeclaredPropertyValueStringByKey(key);
 }
 
 void CSSStyleDeclaration::SetPropertyValueStringByKey(
