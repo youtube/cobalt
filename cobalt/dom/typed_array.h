@@ -68,10 +68,8 @@ class TypedArray : public ArrayBufferView {
              script::ExceptionState* exception_state)
       : ArrayBufferView(buffer) {
     if (buffer->byte_length() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(
-          script::ExceptionState::kRangeError,
-          base::StringPrintf("Byte length should be a multiple of %d",
-                             kBytesPerElement));
+      exception_state->SetSimpleException(script::kWrongByteLengthMultiple,
+                                          kBytesPerElement);
     }
   }
 
@@ -80,15 +78,11 @@ class TypedArray : public ArrayBufferView {
       : ArrayBufferView(buffer, byte_offset,
                         buffer->byte_length() - byte_offset) {
     if (this->byte_offset() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(
-          script::ExceptionState::kRangeError,
-          base::StringPrintf("Byte offset should be a multiple of %d",
-                             kBytesPerElement));
+      exception_state->SetSimpleException(script::kWrongByteOffsetMultiple,
+                                          kBytesPerElement);
     } else if (buffer->byte_length() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(
-          script::ExceptionState::kRangeError,
-          base::StringPrintf("Byte length should be a multiple of %d",
-                             kBytesPerElement));
+      exception_state->SetSimpleException(script::kWrongByteLengthMultiple,
+                                          kBytesPerElement);
     }
   }
 
@@ -96,14 +90,11 @@ class TypedArray : public ArrayBufferView {
              uint32 length, script::ExceptionState* exception_state)
       : ArrayBufferView(buffer, byte_offset, length * kBytesPerElement) {
     if (this->byte_offset() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(
-          script::ExceptionState::kRangeError,
-          base::StringPrintf("Byte offset should be a multiple of %d",
-                             kBytesPerElement));
+      exception_state->SetSimpleException(script::kWrongByteOffsetMultiple,
+                                          kBytesPerElement);
     } else if (byte_offset + length * kBytesPerElement >
                buffer->byte_length()) {
-      exception_state->SetSimpleException(script::ExceptionState::kRangeError,
-                                          "Invalid typed array length");
+      exception_state->SetSimpleException(script::kInvalidLength);
     }
   }
 
@@ -127,8 +118,7 @@ class TypedArray : public ArrayBufferView {
   void Set(const scoped_refptr<TypedArray>& source, uint32 offset,
            script::ExceptionState* exception_state) {
     if (offset >= length() || length() - offset < source->length()) {
-      exception_state->SetSimpleException(script::ExceptionState::kRangeError,
-                                          "Source is too large");
+      exception_state->SetSimpleException(script::kInvalidLength);
       return;
     }
     uint32 source_offset = 0;
@@ -239,6 +229,6 @@ class TypedArray : public ArrayBufferView {
                                                                                \
    private:                                                                    \
     DISALLOW_COPY_AND_ASSIGN(SubarrayType);                                    \
-  }
+  };
 
 #endif  // COBALT_DOM_TYPED_ARRAY_H_

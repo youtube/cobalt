@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "cobalt/script/exception_message.h"
 #include "cobalt/script/script_exception.h"
 
 namespace cobalt {
@@ -25,21 +26,10 @@ namespace script {
 
 class ExceptionState {
  public:
-  // Simple exceptions as defined in:
-  // http://heycam.github.io/webidl/#dfn-simple-exception
-  enum SimpleExceptionType {
-    kError,
-    kTypeError,
-    kRangeError,
-    kReferenceError,
-    kSyntaxError,
-    kURIError
-  };
   // IDL for this object must be an exception interface.
   virtual void SetException(
       const scoped_refptr<ScriptException>& exception) = 0;
-  virtual void SetSimpleException(SimpleExceptionType simple_error,
-                                  const std::string& message) = 0;
+  virtual void SetSimpleException(MessageType message_type, ...) = 0;
 };
 
 }  // namespace script

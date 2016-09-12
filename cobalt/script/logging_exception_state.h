@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "cobalt/script/exception_state.h"
 
 namespace cobalt {
@@ -30,9 +31,14 @@ class LoggingExceptionState : public ExceptionState {
   void SetException(const scoped_refptr<ScriptException>& exception) OVERRIDE {
     LogException(exception->name(), exception->message());
   }
-  void SetSimpleException(SimpleExceptionType simple_error,
-                          const std::string& message) OVERRIDE {
-    LogException(SimpleExceptionToString(simple_error), message);
+
+  void SetSimpleException(MessageType message_type, ...) OVERRIDE {
+    va_list arguments;
+    va_start(arguments, message_type);
+    LogException(
+        SimpleExceptionToString(GetSimpleExceptionType(message_type)),
+        base::StringPrintV(GetExceptionMessageFormat(message_type), arguments));
+    va_end(arguments);
   }
 
   bool is_exception_set() const { return is_exception_set_; }

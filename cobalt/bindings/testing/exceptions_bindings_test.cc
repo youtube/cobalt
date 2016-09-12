@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "base/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/exception_object_interface.h"
 #include "cobalt/bindings/testing/exceptions_interface.h"
@@ -38,16 +39,13 @@ typedef InterfaceBindingsTest<ExceptionsInterface> ExceptionsBindingsTest;
 
 class SimpleExceptionSetter {
  public:
-  SimpleExceptionSetter(script::ExceptionState::SimpleExceptionType type,
-                        const std::string& message)
-      : type_(type), message_(message) {}
+  explicit SimpleExceptionSetter(script::MessageType type) : type_(type) {}
   void FireException(script::ExceptionState* exception) {
-    exception->SetSimpleException(type_, message_);
+    exception->SetSimpleException(type_);
   }
 
  private:
-  script::ExceptionState::SimpleExceptionType type_;
-  std::string message_;
+  script::MessageType type_;
 };
 
 class ExceptionObjectSetter {
@@ -62,11 +60,20 @@ class ExceptionObjectSetter {
  private:
   scoped_refptr<script::ScriptException> exception_object_;
 };
+
+std::string GetExceptionMessageString(script::MessageType message_type, ...) {
+  va_list arguments;
+  va_start(arguments, message_type);
+  std::string error_string =
+      base::StringPrintV(GetExceptionMessageFormat(message_type), arguments);
+  va_end(arguments);
+  return error_string;
+}
+
 }  // namespace
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromConstructor) {
-  SimpleExceptionSetter exception_setter(script::ExceptionState::kError,
-                                         "generic error");
+  SimpleExceptionSetter exception_setter(script::kSimpleError);
   EXPECT_CALL(ExceptionsInterface::constructor_implementation_mock.Get(),
               Constructor(_))
       .WillOnce(
@@ -74,23 +81,21 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromConstructor) {
 
   std::string result;
   EXPECT_FALSE(EvaluateScript("var foo = new ExceptionsInterface();", &result));
-  EXPECT_SUBSTRING("Error: generic error", result.c_str());
+  EXPECT_SUBSTRING("Error", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromOperation) {
-  SimpleExceptionSetter exception_setter(script::ExceptionState::kTypeError,
-                                         "this is a type error");
+  SimpleExceptionSetter exception_setter(script::kSimpleTypeError);
   EXPECT_CALL(test_mock(), FunctionThrowsException(_)).WillOnce(
       Invoke(&exception_setter, &SimpleExceptionSetter::FireException));
 
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.functionThrowsException();", &result));
-  EXPECT_SUBSTRING("TypeError: this is a type error", result.c_str());
+  EXPECT_SUBSTRING("TypeError", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromGetter) {
-  SimpleExceptionSetter exception_setter(script::ExceptionState::kRangeError,
-                                         "this is a range error");
+  SimpleExceptionSetter exception_setter(script::kSimpleRangeError);
   EXPECT_CALL(test_mock(), attribute_throws_exception(_)).WillOnce(
       DoAll(Invoke(&exception_setter, &SimpleExceptionSetter::FireException),
             Return(false)));
@@ -98,12 +103,11 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromGetter) {
   std::string result;
   EXPECT_FALSE(
       EvaluateScript("var foo = test.attributeThrowsException;", &result));
-  EXPECT_SUBSTRING("RangeError: this is a range error", result.c_str());
+  EXPECT_SUBSTRING("RangeError", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromSetter) {
-  SimpleExceptionSetter exception_setter(
-      script::ExceptionState::kReferenceError, "this is a reference error");
+  SimpleExceptionSetter exception_setter(script::kSimpleReferenceError);
   EXPECT_CALL(test_mock(), set_attribute_throws_exception(_, _))
       .WillOnce(WithArg<1>(
           Invoke(&exception_setter, &SimpleExceptionSetter::FireException)));
@@ -111,7 +115,7 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromSetter) {
   std::string result;
   EXPECT_FALSE(
       EvaluateScript("test.attributeThrowsException = true;", &result));
-  EXPECT_SUBSTRING("ReferenceError: this is a reference error", result.c_str());
+  EXPECT_SUBSTRING("ReferenceError", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
@@ -142,6 +146,16 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
   EXPECT_CALL(*exception_object, message()).WillOnce(Return("the message"));
   EXPECT_TRUE(EvaluateScript("error.message;", &result));
   EXPECT_STREQ("the message", result.c_str());
+}
+
+TEST_F(ExceptionsBindingsTest, GetExceptionMessageStringTest) {
+  std::string error_message =
+      GetExceptionMessageString(script::kWrongByteLengthMultiple, 8);
+  EXPECT_STREQ("Byte length should be a multiple of 8.", error_message.c_str());
+  error_message =
+      GetExceptionMessageString(script::kWrongByteOffsetMultiple, 16);
+  EXPECT_STREQ("Byte offset should be a multiple of 16.",
+               error_message.c_str());
 }
 
 }  // namespace testing

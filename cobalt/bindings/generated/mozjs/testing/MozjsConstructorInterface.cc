@@ -389,8 +389,7 @@ JSBool Constructor2(
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -443,8 +442,7 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   // http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
   // 4. If S is empty, then throw a TypeError.
   MozjsExceptionState exception_state(context);
-  exception_state.SetSimpleException(
-      script::ExceptionState::kTypeError, "Invalid number of arguments.");
+  exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
   return false;
 }
 }  // namespace

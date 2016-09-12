@@ -21,6 +21,8 @@
       'type': 'static_library',
       'sources': [
         'call_frame.h',
+        'exception_message.cc',
+        'exception_message.h',
         'execution_state.cc',
         'execution_state.h',
         'global_object_proxy.h',

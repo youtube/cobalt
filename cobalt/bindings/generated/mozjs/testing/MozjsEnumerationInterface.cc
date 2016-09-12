@@ -496,9 +496,7 @@ if (JS_StringEqualsAscii(
     *out_enum = EnumerationInterface::kGamma;
   } else {
     // 2. If S is not one of E's enumeration values, then throw a TypeError.
-    exception_state->
-        SetSimpleException(ExceptionState::kTypeError,
-                           "Cannot convert JavaScript value to Enum.");
+    exception_state->SetSimpleException(cobalt::script::kConvertToEnumFailed);
     return;
   }
 }
