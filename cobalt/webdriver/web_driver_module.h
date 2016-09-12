@@ -66,6 +66,7 @@ class WebDriverModule {
 
  private:
   void StartServer(int server_port);
+  void StopServer();
   void GetServerStatus(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
