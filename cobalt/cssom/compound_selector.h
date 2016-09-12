@@ -53,10 +53,12 @@ class CompoundSelector : public Selector {
   void AppendSelector(scoped_ptr<SimpleSelector> selector);
   const SimpleSelectors& simple_selectors() { return simple_selectors_; }
   PseudoElement* pseudo_element() {
-    for (SimpleSelectors::iterator iter = simple_selectors_.begin();
-         iter != simple_selectors_.end(); ++iter) {
-      if ((*iter)->AsPseudoElement()) {
-        return (*iter)->AsPseudoElement();
+    if (has_pseudo_element_) {
+      for (SimpleSelectors::iterator iter = simple_selectors_.begin();
+           iter != simple_selectors_.end(); ++iter) {
+        if ((*iter)->AsPseudoElement()) {
+          return (*iter)->AsPseudoElement();
+        }
       }
     }
     return NULL;
@@ -69,6 +71,10 @@ class CompoundSelector : public Selector {
 
   Combinator* right_combinator() { return right_combinator_.get(); }
   void set_right_combinator(scoped_ptr<Combinator> combinator);
+
+  bool requires_rule_matching_verification_visit() const {
+    return requires_rule_matching_verification_visit_;
+  }
 
   bool operator<(const CompoundSelector& that) const {
     if (simple_selectors_.size() < that.simple_selectors_.size()) {
@@ -109,6 +115,19 @@ class CompoundSelector : public Selector {
   scoped_ptr<Combinator> right_combinator_;
   SimpleSelectors simple_selectors_;
   Specificity specificity_;
+  bool has_pseudo_element_;
+  // This flag tracks whether or not during rule matching, after the initial
+  // candidate gathering phase, the simple selectors additional checks during
+  // the verification phase to determine a match; otherwise, the act of
+  // being gathered itself proves the match.
+  // There are two cases where the selectors require a visit:
+  // 1. There are multiple selectors. Gathering only tests against the first
+  //    selector and the later selectors must also be verified to match.
+  // 2. The single selector's AlwaysRequiresRuleMatchingVerificationVisit() call
+  //    returns true. This indicates that being gathered as a candidate is not
+  //    sufficient to prove a match and that additional verification checks are
+  //    required.
+  bool requires_rule_matching_verification_visit_;
 
   DISALLOW_COPY_AND_ASSIGN(CompoundSelector);
 };

@@ -84,8 +84,7 @@ class Element : public Node {
     SetAttribute("class", value);
   }
 
-  scoped_refptr<DOMTokenList> class_list();
-
+  const scoped_refptr<DOMTokenList>& class_list();
   scoped_refptr<NamedNodeMap> attributes();
 
   base::optional<std::string> GetAttribute(const std::string& name) const;
