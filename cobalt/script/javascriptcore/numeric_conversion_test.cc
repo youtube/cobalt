@@ -205,7 +205,6 @@ TYPED_TEST(FloatingPointConversionTest, OtherConversions) {
   const double kInfinity = std::numeric_limits<double>::infinity();
   const double kNegativeInfinity = -std::numeric_limits<double>::infinity();
 
-
   // Unrestricted non-finite floating point conversions
   EXPECT_EQ(kInfinity, JSValueToNumber<TypeParam>(
                            this->exec_state_, JSC::jsNumber(kInfinity),
@@ -220,8 +219,7 @@ TYPED_TEST(FloatingPointConversionTest, OtherConversions) {
 
   // Restricted non-finite floating point conversions. These should throw a
   // TypeError.
-  EXPECT_CALL(this->exception_state_,
-              SetSimpleException(ExceptionState::kTypeError, _))
+  EXPECT_CALL(this->exception_state_, SetSimpleExceptionVA(kNotFinite, _))
       .Times(3);
   JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(kInfinity),
                              kConversionFlagRestricted,
@@ -233,7 +231,6 @@ TYPED_TEST(FloatingPointConversionTest, OtherConversions) {
                              kConversionFlagRestricted,
                              &this->exception_state_);
 }
-
 
 // ToNumber (http://es5.github.io/#x9.3) calls the ToPrimitive operation:
 //     http://es5.github.io/#x9.1
