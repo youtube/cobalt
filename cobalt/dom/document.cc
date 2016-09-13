@@ -357,10 +357,11 @@ void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Document::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Document::Duplicate() const {
-  // Note: Documents should not be duplicated by clients, we just need to
-  // provide an implementation since Document inherits from Node.
-  NOTIMPLEMENTED();
-  return NULL;
+  // For Document, copy Its encoding, content type, URL, its mode (quirks mode,
+  // limited quirks mode, or no-quirks mode), and its type (XML document or HTML
+  // document).
+  //   https://www.w3.org/TR/dom/#concept-node-clone
+  return new Document(html_element_context_, Document::Options(url_as_gurl()));
 }
 
 scoped_refptr<HTMLHtmlElement> Document::html() const {
