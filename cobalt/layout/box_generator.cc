@@ -100,7 +100,9 @@ void BoxGenerator::Visit(dom::Element* element) {
   }
 
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-  DCHECK(html_element);
+  if (!html_element) {
+    return;
+  }
   generating_html_element_ = html_element;
 
   bool partial_layout_is_enabled = true;
