@@ -70,25 +70,25 @@ TEST(DataViewTest, ConstructingEmptyDataView) {
 
 TEST(DataViewTest, ExceptionInConstructors) {
   StrictMock<MockExceptionState> exception_state;
-  script::ExceptionState::SimpleExceptionType exception_type;
+  script::MessageType message_type;
   scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 10);
 
-  EXPECT_CALL(exception_state, SetSimpleException(_, _))
-      .WillOnce(SaveArg<0>(&exception_type));
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
+      .WillOnce(SaveArg<0>(&message_type));
   scoped_refptr<DataView> data_view = new DataView(NULL, &exception_state);
-  EXPECT_EQ(script::ExceptionState::kTypeError, exception_type);
+  EXPECT_EQ(script::kTypeError, GetSimpleExceptionType(message_type));
 
-  EXPECT_CALL(exception_state, SetSimpleException(_, _))
-      .WillOnce(SaveArg<0>(&exception_type));
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
+      .WillOnce(SaveArg<0>(&message_type));
   data_view = new DataView(array_buffer, array_buffer->byte_length() + 1,
                            &exception_state);
-  EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
+  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 
-  EXPECT_CALL(exception_state, SetSimpleException(_, _))
-      .WillOnce(SaveArg<0>(&exception_type));
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
+      .WillOnce(SaveArg<0>(&message_type));
   data_view = new DataView(array_buffer, 0, array_buffer->byte_length() + 1,
                            &exception_state);
-  EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
+  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 }
 
 TEST(DataViewTest, Getters) {
@@ -122,18 +122,18 @@ TEST(DataViewTest, Getters) {
 
 TEST(DataViewTest, GettersWithException) {
   StrictMock<MockExceptionState> exception_state;
-  script::ExceptionState::SimpleExceptionType exception_type;
+  script::MessageType message_type;
   scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
 
 #define DEFINE_DATA_VIEW_GETTER_WITH_EXCEPTION_TEST(DomType, CppType)          \
   {                                                                            \
-    EXPECT_CALL(exception_state, SetSimpleException(_, _))                     \
-        .WillOnce(SaveArg<0>(&exception_type));                                \
+    EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))                   \
+        .WillOnce(SaveArg<0>(&message_type));                                  \
     data_view->Get##DomType(array_buffer->byte_length() - sizeof(CppType) + 1, \
                             &exception_state);                                 \
-    EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);            \
+    EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));      \
   }
   DATA_VIEW_ACCESSOR_FOR_EACH(DEFINE_DATA_VIEW_GETTER_WITH_EXCEPTION_TEST)
 #undef DEFINE_DATA_VIEW_GETTER_WITH_EXCEPTION_TEST
@@ -188,18 +188,18 @@ TEST(DataViewTest, Setters) {
 
 TEST(DataViewTest, SettersWithException) {
   StrictMock<MockExceptionState> exception_state;
-  script::ExceptionState::SimpleExceptionType exception_type;
+  script::MessageType message_type;
   scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
 
 #define DEFINE_DATA_VIEW_SETTER_WITH_EXCEPTION_TEST(DomType, CppType)          \
   {                                                                            \
-    EXPECT_CALL(exception_state, SetSimpleException(_, _))                     \
-        .WillOnce(SaveArg<0>(&exception_type));                                \
+    EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))                   \
+        .WillOnce(SaveArg<0>(&message_type));                                  \
     data_view->Set##DomType(array_buffer->byte_length() - sizeof(CppType) + 1, \
                             0, &exception_state);                              \
-    EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);            \
+    EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));      \
   }
   DATA_VIEW_ACCESSOR_FOR_EACH(DEFINE_DATA_VIEW_SETTER_WITH_EXCEPTION_TEST)
 #undef DEFINE_DATA_VIEW_SETTER_WITH_EXCEPTION_TEST
