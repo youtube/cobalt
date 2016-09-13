@@ -24,6 +24,7 @@
 #include <utility>
 
 #include "base/basictypes.h"
+#include "base/logging.h"
 #include "cobalt/base/math.h"
 
 namespace cobalt {
@@ -35,24 +36,47 @@ class LayoutUnit {
   // The ratio of the LayoutUnit fixed point value to integers.
   static const int kFixedPointRatio = 64;
 
-  LayoutUnit() : value_(0) {}
+  LayoutUnit() : value_(0) {
+#ifdef _DEBUG
+    is_nan_ = false;
+#endif
+  }
   ~LayoutUnit() {}
 
   // Constructors.
-  explicit LayoutUnit(int value) : value_(value * kFixedPointRatio) {}
+  explicit LayoutUnit(int value) : value_(value * kFixedPointRatio) {
+#ifdef _DEBUG
+    int64_t value64 = value * kFixedPointRatio;
+    is_nan_ = value_ != value64;
+#endif
+  }
   explicit LayoutUnit(float value)
       : value_(static_cast<int32_t>(
-            floorf(value * static_cast<float>(kFixedPointRatio)))) {}
+            floorf(value * static_cast<float>(kFixedPointRatio)))) {
+#ifdef _DEBUG
+    int64_t value64 = static_cast<int64_t>(
+        floorf(value * static_cast<float>(kFixedPointRatio)));
+    is_nan_ = value_ != value64;
+#endif
+  }
 
   float toFloat() const {
     return static_cast<float>(value_) / kFixedPointRatio;
   }
 
-  void swap(LayoutUnit& value) { std::swap(value_, value.value_); }
+  void swap(LayoutUnit& value) {
+    std::swap(value_, value.value_);
+#ifdef _DEBUG
+    std::swap(is_nan_, value.is_nan_);
+#endif
+  }
 
   // Copy assignment operator.
   LayoutUnit& operator=(LayoutUnit value) {
     value_ = value.value_;
+#ifdef _DEBUG
+    is_nan_ = is_nan_ || value.is_nan_;
+#endif
     return *this;
   }
 
@@ -63,6 +87,57 @@ class LayoutUnit {
   bool operator==(LayoutUnit other) const { return value_ == other.value_; }
   bool operator!=(LayoutUnit other) const { return value_ != other.value_; }
 
+#ifdef _DEBUG
+  bool LessThanOrNaN(LayoutUnit other) const {
+    return is_nan_ || other.is_nan_ || *this < other;
+  }
+  bool LessEqualOrNaN(LayoutUnit other) const {
+    return is_nan_ || other.is_nan_ || *this <= other;
+  }
+  bool GreaterThanOrNaN(LayoutUnit other) const {
+    return is_nan_ || other.is_nan_ || *this > other;
+  }
+  bool GreaterEqualOrNaN(LayoutUnit other) const {
+    return is_nan_ || other.is_nan_ || *this >= other;
+  }
+  bool EqualOrNaN(LayoutUnit other) const {
+    return is_nan_ || other.is_nan_ || *this == other;
+  }
+  bool NotEqualOrNaN(LayoutUnit other) const {
+    return is_nan_ || other.is_nan_ || *this != other;
+  }
+  bool IsNaN() const { return is_nan_; }
+#else
+  bool LessThanOrNaN(LayoutUnit other) const {
+    NOTREACHED();
+    return *this < other;
+  }
+  bool LessEqualOrNaN(LayoutUnit other) const {
+    NOTREACHED();
+    return *this <= other;
+  }
+  bool GreaterThanOrNaN(LayoutUnit other) const {
+    NOTREACHED();
+    return *this > other;
+  }
+  bool GreaterEqualOrNaN(LayoutUnit other) const {
+    NOTREACHED();
+    return *this >= other;
+  }
+  bool EqualOrNaN(LayoutUnit other) const {
+    NOTREACHED();
+    return *this == other;
+  }
+  bool NotEqualOrNaN(LayoutUnit other) const {
+    NOTREACHED();
+    return *this != other;
+  }
+  bool IsNaN() const {
+    NOTREACHED();
+    return false;
+  }
+#endif
+
   LayoutUnit operator+() const { return LayoutUnit(*this); }
   LayoutUnit operator-() const {
     LayoutUnit res;
@@ -71,7 +146,14 @@ class LayoutUnit {
   }
 
   LayoutUnit& operator+=(LayoutUnit other) {
+#ifdef _DEBUG
+    int64_t value64 = value_;
+#endif
     value_ += other.value_;
+#ifdef _DEBUG
+    is_nan_ = is_nan_ || other.is_nan_ ||
+              (value_ != (value64 + static_cast<int64_t>(other.value_)));
+#endif
     return *this;
   }
   LayoutUnit operator+(LayoutUnit other) const {
@@ -79,7 +161,14 @@ class LayoutUnit {
     return res += other;
   }
   LayoutUnit& operator-=(LayoutUnit other) {
+#ifdef _DEBUG
+    int64_t value64 = value_;
+#endif
     value_ -= other.value_;
+#ifdef _DEBUG
+    is_nan_ = is_nan_ || other.is_nan_ ||
+              (value_ != (value64 - static_cast<int64_t>(other.value_)));
+#endif
     return *this;
   }
   LayoutUnit operator-(LayoutUnit other) const {
@@ -100,13 +189,26 @@ class LayoutUnit {
 
  private:
   int32_t value_;
+#ifdef _DEBUG
+  // When value_ overflows or underflows during construction or during an
+  // operation, it's value is undefined. This flags is used to track when that
+  // happens. The value propagates to the result of operations where any
+  // operand has this flag set, to indicate that there is undefined behavior.
+  bool is_nan_;
+#endif
 };
 
 // Integer scaling math operators.
 
 // NOLINTNEXTLINE(runtime/references)
 inline LayoutUnit& operator*=(LayoutUnit& a, int b) {
+#ifdef _DEBUG
+  int64_t value64 = a.value_;
+#endif
   a.value_ *= b;
+#ifdef _DEBUG
+  a.is_nan_ = a.is_nan_ || (a.value_ != (value64 * b));
+#endif
   return a;
 }
 
@@ -116,7 +218,13 @@ inline LayoutUnit operator*(int a, LayoutUnit b) { return b *= a; }
 
 // NOLINTNEXTLINE(runtime/references)
 inline LayoutUnit& operator/=(LayoutUnit& a, int b) {
+#ifdef _DEBUG
+  int64_t value64 = a.value_;
+#endif
   a.value_ /= b;
+#ifdef _DEBUG
+  a.is_nan_ = a.is_nan_ || (a.value_ != (value64 / b));
+#endif
   return a;
 }
 
@@ -126,7 +234,15 @@ inline LayoutUnit operator/(LayoutUnit a, int b) { return a /= b; }
 
 // NOLINTNEXTLINE(runtime/references)
 inline LayoutUnit& operator*=(LayoutUnit& a, float b) {
+#ifdef _DEBUG
+  int64_t value64 = a.value_;
+#endif
   a.value_ = static_cast<int32_t>(floorf(static_cast<float>(a.value_) * b));
+#ifdef _DEBUG
+  a.is_nan_ = a.is_nan_ ||
+              (a.value_ !=
+               static_cast<int64_t>(floorf(static_cast<float>(value64) * b)));
+#endif
   return a;
 }
 
@@ -143,6 +259,11 @@ inline LayoutUnit& operator/=(LayoutUnit& a, float b) {
 inline LayoutUnit operator/(LayoutUnit a, float b) { return a /= b; }
 
 inline std::ostream& operator<<(std::ostream& out, const LayoutUnit& x) {
+#ifdef _DEBUG
+  if (x.IsNaN()) {
+    return out << "NaN(" << x.toFloat() << ")";
+  }
+#endif
   return out << x.toFloat();
 }
 
