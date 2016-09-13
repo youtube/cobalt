@@ -93,6 +93,9 @@ class ProxyHandler : public js::DirectProxyHandler {
                bool* succeeded) OVERRIDE;
   bool enumerate(JSContext* context, JS::HandleObject proxy,
                  JS::AutoIdVector& properties) OVERRIDE;  // NOLINT[runtime/references]
+  bool defineProperty(JSContext* context, JS::HandleObject proxy,
+                      JS::HandleId id,
+                      JSPropertyDescriptor* descriptor) OVERRIDE;
 
   // The derived traps in js::DirectProxyHandler are not implemented in terms of
   // the fundamental traps, where the traps in js::BaseProxyHandler are.
@@ -131,6 +134,8 @@ class ProxyHandler : public js::DirectProxyHandler {
     return js::BaseProxyHandler::iterate(context, proxy, flags, vp);
   }
 
+  bool has_custom_property() const { return has_custom_property_; }
+
  private:
   bool supports_named_properties() {
     return named_property_hooks_.getter != NULL;
@@ -155,6 +160,8 @@ class ProxyHandler : public js::DirectProxyHandler {
 
   IndexedPropertyHooks indexed_property_hooks_;
   NamedPropertyHooks named_property_hooks_;
+  // Set to true if this object may have a custom property set on it.
+  bool has_custom_property_;
 };
 
 }  // namespace mozjs
