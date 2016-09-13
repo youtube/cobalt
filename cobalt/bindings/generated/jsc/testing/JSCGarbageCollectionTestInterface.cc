@@ -28,6 +28,8 @@
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
+#include "JSCGarbageCollectionTestInterface.h"
+#include "cobalt/bindings/testing/garbage_collection_test_interface.h"
 
 #include "cobalt/script/javascriptcore/constructor_base.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
@@ -51,6 +53,8 @@
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/ObjectPrototype.h"
 
 namespace {
+using cobalt::bindings::testing::GarbageCollectionTestInterface;
+using cobalt::bindings::testing::JSCGarbageCollectionTestInterface;
 using cobalt::bindings::testing::GarbageCollectionTestInterface;
 using cobalt::bindings::testing::JSCGarbageCollectionTestInterface;
 using cobalt::script::CallbackInterfaceTraits;
@@ -95,6 +99,22 @@ namespace bindings {
 namespace testing {
 
 namespace {
+JSC::JSValue getJSprevious(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
+void setJSprevious(
+    JSC::ExecState* exec,
+    JSC::JSObject* this_object,
+    JSC::JSValue value);
+JSC::JSValue getJSnext(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name);
+void setJSnext(
+    JSC::ExecState* exec,
+    JSC::JSObject* this_object,
+    JSC::JSValue value);
 JSC::EncodedJSValue constructorJSGarbageCollectionTestInterface(JSC::ExecState*);
 
 // These are declared unconditionally, but only defined if needed by the
@@ -119,6 +139,13 @@ const bool s_use_debug_missing_property_handler = true;
 #else
 const bool s_use_debug_missing_property_handler = false;
 #endif
+scoped_refptr<Wrappable> GetOpaqueRootFromWrappable(
+    const scoped_refptr<Wrappable>& wrappable) {
+  GarbageCollectionTestInterface* impl =
+      base::polymorphic_downcast<GarbageCollectionTestInterface*>(wrappable.get());
+  Wrappable* opaque_root = impl->GetHead();
+  return make_scoped_refptr<Wrappable>(opaque_root);
+}
 }  // namespace
 
 // Class that defines a JS Object representing this interface's Interface Object
@@ -396,13 +423,25 @@ JSC::JSObject* JSCGarbageCollectionTestInterface::Prototype::GetInstance(
 // End of JSCGarbageCollectionTestInterface::Prototype class
 
 const JSC::HashTableValue JSCGarbageCollectionTestInterface::property_table_values[] = {
+    { "previous",
+        JSC::DontDelete ,
+        reinterpret_cast<intptr_t>(getJSprevious),
+        reinterpret_cast<intptr_t>(setJSprevious),
+        JSC::NoIntrinsic
+    },
+    { "next",
+        JSC::DontDelete ,
+        reinterpret_cast<intptr_t>(getJSnext),
+        reinterpret_cast<intptr_t>(setJSnext),
+        JSC::NoIntrinsic
+    },
     { 0, 0, 0, 0, static_cast<JSC::Intrinsic>(0) }
 };  // JSCGarbageCollectionTestInterface::property_table_values
 
 // static
 const JSC::HashTable JSCGarbageCollectionTestInterface::property_table_prototype = {
-    2,  // compactSize
-    1,  // compactSizeMask
+    9,  // compactSize
+    7,  // compactSizeMask
     property_table_values,
     NULL  // table allocated at runtime
 };  // JSCGarbageCollectionTestInterface::property_table_prototype
@@ -491,6 +530,7 @@ JSCGarbageCollectionTestInterface::JSCGarbageCollectionTestInterface(
     ScriptObjectRegistry* script_object_registry,
     const scoped_refptr<GarbageCollectionTestInterface>& impl)
     : BaseClass(global_data, structure, script_object_registry, impl) {
+  set_get_opaque_root_function(base::Bind(&GetOpaqueRootFromWrappable));
 }
 
 void JSCGarbageCollectionTestInterface::finishCreation(JSC::JSGlobalData& global_data) {
@@ -605,6 +645,98 @@ bool JSCGarbageCollectionTestInterface::HasOwnPropertyOrPrototypeProperty(
 }
 
 namespace {
+
+JSC::JSValue getJSprevious(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCGarbageCollectionTestInterface", "get previous");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  GarbageCollectionTestInterface* impl =
+      GetWrappableOrSetException<GarbageCollectionTestInterface>(exec_state, slot_base);
+  if (!impl) {
+    return exec_state->exception();
+  }
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      impl->previous());
+  return result;
+}
+
+void setJSprevious(
+    JSC::ExecState* exec_state,
+    JSC::JSObject* this_object,
+    JSC::JSValue value) {
+  TRACE_EVENT0("JSCGarbageCollectionTestInterface", "set previous");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  GarbageCollectionTestInterface* impl =
+      GetWrappableOrSetException<GarbageCollectionTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return;
+  }
+  TypeTraits<scoped_refptr<GarbageCollectionTestInterface> >::ConversionType cobalt_value;
+  FromJSValue(exec_state, value,
+      (kConversionFlagNullable), &exception_state,
+      &cobalt_value);
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return;
+  }
+  // Check if argument conversion raised an exception.
+  if (!exec_state->hadException()) {
+    impl->set_previous(cobalt_value);
+  }
+}
+
+JSC::JSValue getJSnext(
+    JSC::ExecState* exec_state,
+    JSC::JSValue slot_base,
+    JSC::PropertyName property_name) {
+  TRACE_EVENT0("JSCGarbageCollectionTestInterface", "get next");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  GarbageCollectionTestInterface* impl =
+      GetWrappableOrSetException<GarbageCollectionTestInterface>(exec_state, slot_base);
+  if (!impl) {
+    return exec_state->exception();
+  }
+
+  JSC::JSValue result = ToJSValue(
+      global_object,
+      impl->next());
+  return result;
+}
+
+void setJSnext(
+    JSC::ExecState* exec_state,
+    JSC::JSObject* this_object,
+    JSC::JSValue value) {
+  TRACE_EVENT0("JSCGarbageCollectionTestInterface", "set next");
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  JSCExceptionState exception_state(global_object);
+  GarbageCollectionTestInterface* impl =
+      GetWrappableOrSetException<GarbageCollectionTestInterface>(exec_state, this_object);
+  if (!impl) {
+    return;
+  }
+  TypeTraits<scoped_refptr<GarbageCollectionTestInterface> >::ConversionType cobalt_value;
+  FromJSValue(exec_state, value,
+      (kConversionFlagNullable), &exception_state,
+      &cobalt_value);
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return;
+  }
+  // Check if argument conversion raised an exception.
+  if (!exec_state->hadException()) {
+    impl->set_next(cobalt_value);
+  }
+}
 
 JSC::EncodedJSValue constructorJSGarbageCollectionTestInterface(JSC::ExecState* exec_state) {
   JSCGlobalObject* global_object =

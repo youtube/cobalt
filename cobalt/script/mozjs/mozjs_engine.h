@@ -37,6 +37,7 @@ class MozjsEngine : public JavaScriptEngine {
 
  private:
   static JSBool ContextCallback(JSContext* context, unsigned context_op);
+  static void GCCallback(JSRuntime* runtime, JSGCStatus status);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                JSBool is_compartment);
 
