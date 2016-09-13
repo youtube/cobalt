@@ -156,7 +156,7 @@ class FontList : public render_tree::FontProvider,
   // the width has not already been calculated, it lazily generates it.
   float GetEllipsisWidth();
 
-  // Returns the width of the space in the firts font in the font list that
+  // Returns the width of the space in the first font in the font list that
   // supports the space character. In the case where the width has not already
   // been calculated, it lazily generates it.
   float GetSpaceWidth();
@@ -194,9 +194,13 @@ class FontList : public render_tree::FontProvider,
   // |font_| and |character_map_| are non-NULL after this call.
   void RequestFont(size_t index);
 
-  // Lazily generates the ellipsis ellipsis font and ellipsis width. If the info
-  // is already generated, it is immediately returned.
+  // Lazily generates the ellipsis font and ellipsis width. If it is already
+  // generated then it immediately returns.
   void GenerateEllipsisInfo();
+
+  // Lazily generates the space width. If it is already generated then it
+  // immediately returns.
+  void GenerateSpaceWidth();
 
   // The font cache, which provides both font family fonts and character
   // fallback fonts to the font list.
