@@ -278,7 +278,9 @@ SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
 #if SB_IS(PLAYER_PUNCHED_OUT)
 // Sets the player bounds to the given graphics plane coordinates. Will not take
 // effect until the next graphics frame buffer swap. The default bounds for a
-// player are the full screen.
+// player are the full screen. This function should be expected to be called up
+// to once per frame, so implementors should take care to avoid related
+// performance concerns with such frequent calls.
 SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
                                  int x,
                                  int y,
