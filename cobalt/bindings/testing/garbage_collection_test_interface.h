@@ -25,16 +25,47 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+// GarbageCollectionTestInterface maintains strong references from head -> tail,
+// and raw pointers from tail -> head to prevent reference cycles, similar to
+// how references between Nodes are handled in Cobalt.
 class GarbageCollectionTestInterface : public script::Wrappable {
  public:
+  typedef std::vector<GarbageCollectionTestInterface*>
+      GarbageCollectionTestInterfaceVector;
+
   GarbageCollectionTestInterface();
   ~GarbageCollectionTestInterface();
 
-  typedef std::vector<GarbageCollectionTestInterface*>
-      GarbageCollectionTestInterfaceVector;
+  // The current |previous| node will become the tail of its list.
+  void set_previous(
+      const scoped_refptr<GarbageCollectionTestInterface>& previous);
+  scoped_refptr<GarbageCollectionTestInterface> previous() {
+    return make_scoped_refptr(previous_);
+  }
+
+  // The current |next| node will become the head of a new list.
+  void set_next(const scoped_refptr<GarbageCollectionTestInterface>& next);
+  scoped_refptr<GarbageCollectionTestInterface> next() { return next_; }
+
+  // The value of |GetOpaqueRoot| in the .idl. This ensures that nodes in the
+  // same list have the same "root".
+  script::Wrappable* GetHead();
+
   static GarbageCollectionTestInterfaceVector& instances();
 
   DEFINE_WRAPPABLE_TYPE(GarbageCollectionTestInterface);
+
+ private:
+  void MakeHead();
+  void MakeTail();
+
+  static void Join(GarbageCollectionTestInterface* first,
+                   GarbageCollectionTestInterface* second);
+
+  // Raw pointers going upstream, strong pointers going downstream to prevent
+  // reference cycles.
+  GarbageCollectionTestInterface* previous_;
+  scoped_refptr<GarbageCollectionTestInterface> next_;
 };
 
 }  // namespace testing

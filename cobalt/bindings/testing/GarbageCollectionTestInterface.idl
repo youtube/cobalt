@@ -13,6 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-[Constructor]
+[
+  Constructor,
+  // The head of the list is the "opaque root" of all nodes in the list.
+  GetOpaqueRoot=GetHead,
+]
 interface GarbageCollectionTestInterface {
+  // This interface represents a simple linked-list implementation used for
+  // tests around reachability of objects from opaque roots.
+  attribute GarbageCollectionTestInterface? previous;
+  attribute GarbageCollectionTestInterface? next;
 };

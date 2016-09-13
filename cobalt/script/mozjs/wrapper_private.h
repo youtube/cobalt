@@ -34,6 +34,9 @@ namespace mozjs {
 // must be destroyed when its JSObject is garbage collected.
 class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  public:
+  typedef base::Callback<Wrappable*(const scoped_refptr<Wrappable>&)>
+      GetOpaqueRootFunction;
+
   template <typename T>
   scoped_refptr<T> wrappable() const {
     return base::polymorphic_downcast<T*>(wrappable_.get());
@@ -41,14 +44,22 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
 
   JSObject* js_object_proxy() const { return wrapper_proxy_; }
 
-  // Add/Remove a reference to the object. The object will be visited during
-  // garbage collection.
-  void AddReferencedObject(JS::HandleObject referee);
-  void RemoveReferencedObject(JS::HandleObject referee);
+  Wrappable* GetOpaqueRoot() const;
+
+  // Return true if the GC should avoid collecting this wrapper. Note that if
+  // the wrapper is unreachable, it may still be collected.
+  bool ShouldKeepWrapperAliveIfReachable();
 
   // Create a new WrapperPrivate instance and associate it with the wrapper.
+  static void AddPrivateData(
+      JSContext* context, JS::HandleObject wrapper_proxy,
+      const scoped_refptr<Wrappable>& wrappable,
+      const GetOpaqueRootFunction& get_opaque_root_function);
+
   static void AddPrivateData(JSContext* context, JS::HandleObject wrapper_proxy,
-                             const scoped_refptr<Wrappable>& wrappable);
+                             const scoped_refptr<Wrappable>& wrappable) {
+    AddPrivateData(context, wrapper_proxy, wrappable, GetOpaqueRootFunction());
+  }
 
   // Get the WrapperPrivate associated with the given Wrappable. A new JSObject
   // and WrapperPrivate object may be created.
@@ -76,12 +87,14 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
 
  private:
   WrapperPrivate(JSContext* context, const scoped_refptr<Wrappable>& wrappable,
-                 JS::HandleObject wrapper_proxy);
+                 JS::HandleObject wrapper_proxy,
+                 const GetOpaqueRootFunction& get_opaque_root_function);
   ~WrapperPrivate();
 
   JSContext* context_;
   scoped_refptr<Wrappable> wrappable_;
   JS::Heap<JSObject*> wrapper_proxy_;
+  GetOpaqueRootFunction get_opaque_root_function_;
 };
 
 }  // namespace mozjs

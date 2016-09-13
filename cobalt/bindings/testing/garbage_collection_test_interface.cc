@@ -27,7 +27,8 @@ base::LazyInstance<
     instances;
 }  // namespace
 
-GarbageCollectionTestInterface::GarbageCollectionTestInterface() {
+GarbageCollectionTestInterface::GarbageCollectionTestInterface()
+    : previous_(NULL) {
   instances().push_back(this);
 }
 
@@ -38,6 +39,60 @@ GarbageCollectionTestInterface::~GarbageCollectionTestInterface() {
       instances().erase(it);
       break;
     }
+  }
+}
+
+void GarbageCollectionTestInterface::set_previous(
+    const scoped_refptr<GarbageCollectionTestInterface>& previous) {
+  // Make the current previous_ the tail of its own list.
+  if (previous_) {
+    previous_->MakeTail();
+  }
+  Join(previous.get(), this);
+}
+
+void GarbageCollectionTestInterface::set_next(
+    const scoped_refptr<GarbageCollectionTestInterface>& next) {
+  // Make the current next_ the head of its own list.
+  if (next_) {
+    next_->MakeHead();
+  }
+  Join(this, next.get());
+}
+
+// The value of |GetOpaqueRoot| in the .idl. This ensures that nodes in the
+// same list have the same "root".
+script::Wrappable* GarbageCollectionTestInterface::GetHead() {
+  if (previous_) {
+    return previous_->GetHead();
+  }
+  return this;
+}
+
+void GarbageCollectionTestInterface::MakeHead() {
+  if (previous_) {
+    DCHECK(previous_->next_ == this);
+    previous_->next_ = NULL;
+  }
+  previous_ = NULL;
+}
+
+void GarbageCollectionTestInterface::MakeTail() {
+  if (next_) {
+    DCHECK(next_->previous_ == this);
+    next_->previous_ = NULL;
+  }
+  next_ = NULL;
+}
+
+void GarbageCollectionTestInterface::Join(
+    GarbageCollectionTestInterface* first,
+    GarbageCollectionTestInterface* second) {
+  if (first) {
+    first->next_ = second;
+  }
+  if (second) {
+    second->previous_ = first;
   }
 }
 
