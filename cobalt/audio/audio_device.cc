@@ -66,8 +66,11 @@ DestType ConvertSample(SourceType sample);
 
 template <>
 int16 ConvertSample<float, int16>(float sample) {
-  DCHECK(-1.0 <= sample && sample <= 1.0)
-      << "Sample of type float32 must lie on interval [-1.0, 1.0]";
+  if (!(-1.0 <= sample && sample <= 1.0)) {
+    DLOG(WARNING) <<
+      "Sample of type float32 must lie on interval [-1.0, 1.0], got: " <<
+      sample << ".";
+  }
   return static_cast<int16>(sample * kMaxInt16AsFloat32);
 }
 
