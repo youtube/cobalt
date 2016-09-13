@@ -21,11 +21,18 @@ function ConsoleValues() {
   // Default key used for auto-save, or if the user doesn't specify another.
   this.DEFAULT_KEY = 'default';
   // Reduced space-separated list of CVal prefixes to display at start-up.
-  this.DEFAULT_ACTIVE_SET = 'Cobalt DevTools Memory';
+  this.DEFAULT_ACTIVE_SET =
+      'Cobalt DevTools Memory.CPU Memory.MainWebModule ' +
+      'Event.Duration.MainWebModule.KeyDown Renderer.Rasterize.Duration';
+
   var names = window.debugHub.getConsoleValueNames();
   this.allCVals = names.split(' ');
-  this.initActiveSet();
-  this.cvalTree = this.buildTree(this.activeCVals);
+  // If true, we will always pull our list of CVals from
+  // this.DEFAULT_ACTIVE_SET.
+  this.useDefaultActiveSet = true;
+
+  // Do a single update to initialize everything.
+  this.update();
 }
 
 // Console value tree node constructor
@@ -152,6 +159,10 @@ ConsoleValues.prototype.treeToString = function(cvalTree, prefix) {
 // Updates the complete list of registered CVals.
 // If any active CVals are no longer registered, remove them from the active set.
 ConsoleValues.prototype.updateRegistered = function() {
+  if (this.useDefaultActiveSet) {
+    this.setActiveSetToDefault();
+  }
+
   var names = window.debugHub.getConsoleValueNames();
   this.allCVals = names.split(' ');
   for (var i = 0; i < this.activeCVals.length; i++) {
@@ -174,12 +185,6 @@ ConsoleValues.prototype.toString = function() {
   } else {
     return 'No CVals to display.';
   }
-}
-
-// Initializes the active set of CVals from the default.
-ConsoleValues.prototype.initActiveSet = function() {
-  this.activeCVals = [];
-  this.addActive(this.DEFAULT_ACTIVE_SET);
 }
 
 // Lists all registered cvals
@@ -237,6 +242,13 @@ ConsoleValues.prototype.updateActiveSet = function(onMatch, prefixList) {
 
 // Saves the current active set using the web local storage.
 ConsoleValues.prototype.saveActiveSet = function(key) {
+  if (this.useDefaultActiveSet) {
+    // If we are using the default CVals and we go to save our CVal set, lock
+    // it in to the currently displayed list.
+    this.updateRegistered();
+    this.useDefaultActiveSet = false;
+  }
+
   if (!key || !key.length) {
     key = this.DEFAULT_KEY;
   }
@@ -260,6 +272,8 @@ ConsoleValues.prototype.loadActiveSet = function(key) {
   var longKey = this.KEY_PREFIX + '.' + key;
   var value = window.localStorage.getItem(longKey);
   if (value && value.length > 0) {
+    // If we load CVals from disk, we no longer use the default set.
+    this.useDefaultActiveSet = false;
     this.activeCVals = value.split(' ');
     return 'Loaded CVal display set from "' + longKey + '"';
   } else {
@@ -267,10 +281,22 @@ ConsoleValues.prototype.loadActiveSet = function(key) {
   }
 }
 
+// Sets the CVal active set to the set of CVals the match the default prefixes.
+// Any of the registered console values that match one of the space-separated
+ConsoleValues.prototype.setActiveSetToDefault = function() {
+  this.activeCVals = [];
+  this.updateActiveSet(this.addSingleActive, this.DEFAULT_ACTIVE_SET);
+}
+
 // Adds one or more CVals to the active list.
 // Any of the registered console values that match one of the space-separated
 // set of prefixes will be added to the active set.
 ConsoleValues.prototype.addActive = function(prefixesToMatch) {
+  if (this.useDefaultActiveSet) {
+    // If we modify our list of CVals, we should no longer rely on the defaults.
+    this.updateRegistered();
+    this.useDefaultActiveSet = false;
+  }
   return this.updateActiveSet(this.addSingleActive, prefixesToMatch);
 }
 
@@ -278,5 +304,10 @@ ConsoleValues.prototype.addActive = function(prefixesToMatch) {
 // Any of the registered console values that match one of the space-separated
 // set of prefixes will be removed from the active set.
 ConsoleValues.prototype.removeActive = function(prefixesToMatch) {
+  if (this.useDefaultActiveSet) {
+    // If we modify our list of CVals, we should no longer rely on the defaults.
+    this.updateRegistered();
+    this.useDefaultActiveSet = false;
+  }
   return this.updateActiveSet(this.removeSingleActive, prefixesToMatch);
 }
