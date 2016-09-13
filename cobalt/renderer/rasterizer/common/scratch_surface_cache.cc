@@ -58,8 +58,12 @@ ScratchSurfaceCache::Surface* ScratchSurfaceCache::AcquireScratchSurface(
     // If scratch surface caching is disabled, just create and immediately
     // return a surface.
     Surface* surface = delegate_->CreateSurface(size);
-    delegate_->PrepareForUse(surface, size);
-    return surface;
+    if (surface) {
+      delegate_->PrepareForUse(surface, size);
+      return surface;
+    } else {
+      return NULL;
+    }
   }
 
   // First check if we can find a suitable surface in our cache that is at
