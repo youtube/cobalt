@@ -53,7 +53,12 @@ ScratchSurfaceCache::Delegate::Delegate(
 
 common::ScratchSurfaceCache::Surface*
 ScratchSurfaceCache::Delegate::CreateSurface(const math::Size& size) {
-  return new SkiaSurface(create_sk_surface_function_.Run(size), size);
+  SkSurface* sk_surface = create_sk_surface_function_.Run(size);
+  if (sk_surface) {
+    return new SkiaSurface(sk_surface, size);
+  } else {
+    return NULL;
+  }
 }
 
 void ScratchSurfaceCache::Delegate::DestroySurface(
@@ -89,9 +94,13 @@ void ScratchSurfaceCache::Delegate::PrepareForUse(
 }
 
 SkSurface* CachedScratchSurface::GetSurface() {
-  return base::polymorphic_downcast<SkiaSurface*>(
-             common_scratch_surface_.GetSurface())
-      ->sk_surface();
+  if (common_scratch_surface_.GetSurface()) {
+    return base::polymorphic_downcast<SkiaSurface*>(
+               common_scratch_surface_.GetSurface())
+        ->sk_surface();
+  } else {
+    return NULL;
+  }
 }
 
 }  // namespace skia
