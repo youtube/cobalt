@@ -21,6 +21,8 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/storage/virtual_file.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 namespace cobalt {
 namespace storage {
 
@@ -125,6 +127,21 @@ int VirtualFileSystem::Serialize(uint8* buffer, bool dry_run) {
 void VirtualFileSystem::Deserialize(const uint8* buffer, int buffer_size) {
   base::AutoLock lock(file_table_lock_);
   ClearFileTable();
+
+  if (buffer_size < 0) {
+    DLOG(ERROR) << "Buffer size must be positive: "
+                << buffer_size << " < 0.";
+    return;
+  }
+
+  // The size of the buffer must be checked before copying the beginning of it
+  // into a SerializedHeader.
+  if (static_cast<size_t>(buffer_size) < sizeof(SerializedHeader)) {
+    DLOG(ERROR) << "Buffer size " << buffer_size
+                << " is too small to contain a SerializedHeader of size "
+                << sizeof(SerializedHeader) << "; operation aborted.";
+    return;
+  }
 
   // Read in expected number of files
   SerializedHeader header;
