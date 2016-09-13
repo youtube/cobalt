@@ -139,10 +139,12 @@ scoped_refptr<NodeList> Node::child_nodes() const {
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-clonenode
 scoped_refptr<Node> Node::CloneNode(bool deep) const {
   scoped_refptr<Node> new_node = Duplicate();
+  DCHECK(new_node);
   if (deep) {
     scoped_refptr<Node> child = first_child_;
     while (child) {
       scoped_refptr<Node> new_child = child->CloneNode(true);
+      DCHECK(new_child);
       new_node->AppendChild(new_child);
       child = child->next_sibling_;
     }
