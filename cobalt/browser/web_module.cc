@@ -23,6 +23,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
@@ -553,13 +554,6 @@ WebModule::WebModule(
       network_module, window_dimensions, resource_provider, kDOMMaxElementDepth,
       layout_refresh_rate, options);
 
-#if defined(ADDRESS_SANITIZER)
-  // ASAN requires a much bigger stack size.
-  const size_t kAsanAdditionalStackSize = 4 * 1024 * 1024;
-#else
-  const size_t kAsanAdditionalStackSize = 0;
-#endif  // defined(ADDRESS_SANITIZER)
-
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   // Non-optimized builds require a bigger stack size.
   const size_t kBaseStackSize = 2 * 1024 * 1024;
@@ -569,7 +563,7 @@ WebModule::WebModule(
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  size_t stack_size = kBaseStackSize + kAsanAdditionalStackSize;
+  size_t stack_size = kBaseStackSize + base::kAsanAdditionalStackSize;
   thread_.StartWithOptions(
       base::Thread::Options(MessageLoop::TYPE_DEFAULT, stack_size));
   DCHECK(message_loop());

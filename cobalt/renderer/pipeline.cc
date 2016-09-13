@@ -21,6 +21,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
+#include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
@@ -45,7 +46,8 @@ const double kTimeToConvergeInMS = 500.0;
 
 // The stack size to be used for the renderer thread.  This is must be large
 // enough to support recursing on the render tree.
-const int kRendererThreadStackSize = 128 * 1024;
+const int kRendererThreadStackSize =
+    128 * 1024 + base::kAsanAdditionalStackSize;
 
 // How frequently the CVal stats for rasterize current tree timing should
 // update. The time interval is in milliseconds.
