@@ -30,15 +30,10 @@ class FakeExceptionState : public script::ExceptionState {
     dom_exception_ = make_scoped_refptr(
         base::polymorphic_downcast<DOMException*>(exception.get()));
   }
-  void SetSimpleException(
-      script::ExceptionState::SimpleExceptionType simple_exception_type,
-      const std::string& message) OVERRIDE {
-    simple_exception_ = simple_exception_type;
-    simple_exception_message_ = message;
+  void SetSimpleException(script::MessageType /*message_type*/, ...) OVERRIDE {
+    // no-op
   }
   scoped_refptr<DOMException> dom_exception_;
-  script::ExceptionState::SimpleExceptionType simple_exception_;
-  std::string simple_exception_message_;
 };
 }  // namespace
 
