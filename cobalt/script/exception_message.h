@@ -80,7 +80,6 @@ struct ExceptionMessage {
 
 const char* GetExceptionMessageFormat(MessageType message_type);
 SimpleExceptionType GetSimpleExceptionType(MessageType message_type);
-uint16_t GetExceptionMessageArgumentCount(MessageType message_type);
 
 }  // namespace script
 }  // namespace cobalt
