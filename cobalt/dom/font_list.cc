@@ -169,16 +169,7 @@ float FontList::GetEllipsisWidth() {
 }
 
 float FontList::GetSpaceWidth() {
-  // The space width is lazily generated. If it hasn't been set yet, it's time
-  // to set it.
-  if (!is_space_width_set_) {
-    is_space_width_set_ = true;
-    const scoped_refptr<render_tree::Font>& primary_font = GetPrimaryFont();
-    render_tree::GlyphIndex space_glyph =
-        primary_font->GetGlyphForCharacter(' ');
-    space_width_ = primary_font->GetGlyphWidth(space_glyph);
-  }
-
+  GenerateSpaceWidth();
   return space_width_;
 }
 
@@ -292,10 +283,23 @@ void FontList::RequestFont(size_t index) {
 
 void FontList::GenerateEllipsisInfo() {
   if (!is_ellipsis_info_set_) {
-    is_ellipsis_info_set_ = true;
     render_tree::GlyphIndex ellipsis_glyph = render_tree::kInvalidGlyphIndex;
     ellipsis_font_ = GetCharacterFont(GetEllipsisValue(), &ellipsis_glyph);
     ellipsis_width_ = ellipsis_font_->GetGlyphWidth(ellipsis_glyph);
+
+    is_ellipsis_info_set_ = true;
+  }
+}
+
+void FontList::GenerateSpaceWidth() {
+  if (!is_space_width_set_) {
+    const scoped_refptr<render_tree::Font>& primary_font = GetPrimaryFont();
+    render_tree::GlyphIndex space_glyph =
+        primary_font->GetGlyphForCharacter(' ');
+    space_width_ = primary_font->GetGlyphWidth(space_glyph);
+    DCHECK_GT(space_width_, 0);
+
+    is_space_width_set_ = true;
   }
 }
 
