@@ -141,8 +141,41 @@ void DebugTreePrinter::Visit(PunchThroughVideoNode* punch_through) {
   result_ << "\n";
 }
 
+namespace {
+class BrushPrinterVisitor : public render_tree::BrushVisitor {
+ public:
+  BrushPrinterVisitor() {}
+
+  void Visit(
+      const cobalt::render_tree::SolidColorBrush* solid_color_brush) OVERRIDE {
+    UNREFERENCED_PARAMETER(solid_color_brush);
+    brush_type_ = "(SolidColorBrush)";
+  }
+  void Visit(const cobalt::render_tree::LinearGradientBrush*
+                 linear_gradient_brush) OVERRIDE {
+    UNREFERENCED_PARAMETER(linear_gradient_brush);
+    brush_type_ = "(LinearGradientBrush)";
+  }
+  void Visit(const cobalt::render_tree::RadialGradientBrush*
+                 radial_gradient_brush) OVERRIDE {
+    UNREFERENCED_PARAMETER(radial_gradient_brush);
+    brush_type_ = "(RadialGradientBrush)";
+  }
+
+  const std::string& brush_type() const { return brush_type_; }
+
+ private:
+  std::string brush_type_;
+};
+}  // namespace
+
 void DebugTreePrinter::Visit(RectNode* rect) {
-  AddNamedNodeString(rect, "RectNode");
+  AddNamedNodeString(rect, "RectNode ");
+  if (rect->data().background_brush) {
+    BrushPrinterVisitor printer_brush_visitor;
+    rect->data().background_brush->Accept(&printer_brush_visitor);
+    result_ << printer_brush_visitor.brush_type();
+  }
   result_ << "\n";
 }
 
