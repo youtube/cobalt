@@ -51,6 +51,9 @@ MozjsEngine::MozjsEngine() {
   // JSRuntime.
   JS_SetContextCallback(runtime_, &MozjsEngine::ContextCallback);
 
+  // Callback to be called at different points during garbage collection.
+  JS_SetGCCallback(runtime_, &MozjsEngine::GCCallback);
+
   // Callback to be called during garbage collection during the sweep phase.
   JS_SetFinalizeCallback(runtime_, &MozjsEngine::FinalizeCallback);
 }
@@ -87,6 +90,20 @@ JSBool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op) {
     }
   }
   return true;
+}
+
+void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
+  MozjsEngine* engine =
+      static_cast<MozjsEngine*>(JS_GetRuntimePrivate(runtime));
+  for (int i = 0; i < engine->contexts_.size(); ++i) {
+    MozjsGlobalObjectProxy* global_environment =
+        MozjsGlobalObjectProxy::GetFromContext(engine->contexts_[i]);
+    if (status == JSGC_BEGIN) {
+      global_environment->BeginGarbageCollection();
+    } else if (status == JSGC_END) {
+      global_environment->EndGarbageCollection();
+    }
+  }
 }
 
 void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,

@@ -17,6 +17,7 @@
 #include "cobalt/script/mozjs/wrapper_private.h"
 
 #include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/referenced_object_map.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
@@ -25,13 +26,29 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
+Wrappable* WrapperPrivate::GetOpaqueRoot() const {
+  if (!get_opaque_root_function_.is_null()) {
+    return get_opaque_root_function_.Run(wrappable_);
+  }
+  return NULL;
+}
+
+bool WrapperPrivate::ShouldKeepWrapperAliveIfReachable() {
+  ProxyHandler* proxy_handler = base::polymorphic_downcast<ProxyHandler*>(
+      js::GetProxyHandler(wrapper_proxy_));
+  DCHECK(proxy_handler);
+  return proxy_handler->has_custom_property() ||
+         wrappable_->ShouldKeepWrapperAlive();
+}
+
 // static
-void WrapperPrivate::AddPrivateData(JSContext* context,
-                                    JS::HandleObject wrapper_proxy,
-                                    const scoped_refptr<Wrappable>& wrappable) {
+void WrapperPrivate::AddPrivateData(
+    JSContext* context, JS::HandleObject wrapper_proxy,
+    const scoped_refptr<Wrappable>& wrappable,
+    const GetOpaqueRootFunction& get_opaque_root_function) {
   DCHECK(js::IsProxy(wrapper_proxy));
-  WrapperPrivate* private_data =
-      new WrapperPrivate(context, wrappable, wrapper_proxy);
+  WrapperPrivate* private_data = new WrapperPrivate(
+      context, wrappable, wrapper_proxy, get_opaque_root_function);
   JS::RootedObject target_object(context,
                                  js::GetProxyTargetObject(wrapper_proxy));
   JS_SetPrivate(target_object, private_data);
@@ -115,14 +132,30 @@ void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
   }
 }
 
-WrapperPrivate::WrapperPrivate(JSContext* context,
-                               const scoped_refptr<Wrappable>& wrappable,
-                               JS::HandleObject wrapper_proxy)
-    : context_(context), wrappable_(wrappable), wrapper_proxy_(wrapper_proxy) {
+WrapperPrivate::WrapperPrivate(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable,
+    JS::HandleObject wrapper_proxy,
+    const GetOpaqueRootFunction& get_opaque_root_function)
+    : context_(context),
+      wrappable_(wrappable),
+      wrapper_proxy_(wrapper_proxy),
+      get_opaque_root_function_(get_opaque_root_function) {
   DCHECK(js::IsProxy(wrapper_proxy));
+  if (!get_opaque_root_function_.is_null()) {
+    MozjsGlobalObjectProxy* global_environment =
+        MozjsGlobalObjectProxy::GetFromContext(context_);
+    global_environment->opaque_root_tracker()->AddObjectWithOpaqueRoot(this);
+  }
 }
 
-WrapperPrivate::~WrapperPrivate() { wrapper_proxy_ = NULL; }
+WrapperPrivate::~WrapperPrivate() {
+  if (!get_opaque_root_function_.is_null()) {
+    MozjsGlobalObjectProxy* global_environment =
+        MozjsGlobalObjectProxy::GetFromContext(context_);
+    global_environment->opaque_root_tracker()->RemoveObjectWithOpaqueRoot(this);
+  }
+  wrapper_proxy_ = NULL;
+}
 
 }  // namespace mozjs
 }  // namespace script

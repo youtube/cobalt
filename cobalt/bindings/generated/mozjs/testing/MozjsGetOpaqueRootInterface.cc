@@ -84,6 +84,13 @@ namespace testing {
 
 namespace {
 
+Wrappable* GetOpaqueRootFromWrappable(
+    const scoped_refptr<Wrappable>& wrappable) {
+  GetOpaqueRootInterface* impl =
+      base::polymorphic_downcast<GetOpaqueRootInterface*>(wrappable.get());
+  return impl->get_opaque_root_function_name();
+}
+
 class MozjsGetOpaqueRootInterfaceHandler : public ProxyHandler {
  public:
   MozjsGetOpaqueRootInterfaceHandler()
@@ -319,7 +326,9 @@ JSObject* MozjsGetOpaqueRootInterface::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, new_object, prototype, NULL,
                              proxy_handler.Pointer()));
-  WrapperPrivate::AddPrivateData(context, proxy, wrappable);
+  WrapperPrivate::GetOpaqueRootFunction get_root =
+      base::Bind(&GetOpaqueRootFromWrappable);
+  WrapperPrivate::AddPrivateData(context, proxy, wrappable, get_root);
   return proxy;
 }
 
