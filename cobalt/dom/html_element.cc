@@ -394,7 +394,10 @@ float HTMLElement::offset_top() {
   // ancestors.
   scoped_refptr<HTMLElement> offset_parent_html_element =
       offset_parent_element->AsHTMLElement();
-  DCHECK(offset_parent_html_element);
+  if (!offset_parent_html_element) {
+    return layout_boxes_->GetBorderEdgeTop();
+  }
+
   DCHECK(offset_parent_html_element->layout_boxes());
   return layout_boxes_->GetBorderEdgeTop() -
          offset_parent_html_element->layout_boxes()->GetPaddingEdgeTop();
@@ -430,7 +433,10 @@ float HTMLElement::offset_left() {
   // ancestors.
   scoped_refptr<HTMLElement> offset_parent_html_element =
       offset_parent_element->AsHTMLElement();
-  DCHECK(offset_parent_html_element);
+  if (!offset_parent_html_element) {
+    return layout_boxes_->GetBorderEdgeLeft();
+  }
+
   DCHECK(offset_parent_html_element->layout_boxes());
   return layout_boxes_->GetBorderEdgeLeft() -
          offset_parent_html_element->layout_boxes()->GetPaddingEdgeLeft();
@@ -600,8 +606,9 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
   for (Element* element = first_element_child(); element;
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    html_element->InvalidateMatchingRulesRecursively();
+    if (html_element) {
+      html_element->InvalidateMatchingRulesRecursively();
+    }
   }
 
   // Invalidate matching rules on all following siblings if sibling combinators
@@ -610,8 +617,9 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
     for (Element* element = next_element_sibling(); element;
          element = element->next_element_sibling()) {
       HTMLElement* html_element = element->AsHTMLElement();
-      DCHECK(html_element);
-      html_element->InvalidateMatchingRulesRecursively();
+      if (html_element) {
+        html_element->InvalidateMatchingRulesRecursively();
+      }
     }
   }
 }
@@ -646,10 +654,11 @@ void HTMLElement::UpdateComputedStyleRecursively(
   for (Element* element = first_element_child(); element;
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    html_element->UpdateComputedStyleRecursively(
-        css_computed_style_declaration(), root_computed_style,
-        style_change_event_time, is_valid);
+    if (html_element) {
+      html_element->UpdateComputedStyleRecursively(
+          css_computed_style_declaration(), root_computed_style,
+          style_change_event_time, is_valid);
+    }
   }
 }
 
