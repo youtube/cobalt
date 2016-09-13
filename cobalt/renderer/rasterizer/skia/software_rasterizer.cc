@@ -39,8 +39,8 @@ SkSurface* CreateScratchSkSurface(const math::Size& size) {
 
 class SoftwareScratchSurface : public RenderTreeNodeVisitor::ScratchSurface {
  public:
-  explicit SoftwareScratchSurface(const math::Size& size)
-      : surface_(CreateScratchSkSurface(size)) {}
+  explicit SoftwareScratchSurface(SkSurface* sk_surface)
+      : surface_(sk_surface) {}
   SkSurface* GetSurface() OVERRIDE { return surface_.get(); }
 
  private:
@@ -51,8 +51,13 @@ scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
     const math::Size& size) {
   TRACE_EVENT2("cobalt::renderer", "CreateScratchSurface()", "width",
                size.width(), "height", size.height());
-  return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>(
-      new SoftwareScratchSurface(size));
+  SkSurface* sk_surface = CreateScratchSkSurface(size);
+  if (sk_surface) {
+    return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>(
+        new SoftwareScratchSurface(sk_surface));
+  } else {
+    return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>();
+  }
 }
 
 void ReturnScratchImage(SkSurface* surface) { surface->unref(); }

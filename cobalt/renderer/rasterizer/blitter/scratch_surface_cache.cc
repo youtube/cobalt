@@ -55,10 +55,13 @@ ScratchSurfaceCache::Delegate::Delegate(SbBlitterDevice device,
 
 common::ScratchSurfaceCache::Surface*
 ScratchSurfaceCache::Delegate::CreateSurface(const math::Size& size) {
-  return new BlitterSurface(
-      SbBlitterCreateRenderTargetSurface(device_, size.width(), size.height(),
-                                         kSbBlitterSurfaceFormatRGBA8),
-      size);
+  SbBlitterSurface blitter_surface = SbBlitterCreateRenderTargetSurface(
+      device_, size.width(), size.height(), kSbBlitterSurfaceFormatRGBA8);
+  if (SbBlitterIsSurfaceValid(blitter_surface)) {
+    return new BlitterSurface(blitter_surface, size);
+  } else {
+    return NULL;
+  }
 }
 
 void ScratchSurfaceCache::Delegate::DestroySurface(
@@ -80,9 +83,13 @@ void ScratchSurfaceCache::Delegate::PrepareForUse(
 }
 
 SbBlitterSurface CachedScratchSurface::GetSurface() {
-  return base::polymorphic_downcast<BlitterSurface*>(
-             common_scratch_surface_.GetSurface())
-      ->blitter_surface();
+  if (common_scratch_surface_.GetSurface()) {
+    return base::polymorphic_downcast<BlitterSurface*>(
+               common_scratch_surface_.GetSurface())
+        ->blitter_surface();
+  } else {
+    return NULL;
+  }
 }
 
 }  // namespace blitter
