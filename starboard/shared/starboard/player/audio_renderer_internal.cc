@@ -64,6 +64,7 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
   std::vector<float> decoded_audio;
   decoder_->Decode(input_buffer, &decoded_audio);
   if (decoded_audio.empty()) {
+    SB_DLOG(ERROR) << "decoded_audio contains no frames.";
     return;
   }
 
