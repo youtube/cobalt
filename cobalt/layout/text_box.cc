@@ -88,18 +88,18 @@ LayoutUnit TextBox::GetInlineLevelTopMargin() const {
 
 void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   // Anonymous boxes do not have margins.
-  DCHECK_EQ(LayoutUnit(),
-            GetUsedMarginLeftIfNotAuto(computed_style(),
-                                       layout_params.containing_block_size));
-  DCHECK_EQ(LayoutUnit(),
-            GetUsedMarginTopIfNotAuto(computed_style(),
-                                      layout_params.containing_block_size));
-  DCHECK_EQ(LayoutUnit(),
-            GetUsedMarginRightIfNotAuto(computed_style(),
-                                        layout_params.containing_block_size));
-  DCHECK_EQ(LayoutUnit(),
-            GetUsedMarginBottomIfNotAuto(computed_style(),
-                                         layout_params.containing_block_size));
+  DCHECK(GetUsedMarginLeftIfNotAuto(computed_style(),
+                                    layout_params.containing_block_size)
+             ->EqualOrNaN(LayoutUnit()));
+  DCHECK(GetUsedMarginTopIfNotAuto(computed_style(),
+                                   layout_params.containing_block_size)
+             ->EqualOrNaN(LayoutUnit()));
+  DCHECK(GetUsedMarginRightIfNotAuto(computed_style(),
+                                     layout_params.containing_block_size)
+             ->EqualOrNaN(LayoutUnit()));
+  DCHECK(GetUsedMarginBottomIfNotAuto(computed_style(),
+                                      layout_params.containing_block_size)
+             ->EqualOrNaN(LayoutUnit()));
 
   // The non-collapsible content size only needs to be calculated if
   // |non_collapsible_text_width_| is unset. This indicates that either the
@@ -371,8 +371,8 @@ void TextBox::RenderAndAnimateContent(
     return;
   }
 
-  DCHECK_EQ(LayoutUnit(), border_left_width() + padding_left());
-  DCHECK_EQ(LayoutUnit(), border_top_width() + padding_top());
+  DCHECK((border_left_width() + padding_left()).EqualOrNaN(LayoutUnit()));
+  DCHECK((border_top_width() + padding_top()).EqualOrNaN(LayoutUnit()));
 
   // Only add the text node to the render tree if it actually has visible
   // content that isn't simply collapsible whitespace and a font isn't loading.

@@ -260,7 +260,7 @@ void LineBox::CollapseTrailingWhiteSpace() {
   last_non_collapsed_child_box->UpdateSize(layout_params_);
   LayoutUnit collapsed_white_space_width =
       child_box_pre_collapse_width - last_non_collapsed_child_box->width();
-  DCHECK_GT(collapsed_white_space_width, LayoutUnit());
+  DCHECK(collapsed_white_space_width.GreaterThanOrNaN(LayoutUnit()));
 
   shrink_to_fit_width_ -= collapsed_white_space_width;
 }
@@ -274,7 +274,7 @@ void LineBox::RestoreTrailingWhiteSpace() {
   last_non_collapsed_child_box->UpdateSize(layout_params_);
   LayoutUnit restored_white_space_width =
       last_non_collapsed_child_box->width() - child_box_pre_restore_width;
-  DCHECK_GT(restored_white_space_width, LayoutUnit());
+  DCHECK(restored_white_space_width.GreaterThanOrNaN(LayoutUnit()));
 
   shrink_to_fit_width_ += restored_white_space_width;
 }

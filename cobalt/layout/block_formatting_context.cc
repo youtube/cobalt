@@ -100,7 +100,8 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
     // positive adjoining margins.
     // When there is only one negative and one positive margin, that translates
     // to: The margins are summed.
-    DCHECK(collapsing_margin_ >= LayoutUnit() || margin_top >= LayoutUnit());
+    DCHECK(collapsing_margin_.GreaterEqualOrNaN(LayoutUnit()) ||
+           margin_top.GreaterEqualOrNaN(LayoutUnit()));
     collapsed_margin = collapsing_margin_ + margin_top;
   }
 
