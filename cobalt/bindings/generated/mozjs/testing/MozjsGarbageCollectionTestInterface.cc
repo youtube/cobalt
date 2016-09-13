@@ -26,6 +26,8 @@
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
+#include "MozjsGarbageCollectionTestInterface.h"
+#include "cobalt/bindings/testing/garbage_collection_test_interface.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
@@ -46,6 +48,8 @@
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
 namespace {
+using cobalt::bindings::testing::GarbageCollectionTestInterface;
+using cobalt::bindings::testing::MozjsGarbageCollectionTestInterface;
 using cobalt::bindings::testing::GarbageCollectionTestInterface;
 using cobalt::bindings::testing::MozjsGarbageCollectionTestInterface;
 using cobalt::script::CallbackInterfaceTraits;
@@ -83,6 +87,13 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+Wrappable* GetOpaqueRootFromWrappable(
+    const scoped_refptr<Wrappable>& wrappable) {
+  GarbageCollectionTestInterface* impl =
+      base::polymorphic_downcast<GarbageCollectionTestInterface*>(wrappable.get());
+  return impl->GetHead();
+}
 
 class MozjsGarbageCollectionTestInterfaceHandler : public ProxyHandler {
  public:
@@ -188,8 +199,108 @@ InterfaceData* CreateCachedInterfaceData() {
   return interface_data;
 }
 
+JSBool get_previous(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->previous(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_previous(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+  TypeTraits<scoped_refptr<GarbageCollectionTestInterface> >::ConversionType value;
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_previous(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool get_next(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->next(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_next(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+  TypeTraits<scoped_refptr<GarbageCollectionTestInterface> >::ConversionType value;
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_next(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
+  {  // Read/Write property
+      "previous", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_previous),
+      JSOP_WRAPPER(&set_previous),
+  },
+  {  // Read/Write property
+      "next", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_next),
+      JSOP_WRAPPER(&set_next),
+  },
   JS_PS_END
 };
 
@@ -319,7 +430,9 @@ JSObject* MozjsGarbageCollectionTestInterface::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, new_object, prototype, NULL,
                              proxy_handler.Pointer()));
-  WrapperPrivate::AddPrivateData(context, proxy, wrappable);
+  WrapperPrivate::GetOpaqueRootFunction get_root =
+      base::Bind(&GetOpaqueRootFromWrappable);
+  WrapperPrivate::AddPrivateData(context, proxy, wrappable, get_root);
   return proxy;
 }
 

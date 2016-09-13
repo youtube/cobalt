@@ -27,7 +27,8 @@ ProxyHandler::ProxyHandler(const IndexedPropertyHooks& indexed_hooks,
                            const NamedPropertyHooks& named_hooks)
     : js::DirectProxyHandler(NULL),
       indexed_property_hooks_(indexed_hooks),
-      named_property_hooks_(named_hooks) {
+      named_property_hooks_(named_hooks),
+      has_custom_property_(false) {
   // If an interface supports named/indexed properties, they must have a hook to
   // check if the name/index is supported and to enumerate the properties.
   if (supports_named_properties()) {
@@ -178,6 +179,13 @@ bool ProxyHandler::enumerate(JSContext* context, JS::HandleObject proxy,
     named_property_hooks_.enumerate_supported(context, object, &properties);
   }
   return js::DirectProxyHandler::enumerate(context, proxy, properties);
+}
+
+bool ProxyHandler::defineProperty(JSContext* context, JS::HandleObject proxy,
+                                  JS::HandleId id,
+                                  JSPropertyDescriptor* descriptor) {
+  has_custom_property_ = true;
+  return js::DirectProxyHandler::defineProperty(context, proxy, id, descriptor);
 }
 
 bool ProxyHandler::IsSupportedIndex(JSContext* context, JS::HandleObject object,
