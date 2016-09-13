@@ -455,7 +455,7 @@ WrapResult InlineContainerBox::TryWrapAtLastOpportunityWithinWidth(
     WrapOpportunityPolicy wrap_opportunity_policy,
     bool is_line_existence_justified, LayoutUnit available_width,
     bool should_collapse_trailing_white_space) {
-  DCHECK_GT(GetMarginBoxWidth(), available_width);
+  DCHECK(GetMarginBoxWidth().GreaterThanOrNaN(available_width));
 
   // Calculate the available width where the content begins. If the content
   // does not begin within the available width, then the wrap can only occur
