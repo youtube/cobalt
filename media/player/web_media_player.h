@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -20,6 +21,7 @@
 #include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
 #include "media/player/buffered_data_source.h"
+#include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
 // Disable `unreferenced formal parameter` as we have many stub functions in
@@ -30,6 +32,8 @@ namespace media {
 
 class WebMediaPlayer {
  public:
+  typedef base::Callback<void(const gfx::Rect&)> SetBoundsCB;
+
   enum NetworkState {
     kNetworkStateEmpty,
     kNetworkStateIdle,
@@ -183,6 +187,8 @@ class WebMediaPlayer {
       const std::string& /* session_id */) {
     return kMediaKeyExceptionKeySystemNotSupported;
   }
+
+  virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
 
   // Instruct WebMediaPlayer to enter/exit fullscreen.
   virtual void EnterFullscreen() {}

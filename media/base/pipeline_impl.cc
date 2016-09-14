@@ -68,8 +68,10 @@ media::PipelineStatus PipelineStatusNotification::status() {
 }
 
 scoped_refptr<Pipeline> Pipeline::Create(
+    PipelineWindow window,
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     MediaLog* media_log) {
+  UNREFERENCED_PARAMETER(window);
   return new PipelineImpl(message_loop, media_log);
 }
 
