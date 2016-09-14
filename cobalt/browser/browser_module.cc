@@ -119,7 +119,7 @@ BrowserModule::BrowserModule(const GURL& url,
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       media_module_(media::MediaModule::Create(
-          renderer_module_.render_target()->GetSize(),
+          system_window, renderer_module_.render_target()->GetSize(),
           renderer_module_.pipeline()->GetResourceProvider(),
           options.media_module_options)),
       network_module_(&storage_manager_, system_window->event_dispatcher(),

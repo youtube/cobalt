@@ -34,7 +34,7 @@ class BlockLevelReplacedBox : public ReplacedBox {
   BlockLevelReplacedBox(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
-      const ReplaceImageCB& replace_image_cb,
+      const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
       const base::optional<LayoutUnit>& maybe_intrinsic_width,
       const base::optional<LayoutUnit>& maybe_intrinsic_height,
