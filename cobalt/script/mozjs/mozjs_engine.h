@@ -31,7 +31,7 @@ class MozjsEngine : public JavaScriptEngine {
   MozjsEngine();
   ~MozjsEngine() OVERRIDE;
 
-  scoped_refptr<GlobalObjectProxy> CreateGlobalObjectProxy() OVERRIDE;
+  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
 

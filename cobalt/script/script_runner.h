@@ -25,18 +25,18 @@
 namespace cobalt {
 namespace script {
 
-class GlobalObjectProxy;
+class GlobalEnvironment;
 
 // Maintains a handle to a JavaScript global object, and provides an interface
 // to execute JavaScript code.
 class ScriptRunner {
  public:
   static scoped_ptr<ScriptRunner> CreateScriptRunner(
-      const scoped_refptr<GlobalObjectProxy>& global_object_proxy);
+      const scoped_refptr<GlobalEnvironment>& global_environment);
 
   virtual std::string Execute(const std::string& script_utf8,
                               const base::SourceLocation& script_location) = 0;
-  virtual GlobalObjectProxy* GetGlobalObjectProxy() const { return NULL; }
+  virtual GlobalEnvironment* GetGlobalEnvironment() const { return NULL; }
   virtual ~ScriptRunner() {}
 };
 

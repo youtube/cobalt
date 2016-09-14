@@ -27,7 +27,7 @@ DOMSettings::DOMSettings(const int max_dom_element_depth,
                          const scoped_refptr<Window>& window,
                          MediaSource::Registry* media_source_registry,
                          script::JavaScriptEngine* engine,
-                         script::GlobalObjectProxy* global_object_proxy,
+                         script::GlobalEnvironment* global_environment,
                          const Options& options)
     : max_dom_element_depth_(max_dom_element_depth),
       fetcher_factory_(fetcher_factory),
@@ -37,7 +37,7 @@ DOMSettings::DOMSettings(const int max_dom_element_depth,
       array_buffer_cache_(options.array_buffer_cache),
       media_source_registry_(media_source_registry),
       javascript_engine_(engine),
-      global_object_proxy_(global_object_proxy) {
+      global_environment_(global_environment) {
   if (array_buffer_allocator_) {
     DCHECK(options.array_buffer_cache);
   } else {

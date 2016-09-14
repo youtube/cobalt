@@ -26,7 +26,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/location.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/source_code.h"
 #include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/search.h"
@@ -74,7 +74,7 @@ base::LazyInstance<LazySourceLoader> lazy_source_loader =
 
 scoped_refptr<ScriptExecutor> CreateScriptExecutor(
     ElementMapping* element_mapping,
-    const scoped_refptr<script::GlobalObjectProxy>& global_object_proxy) {
+    const scoped_refptr<script::GlobalEnvironment>& global_environment) {
   // This could be NULL if there was an error loading the harness source from
   // disk.
   scoped_refptr<script::SourceCode> source =
@@ -86,11 +86,11 @@ scoped_refptr<ScriptExecutor> CreateScriptExecutor(
   // Create a new ScriptExecutor and bind it to the global object.
   scoped_refptr<ScriptExecutor> script_executor =
       new ScriptExecutor(element_mapping);
-  global_object_proxy->Bind("webdriverExecutor", script_executor);
+  global_environment->Bind("webdriverExecutor", script_executor);
 
   // Evaluate the harness initialization script.
   std::string result;
-  if (!global_object_proxy->EvaluateScript(source, &result)) {
+  if (!global_environment->EvaluateScript(source, &result)) {
     return NULL;
   }
 
@@ -101,7 +101,7 @@ scoped_refptr<ScriptExecutor> CreateScriptExecutor(
 
 void CreateFunction(
     const std::string& function_body,
-    const scoped_refptr<script::GlobalObjectProxy>& global_object_proxy,
+    const scoped_refptr<script::GlobalEnvironment>& global_environment,
     scoped_refptr<ScriptExecutor> script_executor,
     base::optional<script::OpaqueHandleHolder::Reference>* out_opaque_handle) {
   std::string function =
@@ -110,7 +110,7 @@ void CreateFunction(
       script::SourceCode::CreateSourceCode(
           function.c_str(), base::SourceLocation("[webdriver]", 1, 1));
 
-  if (!global_object_proxy->EvaluateScript(
+  if (!global_environment->EvaluateScript(
           function_source, make_scoped_refptr(script_executor.get()),
           out_opaque_handle)) {
     DLOG(ERROR) << "Failed to create Function object";
@@ -157,11 +157,11 @@ std::vector<protocol::Cookie> GetAllCookies(dom::Window* window) {
 WindowDriver::WindowDriver(
     const protocol::WindowId& window_id,
     const base::WeakPtr<dom::Window>& window,
-    const GetGlobalObjectProxyFunction& get_global_object_proxy_function,
+    const GetGlobalEnvironmentFunction& get_global_environment_function,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : window_id_(window_id),
       window_(window),
-      get_global_object_proxy_(get_global_object_proxy_function),
+      get_global_environment_(get_global_environment_function),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
       next_element_id_(0) {
@@ -380,9 +380,9 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
 
-  scoped_refptr<script::GlobalObjectProxy> global_object_proxy =
-      get_global_object_proxy_.Run();
-  DCHECK(global_object_proxy);
+  scoped_refptr<script::GlobalEnvironment> global_environment =
+      get_global_environment_.Run();
+  DCHECK(global_environment);
 
   // Lazily initialize this the first time we need to run a script. It must be
   // initialized on window_message_loop_. It can persist across multiple calls
@@ -390,7 +390,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   // global object, thus with the WindowDriver.
   if (!script_executor_) {
     scoped_refptr<ScriptExecutor> script_executor =
-        CreateScriptExecutor(this, global_object_proxy);
+        CreateScriptExecutor(this, global_environment);
     if (!script_executor) {
       DLOG(INFO) << "Failed to create ScriptExecutor.";
       return CommandResult(protocol::Response::kUnknownError);
@@ -402,7 +402,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   DLOG(INFO) << "Arguments: " << script.argument_array();
 
   base::optional<script::OpaqueHandleHolder::Reference> function_object;
-  CreateFunction(script.function_body(), global_object_proxy,
+  CreateFunction(script.function_body(), global_environment,
                  make_scoped_refptr(script_executor_.get()), &function_object);
   if (!function_object) {
     return CommandResult(protocol::Response::kJavaScriptError);

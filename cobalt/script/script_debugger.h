@@ -25,7 +25,7 @@
 namespace cobalt {
 namespace script {
 
-class GlobalObjectProxy;
+class GlobalEnvironment;
 
 // Engine-independent pure virtual interface to a JavaScript debugger.
 // Used as an opaque interface to the specific debugger implementation,
@@ -78,7 +78,7 @@ class ScriptDebugger {
   // Factory method to create an engine-specific instance. Implementation to be
   // provided by derived class.
   static scoped_ptr<ScriptDebugger> CreateDebugger(
-      GlobalObjectProxy* global_object_proxy, Delegate* delegate);
+      GlobalEnvironment* global_environment, Delegate* delegate);
 
   // Attach/detach the script debugger.
   virtual void Attach() = 0;

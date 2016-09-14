@@ -23,7 +23,7 @@
 
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/type_traits.h"
@@ -88,10 +88,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     JS::RootedObject rooted_object(context);
     bool success = JS_ValueToObject(context, value, rooted_object.address());
     DCHECK(success);
-    MozjsGlobalObjectProxy* global_object_proxy =
-        static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+    MozjsGlobalEnvironment* global_environment =
+        static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
     const WrapperFactory* wrapper_factory =
-        global_object_proxy->wrapper_factory();
+        global_environment->wrapper_factory();
     if (UnionTypeTraitsT1::is_interface_type &&
         wrapper_factory->DoesObjectImplementInterface(
             rooted_object, UnionTypeTraitsT1::GetTypeID())) {
@@ -250,10 +250,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     JS::RootedObject rooted_object(context);
     bool success = JS_ValueToObject(context, value, rooted_object.address());
     DCHECK(success);
-    MozjsGlobalObjectProxy* global_object_proxy =
-        static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+    MozjsGlobalEnvironment* global_environment =
+        static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
     const WrapperFactory* wrapper_factory =
-        global_object_proxy->wrapper_factory();
+        global_environment->wrapper_factory();
     if (UnionTypeTraitsT1::is_interface_type &&
         wrapper_factory->DoesObjectImplementInterface(
             rooted_object, UnionTypeTraitsT1::GetTypeID())) {
@@ -453,10 +453,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     JS::RootedObject rooted_object(context);
     bool success = JS_ValueToObject(context, value, rooted_object.address());
     DCHECK(success);
-    MozjsGlobalObjectProxy* global_object_proxy =
-        static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+    MozjsGlobalEnvironment* global_environment =
+        static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
     const WrapperFactory* wrapper_factory =
-        global_object_proxy->wrapper_factory();
+        global_environment->wrapper_factory();
     if (UnionTypeTraitsT1::is_interface_type &&
         wrapper_factory->DoesObjectImplementInterface(
             rooted_object, UnionTypeTraitsT1::GetTypeID())) {

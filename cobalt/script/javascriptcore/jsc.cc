@@ -21,7 +21,7 @@
 #include "base/string_util.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/script/javascriptcore/jsc_engine.h"
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/standalone_javascript_runner.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 // Error.h needs to be included before JSCTypedArrayStubs.h
@@ -97,11 +97,11 @@ void SetupBindings(JSCGlobalObject* global_object) {
 
 int JSCMain(int argc, char** argv) {
   cobalt::script::StandaloneJavascriptRunner standalone_runner;
-  standalone_runner.global_object_proxy()->EnableEval();
+  standalone_runner.global_environment()->EnableEval();
 
   JSCGlobalObject* global_object =
-      static_cast<JSCGlobalObjectProxy*>(
-          standalone_runner.global_object_proxy().get())
+      static_cast<JSCGlobalEnvironment*>(
+          standalone_runner.global_environment().get())
           ->global_object();
   SetupBindings(global_object);
 
