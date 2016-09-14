@@ -497,6 +497,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
     media_source_->SetPlayer(player_.get());
   }
   node_document()->OnDOMMutation();
+  InvalidateLayoutBoxesFromNodeAndAncestors();
 }
 
 void HTMLMediaElement::ScheduleLoad() {

@@ -18,8 +18,10 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/shell_media_platform_starboard.h"
+#include "cobalt/system_window/starboard/system_window.h"
 #include "media/audio/null_audio_streamer.h"
 #include "media/audio/shell_audio_sink.h"
 #include "media/base/filter_collection.h"
@@ -31,20 +33,26 @@
 #include "media/filters/shell_video_decoder_impl.h"
 #include "media/player/web_media_player_impl.h"
 #include "starboard/media.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 namespace media {
 
 namespace {
 
+using ::base::polymorphic_downcast;
 using ::media::FilterCollection;
 using ::media::MessageLoopFactory;
+using system_window::SystemWindowStarboard;
 
 class MediaModuleStarboard : public MediaModule {
  public:
-  MediaModuleStarboard(render_tree::ResourceProvider* resource_provider,
+  MediaModuleStarboard(system_window::SystemWindow* system_window,
+                       render_tree::ResourceProvider* resource_provider,
                        const Options& options)
-      : options_(options), media_platform_(resource_provider) {}
+      : options_(options),
+        system_window_(system_window),
+        media_platform_(resource_provider) {}
 
   std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system) OVERRIDE {
@@ -76,25 +84,31 @@ class MediaModuleStarboard : public MediaModule {
       DLOG(INFO) << "Use Pulse audio";
       streamer = ::media::ShellAudioStreamer::Instance();
     }
+    SbWindow window = kSbWindowInvalid;
+    if (system_window_) {
+      window = polymorphic_downcast<SystemWindowStarboard*>(system_window_)
+                   ->GetSbWindow();
+    }
     return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
-        client, this, media_platform_.GetVideoFrameProvider(),
+        window, client, this, media_platform_.GetVideoFrameProvider(),
         filter_collection.Pass(), new ::media::ShellAudioSink(streamer),
         message_loop_factory.Pass(), new ::media::MediaLog));
   }
 
  private:
   const Options options_;
+  system_window::SystemWindow* system_window_;
   ::media::ShellMediaPlatformStarboard media_platform_;
 };
 
 }  // namespace
 
 scoped_ptr<MediaModule> MediaModule::Create(
-    const math::Size& output_size,
+    system_window::SystemWindow* system_window, const math::Size& output_size,
     render_tree::ResourceProvider* resource_provider, const Options& options) {
   UNREFERENCED_PARAMETER(output_size);
   return make_scoped_ptr<MediaModule>(
-      new MediaModuleStarboard(resource_provider, options));
+      new MediaModuleStarboard(system_window, resource_provider, options));
 }
 
 }  // namespace media

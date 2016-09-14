@@ -157,8 +157,9 @@ std::string RunWebPlatformTest(const GURL& url) {
 
   // Media module
   render_tree::ResourceProviderStub resource_provider;
-  scoped_ptr<media::MediaModule> media_module(media::MediaModule::Create(
-      kDefaultViewportSize, &resource_provider, media::MediaModule::Options()));
+  scoped_ptr<media::MediaModule> media_module(
+      media::MediaModule::Create(NULL, kDefaultViewportSize, &resource_provider,
+                                 media::MediaModule::Options()));
 
   dom::CspDelegateFactory::GetInstance()->OverrideCreator(
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
