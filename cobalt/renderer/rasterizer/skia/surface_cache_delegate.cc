@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/rasterizer/skia/surface_cache_delegate.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/debug/trace_event.h"
@@ -143,12 +144,24 @@ void SurfaceCacheDelegate::StartRecording(const math::RectF& local_bounds) {
     return;
   }
 
+#if !defined(NDEBUG)
+  // Ensure that the surface we ultimately render to is not larger than what
+  // we are reporting with GetRenderSize().
+  math::Size render_size = GetRenderSize(local_bounds.size());
+  DCHECK_LE(coord_mapping.output_bounds.width(), render_size.width());
+  DCHECK_LE(coord_mapping.output_bounds.height(), render_size.height());
+#endif
+
   // Now create a SkSurface and set it up as the new canvas for our client to
   // target.
   SkSurface* surface = create_sk_surface_function_.Run(
       math::Size(coord_mapping.output_bounds.width(),
                  coord_mapping.output_bounds.height()));
-  CHECK(surface);
+  if (!surface) {
+    LOG(WARNING) << "Could not create a " << coord_mapping.output_bounds.width()
+                 << "x" << coord_mapping.output_bounds.height() << ".";
+    NOTREACHED();
+  }
 
   recording_data_.emplace(*draw_state_, coord_mapping, surface);
 
@@ -189,8 +202,16 @@ void SurfaceCacheDelegate::ReleaseSurface(
 }
 
 math::Size SurfaceCacheDelegate::GetRenderSize(const math::SizeF& local_size) {
-  math::Size size(static_cast<int>(local_size.width() * scale_.x() + 0.5f),
-                  static_cast<int>(local_size.height() * scale_.y() + 0.5f));
+  // All surfaces scaled down would get rendered at their unscaled size, while
+  // surfaces scaled up will be rendered at their scaled size.  This is so that
+  // we can keep in the cache items that have animating scale, as long as the
+  // scale is less than 1 (which is common).  The cost is that we may use more
+  // memory than necessary for these down-scaled surfaces.
+  math::Vector2dF scale(std::max(1.0f, scale_.x()), std::max(1.0f, scale_.y()));
+
+  // Add 2.0f to account for any rounding out that may occur.
+  math::Size size(static_cast<int>(local_size.width() * scale.x() + 2.0f),
+                  static_cast<int>(local_size.height() * scale.y() + 2.0f));
   return size;
 }
 
