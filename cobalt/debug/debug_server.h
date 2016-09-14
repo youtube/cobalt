@@ -34,7 +34,7 @@
 #include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/csp_delegate.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 
@@ -97,7 +97,7 @@ class DebugServer {
   // A command execution function stored in the command registry.
   typedef base::Callback<JSONObject(const JSONObject& params)> Command;
 
-  DebugServer(script::GlobalObjectProxy* global_object_proxy,
+  DebugServer(script::GlobalEnvironment* global_environment,
               const dom::CspDelegate* csp_delegate);
 
   // Adds a client to this object. This object does not own the client, but

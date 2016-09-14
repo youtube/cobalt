@@ -23,7 +23,7 @@
 #include "base/optional.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
@@ -55,7 +55,7 @@ class DebugScriptRunner : public script::Wrappable {
   typedef script::ScriptObject<CreateRemoteObjectCallback>
       CreateRemoteObjectCallbackHolder;
 
-  DebugScriptRunner(script::GlobalObjectProxy* global_object_proxy,
+  DebugScriptRunner(script::GlobalEnvironment* global_environment,
                     const dom::CspDelegate* csp_delegate,
                     const OnEventCallback& on_event_callback);
 
@@ -97,7 +97,7 @@ class DebugScriptRunner : public script::Wrappable {
   void SetEvalAllowedFromCsp();
 
   // No ownership.
-  script::GlobalObjectProxy* global_object_proxy_;
+  script::GlobalEnvironment* global_environment_;
 
   // Non-owned reference to let this object query whether CSP allows eval.
   const dom::CspDelegate* csp_delegate_;

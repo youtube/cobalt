@@ -25,7 +25,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 
@@ -35,8 +35,8 @@
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_callback_interface_holder.h"
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle_holder.h"
 #include "cobalt/script/javascriptcore/jsc_property_enumerator.h"
@@ -55,7 +55,7 @@ namespace {
 using cobalt::bindings::testing::AnonymousNamedIndexedGetterInterface;
 using cobalt::bindings::testing::JSCAnonymousNamedIndexedGetterInterface;
 using cobalt::script::CallbackInterfaceTraits;
-using cobalt::script::GlobalObjectProxy;
+using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptObject;
@@ -75,18 +75,18 @@ using cobalt::script::javascriptcore::JSCCallbackFunctionHolder;
 using cobalt::script::javascriptcore::JSCCallbackInterfaceHolder;
 using cobalt::script::javascriptcore::JSCEngine;
 using cobalt::script::javascriptcore::JSCExceptionState;
+using cobalt::script::javascriptcore::JSCGlobalEnvironment;
+using cobalt::script::javascriptcore::JSCGlobalObject;
 using cobalt::script::javascriptcore::JSCObjectHandle;
 using cobalt::script::javascriptcore::JSCObjectHandleHolder;
-using cobalt::script::javascriptcore::JSCGlobalObject;
-using cobalt::script::javascriptcore::JSCGlobalObjectProxy;
 using cobalt::script::javascriptcore::JSCPropertyEnumerator;
 using cobalt::script::javascriptcore::JSObjectToWrappable;
+using cobalt::script::javascriptcore::PrototypeBase;
 using cobalt::script::javascriptcore::ScriptObjectRegistry;
+using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::ToJSValue;
 using cobalt::script::javascriptcore::ToWTFString;
 using cobalt::script::javascriptcore::TypeTraits;
-using cobalt::script::javascriptcore::PrototypeBase;
-using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::WrapperBase;
 using cobalt::script::javascriptcore::util::HasPropertyOnPrototype;
 using cobalt::script::javascriptcore::util::GetStackTrace;

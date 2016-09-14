@@ -22,20 +22,20 @@ namespace cobalt {
 namespace debug {
 
 DebugServerModule::DebugServerModule(
-    dom::Console* console, script::GlobalObjectProxy* global_object_proxy,
+    dom::Console* console, script::GlobalEnvironment* global_environment,
     RenderOverlay* render_overlay,
     render_tree::ResourceProvider* resource_provider, dom::Window* window) {
-  ConstructionData data(console, global_object_proxy, MessageLoop::current(),
+  ConstructionData data(console, global_environment, MessageLoop::current(),
                         render_overlay, resource_provider, window);
   Build(data);
 }
 
 DebugServerModule::DebugServerModule(
-    dom::Console* console, script::GlobalObjectProxy* global_object_proxy,
+    dom::Console* console, script::GlobalEnvironment* global_environment,
     RenderOverlay* render_overlay,
     render_tree::ResourceProvider* resource_provider, dom::Window* window,
     MessageLoop* message_loop) {
-  ConstructionData data(console, global_object_proxy, message_loop,
+  ConstructionData data(console, global_environment, message_loop,
                         render_overlay, resource_provider, window);
   Build(data);
 }
@@ -63,14 +63,14 @@ void DebugServerModule::BuildInternal(const ConstructionData& data,
                                       base::WaitableEvent* created) {
   DCHECK(MessageLoop::current() == data.message_loop);
   DCHECK(data.console);
-  DCHECK(data.global_object_proxy);
+  DCHECK(data.global_environment);
   DCHECK(data.render_overlay);
   DCHECK(data.resource_provider);
   DCHECK(data.window);
 
   // Create the debug server itself.
   debug_server_.reset(new debug::DebugServer(
-      data.global_object_proxy, data.window->document()->csp_delegate()));
+      data.global_environment, data.window->document()->csp_delegate()));
 
   // Create render layers for the components that need them and chain them
   // together. Ownership will be passed to the component that uses each layer.
@@ -84,7 +84,7 @@ void DebugServerModule::BuildInternal(const ConstructionData& data,
   // Create the script debugger. This is owned by this object, and is
   // accessible to all the debugger components.
   script_debugger_ =
-      script::ScriptDebugger::CreateDebugger(data.global_object_proxy, this);
+      script::ScriptDebugger::CreateDebugger(data.global_environment, this);
 
   // Create the connector object that provides functionality for each
   // component to interact with the debug server, script debugger, etc.

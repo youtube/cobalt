@@ -32,10 +32,10 @@
         'jsc_exception_state.cc',
         'jsc_exception_state.h',
         'jsc_gc_markup_visitor.h',
+        'jsc_global_environment.cc',
+        'jsc_global_environment.h',
         'jsc_global_object.cc',
         'jsc_global_object.h',
-        'jsc_global_object_proxy.cc',
-        'jsc_global_object_proxy.h',
         'jsc_object_handle.h',
         'jsc_object_owner.h',
         'jsc_scope.cc',
@@ -83,6 +83,9 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'numeric_conversion_test.cc',
+      ],
+      'defines': [
+        '__DISABLE_WTF_LOGGING__',
       ],
       'include_dirs': [
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore',

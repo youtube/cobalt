@@ -23,14 +23,14 @@ namespace script {
 
 // Static factory method declared in public interface.
 scoped_ptr<ScriptDebugger> ScriptDebugger::CreateDebugger(
-    GlobalObjectProxy* global_object_proxy, Delegate* delegate) {
+    GlobalEnvironment* global_environment, Delegate* delegate) {
   return scoped_ptr<ScriptDebugger>(
-      new mozjs::MozjsDebugger(global_object_proxy, delegate));
+      new mozjs::MozjsDebugger(global_environment, delegate));
 }
 
 namespace mozjs {
 
-MozjsDebugger::MozjsDebugger(GlobalObjectProxy* global_object_proxy,
+MozjsDebugger::MozjsDebugger(GlobalEnvironment* global_environment,
                              Delegate* delegate) {
   NOTIMPLEMENTED();
 }

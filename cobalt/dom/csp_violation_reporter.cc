@@ -23,7 +23,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/security_policy_violation_event.h"
 #include "cobalt/network/net_poster.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -94,10 +94,10 @@ void GatherSecurityPolicyViolationEventData(
   event_data->effective_directive = violation_info.effective_directive;
   event_data->original_policy = violation_info.header;
 
-  script::GlobalObjectProxy* global_object_proxy =
-      document->html_element_context()->script_runner()->GetGlobalObjectProxy();
+  script::GlobalEnvironment* global_environment =
+      document->html_element_context()->script_runner()->GetGlobalEnvironment();
   const std::vector<script::StackFrame>& stack_trace =
-      global_object_proxy->GetStackTrace(1);
+      global_environment->GetStackTrace(1);
   if (stack_trace.size() > 0) {
     event_data->line_number = stack_trace[0].line_number;
     event_data->column_number = stack_trace[0].column_number;

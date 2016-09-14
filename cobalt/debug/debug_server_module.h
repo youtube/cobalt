@@ -32,7 +32,7 @@
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_debugger.h"
 
 namespace cobalt {
@@ -47,14 +47,14 @@ class DebugServerModule : public script::ScriptDebugger::Delegate {
  public:
   // Construct the debug server on the current message loop.
   DebugServerModule(dom::Console* console,
-                    script::GlobalObjectProxy* global_object_proxy,
+                    script::GlobalEnvironment* global_environment,
                     RenderOverlay* render_overlay,
                     render_tree::ResourceProvider* resource_provider,
                     dom::Window* window);
 
   // Construct the debug server on the specified message loop.
   DebugServerModule(dom::Console* console,
-                    script::GlobalObjectProxy* global_object_proxy,
+                    script::GlobalEnvironment* global_environment,
                     RenderOverlay* render_overlay,
                     render_tree::ResourceProvider* resource_provider,
                     dom::Window* window, MessageLoop* message_loop);
@@ -68,19 +68,19 @@ class DebugServerModule : public script::ScriptDebugger::Delegate {
   // persisted.
   struct ConstructionData {
     ConstructionData(dom::Console* console,
-                     script::GlobalObjectProxy* global_object_proxy,
+                     script::GlobalEnvironment* global_environment,
                      MessageLoop* message_loop, RenderOverlay* render_overlay,
                      render_tree::ResourceProvider* resource_provider,
                      dom::Window* window)
         : console(console),
-          global_object_proxy(global_object_proxy),
+          global_environment(global_environment),
           message_loop(message_loop),
           render_overlay(render_overlay),
           resource_provider(resource_provider),
           window(window) {}
 
     dom::Console* console;
-    script::GlobalObjectProxy* global_object_proxy;
+    script::GlobalEnvironment* global_environment;
     MessageLoop* message_loop;
     RenderOverlay* render_overlay;
     render_tree::ResourceProvider* resource_provider;

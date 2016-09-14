@@ -54,11 +54,11 @@ namespace webdriver {
 // will map to a method on this class.
 class WindowDriver : private ElementMapping {
  public:
-  typedef base::Callback<scoped_refptr<script::GlobalObjectProxy>()>
-      GetGlobalObjectProxyFunction;
+  typedef base::Callback<scoped_refptr<script::GlobalEnvironment>()>
+      GetGlobalEnvironmentFunction;
   WindowDriver(const protocol::WindowId& window_id,
                const base::WeakPtr<dom::Window>& window,
-               const GetGlobalObjectProxyFunction& get_global_object_proxy,
+               const GetGlobalEnvironmentFunction& get_global_environment,
                const scoped_refptr<base::MessageLoopProxy>& message_loop);
   ~WindowDriver();
   const protocol::WindowId& window_id() { return window_id_; }
@@ -137,7 +137,7 @@ class WindowDriver : private ElementMapping {
   base::WeakPtr<dom::Window> window_;
 
   // This must only be accessed from |window_message_loop_|.
-  GetGlobalObjectProxyFunction get_global_object_proxy_;
+  GetGlobalEnvironmentFunction get_global_environment_;
 
   // Helper object for commands that execute script. This must only be accessed
   // from the |window_message_loop_|.
