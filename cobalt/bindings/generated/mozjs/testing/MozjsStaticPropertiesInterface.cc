@@ -23,7 +23,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "MozjsArbitraryInterface.h"
@@ -35,7 +35,7 @@
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
@@ -53,7 +53,7 @@ using cobalt::bindings::testing::MozjsStaticPropertiesInterface;
 using cobalt::bindings::testing::ArbitraryInterface;
 using cobalt::bindings::testing::MozjsArbitraryInterface;
 using cobalt::script::CallbackInterfaceTraits;
-using cobalt::script::GlobalObjectProxy;
+using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptObject;
@@ -71,7 +71,7 @@ using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
-using cobalt::script::mozjs::MozjsGlobalObjectProxy;
+using cobalt::script::mozjs::MozjsGlobalEnvironment;
 using cobalt::script::mozjs::MozjsUserObjectHolder;
 using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
@@ -422,9 +422,9 @@ JSBool staticfcn_staticFunction(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[0]);
-      MozjsGlobalObjectProxy* global_object_proxy =
-          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
+      MozjsGlobalEnvironment* global_environment =
+          static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
       if (arg.isNumber()) {
         return staticfcn_staticFunction2(
                   context, argc, vp);
@@ -443,9 +443,9 @@ JSBool staticfcn_staticFunction(
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       JS::RootedValue arg(context, args[2]);
-      MozjsGlobalObjectProxy* global_object_proxy =
-          static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-      WrapperFactory* wrapper_factory = global_object_proxy->wrapper_factory();
+      MozjsGlobalEnvironment* global_environment =
+          static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
       if (arg.isObject() ? wrapper_factory->DoesObjectImplementInterface(
               JSVAL_TO_OBJECT(arg), base::GetTypeId<ArbitraryInterface>()) :
               false) {
@@ -566,17 +566,17 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 InterfaceData* GetInterfaceData(JSContext* context) {
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // Use the address of the properties definition for this interface as a
   // unique key for looking up the InterfaceData for this interface.
   intptr_t key = reinterpret_cast<intptr_t>(&own_properties);
-  InterfaceData* interface_data = global_object_proxy->GetInterfaceData(key);
+  InterfaceData* interface_data = global_environment->GetInterfaceData(key);
   if (!interface_data) {
     interface_data = CreateCachedInterfaceData();
     DCHECK(interface_data);
-    global_object_proxy->CacheInterfaceData(key, interface_data);
-    DCHECK_EQ(interface_data, global_object_proxy->GetInterfaceData(key));
+    global_environment->CacheInterfaceData(key, interface_data);
+    DCHECK_EQ(interface_data, global_environment->GetInterfaceData(key));
   }
   return interface_data;
 }
@@ -586,10 +586,10 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 // static
 JSObject* MozjsStaticPropertiesInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
-  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  DCHECK(MozjsGlobalEnvironment::GetFromContext(context));
   JS::RootedObject global_object(
       context,
-      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
+      MozjsGlobalEnvironment::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -608,10 +608,10 @@ JSObject* MozjsStaticPropertiesInterface::CreateProxy(
 //static
 const JSClass* MozjsStaticPropertiesInterface::PrototypeClass(
       JSContext* context) {
-  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  DCHECK(MozjsGlobalEnvironment::GetFromContext(context));
   JS::RootedObject global_object(
       context,
-      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
+      MozjsGlobalEnvironment::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));

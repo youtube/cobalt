@@ -16,7 +16,7 @@
 
 #include "cobalt/script/execution_state.h"
 
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 
 namespace cobalt {
 namespace script {
@@ -26,25 +26,24 @@ namespace {
 class ExecutionStateImpl : public ExecutionState {
  public:
   explicit ExecutionStateImpl(
-      const scoped_refptr<GlobalObjectProxy>& global_object_proxy)
-      : global_object_proxy_(global_object_proxy) {}
+      const scoped_refptr<GlobalEnvironment>& global_environment)
+      : global_environment_(global_environment) {}
 
   std::string GetStackTrace() const OVERRIDE;
 
  private:
-  scoped_refptr<GlobalObjectProxy> global_object_proxy_;
+  scoped_refptr<GlobalEnvironment> global_environment_;
 };
 
 std::string ExecutionStateImpl::GetStackTrace() const {
-  return StackTraceToString(global_object_proxy_->GetStackTrace());
+  return StackTraceToString(global_environment_->GetStackTrace());
 }
 
 }  // namespace
 
 scoped_ptr<ExecutionState> ExecutionState::CreateExecutionState(
-    const scoped_refptr<GlobalObjectProxy>& global_object_proxy) {
-  return scoped_ptr<ExecutionState>(
-      new ExecutionStateImpl(global_object_proxy));
+    const scoped_refptr<GlobalEnvironment>& global_environment) {
+  return scoped_ptr<ExecutionState>(new ExecutionStateImpl(global_environment));
 }
 
 }  // namespace script

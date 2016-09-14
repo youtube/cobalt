@@ -19,7 +19,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/referenced_object_map.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
@@ -55,8 +55,8 @@ class MozjsUserObjectHolder
     DLOG_IF(WARNING, !owned_object)
         << "Owned object has been garbage collected.";
     if (owned_object) {
-      MozjsGlobalObjectProxy* global_environment =
-          MozjsGlobalObjectProxy::GetFromContext(context_);
+      MozjsGlobalEnvironment* global_environment =
+          MozjsGlobalEnvironment::GetFromContext(context_);
       intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->AddReferencedObject(
           key, owned_object);
@@ -67,8 +67,8 @@ class MozjsUserObjectHolder
     // |owner| may be in the process of being destructed, so don't use it.
     JS::RootedObject owned_object(context_, js_object());
     if (owned_object) {
-      MozjsGlobalObjectProxy* global_environment =
-          MozjsGlobalObjectProxy::GetFromContext(context_);
+      MozjsGlobalEnvironment* global_environment =
+          MozjsGlobalEnvironment::GetFromContext(context_);
       intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->RemoveReferencedObject(
           key, owned_object);

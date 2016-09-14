@@ -20,7 +20,7 @@
 #include "base/file_path.h"
 #include "base/string_util.h"
 #include "cobalt/base/wrap_main.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/source_code.h"
 #include "cobalt/script/standalone_javascript_runner.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -62,12 +62,12 @@ void SetupBindings(JSContext* context, JSObject* global_object) {
 
 int MozjsMain(int argc, char** argv) {
   cobalt::script::StandaloneJavascriptRunner standalone_runner;
-  MozjsGlobalObjectProxy* global_object_environment =
-      static_cast<MozjsGlobalObjectProxy*>(
-          standalone_runner.global_object_proxy().get());
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(
+          standalone_runner.global_environment().get());
 
-  SetupBindings(global_object_environment->context(),
-                global_object_environment->global_object());
+  SetupBindings(global_environment->context(),
+                global_environment->global_object());
 
   if (argc > 1) {
     // Command line arguments will be flag-value pairs of the form
@@ -89,8 +89,7 @@ int MozjsMain(int argc, char** argv) {
 
         // Execute the script and get the results of execution.
         std::string result;
-        bool success =
-            global_object_environment->EvaluateScript(source, &result);
+        bool success = global_environment->EvaluateScript(source, &result);
         // Echo the results to stdout.
         if (!success) {
           std::cout << "Exception: ";

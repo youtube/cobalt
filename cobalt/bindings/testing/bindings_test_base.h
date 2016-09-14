@@ -22,7 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -48,19 +48,19 @@ class BindingsTestBase : public ::testing::Test {
   BindingsTestBase()
       : environment_settings_(new script::EnvironmentSettings),
         engine_(script::JavaScriptEngine::CreateEngine()),
-        global_object_proxy_(engine_->CreateGlobalObjectProxy()),
+        global_environment_(engine_->CreateGlobalEnvironment()),
         window_(new Window()) {
-    global_object_proxy_->CreateGlobalObject(window_,
-                                             environment_settings_.get());
+    global_environment_->CreateGlobalObject(window_,
+                                            environment_settings_.get());
   }
 
   explicit BindingsTestBase(const scoped_refptr<Window> window)
       : environment_settings_(new script::EnvironmentSettings),
         engine_(script::JavaScriptEngine::CreateEngine()),
-        global_object_proxy_(engine_->CreateGlobalObjectProxy()),
+        global_environment_(engine_->CreateGlobalEnvironment()),
         window_(window) {
-    global_object_proxy_->CreateGlobalObject(window_,
-                                             environment_settings_.get());
+    global_environment_->CreateGlobalObject(window_,
+                                            environment_settings_.get());
   }
 
   bool EvaluateScript(const std::string& script,
@@ -68,7 +68,7 @@ class BindingsTestBase : public ::testing::Test {
     scoped_refptr<script::SourceCode> source =
         script::SourceCode::CreateSourceCode(
             script, base::SourceLocation("[object BindingsTestBase]", 1, 1));
-    return global_object_proxy_->EvaluateScript(source, out_result);
+    return global_environment_->EvaluateScript(source, out_result);
   }
 
   void CollectGarbage() { engine_->CollectGarbage(); }
@@ -76,7 +76,7 @@ class BindingsTestBase : public ::testing::Test {
  protected:
   const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   const scoped_ptr<script::JavaScriptEngine> engine_;
-  const scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
+  const scoped_refptr<script::GlobalEnvironment> global_environment_;
   const scoped_refptr<Window> window_;
 };
 
@@ -88,8 +88,8 @@ class InterfaceBindingsTest : public BindingsTestBase {
   InterfaceBindingsTest()
       // Use StrictMock so TESTING will fail if unexpected method is called.
       : test_mock_(new ::testing::StrictMock<MockT>()) {
-    global_object_proxy_->Bind("test",
-                               make_scoped_refptr<BaseClass>((test_mock_)));
+    global_environment_->Bind("test",
+                              make_scoped_refptr<BaseClass>((test_mock_)));
   }
 
   MockT& test_mock() { return *test_mock_.get(); }

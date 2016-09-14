@@ -33,7 +33,7 @@ namespace network {
 class NetworkModule;
 }
 namespace script {
-class GlobalObjectProxy;
+class GlobalEnvironment;
 class JavaScriptEngine;
 }
 namespace dom {
@@ -63,7 +63,7 @@ class DOMSettings : public script::EnvironmentSettings {
               const scoped_refptr<Window>& window,
               MediaSource::Registry* media_source_registry,
               script::JavaScriptEngine* engine,
-              script::GlobalObjectProxy* global_object_proxy,
+              script::GlobalEnvironment* global_environment_proxy,
               const Options& options = Options());
   ~DOMSettings() OVERRIDE;
 
@@ -89,8 +89,8 @@ class DOMSettings : public script::EnvironmentSettings {
   script::JavaScriptEngine* javascript_engine() const {
     return javascript_engine_;
   }
-  script::GlobalObjectProxy* global_object() const {
-    return global_object_proxy_;
+  script::GlobalEnvironment* global_environment() const {
+    return global_environment_;
   }
   MediaSource::Registry* media_source_registry() const {
     return media_source_registry_;
@@ -108,7 +108,7 @@ class DOMSettings : public script::EnvironmentSettings {
   ArrayBuffer::Cache* array_buffer_cache_;
   MediaSource::Registry* media_source_registry_;
   script::JavaScriptEngine* javascript_engine_;
-  script::GlobalObjectProxy* global_object_proxy_;
+  script::GlobalEnvironment* global_environment_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
 };

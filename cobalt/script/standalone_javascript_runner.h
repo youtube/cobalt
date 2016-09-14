@@ -20,7 +20,7 @@
 
 #include "base/file_path.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/wrappable.h"
 
@@ -37,8 +37,8 @@ class StandaloneJavascriptRunner {
   explicit StandaloneJavascriptRunner(
       const scoped_refptr<GlobalInterface>& global_object) {
     CommonInitialization();
-    global_object_proxy_->CreateGlobalObject(global_object,
-                                             environment_settings_.get());
+    global_environment_->CreateGlobalObject(global_object,
+                                            environment_settings_.get());
   }
 
   // Executes input from stdin and echoes the result to stdout. Loops until EOF
@@ -48,8 +48,8 @@ class StandaloneJavascriptRunner {
   // Read the file from disk and execute the script. Echos the result to stdout.
   void ExecuteFile(const FilePath& file);
 
-  const scoped_refptr<GlobalObjectProxy>& global_object_proxy() const {
-    return global_object_proxy_;
+  const scoped_refptr<GlobalEnvironment>& global_environment() const {
+    return global_environment_;
   }
 
  private:
@@ -59,7 +59,7 @@ class StandaloneJavascriptRunner {
 
   scoped_ptr<JavaScriptEngine> engine_;
   scoped_ptr<EnvironmentSettings> environment_settings_;
-  scoped_refptr<GlobalObjectProxy> global_object_proxy_;
+  scoped_refptr<GlobalEnvironment> global_environment_;
 };
 }  // namespace script
 }  // namespace cobalt

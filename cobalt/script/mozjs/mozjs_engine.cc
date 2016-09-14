@@ -19,7 +19,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
@@ -63,9 +63,9 @@ MozjsEngine::~MozjsEngine() {
   JS_DestroyRuntime(runtime_);
 }
 
-scoped_refptr<GlobalObjectProxy> MozjsEngine::CreateGlobalObjectProxy() {
+scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new MozjsGlobalObjectProxy(runtime_);
+  return new MozjsGlobalEnvironment(runtime_);
 }
 
 void MozjsEngine::CollectGarbage() {
@@ -96,8 +96,8 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
   MozjsEngine* engine =
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(runtime));
   for (int i = 0; i < engine->contexts_.size(); ++i) {
-    MozjsGlobalObjectProxy* global_environment =
-        MozjsGlobalObjectProxy::GetFromContext(engine->contexts_[i]);
+    MozjsGlobalEnvironment* global_environment =
+        MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
     if (status == JSGC_BEGIN) {
       global_environment->BeginGarbageCollection();
     } else if (status == JSGC_END) {
@@ -113,8 +113,8 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
   DCHECK(engine->thread_checker_.CalledOnValidThread());
   if (status == JSFINALIZE_GROUP_START) {
     for (int i = 0; i < engine->contexts_.size(); ++i) {
-      MozjsGlobalObjectProxy* global_environment =
-          MozjsGlobalObjectProxy::GetFromContext(engine->contexts_[i]);
+      MozjsGlobalEnvironment* global_environment =
+          MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
       global_environment->DoSweep();
     }
   }

@@ -53,7 +53,7 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
 
   // Keep this instance alive using PreventGarbageCollection
   ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
-  global_object_proxy_->PreventGarbageCollection(
+  global_environment_->PreventGarbageCollection(
       make_scoped_refptr<script::Wrappable>(
           GarbageCollectionTestInterface::instances()[0]));
   // Remove the only reference to this object from JavaScript.
@@ -64,7 +64,7 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
   ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
 
   // Allow this object to be garbage collected once more.
-  global_object_proxy_->AllowGarbageCollection(
+  global_environment_->AllowGarbageCollection(
       make_scoped_refptr<script::Wrappable>(
           GarbageCollectionTestInterface::instances()[0]));
 

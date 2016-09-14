@@ -16,7 +16,7 @@
 
 #include "cobalt/script/mozjs/wrapper_private.h"
 
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/referenced_object_map.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -123,8 +123,8 @@ void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
     JS_CallHeapObjectTracer(trace, &wrapper_private->wrapper_proxy_,
                             "WrapperPrivate::Trace");
 
-    MozjsGlobalObjectProxy* global_environment =
-        MozjsGlobalObjectProxy::GetFromContext(wrapper_private->context_);
+    MozjsGlobalEnvironment* global_environment =
+        MozjsGlobalEnvironment::GetFromContext(wrapper_private->context_);
     intptr_t key = ReferencedObjectMap::GetKeyForWrappable(
         wrapper_private->wrappable_.get());
     global_environment->referenced_objects()->TraceReferencedObjects(trace,
@@ -142,16 +142,16 @@ WrapperPrivate::WrapperPrivate(
       get_opaque_root_function_(get_opaque_root_function) {
   DCHECK(js::IsProxy(wrapper_proxy));
   if (!get_opaque_root_function_.is_null()) {
-    MozjsGlobalObjectProxy* global_environment =
-        MozjsGlobalObjectProxy::GetFromContext(context_);
+    MozjsGlobalEnvironment* global_environment =
+        MozjsGlobalEnvironment::GetFromContext(context_);
     global_environment->opaque_root_tracker()->AddObjectWithOpaqueRoot(this);
   }
 }
 
 WrapperPrivate::~WrapperPrivate() {
   if (!get_opaque_root_function_.is_null()) {
-    MozjsGlobalObjectProxy* global_environment =
-        MozjsGlobalObjectProxy::GetFromContext(context_);
+    MozjsGlobalEnvironment* global_environment =
+        MozjsGlobalEnvironment::GetFromContext(context_);
     global_environment->opaque_root_tracker()->RemoveObjectWithOpaqueRoot(this);
   }
   wrapper_proxy_ = NULL;
