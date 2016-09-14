@@ -49,10 +49,18 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     # set to 1 in the environment.
     use_asan_default = self.asan_default if not use_tsan and configuration in (
         Configs.DEBUG, Configs.DEVEL) else 0
+
+    # Set environmental variable to enable_mtm: 'USE_MTM'
+    # Terminal: `export {varname}={value}`
+    # Note: must also edit gyp_configuration.gypi per internal instructions.
+    mtm_on_by_default = 0
+    mtm_enabled = int(os.environ.get('USE_MTM', mtm_on_by_default))
+
     variables.update({
         'clang': 1,
         'use_asan': int(os.environ.get('USE_ASAN', use_asan_default)),
         'use_tsan': use_tsan,
+        'enable_mtm': mtm_enabled
     })
 
     if variables.get('use_asan') == 1 and variables.get('use_tsan') == 1:
