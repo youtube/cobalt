@@ -85,6 +85,15 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 {% endfor %}
 {% endif %}
 {% endblock enumeration_declarations %}
+{% block top_level_unnamed_namespace %}
+{% if is_global_interface %}
+JSObject* DummyFunctor(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  NOTREACHED();
+  return NULL;
+}
+{% endif %}
+{% endblock top_level_unnamed_namespace %}
 
 {% block implementation %}
 namespace {
@@ -796,7 +805,6 @@ JSObject* {{binding_class}}::CreateProxy(
   global_object_proxy->SetGlobalObjectProxyAndWrapper(proxy, wrappable);
   return proxy;
 }
-
 {% else %}
 // static
 JSObject* {{binding_class}}::CreateProxy(
@@ -903,9 +911,13 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 {% if interface.conditional %}
 #if defined({{interface.conditional}})
 {% endif %}
-  {# Don't register a create method for the global interface, since we do not
-     create a wrapper for it directly. #}
-  {% if interface.name != impl_class %}
+  {# Pass in a dummy CreateProxy for global interface #}
+  {% if interface.name == impl_class %}
+  wrapper_factory->RegisterWrappableType(
+      {{interface.name}}::{{interface.name}}WrappableType(),
+      base::Bind(DummyFunctor),
+      base::Bind(Mozjs{{interface.name}}::PrototypeClass));
+  {% else %}
   wrapper_factory->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
       base::Bind(Mozjs{{interface.name}}::CreateProxy),

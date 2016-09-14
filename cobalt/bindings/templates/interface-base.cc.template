@@ -75,6 +75,8 @@ using cobalt::script::Wrappable;
 {% block enumeration_declarations %}
 {% endblock enumeration_declarations %}
 {% endif %}
+{% block top_level_unnamed_namespace %}
+{% endblock top_level_unnamed_namespace %}
 }  // namespace
 
 namespace cobalt {
