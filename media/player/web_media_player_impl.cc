@@ -114,6 +114,7 @@ static void LogMediaSourceError(const scoped_refptr<MediaLog>& media_log,
 }
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
+    PipelineWindow window,
     WebMediaPlayerClient* client,
     WebMediaPlayerDelegate* delegate,
     const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
@@ -141,7 +142,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
       message_loop_factory_->GetMessageLoop(MessageLoopFactory::kPipeline);
-  pipeline_ = Pipeline::Create(pipeline_message_loop, media_log_);
+  pipeline_ = Pipeline::Create(window, pipeline_message_loop, media_log_);
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
@@ -844,6 +845,12 @@ WebMediaPlayer::MediaKeyException WebMediaPlayerImpl::CancelKeyRequest(
       CancelKeyRequestInternal(key_system, session_id);
   ReportMediaKeyExceptionToUMA("cancelKeyRequest", key_system, e);
   return e;
+}
+
+WebMediaPlayerImpl::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
+  // |pipeline_| is always valid during WebMediaPlayerImpl's life time.  It is
+  // also reference counted so it lives after WebMediaPlayerImpl is destroyed.
+  return pipeline_->GetSetBoundsCB();
 }
 
 WebMediaPlayer::MediaKeyException WebMediaPlayerImpl::CancelKeyRequestInternal(
