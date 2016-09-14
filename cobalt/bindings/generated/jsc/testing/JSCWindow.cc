@@ -25,7 +25,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "JSCAnonymousIndexedGetterInterface.h"
@@ -125,8 +125,8 @@
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_callback_interface_holder.h"
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle_holder.h"
 #include "cobalt/script/javascriptcore/type_traits.h"
@@ -242,7 +242,7 @@ using cobalt::bindings::testing::TargetInterface;
 using cobalt::bindings::testing::UnionTypesInterface;
 using cobalt::bindings::testing::Window;
 using cobalt::script::CallbackInterfaceTraits;
-using cobalt::script::GlobalObjectProxy;
+using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptObject;
@@ -262,17 +262,17 @@ using cobalt::script::javascriptcore::JSCCallbackFunctionHolder;
 using cobalt::script::javascriptcore::JSCCallbackInterfaceHolder;
 using cobalt::script::javascriptcore::JSCEngine;
 using cobalt::script::javascriptcore::JSCExceptionState;
+using cobalt::script::javascriptcore::JSCGlobalEnvironment;
+using cobalt::script::javascriptcore::JSCGlobalObject;
 using cobalt::script::javascriptcore::JSCObjectHandle;
 using cobalt::script::javascriptcore::JSCObjectHandleHolder;
-using cobalt::script::javascriptcore::JSCGlobalObject;
-using cobalt::script::javascriptcore::JSCGlobalObjectProxy;
 using cobalt::script::javascriptcore::JSObjectToWrappable;
+using cobalt::script::javascriptcore::PrototypeBase;
 using cobalt::script::javascriptcore::ScriptObjectRegistry;
+using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::ToJSValue;
 using cobalt::script::javascriptcore::ToWTFString;
 using cobalt::script::javascriptcore::TypeTraits;
-using cobalt::script::javascriptcore::PrototypeBase;
-using cobalt::script::javascriptcore::ThreadLocalHashTable;
 using cobalt::script::javascriptcore::WrapperBase;
 using cobalt::script::javascriptcore::util::HasPropertyOnPrototype;
 using cobalt::script::javascriptcore::util::GetStackTrace;
@@ -1192,17 +1192,17 @@ bool OnSetMissingProperty(JSC::JSCell* cell, JSC::ExecState* exec_state,
 namespace script {
 
 template<>
-void GlobalObjectProxy::CreateGlobalObject<Window>(
+void GlobalEnvironment::CreateGlobalObject<Window>(
     const scoped_refptr<Window>& global_interface,
     EnvironmentSettings* environment_settings) {
-  JSCGlobalObjectProxy* jsc_global_object_proxy =
-      base::polymorphic_downcast<JSCGlobalObjectProxy*>(this);
-  JSCEngine* jsc_engine = jsc_global_object_proxy->engine();
+  JSCGlobalEnvironment* jsc_global_environment =
+      base::polymorphic_downcast<JSCGlobalEnvironment*>(this);
+  JSCEngine* jsc_engine = jsc_global_environment->engine();
 
   JSCGlobalObject* global_object = JSCWindow::Create(
       global_interface, environment_settings,
       jsc_engine->global_data(), jsc_engine->script_object_registry());
-  jsc_global_object_proxy->SetGlobalObject(global_object);
+  jsc_global_environment->SetGlobalObject(global_object);
 }
 
 // MSVS compiler does not need this explicit instantiation, and generates a
@@ -1212,7 +1212,7 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
 // This is needed to prevent link errors when trying to resolve the template
 // instantiation.
 template
-void GlobalObjectProxy::CreateGlobalObject<Window>(
+void GlobalEnvironment::CreateGlobalObject<Window>(
     const scoped_refptr<Window>& global_interface,
     EnvironmentSettings* environment_settings);
 #endif

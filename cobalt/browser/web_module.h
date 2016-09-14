@@ -47,7 +47,7 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/webdriver/session_driver.h"

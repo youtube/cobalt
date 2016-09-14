@@ -22,7 +22,7 @@
 
 #include "cobalt/bindings/testing/global_interface_parent.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 
 namespace cobalt {
 namespace bindings {

@@ -22,7 +22,7 @@
 namespace cobalt {
 namespace script {
 
-class GlobalObjectProxy;
+class GlobalEnvironment;
 
 class JavaScriptEngine {
  public:
@@ -32,7 +32,7 @@ class JavaScriptEngine {
   static scoped_ptr<JavaScriptEngine> CreateEngine();
 
   // Create a new JavaScript global object proxy.
-  virtual scoped_refptr<GlobalObjectProxy> CreateGlobalObjectProxy() = 0;
+  virtual scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() = 0;
 
   // Kick off the engine's garbage collection synchronously.
   virtual void CollectGarbage() = 0;

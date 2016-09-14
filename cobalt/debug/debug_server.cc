@@ -37,10 +37,10 @@ void DebugServer::AddClient(DebugClient* client) { clients_.insert(client); }
 
 void DebugServer::RemoveClient(DebugClient* client) { clients_.erase(client); }
 
-DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy,
+DebugServer::DebugServer(script::GlobalEnvironment* global_environment,
                          const dom::CspDelegate* csp_delegate)
     : ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(new DebugScriptRunner(
-          global_object_proxy, csp_delegate,
+          global_environment, csp_delegate,
           base::Bind(&DebugServer::OnEventInternal, base::Unretained(this))))),
       message_loop_(MessageLoop::current()),
       is_paused_(false),

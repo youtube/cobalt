@@ -81,10 +81,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   *out_callback_function = MozjsCallbackHolderClass(
-      object, context, global_object_proxy->wrapper_factory());
+      object, context, global_environment->wrapper_factory());
 }
 
 }  // namespace mozjs

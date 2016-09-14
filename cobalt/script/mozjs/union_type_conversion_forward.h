@@ -22,7 +22,6 @@
 #define COBALT_SCRIPT_MOZJS_UNION_TYPE_CONVERSION_FORWARD_H_
 
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/type_traits.h"

@@ -43,7 +43,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 {% for include in implementation_includes %}
@@ -65,7 +65,7 @@ using {{used_class.fully_qualified_name}};
 {% endif %}
 {% endfor %}
 using cobalt::script::CallbackInterfaceTraits;
-using cobalt::script::GlobalObjectProxy;
+using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptObject;
@@ -95,7 +95,7 @@ namespace {{component}} {
 namespace script {
 
 template<>
-void GlobalObjectProxy::CreateGlobalObject<{{impl_class}}>(
+void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
     const scoped_refptr<{{impl_class}}>& global_interface,
     EnvironmentSettings* environment_settings) {
 {% block create_global_object_impl %}
@@ -109,7 +109,7 @@ void GlobalObjectProxy::CreateGlobalObject<{{impl_class}}>(
 // This is needed to prevent link errors when trying to resolve the template
 // instantiation.
 template
-void GlobalObjectProxy::CreateGlobalObject<{{impl_class}}>(
+void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
     const scoped_refptr<{{impl_class}}>& global_interface,
     EnvironmentSettings* environment_settings);
 #endif

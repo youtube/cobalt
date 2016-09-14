@@ -19,11 +19,6 @@
 
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/bindings/testing/window.h"
-#include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_object_proxy.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/source_code.h"
-
 #include "cobalt/script/standalone_javascript_runner.h"
 
 using cobalt::bindings::testing::Window;

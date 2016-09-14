@@ -25,7 +25,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -192,10 +192,10 @@ void HTMLImageElement::PreventGarbageCollection() {
   if (prevent_garbage_collection_count_++ == 0) {
     DCHECK(html_element_context());
     DCHECK(html_element_context()->script_runner());
-    DCHECK(html_element_context()->script_runner()->GetGlobalObjectProxy());
+    DCHECK(html_element_context()->script_runner()->GetGlobalEnvironment());
     html_element_context()
         ->script_runner()
-        ->GetGlobalObjectProxy()
+        ->GetGlobalEnvironment()
         ->PreventGarbageCollection(make_scoped_refptr(this));
   }
 }
@@ -206,7 +206,7 @@ void HTMLImageElement::AllowGarbageCollection() {
   if (--prevent_garbage_collection_count_ == 0) {
     html_element_context()
         ->script_runner()
-        ->GetGlobalObjectProxy()
+        ->GetGlobalEnvironment()
         ->AllowGarbageCollection(make_scoped_refptr(this));
   }
 }
