@@ -16,6 +16,7 @@
 
 #include <cmath>
 
+#include "base/bind.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
@@ -109,6 +110,12 @@ using cobalt::renderer::rasterizer::PixelTest;
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
+
+namespace {
+
+void SetBounds(const math::Rect&) {}
+
+}  // namespace
 
 TEST_F(PixelTest, RedFillRectOnEntireSurface) {
   // Create a test render tree that will fill the entire output surface
@@ -2748,7 +2755,8 @@ TEST_F(PixelTest, PunchThroughVideoNodePunchesThrough) {
                                 scoped_ptr<Brush>(new SolidColorBrush(
                                     ColorRGBA(0.5f, 0.5f, 1.0f, 1.0f)))));
 
-  builder.AddChild(new PunchThroughVideoNode(RectF(50, 50, 100, 100)));
+  builder.AddChild(new PunchThroughVideoNode(PunchThroughVideoNode::Builder(
+      RectF(50, 50, 100, 100), base::Bind(SetBounds))));
 
   TestTree(new CompositionNode(builder.Pass()));
 }

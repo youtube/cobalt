@@ -24,7 +24,19 @@
 #include "base/time.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/punch_through_video_node.h"
+
+// Here we determine if we are going to be rendering video ourselves, or if
+// the Starboard Player system will be rendering video in which case we need to
+// punch through our scene so that the video will be visible.
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#define PUNCH_THROUGH_VIDEO_RENDERING SB_IS(PLAYER_PUNCHED_OUT)
+#else  // defined(OS_STARBOARD)
+#define PUNCH_THROUGH_VIDEO_RENDERING 0
+#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace layout {
@@ -38,10 +50,12 @@ namespace layout {
 class ReplacedBox : public Box {
  public:
   typedef base::Callback<scoped_refptr<render_tree::Image>()> ReplaceImageCB;
+  typedef render_tree::PunchThroughVideoNode::SetBoundsCB SetBoundsCB;
 
   ReplacedBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                   css_computed_style_declaration,
               const ReplaceImageCB& replace_image_cb,
+              const SetBoundsCB& set_bounds_cb,
               const scoped_refptr<Paragraph>& paragraph, int32 text_position,
               const base::optional<LayoutUnit>& maybe_intrinsic_width,
               const base::optional<LayoutUnit>& maybe_intrinsic_height,
@@ -102,6 +116,7 @@ class ReplacedBox : public Box {
 
  private:
   const ReplaceImageCB replace_image_cb_;
+  const SetBoundsCB set_bounds_cb_;
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;

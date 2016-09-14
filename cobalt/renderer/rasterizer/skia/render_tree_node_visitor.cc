@@ -691,13 +691,27 @@ void RenderTreeNodeVisitor::Visit(
     // We proceed anyway, just in case things happen to work out.
   }
 
-  const math::RectF& rect = punch_through_video_node->data().rect;
+  const math::RectF& math_rect = punch_through_video_node->data().rect;
 
   SkPaint paint;
   paint.setXfermodeMode(SkXfermode::kSrc_Mode);
   paint.setARGB(0, 0, 0, 0);
-  draw_state_.render_target->drawRect(
-      SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height()), paint);
+  SkRect sk_rect = SkRect::MakeXYWH(math_rect.x(), math_rect.y(),
+                                    math_rect.width(), math_rect.height());
+  SkMatrix total_matrix = draw_state_.render_target->getTotalMatrix();
+
+  SkRect sk_rect_transformed;
+  total_matrix.mapRect(&sk_rect_transformed, sk_rect);
+
+  if (!punch_through_video_node->data().set_bounds_cb.is_null()) {
+    punch_through_video_node->data().set_bounds_cb.Run(
+        math::Rect(static_cast<int>(sk_rect_transformed.x()),
+                   static_cast<int>(sk_rect_transformed.y()),
+                   static_cast<int>(sk_rect_transformed.width()),
+                   static_cast<int>(sk_rect_transformed.height())));
+  }
+
+  draw_state_.render_target->drawRect(sk_rect, paint);
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   draw_state_.render_target->flush();

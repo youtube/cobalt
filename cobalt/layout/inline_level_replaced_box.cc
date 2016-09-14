@@ -24,15 +24,16 @@ namespace layout {
 InlineLevelReplacedBox::InlineLevelReplacedBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    const ReplaceImageCB& replace_image_cb,
+    const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
     const base::optional<LayoutUnit>& maybe_intrinsic_width,
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker)
-    : ReplacedBox(css_computed_style_declaration, replace_image_cb, paragraph,
-                  text_position, maybe_intrinsic_width, maybe_intrinsic_height,
+    : ReplacedBox(css_computed_style_declaration, replace_image_cb,
+                  set_bounds_cb, paragraph, text_position,
+                  maybe_intrinsic_width, maybe_intrinsic_height,
                   maybe_intrinsic_ratio, used_style_provider,
                   layout_stat_tracker),
       is_hidden_by_ellipsis_(false),

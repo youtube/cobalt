@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Progressive Demo</title>
+  <style>
+    body {
+      background-color: rgb(255, 255, 255);
+      color: #0047ab;
+      font-size: 100px;
+    }
+    .small {
+      margin: 100px;
+      border: 10px solid blue;
+      width: 960px;
+      height: 540px;
+    }
+    .big {
+      margin: 10px;
+      border: 10px solid blue;
+      width: 1280px;
+      height: 720px;
+    }
+  </style>
+</head>
+<body>
+  <div>Progressive Demo</div>
+  <video autoplay loop id="v" class="small" src="progressive.mp4"></video>
+  <script>
+    window.setInterval(function() {
+      if (document.getElementById('v').className === 'big')
+        document.getElementById('v').className = 'small';
+      else
+        document.getElementById('v').className = 'big';
+    }, 3000);
+  </script>
+</body>
+</html>
