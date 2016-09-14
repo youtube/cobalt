@@ -16,17 +16,14 @@
 
 #include <limits>
 
-#include "config.h"
-#undef LOG
-
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSString.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSValue.h"
@@ -50,12 +47,13 @@ class NumericConversionTest : public ::testing::Test {
  public:
   NumericConversionTest()
       : engine_(JavaScriptEngine::CreateEngine()),
-        global_object_proxy_(engine_->CreateGlobalObjectProxy()),
+        global_environment_(engine_->CreateGlobalEnvironment()),
         jsc_global_object_(NULL),
         exec_state_(NULL) {
-    global_object_proxy_->CreateGlobalObject();
-    jsc_global_object_ = base::polymorphic_downcast<JSCGlobalObjectProxy*>(
-                             global_object_proxy_.get())->global_object();
+    global_environment_->CreateGlobalObject();
+    jsc_global_object_ = base::polymorphic_downcast<JSCGlobalEnvironment*>(
+                             global_environment_.get())
+                             ->global_object();
     exec_state_ = jsc_global_object_->globalExec();
   }
 
@@ -70,7 +68,7 @@ class NumericConversionTest : public ::testing::Test {
   }
 
   const scoped_ptr<JavaScriptEngine> engine_;
-  const scoped_refptr<GlobalObjectProxy> global_object_proxy_;
+  const scoped_refptr<GlobalEnvironment> global_environment_;
   JSCGlobalObject* jsc_global_object_;
   JSC::ExecState* exec_state_;
   testing::MockExceptionState exception_state_;

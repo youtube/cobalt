@@ -23,7 +23,7 @@
         'mozjs_debugger.cc',
         'mozjs_engine.cc',
         'mozjs_exception_state.cc',
-        'mozjs_global_object_proxy.cc',
+        'mozjs_global_environment.cc',
         'mozjs_property_enumerator.cc',
         'mozjs_source_code.cc',
         'opaque_root_tracker.cc',

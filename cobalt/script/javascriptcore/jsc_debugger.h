@@ -21,7 +21,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/script_debugger.h"
 #include "cobalt/script/source_provider.h"
 
@@ -54,7 +54,7 @@ namespace javascriptcore {
 // global object to which this debugger connects.
 class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
  public:
-  JSCDebugger(GlobalObjectProxy* global_object_proxy, Delegate* delegate);
+  JSCDebugger(GlobalEnvironment* global_environment, Delegate* delegate);
   ~JSCDebugger() OVERRIDE;
 
   // Implementation of ScriptDebugger.
@@ -156,7 +156,7 @@ class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
   bool IsBreakpointAtCurrentLocation() const;
 
   base::ThreadChecker thread_checker_;
-  GlobalObjectProxy* global_object_proxy_;
+  GlobalEnvironment* global_environment_;
 
   // Lifetime managed by the caller of this object's constructor.
   Delegate* delegate_;

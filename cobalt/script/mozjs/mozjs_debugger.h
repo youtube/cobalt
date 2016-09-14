@@ -26,7 +26,7 @@ namespace mozjs {
 
 class MozjsDebugger : public ScriptDebugger {
  public:
-  MozjsDebugger(GlobalObjectProxy* global_object_proxy, Delegate* delegate);
+  MozjsDebugger(GlobalEnvironment* global_environment, Delegate* delegate);
   ~MozjsDebugger() OVERRIDE;
 
   // Implementation of ScriptDebugger.

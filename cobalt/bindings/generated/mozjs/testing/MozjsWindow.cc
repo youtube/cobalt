@@ -23,7 +23,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "MozjsAnonymousIndexedGetterInterface.h"
@@ -123,7 +123,7 @@
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
@@ -237,7 +237,7 @@ using cobalt::bindings::testing::TargetInterface;
 using cobalt::bindings::testing::UnionTypesInterface;
 using cobalt::bindings::testing::Window;
 using cobalt::script::CallbackInterfaceTraits;
-using cobalt::script::GlobalObjectProxy;
+using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptObject;
@@ -255,7 +255,7 @@ using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
-using cobalt::script::mozjs::MozjsGlobalObjectProxy;
+using cobalt::script::mozjs::MozjsGlobalEnvironment;
 using cobalt::script::mozjs::MozjsUserObjectHolder;
 using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
@@ -467,12 +467,12 @@ JSBool fcn_getStackTrace(
       WrapperPrivate::GetFromObject(context, object);
   Window* impl =
       wrapper_private->wrappable<Window>().get();
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(context,
-              impl->GetStackTrace(global_object_proxy->GetStackTrace()),
+              impl->GetStackTrace(global_environment->GetStackTrace()),
               &result_value);
   }
   if (!exception_state.is_exception_set()) {
@@ -621,17 +621,17 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 InterfaceData* GetInterfaceData(JSContext* context) {
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // Use the address of the properties definition for this interface as a
   // unique key for looking up the InterfaceData for this interface.
   intptr_t key = reinterpret_cast<intptr_t>(&own_properties);
-  InterfaceData* interface_data = global_object_proxy->GetInterfaceData(key);
+  InterfaceData* interface_data = global_environment->GetInterfaceData(key);
   if (!interface_data) {
     interface_data = CreateCachedInterfaceData();
     DCHECK(interface_data);
-    global_object_proxy->CacheInterfaceData(key, interface_data);
-    DCHECK_EQ(interface_data, global_object_proxy->GetInterfaceData(key));
+    global_environment->CacheInterfaceData(key, interface_data);
+    DCHECK_EQ(interface_data, global_environment->GetInterfaceData(key));
   }
   return interface_data;
 }
@@ -668,18 +668,18 @@ JSObject* MozjsWindow::CreateProxy(
 
   // Set the global object proxy pointer, so we can access the standard classes
   // such as the base Object prototype when looking up our prototype.
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
-  global_object_proxy->SetGlobalObjectProxyAndWrapper(proxy, wrappable);
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  global_environment->SetGlobalObjectProxyAndWrapper(proxy, wrappable);
   return proxy;
 }
 //static
 const JSClass* MozjsWindow::PrototypeClass(
       JSContext* context) {
-  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  DCHECK(MozjsGlobalEnvironment::GetFromContext(context));
   JS::RootedObject global_object(
       context,
-      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
+      MozjsGlobalEnvironment::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
@@ -727,20 +727,20 @@ namespace {
 namespace script {
 
 template<>
-void GlobalObjectProxy::CreateGlobalObject<Window>(
+void GlobalEnvironment::CreateGlobalObject<Window>(
     const scoped_refptr<Window>& global_interface,
     EnvironmentSettings* environment_settings) {
-  MozjsGlobalObjectProxy* mozjs_global_object_proxy =
-      base::polymorphic_downcast<MozjsGlobalObjectProxy*>(this);
-  JSContext* context = mozjs_global_object_proxy->context();
+  MozjsGlobalEnvironment* mozjs_global_environment =
+      base::polymorphic_downcast<MozjsGlobalEnvironment*>(this);
+  JSContext* context = mozjs_global_environment->context();
 
   JSAutoRequest auto_request(context);
   MozjsWindow::CreateProxy(
       context, global_interface);
-  mozjs_global_object_proxy->SetEnvironmentSettings(environment_settings);
+  mozjs_global_environment->SetEnvironmentSettings(environment_settings);
 
   WrapperFactory* wrapper_factory =
-      mozjs_global_object_proxy->wrapper_factory();
+      mozjs_global_environment->wrapper_factory();
   wrapper_factory->RegisterWrappableType(
       AnonymousIndexedGetterInterface::AnonymousIndexedGetterInterfaceWrappableType(),
       base::Bind(MozjsAnonymousIndexedGetterInterface::CreateProxy),
@@ -931,7 +931,7 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
 // This is needed to prevent link errors when trying to resolve the template
 // instantiation.
 template
-void GlobalObjectProxy::CreateGlobalObject<Window>(
+void GlobalEnvironment::CreateGlobalObject<Window>(
     const scoped_refptr<Window>& global_interface,
     EnvironmentSettings* environment_settings);
 #endif

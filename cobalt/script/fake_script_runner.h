@@ -20,7 +20,7 @@
 #include <string>
 
 #include "cobalt/base/source_location.h"
-#include "cobalt/script/fake_global_object_proxy.h"
+#include "cobalt/script/fake_global_environment.h"
 #include "cobalt/script/script_runner.h"
 
 namespace cobalt {
@@ -28,18 +28,18 @@ namespace script {
 
 class FakeScriptRunner : public ScriptRunner {
  public:
-  FakeScriptRunner() : fake_global_object_proxy_(new FakeGlobalObjectProxy()) {}
+  FakeScriptRunner() : fake_global_environment_(new FakeGlobalEnvironment()) {}
   std::string Execute(
       const std::string& /*script_utf8*/,
       const base::SourceLocation& /*script_location*/) OVERRIDE {
     return "";
   }
-  GlobalObjectProxy* GetGlobalObjectProxy() const OVERRIDE {
-    return fake_global_object_proxy_.get();
+  GlobalEnvironment* GetGlobalEnvironment() const OVERRIDE {
+    return fake_global_environment_.get();
   }
 
  private:
-  scoped_refptr<FakeGlobalObjectProxy> fake_global_object_proxy_;
+  scoped_refptr<FakeGlobalEnvironment> fake_global_environment_;
 };
 
 }  // namespace script
