@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -57,10 +59,21 @@ TEST(SbMemoryMapTest, DoesNotLeak) {
     void* memory = SbMemoryMap(bytes_mapped, kSbMemoryMapProtectWrite, "test");
     ASSERT_NE(kFailed, memory);
 
-    // Force page commit.
+    // If this is the last iteration of the loop, then force a page commit for
+    // every single page.  For any other iteration, force a page commit for
+    // roughly 1000 of the pages.
+    bool last_iteration =
+        !(total_bytes_mapped + bytes_mapped < SbSystemGetTotalCPUMemory() * 4);
     uint8_t* first_page = static_cast<uint8_t*>(memory);
+    const size_t page_increment_factor =
+        (last_iteration)
+            ? size_t(1u)
+            : std::max(static_cast<size_t>(bytes_mapped /
+                                           (1000 * SB_MEMORY_PAGE_SIZE)),
+                       size_t(1u));
+
     for (uint8_t* page = first_page; page < first_page + bytes_mapped;
-         page += SB_MEMORY_PAGE_SIZE) {
+         page += SB_MEMORY_PAGE_SIZE * page_increment_factor) {
       *page = 0x55;
     }
 
