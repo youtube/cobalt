@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "starboard/player.h"
+
+#include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_HAS(PLAYER)
@@ -21,6 +23,12 @@ namespace starboard {
 namespace nplb {
 
 TEST(SbPlayerTest, SunnyDay) {
+  SbWindowOptions window_options;
+  SbWindowSetDefaultOptions(&window_options);
+
+  SbWindow window = SbWindowCreate(&window_options);
+  EXPECT_TRUE(SbWindowIsValid(window));
+
   SbMediaAudioHeader audio_header;
 
   audio_header.format_tag = 0xff;
@@ -33,11 +41,13 @@ TEST(SbPlayerTest, SunnyDay) {
                                           audio_header.number_of_channels *
                                           audio_header.bits_per_sample / 8;
 
-  SbPlayer player = SbPlayerCreate(
-      kSbMediaVideoCodecH264, kSbMediaAudioCodecAac, SB_PLAYER_NO_DURATION,
-      kSbDrmSystemInvalid, &audio_header, NULL, NULL, NULL, NULL);
+  SbPlayer player =
+      SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
+                     SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, &audio_header,
+                     NULL, NULL, NULL, NULL);
   EXPECT_TRUE(SbPlayerIsValid(player));
   SbPlayerDestroy(player);
+  SbWindowDestroy(window);
 }
 
 }  // namespace nplb

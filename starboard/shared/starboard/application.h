@@ -22,11 +22,13 @@
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
+#include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
+#include "starboard/window.h"
 
 namespace starboard {
 namespace shared {
@@ -132,10 +134,17 @@ class Application {
   // external thread.
   void Cancel(SbEventId id);
 
-  // Handles receiving a new video frame from the media system. Only used when
-  // the application needs to composite video frames with punch-out video
-  // manually (should be rare). Will be called from an external thread.
-  void HandleFrame(const player::VideoFrame& frame);
+#if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+  // Handles receiving a new video frame of |player| from the media system. Only
+  // used when the application needs to composite video frames with punch-out
+  // video manually (should be rare). Will be called from an external thread.
+  void HandleFrame(SbPlayer player,
+                   const player::VideoFrame& frame,
+                   int x,
+                   int y,
+                   int width,
+                   int height);
+#endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 
  protected:
   // Initializes any systems that need initialization before application
@@ -148,9 +157,16 @@ class Application {
   // must be run after the application stop event is handled.
   virtual void Teardown() {}
 
+#if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
-  virtual void AcceptFrame(const player::VideoFrame& frame) {}
+  virtual void AcceptFrame(SbPlayer player,
+                           const player::VideoFrame& frame,
+                           int x,
+                           int y,
+                           int width,
+                           int height) {}
+#endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.

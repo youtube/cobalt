@@ -24,8 +24,8 @@
 #include "starboard/shared/starboard/player/video_renderer_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
+#include "starboard/window.h"
 
-// TODO: Implement DRM support
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -59,6 +59,13 @@ class PlayerWorker {
     bool pause;
   };
 
+  struct SetBoundsEventData {
+    int x;
+    int y;
+    int width;
+    int height;
+  };
+
   struct Event {
    public:
     enum Type {
@@ -67,6 +74,7 @@ class PlayerWorker {
       kWriteSample,
       kWriteEndOfStream,
       kSetPause,
+      kSetBounds,
       kStop,
     };
 
@@ -75,6 +83,7 @@ class PlayerWorker {
       WriteSampleEventData write_sample;
       WriteEndOfStreamEventData write_end_of_stream;
       SetPauseEventData set_pause;
+      SetBoundsEventData set_bounds;
     };
 
     explicit Event(const SeekEventData& seek) : type(kSeek) {
@@ -95,6 +104,10 @@ class PlayerWorker {
       data.set_pause = set_pause;
     }
 
+    explicit Event(const SetBoundsEventData& set_bounds) : type(kSetBounds) {
+      data.set_bounds = set_bounds;
+    }
+
     explicit Event(Type type) : type(type) {
       SB_DCHECK(type == kInit || type == kStop);
     }
@@ -106,6 +119,7 @@ class PlayerWorker {
   static const SbTime kUpdateInterval = 5 * kSbTimeMillisecond;
 
   PlayerWorker(Host* host,
+               SbWindow window,
                SbMediaVideoCodec video_codec,
                SbMediaAudioCodec audio_codec,
                SbDrmSystem drm_system,
@@ -130,7 +144,7 @@ class PlayerWorker {
   bool ProcessWriteSampleEvent(const WriteSampleEventData& data, bool* retry);
   bool ProcessWriteEndOfStreamEvent(const WriteEndOfStreamEventData& data);
   bool ProcessSetPauseEvent(const SetPauseEventData& data);
-  bool ProcessUpdateEvent();
+  bool ProcessUpdateEvent(const SetBoundsEventData& bounds);
   void ProcessStopEvent();
 
   void UpdateDecoderState(SbMediaType type);
@@ -141,6 +155,7 @@ class PlayerWorker {
 
   Host* host_;
 
+  SbWindow window_;
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;
   SbDrmSystem drm_system_;
