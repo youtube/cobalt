@@ -38,7 +38,7 @@ const int64 kInitialApplySurfaceTimeInUSecs = 100;
 
 // Since caching elements is expensive, we limit the number of new entries added
 // to the cache each frame.
-const size_t kMaxElementsToCachePerFrame = 3;
+const size_t kMaxElementsToCachePerFrame = 1;
 
 // If a node has been seen for kConsecutiveFramesForPreference consecutive
 // frames, it is preferred for being cached over nodes that have been seen less
@@ -56,40 +56,23 @@ const int kConsecutiveFramesForPreference = 2;
 const float kApplySurfaceTimeMultipleCacheCriteria = 1.2f;
 }  // namespace
 
-void SurfaceCache::Block::InitBlock() {
+void SurfaceCache::Block::InitBlock(render_tree::Node* node) {
   start_time_ = base::TimeTicks::Now();
+
+  key_ = NodeMapKey(node,
+                    cache_->delegate_->GetRenderSize(node->GetBounds().size()));
 
   // Keep track of the stack of blocks currently being rendered.
   parent_ = cache_->current_block_;
   cache_->current_block_ = this;
 
-  math::RectF node_bounds = node_->GetBounds();
-
-  NodeMap::iterator seen_iter = cache_->seen_.find(node_);
+  NodeMap::iterator seen_iter = cache_->seen_.find(key_);
   node_data_ = (seen_iter == cache_->seen_.end() ? NULL : &seen_iter->second);
 
   if (node_data_) {
     // In order for the cache to function, it needs to know which nodes are
     // seen frequently and which are not.  Setting this flag is the main signal.
     node_data_->visited_this_frame = true;
-
-    // Check that the actual size that we are rendering to now is compatible
-    // with the size when this node was originally inserted into the cache.  If
-    // the sizes are incompatible, remove the old version from the cache so that
-    // it can be replaced by this new version.
-    // The new size is compatible with the old size if the new size is smaller
-    // than the old size, or the new size is smaller than the local size of
-    // the node being rendered.
-    math::Size render_size =
-        cache_->delegate_->GetRenderSize(node_bounds.size());
-    if ((render_size.width() > node_bounds.size().width() &&
-         render_size.width() > node_data_->render_size.width()) ||
-        (render_size.height() > node_bounds.size().height() &&
-         render_size.height() > node_data_->render_size.height())) {
-      // Sizes are incompatible, remove the old cached version of this node.
-      cache_->RemoveFromSeen(seen_iter);
-      node_data_ = NULL;
-    }
   }
 
   if (node_data_ && node_data_->cached()) {
@@ -123,14 +106,9 @@ void SurfaceCache::Block::InitBlock() {
       cache_->recording_ = true;
       cache_->PurgeUntilSpaceAvailable(node_data_->size_in_bytes());
 
-      // Since we are now caching the surface, make sure the recorded render
-      // size is up to date as this will reflect the size of the cached surface
-      // allocated for this node.
-      node_data_->render_size =
-          cache_->delegate_->GetRenderSize(node_bounds.size());
       // Signal to the delegate that we would like to record this block for
       // caching.
-      cache_->delegate_->StartRecording(node_bounds);
+      cache_->delegate_->StartRecording(key_.node->GetBounds());
     } else {
       // The node is not cached, and it should not become cached, so just do
       // nothing besides record how long it takes via |start_time_|, set above.
@@ -161,6 +139,11 @@ void SurfaceCache::Block::ShutdownBlock() {
       IncreaseAncestorBlockDurations(node_data_->duration - duration);
     } break;
     case kStateNotRecording: {
+      if (key_.render_size.GetArea() == 0) {
+        // Do not consider degenerate render tree nodes for the cache.
+        break;
+      }
+
       // We're done now, get metrics from the delegate and determine whether or
       // not we should cache the result for next time.
       base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
@@ -169,15 +152,12 @@ void SurfaceCache::Block::ShutdownBlock() {
       // so.
       if (!node_data_) {
         std::pair<NodeMap::iterator, bool> insert_results =
-            cache_->seen_.insert(std::make_pair(node_, NodeData(node_)));
+            cache_->seen_.insert(std::make_pair(key_, NodeData(key_)));
         DCHECK(insert_results.second);
         node_data_ = &insert_results.first->second;
       }
 
       // Update the recorded entry with new timing information.
-      DCHECK_LT(0.0f, node_->GetBounds().size().GetArea());
-      node_data_->render_size =
-          cache_->delegate_->GetRenderSize(node_->GetBounds().size());
       node_data_->duration = duration;
     } break;
     case kStateInvalid: {
@@ -565,7 +545,7 @@ void SurfaceCache::PurgeUntilSpaceAvailable(size_t space_required_in_bytes) {
     NodeData* node_data_to_purge = to_purge_.back();
     to_purge_.pop_back();
 
-    if (seen_.find(node_data_to_purge->node) != seen_.end()) {
+    if (seen_.find(node_data_to_purge->key()) != seen_.end()) {
       FreeCachedSurface(node_data_to_purge);
     }
   }

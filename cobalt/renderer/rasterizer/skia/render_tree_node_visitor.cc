@@ -670,6 +670,10 @@ void RenderTreeNodeVisitor::Visit(
 
   draw_state_.render_target->restore();
 
+  if (surface_cache_delegate_) {
+    surface_cache_delegate_->UpdateCanvasScale();
+  }
+
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   draw_state_.render_target->flush();
 #endif
