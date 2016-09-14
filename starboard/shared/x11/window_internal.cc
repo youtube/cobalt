@@ -147,7 +147,11 @@ SbWindowPrivate::~SbWindowPrivate() {
 }
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
-void SbWindowPrivate::Composite(VideoFrame* frame) {
+void SbWindowPrivate::Composite(int bounds_x,
+                                int bounds_y,
+                                int bounds_width,
+                                int bounds_height,
+                                VideoFrame* frame) {
   XSynchronize(display, True);
   XWindowAttributes window_attributes;
   XGetWindowAttributes(display, window, &window_attributes);
@@ -227,10 +231,12 @@ void SbWindowPrivate::Composite(VideoFrame* frame) {
     // Initially assume we don't have to center or scale.
     int video_width = frame->width();
     int video_height = frame->height();
-    if (frame->width() != width || frame->height() != height) {
+    if (bounds_width != width || bounds_height != height ||
+        frame->width() != width || frame->height() != height) {
       // Scale to fit the smallest dimension of the frame into the window.
-      double scale = std::min(width / static_cast<double>(frame->width()),
-                              height / static_cast<double>(frame->height()));
+      double scale =
+          std::min(bounds_width / static_cast<double>(frame->width()),
+                   bounds_height / static_cast<double>(frame->height()));
       // Center the scaled frame within the window.
       video_width = scale * frame->width();
       video_height = scale * frame->height();
@@ -242,8 +248,8 @@ void SbWindowPrivate::Composite(VideoFrame* frame) {
       XRenderSetPictureTransform(display, video_picture, &transform);
     }
 
-    int dest_x = (width - video_width) / 2;
-    int dest_y = (height - video_height) / 2;
+    int dest_x = bounds_x + (bounds_width - video_width) / 2;
+    int dest_y = bounds_y + (bounds_height - video_height) / 2;
     XRenderComposite(display, PictOpSrc, video_picture, NULL,
                      composition_picture, 0, 0, 0, 0, dest_x, dest_y,
                      video_width, video_height);

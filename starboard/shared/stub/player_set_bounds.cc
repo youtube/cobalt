@@ -14,15 +14,12 @@
 
 #include "starboard/player.h"
 
-SbPlayer SbPlayerCreate(SbWindow /*window*/,
-                        SbMediaVideoCodec /*video_codec*/,
-                        SbMediaAudioCodec /*audio_codec*/,
-                        SbMediaTime /*duration_pts*/,
-                        SbDrmSystem /*drm_system*/,
-                        const SbMediaAudioHeader* /*audio_header*/,
-                        SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
-                        SbPlayerDecoderStatusFunc /*decoder_status_func*/,
-                        SbPlayerStatusFunc /*player_status_func*/,
-                        void* /*context*/) {
-  return kSbPlayerInvalid;
-}
+#if SB_IS(PLAYER_PUNCHED_OUT)
+
+void SbPlayerSetBounds(SbPlayer /*player*/,
+                       int /*x*/,
+                       int /*y*/,
+                       int /*width*/,
+                       int /*height*/) {}
+
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)

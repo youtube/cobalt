@@ -109,9 +109,16 @@ void Application::Cancel(SbEventId id) {
   CancelTimedEvent(id);
 }
 
-void Application::HandleFrame(const player::VideoFrame& frame) {
-  AcceptFrame(frame);
+#if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+void Application::HandleFrame(SbPlayer player,
+                              const player::VideoFrame& frame,
+                              int x,
+                              int y,
+                              int width,
+                              int height) {
+  AcceptFrame(player, frame, x, y, width, height);
 }
+#endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 
 void Application::SetStartLink(const char* start_link) {
   SbMemoryFree(start_link_);
