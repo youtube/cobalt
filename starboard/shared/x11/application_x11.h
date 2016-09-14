@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "starboard/configuration.h"
+#include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
@@ -47,8 +48,12 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   void Composite();
 
  protected:
-  void AcceptFrame(const shared::starboard::player::VideoFrame& frame)
-      SB_OVERRIDE;
+  void AcceptFrame(SbPlayer player,
+                   const shared::starboard::player::VideoFrame& frame,
+                   int x,
+                   int y,
+                   int width,
+                   int height) SB_OVERRIDE;
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
  protected:
@@ -64,6 +69,16 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
  private:
   typedef std::vector<SbWindow> SbWindowVector;
+
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  struct FrameInfo {
+    shared::starboard::player::VideoFrame frame;
+    int x;
+    int y;
+    int width;
+    int height;
+  };
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   // Ensures that X is up, display is populated and connected.
   void EnsureX();
@@ -87,7 +102,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   int frame_read_index_;
   bool frame_written_;
   static const int kNumFrames = 2;
-  shared::starboard::player::VideoFrame frames_[kNumFrames];
+  FrameInfo frame_infos_[kNumFrames];
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   Display* display_;
