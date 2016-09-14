@@ -104,22 +104,45 @@ class SurfaceCache {
   };
 
  private:
+  // The key to our cache's map of which items it has seen before.  We use
+  // the address of a render node along with its on-screen render size to
+  // determine whether there is a cache match or not.
+  struct NodeMapKey {
+    NodeMapKey() {}
+    NodeMapKey(render_tree::Node* node, const math::Size& render_size)
+        : node(node), render_size(render_size) {}
+
+    bool operator<(const NodeMapKey& rhs) const {
+      return (node == rhs.node
+                  ? (render_size.width() == rhs.render_size.width()
+                         ? render_size.height() < rhs.render_size.height()
+                         : render_size.width() < rhs.render_size.width())
+                  : node < rhs.node);
+    }
+
+    render_tree::Node* node;
+    math::Size render_size;
+  };
   // NodeData contains a set of data stored for every node that we have seen
   // and helps determine whether that node should be cached or not, or if it
   // is already cached.
   struct NodeData {
-    explicit NodeData(render_tree::Node* node)
-        : surface(NULL),
+    explicit NodeData(const NodeMapKey& key)
+        : render_size(key.render_size),
+          surface(NULL),
           visited_this_frame(true),
           consecutive_frames_visited(0),
           is_cache_candidate(false),
-          node(node) {}
+          node(key.node) {}
 
     // The size in bytes occupied by a cached surface representing this node.
     int size_in_bytes() { return render_size.GetArea() * 4; }
 
     // Returns whether or not this node is cached or not.
     bool cached() const { return surface != NULL; }
+
+    // Creates a key from the NodeData.
+    NodeMapKey key() const { return NodeMapKey(node.get(), render_size); }
 
     // Tracks how long it last took to render this node.
     base::TimeDelta duration;
@@ -145,7 +168,7 @@ class SurfaceCache {
     // A reference to the actual node.
     scoped_refptr<render_tree::Node> node;
   };
-  typedef base::hash_map<render_tree::Node*, NodeData> NodeMap;
+  typedef std::map<NodeMapKey, NodeData> NodeMap;
 
  public:
   // The main public interface to SurfaceCache is via SurfaceCache::Block.
@@ -159,7 +182,6 @@ class SurfaceCache {
       // We like this to be inlined so that this call makes very little
       // performance impact if |surface_cache| is null.
       cache_ = surface_cache;
-      node_ = node;
       if (!cache_) {
         // If there is no cache, we have nothing to do besides indicate that we
         // are not recording and the surface for this node is not already
@@ -167,7 +189,7 @@ class SurfaceCache {
         state_ = kStateNotRecording;
         return;
       } else {
-        InitBlock();
+        InitBlock(node);
       }
     }
     ~Block() {
@@ -190,7 +212,7 @@ class SurfaceCache {
       kStateNotRecording,
       kStateInvalid
     };
-    void InitBlock();
+    void InitBlock(render_tree::Node* node);
     void ShutdownBlock();
 
     // If any blocks on the stack are performing any timing, this method
@@ -202,7 +224,7 @@ class SurfaceCache {
     State state_;
 
     SurfaceCache* cache_;
-    render_tree::Node* node_;
+    NodeMapKey key_;
 
     base::TimeTicks start_time_;
     NodeData* node_data_;
