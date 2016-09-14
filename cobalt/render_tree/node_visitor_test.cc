@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/animations/animate_node.h"
@@ -100,6 +101,8 @@ class DummyBrush : public Brush {
   }
 };
 
+void SetBounds(const cobalt::math::Rect&) {}
+
 }  // namespace
 
 TEST(NodeVisitorTest, VisitsAnimate) {
@@ -128,8 +131,10 @@ TEST(NodeVisitorTest, VisitsMatrixTransform) {
 }
 
 TEST(NodeVisitorTest, VisitsPunchThroughVideo) {
+  PunchThroughVideoNode::Builder builder(cobalt::math::RectF(),
+                                         base::Bind(SetBounds));
   scoped_refptr<PunchThroughVideoNode> punch_through_video_node(
-      new PunchThroughVideoNode(cobalt::math::RectF()));
+      new PunchThroughVideoNode(builder));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(punch_through_video_node.get()));
   punch_through_video_node->Accept(&mock_visitor);

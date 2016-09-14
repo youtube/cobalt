@@ -30,6 +30,7 @@
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/system_window/system_window.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "media/filters/shell_video_decoder_impl.h"
@@ -127,7 +128,7 @@ class MediaModule : public CanPlayTypeHandler,
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
-      const math::Size& output_size,
+      system_window::SystemWindow* system_window, const math::Size& output_size,
       render_tree::ResourceProvider* resource_provider,
       const Options& options = Options());
 

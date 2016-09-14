@@ -37,6 +37,7 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
