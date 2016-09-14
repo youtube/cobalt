@@ -23,6 +23,7 @@ namespace cobalt {
 namespace dom {
 
 using ::media::ShellVideoFrameProvider;
+using ::media::WebMediaPlayer;
 
 const char HTMLVideoElement::kTagName[] = "video";
 
@@ -86,6 +87,10 @@ scoped_refptr<ShellVideoFrameProvider>
 HTMLVideoElement::GetVideoFrameProvider() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return player() ? player()->GetVideoFrameProvider() : NULL;
+}
+
+WebMediaPlayer::SetBoundsCB HTMLVideoElement::GetSetBoundsCB() {
+  return player() ? player()->GetSetBoundsCB() : WebMediaPlayer::SetBoundsCB();
 }
 
 }  // namespace dom

@@ -35,16 +35,6 @@
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
-// Here we determine if we are going to be rendering video ourselves, or if
-// the Starboard Player system will be rendering video in which case we need to
-// punch through our scene so that the video will be visible.
-#if defined(OS_STARBOARD)
-#include "starboard/configuration.h"
-#define PUNCH_THROUGH_VIDEO_RENDERING SB_IS(PLAYER_PUNCHED_OUT)
-#else  // defined(OS_STARBOARD)
-#define PUNCH_THROUGH_VIDEO_RENDERING 0
-#endif  // defined(OS_STARBOARD)
-
 namespace cobalt {
 namespace layout {
 
@@ -72,7 +62,7 @@ const float kFallbackWidth = 300.0f;
 ReplacedBox::ReplacedBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    const ReplaceImageCB& replace_image_cb,
+    const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
     const base::optional<LayoutUnit>& maybe_intrinsic_width,
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
@@ -88,6 +78,7 @@ ReplacedBox::ReplacedBox(
       // https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
       intrinsic_ratio_(maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)),
       replace_image_cb_(replace_image_cb),
+      set_bounds_cb_(set_bounds_cb),
       paragraph_(paragraph),
       text_position_(text_position) {}
 
@@ -208,7 +199,8 @@ void AddLetterboxedImageToRenderTree(
 
 #endif  // !PUNCH_THROUGH_VIDEO_RENDERING
 
-void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
+void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
+               const ReplacedBox::SetBoundsCB& set_bounds_cb,
                math::SizeF destination_size,
                CompositionNode::Builder* composition_node_builder,
                base::TimeDelta time) {
@@ -220,9 +212,11 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
 #if PUNCH_THROUGH_VIDEO_RENDERING
   // For systems that have their own path to blitting video to the display, we
   // simply punch a hole through our scene so that the video can appear there.
-  composition_node_builder->AddChild(
-      new PunchThroughVideoNode(math::RectF(destination_size)));
-#else
+  PunchThroughVideoNode::Builder builder(math::RectF(destination_size),
+                                         set_bounds_cb);
+  composition_node_builder->AddChild(new PunchThroughVideoNode(builder));
+#else   // PUNCH_THROUGH_VIDEO_RENDERING
+  UNREFERENCED_PARAMETER(set_bounds_cb);
   scoped_refptr<render_tree::Image> image = replace_image_cb.Run();
 
   // TODO: Detect better when the intrinsic video size is used for the
@@ -237,7 +231,7 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
         GetLetterboxDimensions(image->GetSize(), destination_size), image,
         composition_node_builder);
   }
-#endif
+#endif  // PUNCH_THROUGH_VIDEO_RENDERING
 }
 
 }  // namespace
@@ -262,8 +256,8 @@ void ReplacedBox::RenderAndAnimateContent(
 
   AnimateNode::Builder animate_node_builder;
   animate_node_builder.Add(
-      composition_node,
-      base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
+      composition_node, base::Bind(AnimateCB, replace_image_cb_, set_bounds_cb_,
+                                   content_box_size()));
 
   // TODO: Apply map to mesh filter if present.
   border_node_builder->AddChild(

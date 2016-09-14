@@ -27,8 +27,9 @@ namespace media {
 // There is no media stack on Windows and the XB1 media stack cannot be used
 // directly on Windows. So MediaModule on windows does nothing.
 scoped_ptr<MediaModule> MediaModule::Create(
-    const math::Size& output_size,
+    system_window::SystemWindow* system_window, const math::Size& output_size,
     render_tree::ResourceProvider* resource_provider, const Options& options) {
+  UNREFERENCED_PARAMETER(system_window);
   UNREFERENCED_PARAMETER(output_size);
   UNREFERENCED_PARAMETER(resource_provider);
   UNREFERENCED_PARAMETER(options);

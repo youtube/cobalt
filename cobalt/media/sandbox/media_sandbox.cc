@@ -99,10 +99,10 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-  media_module_ =
-      MediaModule::Create(renderer_module_->render_target()->GetSize(),
-                          renderer_module_->pipeline()->GetResourceProvider(),
-                          media_module_options);
+  media_module_ = MediaModule::Create(
+      system_window_.get(), renderer_module_->render_target()->GetSize(),
+      renderer_module_->pipeline()->GetResourceProvider(),
+      media_module_options);
   SetupAndSubmitScene();
 }
 

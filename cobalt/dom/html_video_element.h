@@ -21,6 +21,7 @@
 
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/video_playback_quality.h"
+#include "cobalt/math/rect.h"
 #include "media/base/shell_video_frame_provider.h"
 
 namespace cobalt {
@@ -55,6 +56,8 @@ class HTMLVideoElement : public HTMLMediaElement {
   // thread safe. However, it is actually a singleton internally. We should find
   // a better way to support concurrent video playbacks.
   scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider();
+
+  WebMediaPlayer::SetBoundsCB GetSetBoundsCB();
 
   DEFINE_WRAPPABLE_TYPE(HTMLVideoElement);
 
