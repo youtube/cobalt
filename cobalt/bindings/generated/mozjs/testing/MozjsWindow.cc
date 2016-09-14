@@ -264,6 +264,11 @@ using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::Wrappable;
+JSObject* DummyFunctor(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  NOTREACHED();
+  return NULL;
+}
 }  // namespace
 
 namespace cobalt {
@@ -668,7 +673,6 @@ JSObject* MozjsWindow::CreateProxy(
   global_object_proxy->SetGlobalObjectProxyAndWrapper(proxy, wrappable);
   return proxy;
 }
-
 //static
 const JSClass* MozjsWindow::PrototypeClass(
       JSContext* context) {
@@ -913,6 +917,10 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
       UnionTypesInterface::UnionTypesInterfaceWrappableType(),
       base::Bind(MozjsUnionTypesInterface::CreateProxy),
       base::Bind(MozjsUnionTypesInterface::PrototypeClass));
+  wrapper_factory->RegisterWrappableType(
+      Window::WindowWrappableType(),
+      base::Bind(DummyFunctor),
+      base::Bind(MozjsWindow::PrototypeClass));
 
 }
 
