@@ -926,23 +926,30 @@ void DrawQuadWithColorIfBorderIsSolid(
 void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
                                  const math::RectF& rect,
                                  const render_tree::Border& border) {
-  bool anti_alias = true;
+  // Check if the border colors are the same or not to determine whether we
+  // should be using antialiasing.  If the border colors are different, then
+  // there will be visible diagonal edges in the output and so we would like to
+  // render with antialiasing enabled to smooth those diagonal edges.
+  bool border_colors_are_same = border.top.color == border.left.color &&
+                                border.top.color == border.bottom.color &&
+                                border.top.color == border.right.color;
 
-  if (border.top.color == border.left.color &&
-      border.top.color == border.bottom.color &&
-      border.top.color == border.right.color) {
-    // Disable the anti-alias when the borders have the same color.
-    anti_alias = false;
-  }
+  // If any of the border edges have width less than this threshold, they will
+  // use antialiasing as otherwise depending on the border's fractional
+  // position, it may have one extra pixel visible, which is a large percentage
+  // of its small width.
+  const float kAntiAliasWidthThreshold = 3.0f;
 
   // Top
   SkPoint top_points[4] = {
-      {rect.x(), rect.y()},                                              // A
-      {rect.x() + border.left.width, rect.y() + border.top.width},       // E
-      {rect.right() - border.right.width, rect.y() + border.top.width},  // F
-      {rect.right(), rect.y()}};                                         // B
-  DrawQuadWithColorIfBorderIsSolid(border.top.style, draw_state,
-                                   border.top.color, top_points, anti_alias);
+      {rect.x(), rect.y()},                                                 // A
+      {rect.x() + border.left.width, rect.y() + border.top.width},          // E
+      {rect.right() - border.right.width, rect.y() + border.top.width},     // F
+      {rect.right(), rect.y()}};                                            // B
+  DrawQuadWithColorIfBorderIsSolid(
+      border.top.style, draw_state, border.top.color, top_points,
+      border.top.width < kAntiAliasWidthThreshold ? true
+                                                  : !border_colors_are_same);
 
   // Left
   SkPoint left_points[4] = {
@@ -950,8 +957,10 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
       {rect.x(), rect.bottom()},                                            // C
       {rect.x() + border.left.width, rect.bottom() - border.bottom.width},  // G
       {rect.x() + border.left.width, rect.y() + border.top.width}};         // E
-  DrawQuadWithColorIfBorderIsSolid(border.left.style, draw_state,
-                                   border.left.color, left_points, anti_alias);
+  DrawQuadWithColorIfBorderIsSolid(
+      border.left.style, draw_state, border.left.color, left_points,
+      border.left.width < kAntiAliasWidthThreshold ? true
+                                                   : !border_colors_are_same);
 
   // Bottom
   SkPoint bottom_points[4] = {
@@ -959,21 +968,23 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
       {rect.x(), rect.bottom()},                                            // C
       {rect.right(), rect.bottom()},                                        // D
       {rect.right() - border.right.width,
-       rect.bottom() - border.bottom.width}};  // H
-  DrawQuadWithColorIfBorderIsSolid(border.bottom.style, draw_state,
-                                   border.bottom.color, bottom_points,
-                                   anti_alias);
+       rect.bottom() - border.bottom.width}};                               // H
+  DrawQuadWithColorIfBorderIsSolid(
+      border.bottom.style, draw_state, border.bottom.color, bottom_points,
+      border.bottom.width < kAntiAliasWidthThreshold ? true
+                                                     : !border_colors_are_same);
 
   // Right
   SkPoint right_points[4] = {
-      {rect.right() - border.right.width, rect.y() + border.top.width},  // F
+      {rect.right() - border.right.width, rect.y() + border.top.width},     // F
       {rect.right() - border.right.width,
-       rect.bottom() - border.bottom.width},  // H
-      {rect.right(), rect.bottom()},          // D
-      {rect.right(), rect.y()}};              // B
-  DrawQuadWithColorIfBorderIsSolid(border.right.style, draw_state,
-                                   border.right.color, right_points,
-                                   anti_alias);
+       rect.bottom() - border.bottom.width},                                // H
+      {rect.right(), rect.bottom()},                                        // D
+      {rect.right(), rect.y()}};                                            // B
+  DrawQuadWithColorIfBorderIsSolid(
+      border.right.style, draw_state, border.right.color, right_points,
+      border.right.width < kAntiAliasWidthThreshold ? true
+                                                    : !border_colors_are_same);
 }
 
 void DrawSolidRoundedRectBorderToRenderTarget(
