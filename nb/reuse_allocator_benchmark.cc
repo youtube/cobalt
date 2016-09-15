@@ -23,6 +23,7 @@
 #include "nb/allocator_decorator.h"
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/reuse_allocator.h"
+#include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
@@ -238,10 +239,4 @@ int BenchmarkMain(int argc, char** argv) {
 
 }  // namespace
 
-void SbEventHandle(const SbEvent* event) {
-  if (event->type == kSbEventTypeStart) {
-    SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-    SbSystemRequestStop(
-        BenchmarkMain(data->argument_count, data->argument_values));
-  }
-}
+STARBOARD_WRAP_SIMPLE_MAIN(BenchmarkMain);
