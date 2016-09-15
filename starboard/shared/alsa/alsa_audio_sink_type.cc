@@ -165,13 +165,14 @@ AlsaAudioSink::AlsaAudioSink(
   SB_DCHECK(frame_buffer_);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
 
+  SbMemorySet(silence_frames_, 0,
+              channels * kFramesPerRequest * GetSampleSize(sample_type));
+
   ScopedLock lock(mutex_);
   audio_out_thread_ =
       SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
                      "alsa_audio_out", &AlsaAudioSink::ThreadEntryPoint, this);
   SB_DCHECK(SbThreadIsValid(audio_out_thread_));
-  SbMemorySet(silence_frames_, 0,
-              channels * kFramesPerRequest * GetSampleSize(sample_type));
   creation_signal_.Wait();
 }
 

@@ -69,7 +69,7 @@ StubAudioSink::StubAudioSink(
       destroying_(false) {
   audio_out_thread_ =
       SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
-                     "alsa_audio_out", &StubAudioSink::ThreadEntryPoint, this);
+                     "stub_audio_out", &StubAudioSink::ThreadEntryPoint, this);
   SB_DCHECK(SbThreadIsValid(audio_out_thread_));
 }
 
