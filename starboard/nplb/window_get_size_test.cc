@@ -24,19 +24,28 @@ TEST(SbWindowGetSizeTest, SunnyDay) {
   ASSERT_TRUE(SbWindowIsValid(window));
 
   SbWindowSize size;
-  size.width = 0;
-  size.height = 0;
+  size.width = -1;
+  size.height = -2;
+  size.video_pixel_ratio = -1.0f;
 
   ASSERT_TRUE(SbWindowGetSize(window, &size));
   EXPECT_LT(0, size.width);
   EXPECT_LT(0, size.height);
+  EXPECT_LE(0.0f, size.video_pixel_ratio);
+  EXPECT_GT(10.0f, size.video_pixel_ratio);
 
   ASSERT_TRUE(SbWindowDestroy(window));
 }
 
 TEST(SbWindowGetSizeTest, RainyDayInvalid) {
   SbWindowSize size;
+  size.width = -1;
+  size.height = -2;
+  size.video_pixel_ratio = -1.0f;
   ASSERT_FALSE(SbWindowGetSize(kSbWindowInvalid, &size));
+  EXPECT_EQ(-1, size.width);
+  EXPECT_EQ(-2, size.height);
+  EXPECT_EQ(-1.0f, size.video_pixel_ratio);
 }
 
 }  // namespace

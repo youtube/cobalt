@@ -19,11 +19,12 @@
 
 bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   if (!SbWindowIsValid(window)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid context.";
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid window.";
     return false;
   }
 
   size->width = window->width;
   size->height = window->height;
+  size->video_pixel_ratio = 1.0f;
   return true;
 }
