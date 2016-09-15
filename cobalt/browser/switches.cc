@@ -88,6 +88,10 @@ const char kStubImageDecoder[] = "stub_image_decoder";
 // "timed_trace.json" in the log output directory.
 const char kTimedTrace[] = "timed_trace";
 
+// Set the video container size override.
+extern const char kVideoContainerSizeOverride[] =
+    "video_container_size_override";
+
 // Decode video data using ShellRawVideoDecoderStub.
 extern const char kVideoDecoderStub[] = "video_decoder_stub";
 
