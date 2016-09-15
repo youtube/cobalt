@@ -62,13 +62,14 @@ void VideoRenderer::WriteEndOfStream() {
 void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(seek_to_pts >= 0);
 
+  decoder_->Reset();
+
   ScopedLock lock(mutex_);
 
   seeking_to_pts_ = std::max<SbMediaTime>(seek_to_pts, 0);
   seeking_ = true;
   end_of_stream_written_ = false;
 
-  decoder_->Reset();
   frames_.clear();
 }
 
