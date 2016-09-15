@@ -9,6 +9,7 @@
 #include "build/build_config.h"
 #include "crypto/nss_util.h"
 #include "net/base/net_test_suite.h"
+#include "starboard/client_porting/wrap_main/wrap_main.h"
 
 #if !__LB_ENABLE_NATIVE_HTTP_STACK__
 #include "net/socket/client_socket_pool_base.h"
@@ -27,8 +28,7 @@ using net::SpdySession;
 #endif
 
 int test_main(int argc, char** argv) {
-  MainHook hook(test_main, argc, argv);
-
+  MainHook hook(NULL, argc, argv);
 #if !defined(OS_STARBOARD)
   scoped_ptr<base::ObjectWatchMultiplexer> watcher(
       new base::ObjectWatchMultiplexer());
@@ -61,17 +61,4 @@ int test_main(int argc, char** argv) {
   return test_suite.Run();
 }
 
-#if !defined(OS_STARBOARD)
-int main(int argc, char** argv) {
-  return test_main(argc, argv);
-}
-#else
-#include "starboard/event.h"
-#include "starboard/system.h"
-void SbEventHandle(const SbEvent* event) {
-  if (event->type == kSbEventTypeStart) {
-    SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-    SbSystemRequestStop(test_main(data->argument_count, data->argument_values));
-  }
-}
-#endif
+STARBOARD_WRAP_SIMPLE_MAIN(test_main);
