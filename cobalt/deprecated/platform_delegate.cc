@@ -108,6 +108,14 @@ bool PlatformDelegate::DeregisterUserLog(int user_log_index) const {
   return false;
 }
 
+void PlatformDelegate::SetVideoContainerSizeOverride(
+    const std::string& video_container_size_override) {
+  DLOG(INFO) << "Change VideoContainerSizeOverride from \""
+             << video_container_size_override_ << "\" to \""
+             << video_container_size_override << "\"";
+  video_container_size_override_ = video_container_size_override;
+}
+
 PlatformDelegate::~PlatformDelegate() {}
 
 }   // namespace deprecated

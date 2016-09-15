@@ -52,5 +52,12 @@ std::string H5vccSystem::version() const { return COBALT_VERSION; }
 // return false to indicate the client should launch their own dialog.
 bool H5vccSystem::TriggerHelp() const { return false; }
 
+// Returns a string in the form of "1920x1080" to inform the player to use the
+// returned resolution instead of the window size as the maximum resolution of
+// video being played.
+std::string H5vccSystem::GetVideoContainerSizeOverride() const {
+  return deprecated::PlatformDelegate::Get()->GetVideoContainerSizeOverride();
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt
