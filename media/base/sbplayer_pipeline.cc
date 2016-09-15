@@ -58,15 +58,6 @@ SbMediaTime TimeDeltaToSbMediaTime(TimeDelta timedelta) {
          Time::kMicrosecondsPerSecond;
 }
 
-void UpdateDecoderConfig(scoped_refptr<DemuxerStream> stream) {
-  if (stream->type() == DemuxerStream::AUDIO) {
-    stream->audio_decoder_config();
-  } else {
-    DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
-    stream->video_decoder_config();
-  }
-}
-
 bool IsEncrypted(const scoped_refptr<DemuxerStream>& stream) {
   if (stream->type() == DemuxerStream::AUDIO) {
     return stream->audio_decoder_config().is_encrypted();
@@ -227,6 +218,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer);
+
+  void UpdateDecoderConfig(const scoped_refptr<DemuxerStream>& stream);
 
   // Message loop used to execute pipeline tasks.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -616,6 +609,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   if (has_video_) {
     const VideoDecoderConfig& video_config =
         demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
+    natural_size_ = video_config.natural_size();
     is_encrypted |= video_config.is_encrypted();
   }
   if (is_encrypted) {
@@ -870,6 +864,19 @@ void SbPlayerPipeline::DeallocateSampleCB(SbPlayer player,
   pipeline->message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::OnDeallocateSample, pipeline,
                             sample_buffer));
+}
+
+void SbPlayerPipeline::UpdateDecoderConfig(
+    const scoped_refptr<DemuxerStream>& stream) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (stream->type() == DemuxerStream::AUDIO) {
+    stream->audio_decoder_config();
+  } else {
+    DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
+    const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
+    base::AutoLock auto_lock(lock_);
+    natural_size_ = decoder_config.natural_size();
+  }
 }
 
 }  // namespace
