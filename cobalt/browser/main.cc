@@ -27,7 +27,7 @@ namespace {
 
 cobalt::browser::Application* g_application = NULL;
 
-void StartApplication(int /*argc*/, char** /*argv*/,
+void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                       const base::Closure& quit_closure) {
   DCHECK(!g_application);
   g_application = cobalt::browser::CreateApplication(quit_closure).release();

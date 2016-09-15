@@ -155,6 +155,7 @@
         '../h5vcc/H5vccAudioConfigArray.idl',
         '../h5vcc/H5vccCVal.idl',
         '../h5vcc/H5vccCValKeyList.idl',
+        '../h5vcc/H5vccDeepLinkEventTarget.idl',
         '../h5vcc/H5vccRuntime.idl',
         '../h5vcc/H5vccRuntimeEventTarget.idl',
         '../h5vcc/H5vccSettings.idl',

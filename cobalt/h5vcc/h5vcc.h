@@ -17,6 +17,8 @@
 #ifndef COBALT_H5VCC_H5VCC_H_
 #define COBALT_H5VCC_H5VCC_H_
 
+#include <string>
+
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
@@ -42,6 +44,7 @@ class H5vcc : public script::Wrappable {
     network::NetworkModule* network_module;
     account::AccountManager* account_manager;
     base::EventDispatcher* event_dispatcher;
+    std::string initial_deep_link;
   };
 
   explicit H5vcc(const Settings& config);
