@@ -5,28 +5,14 @@
 #include "base/test/main_hook.h"
 #include "base/test/test_suite.h"
 #include "sql/test_vfs.h"
+#include "starboard/client_porting/wrap_main/wrap_main.h"
 
-#if !defined(OS_STARBOARD)
-int main(int argc, char** argv) {
-  MainHook hook(main, argc, argv);
+int TestSuiteRun(int argc, char** argv) {
+  MainHook hook(NULL, argc, argv);
   sql::RegisterTestVfs();
-  int result = base::TestSuite(argc, argv).Run();
+  int error_level = base::TestSuite(argc, argv).Run();
   sql::UnregisterTestVfs();
-  return result;
+  return error_level;
 }
-#else
-#include "starboard/event.h"
-#include "starboard/system.h"
 
-void SbEventHandle(const SbEvent* event) {
-  if (event->type == kSbEventTypeStart) {
-    SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-    MainHook hook(NULL, data->argument_count, data->argument_values);
-    sql::RegisterTestVfs();
-    int error_level =
-        base::TestSuite(data->argument_count, data->argument_values).Run();
-    sql::UnregisterTestVfs();
-    SbSystemRequestStop(error_level);
-  }
-}
-#endif
+STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
