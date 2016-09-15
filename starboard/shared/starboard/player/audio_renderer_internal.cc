@@ -68,17 +68,19 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
     return;
   }
 
-  ScopedLock lock(mutex_);
-  if (seeking_) {
-    if (input_pts < seeking_to_pts_) {
-      return;
+  {
+    ScopedLock lock(mutex_);
+    if (seeking_) {
+      if (input_pts < seeking_to_pts_) {
+        return;
+      }
     }
-  }
 
-  AppendFrames(&decoded_audio[0], decoded_audio.size() / channels_);
+    AppendFrames(&decoded_audio[0], decoded_audio.size() / channels_);
 
-  if (seeking_ && frame_buffer_.size() > kPrerollFrames * channels_) {
-    seeking_ = false;
+    if (seeking_ && frame_buffer_.size() > kPrerollFrames * channels_) {
+      seeking_ = false;
+    }
   }
 
   // Create the audio sink if it is the first incoming AU after seeking.
