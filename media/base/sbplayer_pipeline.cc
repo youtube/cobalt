@@ -856,7 +856,6 @@ void SbPlayerPipeline::PlayerStatusCB(SbPlayer player,
                                       SbPlayerState state,
                                       int ticket) {
   SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
-  DCHECK_EQ(pipeline->player_, player);
   pipeline->message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&SbPlayerPipeline::OnPlayerStatus, pipeline, state, ticket));
