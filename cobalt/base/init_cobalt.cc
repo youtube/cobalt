@@ -16,6 +16,8 @@
 
 #include "cobalt/base/init_cobalt.h"
 
+#include <string>
+
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/i18n/icu_util.h"
@@ -51,10 +53,15 @@ uint32 GetLifetimeInMS() {
 
 #endif
 
+base::LazyInstance<std::string> s_initial_deep_link = LAZY_INSTANCE_INITIALIZER;
+
 }  // namespace
 
-void InitCobalt(int argc, char* argv[]) {
+void InitCobalt(int argc, char* argv[], const char* link) {
   CommandLine::Init(argc, argv);
+  if (link) {
+    s_initial_deep_link.Get() = link;
+  }
   deprecated::PlatformDelegate::Init();
 
   // Register a callback to be called during program termination.
@@ -73,5 +80,7 @@ void InitCobalt(int argc, char* argv[]) {
   bool icu_initialized = icu_util::Initialize();
   LOG_IF(ERROR, !icu_initialized) << "ICU initialization failed.";
 }
+
+const char* GetInitialDeepLink() { return s_initial_deep_link.Get().c_str(); }
 
 }  // namespace cobalt
