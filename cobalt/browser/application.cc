@@ -359,6 +359,14 @@ Application::Application(const base::Closure& quit_closure)
     DLOG(INFO) << "Use null audio";
     options.media_module_options.use_null_audio_streamer = true;
   }
+  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
+    std::string size_override = command_line->GetSwitchValueASCII(
+        browser::switches::kVideoContainerSizeOverride);
+    DLOG(INFO) << "Set video container size override from command line to "
+               << size_override;
+    deprecated::PlatformDelegate::Get()->SetVideoContainerSizeOverride(
+        size_override);
+  }
   if (command_line->HasSwitch(switches::kVideoDecoderStub)) {
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
