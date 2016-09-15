@@ -23,30 +23,12 @@
 #include "base/message_loop.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/wrap_main.h"
+#include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 
 namespace cobalt {
 namespace wrap_main {
-
-// Starboard implementation of the "Simple Main" use case.
-template <MainFunction main_function>
-void SimpleEventHandler(const SbEvent* event) {
-  static base::AtExitManager* g_at_exit = NULL;
-  switch (event->type) {
-    case kSbEventTypeStart: {
-      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-      DCHECK(!g_at_exit);
-      g_at_exit = new base::AtExitManager();
-      InitCobalt(data->argument_count, data->argument_values);
-      SbSystemRequestStop(
-          main_function(data->argument_count, data->argument_values));
-      break;
-    }
-    default:
-      break;
-  }
-}
 
 // Starboard implementation of the "Base Main" use case.
 template <StartFunction start_function, EventFunction event_function,
@@ -93,15 +75,21 @@ void BaseEventHandler(const SbEvent* event) {
   }
 }
 
+template <MainFunction main_function>
+int CobaltMainAddOns(int argc, char** argv) {
+  base::AtExitManager at_exit;
+  cobalt::InitCobalt(argc, argv);
+  return main_function(argc, argv);
+}
+
 }  // namespace wrap_main
 }  // namespace cobalt
 
 // Calls |main_function| at startup, creates an AtExitManager and calls
 // InitCobalt, and terminates once it is completed.
-#define COBALT_WRAP_SIMPLE_MAIN(main_function)                     \
-  void SbEventHandle(const SbEvent* event) {                       \
-    ::cobalt::wrap_main::SimpleEventHandler<main_function>(event); \
-  }
+#define COBALT_WRAP_SIMPLE_MAIN(main_function)                          \
+  STARBOARD_WRAP_SIMPLE_MAIN(                                           \
+      ::cobalt::wrap_main::CobaltMainAddOns<main_function>);
 
 // Like COBALT_WRAP_BASE_MAIN, but supports an event_function to forward
 // non-application events to.
