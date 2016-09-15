@@ -17,9 +17,17 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_
 
+#if defined(STARBOARD)
+
 #include "starboard/string.h"
+#include "starboard/memory.h"
 
 #ifdef __cplusplus
+
+// declaring the following 4 functions static inline is not necessary in C++
+// see:
+// http://stackoverflow.com/questions/10847176/should-i-define-static-inline-methods-in-header-file
+
 // Finds the last occurrence of |character| in |str|, returning a pointer to
 // the found character in the given string, or NULL if not found.
 // Meant to be a drop-in replacement for strchr, C++ signature
@@ -59,7 +67,7 @@ inline const char* PoemFindCharacter(const char* str, int character) {
 // Finds the first occurrence of |character| in |str|, returning a pointer to
 // the found character in the given string, or NULL if not found.
 // Meant to be a drop-in replacement for strchr
-SB_C_INLINE char* PoemFindCharacter(const char* str, int character) {
+static SB_C_INLINE char* PoemFindCharacter(const char* str, int character) {
   // C-style cast used for C code
   return (char*)(SbStringFindCharacter(str, character));
 }
@@ -67,18 +75,22 @@ SB_C_INLINE char* PoemFindCharacter(const char* str, int character) {
 // Finds the last occurrence of |character| in |str|, returning a pointer to
 // the found character in the given string, or NULL if not found.
 // Meant to be a drop-in replacement for strchr
-SB_C_INLINE char* PoemFindLastCharacter(const char* str, int character) {
+static SB_C_INLINE char* PoemFindLastCharacter(const char* str, int character) {
   // C-style cast used for C code
   return (char*)(SbStringFindLastCharacter(str, character));
 }
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Concatenates |source| onto the end of |out_destination|, presuming it has
 // |destination_size| total characters of storage available. Returns
 // |out_destination|.  This method is a drop-in replacement for strncat
-SB_C_INLINE char* PoemConcat(char* out_destination,
-                             const char* source,
-                             int destination_size) {
+static SB_C_INLINE char* PoemConcat(char* out_destination,
+                                    const char* source,
+                                    int destination_size) {
   SbStringConcat(out_destination, source, destination_size);
   return out_destination;
 }
@@ -91,7 +103,11 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
   return PoemConcat(out_destination, source, INT_MAX);
 }
 
-#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#if !defined(POEM_NO_EMULATION)
 
 #define strlen(s) SbStringGetLength(s)
 #define strcpy(o, s) SbStringCopyUnsafe(o, s)
@@ -105,6 +121,11 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
 #define strncmp(s1, s2, c) SbStringCompare(s1, s2, c)
 #define strcmp(s1, s2) SbStringCompareAll(s1, s2)
 
+#define memset(s, c, n) SbMemorySet(s, c, n)
+#define memcpy(d, s, c) SbMemoryCopy(d, s, c)
+#define memcmp(s1, s2, n) SbMemoryCompare(s1, s2, n)
+#define memmove(d, s, n) SbMemoryMove(d, s, n)
+
 // number conversion functions
 #define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
 #define atoi(v) SbStringAToI(v)
@@ -114,6 +135,8 @@ static SB_C_INLINE char* PoemConcatUnsafe(char* out_destination,
 #define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
 #define strtod(s, o) SbStringParseDouble(s, o)
 
-#endif  // POEM_FULL_EMULATION
+#endif  // POEM_NO_EMULATION
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_

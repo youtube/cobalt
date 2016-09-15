@@ -22,6 +22,16 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+bool IsNonIdleWithin(SbSocket socket, SbTimeMonotonic timeout) {
+  SbTimeMonotonic deadline = SbTimeGetMonotonicNow() + timeout;
+  while (SbTimeGetMonotonicNow() < deadline) {
+    if (!SbSocketIsConnectedAndIdle(socket)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 TEST(SbSocketIsConnectedAndIdleTest, RainyDayInvalidSocket) {
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(kSbSocketInvalid));
 }
@@ -39,15 +49,14 @@ TEST(SbSocketIsConnectedAndIdleTest, SunnyDay) {
 
   char buf[512] = {0};
   SbSocketSendTo(trio.server_socket, buf, sizeof(buf), NULL);
-  // Because I haven't called ReceiveFrom yet, this should stay false. The wait
-  // before the checking is for the delay on some platforms.
-  SbThreadSleep(kSocketTimeout);
-  EXPECT_FALSE(SbSocketIsConnectedAndIdle(trio.client_socket));
+  // It may take some time after this call for trio.client_socket to show up as
+  // having new data available, even though it is a loopback connection, so we
+  // give it a grace period.
+  EXPECT_TRUE(IsNonIdleWithin(trio.client_socket, kSocketTimeout));
 
   // Should be the same in the other direction.
   SbSocketSendTo(trio.client_socket, buf, sizeof(buf), NULL);
-  SbThreadSleep(kSocketTimeout);
-  EXPECT_FALSE(SbSocketIsConnectedAndIdle(trio.server_socket));
+  EXPECT_TRUE(IsNonIdleWithin(trio.server_socket, kSocketTimeout));
 
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
   EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
@@ -60,9 +69,7 @@ TEST(SbSocketIsConnectedAndIdleTest, SunnyDayNotConnected) {
     return;
   }
 
-  SbThreadSleep(kSocketTimeout);
-  EXPECT_FALSE(SbSocketIsConnectedAndIdle(socket));
-
+  EXPECT_TRUE(IsNonIdleWithin(socket, kSocketTimeout));
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 

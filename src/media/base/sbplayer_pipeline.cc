@@ -120,12 +120,35 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   }
 }
 
+class SetBoundsCaller : public base::RefCountedThreadSafe<SetBoundsCaller> {
+ public:
+  SetBoundsCaller() : player_(kSbPlayerInvalid) {}
+  void SetPlayer(SbPlayer player) {
+    base::Lock lock_;
+    player_ = player;
+  }
+  void SetBounds(const gfx::Rect& rect) {
+    base::AutoLock auto_lock(lock_);
+    if (SbPlayerIsValid(player_)) {
+      SbPlayerSetBounds(player_, rect.x(), rect.y(), rect.width(),
+                        rect.height());
+    }
+  }
+
+ private:
+  base::Lock lock_;
+  SbPlayer player_;
+
+  DISALLOW_COPY_AND_ASSIGN(SetBoundsCaller);
+};
+
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
 class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
  public:
   // Constructs a media pipeline that will execute on |message_loop|.
-  SbPlayerPipeline(const scoped_refptr<base::MessageLoopProxy>& message_loop,
+  SbPlayerPipeline(PipelineWindow window,
+                   const scoped_refptr<base::MessageLoopProxy>& message_loop,
                    MediaLog* media_log);
   ~SbPlayerPipeline() OVERRIDE;
 
@@ -155,8 +178,16 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
 
   bool DidLoadingProgress() const OVERRIDE;
   PipelineStatistics GetStatistics() const OVERRIDE;
+  SetBoundsCB GetSetBoundsCB() OVERRIDE;
 
  private:
+  // A map from raw data pointer returned by DecoderBuffer::GetData() to the
+  // DecoderBuffer and a reference count.  The reference count indicates how
+  // many instances of the DecoderBuffer is currently being decoded in the
+  // pipeline.
+  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int> >
+      DecodingBuffers;
+
   void StartTask();
 
   // DataSourceHost (by way of DemuxerHost) implementation.
@@ -205,6 +236,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
 
   // Lock used to serialize access for the following data members.
   mutable base::Lock lock_;
+
+  // The window this player associates with.
+  PipelineWindow window_;
 
   // Whether or not the pipeline is running.
   bool running_;
@@ -276,15 +310,19 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
 
   SbPlayer player_;
 
-  std::map<const void*, scoped_refptr<DecoderBuffer> > decoding_buffers_;
+  DecodingBuffers decoding_buffers_;
+
+  scoped_refptr<SetBoundsCaller> set_bounds_caller_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
 
 SbPlayerPipeline::SbPlayerPipeline(
+    PipelineWindow window,
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     MediaLog* media_log)
-    : message_loop_(message_loop),
+    : window_(window),
+      message_loop_(message_loop),
       media_log_(media_log),
       total_bytes_(0),
       natural_size_(0, 0),
@@ -295,7 +333,8 @@ SbPlayerPipeline::SbPlayerPipeline(
       ticket_(SB_PLAYER_INITIAL_TICKET),
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
-      player_(kSbPlayerInvalid) {}
+      player_(kSbPlayerInvalid),
+      set_bounds_caller_(new SetBoundsCaller) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() {
   DCHECK(player_ == kSbPlayerInvalid);
@@ -339,6 +378,7 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   DCHECK(!stop_cb.is_null());
 
   if (SbPlayerIsValid(player_)) {
+    set_bounds_caller_->SetPlayer(kSbPlayerInvalid);
     SbPlayerDestroy(player_);
     player_ = kSbPlayerInvalid;
   }
@@ -480,6 +520,14 @@ PipelineStatistics SbPlayerPipeline::GetStatistics() const {
   return statistics_;
 }
 
+Pipeline::SetBoundsCB SbPlayerPipeline::GetSetBoundsCB() {
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  return base::Bind(&SetBoundsCaller::SetBounds, set_bounds_caller_);
+#else   // SB_IS(PLAYER_PUNCHED_OUT)
+  return Pipeline::SetBoundsCB();
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+}
+
 void SbPlayerPipeline::StartTask() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -528,9 +576,10 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   audio_header.bits_per_sample = audio_config.bits_per_channel();
   audio_header.audio_specific_config_size = 0;
   player_ =
-      SbPlayerCreate(kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
+      SbPlayerCreate(window_, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
                      SB_PLAYER_NO_DURATION, drm_system, &audio_header,
                      DeallocateSampleCB, DecoderStatusCB, PlayerStatusCB, this);
+  set_bounds_caller_->SetPlayer(player_);
 }
 
 void SbPlayerPipeline::SetDecryptor(Decryptor* decryptor) {
@@ -663,9 +712,12 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
       SbPlayerWriteEndOfStream(player_, kSbMediaTypeAudio);
       return;
     }
-    DCHECK(decoding_buffers_.find(buffer->GetData()) ==
-           decoding_buffers_.end());
-    decoding_buffers_[buffer->GetData()] = buffer;
+    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->GetData());
+    if (iter == decoding_buffers_.end()) {
+      decoding_buffers_[buffer->GetData()] = std::make_pair(buffer, 1);
+    } else {
+      ++iter->second.second;
+    }
     SbPlayerWriteSample(player_, kSbMediaTypeAudio, buffer->GetData(),
                         buffer->GetDataSize(),
                         TimeDeltaToSbMediaTime(buffer->GetTimestamp()), NULL,
@@ -683,8 +735,12 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   video_info.is_key_frame = false;
   video_info.frame_width = 1;
   video_info.frame_height = 1;
-  DCHECK(decoding_buffers_.find(buffer->GetData()) == decoding_buffers_.end());
-  decoding_buffers_[buffer->GetData()] = buffer;
+  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->GetData());
+  if (iter == decoding_buffers_.end()) {
+    decoding_buffers_[buffer->GetData()] = std::make_pair(buffer, 1);
+  } else {
+    ++iter->second.second;
+  }
   SbPlayerWriteSample(player_, kSbMediaTypeVideo, buffer->GetData(),
                       buffer->GetDataSize(),
                       TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
@@ -768,8 +824,17 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
 
 void SbPlayerPipeline::OnDeallocateSample(const void* sample_buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(decoding_buffers_.find(sample_buffer) != decoding_buffers_.end());
-  decoding_buffers_.erase(decoding_buffers_.find(sample_buffer));
+  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
+  DCHECK(iter != decoding_buffers_.end());
+  if (iter == decoding_buffers_.end()) {
+    LOG(ERROR) << "SbPlayerPipeline::OnDeallocateSample encounters unknown "
+               << "sample_buffer " << sample_buffer;
+    return;
+  }
+  --iter->second.second;
+  if (iter->second.second == 0) {
+    decoding_buffers_.erase(iter);
+  }
 }
 
 // static
@@ -791,7 +856,6 @@ void SbPlayerPipeline::PlayerStatusCB(SbPlayer player,
                                       SbPlayerState state,
                                       int ticket) {
   SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
-  DCHECK_EQ(pipeline->player_, player);
   pipeline->message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&SbPlayerPipeline::OnPlayerStatus, pipeline, state, ticket));
@@ -813,10 +877,11 @@ void SbPlayerPipeline::DeallocateSampleCB(SbPlayer player,
 #endif  // SB_HAS(PLAYER)
 
 scoped_refptr<Pipeline> Pipeline::Create(
+    PipelineWindow window,
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     MediaLog* media_log) {
 #if SB_HAS(PLAYER)
-  return new SbPlayerPipeline(message_loop, media_log);
+  return new SbPlayerPipeline(window, message_loop, media_log);
 #else
   return NULL;
 #endif

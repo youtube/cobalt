@@ -63,14 +63,10 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
   std::vector<StackFrame> GetStackTrace(int max_frames = 0) OVERRIDE;
 
   void PreventGarbageCollection(
-      const scoped_refptr<Wrappable>& wrappable) OVERRIDE {
-    NOTIMPLEMENTED();
-  }
+      const scoped_refptr<Wrappable>& wrappable) OVERRIDE;
 
   void AllowGarbageCollection(
-      const scoped_refptr<Wrappable>& wrappable) OVERRIDE {
-    NOTIMPLEMENTED();
-  }
+      const scoped_refptr<Wrappable>& wrappable) OVERRIDE;
 
   void DisableEval(const std::string& message) OVERRIDE;
 
@@ -144,10 +140,13 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
   };
 
   typedef base::hash_map<intptr_t, InterfaceData*> CachedInterfaceData;
+  typedef base::hash_multimap<Wrappable*, JS::Heap<JSObject*> >
+      CachedWrapperMultiMap;
 
   base::ThreadChecker thread_checker_;
   JSContext* context_;
   WeakHeapObjectManager weak_object_manager_;
+  CachedWrapperMultiMap kept_alive_objects_;
   scoped_ptr<ReferencedObjectMap> referenced_objects_;
   CachedInterfaceData cached_interface_data_;
   STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;

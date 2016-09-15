@@ -69,11 +69,12 @@
 #include "ui/gfx/size.h"
 
 #if defined(OS_STARBOARD)
+
 #if SB_HAS(PLAYER)
-#define COBALT_USE_SBPLAYER_PIPELINE
 #define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 #endif  // SB_HAS(PLAYER)
+
 #endif  // defined(OS_STARBOARD)
 
 namespace media {
@@ -106,6 +107,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // |audio_renderer_sink| arguments should be the same object.
 
   WebMediaPlayerImpl(
+      PipelineWindow window,
       WebMediaPlayerClient* client,
       WebMediaPlayerDelegate* delegate,
       const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
@@ -203,6 +205,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   MediaKeyException CancelKeyRequest(const std::string& key_system,
                                      const std::string& session_id) OVERRIDE;
 
+  SetBoundsCB GetSetBoundsCB() OVERRIDE;
+
   // As we are closing the tab or even the browser, |main_loop_| is destroyed
   // even before this object gets destructed, so we need to know when
   // |main_loop_| is being destroyed and we can stop posting repaint task
@@ -246,6 +250,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   // Destroy resources held.
   void Destroy();
+
+  void GetMediaTimeAndSeekingState(base::TimeDelta* media_time,
+                                   bool* is_seeking) const;
 
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();
@@ -365,7 +372,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // unimportant.
   bool suppress_destruction_errors_;
 
-  base::Callback<base::TimeDelta()> media_time_cb_;
+  base::Callback<void(base::TimeDelta*, bool*)>
+      media_time_and_seeking_state_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };

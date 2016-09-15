@@ -29,6 +29,7 @@ SbMediaTime GetMediaTime(SbMediaTime media_pts,
 }
 
 SbPlayerPrivate::SbPlayerPrivate(
+    SbWindow window,
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbMediaTime duration_pts,
@@ -49,6 +50,7 @@ SbPlayerPrivate::SbPlayerPrivate(
       is_paused_(true),
       volume_(1.0),
       worker_(this,
+              window,
               video_codec,
               audio_codec,
               drm_system,
@@ -89,6 +91,14 @@ void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
   PlayerWorker::WriteEndOfStreamEventData data = {stream_type};
   worker_.EnqueueEvent(data);
 }
+
+#if SB_IS(PLAYER_PUNCHED_OUT)
+void SbPlayerPrivate::SetBounds(int x, int y, int width, int height) {
+  PlayerWorker::SetBoundsEventData data = {x, y, width, height};
+  worker_.EnqueueEvent(data);
+  // TODO: Wait until a frame is rendered with the updated bounds.
+}
+#endif
 
 void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   SB_DCHECK(out_player_info != NULL);

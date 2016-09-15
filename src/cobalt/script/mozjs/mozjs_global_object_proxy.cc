@@ -147,9 +147,6 @@ MozjsGlobalObjectProxy::MozjsGlobalObjectProxy(JSRuntime* runtime)
   js::SetDOMProxyInformation(0 /*domProxyHandlerFamily*/, kJSProxySlotExpando,
                              DOMProxyShadowsCheck);
 #endif
-#if !defined(COBALT_BUILD_TYPE_GOLD) && !defined(COBALT_BUILD_TYPE_QA)
-  options |= JSOPTION_EXTRA_WARNINGS;
-#endif
   JS_SetOptions(context_, options);
 
   JS_SetErrorReporter(context_, &MozjsGlobalObjectProxy::ReportErrorHandler);
@@ -202,7 +199,8 @@ bool MozjsGlobalObjectProxy::EvaluateScript(
   const base::SourceLocation location = mozjs_source_code->location();
 
   JSAutoRequest auto_request(context_);
-  JSAutoCompartment auto_comparment(context_, global_object_proxy_);
+  JSAutoCompartment auto_compartment(context_, global_object_proxy_);
+  JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
   JS::RootedValue result_value(context_);
   std::string error_message;
   last_error_message_ = &error_message;
@@ -230,6 +228,7 @@ bool MozjsGlobalObjectProxy::EvaluateScript(
       *out_result_utf8 = *last_error_message_;
     }
   }
+  JS_RestoreExceptionState(context_, previous_exception_state);
   last_error_message_ = NULL;
   return success;
 }
@@ -237,6 +236,29 @@ bool MozjsGlobalObjectProxy::EvaluateScript(
 std::vector<StackFrame> MozjsGlobalObjectProxy::GetStackTrace(int max_frames) {
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::GetStackTrace(context_, max_frames);
+}
+
+void MozjsGlobalObjectProxy::PreventGarbageCollection(
+    const scoped_refptr<Wrappable>& wrappable) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  JSAutoRequest auto_request(context_);
+  JSAutoCompartment auto_compartment(context_, global_object_proxy_);
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrappable(wrappable, context_, wrapper_factory());
+  JS::RootedObject proxy(context_, wrapper_private->js_object_proxy());
+  kept_alive_objects_.insert(CachedWrapperMultiMap::value_type(
+      wrappable.get(), JS::Heap<JSObject*>(proxy)));
+}
+
+void MozjsGlobalObjectProxy::AllowGarbageCollection(
+    const scoped_refptr<Wrappable>& wrappable) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  CachedWrapperMultiMap::iterator it =
+      kept_alive_objects_.find(wrappable.get());
+  DCHECK(it != kept_alive_objects_.end());
+  if (it != kept_alive_objects_.end()) {
+    kept_alive_objects_.erase(it);
+  }
 }
 
 void MozjsGlobalObjectProxy::DisableEval(const std::string& message) {
@@ -260,7 +282,7 @@ void MozjsGlobalObjectProxy::SetReportEvalCallback(
 void MozjsGlobalObjectProxy::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
   JSAutoRequest auto_request(context_);
-  JSAutoCompartment auto_comparment(context_, global_object_proxy_);
+  JSAutoCompartment auto_compartment(context_, global_object_proxy_);
 
   JS::RootedObject wrapper_proxy(context_,
                                  wrapper_factory_->GetWrapperProxy(impl));
@@ -364,6 +386,11 @@ void MozjsGlobalObjectProxy::TraceFunction(JSTracer* trace, void* data) {
       JS_CallHeapObjectTracer(trace, &data->interface_object,
                               "MozjsGlobalObjectProxy");
     }
+  }
+  for (CachedWrapperMultiMap::iterator it =
+           global_object_environment->kept_alive_objects_.begin();
+       it != global_object_environment->kept_alive_objects_.end(); ++it) {
+    JS_CallHeapObjectTracer(trace, &it->second, "MozjsGlobalObjectProxy");
   }
 }
 

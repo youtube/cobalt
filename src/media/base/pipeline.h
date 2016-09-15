@@ -15,6 +15,7 @@
 #ifndef MEDIA_BASE_PIPELINE_H_
 #define MEDIA_BASE_PIPELINE_H_
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
 #include "base/time.h"
@@ -23,7 +24,23 @@
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
+#include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
+
+#if defined(OS_STARBOARD)
+#if SB_HAS(PLAYER)
+
+#define COBALT_USE_SBPLAYER_PIPELINE
+
+#endif  // SB_HAS(PLAYER)
+#endif  // defined(OS_STARBOARD)
+
+#if defined(COBALT_USE_SBPLAYER_PIPELINE)
+#include "starboard/window.h"
+typedef SbWindow PipelineWindow;
+#else   // defined(COBALT_USE_SBPLAYER_PIPELINE)
+typedef void* PipelineWindow;
+#endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
 
 namespace media {
 
@@ -34,6 +51,8 @@ class MediaLog;
 // playing.
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
+  typedef base::Callback<void(const gfx::Rect&)> SetBoundsCB;
+
   // Buffering states the pipeline transitions between during playback.
   // kHaveMetadata:
   //   Indicates that the following things are known:
@@ -50,6 +69,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   typedef base::Callback<void(BufferingState)> BufferingStateCB;
 
   static scoped_refptr<Pipeline> Create(
+      PipelineWindow window,
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
       MediaLog* media_log);
 
@@ -151,6 +171,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Gets the current pipeline statistics.
   virtual PipelineStatistics GetStatistics() const = 0;
+
+  // Get the SetBoundsCB used to set the bounds of the video frame.
+  virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
 };
 
 }  // namespace media

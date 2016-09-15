@@ -42,16 +42,22 @@ void FuzzerApp::RunFuzzingLoop() {
   DCHECK_GT(number_of_iterations_, 0);
 
   for (int i = 0; i < number_of_iterations_; ++i) {
-    for (size_t file_index = 0; file_index < file_entries_.size();
-         ++file_index) {
-      LOG(INFO) << "Fuzzing \"" << file_entries_[file_index].file_name << "\" "
-                << "with seed " << file_entries_[file_index].fuzzer.seed();
+    for (FileEntries::iterator iter = file_entries_.begin();
+         iter != file_entries_.end(); ++iter) {
+      LOG(INFO) << "Fuzzing \"" << iter->first << "\" "
+                << "with seed " << iter->second.fuzzer.seed();
 
-      Fuzz(file_entries_[file_index].file_name,
-           file_entries_[file_index].fuzzer.GetFuzzedContent());
-      file_entries_[file_index].fuzzer.AdvanceSeed();
+      Fuzz(iter->first, iter->second.fuzzer.GetFuzzedContent());
+      iter->second.fuzzer.AdvanceSeed();
     }
   }
+}
+
+const std::vector<uint8>& FuzzerApp::GetFileContent(
+    const std::string& filename) const {
+  FileEntries::const_iterator iter = file_entries_.find(filename);
+  DCHECK(iter != file_entries_.end());
+  return iter->second.file_content;
 }
 
 bool FuzzerApp::ParseInitialSeedAndNumberOfIterations(int argc, char* argv[],
@@ -137,17 +143,16 @@ void FuzzerApp::AddFile(const std::string& file_name, double min_ratio,
   if (parsed_content.empty()) {
     return;
   }
-  file_entries_.push_back(FileEntry(file_name, uint8_content, parsed_content,
-                                    min_ratio, max_ratio, initial_seed));
+  file_entries_.insert(
+      std::make_pair(file_name, FileEntry(uint8_content, parsed_content,
+                                          min_ratio, max_ratio, initial_seed)));
 }
 
-FuzzerApp::FileEntry::FileEntry(const std::string& file_name,
-                                const std::vector<uint8>& file_content,
+FuzzerApp::FileEntry::FileEntry(const std::vector<uint8>& file_content,
                                 const std::vector<uint8>& fuzz_content,
                                 double min_ratio, double max_ratio,
                                 int initial_seed)
-    : file_name(file_name),
-      file_content(file_content),
+    : file_content(file_content),
       fuzzer(fuzz_content, min_ratio, max_ratio, initial_seed) {}
 
 }  // namespace sandbox

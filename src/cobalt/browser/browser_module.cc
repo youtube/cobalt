@@ -119,7 +119,7 @@ BrowserModule::BrowserModule(const GURL& url,
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       media_module_(media::MediaModule::Create(
-          renderer_module_.render_target()->GetSize(),
+          system_window, renderer_module_.render_target()->GetSize(),
           renderer_module_.pipeline()->GetResourceProvider(),
           options.media_module_options)),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
@@ -174,7 +174,8 @@ BrowserModule::BrowserModule(const GURL& url,
   debug_console_.reset(new DebugConsole(
       base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      media_module_.get(), &network_module_, system_window->GetWindowSize(),
+      media_module_.get(), &network_module_,
+      renderer_module_.render_target()->GetSize(),
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));

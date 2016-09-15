@@ -72,11 +72,13 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_css_computed_style_declaration,
     const scoped_refptr<const web_animations::AnimationSet>& parent_animations,
-    scoped_refptr<Paragraph>* paragraph, const Context* context)
+    scoped_refptr<Paragraph>* paragraph, const int dom_element_depth,
+    const Context* context)
     : parent_css_computed_style_declaration_(
           parent_css_computed_style_declaration),
       parent_animations_(parent_animations),
       paragraph_(paragraph),
+      dom_element_depth_(dom_element_depth),
       context_(context) {}
 
 BoxGenerator::~BoxGenerator() {
@@ -92,8 +94,15 @@ BoxGenerator::~BoxGenerator() {
 }
 
 void BoxGenerator::Visit(dom::Element* element) {
+  if (dom_element_depth_ > context_->dom_max_element_depth) {
+    LOG(WARNING) << "Elements too deep in the DOM tree are ignored in layout.";
+    return;
+  }
+
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-  DCHECK(html_element);
+  if (!html_element) {
+    return;
+  }
   generating_html_element_ = html_element;
 
   bool partial_layout_is_enabled = true;
@@ -148,6 +157,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   ReplacedBoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                            css_computed_style_declaration,
                        const ReplacedBox::ReplaceImageCB& replace_image_cb,
+                       const ReplacedBox::SetBoundsCB& set_bounds_cb,
                        const scoped_refptr<Paragraph>& paragraph,
                        int32 text_position,
                        const base::optional<LayoutUnit>& maybe_intrinsic_width,
@@ -156,6 +166,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
                        const BoxGenerator::Context* context)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
+        set_bounds_cb_(set_bounds_cb),
         paragraph_(paragraph),
         text_position_(text_position),
         maybe_intrinsic_width_(maybe_intrinsic_width),
@@ -171,6 +182,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
   const ReplacedBox::ReplaceImageCB replace_image_cb_;
+  const ReplacedBox::SetBoundsCB set_bounds_cb_;
   const scoped_refptr<Paragraph> paragraph_;
   const int32 text_position_;
   const base::optional<LayoutUnit> maybe_intrinsic_width_;
@@ -187,10 +199,10 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // Generate a block-level replaced box.
     case cssom::KeywordValue::kBlock:
       replaced_box_ = make_scoped_refptr(new BlockLevelReplacedBox(
-          css_computed_style_declaration_, replace_image_cb_, paragraph_,
-          text_position_, maybe_intrinsic_width_, maybe_intrinsic_height_,
-          maybe_intrinsic_ratio_, context_->used_style_provider,
-          context_->layout_stat_tracker));
+          css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
+          paragraph_, text_position_, maybe_intrinsic_width_,
+          maybe_intrinsic_height_, maybe_intrinsic_ratio_,
+          context_->used_style_provider, context_->layout_stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
     // between inline replaced elements and inline-block replaced elements
@@ -199,10 +211,10 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
       replaced_box_ = make_scoped_refptr(new InlineLevelReplacedBox(
-          css_computed_style_declaration_, replace_image_cb_, paragraph_,
-          text_position_, maybe_intrinsic_width_, maybe_intrinsic_height_,
-          maybe_intrinsic_ratio_, context_->used_style_provider,
-          context_->layout_stat_tracker));
+          css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
+          paragraph_, text_position_, maybe_intrinsic_width_,
+          maybe_intrinsic_height_, maybe_intrinsic_ratio_,
+          context_->used_style_provider, context_->layout_stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -283,8 +295,8 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
       video_element->GetVideoFrameProvider()
           ? base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider())
           : ReplacedBox::ReplaceImageCB(),
-      *paragraph_, text_position, base::nullopt, base::nullopt, base::nullopt,
-      context_);
+      video_element->GetSetBoundsCB(), *paragraph_, text_position,
+      base::nullopt, base::nullopt, base::nullopt, context_);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
@@ -784,7 +796,7 @@ void BoxGenerator::AppendPseudoElementToLine(
             pseudo_element->css_computed_style_declaration(),
             use_html_element_animations ? html_element->animations()
                                         : pseudo_element->animations(),
-            paragraph_, context_);
+            paragraph_, dom_element_depth_ + 1, context_);
         child_node->Accept(&child_box_generator);
         const Boxes& child_boxes = child_box_generator.boxes();
         for (Boxes::const_iterator child_box_iterator = child_boxes.begin();
@@ -855,7 +867,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     BoxGenerator child_box_generator(
         html_element->css_computed_style_declaration(),
         html_element->css_computed_style_declaration()->animations(),
-        paragraph_, context_);
+        paragraph_, dom_element_depth_ + 1, context_);
     child_node->Accept(&child_box_generator);
     const Boxes& child_boxes = child_box_generator.boxes();
     for (Boxes::const_iterator child_box_iterator = child_boxes.begin();

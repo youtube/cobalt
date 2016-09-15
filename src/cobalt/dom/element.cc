@@ -117,7 +117,7 @@ scoped_refptr<NamedNodeMap> Element::attributes() {
   return named_node_map;
 }
 
-scoped_refptr<DOMTokenList> Element::class_list() {
+const scoped_refptr<DOMTokenList>& Element::class_list() {
   if (!class_list_) {
     // Create a new instance and store a reference to it. Because of the
     // negative performance impact of having to constantly recreate DomTokenList

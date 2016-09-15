@@ -18,6 +18,7 @@ EnumerationInterface.idl
 ExceptionObjectInterface.idl
 ExceptionsInterface.idl
 ExtendedIDLAttributesInterface.idl
+GarbageCollectionTestInterface.idl
 GetOpaqueRootInterface.idl
 GlobalInterfaceParent.idl
 IndexedGetterInterface.idl

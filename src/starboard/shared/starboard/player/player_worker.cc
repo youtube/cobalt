@@ -29,6 +29,7 @@ namespace starboard {
 namespace player {
 
 PlayerWorker::PlayerWorker(Host* host,
+                           SbWindow window,
                            SbMediaVideoCodec video_codec,
                            SbMediaAudioCodec audio_codec,
                            SbDrmSystem drm_system,
@@ -38,6 +39,7 @@ PlayerWorker::PlayerWorker(Host* host,
                            SbPlayer player,
                            void* context)
     : host_(host),
+      window_(window),
       video_codec_(video_codec),
       audio_codec_(audio_codec),
       drm_system_(drm_system),
@@ -85,10 +87,12 @@ void PlayerWorker::RunLoop() {
   delete event;
   bool running = ProcessInitEvent();
 
+  SetBoundsEventData bounds = {0, 0, 0, 0};
+
   while (running) {
     Event* event = queue_.GetTimed(kUpdateInterval);
     if (event == NULL) {
-      running &= ProcessUpdateEvent();
+      running &= ProcessUpdateEvent(bounds);
       continue;
     }
 
@@ -108,6 +112,9 @@ void PlayerWorker::RunLoop() {
       running &= ProcessWriteEndOfStreamEvent(event->data.write_end_of_stream);
     } else if (event->type == Event::kSetPause) {
       running &= ProcessSetPauseEvent(event->data.set_pause);
+    } else if (event->type == Event::kSetBounds) {
+      bounds = event->data.set_bounds;
+      ProcessUpdateEvent(bounds);
     } else if (event->type == Event::kStop) {
       ProcessStopEvent();
       running = false;
@@ -119,9 +126,19 @@ void PlayerWorker::RunLoop() {
 }
 
 bool PlayerWorker::ProcessInitEvent() {
-  audio_renderer_ = new AudioRenderer(
-      AudioDecoder::Create(audio_codec_, audio_header_), audio_header_);
-  video_renderer_ = new VideoRenderer(VideoDecoder::Create(video_codec_));
+  AudioDecoder* audio_decoder =
+      AudioDecoder::Create(audio_codec_, audio_header_);
+  VideoDecoder* video_decoder = VideoDecoder::Create(video_codec_);
+
+  if (!audio_decoder || !video_decoder) {
+    delete audio_decoder;
+    delete video_decoder;
+    UpdatePlayerState(kSbPlayerStateError);
+    return false;
+  }
+
+  audio_renderer_ = new AudioRenderer(audio_decoder, audio_header_);
+  video_renderer_ = new VideoRenderer(video_decoder);
   if (audio_renderer_->is_valid() && video_renderer_->is_valid()) {
     UpdatePlayerState(kSbPlayerStateInitialized);
     return true;
@@ -306,7 +323,7 @@ bool PlayerWorker::ProcessSetPauseEvent(const SetPauseEventData& data) {
   return true;
 }
 
-bool PlayerWorker::ProcessUpdateEvent() {
+bool PlayerWorker::ProcessUpdateEvent(const SetBoundsEventData& bounds) {
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
 
   if (player_state_ == kSbPlayerStatePrerolling ||
@@ -318,9 +335,9 @@ bool PlayerWorker::ProcessUpdateEvent() {
 
     const VideoFrame& frame =
         video_renderer_->GetCurrentFrame(audio_renderer_->GetCurrentTime());
-    // TODO: Properly paint the video frame.
 #if SB_IS(PLAYER_PUNCHED_OUT)
-    shared::starboard::Application::Get()->HandleFrame(frame);
+    shared::starboard::Application::Get()->HandleFrame(
+        player_, frame, bounds.x, bounds.y, bounds.width, bounds.height);
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
     if (audio_decoder_state_ == kSbPlayerDecoderStateBufferFull &&
@@ -347,7 +364,8 @@ void PlayerWorker::ProcessStopEvent() {
   video_renderer_ = NULL;
 #if SB_IS(PLAYER_PUNCHED_OUT)
   // Clear the video frame as we terminate.
-  shared::starboard::Application::Get()->HandleFrame(VideoFrame());
+  shared::starboard::Application::Get()->HandleFrame(player_, VideoFrame(), 0,
+                                                     0, 0, 0);
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
   UpdatePlayerState(kSbPlayerStateDestroyed);
 }

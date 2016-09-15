@@ -23,8 +23,8 @@ $var MAX_MEMBERS = 4
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_IMPL_H_
-#define SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_IMPL_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_IMPL_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_IMPL_H_
 
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/union_type.h"
@@ -187,8 +187,7 @@ $for TYPE [[
 
 
   // 19. Throw a TypeError.
-  exception_state->SetSimpleException(
-      ExceptionState::kTypeError, "Value is not a member of the union type.");
+  exception_state->SetSimpleException(kNotUnionType);
 }
 
 ]]  $$ for NUM_MEMBERS
@@ -197,4 +196,4 @@ $for TYPE [[
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_IMPL_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_IMPL_H_

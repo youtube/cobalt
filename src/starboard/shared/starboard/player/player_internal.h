@@ -20,12 +20,14 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 #include "starboard/time.h"
+#include "starboard/window.h"
 
 // TODO: Implement DRM support
 struct SbPlayerPrivate
     : starboard::shared::starboard::player::PlayerWorker::Host {
  public:
-  SbPlayerPrivate(SbMediaVideoCodec video_codec,
+  SbPlayerPrivate(SbWindow window,
+                  SbMediaVideoCodec video_codec,
                   SbMediaAudioCodec audio_codec,
                   SbMediaTime duration_pts,
                   SbDrmSystem drm_system,
@@ -43,6 +45,10 @@ struct SbPlayerPrivate
                    const SbMediaVideoSampleInfo* video_sample_info,
                    const SbDrmSampleInfo* sample_drm_info);
   void WriteEndOfStream(SbMediaType stream_type);
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  void SetBounds(int x, int y, int width, int height);
+#endif
+
   void GetInfo(SbPlayerInfo* out_player_info);
   void SetPause(bool pause);
   void SetVolume(double volume);

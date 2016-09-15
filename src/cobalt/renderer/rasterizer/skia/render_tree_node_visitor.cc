@@ -74,7 +74,7 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache, Type visitor_type)
-    : render_target_(render_target),
+    : draw_state_(render_target),
       create_scratch_surface_function_(create_scratch_surface_function),
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache),
@@ -82,11 +82,9 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
-    // visitor and our canvas.
-    surface_cache_scoped_context_.emplace(
-        surface_cache_delegate_, render_target_,
-        base::Bind(&RenderTreeNodeVisitor::SetRenderTarget,
-                   base::Unretained(this)));
+    // visitor and our draw state.
+    surface_cache_scoped_context_.emplace(surface_cache_delegate_,
+                                          &draw_state_);
   }
 }
 
@@ -124,8 +122,8 @@ void RenderTreeNodeVisitor::Visit(
     return;
   }
 
-  render_target_->translate(composition_node->data().offset().x(),
-                            composition_node->data().offset().y());
+  draw_state_.render_target->translate(composition_node->data().offset().x(),
+                                       composition_node->data().offset().y());
 
   // If we have more than one child (there is little to be gained by performing
   // these calculations otherwise since our bounding rectangle is equal to
@@ -136,9 +134,9 @@ void RenderTreeNodeVisitor::Visit(
   base::optional<SkMatrix> total_matrix;
   if (children.size() > 1) {
     SkIRect canvas_boundsi;
-    render_target_->getClipDeviceBounds(&canvas_boundsi);
+    draw_state_.render_target->getClipDeviceBounds(&canvas_boundsi);
     canvas_bounds = SkRect::Make(canvas_boundsi);
-    total_matrix = render_target_->getTotalMatrix();
+    total_matrix = draw_state_.render_target->getTotalMatrix();
   }
 
   for (render_tree::CompositionNode::Children::const_iterator iter =
@@ -152,11 +150,11 @@ void RenderTreeNodeVisitor::Visit(
     }
   }
 
-  render_target_->translate(-composition_node->data().offset().x(),
-                            -composition_node->data().offset().y());
+  draw_state_.render_target->translate(-composition_node->data().offset().x(),
+                                       -composition_node->data().offset().y());
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 
@@ -224,11 +222,12 @@ void ApplyBlurFilterToPaint(
 
 void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
     const render_tree::FilterNode::Builder& filter_node) {
-  const SkMatrix& total_matrix_skia = render_target_->getTotalMatrix();
+  const SkMatrix& total_matrix_skia =
+      draw_state_.render_target->getTotalMatrix();
   math::Matrix3F total_matrix = SkiaMatrixToCobalt(total_matrix_skia);
 
   SkIRect canvas_boundsi;
-  render_target_->getClipDeviceBounds(&canvas_boundsi);
+  draw_state_.render_target->getClipDeviceBounds(&canvas_boundsi);
 
   common::OffscreenRenderCoordinateMapping coord_mapping =
       common::GetOffscreenRenderCoordinateMapping(
@@ -282,13 +281,13 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   // destination rectangles should be exactly equal.
   paint.setFilterLevel(SkPaint::kNone_FilterLevel);
 
-  // We've already used the render_target_'s scale when rendering to the
-  // offscreen surface, so reset the scale for now.
-  render_target_->save();
+  // We've already used the draw_state_.render_target's scale when rendering to
+  // the offscreen surface, so reset the scale for now.
+  draw_state_.render_target->save();
   ApplyBlurFilterToPaint(&paint, filter_node.blur_filter);
-  ApplyViewportMask(render_target_, filter_node.viewport_filter);
+  ApplyViewportMask(draw_state_.render_target, filter_node.viewport_filter);
 
-  render_target_->setMatrix(CobaltMatrixToSkia(
+  draw_state_.render_target->setMatrix(CobaltMatrixToSkia(
       math::TranslateMatrix(coord_mapping.output_pre_translate) * total_matrix *
       math::ScaleMatrix(coord_mapping.output_post_scale)));
 
@@ -304,11 +303,12 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   SkRect source_rect = SkRect::MakeWH(coord_mapping.output_bounds.width(),
                                       coord_mapping.output_bounds.height());
 
-  render_target_->drawImageRect(image, &source_rect, dest_rect, &paint);
+  draw_state_.render_target->drawImageRect(image, &source_rect, dest_rect,
+                                           &paint);
 
   // Finally restore our parent render target's original transform for the
   // next draw call.
-  render_target_->restore();
+  draw_state_.render_target->restore();
 }
 
 namespace {
@@ -341,9 +341,33 @@ bool SourceCanRenderWithRoundedCorners(render_tree::Node* source) {
 
   return false;
 }
+
+bool SourceCanRenderWithOpacity(render_tree::Node* source) {
+  if (source->GetTypeId() == base::GetTypeId<render_tree::ImageNode>() ||
+      source->GetTypeId() == base::GetTypeId<render_tree::RectNode>()) {
+    return true;
+  } else if (source->GetTypeId() ==
+             base::GetTypeId<render_tree::CompositionNode>()) {
+    // If we are a composition of valid sources, then we also allow
+    // rendering through a viewport here.
+    render_tree::CompositionNode* composition_node =
+        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
+    typedef render_tree::CompositionNode::Children Children;
+    const Children& children = composition_node->data().children();
+    if (children.size() == 1 && SourceCanRenderWithOpacity(children[0].get())) {
+      return true;
+    }
+  }
+  return false;
+}
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+  if (filter_node->data().map_to_mesh_filter) {
+    // TODO: Implement support for MapToMeshFilter.
+    return;
+  }
+
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(FilterNode)");
 
@@ -379,7 +403,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     return;
   }
 
-  const SkMatrix& total_matrix = render_target_->getTotalMatrix();
+  const SkMatrix& total_matrix = draw_state_.render_target->getTotalMatrix();
 
   bool has_rounded_corners =
       filter_node->data().viewport_filter &&
@@ -395,7 +419,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       !filter_node->data().blur_filter &&
       // If an opacity filter is being applied, we must render to a separate
       // texture first.
-      !filter_node->data().opacity_filter &&
+      (!filter_node->data().opacity_filter ||
+       SourceCanRenderWithOpacity(filter_node->data().source)) &&
       // If transforms are applied to the viewport, then we will render to
       // a separate texture first.
       total_matrix.rectStaysRect() &&
@@ -407,10 +432,18 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
        SourceCanRenderWithRoundedCorners(filter_node->data().source));
 
   if (can_render_with_clip_mask_directly) {
-    render_target_->save();
-    ApplyViewportMask(render_target_, filter_node->data().viewport_filter);
+    RenderTreeNodeVisitorDrawState original_draw_state(draw_state_);
+
+    draw_state_.render_target->save();
+    ApplyViewportMask(draw_state_.render_target,
+                      filter_node->data().viewport_filter);
+
+    if (filter_node->data().opacity_filter) {
+      draw_state_.opacity *= filter_node->data().opacity_filter->opacity();
+    }
     filter_node->data().source->Accept(this);
-    render_target_->restore();
+    draw_state_.render_target->restore();
+    draw_state_ = original_draw_state;
   } else {
     common::SurfaceCache::Block cache_block(surface_cache_, filter_node);
     if (cache_block.Cached()) return;
@@ -418,7 +451,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     RenderFilterViaOffscreenSurface(filter_node->data());
   }
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 
@@ -454,18 +487,23 @@ bool LocalCoordsStaysWithinUnitBox(const math::Matrix3F& mat) {
          mat.Get(1, 2) <= 0.0f && 1.0f - mat.Get(1, 2) <= mat.Get(1, 1);
 }
 
-SkPaint CreateSkPaintForImageRendering() {
+SkPaint CreateSkPaintForImageRendering(
+    const RenderTreeNodeVisitorDrawState& draw_state) {
   SkPaint paint;
   paint.setFilterLevel(SkPaint::kLow_FilterLevel);
+
+  if (draw_state.opacity < 1.0f) {
+    paint.setAlpha(draw_state.opacity * 255);
+  }
 
   return paint;
 }
 
 void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
-                            SkCanvas* render_target,
+                            RenderTreeNodeVisitorDrawState* draw_state,
                             const math::RectF& destination_rect,
                             const math::Matrix3F* local_transform) {
-  SkPaint paint = CreateSkPaintForImageRendering();
+  SkPaint paint = CreateSkPaintForImageRendering(*draw_state);
 
   // In the most frequent by far case where the normalized transformed image
   // texture coordinates lie within the unit square, then we must ensure NOT
@@ -486,9 +524,9 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
 
     SkRect src = SkRect::MakeXYWH(x, y, width, height);
 
-    render_target->drawBitmapRectToRect(single_plane_image->GetBitmap(), &src,
-                                        CobaltRectFToSkiaRect(destination_rect),
-                                        &paint);
+    draw_state->render_target->drawBitmapRectToRect(
+        single_plane_image->GetBitmap(), &src,
+        CobaltRectFToSkiaRect(destination_rect), &paint);
   } else {
     // Use the more general approach which allows arbitrary local texture
     // coordinate matrices.
@@ -502,12 +540,13 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
         SkShader::kRepeat_TileMode, &skia_local_transform));
     paint.setShader(image_shader);
 
-    render_target->drawRect(CobaltRectFToSkiaRect(destination_rect), paint);
+    draw_state->render_target->drawRect(CobaltRectFToSkiaRect(destination_rect),
+                                        paint);
   }
 }
 
 void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
-                           SkCanvas* render_target,
+                           RenderTreeNodeVisitorDrawState* draw_state,
                            const math::RectF& destination_rect,
                            const math::Matrix3F* local_transform) {
   SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
@@ -552,9 +591,10 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
     }
   }
 
-  SkPaint paint = CreateSkPaintForImageRendering();
+  SkPaint paint = CreateSkPaintForImageRendering(*draw_state);
   paint.setShader(yuv2rgb_shader);
-  render_target->drawRect(CobaltRectFToSkiaRect(destination_rect), paint);
+  draw_state->render_target->drawRect(CobaltRectFToSkiaRect(destination_rect),
+                                      paint);
 }
 
 }  // namespace
@@ -588,18 +628,18 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // depending on whether it's single or multi planed.
   if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
     RenderSinglePlaneImage(base::polymorphic_downcast<SinglePlaneImage*>(image),
-                           render_target_, image_node->data().destination_rect,
+                           &draw_state_, image_node->data().destination_rect,
                            &(image_node->data().local_transform));
   } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
     RenderMultiPlaneImage(base::polymorphic_downcast<MultiPlaneImage*>(image),
-                          render_target_, image_node->data().destination_rect,
+                          &draw_state_, image_node->data().destination_rect,
                           &(image_node->data().local_transform));
   } else {
     NOTREACHED();
   }
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 
@@ -615,9 +655,9 @@ void RenderTreeNodeVisitor::Visit(
 
   // Concatenate the matrix transform to the render target and then continue
   // on with rendering our source.
-  render_target_->save();
+  draw_state_.render_target->save();
 
-  render_target_->concat(
+  draw_state_.render_target->concat(
       CobaltMatrixToSkia(matrix_transform_node->data().transform));
 
   // Since our scale may have changed, inform the surface cache system to update
@@ -628,10 +668,10 @@ void RenderTreeNodeVisitor::Visit(
 
   matrix_transform_node->data().source->Accept(this);
 
-  render_target_->restore();
+  draw_state_.render_target->restore();
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 
@@ -651,16 +691,30 @@ void RenderTreeNodeVisitor::Visit(
     // We proceed anyway, just in case things happen to work out.
   }
 
-  const math::RectF& rect = punch_through_video_node->data().rect;
+  const math::RectF& math_rect = punch_through_video_node->data().rect;
 
   SkPaint paint;
   paint.setXfermodeMode(SkXfermode::kSrc_Mode);
   paint.setARGB(0, 0, 0, 0);
-  render_target_->drawRect(
-      SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height()), paint);
+  SkRect sk_rect = SkRect::MakeXYWH(math_rect.x(), math_rect.y(),
+                                    math_rect.width(), math_rect.height());
+  SkMatrix total_matrix = draw_state_.render_target->getTotalMatrix();
+
+  SkRect sk_rect_transformed;
+  total_matrix.mapRect(&sk_rect_transformed, sk_rect);
+
+  if (!punch_through_video_node->data().set_bounds_cb.is_null()) {
+    punch_through_video_node->data().set_bounds_cb.Run(
+        math::Rect(static_cast<int>(sk_rect_transformed.x()),
+                   static_cast<int>(sk_rect_transformed.y()),
+                   static_cast<int>(sk_rect_transformed.width()),
+                   static_cast<int>(sk_rect_transformed.height())));
+  }
+
+  draw_state_.render_target->drawRect(sk_rect, paint);
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 
@@ -668,7 +722,9 @@ namespace {
 
 class SkiaBrushVisitor : public render_tree::BrushVisitor {
  public:
-  explicit SkiaBrushVisitor(SkPaint* paint) : paint_(paint) {}
+  explicit SkiaBrushVisitor(SkPaint* paint,
+                            const RenderTreeNodeVisitorDrawState& draw_state)
+      : paint_(paint), draw_state_(draw_state) {}
 
   void Visit(
       const cobalt::render_tree::SolidColorBrush* solid_color_brush) OVERRIDE;
@@ -679,19 +735,21 @@ class SkiaBrushVisitor : public render_tree::BrushVisitor {
 
  private:
   SkPaint* paint_;
+  const RenderTreeNodeVisitorDrawState& draw_state_;
 };
 
 void SkiaBrushVisitor::Visit(
     const cobalt::render_tree::SolidColorBrush* solid_color_brush) {
   const cobalt::render_tree::ColorRGBA& color = solid_color_brush->color();
 
-  if (color.a() == 1.0f) {
+  float alpha = color.a() * draw_state_.opacity;
+  if (alpha == 1.0f) {
     paint_->setXfermodeMode(SkXfermode::kSrc_Mode);
   } else {
     paint_->setXfermodeMode(SkXfermode::kSrcOver_Mode);
   }
 
-  paint_->setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
+  paint_->setARGB(alpha * 255, color.r() * 255, color.g() * 255,
                   color.b() * 255);
 }
 
@@ -736,9 +794,12 @@ void SkiaBrushVisitor::Visit(
       SkGradientShader::kInterpolateColorsInPremul_Flag, NULL));
   paint_->setShader(shader);
 
-  if (!skia_color_stops.has_alpha) {
+  if (!skia_color_stops.has_alpha && draw_state_.opacity == 1.0f) {
     paint_->setXfermodeMode(SkXfermode::kSrc_Mode);
   } else {
+    if (draw_state_.opacity < 1.0f) {
+      paint_->setAlpha(255 * draw_state_.opacity);
+    }
     paint_->setXfermodeMode(SkXfermode::kSrcOver_Mode);
   }
 }
@@ -771,22 +832,26 @@ void SkiaBrushVisitor::Visit(
       SkGradientShader::kInterpolateColorsInPremul_Flag, &local_matrix));
   paint_->setShader(shader);
 
-  if (!skia_color_stops.has_alpha) {
+  if (!skia_color_stops.has_alpha && draw_state_.opacity == 1.0f) {
     paint_->setXfermodeMode(SkXfermode::kSrc_Mode);
   } else {
+    if (draw_state_.opacity < 1.0f) {
+      paint_->setAlpha(255 * draw_state_.opacity);
+    }
     paint_->setXfermodeMode(SkXfermode::kSrcOver_Mode);
   }
 }
 
-void DrawRectWithBrush(SkCanvas* render_target,
+void DrawRectWithBrush(RenderTreeNodeVisitorDrawState* draw_state,
                        cobalt::render_tree::Brush* brush,
                        const math::RectF& rect) {
   // Setup our paint object according to the brush parameters set on the
   // rectangle.
   SkPaint paint;
-  SkiaBrushVisitor brush_visitor(&paint);
+  SkiaBrushVisitor brush_visitor(&paint, *draw_state);
   brush->Accept(&brush_visitor);
-  render_target->drawRect(
+
+  draw_state->render_target->drawRect(
       SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height()), paint);
 }
 
@@ -820,7 +885,8 @@ bool CheckForSolidBrush(cobalt::render_tree::Brush* brush) {
 }  // namespace
 
 void DrawRoundedRectWithBrush(
-    SkCanvas* render_target, render_tree::Brush* brush, const math::RectF& rect,
+    RenderTreeNodeVisitorDrawState* draw_state, render_tree::Brush* brush,
+    const math::RectF& rect,
     const render_tree::RoundedCorners& rounded_corners) {
   if (!CheckForSolidBrush(brush)) {
     NOTREACHED() << "Only solid brushes are currently supported for this shape "
@@ -829,23 +895,27 @@ void DrawRoundedRectWithBrush(
   }
 
   SkPaint paint;
-  SkiaBrushVisitor brush_visitor(&paint);
+  SkiaBrushVisitor brush_visitor(&paint, *draw_state);
   brush->Accept(&brush_visitor);
 
   paint.setAntiAlias(true);
-  render_target->drawPath(RoundedRectToSkiaPath(rect, rounded_corners), paint);
+  draw_state->render_target->drawPath(
+      RoundedRectToSkiaPath(rect, rounded_corners), paint);
 }
 
-void DrawQuadWithColorIfBorderIsSolid(render_tree::BorderStyle border_style,
-                                      SkCanvas* render_target,
-                                      const render_tree::ColorRGBA& color,
-                                      const SkPoint* points, bool anti_alias) {
+void DrawQuadWithColorIfBorderIsSolid(
+    render_tree::BorderStyle border_style,
+    RenderTreeNodeVisitorDrawState* draw_state,
+    const render_tree::ColorRGBA& color, const SkPoint* points,
+    bool anti_alias) {
   if (border_style == render_tree::kBorderStyleSolid) {
     SkPaint paint;
-    paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
+    float alpha = color.a();
+    alpha *= draw_state->opacity;
+    paint.setARGB(alpha * 255, color.r() * 255, color.g() * 255,
                   color.b() * 255);
     paint.setAntiAlias(anti_alias);
-    if (color.a() == 1.0f) {
+    if (alpha == 1.0f) {
       paint.setXfermodeMode(SkXfermode::kSrc_Mode);
     } else {
       paint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
@@ -853,7 +923,7 @@ void DrawQuadWithColorIfBorderIsSolid(render_tree::BorderStyle border_style,
 
     SkPath path;
     path.addPoly(points, 4, true);
-    render_target->drawPath(path, paint);
+    draw_state->render_target->drawPath(path, paint);
   } else {
     DCHECK_EQ(border_style, render_tree::kBorderStyleNone);
   }
@@ -867,26 +937,33 @@ void DrawQuadWithColorIfBorderIsSolid(render_tree::BorderStyle border_style,
 //        ||G_______H||
 //        |/_________\|
 //       C             D
-void DrawSolidNonRoundRectBorder(SkCanvas* render_target,
+void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
                                  const math::RectF& rect,
                                  const render_tree::Border& border) {
-  bool anti_alias = true;
+  // Check if the border colors are the same or not to determine whether we
+  // should be using antialiasing.  If the border colors are different, then
+  // there will be visible diagonal edges in the output and so we would like to
+  // render with antialiasing enabled to smooth those diagonal edges.
+  bool border_colors_are_same = border.top.color == border.left.color &&
+                                border.top.color == border.bottom.color &&
+                                border.top.color == border.right.color;
 
-  if (border.top.color == border.left.color &&
-      border.top.color == border.bottom.color &&
-      border.top.color == border.right.color) {
-    // Disable the anti-alias when the borders have the same color.
-    anti_alias = false;
-  }
+  // If any of the border edges have width less than this threshold, they will
+  // use antialiasing as otherwise depending on the border's fractional
+  // position, it may have one extra pixel visible, which is a large percentage
+  // of its small width.
+  const float kAntiAliasWidthThreshold = 3.0f;
 
   // Top
   SkPoint top_points[4] = {
-      {rect.x(), rect.y()},                                              // A
-      {rect.x() + border.left.width, rect.y() + border.top.width},       // E
-      {rect.right() - border.right.width, rect.y() + border.top.width},  // F
-      {rect.right(), rect.y()}};                                         // B
-  DrawQuadWithColorIfBorderIsSolid(border.top.style, render_target,
-                                   border.top.color, top_points, anti_alias);
+      {rect.x(), rect.y()},                                                 // A
+      {rect.x() + border.left.width, rect.y() + border.top.width},          // E
+      {rect.right() - border.right.width, rect.y() + border.top.width},     // F
+      {rect.right(), rect.y()}};                                            // B
+  DrawQuadWithColorIfBorderIsSolid(
+      border.top.style, draw_state, border.top.color, top_points,
+      border.top.width < kAntiAliasWidthThreshold ? true
+                                                  : !border_colors_are_same);
 
   // Left
   SkPoint left_points[4] = {
@@ -894,8 +971,10 @@ void DrawSolidNonRoundRectBorder(SkCanvas* render_target,
       {rect.x(), rect.bottom()},                                            // C
       {rect.x() + border.left.width, rect.bottom() - border.bottom.width},  // G
       {rect.x() + border.left.width, rect.y() + border.top.width}};         // E
-  DrawQuadWithColorIfBorderIsSolid(border.left.style, render_target,
-                                   border.left.color, left_points, anti_alias);
+  DrawQuadWithColorIfBorderIsSolid(
+      border.left.style, draw_state, border.left.color, left_points,
+      border.left.width < kAntiAliasWidthThreshold ? true
+                                                   : !border_colors_are_same);
 
   // Bottom
   SkPoint bottom_points[4] = {
@@ -903,25 +982,27 @@ void DrawSolidNonRoundRectBorder(SkCanvas* render_target,
       {rect.x(), rect.bottom()},                                            // C
       {rect.right(), rect.bottom()},                                        // D
       {rect.right() - border.right.width,
-       rect.bottom() - border.bottom.width}};  // H
-  DrawQuadWithColorIfBorderIsSolid(border.bottom.style, render_target,
-                                   border.bottom.color, bottom_points,
-                                   anti_alias);
+       rect.bottom() - border.bottom.width}};                               // H
+  DrawQuadWithColorIfBorderIsSolid(
+      border.bottom.style, draw_state, border.bottom.color, bottom_points,
+      border.bottom.width < kAntiAliasWidthThreshold ? true
+                                                     : !border_colors_are_same);
 
   // Right
   SkPoint right_points[4] = {
-      {rect.right() - border.right.width, rect.y() + border.top.width},  // F
+      {rect.right() - border.right.width, rect.y() + border.top.width},     // F
       {rect.right() - border.right.width,
-       rect.bottom() - border.bottom.width},  // H
-      {rect.right(), rect.bottom()},          // D
-      {rect.right(), rect.y()}};              // B
-  DrawQuadWithColorIfBorderIsSolid(border.right.style, render_target,
-                                   border.right.color, right_points,
-                                   anti_alias);
+       rect.bottom() - border.bottom.width},                                // H
+      {rect.right(), rect.bottom()},                                        // D
+      {rect.right(), rect.y()}};                                            // B
+  DrawQuadWithColorIfBorderIsSolid(
+      border.right.style, draw_state, border.right.color, right_points,
+      border.right.width < kAntiAliasWidthThreshold ? true
+                                                    : !border_colors_are_same);
 }
 
 void DrawSolidRoundedRectBorderToRenderTarget(
-    SkCanvas* render_target, const math::RectF& rect,
+    RenderTreeNodeVisitorDrawState* draw_state, const math::RectF& rect,
     const render_tree::RoundedCorners& rounded_corners,
     const math::RectF& content_rect,
     const render_tree::RoundedCorners& inner_rounded_corners,
@@ -930,21 +1011,22 @@ void DrawSolidRoundedRectBorderToRenderTarget(
   paint.setAntiAlias(true);
 
   const render_tree::ColorRGBA& color = border.top.color;
-  paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
-                color.b() * 255);
-  if (color.a() == 1.0f) {
+  float alpha = color.a();
+  alpha *= draw_state->opacity;
+  paint.setARGB(alpha * 255, color.r() * 255, color.g() * 255, color.b() * 255);
+  if (alpha == 1.0f) {
     paint.setXfermodeMode(SkXfermode::kSrc_Mode);
   } else {
     paint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
   }
 
-  render_target->drawDRRect(
+  draw_state->render_target->drawDRRect(
       RoundedRectToSkia(rect, rounded_corners),
       RoundedRectToSkia(content_rect, inner_rounded_corners), paint);
 }
 
 void DrawSolidRoundedRectBorderSoftware(
-    SkCanvas* render_target, const math::RectF& rect,
+    RenderTreeNodeVisitorDrawState* draw_state, const math::RectF& rect,
     const render_tree::RoundedCorners& rounded_corners,
     const math::RectF& content_rect,
     const render_tree::RoundedCorners& inner_rounded_corners,
@@ -960,14 +1042,19 @@ void DrawSolidRoundedRectBorderSoftware(
   math::RectF canvas_rect(rect.size());
   math::RectF canvas_content_rect(content_rect);
   canvas_content_rect.Offset(-rect.OffsetFromOrigin());
-  DrawSolidRoundedRectBorderToRenderTarget(&canvas, canvas_rect,
+
+  RenderTreeNodeVisitorDrawState sub_draw_state(*draw_state);
+  sub_draw_state.render_target = &canvas;
+
+  DrawSolidRoundedRectBorderToRenderTarget(&sub_draw_state, canvas_rect,
                                            rounded_corners, canvas_content_rect,
                                            inner_rounded_corners, border);
   canvas.flush();
 
   SkPaint render_target_paint;
   render_target_paint.setFilterLevel(SkPaint::kNone_FilterLevel);
-  render_target->drawBitmap(bitmap, rect.x(), rect.y(), &render_target_paint);
+  draw_state->render_target->drawBitmap(bitmap, rect.x(), rect.y(),
+                                        &render_target_paint);
 }
 
 namespace {
@@ -999,7 +1086,7 @@ bool ValidateSolidBorderProperties(const render_tree::Border& border) {
 }  // namespace
 
 void DrawSolidRoundedRectBorder(
-    SkCanvas* render_target, const math::RectF& rect,
+    RenderTreeNodeVisitorDrawState* draw_state, const math::RectF& rect,
     const render_tree::RoundedCorners& rounded_corners,
     const math::RectF& content_rect,
     const render_tree::RoundedCorners& inner_rounded_corners,
@@ -1011,8 +1098,8 @@ void DrawSolidRoundedRectBorder(
   if (IsCircle(rect.size(), rounded_corners)) {
     // We are able to render circular borders using hardware, so introduce
     // a special case for them.
-    DrawSolidRoundedRectBorderToRenderTarget(render_target, rect,
-                                             rounded_corners, content_rect,
+    DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
+                                             content_rect,
                                              inner_rounded_corners, border);
   } else {
     // For now we fallback to software for drawing most rounded corner borders,
@@ -1020,7 +1107,7 @@ void DrawSolidRoundedRectBorder(
     // do this is to limit then number of shaders that need to be implemented.
     NOTIMPLEMENTED() << "Warning: Software rasterizing a solid rectangle "
                         "border.";
-    DrawSolidRoundedRectBorderSoftware(render_target, rect, rounded_corners,
+    DrawSolidRoundedRectBorderSoftware(draw_state, rect, rounded_corners,
                                        content_rect, inner_rounded_corners,
                                        border);
   }
@@ -1057,28 +1144,28 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   if (rect_node->data().background_brush) {
     if (inner_rounded_corners && !inner_rounded_corners->AreSquares()) {
-      DrawRoundedRectWithBrush(render_target_,
+      DrawRoundedRectWithBrush(&draw_state_,
                                rect_node->data().background_brush.get(),
                                content_rect, *inner_rounded_corners);
     } else {
-      DrawRectWithBrush(render_target_,
-                        rect_node->data().background_brush.get(), content_rect);
+      DrawRectWithBrush(&draw_state_, rect_node->data().background_brush.get(),
+                        content_rect);
     }
   }
 
   if (rect_node->data().border) {
     if (rect_node->data().rounded_corners) {
       DrawSolidRoundedRectBorder(
-          render_target_, rect, *rect_node->data().rounded_corners,
-          content_rect, *inner_rounded_corners, *rect_node->data().border);
+          &draw_state_, rect, *rect_node->data().rounded_corners, content_rect,
+          *inner_rounded_corners, *rect_node->data().border);
     } else {
-      DrawSolidNonRoundRectBorder(render_target_, rect,
+      DrawSolidNonRoundRectBorder(&draw_state_, rect,
                                   *rect_node->data().border);
     }
   }
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 
@@ -1250,21 +1337,22 @@ void RenderTreeNodeVisitor::Visit(
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(RectShadowNode)");
 #endif
+  DCHECK_EQ(1.0f, draw_state_.opacity);
   common::SurfaceCache::Block cache_block(surface_cache_, rect_shadow_node);
   if (cache_block.Cached()) return;
 
   if (rect_shadow_node->data().rounded_corners) {
-    DrawRoundedRectShadowNode(rect_shadow_node, render_target_);
+    DrawRoundedRectShadowNode(rect_shadow_node, draw_state_.render_target);
   } else {
     if (rect_shadow_node->data().inset) {
-      DrawInsetRectShadowNode(rect_shadow_node, render_target_);
+      DrawInsetRectShadowNode(rect_shadow_node, draw_state_.render_target);
     } else {
-      DrawOutsetRectShadowNode(rect_shadow_node, render_target_);
+      DrawOutsetRectShadowNode(rect_shadow_node, draw_state_.render_target);
     }
   }
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 
@@ -1312,6 +1400,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(TextNode)");
 #endif
+  DCHECK_EQ(1.0f, draw_state_.opacity);
   common::SurfaceCache::Block cache_block(surface_cache_, text_node);
   if (cache_block.Cached()) return;
 
@@ -1341,20 +1430,21 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
       const render_tree::Shadow& shadow = shadows[i];
 
       RenderText(
-          render_target_, text_node->data().glyph_buffer, shadow.color,
-          math::PointAtOffsetFromOrigin(text_node->data().offset +
-                                        shadow.offset),
+          draw_state_.render_target, text_node->data().glyph_buffer,
+          shadow.color, math::PointAtOffsetFromOrigin(text_node->data().offset +
+                                                      shadow.offset),
           shadow.blur_sigma == 0.0f ? blur_zero_sigma : shadow.blur_sigma);
     }
   }
 
   // Finally render the main text.
-  RenderText(
-      render_target_, text_node->data().glyph_buffer, text_node->data().color,
-      math::PointAtOffsetFromOrigin(text_node->data().offset), blur_zero_sigma);
+  RenderText(draw_state_.render_target, text_node->data().glyph_buffer,
+             text_node->data().color,
+             math::PointAtOffsetFromOrigin(text_node->data().offset),
+             blur_zero_sigma);
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-  render_target_->flush();
+  draw_state_.render_target->flush();
 #endif
 }
 

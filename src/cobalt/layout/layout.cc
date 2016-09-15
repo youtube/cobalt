@@ -52,7 +52,7 @@ class ScopedParagraph {
 
 void UpdateComputedStylesAndLayoutBoxTree(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider,
+    int dom_max_element_depth, UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
@@ -91,13 +91,14 @@ void UpdateComputedStylesAndLayoutBoxTree(
     BoxGenerator::Context context(
         used_style_provider, layout_stat_tracker, line_break_iterator,
         character_break_iterator,
-        initial_containing_block_creation_results.background_style_source);
+        initial_containing_block_creation_results.background_style_source,
+        dom_max_element_depth);
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),
         (*initial_containing_block)
             ->css_computed_style_declaration()
             ->animations(),
-        &(scoped_paragraph.get()), &context);
+        &(scoped_paragraph.get()), 1 /* dom_element_depth */, &context);
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
@@ -130,15 +131,16 @@ void UpdateComputedStylesAndLayoutBoxTree(
 
 scoped_refptr<render_tree::Node> Layout(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    UsedStyleProvider* used_style_provider,
+    int dom_max_element_depth, UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
   UpdateComputedStylesAndLayoutBoxTree(
-      locale, document, used_style_provider, layout_stat_tracker,
-      line_break_iterator, character_break_iterator, initial_containing_block);
+      locale, document, dom_max_element_depth, used_style_provider,
+      layout_stat_tracker, line_break_iterator, character_break_iterator,
+      initial_containing_block);
 
   // Add to render tree.
   render_tree::CompositionNode::Builder render_tree_root_builder;

@@ -14,7 +14,8 @@
 
 #include "starboard/player.h"
 
-SbPlayer SbPlayerCreate(SbMediaVideoCodec /*video_codec*/,
+SbPlayer SbPlayerCreate(SbWindow /*window*/,
+                        SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,
                         SbMediaTime /*duration_pts*/,
                         SbDrmSystem /*drm_system*/,

@@ -85,6 +85,15 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 {% endfor %}
 {% endif %}
 {% endblock enumeration_declarations %}
+{% block top_level_unnamed_namespace %}
+{% if is_global_interface %}
+JSObject* DummyFunctor(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  NOTREACHED();
+  return NULL;
+}
+{% endif %}
+{% endblock top_level_unnamed_namespace %}
 
 {% block implementation %}
 namespace {
@@ -505,8 +514,7 @@ JSBool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
   {{impl_class}}* impl =
       wrapper_private->wrappable<{{impl_class}}>().get();
   if (!impl) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Stringifier problem.");
+    exception_state.SetSimpleException(cobalt::script::kStringifierProblem);
     NOTREACHED();
     return false;
   }
@@ -797,7 +805,6 @@ JSObject* {{binding_class}}::CreateProxy(
   global_object_proxy->SetGlobalObjectProxyAndWrapper(proxy, wrappable);
   return proxy;
 }
-
 {% else %}
 // static
 JSObject* {{binding_class}}::CreateProxy(
@@ -904,9 +911,13 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 {% if interface.conditional %}
 #if defined({{interface.conditional}})
 {% endif %}
-  {# Don't register a create method for the global interface, since we do not
-     create a wrapper for it directly. #}
-  {% if interface.name != impl_class %}
+  {# Pass in a dummy CreateProxy for global interface #}
+  {% if interface.name == impl_class %}
+  wrapper_factory->RegisterWrappableType(
+      {{interface.name}}::{{interface.name}}WrappableType(),
+      base::Bind(DummyFunctor),
+      base::Bind(Mozjs{{interface.name}}::PrototypeClass));
+  {% else %}
   wrapper_factory->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
       base::Bind(Mozjs{{interface.name}}::CreateProxy),
@@ -958,9 +969,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
     *out_enum = {{impl_class}}::{{value}};
   }{% endfor %} else {
     // 2. If S is not one of E's enumeration values, then throw a TypeError.
-    exception_state->
-        SetSimpleException(ExceptionState::kTypeError,
-                           "Cannot convert JavaScript value to Enum.");
+    exception_state->SetSimpleException(cobalt::script::kConvertToEnumFailed);
     return;
   }
 }

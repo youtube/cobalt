@@ -240,8 +240,7 @@ JSBool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
   StringifierOperationInterface* impl =
       wrapper_private->wrappable<StringifierOperationInterface>().get();
   if (!impl) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Stringifier problem.");
+    exception_state.SetSimpleException(cobalt::script::kStringifierProblem);
     NOTREACHED();
     return false;
   }

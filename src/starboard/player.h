@@ -25,6 +25,7 @@
 #include "starboard/export.h"
 #include "starboard/media.h"
 #include "starboard/types.h"
+#include "starboard/window.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -159,12 +160,15 @@ SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 
 // --- Functions -------------------------------------------------------------
 
-// Creates a player for the specified |video_codec| and |audio_codec|, acquiring
-// all resources needed to operate it, and returning an opaque handle to it. If
-// |video_codec| is kSbMediaVideoCodecNone, the player is an audio-only
-// player. Otherwise, the player is an audio/video decoder. |audio_codec| should
-// never be kSbMediaAudioCodecNone. The expectation is that a new player will be
-// created and destroyed for every playback.
+// Creates a player that will be displayed on |window| for the specified
+// |video_codec| and |audio_codec|, acquiring all resources needed to operate
+// it, and returning an opaque handle to it. |window| can be kSbWindowInvalid
+// for platforms where video will be only displayed on a particular window
+// which the underlying implementation already has access to. If |video_codec|
+// is kSbMediaVideoCodecNone, the player is an audio-only player. Otherwise, the
+// player is an audio/video decoder. |audio_codec| should never be
+// kSbMediaAudioCodecNone. The expectation is that a new player will be created
+// and destroyed for every playback.
 //
 // |duration_pts| is the expected media duration in 90KHz ticks (PTS). It may be
 // set to SB_PLAYER_NO_DURATION for live streams.
@@ -202,7 +206,8 @@ SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // simultaneously, then calls made to this function that attempt to exceed that
 // limit will return kSbPlayerInvalid.
 SB_EXPORT SbPlayer
-SbPlayerCreate(SbMediaVideoCodec video_codec,
+SbPlayerCreate(SbWindow window,
+               SbMediaVideoCodec video_codec,
                SbMediaAudioCodec audio_codec,
                SbMediaTime duration_pts,
                SbDrmSystem drm_system,
@@ -278,7 +283,9 @@ SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
 #if SB_IS(PLAYER_PUNCHED_OUT)
 // Sets the player bounds to the given graphics plane coordinates. Will not take
 // effect until the next graphics frame buffer swap. The default bounds for a
-// player are the full screen.
+// player are the full screen. This function should be expected to be called up
+// to once per frame, so implementors should take care to avoid related
+// performance concerns with such frequent calls.
 SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
                                  int x,
                                  int y,

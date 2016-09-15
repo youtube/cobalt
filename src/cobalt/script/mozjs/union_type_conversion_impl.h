@@ -187,8 +187,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
   // 19. Throw a TypeError.
-  exception_state->SetSimpleException(
-      ExceptionState::kTypeError, "Value is not a member of the union type.");
+  exception_state->SetSimpleException(kNotUnionType);
 }
 
 template <typename T1, typename T2, typename T3>
@@ -385,8 +384,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
   // 19. Throw a TypeError.
-  exception_state->SetSimpleException(
-      ExceptionState::kTypeError, "Value is not a member of the union type.");
+  exception_state->SetSimpleException(kNotUnionType);
 }
 
 template <typename T1, typename T2, typename T3, typename T4>
@@ -624,8 +622,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
   // 19. Throw a TypeError.
-  exception_state->SetSimpleException(
-      ExceptionState::kTypeError, "Value is not a member of the union type.");
+  exception_state->SetSimpleException(kNotUnionType);
 }
 
 }  // namespace mozjs

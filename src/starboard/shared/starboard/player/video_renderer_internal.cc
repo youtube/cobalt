@@ -62,13 +62,14 @@ void VideoRenderer::WriteEndOfStream() {
 void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(seek_to_pts >= 0);
 
+  decoder_->Reset();
+
   ScopedLock lock(mutex_);
 
   seeking_to_pts_ = std::max<SbMediaTime>(seek_to_pts, 0);
   seeking_ = true;
   end_of_stream_written_ = false;
 
-  decoder_->Reset();
   frames_.clear();
 }
 
@@ -81,11 +82,11 @@ const VideoFrame& VideoRenderer::GetCurrentFrame(SbMediaTime media_time) {
   }
   // Remove any frames with timestamps earlier than |media_time|, but always
   // keep at least one of the frames.
-  while (frames_.size() > 1 && frames_.begin()->pts() < media_time) {
-    frames_.erase(frames_.begin());
+  while (frames_.size() > 1 && frames_.front().pts() < media_time) {
+    frames_.pop_front();
   }
 
-  return *frames_.begin();
+  return frames_.front();
 }
 
 bool VideoRenderer::IsEndOfStreamPlayed() const {

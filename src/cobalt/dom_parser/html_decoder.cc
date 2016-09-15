@@ -28,12 +28,12 @@ HTMLDecoder::HTMLDecoder(
     const scoped_refptr<dom::Document>& document,
     const scoped_refptr<dom::Node>& parent_node,
     const scoped_refptr<dom::Node>& reference_node,
-    const base::SourceLocation& input_location,
+    const int dom_max_element_depth, const base::SourceLocation& input_location,
     const base::Closure& done_callback,
     const base::Callback<void(const std::string&)>& error_callback)
-    : libxml_html_parser_wrapper_(
-          new LibxmlHTMLParserWrapper(document, parent_node, reference_node,
-                                      input_location, error_callback)),
+    : libxml_html_parser_wrapper_(new LibxmlHTMLParserWrapper(
+          document, parent_node, reference_node, dom_max_element_depth,
+          input_location, error_callback)),
       document_(document),
       done_callback_(done_callback) {}
 

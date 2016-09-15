@@ -63,8 +63,8 @@ class LayoutManager {
 
   LayoutManager(const scoped_refptr<dom::Window>& window,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
-                LayoutTrigger layout_trigger, float layout_refresh_rate,
-                const std::string& language,
+                LayoutTrigger layout_trigger, const int dom_max_element_depth,
+                const float layout_refresh_rate, const std::string& language,
                 LayoutStatTracker* layout_stat_tracker);
   ~LayoutManager();
 

@@ -46,6 +46,7 @@
 #include "MozjsExceptionObjectInterface.h"
 #include "MozjsExceptionsInterface.h"
 #include "MozjsExtendedIDLAttributesInterface.h"
+#include "MozjsGarbageCollectionTestInterface.h"
 #include "MozjsGetOpaqueRootInterface.h"
 #include "MozjsGlobalInterfaceParent.h"
 #include "MozjsImplementedInterface.h"
@@ -90,6 +91,7 @@
 #include "cobalt/bindings/testing/exception_object_interface.h"
 #include "cobalt/bindings/testing/exceptions_interface.h"
 #include "cobalt/bindings/testing/extended_idl_attributes_interface.h"
+#include "cobalt/bindings/testing/garbage_collection_test_interface.h"
 #include "cobalt/bindings/testing/get_opaque_root_interface.h"
 #include "cobalt/bindings/testing/global_interface_parent.h"
 #include "cobalt/bindings/testing/implemented_interface.h"
@@ -160,6 +162,7 @@ using cobalt::bindings::testing::EnumerationInterface;
 using cobalt::bindings::testing::ExceptionObjectInterface;
 using cobalt::bindings::testing::ExceptionsInterface;
 using cobalt::bindings::testing::ExtendedIDLAttributesInterface;
+using cobalt::bindings::testing::GarbageCollectionTestInterface;
 using cobalt::bindings::testing::GetOpaqueRootInterface;
 using cobalt::bindings::testing::GlobalInterfaceParent;
 using cobalt::bindings::testing::ImplementedInterface;
@@ -189,6 +192,7 @@ using cobalt::bindings::testing::MozjsEnumerationInterface;
 using cobalt::bindings::testing::MozjsExceptionObjectInterface;
 using cobalt::bindings::testing::MozjsExceptionsInterface;
 using cobalt::bindings::testing::MozjsExtendedIDLAttributesInterface;
+using cobalt::bindings::testing::MozjsGarbageCollectionTestInterface;
 using cobalt::bindings::testing::MozjsGetOpaqueRootInterface;
 using cobalt::bindings::testing::MozjsGlobalInterfaceParent;
 using cobalt::bindings::testing::MozjsImplementedInterface;
@@ -260,6 +264,11 @@ using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperPrivate;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::Wrappable;
+JSObject* DummyFunctor(
+    JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
+  NOTREACHED();
+  return NULL;
+}
 }  // namespace
 
 namespace cobalt {
@@ -664,7 +673,6 @@ JSObject* MozjsWindow::CreateProxy(
   global_object_proxy->SetGlobalObjectProxyAndWrapper(proxy, wrappable);
   return proxy;
 }
-
 //static
 const JSClass* MozjsWindow::PrototypeClass(
       JSContext* context) {
@@ -818,6 +826,10 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
       base::Bind(MozjsExtendedIDLAttributesInterface::CreateProxy),
       base::Bind(MozjsExtendedIDLAttributesInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
+      GarbageCollectionTestInterface::GarbageCollectionTestInterfaceWrappableType(),
+      base::Bind(MozjsGarbageCollectionTestInterface::CreateProxy),
+      base::Bind(MozjsGarbageCollectionTestInterface::PrototypeClass));
+  wrapper_factory->RegisterWrappableType(
       GetOpaqueRootInterface::GetOpaqueRootInterfaceWrappableType(),
       base::Bind(MozjsGetOpaqueRootInterface::CreateProxy),
       base::Bind(MozjsGetOpaqueRootInterface::PrototypeClass));
@@ -905,6 +917,10 @@ void GlobalObjectProxy::CreateGlobalObject<Window>(
       UnionTypesInterface::UnionTypesInterfaceWrappableType(),
       base::Bind(MozjsUnionTypesInterface::CreateProxy),
       base::Bind(MozjsUnionTypesInterface::PrototypeClass));
+  wrapper_factory->RegisterWrappableType(
+      Window::WindowWrappableType(),
+      base::Bind(DummyFunctor),
+      base::Bind(MozjsWindow::PrototypeClass));
 
 }
 

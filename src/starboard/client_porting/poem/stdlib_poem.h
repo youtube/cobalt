@@ -17,15 +17,25 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STDLIB_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STDLIB_POEM_H_
 
+#if defined(STARBOARD)
+
 #include "starboard/configuration.h"
 
-SB_C_INLINE int PoemAbs(int x) {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static SB_C_INLINE int PoemAbs(int x) {
   if (x < 0)
     return -x;
   return x;
 }
 
-#if defined(POEM_FULL_EMULATION) && (POEM_FULL_EMULATION)
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#if !defined(POEM_NO_EMULATION)
 
 #include "starboard/string.h"
 #include "starboard/system.h"
@@ -43,6 +53,8 @@ SB_C_INLINE int PoemAbs(int x) {
 
 #define abs(x) PoemAbs(x)
 
-#endif  // POEM_FULL_EMULATION
+#endif  // POEM_NO_EMULATION
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STDLIB_POEM_H_

@@ -35,6 +35,10 @@ FilterNode::Builder::Builder(const BlurFilter& blur_filter,
                              const scoped_refptr<render_tree::Node>& source)
     : source(source), blur_filter(blur_filter) {}
 
+FilterNode::Builder::Builder(const MapToMeshFilter& map_to_mesh_filter,
+                             const scoped_refptr<render_tree::Node>& source)
+    : source(source), map_to_mesh_filter(map_to_mesh_filter) {}
+
 FilterNode::FilterNode(const OpacityFilter& opacity_filter,
                        const scoped_refptr<render_tree::Node>& source)
     : data_(opacity_filter, source) {}
@@ -46,6 +50,10 @@ FilterNode::FilterNode(const ViewportFilter& viewport_filter,
 FilterNode::FilterNode(const BlurFilter& blur_filter,
                        const scoped_refptr<render_tree::Node>& source)
     : data_(blur_filter, source) {}
+
+FilterNode::FilterNode(const MapToMeshFilter& map_to_mesh_filter,
+                       const scoped_refptr<render_tree::Node>& source)
+    : data_(map_to_mesh_filter, source) {}
 
 void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 

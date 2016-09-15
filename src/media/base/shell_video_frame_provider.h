@@ -38,15 +38,21 @@ class ShellVideoFrameProvider
  public:
   explicit ShellVideoFrameProvider(scoped_refptr<VideoFrame> punch_out = NULL);
 
-  typedef base::Callback<base::TimeDelta()> MediaTimeCB;
+  // The calling back returns the current media time and a bool which is set to
+  // true when a seek is in progress.
+  typedef base::Callback<void(base::TimeDelta*, bool*)>
+      MediaTimeAndSeekingStateCB;
   // This class uses the media time to decide which frame is current.  It
   // retrieves the media time from the registered media_time_cb.  There can only
   // be one registered media_time_cb at a certain time, a call to
-  // RegisterMediaTimeCB() will overwrite the previously registered callback.
-  void RegisterMediaTimeCB(const MediaTimeCB& media_time_cb);
+  // RegisterMediaTimeAndSeekingStateCB() will overwrite the previously
+  // registered callback.
+  void RegisterMediaTimeAndSeekingStateCB(
+      const MediaTimeAndSeekingStateCB& media_time_and_seeking_state_cb);
   // This function unregisters the media time callback if it hasn't been
   // overwritten by another callback.
-  void UnregisterMediaTimeCB(const MediaTimeCB& media_time_cb);
+  void UnregisterMediaTimeAndSeekingStateCB(
+      const MediaTimeAndSeekingStateCB& media_time_and_seeking_state_cb);
 
   // Returns the current frame to be displayed if there is one. Otherwise it
   // returns NULL.
@@ -68,12 +74,13 @@ class ShellVideoFrameProvider
   int ResetAndReturnDroppedFrames();
 
  private:
-  base::TimeDelta GetMediaTime_Locked() const;
+  void GetMediaTimeAndSeekingState_Locked(base::TimeDelta* media_time,
+                                          bool* is_seeking) const;
 
   scoped_refptr<VideoFrame> punch_out_;
 
   mutable base::Lock frames_lock_;
-  MediaTimeCB media_time_cb_;
+  MediaTimeAndSeekingStateCB media_time_and_seeking_state_cb_;
   std::vector<scoped_refptr<VideoFrame> > frames_;
   scoped_refptr<VideoFrame> current_frame_;
   bool has_consumed_frames_;

@@ -31,8 +31,7 @@ class JSCExceptionState : public ExceptionState {
       : global_object_(global_object), exception_(NULL) {}
   // ExceptionState interface
   void SetException(const scoped_refptr<ScriptException>& exception) OVERRIDE;
-  void SetSimpleException(SimpleExceptionType simple_exception,
-                          const std::string& message) OVERRIDE;
+  void SetSimpleException(MessageType message_type, ...) OVERRIDE;
 
   bool is_exception_set() const { return (exception_ != NULL); }
   JSC::JSObject* exception_object() { return exception_; }

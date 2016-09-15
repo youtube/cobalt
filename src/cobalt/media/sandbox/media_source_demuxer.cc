@@ -24,6 +24,7 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/sys_byteorder.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline_status.h"
@@ -40,6 +41,8 @@ using ::media::BindToCurrentLoop;
 using ::media::DecoderBuffer;
 using ::media::DemuxerStream;
 using ::media::ChunkDemuxer;
+
+typedef base::Callback<void(::media::Buffer*)> AppendBufferCB;
 
 const char kSourceId[] = "id";
 
@@ -80,8 +83,6 @@ bool AddSourceBuffer(bool is_mp4, ChunkDemuxer* demuxer) {
 // every frame.
 class Loader : public ::media::DemuxerHost {
  public:
-  typedef base::Callback<void(::media::Buffer*)> AppendBufferCB;
-
   Loader(const std::vector<uint8>& content,
          const AppendBufferCB& append_buffer_cb)
       : valid_(true),
@@ -214,10 +215,48 @@ class Loader : public ::media::DemuxerHost {
   ::media::VideoDecoderConfig config_;
 };
 
+// This is a very loose IVF parser for fuzzing purpose and it ignores any
+// invalid structure and just retrieves the frame data.
+// IVF format (all data is little endian):
+//   32 bytes file header starts with DKIF
+//     (4 bytes frame size + 8 bytes timestamp + <size> bytes frame data)*
+bool LoadIVF(const std::vector<uint8>& content,
+             const AppendBufferCB& append_buffer_cb) {
+  const size_t kIVFFileHeaderSize = 32;
+  const size_t kIVFFrameHeaderSize = 12;
+  if (content.size() < kIVFFileHeaderSize ||
+      memcmp(&content[0], "DKIF", 4) != 0) {
+    return false;
+  }
+  size_t offset = kIVFFileHeaderSize;
+  while (offset + kIVFFrameHeaderSize < content.size()) {
+    uint32 frame_size = base::ByteSwapToLE32(
+        *reinterpret_cast<const uint32*>(&content[offset]));
+    offset += kIVFFrameHeaderSize;
+    if (offset + frame_size > content.size()) {
+      break;
+    }
+    append_buffer_cb.Run(::media::StreamParserBuffer::CopyFrom(
+        &content[offset], frame_size, false));
+    offset += frame_size;
+  }
+  return true;
+}
+
 }  // namespace
 
 MediaSourceDemuxer::MediaSourceDemuxer(const std::vector<uint8>& content)
     : valid_(true) {
+  // Try to load it as an ivf first.
+  if (LoadIVF(content, Bind(&MediaSourceDemuxer::AppendBuffer,
+                            base::Unretained(this)))) {
+    config_.Initialize(::media::kCodecVP9, ::media::VP9PROFILE_MAIN,
+                       ::media::VideoFrame::YV12, gfx::Size(1, 1),
+                       gfx::Rect(1, 1), gfx::Size(1, 1), NULL, 0, false, false);
+    valid_ = descs_.size() > 0;
+    return;
+  }
+
   Loader loader(
       content, Bind(&MediaSourceDemuxer::AppendBuffer, base::Unretained(this)));
   valid_ = loader.valid();

@@ -25,7 +25,7 @@ namespace {
 
 const base::TimeDelta kRepeatInitialDelay =
     base::TimeDelta::FromMilliseconds(500);
-const float kRepeatRateInHertz = 10.0f;
+const float kRepeatRateInHertz = 20.0f;
 const base::TimeDelta kRepeatRate = base::TimeDelta::FromMilliseconds(
     base::Time::kMillisecondsPerSecond / kRepeatRateInHertz);
 

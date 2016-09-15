@@ -70,6 +70,7 @@
       'all_dependent_settings': {
         'defines': [
           'ENGINE_DEFINES_ATTRIBUTES_ON_OBJECT',
+          'ENGINE_USES_CONSERVATIVE_ROOTING',
         ],
       },
       'msvs_disabled_warnings': [

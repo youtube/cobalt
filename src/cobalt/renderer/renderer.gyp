@@ -36,13 +36,6 @@
       'includes': [
         'copy_font_data.gypi',
       ],
-
-      'defines': [
-        'COBALT_SKIA_CACHE_SIZE_IN_BYTES=<(skia_cache_size_in_bytes)',
-        'COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES=<(scratch_surface_cache_size_in_bytes)',
-        'COBALT_SURFACE_CACHE_SIZE_IN_BYTES=<(surface_cache_size_in_bytes)',
-      ],
-
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
@@ -53,21 +46,14 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
       ],
       'conditions': [
-        ['rasterizer_type == "software"', {
-          'defines': [
-            'COBALT_FORCE_SOFTWARE_RASTERIZER',
-          ],
-        }],
-        ['rasterizer_type == "stub"', {
-          'defines': [
-            'COBALT_FORCE_STUB_RASTERIZER',
-          ],
-        }],
         ['OS=="starboard"', {
-          'sources': [
-            'renderer_module_default_options_starboard.cc',
+          'dependencies': [
+            '<(default_renderer_options_dependency)',
           ],
         }, {
+          'includes': [
+            'renderer_parameters_setup.gypi',
+          ],
           'sources': [
             'renderer_module_default_options_<(actual_target_arch).cc',
           ],

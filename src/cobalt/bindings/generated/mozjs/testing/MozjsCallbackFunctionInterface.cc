@@ -302,8 +302,7 @@ JSBool fcn_takesFunctionThatReturnsString(
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -349,8 +348,7 @@ JSBool fcn_takesFunctionWithNullableParameters(
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -396,8 +394,7 @@ JSBool fcn_takesFunctionWithOneParameter(
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -443,8 +440,7 @@ JSBool fcn_takesFunctionWithSeveralParameters(
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments
@@ -490,8 +486,7 @@ JSBool fcn_takesVoidFunction(
       wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (args.length() < kMinArguments) {
-    exception_state.SetSimpleException(
-        script::ExceptionState::kTypeError, "Not enough arguments.");
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
     return false;
   }
   // Non-optional arguments

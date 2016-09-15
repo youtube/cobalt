@@ -54,6 +54,17 @@ ScratchSurfaceCache::Surface* ScratchSurfaceCache::AcquireScratchSurface(
   TRACE_EVENT2("cobalt::renderer",
                "ScratchSurfaceCache::AcquireScratchSurface()", "width",
                size.width(), "height", size.height());
+  if (cache_capacity_in_bytes_ == 0) {
+    // If scratch surface caching is disabled, just create and immediately
+    // return a surface.
+    Surface* surface = delegate_->CreateSurface(size);
+    if (surface) {
+      delegate_->PrepareForUse(surface, size);
+      return surface;
+    } else {
+      return NULL;
+    }
+  }
 
   // First check if we can find a suitable surface in our cache that is at
   // least the size requested.
@@ -93,6 +104,12 @@ void ScratchSurfaceCache::ReleaseScratchSurface(Surface* surface) {
                "ScratchSurfaceCache::ReleaseScratchSurface()", "width",
                surface->GetSize().width(), "height",
                surface->GetSize().height());
+  if (cache_capacity_in_bytes_ == 0) {
+    // If scratch surface caching is disabled, immediately destroy the surface
+    // and return.
+    delegate_->DestroySurface(surface);
+    return;
+  }
 
   DCHECK_EQ(surface_stack_.back(), surface);
   surface_stack_.pop_back();

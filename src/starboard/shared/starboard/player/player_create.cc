@@ -17,7 +17,8 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-SbPlayer SbPlayerCreate(SbMediaVideoCodec video_codec,
+SbPlayer SbPlayerCreate(SbWindow window,
+                        SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
                         SbMediaTime duration_pts,
                         SbDrmSystem drm_system,
@@ -41,7 +42,7 @@ SbPlayer SbPlayerCreate(SbMediaVideoCodec video_codec,
     return kSbPlayerInvalid;
   }
 
-  return new SbPlayerPrivate(video_codec, audio_codec, duration_pts, drm_system,
-                             audio_header, sample_deallocate_func,
+  return new SbPlayerPrivate(window, video_codec, audio_codec, duration_pts,
+                             drm_system, audio_header, sample_deallocate_func,
                              decoder_status_func, player_status_func, context);
 }

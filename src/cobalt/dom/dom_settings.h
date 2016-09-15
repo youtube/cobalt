@@ -57,7 +57,8 @@ class DOMSettings : public script::EnvironmentSettings {
     ArrayBuffer::Cache* array_buffer_cache;
   };
 
-  DOMSettings(loader::FetcherFactory* fetcher_factory,
+  DOMSettings(const int max_dom_element_depth,
+              loader::FetcherFactory* fetcher_factory,
               network::NetworkModule* network_module,
               const scoped_refptr<Window>& window,
               MediaSource::Registry* media_source_registry,
@@ -65,6 +66,8 @@ class DOMSettings : public script::EnvironmentSettings {
               script::GlobalObjectProxy* global_object_proxy,
               const Options& options = Options());
   ~DOMSettings() OVERRIDE;
+
+  int max_dom_element_depth() { return max_dom_element_depth_; }
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
   scoped_refptr<Window> window() const { return window_; }
@@ -97,6 +100,7 @@ class DOMSettings : public script::EnvironmentSettings {
   virtual GURL base_url() const;
 
  private:
+  const int max_dom_element_depth_;
   loader::FetcherFactory* fetcher_factory_;
   network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;

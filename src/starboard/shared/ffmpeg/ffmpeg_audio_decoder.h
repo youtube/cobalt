@@ -40,6 +40,8 @@ class AudioDecoder : public starboard::player::AudioDecoder {
   void Reset() SB_OVERRIDE;
   int GetSamplesPerSecond() SB_OVERRIDE;
 
+  bool is_valid() const { return codec_context_ != NULL; }
+
  private:
   void InitializeCodec();
   void TeardownCodec();
