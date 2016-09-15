@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-interface H5vccRuntime {
-  readonly attribute DOMString initialDeepLink;
-  readonly attribute H5vccDeepLinkEventTarget onDeepLink;
-  readonly attribute H5vccRuntimeEventTarget onPause;
-  readonly attribute H5vccRuntimeEventTarget onResume;
+// Custom interface to dispatch deep link events.
+// Modeled after Chrome's runtime onMessage target (and similar):
+// https://developer.chrome.com/apps/runtime#event-onMessage
+
+interface H5vccDeepLinkEventTarget {
+  void addListener(H5vccDeepLinkEventCallback callback);
 };
+
+callback H5vccDeepLinkEventCallback = void(DOMString link);

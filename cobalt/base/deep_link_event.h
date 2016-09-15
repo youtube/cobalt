@@ -14,9 +14,27 @@
  * limitations under the License.
  */
 
-interface H5vccRuntime {
-  readonly attribute DOMString initialDeepLink;
-  readonly attribute H5vccDeepLinkEventTarget onDeepLink;
-  readonly attribute H5vccRuntimeEventTarget onPause;
-  readonly attribute H5vccRuntimeEventTarget onResume;
+#ifndef COBALT_BASE_DEEP_LINK_EVENT_H_
+#define COBALT_BASE_DEEP_LINK_EVENT_H_
+
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "cobalt/base/event.h"
+
+namespace base {
+
+class DeepLinkEvent : public Event {
+ public:
+  explicit DeepLinkEvent(const std::string& link) : link_(link) {}
+  const std::string& link() const { return link_; }
+
+  BASE_EVENT_SUBCLASS(DeepLinkEvent);
+
+ private:
+  std::string link_;
 };
+
+}  // namespace base
+
+#endif  // COBALT_BASE_DEEP_LINK_EVENT_H_

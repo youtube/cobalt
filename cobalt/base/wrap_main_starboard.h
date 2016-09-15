@@ -42,14 +42,14 @@ void BaseEventHandler(const SbEvent* event) {
 
       DCHECK(!g_at_exit);
       g_at_exit = new base::AtExitManager();
-      InitCobalt(data->argument_count, data->argument_values);
+      InitCobalt(data->argument_count, data->argument_values, data->link);
 
       DCHECK(!g_loop);
       g_loop = new MessageLoopForUI();
       g_loop->set_thread_name("Main");
       g_loop->Start();
 
-      start_function(data->argument_count, data->argument_values,
+      start_function(data->argument_count, data->argument_values, data->link,
                      base::Bind(&SbSystemRequestStop, 0));
       break;
     }
@@ -78,7 +78,7 @@ void BaseEventHandler(const SbEvent* event) {
 template <MainFunction main_function>
 int CobaltMainAddOns(int argc, char** argv) {
   base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
+  cobalt::InitCobalt(argc, argv, NULL);
   return main_function(argc, argv);
 }
 
