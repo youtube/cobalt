@@ -23,7 +23,8 @@ H5vcc::H5vcc(const Settings& settings) {
   account_info_ = new H5vccAccountInfo(settings.account_manager);
   audio_config_array_ = new H5vccAudioConfigArray();
   c_val_ = new H5vccCVal();
-  runtime_ = new H5vccRuntime(settings.event_dispatcher);
+  runtime_ =
+      new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
   settings_ = new H5vccSettings(settings.media_module);
   storage_ = new H5vccStorage(settings.network_module);
   system_ = new H5vccSystem();
