@@ -61,6 +61,15 @@ class COBALT_EXPORT PlatformDelegate {
                                const void* address, size_t size) const;
   virtual bool DeregisterUserLog(int user_log_index) const;
 
+  // Returns a string in the form of "1920x1080" to inform the player to use the
+  // returned resolution instead of the window size as the maximum resolution of
+  // video being played.
+  std::string GetVideoContainerSizeOverride() const {
+    return video_container_size_override_;
+  }
+  void SetVideoContainerSizeOverride(
+      const std::string& video_container_size_override);
+
   const std::string& dir_source_root() const { return dir_source_root_; }
   const std::string& game_content_path() const { return game_content_path_; }
   const std::string& screenshot_output_path() const {
@@ -81,6 +90,7 @@ class COBALT_EXPORT PlatformDelegate {
   std::string screenshot_output_path_;
   std::string logging_output_path_;
   std::string temp_path_;
+  std::string video_container_size_override_;
 
  private:
   // Each platform implements the Create() function to return its own
