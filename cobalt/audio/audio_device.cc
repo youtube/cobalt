@@ -16,6 +16,7 @@
 
 #include "cobalt/audio/audio_device.h"
 
+#include "base/debug/trace_event.h"
 #include "base/memory/scoped_ptr.h"
 #if defined(OS_STARBOARD)
 #include "starboard/audio_sink.h"
@@ -192,6 +193,7 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
                                            int* offset_in_frames,
                                            bool* is_playing,
                                            bool* is_eos_reached) {
+  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::UpdateSourceStatus()");
   *is_playing = true;
   *is_eos_reached = false;
 
@@ -248,6 +250,7 @@ inline void AudioDevice::Impl::FillOutputAudioBusForType() {
 }
 
 void AudioDevice::Impl::FillOutputAudioBus() {
+  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::FillOutputAudioBus()");
   if (output_sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     FillOutputAudioBusForType<float>();
   } else if (output_sample_type_ == kSbMediaAudioSampleTypeInt16) {
@@ -305,6 +308,8 @@ AudioDevice::Impl::Impl(int32 number_of_channels, RenderCallback* callback)
                  static_cast<size_t>(kRenderBufferSizeFrames),
                  ShellAudioBus::kFloat32, ShellAudioBus::kPlanar),
       render_callback_(callback) {
+  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::Impl()");
+
   DCHECK_GT(number_of_channels, 0);
   DCHECK(media::ShellAudioStreamer::Instance()->GetConfig().interleaved())
       << "Planar audio is not supported.";
@@ -341,6 +346,8 @@ bool AudioDevice::Impl::PauseRequested() const { return needs_data_; }
 
 bool AudioDevice::Impl::PullFrames(uint32* offset_in_frame,
                                    uint32* total_frames) {
+  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::PullFrames()");
+
   // In case offset_in_frame or total_frames is NULL.
   uint32 dummy_offset_in_frame;
   uint32 dummy_total_frames;
@@ -401,6 +408,7 @@ int AudioDevice::Impl::GetAudioHardwareSampleRate() {
 }
 
 void AudioDevice::Impl::FillOutputAudioBus() {
+  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::FillOutputAudioBus()");
   // Determine the offset into the audio bus that represents the tail of
   // buffered data.
   uint64 channel_offset = buffered_frame_cursor_ % kFramesPerChannel;
