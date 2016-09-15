@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-void SbEventHandle(const SbEvent* event) {
-  if (event->type == kSbEventTypeStart) {
-    SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-    ::testing::InitGoogleTest(&data->argument_count, data->argument_values);
-    int result = RUN_ALL_TESTS();
-    SbSystemRequestStop(result);
-  }
+namespace {
+int InitAndRunAllTests(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
+}  // namespace
+
+STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
