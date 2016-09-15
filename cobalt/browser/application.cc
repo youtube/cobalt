@@ -29,6 +29,8 @@
 #include "build/build_config.h"
 #include "cobalt/account/account_event.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/deep_link_event.h"
+#include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/browser/switches.h"
@@ -290,6 +292,7 @@ Application::Application(const base::Closure& quit_closure)
   BrowserModule::Options options;
   options.web_module_options.name = "MainWebModule";
   options.language = language;
+  options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
 
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);

@@ -64,6 +64,7 @@ class BrowserModule {
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
     std::string language;
+    std::string initial_deep_link;
     base::Closure web_module_recreated_callback;
   };
 

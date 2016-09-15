@@ -32,7 +32,10 @@ namespace cobalt {
 //
 //   ..RunSomeCode..
 // }
-void InitCobalt(int argc, char* argv[]);
+void InitCobalt(int argc, char* argv[], const char* initial_deep_link);
+
+// Get the |initial_deep_link| string specified in |InitCobalt|.
+const char* GetInitialDeepLink();
 
 }  // namespace cobalt
 

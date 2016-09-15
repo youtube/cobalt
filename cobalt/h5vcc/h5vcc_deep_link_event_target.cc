@@ -14,25 +14,26 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc_runtime_event_target.h"
+#include "cobalt/h5vcc/h5vcc_deep_link_event_target.h"
 
 namespace cobalt {
 namespace h5vcc {
 
 namespace {
-void OnGetArgument() {}
+const std::string& OnGetArgument(const std::string& link) { return link; }
 }  // namespace
 
-H5vccRuntimeEventTarget::H5vccRuntimeEventTarget()
+H5vccDeepLinkEventTarget::H5vccDeepLinkEventTarget()
     : ALLOW_THIS_IN_INITIALIZER_LIST(listeners_(this)) {}
 
-void H5vccRuntimeEventTarget::AddListener(
-    const H5vccRuntimeEventCallbackHolder& callback_holder) {
+void H5vccDeepLinkEventTarget::AddListener(
+    const H5vccDeepLinkEventTarget::H5vccDeepLinkEventCallbackHolder&
+        callback_holder) {
   listeners_.AddListener(callback_holder);
 }
 
-void H5vccRuntimeEventTarget::DispatchEvent() {
-  listeners_.DispatchEvent(base::Bind(OnGetArgument));
+void H5vccDeepLinkEventTarget::DispatchEvent(const std::string& link) {
+  listeners_.DispatchEvent(base::Bind(OnGetArgument, link));
 }
 
 }  // namespace h5vcc

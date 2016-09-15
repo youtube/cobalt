@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
+#include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/h5vcc/h5vcc_runtime.h"
 #include "cobalt/system_window/application_event.h"
 
 namespace cobalt {
 namespace h5vcc {
-H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
+H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher,
+                           const std::string& initial_deep_link)
     : event_dispatcher_(event_dispatcher) {
+  initial_deep_link_ = initial_deep_link;
+  on_deep_link_ = new H5vccDeepLinkEventTarget;
   on_pause_ = new H5vccRuntimeEventTarget;
   on_resume_ = new H5vccRuntimeEventTarget;
 
@@ -30,11 +34,26 @@ H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
       base::Bind(&H5vccRuntime::OnApplicationEvent, base::Unretained(this));
   event_dispatcher_->AddEventCallback(system_window::ApplicationEvent::TypeId(),
                                       application_event_callback_);
+  deep_link_event_callback_ =
+      base::Bind(&H5vccRuntime::OnDeepLinkEvent, base::Unretained(this));
+  event_dispatcher_->AddEventCallback(base::DeepLinkEvent::TypeId(),
+                                      deep_link_event_callback_);
 }
 
 H5vccRuntime::~H5vccRuntime() {
   event_dispatcher_->RemoveEventCallback(
       system_window::ApplicationEvent::TypeId(), application_event_callback_);
+  event_dispatcher_->RemoveEventCallback(base::DeepLinkEvent::TypeId(),
+                                         deep_link_event_callback_);
+}
+
+const std::string& H5vccRuntime::initial_deep_link() const {
+  return initial_deep_link_;
+}
+
+const scoped_refptr<H5vccDeepLinkEventTarget>& H5vccRuntime::on_deep_link()
+    const {
+  return on_deep_link_;
 }
 
 const scoped_refptr<H5vccRuntimeEventTarget>& H5vccRuntime::on_pause() const {
@@ -55,6 +74,13 @@ void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
     DLOG(INFO) << "Got resume event.";
     on_resume()->DispatchEvent();
   }
+}
+
+void H5vccRuntime::OnDeepLinkEvent(const base::Event* event) {
+  const base::DeepLinkEvent* deep_link_event =
+      base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
+  DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
+  on_deep_link()->DispatchEvent(deep_link_event->link());
 }
 }  // namespace h5vcc
 }  // namespace cobalt
