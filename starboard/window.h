@@ -30,15 +30,39 @@ typedef struct SbWindowPrivate SbWindowPrivate;
 // A handle to a window.
 typedef SbWindowPrivate* SbWindow;
 
-// A dimensional measurement of an SbWindow.
+// The size of a window in graphics rendering coordinates. The width and height
+// of a window should correspond to the size of the graphics surface used for
+// drawing that would be created to back that window.
 typedef struct SbWindowSize {
+  // The width of the window in graphics pixels.
   int width;
+
+  // The height of the window in graphics pixels.
   int height;
+
+  // The ratio of video pixels to graphics pixels. This ratio must be applied
+  // equally to width and height, meaning the aspect ratio is maintained.
+  //
+  // A value of 1.0f means the video resolution is the same as the graphics
+  // resolution. This is the most common case.
+  //
+  // Values greater than 1.0f mean that the video resolution is higher (denser,
+  // larger) than the graphics resolution. This is a common case as devices
+  // often have less video decoding capabilities than graphics rendering
+  // capabilities (or memory, etc...).
+  //
+  // Values less than 1.0f mean that the maximum video resolution is smaller
+  // than the graphics resolution.
+  //
+  // A value of 0.0f means the ratio could not be determined, it should be
+  // assumed to be the same as the graphics resolution (i.e. 1.0f).
+  float video_pixel_ratio;
 } SbWindowSize;
 
 // Options that can be requested at window creation time.
 typedef struct SbWindowOptions {
-  // The requested size or resolution of the new window.
+  // The requested size of the new window. The value of |video_pixel_ratio| will
+  // not be used or looked at.
   SbWindowSize size;
 
   // Whether the new window should be windowed or not. If not, the requested
@@ -83,7 +107,8 @@ SB_EXPORT void SbWindowSetDefaultOptions(SbWindowOptions* options);
 // Destroys |window|, reclaiming associated resources.
 SB_EXPORT bool SbWindowDestroy(SbWindow window);
 
-// Sets |size| to the dimensions of the window.  Returns true on success.
+// Sets |size| to the dimensions of |window|. Returns true on success. If false
+// is returned, |size| will not be modified.
 SB_EXPORT bool SbWindowGetSize(SbWindow window, SbWindowSize* size);
 
 // Gets the platform-specific handle for |window|, which can be passed as an
