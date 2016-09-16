@@ -134,6 +134,12 @@ class WebModule {
 
     // Whether or not the web module's stat tracker should track event stats.
     bool track_event_stats;
+
+    // If set to something other than 1.0f, when a video starts to play, the
+    // image cache will be flushed and temporarily multiplied by this value (
+    // must be less than or equal to 1.0f) until the video ends.  This can
+    // help for platforms that are low on image memory while playing a video.
+    float image_cache_capacity_multiplier_when_playing_video;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

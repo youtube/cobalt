@@ -79,6 +79,67 @@ inline static scoped_ptr<ImageCache> CreateImageCache(
       fetcher_factory));
 }
 
+// The ReducedCacheCapacityManager is a helper class that manages state which
+// makes it easy for clients to place the image cache in a reduced memory state,
+// at times when GPU memory is at a premium, such as when playing a video.
+// Clients should create ReducedCacheCapacityManager::Request objects to
+// indicate that they would like the image cache to enter a reduced capacity
+// state, internally, the manager keeps a reference count of how many Request
+// objects exist and enables the reduced capacity state if there is more than
+// one of them.
+class ReducedCacheCapacityManager {
+ public:
+  class Request {
+   public:
+    explicit Request(ReducedCacheCapacityManager* manager) : manager_(manager) {
+      manager_->IncrementRequestRefCount();
+    }
+    ~Request() { manager_->DecrementRequestRefCount(); }
+
+   private:
+    ReducedCacheCapacityManager* manager_;
+  };
+
+  ReducedCacheCapacityManager(ImageCache* cache,
+                              float reduced_capacity_percentage)
+      : cache_(cache),
+        request_ref_count_(0),
+        reduced_capacity_percentage_(reduced_capacity_percentage),
+        original_capacity_(cache_->capacity()),
+        reduced_capacity_(static_cast<uint32>(reduced_capacity_percentage_ *
+                                              original_capacity_)) {
+    DCHECK_GE(1.0f, reduced_capacity_percentage);
+  }
+
+  float reduced_capacity_percentage() const {
+    return reduced_capacity_percentage_;
+  }
+
+ private:
+  void IncrementRequestRefCount() {
+    if (request_ref_count_ == 0) {
+      cache_->SetCapacity(reduced_capacity_);
+    }
+    ++request_ref_count_;
+  }
+
+  void DecrementRequestRefCount() {
+    DCHECK_LT(0, request_ref_count_);
+    --request_ref_count_;
+    if (request_ref_count_ == 0) {
+      cache_->SetCapacity(original_capacity_);
+    }
+  }
+
+  ImageCache* cache_;
+  int request_ref_count_;
+  float reduced_capacity_percentage_;
+  const uint32 original_capacity_;
+  const uint32 reduced_capacity_;
+
+  friend class Request;
+};
+
 }  // namespace image
 }  // namespace loader
 }  // namespace cobalt

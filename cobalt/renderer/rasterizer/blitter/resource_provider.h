@@ -40,6 +40,8 @@ class ResourceProvider : public render_tree::ResourceProvider {
       render_tree::ResourceProvider* skia_resource_provider);
   ~ResourceProvider() OVERRIDE {}
 
+  void Finish() OVERRIDE {}
+
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
 

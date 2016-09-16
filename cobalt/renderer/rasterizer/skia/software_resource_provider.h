@@ -34,6 +34,8 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
  public:
   SoftwareResourceProvider();
 
+  void Finish() OVERRIDE{};
+
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
 
