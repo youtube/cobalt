@@ -99,6 +99,18 @@ typedef struct SbPlayerInfo {
 
   // The current player volume in [0, 1].
   double volume;
+
+  // The number of video frames sent to the player since the creation of the
+  // player.
+  int total_video_frames;
+
+  // The number of video frames decoded but not displayed since the creation of
+  // the player.
+  int dropped_video_frames;
+
+  // The number of video frames that failed to be decoded since the creation of
+  // the player.
+  int corrupted_video_frames;
 } SbPlayerInfo;
 
 // An opaque handle to an implementation-private structure representing a
