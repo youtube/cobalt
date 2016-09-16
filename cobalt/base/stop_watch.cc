@@ -35,8 +35,7 @@ void StopWatch::Start() {
 
 void StopWatch::Stop() {
   if (IsCounting()) {
-    int64 time_elapsed =
-        (base::TimeTicks::Now() - start_time_).InMicroseconds();
+    base::TimeDelta time_elapsed = base::TimeTicks::Now() - start_time_;
     start_time_ = base::TimeTicks();
     owner_->OnStopWatchStopped(id_, time_elapsed);
   }

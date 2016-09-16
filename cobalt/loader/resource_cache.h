@@ -458,8 +458,8 @@ class ResourceCache {
 
   base::ThreadChecker resource_cache_thread_checker_;
 
-  base::CVal<uint32, base::CValPublic> size_in_bytes_;
-  base::CVal<uint32, base::CValPublic> capacity_in_bytes_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> size_in_bytes_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> capacity_in_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };
@@ -577,7 +577,7 @@ template <typename CacheType>
 void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
 
-  while (size_in_bytes_ > bytes_to_reclaim_down_to &&
+  while (size_in_bytes_.value() > bytes_to_reclaim_down_to &&
          !unreference_cached_resource_map_.empty()) {
     // The first element is the earliest-inserted element.
     scoped_refptr<ResourceType> resource =
@@ -596,7 +596,7 @@ void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to) {
   // have to increase the size of |cache_capacity_| if the system memory is
   // large enough or evict resources from the cache even though they are still
   // in use.
-  DLOG_IF(WARNING, size_in_bytes_ > cache_capacity_)
+  DLOG_IF(WARNING, size_in_bytes_.value() > cache_capacity_)
       << "cached size: " << size_in_bytes_
       << ", cache capacity: " << cache_capacity_;
 }
