@@ -267,11 +267,6 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
   }
 }
 
-void FontFileNameHandler(void* data, const char* s, int len) {
-  FamilyData* family_data = reinterpret_cast<FamilyData*>(data);
-  family_data->current_font_info->file_name.set(s, len);
-}
-
 void FontElementHandler(FontFileInfo* file, const char** attributes) {
   // A <font> should have weight (integer) and style (normal, italic)attributes.
   // The element should contain a filename.
