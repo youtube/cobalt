@@ -69,6 +69,7 @@ struct SbPlayerPrivate
   int frame_height_;
   bool is_paused_;
   double volume_;
+  int total_video_frames_;
 
   starboard::shared::starboard::player::PlayerWorker worker_;
 };
