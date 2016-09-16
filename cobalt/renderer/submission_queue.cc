@@ -31,8 +31,8 @@ SubmissionQueue::SubmissionQueue(
     : max_queue_size_(max_queue_size),
       dispose_function_(dispose_function),
       to_submission_time_in_ms_(time_to_converge),
-      to_submission_time_in_ms_cval_(
-          "Renderer.ToSubmissionTimeInMS", 0,
+      to_submission_time_cval_(
+          "Renderer.ToSubmissionTime", base::TimeDelta(),
           "The current difference in milliseconds between the layout's clock "
           "and the renderer's clock.  The absolute value does not mean much, "
           "but how it changes as the user navigates can show how the "
@@ -176,8 +176,8 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue(
 
   // Update our CVal tracking the current (smoothed) to_submission_time value
   // and the one tracking submission queue size.
-  to_submission_time_in_ms_cval_ =
-      to_submission_time_in_ms_.GetValueAtTime(time);
+  to_submission_time_cval_ = base::TimeDelta::FromMilliseconds(
+      to_submission_time_in_ms_.GetValueAtTime(time));
   queue_size_ = submission_queue_.size();
 }
 

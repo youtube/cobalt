@@ -63,13 +63,13 @@ class JSCEngineStats {
 
   void Update() {
     base::AutoLock auto_lock(lock_);
-    if (js_engine_count_ > 0) {
+    if (js_engine_count_.value() > 0) {
       js_memory_ = OSAllocator::getCurrentBytesAllocated();
     }
   }
 
   base::Lock lock_;
-  base::CVal<size_t, base::CValPublic> js_memory_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> js_memory_;
   base::CVal<size_t> js_engine_count_;
   scoped_ptr<base::PollerWithThread> poller_;
 };
