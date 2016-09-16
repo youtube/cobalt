@@ -27,7 +27,7 @@ LayoutStatTracker::LayoutStatTracker(const std::string& name)
       boxes_created_count_(0),
       boxes_destroyed_count_(0),
       are_stop_watches_enabled_(false) {
-  stop_watch_durations_.resize(kNumStopWatchTypes, 0);
+  stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
 LayoutStatTracker::~LayoutStatTracker() {
@@ -46,7 +46,7 @@ void LayoutStatTracker::FlushPeriodicTracking() {
   boxes_destroyed_count_ = 0;
 
   for (size_t i = 0; i < kNumStopWatchTypes; ++i) {
-    stop_watch_durations_[i] = 0;
+    stop_watch_durations_[i] = base::TimeDelta();
   }
 }
 
@@ -62,7 +62,8 @@ void LayoutStatTracker::DisableStopWatches() {
   are_stop_watches_enabled_ = false;
 }
 
-int64 LayoutStatTracker::GetStopWatchTypeDuration(StopWatchType type) const {
+base::TimeDelta LayoutStatTracker::GetStopWatchTypeDuration(
+    StopWatchType type) const {
   return stop_watch_durations_[type];
 }
 
@@ -70,7 +71,8 @@ bool LayoutStatTracker::IsStopWatchEnabled(int /*id*/) const {
   return are_stop_watches_enabled_;
 }
 
-void LayoutStatTracker::OnStopWatchStopped(int id, int64 time_elapsed) {
+void LayoutStatTracker::OnStopWatchStopped(int id,
+                                           base::TimeDelta time_elapsed) {
   stop_watch_durations_[static_cast<size_t>(id)] += time_elapsed;
 }
 

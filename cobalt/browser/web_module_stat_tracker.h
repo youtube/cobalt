@@ -79,18 +79,22 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     base::CVal<int, base::CValPublic> count_layout_boxes_destroyed;
 
     // Duration-related
-    base::CVal<int64, base::CValPublic> duration_total;
-    base::CVal<int64, base::CValPublic> duration_dom_inject_event;
-    base::CVal<int64, base::CValPublic> duration_dom_update_computed_style;
-    base::CVal<int64, base::CValPublic> duration_layout_box_tree;
-    base::CVal<int64, base::CValPublic> duration_layout_box_generation;
-    base::CVal<int64, base::CValPublic> duration_layout_update_used_sizes;
-    base::CVal<int64, base::CValPublic> duration_layout_render_and_animate;
+    base::CVal<base::TimeDelta, base::CValPublic> duration_total;
+    base::CVal<base::TimeDelta, base::CValPublic> duration_dom_inject_event;
+    base::CVal<base::TimeDelta, base::CValPublic>
+        duration_dom_update_computed_style;
+    base::CVal<base::TimeDelta, base::CValPublic> duration_layout_box_tree;
+    base::CVal<base::TimeDelta, base::CValPublic>
+        duration_layout_box_generation;
+    base::CVal<base::TimeDelta, base::CValPublic>
+        duration_layout_update_used_sizes;
+    base::CVal<base::TimeDelta, base::CValPublic>
+        duration_layout_render_and_animate;
   };
 
   // From base::StopWatchOwner
   bool IsStopWatchEnabled(int id) const OVERRIDE;
-  void OnStopWatchStopped(int id, int64 time_elapsed) OVERRIDE;
+  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) OVERRIDE;
 
   // End the current event if one is active. This triggers an update of all
   // |EventStats| for the event.
@@ -110,7 +114,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   // Stop watch-related
   std::vector<base::StopWatch> stop_watches_;
-  std::vector<int64> stop_watch_durations_;
+  std::vector<base::TimeDelta> stop_watch_durations_;
 };
 
 }  // namespace browser

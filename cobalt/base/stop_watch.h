@@ -51,7 +51,7 @@ class StopWatchOwner {
 
  private:
   virtual bool IsStopWatchEnabled(int id) const = 0;
-  virtual void OnStopWatchStopped(int id, int64 time_elapsed) = 0;
+  virtual void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) = 0;
 
   friend class StopWatch;
 };

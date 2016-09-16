@@ -519,12 +519,12 @@ class SkFontMgrCVals {
                      DefaultSingletonTraits<SkFontMgrCVals> >::get();
   }
 
-  const base::CVal<int32_t, base::CValPublic>&
+  const base::CVal<base::cval::SizeInBytes, base::CValPublic>&
   system_typeface_open_stream_cache_limit_in_bytes() {
     return system_typeface_open_stream_cache_limit_in_bytes_;
   }
 
-  base::CVal<int32_t, base::CValPublic>&
+  base::CVal<base::cval::SizeInBytes, base::CValPublic>&
   system_typeface_open_stream_cache_size_in_bytes() {
     return system_typeface_open_stream_cache_size_in_bytes_;
   }
@@ -540,9 +540,9 @@ class SkFontMgrCVals {
             "Memory.SystemTypeface.Size", 0,
             "Total number of bytes currently used by the cache.") {}
 
-  const base::CVal<int32_t, base::CValPublic>
+  const base::CVal<base::cval::SizeInBytes, base::CValPublic>
       system_typeface_open_stream_cache_limit_in_bytes_;
-  mutable base::CVal<int32_t, base::CValPublic>
+  mutable base::CVal<base::cval::SizeInBytes, base::CValPublic>
       system_typeface_open_stream_cache_size_in_bytes_;
 
   friend struct DefaultSingletonTraits<SkFontMgrCVals>;
@@ -922,9 +922,10 @@ void SkFontMgr_Cobalt::ProcessSystemTypefacesWithOpenStreams(
     // The cache size is not over the memory limit. No open streams are released
     // while the cache is under its limit. Simply break out.
     if (SkFontMgrCVals::GetInstance()
-            ->system_typeface_open_stream_cache_size_in_bytes() <
-        SkFontMgrCVals::GetInstance()
-            ->system_typeface_open_stream_cache_limit_in_bytes()) {
+            ->system_typeface_open_stream_cache_size_in_bytes()
+            .value() < SkFontMgrCVals::GetInstance()
+                           ->system_typeface_open_stream_cache_limit_in_bytes()
+                           .value()) {
       break;
     }
 

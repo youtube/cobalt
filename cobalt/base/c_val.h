@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 
+#include <iomanip>
 #include <set>
 #include <sstream>
 #include <string>
@@ -29,6 +30,7 @@
 #include "base/memory/singleton.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "base/time.h"
 
 // The CVal system allows you to mark certain variables to be part of the
 // CVal system and therefore analyzable and trackable by other systems.  All
@@ -93,6 +95,7 @@ class CValImpl;
 // An enumeration to allow CVals to track the type that they hold in a run-time
 // variable.
 enum CValType {
+  kSize,
   kU32,
   kU64,
   kS32,
@@ -100,7 +103,40 @@ enum CValType {
   kFloat,
   kDouble,
   kString,
+  kTimeDelta,
 };
+
+// CVals are commonly used for values that are in units of bytes.  By making
+// a CVal of type SizeInBytes, this can be made explicit, and allows the CVal
+// system to use KB/MB suffixes instead of K/M.
+namespace cval {
+class SizeInBytes {
+ public:
+  SizeInBytes(uint64 size_in_bytes)  // NOLINT(runtime/explicit)
+      : size_in_bytes_(size_in_bytes) {}
+  SizeInBytes& operator=(uint64 rhs) {
+    size_in_bytes_ = rhs;
+    return *this;
+  }
+  SizeInBytes& operator+=(const SizeInBytes& rhs) {
+    size_in_bytes_ += rhs.size_in_bytes_;
+    return *this;
+  }
+  SizeInBytes& operator-=(const SizeInBytes& rhs) {
+    size_in_bytes_ -= rhs.size_in_bytes_;
+    return *this;
+  }
+  operator uint64() const { return value(); }
+
+  uint64 value() const { return size_in_bytes_; }
+
+ private:
+  uint64 size_in_bytes_;
+};
+inline std::ostream& operator<<(std::ostream& out, const SizeInBytes& size) {
+  return out << static_cast<uint64>(size);
+}
+}  // namespace cval
 
 namespace CValDetail {
 
@@ -111,6 +147,11 @@ struct Traits {
   // If you get a compiler error here, you must add a Traits class specific to
   // the variable type you would like to support.
   int UnsupportedCValType[0];
+};
+template <>
+struct Traits<cval::SizeInBytes> {
+  static const CValType kTypeVal = kSize;
+  static const bool kIsNumerical = true;
 };
 template <>
 struct Traits<uint32_t> {
@@ -147,6 +188,11 @@ struct Traits<std::string> {
   static const CValType kTypeVal = kString;
   static const bool kIsNumerical = false;
 };
+template <>
+struct Traits<base::TimeDelta> {
+  static const CValType kTypeVal = kTimeDelta;
+  static const bool kIsNumerical = true;
+};
 
 // Provide methods to convert from an arbitrary type to a string, useful for
 // systems that want to read the value of a CVal without caring about its type.
@@ -162,22 +208,60 @@ inline std::string ValToString<std::string>(const std::string& value) {
   return value;
 }
 
+template <>
+inline std::string ValToString<base::TimeDelta>(const base::TimeDelta& value) {
+  return ValToString(value.InMicroseconds());
+}
+
 // Helper function to implement the numerical branch of ValToPrettyString
 template <typename T>
-std::string NumericalValToPrettyString(const T& value) {
-  struct {
-    T threshold;
-    T divide_by;
-    const char* postfix;
-  } thresholds[] = {
-      {static_cast<T>(10 * 1024 * 1024), static_cast<T>(1024 * 1024), "MB"},
-      {static_cast<T>(10 * 1024), static_cast<T>(1024), "KB"},
+struct ThresholdListElement {
+  T threshold;
+  T divide_by;
+  const char* postfix;
+};
+template <>
+struct ThresholdListElement<cval::SizeInBytes> {
+  uint64 threshold;
+  uint64 divide_by;
+  const char* postfix;
+};
+template <typename T>
+struct ThresholdList {
+  ThresholdList(ThresholdListElement<T>* array, size_t size)
+      : array(array), size(size) {}
+  ThresholdListElement<T>* array;
+  size_t size;
+};
+
+template <typename T>
+ThresholdList<T> GetThresholdList() {
+  static ThresholdListElement<T> thresholds[] = {
+      {static_cast<T>(10 * 1000 * 1000), static_cast<T>(1000 * 1000), "M"},
+      {static_cast<T>(10 * 1000), static_cast<T>(1000), "K"},
   };
+  return ThresholdList<T>(thresholds, arraysize(thresholds));
+}
+
+template <>
+inline ThresholdList<cval::SizeInBytes> GetThresholdList<cval::SizeInBytes>() {
+  static ThresholdListElement<cval::SizeInBytes> thresholds[] = {
+      {10LL * 1024LL * 1024LL * 1024LL, 1024LL * 1024LL * 1024LL, "GB"},
+      {10LL * 1024LL * 1024LL, 1024LL * 1024LL, "MB"},
+      {10LL * 1024LL, 1024LL, "KB"},
+  };
+  return ThresholdList<cval::SizeInBytes>(thresholds, arraysize(thresholds));
+}
+
+template <typename T>
+std::string NumericalValToPrettyString(const T& value) {
+  ThresholdList<T> threshold_list = GetThresholdList<T>();
+  ThresholdListElement<T>* thresholds = threshold_list.array;
 
   T divided_value = value;
   const char* postfix = "";
 
-  for (size_t i = 0; i < sizeof(thresholds) / sizeof(thresholds[0]); ++i) {
+  for (size_t i = 0; i < threshold_list.size; ++i) {
     if (value >= thresholds[i].threshold) {
       divided_value = value / thresholds[i].divide_by;
       postfix = thresholds[i].postfix;
@@ -187,6 +271,43 @@ std::string NumericalValToPrettyString(const T& value) {
 
   std::ostringstream oss;
   oss << divided_value << postfix;
+  return oss.str();
+}
+
+template <>
+inline std::string NumericalValToPrettyString<base::TimeDelta>(
+    const base::TimeDelta& value) {
+  const int64 kMicrosecond = 1LL;
+  const int64 kMillisecond = 1000LL * kMicrosecond;
+  const int64 kSecond = 1000LL * kMillisecond;
+  const int64 kMinute = 60LL * kSecond;
+  const int64 kHour = 60LL * kMinute;
+
+  int64 value_in_us = value.InMicroseconds();
+  bool negative = value_in_us < 0;
+  value_in_us *= negative ? -1 : 1;
+
+  std::ostringstream oss;
+  if (negative) {
+    oss << "-";
+  }
+  if (value_in_us > kHour) {
+    oss << value_in_us / kHour << ":" << std::setfill('0') << std::setw(2)
+        << (value_in_us % kHour) / kMinute << ":" << std::setfill('0')
+        << std::setw(2) << (value_in_us % kMinute) / kSecond << "h";
+  } else if (value_in_us > kMinute) {
+    oss << value_in_us / kMinute << ":" << std::setfill('0') << std::setw(2)
+        << (value_in_us % kMinute) / kSecond << "m";
+  } else if (value_in_us > kSecond * 10) {
+    oss << value_in_us / kSecond << "s";
+  } else if (value_in_us > kMillisecond * 2) {
+    oss << value_in_us / kMillisecond << "ms";
+  } else if (value_in_us > 0) {
+    oss << value_in_us << "us";
+  } else {
+    oss << value_in_us;
+  }
+
   return oss.str();
 }
 
@@ -413,10 +534,7 @@ class CValImpl : public CValBase {
     }
   }
 
-  operator T() const {
-    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
-    return value_;
-  }
+  operator T() const { return value(); }
 
   const CValImpl<T>& operator=(const T& rhs) {
     bool value_changed;
@@ -479,6 +597,10 @@ class CValImpl : public CValBase {
     return *this;
   }
 
+  bool operator<(const T& rhs) const { return value() < rhs; }
+  bool operator>(const T& rhs) const { return value() > rhs; }
+  bool operator==(const T& rhs) const { return value() == rhs; }
+
   std::string GetValueAsString() const {
     // Can be called to get the value of a CVal without knowing the type first.
     base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
@@ -490,6 +612,11 @@ class CValImpl : public CValBase {
     // do things like make very large numbers more readable.
     base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
     return ValToPrettyString<T>(value_);
+  }
+
+  T value() const {
+    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+    return value_;
   }
 
  private:
@@ -559,6 +686,12 @@ class CValStub {
     --value_;
     return *this;
   }
+
+  bool operator<(const T& rhs) const { return value_ < rhs; }
+  bool operator>(const T& rhs) const { return value_ > rhs; }
+  bool operator==(const T& rhs) const { return value_ == rhs; }
+
+  T value() const { return value_; }
 
  private:
   T value_;
