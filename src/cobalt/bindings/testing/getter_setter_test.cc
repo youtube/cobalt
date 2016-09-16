@@ -44,7 +44,7 @@ class GetterSetterBindingsTestBase : public BindingsTestBase {
  public:
   GetterSetterBindingsTestBase()
       : test_mock_(new ::testing::NiceMock<MockT>()) {
-    global_object_proxy_->Bind("test", make_scoped_refptr<MockT>((test_mock_)));
+    global_environment_->Bind("test", make_scoped_refptr<MockT>((test_mock_)));
   }
 
   MockT& test_mock() { return *test_mock_.get(); }

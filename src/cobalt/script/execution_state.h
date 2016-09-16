@@ -24,13 +24,13 @@
 namespace cobalt {
 namespace script {
 
-class GlobalObjectProxy;
+class GlobalEnvironment;
 
 // Provides access to the state of JavaScript execution.
 class ExecutionState {
  public:
   static scoped_ptr<ExecutionState> CreateExecutionState(
-      const scoped_refptr<GlobalObjectProxy>& global_object_proxy);
+      const scoped_refptr<GlobalEnvironment>& global_environment);
 
   virtual std::string GetStackTrace() const = 0;
   virtual ~ExecutionState() {}

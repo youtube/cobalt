@@ -32,7 +32,7 @@
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/xml_decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "net/http/http_util.h"
 
@@ -697,11 +697,11 @@ void XMLHttpRequest::HandleRequestError(
     XMLHttpRequest::RequestErrorType request_error_type) {
   // https://www.w3.org/TR/XMLHttpRequest/#timeout-error
   DCHECK(thread_checker_.CalledOnValidThread());
-  DLOG_IF(INFO, verbose()) << __FUNCTION__ << " ("
-                           << RequestErrorTypeName(request_error_type) << ") "
-                           << *this << std::endl
-                           << script::StackTraceToString(
-                                  settings_->global_object()->GetStackTrace());
+  DLOG_IF(INFO, verbose())
+      << __FUNCTION__ << " (" << RequestErrorTypeName(request_error_type)
+      << ") " << *this << std::endl
+      << script::StackTraceToString(
+             settings_->global_environment()->GetStackTrace());
   // Step 1
   TerminateRequest();
   // Steps 2-4
@@ -798,7 +798,7 @@ void XMLHttpRequest::UpdateProgress() {
 }
 
 void XMLHttpRequest::PreventGarbageCollection() {
-  settings_->global_object()->PreventGarbageCollection(
+  settings_->global_environment()->PreventGarbageCollection(
       make_scoped_refptr(this));
   DCHECK(!did_add_ref_);
   did_add_ref_ = true;
@@ -823,7 +823,8 @@ void XMLHttpRequest::AllowGarbageCollection() {
   did_add_ref_ = false;
   settings_->javascript_engine()->ReportExtraMemoryCost(
       response_body_.capacity());
-  settings_->global_object()->AllowGarbageCollection(make_scoped_refptr(this));
+  settings_->global_environment()->AllowGarbageCollection(
+      make_scoped_refptr(this));
 }
 
 void XMLHttpRequest::StartRequest(const std::string& request_body) {
@@ -909,7 +910,8 @@ scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
   // parsing the response entity body following the rules set forth in the XML
   // specifications. If that fails (unsupported character encoding, namespace
   // well-formedness error, etc.), return null.
-  scoped_refptr<dom::XMLDocument> xml_document = new dom::XMLDocument();
+  scoped_refptr<dom::XMLDocument> xml_document =
+      new dom::XMLDocument(settings_->window()->html_element_context());
   dom_parser::XMLDecoder xml_decoder(
       xml_document, xml_document, NULL, settings_->max_dom_element_depth(),
       base::SourceLocation("[object XMLHttpRequest]", 1, 1), base::Closure(),

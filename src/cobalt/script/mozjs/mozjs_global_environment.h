@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef COBALT_SCRIPT_MOZJS_MOZJS_GLOBAL_OBJECT_PROXY_H_
-#define COBALT_SCRIPT_MOZJS_MOZJS_GLOBAL_OBJECT_PROXY_H_
+#ifndef COBALT_SCRIPT_MOZJS_MOZJS_GLOBAL_ENVIRONMENT_H_
+#define COBALT_SCRIPT_MOZJS_MOZJS_GLOBAL_ENVIRONMENT_H_
 
 #include <string>
 #include <vector>
@@ -24,8 +24,9 @@
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/mozjs/interface_data.h"
+#include "cobalt/script/mozjs/opaque_root_tracker.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "cobalt/script/mozjs/weak_heap_object_manager.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -41,11 +42,11 @@ class WeakHandle;
 
 // Manages a handle to a JavaScript engine's global object. The lifetime of
 // the global object is not necessarily tied to the lifetime of the proxy.
-class MozjsGlobalObjectProxy : public GlobalObjectProxy,
+class MozjsGlobalEnvironment : public GlobalEnvironment,
                                public Wrappable::CachedWrapperAccessor {
  public:
-  explicit MozjsGlobalObjectProxy(JSRuntime* runtime);
-  ~MozjsGlobalObjectProxy() OVERRIDE;
+  explicit MozjsGlobalEnvironment(JSRuntime* runtime);
+  ~MozjsGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;
 
@@ -92,6 +93,10 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
 
   WeakHeapObjectManager* weak_object_manager() { return &weak_object_manager_; }
 
+  OpaqueRootTracker* opaque_root_tracker() {
+    return opaque_root_tracker_.get();
+  }
+
   // Used for CallWith=EnvironmentSettings
   void SetEnvironmentSettings(EnvironmentSettings* environment_settings) {
     DCHECK(!environment_settings_);
@@ -108,7 +113,7 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
       const scoped_refptr<Wrappable>& wrappable);
 
   // Any tracked InterfaceData will have it's GC handles visited and marked as
-  // roots. The MozjsGlobalObjectProxy takes ownership of the InterfaceData
+  // roots. The MozjsGlobalEnvironment takes ownership of the InterfaceData
   // instances and will destroy them.
   void CacheInterfaceData(intptr_t key, InterfaceData* interface_data);
   InterfaceData* GetInterfaceData(intptr_t key);
@@ -118,7 +123,10 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
   // sweep away references to GC objects that will be deleted.
   void DoSweep();
 
-  static MozjsGlobalObjectProxy* GetFromContext(JSContext* context);
+  void BeginGarbageCollection();
+  void EndGarbageCollection();
+
+  static MozjsGlobalEnvironment* GetFromContext(JSContext* context);
 
  protected:
   static void ReportErrorHandler(JSContext* context, const char* message,
@@ -132,7 +140,7 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
   static JSBool CheckEval(JSContext* context);
 
   // Helper struct to ensure the context is destroyed in the correct order
-  // relative to the MozjsGlobalObjectProxy's other members.
+  // relative to the MozjsGlobalEnvironment's other members.
   struct ContextDestructor {
     explicit ContextDestructor(JSContext** context) : context(context) {}
     ~ContextDestructor() { JS_DestroyContext(*context); }
@@ -148,10 +156,12 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
   WeakHeapObjectManager weak_object_manager_;
   CachedWrapperMultiMap kept_alive_objects_;
   scoped_ptr<ReferencedObjectMap> referenced_objects_;
+  scoped_ptr<OpaqueRootTracker> opaque_root_tracker_;
   CachedInterfaceData cached_interface_data_;
   STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;
   ContextDestructor context_destructor_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
+  scoped_ptr<OpaqueRootTracker::OpaqueRootState> opaque_root_state_;
   JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;
 
@@ -170,4 +180,4 @@ class MozjsGlobalObjectProxy : public GlobalObjectProxy,
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // COBALT_SCRIPT_MOZJS_MOZJS_GLOBAL_OBJECT_PROXY_H_
+#endif  // COBALT_SCRIPT_MOZJS_MOZJS_GLOBAL_ENVIRONMENT_H_

@@ -33,15 +33,15 @@ const char kObjectIdentifier[] = "devtoolsBackend";
 }  // namespace
 
 DebugScriptRunner::DebugScriptRunner(
-    script::GlobalObjectProxy* global_object_proxy,
+    script::GlobalEnvironment* global_environment,
     const dom::CspDelegate* csp_delegate,
     const OnEventCallback& on_event_callback)
-    : global_object_proxy_(global_object_proxy),
+    : global_environment_(global_environment),
       csp_delegate_(csp_delegate),
       on_event_callback_(on_event_callback) {
   // Bind this object to the global object so it can persist state and be
   // accessed from any of the debug components.
-  global_object_proxy_->Bind(kObjectIdentifier, make_scoped_refptr(this));
+  global_environment_->Bind(kObjectIdentifier, make_scoped_refptr(this));
 }
 
 base::optional<std::string> DebugScriptRunner::CreateRemoteObject(
@@ -78,13 +78,13 @@ bool DebugScriptRunner::RunScriptFile(const std::string& filename) {
 
 bool DebugScriptRunner::EvaluateScript(const std::string& js_code,
                                        std::string* result) {
-  DCHECK(global_object_proxy_);
+  DCHECK(global_environment_);
   DCHECK(result);
   scoped_refptr<script::SourceCode> source_code =
       script::SourceCode::CreateSourceCode(js_code, GetInlineSourceLocation());
 
   ForceEnableEval();
-  bool succeeded = global_object_proxy_->EvaluateScript(source_code, result);
+  bool succeeded = global_environment_->EvaluateScript(source_code, result);
   SetEvalAllowedFromCsp();
   return succeeded;
 }
@@ -113,20 +113,20 @@ void DebugScriptRunner::SendEvent(const std::string& method,
 }
 
 void DebugScriptRunner::ForceEnableEval() {
-  global_object_proxy_->EnableEval();
-  global_object_proxy_->SetReportEvalCallback(base::Closure());
+  global_environment_->EnableEval();
+  global_environment_->SetReportEvalCallback(base::Closure());
 }
 
 void DebugScriptRunner::SetEvalAllowedFromCsp() {
   std::string eval_disabled_message;
   bool allow_eval = csp_delegate_->AllowEval(&eval_disabled_message);
   if (allow_eval) {
-    global_object_proxy_->EnableEval();
+    global_environment_->EnableEval();
   } else {
-    global_object_proxy_->DisableEval(eval_disabled_message);
+    global_environment_->DisableEval(eval_disabled_message);
   }
 
-  global_object_proxy_->SetReportEvalCallback(base::Bind(
+  global_environment_->SetReportEvalCallback(base::Bind(
       &dom::CspDelegate::ReportEval, base::Unretained(csp_delegate_)));
 }
 

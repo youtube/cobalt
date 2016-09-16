@@ -23,9 +23,11 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
+#include "MozjsGarbageCollectionTestInterface.h"
+#include "cobalt/bindings/testing/garbage_collection_test_interface.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
@@ -33,7 +35,7 @@
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
@@ -48,8 +50,10 @@
 namespace {
 using cobalt::bindings::testing::GarbageCollectionTestInterface;
 using cobalt::bindings::testing::MozjsGarbageCollectionTestInterface;
+using cobalt::bindings::testing::GarbageCollectionTestInterface;
+using cobalt::bindings::testing::MozjsGarbageCollectionTestInterface;
 using cobalt::script::CallbackInterfaceTraits;
-using cobalt::script::GlobalObjectProxy;
+using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptObject;
@@ -67,7 +71,7 @@ using cobalt::script::mozjs::kNoConversionFlags;
 using cobalt::script::mozjs::InterfaceData;
 using cobalt::script::mozjs::MozjsCallbackFunction;
 using cobalt::script::mozjs::MozjsExceptionState;
-using cobalt::script::mozjs::MozjsGlobalObjectProxy;
+using cobalt::script::mozjs::MozjsGlobalEnvironment;
 using cobalt::script::mozjs::MozjsUserObjectHolder;
 using cobalt::script::mozjs::MozjsPropertyEnumerator;
 using cobalt::script::mozjs::ProxyHandler;
@@ -83,6 +87,13 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
+Wrappable* GetOpaqueRootFromWrappable(
+    const scoped_refptr<Wrappable>& wrappable) {
+  GarbageCollectionTestInterface* impl =
+      base::polymorphic_downcast<GarbageCollectionTestInterface*>(wrappable.get());
+  return impl->GetHead();
+}
 
 class MozjsGarbageCollectionTestInterfaceHandler : public ProxyHandler {
  public:
@@ -188,8 +199,108 @@ InterfaceData* CreateCachedInterfaceData() {
   return interface_data;
 }
 
+JSBool get_previous(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->previous(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_previous(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+  TypeTraits<scoped_refptr<GarbageCollectionTestInterface> >::ConversionType value;
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_previous(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+JSBool get_next(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->next(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_next(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  GarbageCollectionTestInterface* impl =
+      wrapper_private->wrappable<GarbageCollectionTestInterface>().get();
+  TypeTraits<scoped_refptr<GarbageCollectionTestInterface> >::ConversionType value;
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_next(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
+  {  // Read/Write property
+      "previous", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_previous),
+      JSOP_WRAPPER(&set_previous),
+  },
+  {  // Read/Write property
+      "next", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_next),
+      JSOP_WRAPPER(&set_next),
+  },
   JS_PS_END
 };
 
@@ -284,17 +395,17 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 InterfaceData* GetInterfaceData(JSContext* context) {
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // Use the address of the properties definition for this interface as a
   // unique key for looking up the InterfaceData for this interface.
   intptr_t key = reinterpret_cast<intptr_t>(&own_properties);
-  InterfaceData* interface_data = global_object_proxy->GetInterfaceData(key);
+  InterfaceData* interface_data = global_environment->GetInterfaceData(key);
   if (!interface_data) {
     interface_data = CreateCachedInterfaceData();
     DCHECK(interface_data);
-    global_object_proxy->CacheInterfaceData(key, interface_data);
-    DCHECK_EQ(interface_data, global_object_proxy->GetInterfaceData(key));
+    global_environment->CacheInterfaceData(key, interface_data);
+    DCHECK_EQ(interface_data, global_environment->GetInterfaceData(key));
   }
   return interface_data;
 }
@@ -304,10 +415,10 @@ InterfaceData* GetInterfaceData(JSContext* context) {
 // static
 JSObject* MozjsGarbageCollectionTestInterface::CreateProxy(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
-  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  DCHECK(MozjsGlobalEnvironment::GetFromContext(context));
   JS::RootedObject global_object(
       context,
-      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
+      MozjsGlobalEnvironment::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   InterfaceData* interface_data = GetInterfaceData(context);
@@ -319,17 +430,19 @@ JSObject* MozjsGarbageCollectionTestInterface::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, new_object, prototype, NULL,
                              proxy_handler.Pointer()));
-  WrapperPrivate::AddPrivateData(context, proxy, wrappable);
+  WrapperPrivate::GetOpaqueRootFunction get_root =
+      base::Bind(&GetOpaqueRootFromWrappable);
+  WrapperPrivate::AddPrivateData(context, proxy, wrappable, get_root);
   return proxy;
 }
 
 //static
 const JSClass* MozjsGarbageCollectionTestInterface::PrototypeClass(
       JSContext* context) {
-  DCHECK(MozjsGlobalObjectProxy::GetFromContext(context));
+  DCHECK(MozjsGlobalEnvironment::GetFromContext(context));
   JS::RootedObject global_object(
       context,
-      MozjsGlobalObjectProxy::GetFromContext(context)->global_object());
+      MozjsGlobalEnvironment::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));

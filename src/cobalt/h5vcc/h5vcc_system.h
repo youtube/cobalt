@@ -35,6 +35,7 @@ class H5vccSystem : public script::Wrappable {
   std::string version() const;
 
   bool TriggerHelp() const;
+  std::string GetVideoContainerSizeOverride() const;
 
   DEFINE_WRAPPABLE_TYPE(H5vccSystem);
 

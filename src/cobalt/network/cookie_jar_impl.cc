@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 
 namespace cobalt {
 namespace network {
@@ -26,20 +27,29 @@ namespace {
 
 class CookiesGetter {
  public:
-  CookiesGetter() : event_(true, false) {}
+  CookiesGetter(const GURL& origin, net::CookieStore* cookie_store)
+      : getter_thread_("CookiesGetter"), event_(true, false) {
+    getter_thread_.Start();
+    getter_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&net::CookieStore::GetCookiesWithOptionsAsync,
+                              cookie_store, origin, net::CookieOptions(),
+                              base::Bind(&CookiesGetter::CompletionCallback,
+                                         base::Unretained(this))));
+  }
 
   const std::string& WaitForCookies() {
     event_.Wait();
     return cookies_;
   }
 
-  void GetCookiesAsync(const std::string& cookies) {
+ private:
+  void CompletionCallback(const std::string& cookies) {
     cookies_ = cookies;
     event_.Signal();
   }
 
- private:
   std::string cookies_;
+  base::Thread getter_thread_;
   base::WaitableEvent event_;
 };
 
@@ -51,11 +61,7 @@ CookieJarImpl::CookieJarImpl(net::CookieStore* cookie_store)
 }
 
 std::string CookieJarImpl::GetCookies(const GURL& origin) {
-  CookiesGetter cookies_getter;
-  cookie_store_->GetCookiesWithOptionsAsync(
-      origin, net::CookieOptions(),
-      base::Bind(&CookiesGetter::GetCookiesAsync,
-                 base::Unretained(&cookies_getter)));
+  CookiesGetter cookies_getter(origin, cookie_store_);
   return cookies_getter.WaitForCookies();
 }
 

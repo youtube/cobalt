@@ -124,9 +124,9 @@ class WebModule::Impl {
 
   void OnCspPolicyChanged();
 
-  scoped_refptr<script::GlobalObjectProxy> global_object_proxy() {
+  scoped_refptr<script::GlobalEnvironment> global_environment() {
     DCHECK(thread_checker_.CalledOnValidThread());
-    return global_object_proxy_;
+    return global_environment_;
   }
 
   void OnError(const std::string& error) {
@@ -170,7 +170,7 @@ class WebModule::Impl {
 
   // JavaScript Global Object for the browser. There should be one per window,
   // but since there is only one window, we can have one per browser.
-  scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
+  scoped_refptr<script::GlobalEnvironment> global_environment_;
 
   // Used by |Console| to obtain a JavaScript stack trace.
   scoped_ptr<script::ExecutionState> execution_state_;
@@ -281,15 +281,15 @@ WebModule::Impl::Impl(const ConstructionData& data)
   javascript_engine_ = script::JavaScriptEngine::CreateEngine();
   DCHECK(javascript_engine_);
 
-  global_object_proxy_ = javascript_engine_->CreateGlobalObjectProxy();
-  DCHECK(global_object_proxy_);
+  global_environment_ = javascript_engine_->CreateGlobalEnvironment();
+  DCHECK(global_environment_);
 
   execution_state_ =
-      script::ExecutionState::CreateExecutionState(global_object_proxy_);
+      script::ExecutionState::CreateExecutionState(global_environment_);
   DCHECK(execution_state_);
 
   script_runner_ =
-      script::ScriptRunner::CreateScriptRunner(global_object_proxy_);
+      script::ScriptRunner::CreateScriptRunner(global_environment_);
   DCHECK(script_runner_);
 
   media_source_registry_.reset(new dom::MediaSource::Registry);
@@ -318,11 +318,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   environment_settings_.reset(new dom::DOMSettings(
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
       media_source_registry_.get(), javascript_engine_.get(),
-      global_object_proxy_.get(), data.options.dom_settings_options));
+      global_environment_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
-  global_object_proxy_->CreateGlobalObject(window_,
-                                           environment_settings_.get());
+  global_environment_->CreateGlobalObject(window_, environment_settings_.get());
 
   render_tree_produced_callback_ = data.render_tree_produced_callback;
   DCHECK(!render_tree_produced_callback_.is_null());
@@ -348,11 +347,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
   if (data.options.csp_enforcement_mode == dom::kCspEnforcementDisable) {
     // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
     // a CSP directive.
-    global_object_proxy_->EnableEval();
+    global_environment_->EnableEval();
   }
 #endif
 
-  global_object_proxy_->SetReportEvalCallback(
+  global_environment_->SetReportEvalCallback(
       base::Bind(&dom::CspDelegate::ReportEval,
                  base::Unretained(window_->document()->csp_delegate())));
 
@@ -371,7 +370,7 @@ WebModule::Impl::~Impl() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   is_running_ = false;
-  global_object_proxy_->SetReportEvalCallback(base::Closure());
+  global_environment_->SetReportEvalCallback(base::Closure());
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
   document_load_observer_.reset();
 
@@ -387,7 +386,7 @@ WebModule::Impl::~Impl() {
   media_source_registry_.reset();
   script_runner_.reset();
   execution_state_.reset();
-  global_object_proxy_ = NULL;
+  global_environment_ = NULL;
   javascript_engine_.reset();
   web_module_stat_tracker_.reset();
   local_storage_database_.reset();
@@ -470,9 +469,9 @@ void WebModule::Impl::OnCspPolicyChanged() {
   bool allow_eval =
       window_->document()->csp_delegate()->AllowEval(&eval_disabled_message);
   if (allow_eval) {
-    global_object_proxy_->EnableEval();
+    global_environment_->EnableEval();
   } else {
-    global_object_proxy_->DisableEval(eval_disabled_message);
+    global_environment_->DisableEval(eval_disabled_message);
   }
 }
 
@@ -485,11 +484,11 @@ void WebModule::Impl::CreateWindowDriver(
   DCHECK(window_);
   DCHECK(window_weak_);
   DCHECK(window_->document());
-  DCHECK(global_object_proxy_);
+  DCHECK(global_environment_);
 
   window_driver_out->reset(new webdriver::WindowDriver(
       window_id, window_weak_,
-      base::Bind(&WebModule::Impl::global_object_proxy, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
       base::MessageLoopProxy::current()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
@@ -499,7 +498,7 @@ void WebModule::Impl::CreateDebugServerIfNull() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
-  DCHECK(global_object_proxy_);
+  DCHECK(global_environment_);
   DCHECK(resource_provider_);
 
   if (debug_server_module_) {
@@ -507,7 +506,7 @@ void WebModule::Impl::CreateDebugServerIfNull() {
   }
 
   debug_server_module_.reset(new debug::DebugServerModule(
-      window_->console(), global_object_proxy_, debug_overlay_.get(),
+      window_->console(), global_environment_, debug_overlay_.get(),
       resource_provider_, window_));
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -515,12 +514,12 @@ void WebModule::Impl::CreateDebugServerIfNull() {
 void WebModule::Impl::InjectCustomWindowAttributes(
     const Options::InjectedWindowAttributes& attributes) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(global_object_proxy_);
+  DCHECK(global_environment_);
 
   for (Options::InjectedWindowAttributes::const_iterator iter =
            attributes.begin();
        iter != attributes.end(); ++iter) {
-    global_object_proxy_->Bind(iter->first, iter->second.Run());
+    global_environment_->Bind(iter->first, iter->second.Run());
   }
 }
 

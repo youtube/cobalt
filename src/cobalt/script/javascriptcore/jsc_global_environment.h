@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_PROXY_H_
-#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_PROXY_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_ENVIRONMENT_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_ENVIRONMENT_H_
 
 #include <string>
 #include <vector>
@@ -22,7 +22,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascriptcore/jsc_engine.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 
@@ -32,14 +32,14 @@ namespace javascriptcore {
 
 class ScriptObjectRegistry;
 
-// GlobalObjectProxy is a ref-counted object that is managed by the browser, and
+// GlobalEnvironment is a ref-counted object that is managed by the browser, and
 // JavaScriptCore's JSGlobalObject is a garbage-collected object.
 // It should only be accessed from the thread that created it.
-class JSCGlobalObjectProxy : public GlobalObjectProxy,
+class JSCGlobalEnvironment : public GlobalEnvironment,
                              public JSC::ReportEvalCallback {
  public:
-  explicit JSCGlobalObjectProxy(JSCEngine* engine) : engine_(engine) {}
-  ~JSCGlobalObjectProxy() OVERRIDE;
+  explicit JSCGlobalEnvironment(JSCEngine* engine) : engine_(engine) {}
+  ~JSCGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;
 
@@ -96,11 +96,11 @@ class JSCGlobalObjectProxy : public GlobalObjectProxy,
   JSC::Strong<JSCGlobalObject> global_object_;
   JSCEngine* engine_;
   base::Closure report_eval_cb_;
-  friend class GlobalObjectProxy;
+  friend class GlobalEnvironment;
 };
 
 }  // namespace javascriptcore
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_PROXY_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_ENVIRONMENT_H_

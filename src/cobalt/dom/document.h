@@ -36,6 +36,7 @@
 #include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/math/size.h"
@@ -79,14 +80,13 @@ class DocumentObserver {
 // (the DOM tree, including elements such as <head> and <body>) and provides
 // functionality which is global to the document.
 //   https://www.w3.org/TR/dom/#document
-//
-// In the spec, "A document is assumed to be an XML document unless it is
-// flagged as being an HTML document". In Cobalt it is always considered as HTML
-// document.
 class Document : public Node, public cssom::MutationObserver {
  public:
   struct Options {
-    Options() : cookie_jar(NULL), csp_enforcement_mode(kCspEnforcementEnable) {}
+    Options()
+        : window(NULL),
+          cookie_jar(NULL),
+          csp_enforcement_mode(kCspEnforcementEnable) {}
     explicit Options(const GURL& url_value)
         : url(url_value),
           window(NULL),
@@ -338,30 +338,21 @@ class Document : public Node, public cssom::MutationObserver {
   // Animations, using all the style sheets in the document.
   void UpdateKeyframes();
 
-  // Returns whether the document is the active document shown in the window.
-  // TODO: Currently implemented by looking up whether viewport size is set,
-  // ideally it should depend on whether browser context exists.
-  bool IsActiveDocument() { return !!viewport_size_; }
+  // Returns whether the document has browsing context. Having the browsing
+  // context means the document is shown on the screen.
+  //   https://www.w3.org/TR/html5/browsers.html#browsing-context
+  bool HasBrowsingContext() { return !!window_; }
 
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
-  // Reference to the Window object. We cannot hold a strong reference,
-  // otherwise we create a reference loop.
+  // Reference to the associated window object.
   Window* window_;
   // Associated DOM implementation object.
   scoped_refptr<DOMImplementation> implementation_;
-  // Associated location object.
-  scoped_refptr<Location> location_;
-
-  // Content Security Policy enforcement for this document.
-  scoped_ptr<CspDelegate> csp_delegate_;
-
   // List of CSS style sheets.
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
   // List of scripts that will execute in order as soon as possible.
   std::deque<HTMLScriptElement*> scripts_to_be_executed_;
-  // The font cache for this document.
-  scoped_ptr<FontCache> font_cache_;
   // A mapping from keyframes declaration names to their parsed structure.
   cssom::CSSKeyframesRule::NameMap keyframes_map_;
   // The number of ongoing loadings.
@@ -374,6 +365,19 @@ class Document : public Node, public cssom::MutationObserver {
   bool is_computed_style_dirty_;
   bool are_font_faces_dirty_;
   bool are_keyframes_dirty_;
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  bool partial_layout_is_enabled_;
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+  // Viewport size.
+  base::optional<math::Size> viewport_size_;
+  // Content Security Policy enforcement for this document.
+  scoped_ptr<CspDelegate> csp_delegate_;
+  network_bridge::CookieJar* cookie_jar_;
+  // Associated location object.
+  scoped_refptr<Location> location_;
+  // The font cache for this document.
+  scoped_ptr<FontCache> font_cache_;
 
   // Weak reference to the active element.
   base::WeakPtr<Element> active_element_;
@@ -381,23 +385,14 @@ class Document : public Node, public cssom::MutationObserver {
   ObserverList<DocumentObserver> observers_;
   // Selector Tree.
   cssom::SelectorTree selector_tree_;
-  network_bridge::CookieJar* cookie_jar_;
-
   // The document's latest sample from the global clock, used for updating
   // animations.
   const scoped_refptr<base::Clock> navigation_start_clock_;
   scoped_refptr<DocumentTimeline> default_timeline_;
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  bool partial_layout_is_enabled_;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
   base::Closure synchronous_layout_callback_;
 
   scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
-
-  // Viewport size.
-  base::optional<math::Size> viewport_size_;
 
   // Computed style of the initial containing block, width and height come from
   // the viewport size.

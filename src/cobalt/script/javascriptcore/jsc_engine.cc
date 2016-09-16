@@ -22,8 +22,8 @@
 #include "base/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/InitializeThreading.h"
 #include "third_party/WebKit/Source/WTF/wtf/OSAllocator.h"
 
@@ -97,9 +97,9 @@ JSCEngine::~JSCEngine() {
   script_object_registry_.ClearEntries();
 }
 
-scoped_refptr<GlobalObjectProxy> JSCEngine::CreateGlobalObjectProxy() {
+scoped_refptr<GlobalEnvironment> JSCEngine::CreateGlobalEnvironment() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new JSCGlobalObjectProxy(this);
+  return new JSCGlobalEnvironment(this);
 }
 
 void JSCEngine::CollectGarbage() {

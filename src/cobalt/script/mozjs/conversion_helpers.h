@@ -27,7 +27,7 @@
 #include "cobalt/base/token.h"
 #include "cobalt/script/mozjs/mozjs_callback_interface_holder.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/type_traits.h"
@@ -363,11 +363,11 @@ inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
     return;
   }
 
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   JS::RootedObject object(
       context,
-      global_object_proxy->wrapper_factory()->GetWrapperProxy(in_object));
+      global_environment->wrapper_factory()->GetWrapperProxy(in_object));
   DCHECK(object);
 
   out_value.set(OBJECT_TO_JSVAL(object));
@@ -394,10 +394,10 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK(js_object);
   if (js::IsProxy(js_object)) {
     JS::RootedObject wrapper(context, js::GetProxyTargetObject(js_object));
-    MozjsGlobalObjectProxy* global_object_proxy =
-        static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+    MozjsGlobalEnvironment* global_environment =
+        static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
     const WrapperFactory* wrapper_factory =
-        global_object_proxy->wrapper_factory();
+        global_environment->wrapper_factory();
     if (wrapper_factory->IsWrapper(wrapper)) {
       bool object_implements_interface =
           wrapper_factory->DoesObjectImplementInterface(js_object,
@@ -471,13 +471,13 @@ inline void FromJSValue(
     return;
   }
 
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
 
   JS::RootedObject implementing_object(context, JSVAL_TO_OBJECT(value));
   DCHECK(implementing_object);
   *out_callback_interface = MozjsCallbackInterfaceHolder<T>(
-      implementing_object, context, global_object_proxy->wrapper_factory());
+      implementing_object, context, global_environment->wrapper_factory());
 }
 
 }  // namespace mozjs

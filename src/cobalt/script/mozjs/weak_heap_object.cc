@@ -16,15 +16,15 @@
 
 #include "cobalt/script/mozjs/weak_heap_object.h"
 
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 
 WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleObject handle) {
-  MozjsGlobalObjectProxy* global_environment =
-      MozjsGlobalObjectProxy::GetFromContext(context);
+  MozjsGlobalEnvironment* global_environment =
+      MozjsGlobalEnvironment::GetFromContext(context);
   Initialize(global_environment->weak_object_manager(), handle);
 }
 

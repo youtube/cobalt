@@ -53,7 +53,7 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
 
   // Keep this instance alive using PreventGarbageCollection
   ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
-  global_object_proxy_->PreventGarbageCollection(
+  global_environment_->PreventGarbageCollection(
       make_scoped_refptr<script::Wrappable>(
           GarbageCollectionTestInterface::instances()[0]));
   // Remove the only reference to this object from JavaScript.
@@ -64,7 +64,7 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
   ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
 
   // Allow this object to be garbage collected once more.
-  global_object_proxy_->AllowGarbageCollection(
+  global_environment_->AllowGarbageCollection(
       make_scoped_refptr<script::Wrappable>(
           GarbageCollectionTestInterface::instances()[0]));
 
@@ -73,6 +73,54 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
 #if !defined(ENGINE_USES_CONSERVATIVE_ROOTING)
   EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
 #endif
+}
+
+TEST_F(GarbageCollectionTest, ReachableObjectsKeptAlive) {
+  // Build a linked-list structure.
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_TRUE(EvaluateScript(
+      "var head = new GarbageCollectionTestInterface();"
+      "head.next = new GarbageCollectionTestInterface();"
+      "head.next.next = new GarbageCollectionTestInterface();"
+      "head.next.next.next = new GarbageCollectionTestInterface();"));
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4);
+
+  // A reference to anything in the list should keep the rest of the structure
+  // alive.
+  EXPECT_TRUE(
+      EvaluateScript("var tail = head.next.next.next;"
+                     "var head = undefined;"));
+  CollectGarbage();
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4);
+
+  // The old tail is not reachable, so the nodes should get garbage collected.
+  EXPECT_TRUE(
+      EvaluateScript("var tail = tail.previous.previous;"
+                     "tail.next = null;"));
+  CollectGarbage();
+#if !defined(ENGINE_USES_CONSERVATIVE_ROOTING)
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 2);
+#endif
+}
+
+TEST_F(GarbageCollectionTest, JSObjectRetainsCustomProperty) {
+  // Build a linked-list structure.
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_TRUE(EvaluateScript(
+      "var head = new GarbageCollectionTestInterface();"
+      "head.next = new GarbageCollectionTestInterface();"
+      "head.next.next = new GarbageCollectionTestInterface();"
+      "head.next.next.next = new GarbageCollectionTestInterface();"));
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4);
+
+  // Add a custom property to an object that is not directly reachable from JS.
+  EXPECT_TRUE(EvaluateScript("head.next.bicycle = 7;"));
+
+  // Collect garbage and ensure that the custom property persisted.
+  CollectGarbage();
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("head.next.bicycle;", &result));
+  EXPECT_STREQ("7", result.c_str());
 }
 
 }  // namespace testing

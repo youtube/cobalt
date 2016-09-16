@@ -52,7 +52,8 @@ class Parser {
 
   // Parses an XML document and returns the created XMLDocument.
   virtual scoped_refptr<XMLDocument> ParseXMLDocument(
-      const std::string& input, const base::SourceLocation& input_location) = 0;
+      const std::string& input, HTMLElementContext* html_element_context,
+      const base::SourceLocation& input_location) = 0;
 
   // Parses an HTML input and inserts new nodes in document under parent_node
   // before reference_node.

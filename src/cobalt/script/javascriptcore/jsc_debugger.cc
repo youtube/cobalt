@@ -23,8 +23,8 @@
 #include "base/string_number_conversions.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascriptcore/jsc_call_frame.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle_holder.h"
 #include "cobalt/script/javascriptcore/jsc_source_provider.h"
 
@@ -45,9 +45,9 @@ namespace script {
 
 // Static factory method declared in public interface.
 scoped_ptr<ScriptDebugger> ScriptDebugger::CreateDebugger(
-    GlobalObjectProxy* global_object_proxy, Delegate* delegate) {
+    GlobalEnvironment* global_environment, Delegate* delegate) {
   return scoped_ptr<ScriptDebugger>(
-      new javascriptcore::JSCDebugger(global_object_proxy, delegate));
+      new javascriptcore::JSCDebugger(global_environment, delegate));
 }
 
 namespace javascriptcore {
@@ -105,9 +105,9 @@ intptr_t StringToIntptr(const std::string& input) {
 }
 }  // namespace
 
-JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
+JSCDebugger::JSCDebugger(GlobalEnvironment* global_environment,
                          Delegate* delegate)
-    : global_object_proxy_(global_object_proxy),
+    : global_environment_(global_environment),
       delegate_(delegate),
       pause_on_exceptions_(kNone),
       pause_on_next_statement_(false),
@@ -184,7 +184,7 @@ void JSCDebugger::StepOver() {
 }
 
 JSCGlobalObject* JSCDebugger::GetGlobalObject() const {
-  return base::polymorphic_downcast<JSCGlobalObjectProxy*>(global_object_proxy_)
+  return base::polymorphic_downcast<JSCGlobalEnvironment*>(global_environment_)
       ->global_object();
 }
 

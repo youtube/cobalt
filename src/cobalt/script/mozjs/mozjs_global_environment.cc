@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "cobalt/script/mozjs/mozjs_global_object_proxy.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 
 #include <algorithm>
 #include <utility>
@@ -120,7 +120,7 @@ ProxyHandler::IndexedPropertyHooks MozjsStubHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsStubHandler> proxy_handler;
 }  // namespace
 
-MozjsGlobalObjectProxy::MozjsGlobalObjectProxy(JSRuntime* runtime)
+MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
     : context_(NULL),
       cached_interface_data_deleter_(&cached_interface_data_),
       context_destructor_(&context_),
@@ -149,20 +149,22 @@ MozjsGlobalObjectProxy::MozjsGlobalObjectProxy(JSRuntime* runtime)
 #endif
   JS_SetOptions(context_, options);
 
-  JS_SetErrorReporter(context_, &MozjsGlobalObjectProxy::ReportErrorHandler);
+  JS_SetErrorReporter(context_, &MozjsGlobalEnvironment::ReportErrorHandler);
 
   wrapper_factory_.reset(new WrapperFactory(context_));
   referenced_objects_.reset(new ReferencedObjectMap(context_));
+  opaque_root_tracker_.reset(new OpaqueRootTracker(
+      context_, referenced_objects_.get(), wrapper_factory_.get()));
 
   JS_AddExtraGCRootsTracer(runtime, TraceFunction, this);
 }
 
-MozjsGlobalObjectProxy::~MozjsGlobalObjectProxy() {
+MozjsGlobalEnvironment::~MozjsGlobalEnvironment() {
   DCHECK(thread_checker_.CalledOnValidThread());
   JS_RemoveExtraGCRootsTracer(JS_GetRuntime(context_), TraceFunction, this);
 }
 
-void MozjsGlobalObjectProxy::CreateGlobalObject() {
+void MozjsGlobalEnvironment::CreateGlobalObject() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!global_object_proxy_);
 
@@ -188,7 +190,7 @@ void MozjsGlobalObjectProxy::CreateGlobalObject() {
   global_object_proxy_ = proxy;
 }
 
-bool MozjsGlobalObjectProxy::EvaluateScript(
+bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -233,12 +235,12 @@ bool MozjsGlobalObjectProxy::EvaluateScript(
   return success;
 }
 
-std::vector<StackFrame> MozjsGlobalObjectProxy::GetStackTrace(int max_frames) {
+std::vector<StackFrame> MozjsGlobalEnvironment::GetStackTrace(int max_frames) {
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::GetStackTrace(context_, max_frames);
 }
 
-void MozjsGlobalObjectProxy::PreventGarbageCollection(
+void MozjsGlobalEnvironment::PreventGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());
   JSAutoRequest auto_request(context_);
@@ -250,7 +252,7 @@ void MozjsGlobalObjectProxy::PreventGarbageCollection(
       wrappable.get(), JS::Heap<JSObject*>(proxy)));
 }
 
-void MozjsGlobalObjectProxy::AllowGarbageCollection(
+void MozjsGlobalEnvironment::AllowGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());
   CachedWrapperMultiMap::iterator it =
@@ -261,25 +263,25 @@ void MozjsGlobalObjectProxy::AllowGarbageCollection(
   }
 }
 
-void MozjsGlobalObjectProxy::DisableEval(const std::string& message) {
+void MozjsGlobalEnvironment::DisableEval(const std::string& message) {
   DCHECK(thread_checker_.CalledOnValidThread());
   eval_disabled_message_.emplace(message);
   eval_enabled_ = false;
 }
 
-void MozjsGlobalObjectProxy::EnableEval() {
+void MozjsGlobalEnvironment::EnableEval() {
   DCHECK(thread_checker_.CalledOnValidThread());
   eval_disabled_message_ = base::nullopt;
   eval_enabled_ = true;
 }
 
-void MozjsGlobalObjectProxy::SetReportEvalCallback(
+void MozjsGlobalEnvironment::SetReportEvalCallback(
     const base::Closure& report_eval) {
   DCHECK(thread_checker_.CalledOnValidThread());
   report_eval_ = report_eval;
 }
 
-void MozjsGlobalObjectProxy::Bind(const std::string& identifier,
+void MozjsGlobalEnvironment::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
@@ -294,7 +296,7 @@ void MozjsGlobalObjectProxy::Bind(const std::string& identifier,
   DCHECK(success);
 }
 
-InterfaceData* MozjsGlobalObjectProxy::GetInterfaceData(intptr_t key) {
+InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(intptr_t key) {
   CachedInterfaceData::iterator it = cached_interface_data_.find(key);
   if (it != cached_interface_data_.end()) {
     return it->second;
@@ -302,21 +304,37 @@ InterfaceData* MozjsGlobalObjectProxy::GetInterfaceData(intptr_t key) {
   return NULL;
 }
 
-void MozjsGlobalObjectProxy::DoSweep() {
+void MozjsGlobalEnvironment::DoSweep() {
   weak_object_manager_.SweepUnmarkedObjects();
   // Remove NULL references after sweeping weak references.
   referenced_objects_->RemoveNullReferences();
 }
 
-MozjsGlobalObjectProxy* MozjsGlobalObjectProxy::GetFromContext(
+void MozjsGlobalEnvironment::BeginGarbageCollection() {
+  DCHECK(!opaque_root_state_);
+  JSAutoRequest auto_request(context_);
+  JSAutoCompartment auto_comparment(context_, global_object_proxy_);
+  // Get the current state of opaque root relationships. Keep this object
+  // alive for the duration of the GC phase to ensure that reachability between
+  // roots and reachable objects is maintained.
+  opaque_root_state_ = opaque_root_tracker_->GetCurrentOpaqueRootState();
+}
+
+void MozjsGlobalEnvironment::EndGarbageCollection() {
+  DCHECK(opaque_root_state_);
+  // Reset opaque root reachability relationships.
+  opaque_root_state_.reset(NULL);
+}
+
+MozjsGlobalEnvironment* MozjsGlobalEnvironment::GetFromContext(
     JSContext* context) {
-  MozjsGlobalObjectProxy* global_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context));
+  MozjsGlobalEnvironment* global_proxy =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   DCHECK(global_proxy);
   return global_proxy;
 }
 
-void MozjsGlobalObjectProxy::SetGlobalObjectProxyAndWrapper(
+void MozjsGlobalEnvironment::SetGlobalObjectProxyAndWrapper(
     JS::HandleObject global_object_proxy,
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(!global_object_proxy_);
@@ -338,17 +356,17 @@ void MozjsGlobalObjectProxy::SetGlobalObjectProxyAndWrapper(
   SetCachedWrapper(wrappable.get(), object_handle.Pass());
 }
 
-void MozjsGlobalObjectProxy::CacheInterfaceData(intptr_t key,
+void MozjsGlobalEnvironment::CacheInterfaceData(intptr_t key,
                                                 InterfaceData* interface_data) {
   std::pair<CachedInterfaceData::iterator, bool> pib =
       cached_interface_data_.insert(std::make_pair(key, interface_data));
   DCHECK(pib.second);
 }
 
-void MozjsGlobalObjectProxy::ReportErrorHandler(JSContext* context,
+void MozjsGlobalEnvironment::ReportErrorHandler(JSContext* context,
                                                 const char* message,
                                                 JSErrorReport* report) {
-  MozjsGlobalObjectProxy* global_object_proxy = GetFromContext(context);
+  MozjsGlobalEnvironment* global_object_proxy = GetFromContext(context);
   std::string error_message;
   if (report->errorNumber == JSMSG_CSP_BLOCKED_EVAL) {
     error_message =
@@ -364,13 +382,13 @@ void MozjsGlobalObjectProxy::ReportErrorHandler(JSContext* context,
   }
 }
 
-void MozjsGlobalObjectProxy::TraceFunction(JSTracer* trace, void* data) {
-  MozjsGlobalObjectProxy* global_object_environment =
-      reinterpret_cast<MozjsGlobalObjectProxy*>(data);
+void MozjsGlobalEnvironment::TraceFunction(JSTracer* trace, void* data) {
+  MozjsGlobalEnvironment* global_object_environment =
+      reinterpret_cast<MozjsGlobalEnvironment*>(data);
   if (global_object_environment->global_object_proxy_) {
     JS_CallHeapObjectTracer(trace,
                             &global_object_environment->global_object_proxy_,
-                            "MozjsGlobalObjectProxy");
+                            "MozjsGlobalEnvironment");
   }
   for (CachedInterfaceData::iterator it =
            global_object_environment->cached_interface_data_.begin();
@@ -380,22 +398,22 @@ void MozjsGlobalObjectProxy::TraceFunction(JSTracer* trace, void* data) {
     // created yet or not before attempting to trace them.
     if (data->prototype) {
       JS_CallHeapObjectTracer(trace, &data->prototype,
-                              "MozjsGlobalObjectProxy");
+                              "MozjsGlobalEnvironment");
     }
     if (data->interface_object) {
       JS_CallHeapObjectTracer(trace, &data->interface_object,
-                              "MozjsGlobalObjectProxy");
+                              "MozjsGlobalEnvironment");
     }
   }
   for (CachedWrapperMultiMap::iterator it =
            global_object_environment->kept_alive_objects_.begin();
        it != global_object_environment->kept_alive_objects_.end(); ++it) {
-    JS_CallHeapObjectTracer(trace, &it->second, "MozjsGlobalObjectProxy");
+    JS_CallHeapObjectTracer(trace, &it->second, "MozjsGlobalEnvironment");
   }
 }
 
-JSBool MozjsGlobalObjectProxy::CheckEval(JSContext* context) {
-  MozjsGlobalObjectProxy* global_object_proxy = GetFromContext(context);
+JSBool MozjsGlobalEnvironment::CheckEval(JSContext* context) {
+  MozjsGlobalEnvironment* global_object_proxy = GetFromContext(context);
   DCHECK(global_object_proxy);
   if (!global_object_proxy->report_eval_.is_null()) {
     global_object_proxy->report_eval_.Run();

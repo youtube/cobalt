@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_SCRIPT_FAKE_GLOBAL_OBJECT_PROXY_H_
-#define COBALT_SCRIPT_FAKE_GLOBAL_OBJECT_PROXY_H_
+#ifndef COBALT_SCRIPT_FAKE_GLOBAL_ENVIRONMENT_H_
+#define COBALT_SCRIPT_FAKE_GLOBAL_ENVIRONMENT_H_
 
 #include <string>
 #include <vector>
 
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/global_environment.h"
 
 namespace cobalt {
 namespace script {
 
-class FakeGlobalObjectProxy : public GlobalObjectProxy {
+class FakeGlobalEnvironment : public GlobalEnvironment {
  public:
   void CreateGlobalObject() OVERRIDE {};
   bool EvaluateScript(const scoped_refptr<SourceCode>& /*script_utf8*/,
@@ -57,4 +57,4 @@ class FakeGlobalObjectProxy : public GlobalObjectProxy {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // COBALT_SCRIPT_FAKE_GLOBAL_OBJECT_PROXY_H_
+#endif  // COBALT_SCRIPT_FAKE_GLOBAL_ENVIRONMENT_H_

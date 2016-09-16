@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef COBALT_SCRIPT_GLOBAL_OBJECT_PROXY_H_
-#define COBALT_SCRIPT_GLOBAL_OBJECT_PROXY_H_
+#ifndef COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
+#define COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
 
 #include <string>
 #include <vector>
@@ -33,9 +33,8 @@ class EnvironmentSettings;
 class JavaScriptEngine;
 class SourceCode;
 
-// Manages a handle to a JavaScript engine's global object. The lifetime of
-// the global object is not necessarily tied to the lifetime of the proxy.
-class GlobalObjectProxy : public base::RefCounted<GlobalObjectProxy> {
+// Manages a handle to a JavaScript engine's global object.
+class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
  public:
   // Create a new global object with bindings as defined for the definition of
   // the GlobalInterface type. The IDL for this interface must have the
@@ -104,11 +103,11 @@ class GlobalObjectProxy : public base::RefCounted<GlobalObjectProxy> {
                     const scoped_refptr<Wrappable>& impl) = 0;
 
  protected:
-  virtual ~GlobalObjectProxy() {}
-  friend class base::RefCounted<GlobalObjectProxy>;
+  virtual ~GlobalEnvironment() {}
+  friend class base::RefCounted<GlobalEnvironment>;
 };
 
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // COBALT_SCRIPT_GLOBAL_OBJECT_PROXY_H_
+#endif  // COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_

@@ -59,12 +59,12 @@ void MozjsExceptionState::SetException(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!is_exception_set_);
 
-  MozjsGlobalObjectProxy* global_object_proxy =
-      static_cast<MozjsGlobalObjectProxy*>(JS_GetContextPrivate(context_));
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context_));
 
   JS::RootedObject exception_object(
       context_,
-      global_object_proxy->wrapper_factory()->GetWrapperProxy(exception));
+      global_environment->wrapper_factory()->GetWrapperProxy(exception));
   JS::RootedValue exception_value(context_, OBJECT_TO_JSVAL(exception_object));
   JS_SetPendingException(context_, exception_value);
 

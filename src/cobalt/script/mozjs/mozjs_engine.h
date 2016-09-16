@@ -31,12 +31,13 @@ class MozjsEngine : public JavaScriptEngine {
   MozjsEngine();
   ~MozjsEngine() OVERRIDE;
 
-  scoped_refptr<GlobalObjectProxy> CreateGlobalObjectProxy() OVERRIDE;
+  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
 
  private:
   static JSBool ContextCallback(JSContext* context, unsigned context_op);
+  static void GCCallback(JSRuntime* runtime, JSGCStatus status);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                JSBool is_compartment);
 

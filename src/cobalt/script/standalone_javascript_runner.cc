@@ -27,7 +27,7 @@ namespace script {
 
 StandaloneJavascriptRunner::StandaloneJavascriptRunner() {
   CommonInitialization();
-  global_object_proxy_->CreateGlobalObject();
+  global_environment_->CreateGlobalObject();
 }
 
 void StandaloneJavascriptRunner::RunInteractive() {
@@ -56,7 +56,7 @@ void StandaloneJavascriptRunner::ExecuteFile(const FilePath& path) {
 
 void StandaloneJavascriptRunner::CommonInitialization() {
   engine_ = JavaScriptEngine::CreateEngine();
-  global_object_proxy_ = engine_->CreateGlobalObjectProxy();
+  global_environment_ = engine_->CreateGlobalEnvironment();
   environment_settings_.reset(new EnvironmentSettings());
 }
 
@@ -69,7 +69,7 @@ void StandaloneJavascriptRunner::ExecuteAndPrintResult(
 
   // Execute the script and get the results of execution.
   std::string result;
-  bool success = global_object_proxy_->EvaluateScript(source, &result);
+  bool success = global_environment_->EvaluateScript(source, &result);
   // Echo the results to stdout.
   if (!success) {
     std::cout << "Exception: ";

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
+#include "cobalt/script/javascriptcore/jsc_global_environment.h"
 
 #include <algorithm>
 #include <string>
@@ -37,7 +37,7 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
-void JSCGlobalObjectProxy::PreventGarbageCollection(
+void JSCGlobalEnvironment::PreventGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(global_object_);
@@ -49,13 +49,13 @@ void JSCGlobalObjectProxy::PreventGarbageCollection(
   global_object_->object_cache()->CacheJSObject(wrapper);
 }
 
-JSCGlobalObjectProxy::~JSCGlobalObjectProxy() {
+JSCGlobalEnvironment::~JSCGlobalEnvironment() {
   if (global_object_.get()) {
     global_object_->setReportEvalCallback(NULL);
   }
 }
 
-void JSCGlobalObjectProxy::CreateGlobalObject() {
+void JSCGlobalEnvironment::CreateGlobalObject() {
   DCHECK(thread_checker_.CalledOnValidThread());
   JSC::JSLockHolder lock(engine_->global_data());
 
@@ -64,7 +64,7 @@ void JSCGlobalObjectProxy::CreateGlobalObject() {
   SetGlobalObject(global_object);
 }
 
-void JSCGlobalObjectProxy::AllowGarbageCollection(
+void JSCGlobalEnvironment::AllowGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(global_object_);
@@ -76,23 +76,23 @@ void JSCGlobalObjectProxy::AllowGarbageCollection(
   global_object_->object_cache()->UncacheJSObject(wrapper);
 }
 
-void JSCGlobalObjectProxy::DisableEval(const std::string& message) {
+void JSCGlobalEnvironment::DisableEval(const std::string& message) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(global_object_);
   global_object_->setEvalEnabled(false, message.c_str());
 }
 
-void JSCGlobalObjectProxy::EnableEval() {
+void JSCGlobalEnvironment::EnableEval() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(global_object_);
   global_object_->setEvalEnabled(true);
 }
 
-void JSCGlobalObjectProxy::Bind(const std::string& identifier,
+void JSCGlobalEnvironment::Bind(const std::string& identifier,
                                 const scoped_refptr<Wrappable>& impl) {
   DCHECK(thread_checker_.CalledOnValidThread());
   javascriptcore::JSCGlobalObject* jsc_global_object =
-      base::polymorphic_downcast<javascriptcore::JSCGlobalObjectProxy*>(this)
+      base::polymorphic_downcast<javascriptcore::JSCGlobalEnvironment*>(this)
           ->global_object();
 
   JSC::JSLockHolder lock(&jsc_global_object->globalData());
@@ -112,7 +112,7 @@ void JSCGlobalObjectProxy::Bind(const std::string& identifier,
                                wrapper);
 }
 
-bool JSCGlobalObjectProxy::EvaluateScript(
+bool JSCGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code, std::string* out_result) {
   DCHECK(thread_checker_.CalledOnValidThread());
   JSC::JSLockHolder lock(global_object_->globalData());
@@ -133,7 +133,7 @@ bool JSCGlobalObjectProxy::EvaluateScript(
   return success;
 }
 
-bool JSCGlobalObjectProxy::EvaluateScript(
+bool JSCGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object,
     base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
@@ -155,18 +155,18 @@ bool JSCGlobalObjectProxy::EvaluateScript(
   return true;
 }
 
-std::vector<StackFrame> JSCGlobalObjectProxy::GetStackTrace(int max_frames) {
+std::vector<StackFrame> JSCGlobalEnvironment::GetStackTrace(int max_frames) {
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::GetStackTrace(global_object_->globalExec(), max_frames);
 }
 
-void JSCGlobalObjectProxy::reportEval() {
+void JSCGlobalEnvironment::reportEval() {
   if (!report_eval_cb_.is_null()) {
     report_eval_cb_.Run();
   }
 }
 
-void JSCGlobalObjectProxy::SetGlobalObject(JSCGlobalObject* jsc_global_object) {
+void JSCGlobalEnvironment::SetGlobalObject(JSCGlobalObject* jsc_global_object) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_EQ(reinterpret_cast<uintptr_t>(global_object_.get()), NULL);
   global_object_ =
@@ -176,10 +176,10 @@ void JSCGlobalObjectProxy::SetGlobalObject(JSCGlobalObject* jsc_global_object) {
   DisableEval("eval() is disabled by default.");
 }
 
-bool JSCGlobalObjectProxy::EvaluateScriptInternal(
+bool JSCGlobalEnvironment::EvaluateScriptInternal(
     const scoped_refptr<SourceCode>& source_code, JSC::JSValue* out_result) {
   TRACE_EVENT0("cobalt::script::javascriptcore",
-               "JSCGlobalObjectProxy::EvaluateScriptInternal");
+               "JSCGlobalEnvironment::EvaluateScriptInternal");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(global_object_);
 
