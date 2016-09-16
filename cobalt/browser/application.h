@@ -127,8 +127,15 @@ class Application {
   struct CValStats {
     CValStats();
 
-    base::CVal<size_t, base::CValPublic> free_memory;
-    base::CVal<size_t, base::CValPublic> used_memory;
+    base::CVal<size_t, base::CValPublic> free_cpu_memory;
+    base::CVal<size_t, base::CValPublic> used_cpu_memory;
+
+    // GPU memory stats are not always available, so we put them behind
+    // base::optional so that we can enable them at runtime depending on system
+    // capabilities.
+    base::optional<base::CVal<size_t, base::CValPublic> > free_gpu_memory;
+    base::optional<base::CVal<size_t, base::CValPublic> > used_gpu_memory;
+
 #if !defined(__LB_SHELL__FOR_RELEASE__)
     base::CVal<size_t, base::CValPublic> exe_memory;
 #endif
