@@ -52,6 +52,7 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       is_ready_(false),
       load_option_(0),
       inline_script_location_(GetSourceLocationName(), 1, 1),
+      is_sync_load_successful_(false),
       prevent_garbage_collection_count_(0) {
   DCHECK(document->html_element_context()->script_runner());
 }
@@ -172,7 +173,8 @@ void HTMLScriptElement::Prepare() {
   if (HasAttribute("src") && src() == "") {
     LOG(WARNING) << "src attribute of script element is empty.";
 
-    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+    PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
+                                                   base::Tokens::error());
     return;
   }
 
@@ -184,7 +186,8 @@ void HTMLScriptElement::Prepare() {
   if (!url_.is_valid()) {
     LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
 
-    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+    PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
+                                                   base::Tokens::error());
     return;
   }
 
@@ -336,7 +339,8 @@ void HTMLScriptElement::Prepare() {
                                     text)) {
         ExecuteInternal();
       } else {
-        PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+        PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
+                                                       base::Tokens::error());
       }
     } break;
     default: { NOTREACHED(); }
@@ -451,11 +455,8 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(load_option_ == 4 || load_option_ == 5);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingError()");
 
-  // Allow garbage collection on the current object. No script will be executed
-  // on it.
-  AllowGarbageCollection();
-
   if (!document_) {
+    AllowGarbageCollection();
     return;
   }
 
@@ -463,7 +464,9 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 
   // Executing the script block must just consist of firing a simple event
   // named error at the element.
+  DCHECK_GT(prevent_garbage_collection_count_, 0);
   DispatchEvent(new Event(base::Tokens::error()));
+  AllowGarbageCollection();
 
   switch (load_option_) {
     case 4: {
@@ -513,12 +516,25 @@ void HTMLScriptElement::Execute(const std::string& content,
   // named load at the script element.
   // TODO: Remove the firing of readystatechange once we support Promise.
   if (is_external) {
+    DCHECK_GT(prevent_garbage_collection_count_, 0);
     DispatchEvent(new Event(base::Tokens::load()));
     DispatchEvent(new Event(base::Tokens::readystatechange()));
   } else {
-    PostToDispatchEvent(FROM_HERE, base::Tokens::load());
-    PostToDispatchEvent(FROM_HERE, base::Tokens::readystatechange());
+    PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
+                                                   base::Tokens::load());
+    PreventGarbageCollectionAndPostToDispatchEvent(
+        FROM_HERE, base::Tokens::readystatechange());
   }
+}
+
+void HTMLScriptElement::PreventGarbageCollectionAndPostToDispatchEvent(
+    const tracked_objects::Location& location, const base::Token& token) {
+  // Ensure that this HTMLScriptElement is not garbage collected until the event
+  // has been processed.
+  PreventGarbageCollection();
+  PostToDispatchEventAndRunCallback(
+      location, token,
+      base::Bind(&HTMLScriptElement::AllowGarbageCollection, this));
 }
 
 void HTMLScriptElement::PreventGarbageCollection() {
