@@ -73,6 +73,10 @@ class OpaqueRootTracker {
   scoped_ptr<OpaqueRootState> GetCurrentOpaqueRootState();
 
  private:
+  void TrackReachabilityToOpaqueRoot(OpaqueRootState* state,
+                                     WrapperPrivate* wrapper_private);
+  void TrackReachableWrappables(OpaqueRootState* state,
+                                WrapperPrivate* wrapper_private);
   typedef base::hash_set<WrapperPrivate*> WrapperPrivateSet;
 
   JSContext* context_;

@@ -430,9 +430,11 @@ JSObject* MozjsGarbageCollectionTestInterface::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, new_object, prototype, NULL,
                              proxy_handler.Pointer()));
-  WrapperPrivate::GetOpaqueRootFunction get_root =
-      base::Bind(&GetOpaqueRootFromWrappable);
-  WrapperPrivate::AddPrivateData(context, proxy, wrappable, get_root);
+  WrapperPrivate::GetOpaqueRootFunction get_root;
+  WrapperPrivate::GetReachableWrappablesFunction get_reachable_wrappables;
+  get_root = base::Bind(&GetOpaqueRootFromWrappable);
+  WrapperPrivate::AddPrivateData(
+      context, proxy, wrappable, get_root, get_reachable_wrappables);
   return proxy;
 }
 
