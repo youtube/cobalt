@@ -47,7 +47,7 @@ SerializerTest::SerializerTest()
     : dom_parser_(new dom_parser::Parser()),
       dom_stat_tracker_(new DomStatTracker("SerializerTest")),
       html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, dom_stat_tracker_.get(), ""),
+                            NULL, NULL, NULL, dom_stat_tracker_.get(), ""),
       document_(new Document(&html_element_context_)),
       root_(new Element(document_, base::Token("root"))),
       source_location_(base::SourceLocation("[object SerializerTest]", 1, 1)) {}

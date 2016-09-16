@@ -43,8 +43,8 @@ class GetElementTextTest : public ::testing::Test {
       : css_parser_(css_parser::Parser::Create()),
         dom_stat_tracker_(new dom::DomStatTracker("GetElementTextTest")),
         html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, dom_stat_tracker_.get(),
-                              "") {}
+                              NULL, NULL, NULL, NULL, NULL,
+                              dom_stat_tracker_.get(), "") {}
 
   void SetUp() OVERRIDE {
     dom::Document::Options options;
