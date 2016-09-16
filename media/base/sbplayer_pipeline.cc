@@ -372,7 +372,9 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
 
   if (SbPlayerIsValid(player_)) {
     set_bounds_caller_->SetPlayer(kSbPlayerInvalid);
+    DLOG(INFO) << "Destroying SbPlayer.";
     SbPlayerDestroy(player_);
+    DLOG(INFO) << "SbPlayer destroyed.";
     player_ = kSbPlayerInvalid;
   }
   // When Stop() is in progress, we no longer need to call |error_cb_|.

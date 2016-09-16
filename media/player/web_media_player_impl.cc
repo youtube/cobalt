@@ -1161,8 +1161,10 @@ void WebMediaPlayerImpl::Destroy() {
   // Make sure to kill the pipeline so there's no more media threads running.
   // Note: stopping the pipeline might block for a long time.
   base::WaitableEvent waiter(false, false);
+  DLOG(INFO) << "Trying to stop media pipeline.";
   pipeline_->Stop(
       base::Bind(&base::WaitableEvent::Signal, base::Unretained(&waiter)));
+  DLOG(INFO) << "Media pipeline stopped.";
   waiter.Wait();
 
   message_loop_factory_.reset();
