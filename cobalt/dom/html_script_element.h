@@ -102,6 +102,8 @@ class HTMLScriptElement : public HTMLElement {
   void Execute(const std::string& content,
                const base::SourceLocation& script_location, bool is_external);
 
+  void PreventGarbageCollectionAndPostToDispatchEvent(
+      const tracked_objects::Location& location, const base::Token& token);
   void PreventGarbageCollection();
   void AllowGarbageCollection();
 
