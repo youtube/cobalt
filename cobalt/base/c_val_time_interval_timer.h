@@ -54,12 +54,12 @@ class CValTimeIntervalTimer {
       return;
     }
 
-    entry_stats_.AddEntry((now - start_time_).InMicroseconds(), now);
+    entry_stats_.AddEntry(now - start_time_, now);
     start_time_ = base::TimeTicks();
   }
 
  private:
-  base::CValTimeIntervalEntryStats<int64, Visibility> entry_stats_;
+  base::CValTimeIntervalEntryStats<base::TimeDelta, Visibility> entry_stats_;
   base::TimeTicks start_time_;
 };
 

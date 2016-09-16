@@ -565,8 +565,8 @@ Application::CValStats::CValStats()
       exe_memory("Memory.CPU.Exe", 0,
                  "Total memory occupied by the size of the executable."),
 #endif
-      app_lifetime_in_ms("Cobalt.Lifetime", 0,
-                         "Application lifetime in milliseconds.") {
+      app_lifetime("Cobalt.Lifetime", base::TimeDelta(),
+                   "Application lifetime.") {
 #if defined(OS_STARBOARD)
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     free_gpu_memory.emplace("Memory.GPU.Free", 0,
@@ -661,8 +661,7 @@ void Application::UpdatePeriodicStats() {
   }
 #endif
 
-  lifetime_in_ms_ = (base::TimeTicks::Now() - start_time_).InMilliseconds();
-  c_val_stats_.app_lifetime_in_ms = lifetime_in_ms_;
+  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
 }
 
 }  // namespace browser

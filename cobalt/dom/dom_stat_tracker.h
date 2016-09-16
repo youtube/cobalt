@@ -65,12 +65,12 @@ class DomStatTracker : public base::StopWatchOwner {
   void EnableStopWatches();
   void DisableStopWatches();
 
-  int64 GetStopWatchTypeDuration(StopWatchType type) const;
+  base::TimeDelta GetStopWatchTypeDuration(StopWatchType type) const;
 
  private:
   // From base::StopWatchOwner
   bool IsStopWatchEnabled(int id) const OVERRIDE;
-  void OnStopWatchStopped(int id, int64 time_elapsed) OVERRIDE;
+  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) OVERRIDE;
 
   // CVals. They are updated when the periodic counts are flushed.
   base::CVal<int, base::CValPublic> total_html_elements_;
@@ -85,7 +85,7 @@ class DomStatTracker : public base::StopWatchOwner {
   // Stop watch-related. The durations are cleared after the CVals are updated
   // in |FlushPeriodicTracking|.
   bool are_stop_watches_enabled_;
-  std::vector<int64> stop_watch_durations_;
+  std::vector<base::TimeDelta> stop_watch_durations_;
 };
 
 }  // namespace dom
