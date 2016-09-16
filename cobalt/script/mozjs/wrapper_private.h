@@ -16,6 +16,8 @@
 #ifndef COBALT_SCRIPT_MOZJS_WRAPPER_PRIVATE_H_
 #define COBALT_SCRIPT_MOZJS_WRAPPER_PRIVATE_H_
 
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
@@ -34,8 +36,11 @@ namespace mozjs {
 // must be destroyed when its JSObject is garbage collected.
 class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  public:
+  typedef std::vector<Wrappable*> WrappableVector;
   typedef base::Callback<Wrappable*(const scoped_refptr<Wrappable>&)>
       GetOpaqueRootFunction;
+  typedef base::Callback<void(const scoped_refptr<Wrappable>&,
+                              WrappableVector*)> GetReachableWrappablesFunction;
 
   template <typename T>
   scoped_refptr<T> wrappable() const {
@@ -45,6 +50,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   JSObject* js_object_proxy() const { return wrapper_proxy_; }
 
   Wrappable* GetOpaqueRoot() const;
+  void GetReachableWrappables(std::vector<Wrappable*>* reachable);
 
   // Return true if the GC should avoid collecting this wrapper. Note that if
   // the wrapper is unreachable, it may still be collected.
@@ -54,11 +60,13 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   static void AddPrivateData(
       JSContext* context, JS::HandleObject wrapper_proxy,
       const scoped_refptr<Wrappable>& wrappable,
-      const GetOpaqueRootFunction& get_opaque_root_function);
+      const GetOpaqueRootFunction& get_opaque_root_function,
+      const GetReachableWrappablesFunction& get_reachable_wrappables_function);
 
   static void AddPrivateData(JSContext* context, JS::HandleObject wrapper_proxy,
                              const scoped_refptr<Wrappable>& wrappable) {
-    AddPrivateData(context, wrapper_proxy, wrappable, GetOpaqueRootFunction());
+    AddPrivateData(context, wrapper_proxy, wrappable, GetOpaqueRootFunction(),
+                   GetReachableWrappablesFunction());
   }
 
   // Get the WrapperPrivate associated with the given Wrappable. A new JSObject
@@ -86,15 +94,18 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   static void Trace(JSTracer* trace, JSObject* object);
 
  private:
-  WrapperPrivate(JSContext* context, const scoped_refptr<Wrappable>& wrappable,
-                 JS::HandleObject wrapper_proxy,
-                 const GetOpaqueRootFunction& get_opaque_root_function);
+  WrapperPrivate(
+      JSContext* context, const scoped_refptr<Wrappable>& wrappable,
+      JS::HandleObject wrapper_proxy,
+      const GetOpaqueRootFunction& get_opaque_root_function,
+      const GetReachableWrappablesFunction& get_reachable_wrappables_function);
   ~WrapperPrivate();
 
   JSContext* context_;
   scoped_refptr<Wrappable> wrappable_;
   JS::Heap<JSObject*> wrapper_proxy_;
   GetOpaqueRootFunction get_opaque_root_function_;
+  GetReachableWrappablesFunction get_reachable_wrappables_function_;
 };
 
 }  // namespace mozjs
