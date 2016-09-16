@@ -26,7 +26,8 @@ namespace dom {
 
 TEST(XMLDocumentTest, IsXMLDocument) {
   HTMLElementContext html_element_context(NULL, NULL, NULL, NULL, NULL, NULL,
-                                          NULL, NULL, NULL, NULL, NULL, "");
+                                          NULL, NULL, NULL, NULL, NULL, NULL,
+                                          "");
   scoped_refptr<Document> document = new XMLDocument(&html_element_context);
   EXPECT_TRUE(document->IsXMLDocument());
 }

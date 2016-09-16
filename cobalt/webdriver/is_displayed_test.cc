@@ -61,8 +61,9 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
             NULL /* can_play_type_handler  */,
             NULL /* web_media_player_factory */, &script_runner_,
             NULL /* media_source_registry */, resource_provider_stub_.get(),
-            image_cache_.get(), NULL /* remote_font_cache */,
-            dom_stat_tracker_.get(), "" /* language */) {}
+            image_cache_.get(), NULL /* reduced_image_cache_capacity_manager */,
+            NULL /* remote_font_cache */, dom_stat_tracker_.get(),
+            "" /* language */) {}
 
   void SetUp() OVERRIDE {
     // Load the document in a nested message loop.
