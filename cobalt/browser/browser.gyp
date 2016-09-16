@@ -49,6 +49,7 @@
       'defines': [
         'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
         'COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES=<(remote_typeface_cache_size_in_bytes)',
+        'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/account/account.gyp:account',

@@ -50,6 +50,8 @@ class HTMLElementContext {
                      MediaSource::Registry* media_source_registry,
                      render_tree::ResourceProvider* resource_provider,
                      loader::image::ImageCache* image_cache,
+                     loader::image::ReducedCacheCapacityManager*
+                         reduced_image_cache_capacity_manager,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
                      DomStatTracker* dom_stat_tracker,
                      const std::string& language);
@@ -93,6 +95,11 @@ class HTMLElementContext {
     return html_element_factory_.get();
   }
 
+  loader::image::ReducedCacheCapacityManager*
+  reduced_image_cache_capacity_manager() {
+    return reduced_image_cache_capacity_manager_;
+  }
+
  private:
   loader::FetcherFactory* const fetcher_factory_;
   cssom::CSSParser* const css_parser_;
@@ -103,6 +110,8 @@ class HTMLElementContext {
   MediaSource::Registry* const media_source_registry_;
   render_tree::ResourceProvider* resource_provider_;
   loader::image::ImageCache* const image_cache_;
+  loader::image::ReducedCacheCapacityManager* const
+      reduced_image_cache_capacity_manager_;
   loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
   DomStatTracker* const dom_stat_tracker_;
   const std::string language_;
