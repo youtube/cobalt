@@ -162,6 +162,8 @@ class ResourceProviderStub : public ResourceProvider {
  public:
   ~ResourceProviderStub() OVERRIDE {}
 
+  void Finish() OVERRIDE {}
+
   bool PixelFormatSupported(PixelFormat pixel_format) OVERRIDE {
     UNREFERENCED_PARAMETER(pixel_format);
     return true;

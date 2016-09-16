@@ -153,6 +153,15 @@
     # typefaces downloaded from a web page.
     'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
 
+    # Modifying this value to be non-1.0f will result in the image cache
+    # capacity being cleared and then temporarily reduced for the duration that
+    # a video is playing.  This can be useful for some platforms if they are
+    # particularly constrained for (GPU) memory during video playback.  When
+    # playing a video, the image cache is reduced to:
+    # image_cache_size_in_bytes *
+    #     image_cache_capacity_multiplier_when_playing_video.
+    'image_cache_capacity_multiplier_when_playing_video%': '1.0f',
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker

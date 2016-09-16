@@ -49,6 +49,12 @@ class ResourceProvider {
 
   virtual ~ResourceProvider() {}
 
+  // Blocks until it can be guaranteed that all resource-related operations have
+  // completed.  This might be important if we would like to ensure that memory
+  // allocations or deallocations have occurred before proceeding with a memory
+  // intensive operation.
+  virtual void Finish() = 0;
+
   // Returns true if AllocateImageData() supports the given |pixel_format|.
   virtual bool PixelFormatSupported(PixelFormat pixel_format) = 0;
 

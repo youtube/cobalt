@@ -249,6 +249,8 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       array_buffer_allocator_.get();
   options.dom_settings_options.array_buffer_cache = array_buffer_cache_.get();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  options.image_cache_capacity_multiplier_when_playing_video =
+      COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
   web_module_.reset(new WebModule(
       url,
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),

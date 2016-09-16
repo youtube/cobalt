@@ -89,6 +89,8 @@ class Window : public EventTarget {
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
          render_tree::ResourceProvider* resource_provider,
          loader::image::ImageCache* image_cache,
+         loader::image::ReducedCacheCapacityManager*
+             reduced_image_cache_capacity_manager,
          loader::font::RemoteTypefaceCache* remote_typeface_cache,
          LocalStorageDatabase* local_storage_database,
          media::CanPlayTypeHandler* can_play_type_handler,
