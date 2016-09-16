@@ -79,7 +79,7 @@ class GlobalStats {
   base::CVal<int, base::CValPublic> num_nodes;
   base::CVal<int> num_node_lists;
   base::CVal<int> num_xhrs;
-  base::CVal<size_t> xhr_memory;
+  base::CVal<base::cval::SizeInBytes> xhr_memory;
 
   friend struct DefaultSingletonTraits<GlobalStats>;
   DISALLOW_COPY_AND_ASSIGN(GlobalStats);

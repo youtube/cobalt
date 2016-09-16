@@ -96,7 +96,7 @@ void GlobalStats::RemoveEventListener() { --num_event_listeners; }
 void GlobalStats::IncreaseXHRMemoryUsage(size_t delta) { xhr_memory += delta; }
 
 void GlobalStats::DecreaseXHRMemoryUsage(size_t delta) {
-  DCHECK_GE(xhr_memory, delta);
+  DCHECK_GE(xhr_memory.value(), delta);
   xhr_memory -= delta;
 }
 

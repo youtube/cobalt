@@ -164,7 +164,7 @@ class SubmissionQueue {
   // increasing.
   base::optional<base::TimeTicks> last_now_;
 
-  base::CVal<float> to_submission_time_in_ms_cval_;
+  base::CVal<base::TimeDelta> to_submission_time_cval_;
   base::CVal<size_t> queue_size_;
 };
 
