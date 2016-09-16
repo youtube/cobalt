@@ -122,6 +122,7 @@ static base::LazyInstance<MozjsStubHandler> proxy_handler;
 
 MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
     : context_(NULL),
+      garbage_collection_count_(0),
       cached_interface_data_deleter_(&cached_interface_data_),
       context_destructor_(&context_),
       environment_settings_(NULL),
@@ -311,19 +312,28 @@ void MozjsGlobalEnvironment::DoSweep() {
 }
 
 void MozjsGlobalEnvironment::BeginGarbageCollection() {
-  DCHECK(!opaque_root_state_);
-  JSAutoRequest auto_request(context_);
-  JSAutoCompartment auto_comparment(context_, global_object_proxy_);
-  // Get the current state of opaque root relationships. Keep this object
-  // alive for the duration of the GC phase to ensure that reachability between
-  // roots and reachable objects is maintained.
-  opaque_root_state_ = opaque_root_tracker_->GetCurrentOpaqueRootState();
+  // It's possible that a GC could be triggered from within the
+  // BeginGarbageCollection callback. Only create the OpaqueRootState the first
+  // time we enter.
+  garbage_collection_count_++;
+  if (global_object_proxy_ && garbage_collection_count_ == 1) {
+    DCHECK(!opaque_root_state_);
+    JSAutoRequest auto_request(context_);
+    JSAutoCompartment auto_comparment(context_, global_object_proxy_);
+    // Get the current state of opaque root relationships. Keep this object
+    // alive for the duration of the GC phase to ensure that reachability
+    // between roots and reachable objects is maintained.
+    opaque_root_state_ = opaque_root_tracker_->GetCurrentOpaqueRootState();
+  }
 }
 
 void MozjsGlobalEnvironment::EndGarbageCollection() {
-  DCHECK(opaque_root_state_);
   // Reset opaque root reachability relationships.
-  opaque_root_state_.reset(NULL);
+  garbage_collection_count_--;
+  DCHECK_GE(garbage_collection_count_, 0);
+  if (garbage_collection_count_ == 0) {
+    opaque_root_state_.reset(NULL);
+  }
 }
 
 MozjsGlobalEnvironment* MozjsGlobalEnvironment::GetFromContext(
