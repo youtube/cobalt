@@ -631,9 +631,9 @@ void Application::UpdatePeriodicStats() {
     LB::Memory::Info memory_info;
     lb_memory_get_info(&memory_info);
 
-    available_memory_ = memory_info.free_cpu_memory;
+    available_memory_ = memory_info.free_memory;
     c_val_stats_.free_cpu_memory =
-        static_cast<size_t>(memory_info.free_cpu_memory);
+        static_cast<size_t>(memory_info.free_memory);
     c_val_stats_.used_cpu_memory =
         static_cast<size_t>(memory_info.application_memory);
     c_val_stats_.exe_memory = static_cast<size_t>(memory_info.executable_size);
