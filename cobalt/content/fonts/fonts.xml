@@ -27,6 +27,11 @@
     <alias name="roboto" to="sans-serif" />
     <alias name="tahoma" to="sans-serif" />
     <alias name="verdana" to="sans-serif" />
+    <!-- Ideally, this font should only be used if there are no other fonts in
+         our final image. -->
+    <family name="Minimal Roboto">
+        <font weight="400" style="normal">MinimalRoboto.ttf</font>
+    </family>
     <family name="serif">
         <font weight="400" style="normal">NotoSerif-Regular.ttf</font>
         <font weight="400" style="italic">NotoSerif-Italic.ttf</font>
