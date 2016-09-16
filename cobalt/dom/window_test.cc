@@ -53,9 +53,10 @@ class WindowTest : public ::testing::Test {
         url_("about:blank"),
         window_(new Window(
             1920, 1080, css_parser_.get(), dom_parser_.get(),
-            fetcher_factory_.get(), NULL, NULL, NULL, &local_storage_database_,
-            stub_media_module_.get(), stub_media_module_.get(), NULL, NULL,
-            NULL, NULL, url_, "", "en-US", base::Callback<void(const GURL &)>(),
+            fetcher_factory_.get(), NULL, NULL, NULL, NULL,
+            &local_storage_database_, stub_media_module_.get(),
+            stub_media_module_.get(), NULL, NULL, NULL, NULL, url_, "", "en-US",
+            base::Callback<void(const GURL &)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
             NULL, network_bridge::PostSender(),
