@@ -153,6 +153,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   base::ThreadChecker thread_checker_;
   JSContext* context_;
+  int garbage_collection_count_;
   WeakHeapObjectManager weak_object_manager_;
   CachedWrapperMultiMap kept_alive_objects_;
   scoped_ptr<ReferencedObjectMap> referenced_objects_;
