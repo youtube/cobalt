@@ -30,6 +30,7 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/uint8_array.h"
+#include "cobalt/loader/image/image_cache.h"
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 #include "media/player/web_media_player.h"
@@ -271,6 +272,10 @@ class HTMLMediaElement : public HTMLElement,
   bool sent_end_event_;
 
   scoped_refptr<MediaError> error_;
+
+  // Helper object to reduce the image capacity while a video is playing.
+  base::optional<loader::image::ReducedCacheCapacityManager::Request>
+      reduced_image_cache_capacity_request_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLMediaElement);
 };
