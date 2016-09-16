@@ -91,6 +91,17 @@ Wrappable* GetOpaqueRootFromWrappable(
   return impl->get_opaque_root_function_name();
 }
 
+void GetReachableWrappables(const scoped_refptr<Wrappable>& wrappable,
+    WrapperPrivate::WrappableVector* reachable) {
+  DCHECK(reachable);
+  GetOpaqueRootInterface* impl =
+      base::polymorphic_downcast<GetOpaqueRootInterface*>(wrappable.get());
+  Wrappable* reachable_0 = impl->add_opaque_root_function_name();
+  if (reachable_0) {
+    reachable->push_back(reachable_0);
+  }
+}
+
 class MozjsGetOpaqueRootInterfaceHandler : public ProxyHandler {
  public:
   MozjsGetOpaqueRootInterfaceHandler()
@@ -326,9 +337,12 @@ JSObject* MozjsGetOpaqueRootInterface::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, new_object, prototype, NULL,
                              proxy_handler.Pointer()));
-  WrapperPrivate::GetOpaqueRootFunction get_root =
-      base::Bind(&GetOpaqueRootFromWrappable);
-  WrapperPrivate::AddPrivateData(context, proxy, wrappable, get_root);
+  WrapperPrivate::GetOpaqueRootFunction get_root;
+  WrapperPrivate::GetReachableWrappablesFunction get_reachable_wrappables;
+  get_root = base::Bind(&GetOpaqueRootFromWrappable);
+  get_reachable_wrappables = base::Bind(&GetReachableWrappables);
+  WrapperPrivate::AddPrivateData(
+      context, proxy, wrappable, get_root, get_reachable_wrappables);
   return proxy;
 }
 
