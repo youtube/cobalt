@@ -49,6 +49,7 @@ SbPlayerPrivate::SbPlayerPrivate(
       frame_height_(0),
       is_paused_(true),
       volume_(1.0),
+      total_video_frames_(0),
       worker_(this,
               window,
               video_codec,
@@ -80,6 +81,9 @@ void SbPlayerPrivate::WriteSample(
     SbMediaTime sample_pts,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* sample_drm_info) {
+  if (sample_type == kSbMediaTypeVideo) {
+    ++total_video_frames_;
+  }
   InputBuffer* input_buffer = new InputBuffer(
       sample_deallocate_func_, this, context_, sample_buffer,
       sample_buffer_size, sample_pts, video_sample_info, sample_drm_info);
@@ -115,6 +119,9 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   out_player_info->frame_height = frame_height_;
   out_player_info->is_paused = is_paused_;
   out_player_info->volume = volume_;
+  out_player_info->total_video_frames = total_video_frames_;
+  out_player_info->dropped_video_frames = 0;
+  out_player_info->corrupted_video_frames = 0;
 }
 
 void SbPlayerPrivate::SetPause(bool pause) {
