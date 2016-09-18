@@ -89,27 +89,50 @@ OpaqueRootTracker::GetCurrentOpaqueRootState() {
   // Get the current opaque root for all objects that are being tracked.
   for (WrapperPrivateSet::iterator it = all_objects_.begin();
        it != all_objects_.end(); ++it) {
-    WrapperPrivate* reachable_object_wrapper_private = *it;
-    Wrappable* opaque_root = reachable_object_wrapper_private->GetOpaqueRoot();
-    if (opaque_root) {
-      WrapperPrivate* opaque_root_private = WrapperPrivate::GetFromWrappable(
-          opaque_root, context_, wrapper_factory_);
-      // Always mark the root as reachable from the non-root object.
-      state->TrackReachability(reachable_object_wrapper_private,
-                               opaque_root_private);
-
-      // Only mark the non-root object as reachable if we need to keep the
-      // wrapper alive for some reason. In general it's okay for a wrapper to
-      // get GC'd because the Cobalt object will still be kept alive, and a new
-      // JS object can be created if needed again.
-      if (reachable_object_wrapper_private
-              ->ShouldKeepWrapperAliveIfReachable()) {
-        state->TrackReachability(opaque_root_private,
-                                 reachable_object_wrapper_private);
-      }
-    }
+    WrapperPrivate* wrapper_private = *it;
+    TrackReachabilityToOpaqueRoot(state.get(), wrapper_private);
+    TrackReachableWrappables(state.get(), wrapper_private);
   }
   return state.PassAs<OpaqueRootState>();
+}
+
+void OpaqueRootTracker::TrackReachabilityToOpaqueRoot(
+    OpaqueRootState* state, WrapperPrivate* wrapper_private) {
+  OpaqueRootStateImpl* state_impl =
+      base::polymorphic_downcast<OpaqueRootStateImpl*>(state);
+  // If this wrappable has an opaque root, track reachability between this
+  // wrappable and its root.
+  Wrappable* opaque_root = wrapper_private->GetOpaqueRoot();
+  if (opaque_root) {
+    WrapperPrivate* opaque_root_private = WrapperPrivate::GetFromWrappable(
+        opaque_root, context_, wrapper_factory_);
+    // Always mark the root as reachable from the non-root object.
+    state_impl->TrackReachability(wrapper_private, opaque_root_private);
+
+    // Only mark the non-root object as reachable if we need to keep the
+    // wrapper alive for some reason. In general it's okay for a wrapper to
+    // get GC'd because the Cobalt object will still be kept alive, and a new
+    // JS object can be created if needed again.
+    if (wrapper_private->ShouldKeepWrapperAliveIfReachable()) {
+      state_impl->TrackReachability(opaque_root_private, wrapper_private);
+    }
+  }
+}
+
+void OpaqueRootTracker::TrackReachableWrappables(
+    OpaqueRootState* state, WrapperPrivate* wrapper_private) {
+  OpaqueRootStateImpl* state_impl =
+      base::polymorphic_downcast<OpaqueRootStateImpl*>(state);
+  // Track any wrappables that are explicitly marked as reachable from
+  // this wrappable.
+  typedef std::vector<Wrappable*> WrappableVector;
+  WrappableVector reachable_objects;
+  wrapper_private->GetReachableWrappables(&reachable_objects);
+  for (size_t i = 0; i < reachable_objects.size(); ++i) {
+    WrapperPrivate* reachable_object_private = WrapperPrivate::GetFromWrappable(
+        reachable_objects[i], context_, wrapper_factory_);
+    state_impl->TrackReachability(wrapper_private, reachable_object_private);
+  }
 }
 
 }  // namespace mozjs

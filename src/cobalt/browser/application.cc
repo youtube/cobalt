@@ -557,16 +557,24 @@ void Application::WebModuleRecreated() {
 }
 
 Application::CValStats::CValStats()
-    : free_memory("Memory.CPU.Free", 0,
-                  "Total free application memory remaining."),
-      used_memory("Memory.CPU.Used", 0,
-                  "Total memory allocated via the app's allocators."),
+    : free_cpu_memory("Memory.CPU.Free", 0,
+                      "Total free application CPU memory remaining."),
+      used_cpu_memory("Memory.CPU.Used", 0,
+                      "Total CPU memory allocated via the app's allocators."),
 #if !defined(__LB_SHELL__FOR_RELEASE__)
       exe_memory("Memory.CPU.Exe", 0,
                  "Total memory occupied by the size of the executable."),
 #endif
-      app_lifetime_in_ms("Cobalt.Lifetime", 0,
-                         "Application lifetime in milliseconds.") {
+      app_lifetime("Cobalt.Lifetime", base::TimeDelta(),
+                   "Application lifetime.") {
+#if defined(OS_STARBOARD)
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    free_gpu_memory.emplace("Memory.GPU.Free", 0,
+                            "Total free application GPU memory remaining.");
+    used_gpu_memory.emplace("Memory.GPU.Used", 0,
+                            "Total GPU memory allocated by the application.");
+  }
+#endif  // defined(OS_STARBOARD)
 }
 
 void Application::RegisterUserLogs() {
@@ -624,8 +632,9 @@ void Application::UpdatePeriodicStats() {
     lb_memory_get_info(&memory_info);
 
     available_memory_ = memory_info.free_memory;
-    c_val_stats_.free_memory = static_cast<size_t>(memory_info.free_memory);
-    c_val_stats_.used_memory =
+    c_val_stats_.free_cpu_memory =
+        static_cast<size_t>(memory_info.free_memory);
+    c_val_stats_.used_cpu_memory =
         static_cast<size_t>(memory_info.application_memory);
     c_val_stats_.exe_memory = static_cast<size_t>(memory_info.executable_size);
   }
@@ -634,19 +643,25 @@ void Application::UpdatePeriodicStats() {
   // unallocated memory as the available memory.
   if (!memory_stats_updated) {
     available_memory_ = lb_get_unallocated_memory();
-    c_val_stats_.free_memory = static_cast<size_t>(available_memory_);
-    c_val_stats_.used_memory =
+    c_val_stats_.free_cpu_memory = static_cast<size_t>(available_memory_);
+    c_val_stats_.used_cpu_memory =
         lb_get_total_system_memory() - lb_get_unallocated_memory();
   }
 #elif defined(OS_STARBOARD)
-  int64_t used_memory = SbSystemGetUsedCPUMemory();
-  available_memory_ = SbSystemGetTotalCPUMemory() - used_memory;
-  c_val_stats_.free_memory = available_memory_;
-  c_val_stats_.used_memory = used_memory;
+  int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
+  available_memory_ = SbSystemGetTotalCPUMemory() - used_cpu_memory;
+  c_val_stats_.free_cpu_memory = available_memory_;
+  c_val_stats_.used_cpu_memory = used_cpu_memory;
+
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    int64_t used_gpu_memory = SbSystemGetUsedGPUMemory();
+    *c_val_stats_.free_gpu_memory =
+        SbSystemGetTotalGPUMemory() - used_gpu_memory;
+    *c_val_stats_.used_gpu_memory = used_gpu_memory;
+  }
 #endif
 
-  lifetime_in_ms_ = (base::TimeTicks::Now() - start_time_).InMilliseconds();
-  c_val_stats_.app_lifetime_in_ms = lifetime_in_ms_;
+  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
 }
 
 }  // namespace browser

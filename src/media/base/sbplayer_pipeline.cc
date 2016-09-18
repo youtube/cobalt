@@ -299,7 +299,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   bool video_read_in_progress_;
   TimeDelta duration_;
 
-  PipelineStatistics statistics_;
+  mutable PipelineStatistics statistics_;
 
   SbPlayer player_;
 
@@ -372,7 +372,9 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
 
   if (SbPlayerIsValid(player_)) {
     set_bounds_caller_->SetPlayer(kSbPlayerInvalid);
+    DLOG(INFO) << "Destroying SbPlayer.";
     SbPlayerDestroy(player_);
+    DLOG(INFO) << "SbPlayer destroyed.";
     player_ = kSbPlayerInvalid;
   }
   // When Stop() is in progress, we no longer need to call |error_cb_|.
@@ -461,6 +463,8 @@ TimeDelta SbPlayerPipeline::GetMediaTime() const {
   }
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
+  statistics_.video_frames_decoded = info.total_video_frames;
+  statistics_.video_frames_dropped = info.dropped_video_frames;
   return SbMediaTimeToTimeDelta(info.current_media_pts);
 }
 

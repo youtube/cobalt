@@ -489,6 +489,29 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
+  if (src().empty()) {
+    reduced_image_cache_capacity_request_ = base::nullopt;
+  } else if (html_element_context()
+                 ->reduced_image_cache_capacity_manager()
+                 ->reduced_capacity_percentage() != 1.0f) {
+    // Platforms with constrained GPU memory typically are placed in their most
+    // fragile position when a video is playing.  Thus, we request a lower image
+    // cache size and empty the cache before we start playing a video, in
+    // an effort to make room in memory for video decoding.  Reducing the
+    // image cache during this time should also be fine as the UI is not usually
+    // in the foreground during this time.
+
+    // Set a new reduced cache capacity.
+    reduced_image_cache_capacity_request_.emplace(
+        html_element_context()->reduced_image_cache_capacity_manager());
+    // Empty all non-referenced images from the image cache to make room for
+    // the video decoder.
+    html_element_context()->image_cache()->Purge();
+    // Ensure that all resource destructions are flushed and the memory is
+    // reclaimed.
+    html_element_context()->resource_provider()->Finish();
+  }
+
   player_.reset();
   player_ =
       html_element_context()->web_media_player_factory()->CreateWebMediaPlayer(
@@ -710,6 +733,8 @@ void HTMLMediaElement::ClearMediaPlayer() {
 
   pending_load_ = false;
   load_state_ = kWaitingForSource;
+
+  reduced_image_cache_capacity_request_ = base::nullopt;
 
   if (node_document()) {
     node_document()->OnDOMMutation();

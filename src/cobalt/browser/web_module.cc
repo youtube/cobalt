@@ -154,6 +154,12 @@ class WebModule::Impl {
   // ImageCache that is used to manage image cache logic.
   scoped_ptr<loader::image::ImageCache> image_cache_;
 
+  // The reduced cache capacity manager can be used to force a reduced image
+  // cache over periods of time where memory is known to be restricted, such
+  // as when a video is playing.
+  scoped_ptr<loader::image::ReducedCacheCapacityManager>
+      reduced_image_cache_capacity_manager_;
+
   // RemoteTypefaceCache that is used to manage loading and caching typefaces
   // from URLs.
   scoped_ptr<loader::font::RemoteTypefaceCache> remote_typeface_cache_;
@@ -263,6 +269,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.resource_provider, fetcher_factory_.get());
   DCHECK(image_cache_);
 
+  reduced_image_cache_capacity_manager_.reset(
+      new loader::image::ReducedCacheCapacityManager(
+          image_cache_.get(),
+          data.options.image_cache_capacity_multiplier_when_playing_video));
+
   DCHECK_LE(0, data.options.remote_typeface_cache_capacity);
   remote_typeface_cache_ = loader::font::CreateRemoteTypefaceCache(
       base::StringPrintf("Memory.%s.RemoteTypefaceCache", name_.c_str()),
@@ -297,7 +308,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-      data.resource_provider, image_cache_.get(), remote_typeface_cache_.get(),
+      data.resource_provider, image_cache_.get(),
+      reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       local_storage_database_.get(), data.media_module, data.media_module,
       execution_state_.get(), script_runner_.get(),
       media_source_registry_.get(),
@@ -538,7 +550,8 @@ WebModule::Options::Options()
           COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
       csp_enforcement_mode(dom::kCspEnforcementEnable),
       csp_insecure_allowed_token(0),
-      track_event_stats(false) {}
+      track_event_stats(false),
+      image_cache_capacity_multiplier_when_playing_video(1.0f) {}
 
 WebModule::WebModule(
     const GURL& initial_url,

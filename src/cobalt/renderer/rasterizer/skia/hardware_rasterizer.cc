@@ -16,6 +16,8 @@
 
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 
+#include <algorithm>
+
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
@@ -161,11 +163,14 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       new HardwareResourceProvider(graphics_context_, gr_context_));
   graphics_context_->ReleaseCurrentContext();
 
+  int max_surface_size = std::max(gr_context_->getMaxRenderTargetSize(),
+                                  gr_context_->getMaxTextureSize());
+  DLOG(INFO) << "Max renderer surface size: " << max_surface_size;
+
   if (surface_cache_size_in_bytes > 0) {
     surface_cache_delegate_.emplace(
         create_sk_surface_function,
-        math::Size(gr_context_->getMaxTextureSize(),
-                   gr_context_->getMaxTextureSize()));
+        math::Size(max_surface_size, max_surface_size));
 
     surface_cache_.emplace(&surface_cache_delegate_.value(),
                            surface_cache_size_in_bytes);

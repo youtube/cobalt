@@ -409,6 +409,11 @@ class ResourceCache {
     return security_callback_;
   }
 
+  uint32 capacity() const { return cache_capacity_; }
+  void SetCapacity(uint32 capacity);
+
+  void Purge();
+
  private:
   friend class CachedResource<CacheType>;
 
@@ -428,12 +433,15 @@ class ResourceCache {
   // cache is over its memory limit.
   void NotifyResourceDestroyed(CachedResourceType* cached_resource);
 
-  void ReclaimMemory();
+  // Releases unreferenced cache objects until our total cache memory usage is
+  // less than or equal to |bytes_to_reclaim_down_to|, or until there are no
+  // more unreferenced cache objects to release.
+  void ReclaimMemory(uint32 bytes_to_reclaim_down_to);
 
   // The name of this resource cache object, useful while debugging.
   const std::string name_;
 
-  const uint32 cache_capacity_;
+  uint32 cache_capacity_;
 
   scoped_ptr<DecoderProviderType> decoder_provider_;
   loader::FetcherFactory* const fetcher_factory_;
@@ -450,8 +458,8 @@ class ResourceCache {
 
   base::ThreadChecker resource_cache_thread_checker_;
 
-  base::CVal<uint32, base::CValPublic> size_in_bytes_;
-  base::CVal<uint32, base::CValPublic> capacity_in_bytes_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> size_in_bytes_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> capacity_in_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };
@@ -517,6 +525,20 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
 }
 
 template <typename CacheType>
+void ResourceCache<CacheType>::SetCapacity(uint32 capacity) {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  cache_capacity_ = capacity;
+  capacity_in_bytes_ = capacity;
+  ReclaimMemory(cache_capacity_);
+}
+
+template <typename CacheType>
+void ResourceCache<CacheType>::Purge() {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  ReclaimMemory(0);
+}
+
+template <typename CacheType>
 void ResourceCache<CacheType>::NotifyResourceSuccessfullyLoaded(
     CachedResourceType* cached_resource) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
@@ -525,7 +547,7 @@ void ResourceCache<CacheType>::NotifyResourceSuccessfullyLoaded(
     size_in_bytes_ +=
         CacheType::GetEstimatedSizeInBytes(cached_resource->TryGetResource());
     if (size_in_bytes_ > cache_capacity_) {
-      ReclaimMemory();
+      ReclaimMemory(cache_capacity_);
     }
   }
 }
@@ -547,15 +569,15 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
     unreference_cached_resource_map_.insert(
         std::make_pair(url, cached_resource->TryGetResource()));
     // Try to reclaim some memory.
-    ReclaimMemory();
+    ReclaimMemory(cache_capacity_);
   }
 }
 
 template <typename CacheType>
-void ResourceCache<CacheType>::ReclaimMemory() {
+void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
 
-  while (size_in_bytes_ > cache_capacity_ &&
+  while (size_in_bytes_.value() > bytes_to_reclaim_down_to &&
          !unreference_cached_resource_map_.empty()) {
     // The first element is the earliest-inserted element.
     scoped_refptr<ResourceType> resource =
@@ -574,7 +596,7 @@ void ResourceCache<CacheType>::ReclaimMemory() {
   // have to increase the size of |cache_capacity_| if the system memory is
   // large enough or evict resources from the cache even though they are still
   // in use.
-  DLOG_IF(WARNING, size_in_bytes_ > cache_capacity_)
+  DLOG_IF(WARNING, size_in_bytes_.value() > cache_capacity_)
       << "cached size: " << size_in_bytes_
       << ", cache capacity: " << cache_capacity_;
 }

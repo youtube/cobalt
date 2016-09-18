@@ -43,7 +43,7 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
     stop_watches_.push_back(
         base::StopWatch(i, base::StopWatch::kAutoStartOff, this));
   }
-  stop_watch_durations_.resize(kNumStopWatchTypes, 0);
+  stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
 WebModuleStatTracker::~WebModuleStatTracker() { EndCurrentEvent(false); }
@@ -104,38 +104,46 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
       count_layout_boxes_destroyed(
           StringPrintf("Event.Count.%s.Layout.Box.Destroyed", name.c_str()), 0,
           "Number of boxes destroyed."),
-      duration_total(StringPrintf("Event.Duration.%s", name.c_str()), 0,
+      duration_total(StringPrintf("Event.Duration.%s", name.c_str()),
+                     base::TimeDelta(),
                      "Total duration of the event (in microseconds). This is "
                      "the time elapsed from the event injection until the "
                      "render tree is produced."),
       duration_dom_inject_event(
-          StringPrintf("Event.Duration.%s.DOM.InjectEvent", name.c_str()), 0,
+          StringPrintf("Event.Duration.%s.DOM.InjectEvent", name.c_str()),
+          base::TimeDelta(),
           "Injection duration, which includes JS, for event (in "
           "microseconds). This does not include subsequent DOM and Layout "
           "processing."),
       duration_dom_update_computed_style(
           StringPrintf("Event.Duration.%s.DOM.UpdateComputedStyle",
                        name.c_str()),
-          0, "UpdateComputedStyle duration for event (in microseconds)."),
+          base::TimeDelta(),
+          "UpdateComputedStyle duration for event (in microseconds)."),
       duration_layout_box_tree(
-          StringPrintf("Event.Duration.%s.Layout.BoxTree", name.c_str()), 0,
+          StringPrintf("Event.Duration.%s.Layout.BoxTree", name.c_str()),
+          base::TimeDelta(),
           "Layout box tree duration for event (in microseconds)."),
       duration_layout_box_generation(
           StringPrintf("Event.Duration.%s.Layout.BoxTree.BoxGeneration",
                        name.c_str()),
-          0, "BoxGeneration duration for event (in microseconds)."),
+          base::TimeDelta(),
+          "BoxGeneration duration for event (in microseconds)."),
       duration_layout_update_used_sizes(
           StringPrintf("Event.Duration.%s.Layout.BoxTree.UpdateUsedSizes",
                        name.c_str()),
-          0, "UpdateUsedSizes duration for event (in microseconds)."),
+          base::TimeDelta(),
+          "UpdateUsedSizes duration for event (in microseconds)."),
       duration_layout_render_and_animate(
           StringPrintf("Event.Duration.%s.Layout.RenderAndAnimate",
                        name.c_str()),
-          0, "RenderAndAnimate duration for event (in microseconds).") {}
+          base::TimeDelta(),
+          "RenderAndAnimate duration for event (in microseconds).") {}
 
 bool WebModuleStatTracker::IsStopWatchEnabled(int /*id*/) const { return true; }
 
-void WebModuleStatTracker::OnStopWatchStopped(int id, int64 time_elapsed) {
+void WebModuleStatTracker::OnStopWatchStopped(int id,
+                                              base::TimeDelta time_elapsed) {
   stop_watch_durations_[static_cast<size_t>(id)] += time_elapsed;
 }
 
@@ -144,7 +152,7 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
     return;
   }
 
-  stop_watch_durations_[kStopWatchTypeEvent] = 0;
+  stop_watch_durations_[kStopWatchTypeEvent] = base::TimeDelta();
   stop_watches_[kStopWatchTypeEvent].Stop();
   dom_stat_tracker_->DisableStopWatches();
   layout_stat_tracker_->DisableStopWatches();
@@ -166,8 +174,9 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       layout_stat_tracker_->boxes_destroyed_count();
 
   // Update event durations
-  int64 event_injection_duration = dom_stat_tracker_->GetStopWatchTypeDuration(
-      dom::DomStatTracker::kStopWatchTypeInjectEvent);
+  base::TimeDelta event_injection_duration =
+      dom_stat_tracker_->GetStopWatchTypeDuration(
+          dom::DomStatTracker::kStopWatchTypeInjectEvent);
   // If a render tree was produced, then the total duration is the duration from
   // when the event started until now. Otherwise, the injection duration is
   // used. This is because some events do not trigger a new layout. In these

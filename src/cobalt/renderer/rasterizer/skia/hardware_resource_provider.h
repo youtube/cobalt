@@ -39,6 +39,8 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   HardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
                            GrContext* gr_context);
 
+  void Finish() OVERRIDE;
+
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
 

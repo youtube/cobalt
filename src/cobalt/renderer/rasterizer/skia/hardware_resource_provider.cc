@@ -17,6 +17,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 
 #include "base/debug/trace_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
@@ -46,6 +47,18 @@ HardwareResourceProvider::HardwareResourceProvider(
       gr_context_(gr_context),
       font_manager_(SkFontMgr::RefDefault()),
       self_message_loop_(MessageLoop::current()) {}
+
+void HardwareResourceProvider::Finish() {
+  // Wait for any resource-related to complete (by waiting for all tasks to
+  // complete).
+  if (MessageLoop::current() != self_message_loop_) {
+    base::WaitableEvent completion(true, false);
+    self_message_loop_->PostTask(FROM_HERE,
+                                 base::Bind(&base::WaitableEvent::Signal,
+                                            base::Unretained(&completion)));
+    completion.Wait();
+  }
+}
 
 bool HardwareResourceProvider::PixelFormatSupported(
     render_tree::PixelFormat pixel_format) {
