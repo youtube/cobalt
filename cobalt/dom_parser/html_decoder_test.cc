@@ -82,7 +82,8 @@ TEST_F(HTMLDecoderTest, CanParseEmptyDocument) {
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -104,7 +105,8 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyNulls) {
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(reinterpret_cast<char*>(temp), sizeof(temp));
   html_decoder_->Finish();
 
@@ -122,7 +124,8 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlySpaces) {
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -140,7 +143,8 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyHTML) {
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -158,7 +162,8 @@ TEST_F(HTMLDecoderTest, CanParseDocumentWithOnlyBody) {
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -176,7 +181,8 @@ TEST_F(HTMLDecoderTest, DecodingWholeDocumentShouldAddImpliedTags) {
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -199,7 +205,8 @@ TEST_F(HTMLDecoderTest, DecodingDocumentFragmentShouldNotAddImpliedTags) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -214,7 +221,8 @@ TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -238,7 +246,8 @@ TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -258,7 +267,8 @@ TEST_F(HTMLDecoderTest, CanParseSelfClosingTags) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -276,7 +286,8 @@ TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -295,7 +306,8 @@ TEST_F(HTMLDecoderTest, ShouldIgnoreNonUTF8Input) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(reinterpret_cast<char*>(temp), sizeof(temp));
   html_decoder_->Finish();
 
@@ -308,7 +320,8 @@ TEST_F(HTMLDecoderTest, CanParseEscapedCharacters) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -335,7 +348,8 @@ TEST_F(HTMLDecoderTest, CanParseEscapedInvalidUnicodeCharacters) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -354,7 +368,8 @@ TEST_F(HTMLDecoderTest, CanParseUTF8EncodedSupplementaryCharacters) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -376,7 +391,8 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -402,7 +418,8 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags2) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -420,7 +437,8 @@ TEST_F(HTMLDecoderTest, TagNamesShouldBeCaseInsensitive) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -434,7 +452,8 @@ TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -457,7 +476,8 @@ TEST_F(HTMLDecoderTest, LibxmlDecodingErrorShouldTerminateParsing) {
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
       base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+                                  base::Unretained(&mock_error_callback_)),
+      true));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
