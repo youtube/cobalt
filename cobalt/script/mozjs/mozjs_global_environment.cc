@@ -227,8 +227,10 @@ bool MozjsGlobalEnvironment::EvaluateScript(
       MozjsExceptionState exception_state(context_);
       FromJSValue(context_, result_value, kNoConversionFlags, &exception_state,
                   out_result_utf8);
-    } else {
+    } else if (last_error_message_) {
       *out_result_utf8 = *last_error_message_;
+    } else {
+      DLOG(ERROR) << "Script execution failed.";
     }
   }
   JS_RestoreExceptionState(context_, previous_exception_state);
