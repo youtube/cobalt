@@ -30,12 +30,14 @@ HTMLDecoder::HTMLDecoder(
     const scoped_refptr<dom::Node>& reference_node,
     const int dom_max_element_depth, const base::SourceLocation& input_location,
     const base::Closure& done_callback,
-    const base::Callback<void(const std::string&)>& error_callback)
+    const base::Callback<void(const std::string&)>& error_callback,
+    const bool should_run_scripts)
     : libxml_html_parser_wrapper_(new LibxmlHTMLParserWrapper(
           document, parent_node, reference_node, dom_max_element_depth,
-          input_location, error_callback)),
+          input_location, error_callback, should_run_scripts)),
       document_(document),
-      done_callback_(done_callback) {}
+      done_callback_(done_callback),
+      should_run_scripts_(should_run_scripts) {}
 
 HTMLDecoder::~HTMLDecoder() {}
 
