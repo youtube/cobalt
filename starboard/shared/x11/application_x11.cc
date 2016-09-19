@@ -587,6 +587,7 @@ void XSendAtom(Window window, Atom atom) {
   // XLib is not thread-safe. Since we may be coming from another thread, we
   // have to open another connection to the display to inject the wake-up event.
   Display* display = XOpenDisplay(NULL);
+  SB_DCHECK(display);
   XClientMessageEvent event = {0};
   event.type = ClientMessage;
   event.message_type = atom;
@@ -640,7 +641,9 @@ ApplicationX11::~ApplicationX11() {
 }
 
 SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
-  EnsureX();
+  if (!EnsureX()) {
+    return kSbWindowInvalid;
+  }
 
   SbWindow window = new SbWindowPrivate(display_, options);
   windows_.push_back(window);
@@ -787,17 +790,25 @@ void ApplicationX11::WakeSystemEventWait() {
   XSendAtom((*windows_.begin())->window, wake_up_atom_);
 }
 
-void ApplicationX11::EnsureX() {
+bool ApplicationX11::EnsureX() {
   // TODO: Consider thread-safety.
   if (display_) {
-    return;
+    return true;
   }
 
   XInitThreads();
   XSetIOErrorHandler(IOErrorHandler);
   XSetErrorHandler(ErrorHandler);
   display_ = XOpenDisplay(NULL);
-  SB_DCHECK(display_);
+  if (!display_) {
+    const char *display_environment = getenv("DISPLAY");
+    if (display_environment == NULL) {
+      SB_LOG(ERROR) << "Unable to open display, DISPLAY not set.";
+    } else {
+      SB_LOG(ERROR) << "Unable to open display " << display_environment << ".";
+    }
+    return false;
+  }
 
   // Disable keyup events on auto-repeat to match Windows.
   // Otherwise when holding down a key, we get a keyup event before
@@ -812,6 +823,7 @@ void ApplicationX11::EnsureX() {
 #if SB_IS(PLAYER_PUNCHED_OUT)
   Composite();
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
+  return true;
 }
 
 void ApplicationX11::StopX() {
