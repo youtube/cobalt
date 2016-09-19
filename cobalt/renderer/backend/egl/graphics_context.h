@@ -108,6 +108,13 @@ class GraphicsContextEGL : public GraphicsContext {
 
   void Blit(GLuint texture, int x, int y, int width, int height);
 
+  bool ReadPixelsNeedVerticalFlip() {
+    if (!read_pixels_needs_vertical_flip_) {
+      read_pixels_needs_vertical_flip_ = ComputeReadPixelsNeedVerticalFlip();
+    }
+    return *read_pixels_needs_vertical_flip_;
+  }
+
  private:
   // Performs a test to determine if the pixel data returned by glReadPixels
   // needs to be vertically flipped or not.  This test is expensive and so
