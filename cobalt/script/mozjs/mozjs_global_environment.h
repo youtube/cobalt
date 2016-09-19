@@ -128,16 +128,16 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   static MozjsGlobalEnvironment* GetFromContext(JSContext* context);
 
+  // This will be called every time an attempt is made to use eval() and
+  // friends. If it returns false, then the ReportErrorHandler will be fired
+  // with an error that eval() is disabled.
+  static JSBool CheckEval(JSContext* context);
+
  protected:
   static void ReportErrorHandler(JSContext* context, const char* message,
                                  JSErrorReport* report);
 
   static void TraceFunction(JSTracer* trace, void* data);
-
-  // This will be called every time an attempt is made to use eval() and
-  // friends. If it returns false, then the ReportErrorHandler will be fired
-  // with an error that eval() is disabled.
-  static JSBool CheckEval(JSContext* context);
 
   // Helper struct to ensure the context is destroyed in the correct order
   // relative to the MozjsGlobalEnvironment's other members.
