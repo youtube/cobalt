@@ -45,7 +45,8 @@ class Parser {
   virtual ~Parser() {}
   // Synchronous parsing interfaces.
   //
-  // Parses an HTML document and returns the created Document.
+  // Parses an HTML document and returns the created Document.  No
+  // script elements within the HTML document will be executed.
   virtual scoped_refptr<Document> ParseDocument(
       const std::string& input, HTMLElementContext* html_element_context,
       const base::SourceLocation& input_location) = 0;
@@ -56,7 +57,8 @@ class Parser {
       const base::SourceLocation& input_location) = 0;
 
   // Parses an HTML input and inserts new nodes in document under parent_node
-  // before reference_node.
+  // before reference_node.  No script elements within the HTML document will
+  // be executed.
   virtual void ParseDocumentFragment(
       const std::string& input, const scoped_refptr<Document>& document,
       const scoped_refptr<Node>& parent_node,
@@ -74,7 +76,8 @@ class Parser {
   // Asynchronous parsing interfaces.
   //
   // Parses an HTML document asynchronously, returns the decoder that can be
-  // used in the parsing.
+  // used in the parsing.  Script elements in the HTML document will be
+  // executed.
   virtual scoped_ptr<loader::Decoder> ParseDocumentAsync(
       const scoped_refptr<Document>& document,
       const base::SourceLocation& input_location) = 0;

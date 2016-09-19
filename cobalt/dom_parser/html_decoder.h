@@ -49,7 +49,8 @@ class HTMLDecoder : public loader::Decoder {
               const int dom_max_element_depth,
               const base::SourceLocation& input_location,
               const base::Closure& done_callback,
-              const base::Callback<void(const std::string&)>& error_callback);
+              const base::Callback<void(const std::string&)>& error_callback,
+              const bool should_run_scripts);
 
   ~HTMLDecoder();
 
@@ -67,6 +68,8 @@ class HTMLDecoder : public loader::Decoder {
   scoped_refptr<dom::Document> document_;
   base::ThreadChecker thread_checker_;
   const base::Closure done_callback_;
+
+  const bool should_run_scripts_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLDecoder);
 };
