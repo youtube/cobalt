@@ -150,6 +150,8 @@ void VideoDecoder::Reset() {
     SbThreadJoin(decoder_thread_, NULL);
   }
 
+  avcodec_flush_buffers(codec_context_);
+
   decoder_thread_ = kSbThreadInvalid;
   stream_ended_ = false;
 }
