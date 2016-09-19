@@ -28,7 +28,17 @@ namespace mozjs {
 namespace {
 // After this many bytes have been allocated, the garbage collector will run.
 const uint32_t kGarbageCollectionThresholdBytes = 8 * 1024 * 1024;
+
+JSBool CheckAccessStub(JSContext*, JS::Handle<JSObject*>, JS::Handle<jsid>,
+                       JSAccessMode, JS::MutableHandle<JS::Value>) {
+  return true;
 }
+
+JSSecurityCallbacks security_callbacks = {
+  CheckAccessStub,
+  MozjsGlobalEnvironment::CheckEval
+};
+}  // namespace
 
 MozjsEngine::MozjsEngine() {
   // TODO: Investigate the benefit of helper threads and things like
@@ -38,6 +48,8 @@ MozjsEngine::MozjsEngine() {
   CHECK(runtime_);
 
   JS_SetRuntimePrivate(runtime_, this);
+
+  JS_SetSecurityCallbacks(runtime_, &security_callbacks);
 
   // Use incremental garbage collection.
   JS_SetGCParameter(runtime_, JSGC_MODE, JSGC_MODE_INCREMENTAL);
