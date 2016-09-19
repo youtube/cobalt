@@ -62,6 +62,10 @@ class HTMLScriptElement : public HTMLElement {
     SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
   }
 
+  void set_should_execute(bool should_execute) {
+    should_execute_ = should_execute;
+  }
+
   // Custom, not in any spec.
   //
   // From Node.
@@ -133,6 +137,9 @@ class HTMLScriptElement : public HTMLElement {
   std::string content_;
   // Active requests disabling garbage collection.
   int prevent_garbage_collection_count_;
+
+  // Whether or not the script should execute at all.
+  bool should_execute_;
 };
 
 }  // namespace dom
