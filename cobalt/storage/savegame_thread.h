@@ -52,7 +52,7 @@ class SavegameThread {
   // I/O thread.
   void ShutdownOnIOThread();
 
-  // runs on the I/O thread to write the database to the savegame's persistent
+  // Runs on the I/O thread to write the database to the savegame's persistent
   // storage.
   void FlushOnIOThread(scoped_ptr<Savegame::ByteVector> raw_bytes_ptr,
                        const base::Closure& on_flush_complete);
@@ -74,6 +74,11 @@ class SavegameThread {
 
   // Interface to platform-specific savegame data.
   scoped_ptr<Savegame> savegame_;
+
+  // How many flush failures have occurred since the last successful flush.
+  // Flushes (storage writes) may sometimes fail, but we want to make sure
+  // they're not consistently failing.
+  int num_consecutive_flush_failures_;
 };
 
 }  // namespace storage
