@@ -70,7 +70,11 @@ class VideoRenderer : private VideoDecoder::Host {
   bool seeking_;
   Frames frames_;
 
-  VideoFrame empty_frame_;
+  // During seeking, all frames inside |frames_| will be cleared but the app
+  // should still display the last frame it is rendering.  This frame will be
+  // kept inside |seeking_frame_|.  It is an empty/black frame before the video
+  // is started.
+  VideoFrame seeking_frame_;
 
   SbMediaTime seeking_to_pts_;
   bool end_of_stream_written_;
