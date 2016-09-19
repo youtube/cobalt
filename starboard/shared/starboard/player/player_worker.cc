@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/audio_decoder_internal.h"
@@ -113,8 +114,11 @@ void PlayerWorker::RunLoop() {
     } else if (event->type == Event::kSetPause) {
       running &= ProcessSetPauseEvent(event->data.set_pause);
     } else if (event->type == Event::kSetBounds) {
-      bounds = event->data.set_bounds;
-      ProcessUpdateEvent(bounds);
+      if (SbMemoryCompare(&bounds, &event->data.set_bounds, sizeof(bounds)) !=
+          0) {
+        bounds = event->data.set_bounds;
+        ProcessUpdateEvent(bounds);
+      }
     } else if (event->type == Event::kStop) {
       ProcessStopEvent();
       running = false;
