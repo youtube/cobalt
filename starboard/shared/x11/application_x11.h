@@ -80,8 +80,9 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   };
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
-  // Ensures that X is up, display is populated and connected.
-  void EnsureX();
+  // Ensures that X is up, display is populated and connected, returning whether
+  // it succeeded.
+  bool EnsureX();
 
   // Shuts X down.
   void StopX();
