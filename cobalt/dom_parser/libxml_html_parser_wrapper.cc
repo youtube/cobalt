@@ -18,6 +18,8 @@
 
 #include "base/basictypes.h"
 #include "base/string_util.h"
+#include "cobalt/dom/element.h"
+#include "cobalt/dom/html_script_element.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -89,6 +91,17 @@ void LibxmlHTMLParserWrapper::OnEndElement(const std::string& name) {
   if (!IsFullDocument() && (name == "html" || name == "body")) {
     return;
   }
+
+  // If the top if the node stack is an html script element, then set its
+  // should_execute_ field to be our should_run_scripts_ field.
+  DCHECK(!node_stack().empty());
+  if (name == "script") {
+    scoped_refptr<dom::HTMLScriptElement> html_script_element =
+        node_stack().top()->AsElement()->AsHTMLElement()->AsHTMLScriptElement();
+    DCHECK(html_script_element);
+    html_script_element->set_should_execute(should_run_scripts_);
+  }
+
   LibxmlParserWrapper::OnEndElement(name);
 }
 
