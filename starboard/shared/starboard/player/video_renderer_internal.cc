@@ -122,7 +122,7 @@ void VideoRenderer::OnDecoderStatusUpdate(VideoDecoder::Status status,
       frames_.push_back(*frame);
     }
 
-    if (seeking_ && frames_.size() > kPrerollFrames) {
+    if (seeking_ && frames_.size() >= kPrerollFrames) {
       seeking_ = false;
     }
   }
