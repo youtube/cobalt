@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/threading/thread.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "net/cookies/cookie_store.h"
 
@@ -34,6 +35,11 @@ class CookieJarImpl : public network_bridge::CookieJar {
   void SetCookie(const GURL& origin, const std::string& cookie_line) OVERRIDE;
 
  private:
+  // We use a dedicated thread for making GetCookiesWithOptionsAsync() calls in
+  // order to workaround GetCookiesWithOptionsAsync()'s default behavior of
+  // PostTask()ing the completion callback to the message loop that the
+  // GetCookiesWithOptionsAsync() call was made from.
+  base::Thread get_cookies_thread_;
   net::CookieStore* cookie_store_;
 
   DISALLOW_COPY_AND_ASSIGN(CookieJarImpl);
