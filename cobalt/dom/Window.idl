@@ -25,6 +25,7 @@
   [Unforgeable] readonly attribute Document document;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute History history;
+  void close();
 
   // other browsing contexts
   [Replaceable] readonly attribute Window frames;
