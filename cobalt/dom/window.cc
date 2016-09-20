@@ -39,6 +39,9 @@
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/script/javascript_engine.h"
+#if defined(OS_STARBOARD)
+#include "starboard/system.h"
+#endif
 
 namespace cobalt {
 namespace dom {
@@ -134,6 +137,15 @@ const scoped_refptr<Location>& Window::location() const {
 }
 
 const scoped_refptr<History>& Window::history() const { return history_; }
+
+// https://www.w3.org/TR/html5/browsers.html#dom-window-close
+void Window::Close() {
+#if defined(OS_STARBOARD)
+  SbSystemRequestStop(0);
+#else
+  LOG(WARNING) << "window.close is not supported on this platform.";
+#endif
+}
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 
