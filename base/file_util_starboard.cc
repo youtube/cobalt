@@ -193,8 +193,8 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
   }
 
   base::PlatformFile destination_file = base::CreatePlatformFileUnsafe(
-      to_path, base::PLATFORM_FILE_CREATE | base::PLATFORM_FILE_WRITE, NULL,
-      NULL);
+      to_path, base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE,
+      NULL, NULL);
   if (destination_file == base::kInvalidPlatformFileValue) {
     DPLOG(ERROR) << "CopyFile(): Unable to open destination file: "
                  << to_path.value();
