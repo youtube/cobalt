@@ -30,7 +30,7 @@ int s_v_to_r[256];
 int s_u_to_g[256];
 int s_v_to_g[256];
 int s_u_to_b[256];
-uint8_t s_clamp_table[256 * 3];
+uint8_t s_clamp_table[256 * 5];
 
 void EnsureYUVToRGBLookupTableInitialized() {
   if (s_yuv_to_rgb_lookup_table_initialized) {
@@ -47,10 +47,13 @@ void EnsureYUVToRGBLookupTableInitialized() {
   //
   // We optimize the conversion algorithm by creating two kinds of lookup
   // tables.  The color component table contains pre-calculated color component
-  // values.  The clamp table contains a map between |v| + 256 to the clamped
+  // values.  The clamp table contains a map between |v| + 512 to the clamped
   // |v| to avoid conditional operation.
-  SbMemorySet(s_clamp_table, 0, 256);
-  SbMemorySet(s_clamp_table + 512, 0xff, 256);
+  // The minimum value of |v| can be 2.112f * (-128) = -271, the maximum value
+  // of |v| can be 1.164f * 255 + 2.112f * 127 = 565.  So we need 512 bytes at
+  // each side of the clamp buffer.
+  SbMemorySet(s_clamp_table, 0, 512);
+  SbMemorySet(s_clamp_table + 768, 0xff, 512);
 
   for (int i = 0; i < 256; ++i) {
     s_y_to_rgb[i] = (static_cast<uint8_t>(i) - 16) * 1.164f;
@@ -58,14 +61,14 @@ void EnsureYUVToRGBLookupTableInitialized() {
     s_u_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.213;
     s_v_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.533f;
     s_u_to_b[i] = (static_cast<uint8_t>(i) - 128) * 2.112f;
-    s_clamp_table[256 + i] = i;
+    s_clamp_table[512 + i] = i;
   }
 
   s_yuv_to_rgb_lookup_table_initialized = true;
 }
 
 uint8_t ClampColorComponent(int component) {
-  return s_clamp_table[component + 256];
+  return s_clamp_table[component + 512];
 }
 
 }  // namespace
