@@ -73,5 +73,30 @@
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],
     },
+
+    {
+      'target_name': 'mozjs_engine_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        '<(DEPTH)/third_party/mozjs/test/jscustomallocator_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
+      ],
+    },
+
+    {
+      'target_name': 'mozjs_engine_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'mozjs_engine_test',
+      ],
+      'variables': {
+        'executable_name': 'mozjs_engine_test',
+      },
+      'includes': [ '../../../starboard/build/deploy.gypi' ],
+    },
   ],
 }
