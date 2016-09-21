@@ -435,7 +435,7 @@ typedef uLong FAR uLongf;
 #  define NO_ERRNO_H
 /* zlib pulls in a lot more dependencies in DEBUG mode. So, for now, zlib
  * debugging is disabled in STARBOARD. */
-#  undef DEBUG
+#  undef ZLIB_DEBUG
 #endif
 
 /* MVS linker does not support external names larger than 8 bytes */
