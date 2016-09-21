@@ -40,7 +40,7 @@ ExceptionMessage kMessages[kNumMessageTypes] = {
     {kConvertToEnumFailed, kTypeError, "Failed to convert JS value to enum."},
     {kStringifierProblem, kTypeError, "Stringifier problem."},
     {kNotFunctionValue, kTypeError, "Value is not a function."},
-    {kInvalidNumberOfArguments, kRangeError, "Invalid number of arguments."},
+    {kInvalidNumberOfArguments, kTypeError, "Invalid number of arguments."},
     {kNotUnionType, kTypeError, "Value is not a member of the union type."},
     {kOutsideBounds, kRangeError, "Offset is outside the object's bounds."},
     {kInvalidLength, kRangeError, "Invalid length."},
