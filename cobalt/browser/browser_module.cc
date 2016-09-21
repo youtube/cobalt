@@ -284,6 +284,14 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 }
 
 void BrowserModule::OnLoad() {
+  // Repost to our own message loop if necessary. This also prevents
+  // asynchonrous access to this object by |web_module_| during destruction.
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::OnLoad, weak_this_));
+    return;
+  }
+
   DestroySplashScreen();
   web_module_loaded_.Signal();
 }
