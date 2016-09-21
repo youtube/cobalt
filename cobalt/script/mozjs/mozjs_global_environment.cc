@@ -213,13 +213,14 @@ bool MozjsGlobalEnvironment::EvaluateScript(
   size_t length = script.size();
   jschar* inflated_buffer =
       js::InflateUTF8String(context_, script.c_str(), &length);
-  DCHECK(inflated_buffer);
   bool success = false;
   if (inflated_buffer) {
     success = JS_EvaluateUCScript(context_, global_object, inflated_buffer,
                                   length, location.file_path.c_str(),
                                   location.line_number, result_value.address());
     js_free(inflated_buffer);
+  } else {
+    DLOG(ERROR) << "Malformed UTF-8 script.";
   }
 
   if (out_result_utf8) {
