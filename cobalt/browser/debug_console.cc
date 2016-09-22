@@ -181,9 +181,10 @@ DebugConsole::DebugConsole(
                  get_debug_server_callback);
   web_module_.reset(new WebModule(
       GURL(kInitialDebugConsoleUrl), render_tree_produced_callback,
-      base::Bind(&DebugConsole::OnError, base::Unretained(this)), media_module,
-      network_module, window_dimensions, resource_provider, layout_refresh_rate,
-      web_module_options));
+      base::Bind(&DebugConsole::OnError, base::Unretained(this)),
+      base::Closure(), /* window_close_callback */
+      media_module, network_module, window_dimensions, resource_provider,
+      layout_refresh_rate, web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}
