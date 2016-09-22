@@ -104,7 +104,6 @@ int GetWebDriverPort() {
 #endif  // ENABLE_WEBDRIVER
 
 GURL GetInitialURL() {
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   // Allow the user to override the default URL via a command line parameter.
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
@@ -115,7 +114,6 @@ GURL GetInitialURL() {
       DLOG(INFO) << "URL from parameter is not valid, using default URL.";
     }
   }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   return GURL(kDefaultURL);
 }
