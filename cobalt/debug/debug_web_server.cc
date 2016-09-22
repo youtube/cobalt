@@ -137,10 +137,10 @@ DebugWebServer::DebugWebServer(
 }
 
 DebugWebServer::~DebugWebServer() {
-  net::HttpServer* server = server_.get();
-  server_->AddRef();
-  server_ = NULL;
-  http_server_thread_.message_loop()->ReleaseSoon(FROM_HERE, server);
+  // Destroy the server on its own thread then stop the thread.
+  http_server_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&DebugWebServer::StopServer, base::Unretained(this)));
   http_server_thread_.Stop();
 }
 
@@ -318,6 +318,11 @@ void DebugWebServer::StartServer(int port) {
   } else {
     DLOG(WARNING) << "Could not start debug web server";
   }
+}
+
+void DebugWebServer::StopServer() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  server_ = NULL;
 }
 
 }  // namespace debug
