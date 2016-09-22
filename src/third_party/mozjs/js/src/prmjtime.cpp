@@ -193,11 +193,11 @@ static PRCallOnceType calibrationOnce = { 0 };
 int64_t
 PRMJ_Now(void)
 {
-    // SbTime is in microseconds since the epoch.
-    SbTime utcNowMicroseconds = SbTimeGetNow();
-    SbTime dstOffsetMicroseconds = get_dst_offset(utcNowMicroseconds);
-    return utcNowMicroseconds + dstOffsetMicroseconds;
+    // SbTime is in microseconds since the Starboard/Windows epoch, and PRMJ_Now
+    // should return microseconds since the Posix epoch.
+    return SbTimeToPosix(SbTimeGetNow());
 }
+
 #elif defined(XP_OS2)
 int64_t
 PRMJ_Now(void)

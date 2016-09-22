@@ -17,16 +17,7 @@
 
 using mozilla::UnspecifiedNaN;
 
-#if defined(STARBOARD)
-static int32_t
-UTCToLocalStandardOffsetSeconds()
-{
-    SbTimeZone timeZone = SbTimeZoneGetCurrent();
-    // timeZone is in minutes
-    return timeZone * 60;
-}
-
-#else
+#if !defined(STARBOARD)
 static bool
 ComputeLocalTime(time_t local, struct tm *ptm)
 {
@@ -149,7 +140,11 @@ js::DateTimeInfo::updateTimeZoneAdjustment()
      * The difference between local standard time and UTC will never change for
      * a given time zone.
      */
+#if defined(STARBOARD)
+    utcToLocalStandardOffsetSeconds = getTZOffset() / kSbTimeSecond;
+#else
     utcToLocalStandardOffsetSeconds = UTCToLocalStandardOffsetSeconds();
+#endif
 
     double newTZA = utcToLocalStandardOffsetSeconds * msPerSecond;
     if (newTZA == localTZA_)
@@ -192,7 +187,7 @@ js::DateTimeInfo::computeDSTOffsetMilliseconds(int64_t utcSeconds)
     MOZ_ASSERT(utcSeconds <= MaxUnixTimeT);
 
     SbTime utcTimeMicroseconds = utcSeconds * kSbTimeSecond;
-    SbTime offsetMicroseconds = get_dst_offset(utcTimeMicroseconds);
+    SbTime offsetMicroseconds = getDSTOffset(utcTimeMicroseconds);
     return offsetMicroseconds / kSbTimeMillisecond;
 }
 

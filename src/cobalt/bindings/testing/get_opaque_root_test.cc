@@ -24,8 +24,19 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef InterfaceBindingsTest<GetOpaqueRootInterface>
-    GetOpaqueRootInterfaceTest;
+class GetOpaqueRootInterfaceTest : public BindingsTestBase {
+ public:
+  GetOpaqueRootInterfaceTest()
+      : test_mock_(new ::testing::NiceMock<GetOpaqueRootInterface>()) {
+    global_environment_->Bind(
+        "test", make_scoped_refptr<GetOpaqueRootInterface>((test_mock_)));
+  }
+
+  GetOpaqueRootInterface& test_mock() { return *test_mock_.get(); }
+
+ private:
+  const scoped_refptr<GetOpaqueRootInterface> test_mock_;
+};
 }  // namespace
 
 TEST_F(GetOpaqueRootInterfaceTest, CallsFunction) {

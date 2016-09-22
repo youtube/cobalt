@@ -297,7 +297,11 @@ MSG_DEF(JSMSG_CANT_DEFINE_PAST_ARRAY_LENGTH,243, 0, JSEXN_TYPEERR, "can't define
 MSG_DEF(JSMSG_TYPED_ARRAY_BAD_INDEX,  244, 0, JSEXN_ERR, "invalid or out-of-range index")
 MSG_DEF(JSMSG_TYPED_ARRAY_NEGATIVE_ARG, 245, 1, JSEXN_ERR, "argument {0} must be >= 0")
 MSG_DEF(JSMSG_TYPED_ARRAY_BAD_ARGS,   246, 0, JSEXN_ERR, "invalid arguments")
+#if defined(STARBOARD)
+MSG_DEF(JSMSG_CSP_BLOCKED_FUNCTION,   247, 0, JSEXN_EVALERR, "call to Function() blocked by CSP")
+#else
 MSG_DEF(JSMSG_CSP_BLOCKED_FUNCTION,   247, 0, JSEXN_ERR, "call to Function() blocked by CSP")
+#endif
 MSG_DEF(JSMSG_BAD_GET_SET_FIELD,      248, 1, JSEXN_TYPEERR, "property descriptor's {0} field is neither undefined nor a function")
 MSG_DEF(JSMSG_BAD_PROXY_FIX,          249, 0, JSEXN_TYPEERR, "proxy was fixed while executing the handler")
 MSG_DEF(JSMSG_INVALID_EVAL_SCOPE_ARG, 250, 0, JSEXN_EVALERR, "invalid eval scope argument")
@@ -338,7 +342,11 @@ MSG_DEF(JSMSG_DEBUG_NOT_DEBUGGING,    284, 0, JSEXN_ERR, "can't set breakpoint: 
 MSG_DEF(JSMSG_DEBUG_COMPARTMENT_MISMATCH, 285, 2, JSEXN_TYPEERR, "{0}: descriptor .{1} property is an object in a different compartment than the target object")
 MSG_DEF(JSMSG_DEBUG_NOT_SCRIPT_FRAME, 286, 0, JSEXN_ERR, "stack frame is not running JavaScript code")
 MSG_DEF(JSMSG_CANT_WATCH_PROP,        287, 0, JSEXN_TYPEERR, "properties whose names are objects can't be watched")
+#if defined(STARBOARD)
+MSG_DEF(JSMSG_CSP_BLOCKED_EVAL,       288, 0, JSEXN_EVALERR, "call to eval() blocked by CSP")
+#else
 MSG_DEF(JSMSG_CSP_BLOCKED_EVAL,       288, 0, JSEXN_ERR, "call to eval() blocked by CSP")
+#endif
 MSG_DEF(JSMSG_DEBUG_NO_SCOPE_OBJECT,  289, 0, JSEXN_TYPEERR, "declarative Environments don't have binding objects")
 MSG_DEF(JSMSG_EMPTY_CONSEQUENT,       290, 0, JSEXN_SYNTAXERR, "mistyped ; after conditional?")
 MSG_DEF(JSMSG_NOT_ITERABLE,           291, 1, JSEXN_TYPEERR, "{0} is not iterable")
