@@ -65,11 +65,11 @@ TEST(SbThreadYieldTest, SunnyDay) {
 // thread gets started first, I hope to make this inherently flaky test not
 // flaky.
 //
-// Note: This test ended up EVER so slightly flaky, but within most
-// tolerances. If it fails on you randomly and inconsistently, it was probably
-// just a flake.
-TEST(SbThreadYieldTest, FLAKY_SunnyDayRace) {
-  const int kTrials = 30;
+// Note: This test may still be flaky, but it should be a lot less flaky than
+// before. If this test starts flaking again, tag it with FLAKY_ again.
+TEST(SbThreadYieldTest, SunnyDayRace) {
+  const int kTrials = 20;
+  int passes = 0;
   for (int trial = 0; trial < kTrials; ++trial) {
     // Pin to CPU 0 to make sure the threads don't get distributed onto other
     // cores.
@@ -106,8 +106,15 @@ TEST(SbThreadYieldTest, FLAKY_SunnyDayRace) {
       }
     }
 
-    EXPECT_LT(average_unyielder, average_yielder) << "Trial " << trial;
+    // If unyielders took less time then yielders, on average, then we consider
+    // the trial a pass.
+    if (average_unyielder < average_yielder) {
+      ++passes;
+    }
   }
+
+  // We expect at least 2/3 of the trials to pass.
+  EXPECT_LT(kTrials * 2 / 3, passes);
 }
 
 }  // namespace

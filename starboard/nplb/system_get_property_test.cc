@@ -74,7 +74,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   if (IsCEDevice(SbSystemGetDeviceType())) {
     BasicTest(kSbSystemPropertyBrandName, true, true, __LINE__);
     BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
-    BasicTest(kSbSystemPropertyModelYear, true, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
   } else {
     BasicTest(kSbSystemPropertyBrandName, false, true, __LINE__);
     BasicTest(kSbSystemPropertyModelName, false, true, __LINE__);
