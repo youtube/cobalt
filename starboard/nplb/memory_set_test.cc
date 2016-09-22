@@ -31,7 +31,7 @@ TEST(SbMemorySetTest, SetsSomeData) {
   void* result = SbMemorySet(memory, 0xCD, kSize);
   EXPECT_EQ(memory, result);
   for (int i = 0; i < kSize; ++i) {
-    EXPECT_EQ(data[i], '\xCD');
+    ASSERT_EQ('\xCD', data[i]);
   }
 
   SbMemoryFree(memory);
@@ -47,7 +47,7 @@ TEST(SbMemorySetTest, SetsZeroData) {
   void* result = SbMemorySet(memory, 0xCD, 0);
   EXPECT_EQ(memory, result);
   for (int i = 0; i < kSize; ++i) {
-    EXPECT_EQ(data[i], static_cast<char>(i));
+    ASSERT_EQ(static_cast<char>(i), data[i]);
   }
 
   SbMemoryFree(memory);
@@ -63,7 +63,7 @@ TEST(SbMemorySetTest, IgnoresExtraData) {
   void* result = SbMemorySet(memory, 0x6789ABCD, kSize);
   EXPECT_EQ(memory, result);
   for (int i = 0; i < kSize; ++i) {
-    EXPECT_EQ(data[i], '\xCD');
+    ASSERT_EQ('\xCD', data[i]);
   }
 
   SbMemoryFree(memory);
