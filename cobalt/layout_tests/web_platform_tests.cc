@@ -176,8 +176,9 @@ std::string RunWebPlatformTest(const GURL& url) {
       url, base::Bind(&WebModuleOnRenderTreeProducedCallback, &results,
                       &run_loop, MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
-      media_module.get(), &network_module, kDefaultViewportSize,
-      &resource_provider, 60.0f, web_module_options);
+      base::Closure() /* window_close_callback */, media_module.get(),
+      &network_module, kDefaultViewportSize, &resource_provider, 60.0f,
+      web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
