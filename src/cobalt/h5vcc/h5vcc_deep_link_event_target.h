@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_H5VCC_H5VCC_RUNTIME_EVENT_TARGET_H_
-#define COBALT_H5VCC_H5VCC_RUNTIME_EVENT_TARGET_H_
+#ifndef COBALT_H5VCC_H5VCC_DEEP_LINK_EVENT_TARGET_H_
+#define COBALT_H5VCC_H5VCC_DEEP_LINK_EVENT_TARGET_H_
 
+#include <string>
 #include <vector>
 
 #include "base/callback.h"
+#include "base/location.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/h5vcc/h5vcc_event_listener_container.h"
@@ -30,36 +32,38 @@
 namespace cobalt {
 namespace h5vcc {
 
-// This class implements the onPause attribute of the h5vcc.runtime protocol,
+// This class implements the onDeepLink attribute of the h5vcc.runtime protocol,
 // modeled after the events in Chrome's runtime extension, e.g.
-// https://developer.chrome.com/apps/runtime#event-onSuspend
+// https://developer.chrome.com/apps/runtime#event-onMessage
 
-class H5vccRuntimeEventTarget : public script::Wrappable {
+class H5vccDeepLinkEventTarget : public script::Wrappable {
  public:
   // Type for JavaScript event callback.
-  typedef script::CallbackFunction<void()> H5vccRuntimeEventCallback;
-  typedef script::ScriptObject<H5vccRuntimeEventCallback>
-      H5vccRuntimeEventCallbackHolder;
+  typedef script::CallbackFunction<void(const std::string&)>
+      H5vccDeepLinkEventCallback;
+  typedef script::ScriptObject<H5vccDeepLinkEventCallback>
+      H5vccDeepLinkEventCallbackHolder;
 
-  H5vccRuntimeEventTarget();
+  H5vccDeepLinkEventTarget();
 
   // Called from JavaScript to register an event listener callback.
   // May be called from any thread.
-  void AddListener(const H5vccRuntimeEventCallbackHolder& callback_holder);
+  void AddListener(const H5vccDeepLinkEventCallbackHolder& callback_holder);
 
   // Dispatches an event to the registered listeners.
   // May be called from any thread.
-  void DispatchEvent();
+  void DispatchEvent(const std::string& link);
 
-  DEFINE_WRAPPABLE_TYPE(H5vccRuntimeEventTarget);
+  DEFINE_WRAPPABLE_TYPE(H5vccDeepLinkEventTarget);
 
  private:
-  H5vccEventListenerContainer<void, H5vccRuntimeEventCallback> listeners_;
+  H5vccEventListenerContainer<const std::string&, H5vccDeepLinkEventCallback>
+      listeners_;
 
-  DISALLOW_COPY_AND_ASSIGN(H5vccRuntimeEventTarget);
+  DISALLOW_COPY_AND_ASSIGN(H5vccDeepLinkEventTarget);
 };
 
 }  // namespace h5vcc
 }  // namespace cobalt
 
-#endif  // COBALT_H5VCC_H5VCC_RUNTIME_EVENT_TARGET_H_
+#endif  // COBALT_H5VCC_H5VCC_DEEP_LINK_EVENT_TARGET_H_

@@ -93,6 +93,8 @@
 #include "jit/Ion.h"
 #endif
 
+#include "starboard/file.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -5119,6 +5121,27 @@ JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
     return script;
 }
 
+#if defined(STARBOARD)
+JSScript *
+JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
+            SbFile file)
+{
+    SbFileInfo info;
+    bool success = SbFileGetInfo(file, &info);
+    if (!success) {
+        return NULL;
+    }
+    const int64_t kFileSize = info.size;
+    FileContents buffer(cx);
+    buffer.resize(kFileSize);
+    if (SbFileRead(file, buffer.begin(), kFileSize) < 0) {
+        return NULL;
+    }
+    JSScript *script = Compile(cx, obj, options, buffer.begin(),
+                               buffer.length());
+    return script;
+}
+#else
 JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, FILE *fp)
 {
@@ -5129,15 +5152,26 @@ JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, FILE *fp)
     JSScript *script = Compile(cx, obj, options, buffer.begin(), buffer.length());
     return script;
 }
+#endif
 
 JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, const char *filename)
 {
+#if defined(STARBOARD)
+    starboard::ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead, NULL,
+                               NULL);
+    if (!file.IsValid()) {
+        return NULL;
+    }
+    options = options.setFileAndLine(filename, 1);
+    JSScript *script = Compile(cx, obj, options, file.file());
+#else
     AutoFile file;
     if (!file.open(cx, filename))
         return NULL;
     options = options.setFileAndLine(filename, 1);
     JSScript *script = Compile(cx, obj, options, file.fp());
+#endif
     return script;
 }
 
@@ -7082,4 +7116,3 @@ JS_PreventExtensions(JSContext *cx, JS::HandleObject obj)
 
     return JSObject::preventExtensions(cx, obj);
 }
-

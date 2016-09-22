@@ -8,7 +8,9 @@
 #include <errno.h>
 #include <locale.h>
 #include <math.h>
+#if !defined(STARBOARD)
 #include <signal.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,7 +74,7 @@
 # include <direct.h>
 # include "jswin.h"
 # define PATH_MAX (MAX_PATH > _MAX_DIR ? MAX_PATH : _MAX_DIR)
-#else
+#elif !defined(STARBOARD)
 # include <libgen.h>
 #endif
 
@@ -88,6 +90,8 @@
 #ifdef USE_ZLIB
 #include "zlib.h"
 #endif
+
+#include "starboard/client_porting/wrap_main/wrap_main.h"
 
 using namespace js;
 using namespace js::cli;
@@ -413,6 +417,13 @@ SkipUTF8BOM(FILE* file)
 }
 
 static void
+#if defined(STARBOARD)
+RunFile(JSContext *cx, Handle<JSObject*> obj, const char *filename, SbFile file,
+        bool compileOnly)
+{
+    // We may not handle lines starting with # correctly without
+    // adding more here.
+#else
 RunFile(JSContext *cx, Handle<JSObject*> obj, const char *filename, FILE *file, bool compileOnly)
 {
     SkipUTF8BOM(file);
@@ -427,6 +438,7 @@ RunFile(JSContext *cx, Handle<JSObject*> obj, const char *filename, FILE *file, 
         }
     }
     ungetc(ch, file);
+#endif
 
     int64_t t1 = PRMJ_Now();
     uint32_t oldopts = JS_GetOptions(cx);
@@ -531,8 +543,7 @@ ReadEvalPrintLoop(JSContext *cx, Handle<JSObject*> global, FILE *in, FILE *out, 
         if (hitEOF && buffer.empty())
             break;
 
-        if (!EvalAndPrint(cx, global, buffer.begin(), buffer.length(), startline, compileOnly,
-                          out))
+        if (!EvalAndPrint(cx, global, buffer.begin(), buffer.length(), startline, compileOnly, out))
         {
             // Catch the error, report it, and keep going.
             JS_ReportPendingException(cx);
@@ -554,11 +565,31 @@ class AutoCloseInputFile
     }
 };
 
+#if defined(STARBOARD)
+static void
+Process(JSContext *cx, JSObject *obj_, const char *filename, bool forceTTY)
+{
+    // No interactive mode for Starboard : stdin not guaranteed.
+    if (forceTTY) {
+        return;
+    }
+    RootedObject obj(cx, obj_);
+    SbFile file = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL,
+                             NULL);
+    if (!SbFileIsValid(file)) {
+        SbFileClose(file);
+        return;
+    }
+
+    SetContextOptions(cx);
+    RunFile(cx, obj, filename, file, compileOnly);
+    SbFileClose(file);
+}
+#else
 static void
 Process(JSContext *cx, JSObject *obj_, const char *filename, bool forceTTY)
 {
     RootedObject obj(cx, obj_);
-
     FILE *file;
     if (forceTTY || !filename || strcmp(filename, "-") == 0) {
         file = stdin;
@@ -572,9 +603,7 @@ Process(JSContext *cx, JSObject *obj_, const char *filename, bool forceTTY)
         }
     }
     AutoCloseInputFile autoClose(file);
-
     SetContextOptions(cx);
-
     if (!forceTTY && !isatty(fileno(file))) {
         // It's not interactive - just execute it.
         RunFile(cx, obj, filename, file, compileOnly);
@@ -583,6 +612,7 @@ Process(JSContext *cx, JSObject *obj_, const char *filename, bool forceTTY)
         ReadEvalPrintLoop(cx, obj, file, gOutFile, compileOnly);
     }
 }
+#endif // STARBOARD
 
 /*
  * JSContext option name to flag map. The option names are in alphabetical
@@ -706,22 +736,37 @@ ResolvePath(JSContext *cx, HandleString filenameStr, bool scriptRelative)
 
     static char buffer[PATH_MAX+1];
     if (scriptRelative) {
-#ifdef XP_WIN
+#if defined(STARBOARD)
+        // We do not expect relative path scripts to work in Starboard.
+        return NULL;
+#elif defined(XP_WIN)
         // The docs say it can return EINVAL, but the compiler says it's void
         _splitpath(script->filename(), NULL, buffer, NULL, NULL);
 #else
         strncpy(buffer, script->filename(), PATH_MAX+1);
         if (buffer[PATH_MAX] != '\0')
             return NULL;
-
         // dirname(buffer) might return buffer, or it might return a
         // statically-allocated string
         memmove(buffer, dirname(buffer), strlen(buffer) + 1);
 #endif
     } else {
+#if defined(STARBOARD)
+        // For Starboard, the tests scripts are in
+        // content/dir_source_root/mozjs/tests
+        // so we let that play the role of the cwd.
+        bool result = SbSystemGetPath(kSbSystemPathSourceDirectory,
+                                      buffer, PATH_MAX + 1);
+        if (!result) {
+            return NULL;
+        }
+        // Append subdirectory /mozjs/tests.
+        SbStringConcat(buffer, "/mozjs/tests", PATH_MAX + 1);
+#else
         const char *cwd = getcwd(buffer, PATH_MAX);
         if (!cwd)
             return NULL;
+#endif
     }
 
     size_t len = strlen(buffer);
@@ -771,7 +816,7 @@ Options(JSContext *cx, unsigned argc, jsval *vp)
         }
     }
     if (!found)
-        names = js_strdup("");
+        names = js_strdup((char*)"");
     if (!names) {
         JS_ReportOutOfMemory(cx);
         return false;
@@ -2987,7 +3032,9 @@ KillWatchdog()
 static bool
 ScheduleWatchdog(JSRuntime *rt, double t)
 {
-#ifdef XP_WIN
+#if defined(STARBOARD)
+    return (t <= 0);
+#elif defined(XP_WIN)
     if (gTimerHandle) {
         DeleteTimerQueueTimer(NULL, gTimerHandle, NULL);
         gTimerHandle = 0;
@@ -3311,6 +3358,7 @@ ReadRelativeToScript(JSContext *cx, unsigned argc, jsval *vp)
     return ReadFile(cx, argc, vp, true);
 }
 
+#if !defined(STARBOARD)
 static JSBool
 System(JSContext *cx, unsigned argc, jsval *vp)
 {
@@ -3334,6 +3382,7 @@ System(JSContext *cx, unsigned argc, jsval *vp)
     JS_SET_RVAL(cx, vp, Int32Value(result));
     return true;
 }
+#endif
 
 static bool
 DecompileFunctionSomehow(JSContext *cx, unsigned argc, Value *vp,
@@ -3885,11 +3934,11 @@ static const JSFunctionSpecWithHelp fuzzing_unsafe_functions[] = {
     JS_FN_HELP("setThrowHook", SetThrowHook, 1, 0,
 "setThrowHook(f)",
 "  Set throw hook to f."),
-
+#if !defined(STARBOARD)
     JS_FN_HELP("system", System, 1, 0,
 "system(command)",
 "  Execute command on the current host, returning result code."),
-
+#endif
     JS_FN_HELP("trap", Trap, 3, 0,
 "trap([fun, [pc,]] exp)",
 "  Trap bytecode execution."),
@@ -4450,6 +4499,8 @@ env_setProperty(JSContext *cx, HandleObject obj, HandleId id, JSBool strict, Mut
         JS_smprintf_free(waste);
 #endif
     }
+#elif defined(STARBOARD)
+    rv = -1;
 #else
     rv = setenv(idstr.getBytes(), valstr.getBytes(), 1);
 #endif
@@ -4502,6 +4553,7 @@ env_resolve(JSContext *cx, HandleObject obj, HandleId id, unsigned flags,
         return false;
 
     name = idstr.getBytes();
+#if !defined(STARBOARD)
     value = getenv(name);
     if (value) {
         valstr = JS_NewStringCopyZ(cx, value);
@@ -4513,6 +4565,7 @@ env_resolve(JSContext *cx, HandleObject obj, HandleId id, unsigned flags,
         }
         objp.set(obj);
     }
+#endif
     return true;
 }
 
@@ -5160,10 +5213,14 @@ MaybeOverrideOutFileFromEnv(const char* const envVar,
                             FILE* defaultOut,
                             FILE** outFile)
 {
+#if defined(STARBOARD)
+    *outFile = defaultOut;
+#else
     const char* outPath = getenv(envVar);
     if (!outPath || !*outPath || !(*outFile = fopen(outPath, "w"))) {
         *outFile = defaultOut;
     }
+#endif
 }
 
 /* Set the initial counter to 1 so the principal will never be destroyed. */
@@ -5189,7 +5246,7 @@ DummyPreserveWrapperCallback(JSContext *cx, JSObject *obj)
 }
 
 int
-main(int argc, char **argv, char **envp)
+ShellMain(int argc, char **argv, char **envp)
 {
     int stackDummy;
     JSRuntime *rt;
@@ -5382,7 +5439,6 @@ main(int argc, char **argv, char **envp)
     /* Must be done before creating the global object */
     if (op.getBoolOption('D'))
         JS_ToggleOptions(cx, JSOPTION_PCCOUNT);
-
     result = Shell(cx, &op, envp);
 
 #if defined(DEBUG) && !defined(JS_USE_CUSTOM_ALLOCATOR)
@@ -5401,3 +5457,9 @@ main(int argc, char **argv, char **envp)
     JS_ShutDown();
     return result;
 }
+
+int ShellMainNoEnv(int argc, char** argv) {
+    return ShellMain(argc, argv, NULL);
+}
+
+STARBOARD_WRAP_SIMPLE_MAIN(ShellMainNoEnv);

@@ -116,6 +116,7 @@ class Window : public EventTarget {
   const scoped_refptr<Document>& document() const;
   const scoped_refptr<Location>& location() const;
   const scoped_refptr<History>& history() const;
+  void Close();
 
   scoped_refptr<Window> frames() { return this; }
   unsigned int length() { return 0; }

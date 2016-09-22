@@ -18,10 +18,14 @@
 #include "starboard/time.h"
 
 /*
- * Get the local time offset with DST applied using the current system's
- * timezone such that:
- *     local_time = utc_time + get_dst_offset(utc_time)
+ * Get the DST offset at the given time. |utc_time_us| is relative to the posix
+ * epoch.
  */
-SbTime get_dst_offset(SbTime utc_time);
+SbTime getDSTOffset(int64_t utc_time_us);
+
+/*
+ * Get the TZ offset based on the system's current timezone setting.
+ */
+SbTime getTZOffset();
 
 #endif  // jsstarboardtime_h

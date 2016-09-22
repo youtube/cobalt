@@ -205,7 +205,30 @@
         'mozjs_lib',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
-      ]
+      ],
+      'actions': [
+      {
+        'action_name': 'copy_test_data',
+          'variables': {
+            'input_files': [
+              'js/src/tests/',
+            ],
+            'output_dir': 'mozjs/tests/',
+            },
+            'includes': ['../../starboard/build/copy_test_data.gypi'],
+        },
+      ],
+    },
+    {
+      'target_name': 'mozjs_shell_deploy',
+      'type': 'none',
+      'dependencies': [
+        'mozjs_shell',
+      ],
+      'variables': {
+        'executable_name': 'mozjs_shell',
+      },
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
     {
       # SpiderMonkey source expects to include files from a certain directory

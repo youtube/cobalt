@@ -42,7 +42,7 @@ namespace wrap_main {
 typedef int (*MainFunction)(int argc, char** argv);
 
 // A start-style function.
-typedef void (*StartFunction)(int argc, char** argv,
+typedef void (*StartFunction)(int argc, char** argv, const char* link,
                               const base::Closure& quit_closure);
 
 // A function type that can be called at shutdown.
@@ -53,7 +53,7 @@ typedef void (*EventFunction)(const SbEvent* event);
 
 // No-operation function that can be passed into start_function if no start work
 // is needed.
-void NoopStartFunction(int /*argc*/, char** /*argv*/,
+void NoopStartFunction(int /*argc*/, char** /*argv*/, const char* /*link*/,
                        const base::Closure& /*quit_closure*/) {}
 
 // No-operation function that can be passed into event_function if no other
@@ -75,16 +75,16 @@ namespace cobalt {
 namespace wrap_main {
 
 template <MainFunction main_function>
-int SimpleMain(int argc, char **argv) {
+int SimpleMain(int argc, char** argv) {
   base::AtExitManager at_exit;
-  InitCobalt(argc, argv);
+  InitCobalt(argc, argv, NULL);
   return main_function(argc, argv);
 }
 
 template <StartFunction start_function, StopFunction stop_function>
-int BaseMain(int argc, char **argv) {
+int BaseMain(int argc, char** argv) {
   base::AtExitManager at_exit;
-  InitCobalt(argc, argv);
+  InitCobalt(argc, argv, NULL);
 
   MessageLoopForUI message_loop;
   base::PlatformThread::SetName("Main");
@@ -93,7 +93,7 @@ int BaseMain(int argc, char **argv) {
   DCHECK(!message_loop.is_running());
   base::RunLoop run_loop;
 
-  start_function(argc, argv, run_loop.QuitClosure());
+  start_function(argc, argv, NULL, run_loop.QuitClosure());
   run_loop.Run();
   stop_function();
 
@@ -103,7 +103,7 @@ int BaseMain(int argc, char **argv) {
 // Calls |main_function| at startup, creates an AtExitManager and calls
 // InitCobalt, and terminates once it is completed.
 #define COBALT_WRAP_SIMPLE_MAIN(main_function)                         \
-  int main(int argc, char **argv) {                                    \
+  int main(int argc, char** argv) {                                    \
     return ::cobalt::wrap_main::SimpleMain<main_function>(argc, argv); \
   }
 
@@ -111,7 +111,7 @@ int BaseMain(int argc, char **argv) {
 // terminates once the MessageLoop terminates, calling |stop_function| on the
 // way out.
 #define COBALT_WRAP_BASE_MAIN(start_function, stop_function)                   \
-  int main(int argc, char **argv) {                                            \
+  int main(int argc, char** argv) {                                            \
     return ::cobalt::wrap_main::BaseMain<start_function, stop_function>(argc,  \
                                                                         argv); \
   }

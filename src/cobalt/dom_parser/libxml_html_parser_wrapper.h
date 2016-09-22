@@ -40,11 +40,13 @@ class LibxmlHTMLParserWrapper : LibxmlParserWrapper {
       const scoped_refptr<dom::Node>& reference_node,
       const int dom_max_element_depth,
       const base::SourceLocation& input_location,
-      const base::Callback<void(const std::string&)>& error_callback)
+      const base::Callback<void(const std::string&)>& error_callback,
+      const bool should_run_scripts)
       : LibxmlParserWrapper(document, parent_node, reference_node,
                             dom_max_element_depth, input_location,
                             error_callback),
-        html_parser_context_(NULL) {
+        html_parser_context_(NULL),
+        should_run_scripts_(should_run_scripts) {
     DCHECK(!document->IsXMLDocument());
   }
   ~LibxmlHTMLParserWrapper() OVERRIDE;
@@ -60,6 +62,8 @@ class LibxmlHTMLParserWrapper : LibxmlParserWrapper {
   base::SourceLocation GetSourceLocation() OVERRIDE;
 
   htmlParserCtxtPtr html_parser_context_;
+
+  const bool should_run_scripts_;
 
   DISALLOW_COPY_AND_ASSIGN(LibxmlHTMLParserWrapper);
 };

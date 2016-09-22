@@ -17,11 +17,11 @@
 #include "mozilla/Assertions.h"
 #include "unicode/timezone.h"
 
-SbTime get_dst_offset(SbTime utc_time) {
+SbTime getDSTOffset(int64_t utc_time_us) {
   // UDate is in milliseconds from the epoch.
-  UDate udate = utc_time / kSbTimeMillisecond;
+  UDate udate = utc_time_us / kSbTimeMillisecond;
 
-  icu_46::TimeZone* current_zone = icu_46::TimeZone::createDefault();
+  icu::TimeZone* current_zone = icu::TimeZone::createDefault();
   int32_t raw_offset_ms, dst_offset_ms;
   UErrorCode error_code = U_ZERO_ERROR;
   current_zone->getOffset(
@@ -30,7 +30,15 @@ SbTime get_dst_offset(SbTime utc_time) {
 
   if (U_SUCCESS(error_code)) {
     MOZ_ASSERT(dst_offset_ms >= 0);
-    return (raw_offset_ms + dst_offset_ms) * kSbTimeMillisecond;
+    return dst_offset_ms * kSbTimeMillisecond;
   }
   return 0;
 }
+
+SbTime getTZOffset() {
+  icu::TimeZone* current_zone = icu::TimeZone::createDefault();
+  int32_t raw_offset_ms = current_zone->getRawOffset();
+  delete current_zone;
+  return raw_offset_ms * kSbTimeMillisecond;
+}
+

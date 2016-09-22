@@ -70,6 +70,9 @@ void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
   seeking_ = true;
   end_of_stream_written_ = false;
 
+  if (!frames_.empty()) {
+    seeking_frame_ = frames_.front();
+  }
   frames_.clear();
 }
 
@@ -77,8 +80,7 @@ const VideoFrame& VideoRenderer::GetCurrentFrame(SbMediaTime media_time) {
   ScopedLock lock(mutex_);
 
   if (frames_.empty()) {
-    // We cannot paint anything if there is no frames.
-    return empty_frame_;
+    return seeking_frame_;
   }
   // Remove any frames with timestamps earlier than |media_time|, but always
   // keep at least one of the frames.
@@ -122,7 +124,7 @@ void VideoRenderer::OnDecoderStatusUpdate(VideoDecoder::Status status,
       frames_.push_back(*frame);
     }
 
-    if (seeking_ && frames_.size() > kPrerollFrames) {
+    if (seeking_ && frames_.size() >= kPrerollFrames) {
       seeking_ = false;
     }
   }
