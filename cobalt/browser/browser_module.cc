@@ -270,13 +270,14 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
-  web_module_.reset(
-      new WebModule(url, base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
-                                    base::Unretained(this)),
-                    base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-                    media_module_.get(), &network_module_, viewport_size,
-                    renderer_module_.pipeline()->GetResourceProvider(),
-                    kLayoutMaxRefreshFrequencyInHz, options));
+  web_module_.reset(new WebModule(
+      url, base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
+                      base::Unretained(this)),
+      base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
+      media_module_.get(), &network_module_, viewport_size,
+      renderer_module_.pipeline()->GetResourceProvider(),
+      kLayoutMaxRefreshFrequencyInHz, options));
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
   }
@@ -338,6 +339,20 @@ void BrowserModule::OnRenderTreeProduced(
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
+#endif
+}
+
+void BrowserModule::OnWindowClose() {
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (input_device_manager_fuzzer_) {
+    return;
+  }
+#endif
+
+#if defined(OS_STARBOARD)
+  SbSystemRequestStop(0);
+#else
+  LOG(WARNING) << "window.close is not supported on this platform.";
 #endif
 }
 
