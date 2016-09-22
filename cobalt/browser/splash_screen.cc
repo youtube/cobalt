@@ -37,6 +37,7 @@ SplashScreen::SplashScreen(
   web_module_.reset(new WebModule(
       options.url, render_tree_produced_callback,
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
+      base::Closure(), /* window_close_callback */
       &stub_media_module_, network_module, window_dimensions, resource_provider,
       layout_refresh_rate, web_module_options));
 }
