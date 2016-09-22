@@ -241,11 +241,11 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   // For handling send() timeout.
   base::OneShotTimer<XMLHttpRequest> timer_;
-  base::Time send_start_time_;
+  base::TimeTicks send_start_time_;
 
   // Time to throttle progress notifications.
-  base::Time last_progress_time_;
-  base::Time upload_last_progress_time_;
+  base::TimeTicks last_progress_time_;
+  base::TimeTicks upload_last_progress_time_;
 
   // All members requiring initialization are grouped below.
   dom::DOMSettings* settings_;

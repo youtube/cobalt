@@ -142,8 +142,6 @@ void VideoDecoder::WriteEndOfStream() {
 }
 
 void VideoDecoder::Reset() {
-  SB_DCHECK(host_ != NULL);
-
   // Join the thread to ensure that all callbacks in process are finished.
   if (SbThreadIsValid(decoder_thread_)) {
     queue_.Put(Event(kReset));
