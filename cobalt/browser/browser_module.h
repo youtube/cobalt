@@ -17,8 +17,8 @@
 #ifndef COBALT_BROWSER_BROWSER_MODULE_H_
 #define COBALT_BROWSER_BROWSER_MODULE_H_
 
-#include <list>
 #include <string>
+#include <vector>
 
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
@@ -71,7 +71,7 @@ class BrowserModule {
 
   // Type for a collection of URL handler callbacks that can potentially handle
   // a URL before using it to initialize a new WebModule.
-  typedef std::list<URLHandler::URLHandlerCallback> URLHandlerCollection;
+  typedef std::vector<URLHandler::URLHandlerCallback> URLHandlerCollection;
 
   BrowserModule(const GURL& url, system_window::SystemWindow* system_window,
                 account::AccountManager* account_manager,
