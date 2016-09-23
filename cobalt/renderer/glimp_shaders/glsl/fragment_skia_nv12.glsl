@@ -11,7 +11,7 @@ void main() {
     // Stage 0: YUV to RGB
     output_Stage0 = vec4(
         texture2D(uSampler0_Stage0, vMatrixCoord_Stage0).aaaa.r,
-        texture2D(uSampler1_Stage0, vMatrixCoord_Stage0).ba,
+        texture2D(uSampler1_Stage0, vMatrixCoord_Stage0).ra,
         1.0) * uYUVMatrix_Stage0;
   }
   gl_FragColor = output_Stage0;
