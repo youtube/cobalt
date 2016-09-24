@@ -21,6 +21,7 @@
 #include "glimp/egl/error.h"
 #include "glimp/egl/surface.h"
 #include "glimp/gles/blend_state.h"
+#include "glimp/gles/cull_face_state.h"
 #include "glimp/gles/draw_mode.h"
 #include "glimp/gles/index_data_type.h"
 #include "glimp/gles/pixel_format.h"
@@ -299,9 +300,13 @@ void Context::Enable(GLenum cap) {
       draw_state_.scissor.enabled = true;
       draw_state_dirty_flags_.scissor_dirty = true;
       break;
+    case GL_CULL_FACE:
+      draw_state_.cull_face_state.enabled = true;
+      draw_state_.cull_face_state.mode = CullFaceState::kBack;
+      draw_state_dirty_flags_.cull_face_dirty = true;
+      break;
     case GL_DEPTH_TEST:
     case GL_DITHER:
-    case GL_CULL_FACE:
     case GL_STENCIL_TEST:
     case GL_POLYGON_OFFSET_FILL:
     case GL_SAMPLE_ALPHA_TO_COVERAGE:
@@ -323,9 +328,12 @@ void Context::Disable(GLenum cap) {
       draw_state_.scissor.enabled = false;
       draw_state_dirty_flags_.scissor_dirty = true;
       break;
+    case GL_CULL_FACE:
+      draw_state_.cull_face_state.enabled = false;
+      draw_state_dirty_flags_.cull_face_dirty = true;
+      break;
     case GL_DEPTH_TEST:
     case GL_DITHER:
-    case GL_CULL_FACE:
     case GL_STENCIL_TEST:
     case GL_POLYGON_OFFSET_FILL:
     case GL_SAMPLE_ALPHA_TO_COVERAGE:
@@ -424,6 +432,31 @@ void Context::BlendFunc(GLenum sfactor, GLenum dfactor) {
   draw_state_.blend_state.src_factor = src_factor;
   draw_state_.blend_state.dst_factor = dst_factor;
   draw_state_dirty_flags_.blend_state_dirty = true;
+}
+
+namespace {
+CullFaceState::Mode CullFaceModeFromEnum(GLenum mode) {
+  switch (mode) {
+    case GL_FRONT:
+      return CullFaceState::kFront;
+    case GL_BACK:
+      return CullFaceState::kBack;
+    case GL_FRONT_AND_BACK:
+      return CullFaceState::kFrontAndBack;
+    default:
+      return CullFaceState::kModeInvalid;
+  }
+}
+}  // namespace
+
+void Context::CullFace(GLenum mode) {
+  CullFaceState::Mode cull_face_mode = CullFaceModeFromEnum(mode);
+  if (cull_face_mode == CullFaceState::kModeInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+  draw_state_.cull_face_state.mode = cull_face_mode;
+  draw_state_dirty_flags_.cull_face_dirty = true;
 }
 
 GLuint Context::CreateProgram() {
