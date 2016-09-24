@@ -95,6 +95,8 @@ class Context {
 
   void BlendFunc(GLenum sfactor, GLenum dfactor);
 
+  void CullFace(GLenum mode);
+
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);
   void AttachShader(GLuint program, GLuint shader);
