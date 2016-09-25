@@ -68,7 +68,7 @@ void* AllocatorDecorator::Allocate(std::size_t size, std::size_t alignment) {
   return impl_->Allocate(size, alignment);
 }
 
-void* AllocatorDecorator::AllocateForAlignment(std::size_t size,
+void* AllocatorDecorator::AllocateForAlignment(std::size_t* size,
                                                std::size_t alignment) {
   ScopedLock scoped_lock(lock_);
   return impl_->AllocateForAlignment(size, alignment);

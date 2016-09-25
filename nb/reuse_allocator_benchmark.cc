@@ -177,17 +177,14 @@ void ReplayCommands(nb::Allocator* allocator,
 
 class DefaultAllocator : public nb::Allocator {
  public:
-  void* Allocate(std::size_t size) { return Allocate(size, 0); }
-  void* Allocate(std::size_t size, std::size_t alignment) {
+  void* Allocate(std::size_t size) SB_OVERRIDE { return Allocate(size, 0); }
+  void* Allocate(std::size_t size, std::size_t alignment) SB_OVERRIDE {
     return SbMemoryAllocateAligned(alignment, size);
   }
-  void* AllocateForAlignment(std::size_t size, std::size_t alignment) {
-    return SbMemoryAllocateAligned(alignment, size);
-  }
-  void Free(void* memory) { SbMemoryFree(memory); }
-  std::size_t GetCapacity() const { return 0; }
-  std::size_t GetAllocated() const { return 0; }
-  void PrintAllocations() const {}
+  void Free(void* memory) SB_OVERRIDE { SbMemoryFree(memory); }
+  std::size_t GetCapacity() const SB_OVERRIDE { return 0; }
+  std::size_t GetAllocated() const SB_OVERRIDE { return 0; }
+  void PrintAllocations() const SB_OVERRIDE {}
 };
 
 void MemoryPlaybackTest(const std::string& filename) {
