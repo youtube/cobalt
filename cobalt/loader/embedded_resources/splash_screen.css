@@ -4,11 +4,11 @@ body {
 }
 
 #splash {
-  background-color: #e62d27;
+  background-color: #e62117;
   background-image: url("h5vcc-embedded://you_tube_logo.png");
   background-position: center center;
   background-repeat: no-repeat;
-  background-size: 60%;
+  background-size: 100%;
   height: 100%;
   left: 0;
   position: absolute;
