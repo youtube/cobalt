@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="1">
+    <!-- Ideally, this font should only be used if there are no other fonts in
+         our final image. -->
+    <family name="Minimal Roboto">
+        <font weight="400" style="normal">MinimalRoboto.ttf</font>
+    </family>
+    <family name="sans-serif-smallcaps">
+        <font weight="400" style="normal">CarroisGothicSC-Regular.ttf</font>
+    </family>
+</familyset>

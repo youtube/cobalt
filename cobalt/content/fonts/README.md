@@ -1,29 +1,32 @@
-# Generating a minimal font for devices with small space requirements
+## Description
 
-[GlyphIGo](https://github.com/pettarin/glyphIgo) was used to generate a subset
-of the Roboto font
+This directory contains a few different set of font packages one can select
+to be packaged with cobalt.
 
-`cobalt/content/fonts` contains a script called `create_minimized_roboto.sh`
-that can help recreate minimized font if needed
+## How to use
 
-Steps:
+To use this:
 
-1.  `cd src/cobalt/content/fonts`
-1.  `./create_minimized_roboto.sh`
-1.  Download `fontforge` using apt.  `sudo apt install fontforge`
-1.  In `fontforge`, navigate the menu: `Encoding`->`Reencode`->`Glyph Order`.
-Scroll to the top, find the first glyph.  By spec, this glyph is called
-`.notdef`, and is used when this font is the default font and there glyph for a
-character we're looking for is missing in the file.  Often this will be blank
-after the last step, which can be undesired.
-1.  Copy `.notdef` glyph from a different font.
-    1.  Open a different font.
-    1.  Find the `.notdef` glyph.
-    1.  Select the glyph without opening it.
-    1.  Navigate the menu: `Edit`->`Copy` from the font you want to copy from.
-    1.  Switch focus to the minimized font.
-    1.  Select `.notdef` glyph.
-    1.  Navigate the menu: `Edit`->`Paste`.
-1.  Export the font using the menu: `File`->`Generate Fonts...`, make sure that
-the file name is correct.
-1.  Fix any errors if found, or if you can.
+1.  Select one of the profiles below.
+2.  Add a variable named `cobalt_font_package` in your platform's
+`gyp_configuration.gypi` file.
+
+Example:
+
+    'variables': {
+        'cobalt_font_package': '10megabytes',
+    }
+
+
+
+## Profiles
+
+1.  `10megabytes`: Use this set of fonts if the target space allocated for fonts
+is approximately 10 megabytes.  This directory contains DroidSansFallback, which
+will render many Chinese, and Korean characters at lower quality.  The benefit
+of using this font is space savings at the cost of reduced quality.
+1.  `minimal`: Use this if minimizing space is a goal, and Cobalt should rely
+on web fonts.
+1.  `unlimited`: This font set is preferred, and default.  This will enable the
+use the fonts with highest quality and coverage, without the network latency of
+fetching fonts from the server.
