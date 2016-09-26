@@ -28,6 +28,12 @@
     # Contains the current build configuration.
     'cobalt_config%': 'gold',
     'cobalt_fastbuild%': 0,
+
+    # Contains the current font package selection.  This can be used to trade
+    # font quality, coverage, and latency with smaller font package size.
+    # See content/fonts/README.md for more details.
+    'cobalt_font_package%': 'unlimited',
+
     # Build version number.
     'cobalt_version%': 0,
     # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
