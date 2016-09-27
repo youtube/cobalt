@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/element.h"
@@ -149,6 +150,10 @@ void LibxmlParserWrapper::OnEndDocument() {
 
   if (!node_stack_.empty() && !error_callback_.is_null()) {
     error_callback_.Run("Node stack not empty at end of document.");
+  }
+
+  if (IsFullDocument()) {
+    document_->PostToDispatchEvent(FROM_HERE, base::Tokens::domcontentloaded());
   }
 }
 
