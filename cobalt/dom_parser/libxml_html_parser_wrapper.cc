@@ -110,9 +110,7 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (!IsStringUTF8(std::string(data, size))) {
-    static const char* kWarningNotUTF8 = "Ignoring non-UTF8 HTML input.";
-    OnParsingIssue(kWarning, kWarningNotUTF8);
+  if (CheckInputAndUpdateSeverity(data, size) >= kError) {
     return;
   }
 
@@ -127,7 +125,7 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
         NULL /*filename*/, XML_CHAR_ENCODING_UTF8);
 
     if (!html_parser_context_) {
-      static const char* kErrorUnableCreateParser =
+      static const char kErrorUnableCreateParser[] =
           "Unable to create the libxml2 parser.";
       OnParsingIssue(kFatal, kErrorUnableCreateParser);
     } else {
@@ -149,12 +147,8 @@ void LibxmlHTMLParserWrapper::Finish() {
   }
 
   if (html_parser_context_) {
-    // TODO: The check on issue level is a workaround for the fact that libxml
-    // doesn't recover fully from error related to encoding.
-    if (issue_level() <= kWarning) {
-      htmlParseChunk(html_parser_context_, NULL, 0,
-                     1 /*terminate*/);  // Triggers EndDocument
-    }
+    htmlParseChunk(html_parser_context_, NULL, 0,
+                   1 /*terminate*/);  // Triggers EndDocument
     if (IsFullDocument()) {
       document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
     }
