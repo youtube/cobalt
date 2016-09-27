@@ -17,11 +17,15 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/directfb/application_directfb.h"
 #include "starboard/shared/signal/crash_signals.h"
+#include "starboard/shared/signal/suspend_signals.h"
 
 int main(int argc, char** argv) {
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
+  starboard::shared::signal::InstallSuspendSignalHandlers();
   starboard::ApplicationDirectFB application;
   int result = application.Run(argc, argv);
+  starboard::shared::signal::UninstallSuspendSignalHandlers();
+  starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
