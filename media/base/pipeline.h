@@ -51,7 +51,9 @@ class MediaLog;
 // playing.
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
-  typedef base::Callback<void(const gfx::Rect&)> SetBoundsCB;
+  // Return true if the punch through box should be rendered.  Return false if
+  // no punch through box should be rendered.
+  typedef base::Callback<bool(const gfx::Rect&)> SetBoundsCB;
 
   // Buffering states the pipeline transitions between during playback.
   // kHaveMetadata:
