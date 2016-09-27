@@ -725,7 +725,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 
   video_read_in_progress_ = false;
   if (buffer->IsEndOfStream()) {
-    SbPlayerWriteEndOfStream(player_, kSbMediaTypeAudio);
+    SbPlayerWriteEndOfStream(player_, kSbMediaTypeVideo);
     return;
   }
   SbMediaVideoSampleInfo video_info;
