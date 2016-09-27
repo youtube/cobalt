@@ -27,6 +27,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
@@ -180,6 +181,15 @@ class WebModule {
   // module, which is lazily created by this function if necessary.
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
+
+#if defined(COBALT_BUILD_TYPE_DEBUG)
+  // Non-optimized builds require a bigger stack size.
+  static const size_t kBaseStackSize = 2 * 1024 * 1024;
+#else
+  static const size_t kBaseStackSize = 256 * 1024;
+#endif
+  static const size_t kWebModuleStackSize =
+      kBaseStackSize + base::kAsanAdditionalStackSize;
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and
