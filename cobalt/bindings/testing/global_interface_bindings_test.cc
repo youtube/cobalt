@@ -38,7 +38,9 @@ class GlobalInterfaceBindingsTest : public BindingsTestBase {
 }  // namespace
 
 TEST_F(GlobalInterfaceBindingsTest, GlobalWindowIsThis) {
-  EXPECT_TRUE(EvaluateScript("window === this;", NULL));
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("window === this;", &result));
+  EXPECT_STREQ("true", result.c_str());
 }
 
 TEST_F(GlobalInterfaceBindingsTest, GlobalOperation) {

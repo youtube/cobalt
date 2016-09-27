@@ -368,6 +368,10 @@ inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
       context,
       global_environment->wrapper_factory()->GetWrapperProxy(in_object));
   DCHECK(object);
+  JS::RootedObject proxy_target(context, js::GetProxyTargetObject(object));
+  if (JS_IsGlobalObject(proxy_target)) {
+    object = proxy_target;
+  }
 
   out_value.set(OBJECT_TO_JSVAL(object));
 }
