@@ -556,23 +556,18 @@ unsigned int XKeyEventToSbKeyModifiers(XKeyEvent* event) {
   return key_modifiers;
 }
 
-bool XNextEventPoll(Display* display, XEvent* out_event) {
-  if (XPending(display) == 0) {
-    return false;
-  }
-
-  XNextEvent(display, out_event);
-  return true;
-}
-
 bool XNextEventTimed(Display* display, XEvent* out_event, SbTime duration) {
   if (XPending(display) == 0) {
+    if (duration <= SbTime()) {
+      return false;
+    }
+
     int fd = ConnectionNumber(display);
     fd_set read_set;
     FD_ZERO(&read_set);
     FD_SET(fd, &read_set);
     struct timeval tv;
-    SbTime clamped_duration = std::max(duration, (SbTime)0);
+    SbTime clamped_duration = std::max(duration, SbTime());
     ToTimevalDuration(clamped_duration, &tv);
     if (select(fd + 1, &read_set, NULL, NULL, &tv) == 0) {
       return false;
@@ -762,20 +757,10 @@ bool ApplicationX11::MayHaveSystemEvents() {
   return display_;
 }
 
-shared::starboard::Application::Event* ApplicationX11::PollNextSystemEvent() {
-  SB_DCHECK(display_);
-
-  XEvent x_event;
-
-  if (XNextEventPoll(display_, &x_event)) {
-    return XEventToEvent(&x_event);
-  }
-
-  return NULL;
-}
-
 shared::starboard::Application::Event*
 ApplicationX11::WaitForSystemEventWithTimeout(SbTime time) {
+  SB_DCHECK(display_);
+
   XEvent x_event;
 
   if (XNextEventTimed(display_, &x_event, time)) {
@@ -878,6 +863,18 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     data->key_location = XKeyEventToSbKeyLocation(x_key_event);
     data->key_modifiers = XKeyEventToSbKeyModifiers(x_key_event);
     return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+  } else if (x_event->type == FocusIn) {
+    Unpause(NULL, NULL);
+    return NULL;
+  } else if (x_event->type == FocusOut) {
+    Pause(NULL, NULL);
+    return NULL;
+  } else if (x_event->type == MapNotify) {
+    Resume(NULL, NULL);
+    return NULL;
+  } else if (x_event->type == UnmapNotify) {
+    Suspend(NULL, NULL);
+    return NULL;
   }
 
   SB_DLOG(INFO) << "Unrecognized event type = " << x_event->type;
