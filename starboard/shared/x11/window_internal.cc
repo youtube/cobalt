@@ -78,7 +78,8 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   }
 
   XSetWindowAttributes swa = {0};
-  swa.event_mask = KeyPressMask | KeyReleaseMask | StructureNotifyMask;
+  swa.event_mask =
+      KeyPressMask | KeyReleaseMask | StructureNotifyMask | FocusChangeMask;
   swa.colormap =
       XCreateColormap(display, root_window, x_visual_info.visual, AllocNone);
   // Setting border_pixel to 0 is required if the requested window depth (e.g.
