@@ -32,7 +32,9 @@ namespace media {
 
 class WebMediaPlayer {
  public:
-  typedef base::Callback<void(const gfx::Rect&)> SetBoundsCB;
+  // Return true if the punch through box should be rendered.  Return false if
+  // no punch through box should be rendered.
+  typedef base::Callback<bool(const gfx::Rect&)> SetBoundsCB;
 
   enum NetworkState {
     kNetworkStateEmpty,
