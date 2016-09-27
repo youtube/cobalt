@@ -26,6 +26,43 @@
 extern "C" {
 #endif
 
+// The Starboard Application life cycle
+// ------------------------------------
+//
+//           *
+//           |                      _________________________
+//         Start                   |                         |
+//           |                     |                       Resume
+//           V                     V                         |
+//      [ STARTED ] --Pause--> [ PAUSED ] --Suspend--> [ SUSPENDED ]
+//           ^                     |                         |
+//           |                  Unpause                     Stop
+//           |_____________________|                         |
+//                                                           V
+//                                                      [ STOPPED ]
+//
+// The first event that a Starboard application will receive is Start
+// (kSbEventTypeStart). This puts the application in the STARTED state; it is in
+// the foreground and can expect to do all the normal things it might want to
+// do. Once in the STARTED state, it may receive a Pause event, putting the
+// application into the PAUSED state.
+//
+// In the PAUSED state, the application is still visible, but has lost focus, or
+// it is partially obscured by a modal dialog, or it is on its way to being shut
+// down. The application should pause activity in this state. In this state, it
+// can receive Unpause to be brought back to the foreground state, STARTED, or
+// Suspend to be pushed further in the background to the SUSPENDED state.
+//
+// In the SUSPENDED state, the application is generally not visible. It should
+// immediately release all graphics and video resources, and shut down all
+// background activity (timers, rendering, etc). Additionally, the application
+// should flush storage to ensure that if the application is killed, the storage
+// will be up-to-date. The application may be killed at this point, but will
+// ideally receive a Stop event for a more graceful shutdown.
+//
+// Note that the application is always expected to transition through PAUSED to
+// SUSPENDED before receiving Stop or being killed.
+
 // An enumeration of all possible event types dispatched directly by the
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
@@ -33,28 +70,43 @@ typedef enum SbEventType {
   // The first event that an application receives on startup. Applications
   // should perform initialization and prepare to react to subsequent events.
   // Applications that wish to run and then exit must call SbSystemRequestStop()
-  // to terminate. SbEventStartData is passed as the data argument.
+  // to terminate. This event will only be sent once for a given process launch.
+  // SbEventStartData is passed as the data argument.
   kSbEventTypeStart,
 
-  // The operating system will put the application into a suspended state after
-  // this event is handled. This is an opportunity for the application to
-  // partially tear down and release some resources. Some platforms will
-  // terminate the application if work is done while suspended. Can only be
+  // A dialog will be raised or the application will otherwise be put into a
+  // background-but-visible or partially-obscured state (PAUSED). Graphics and
+  // video resources will still be available, but the application should pause
+  // foreground activity like animations and video playback. Can only be
   // received after a Start event. The only events that should be dispatched
-  // after a Suspend event are Resume or Stop. No data argument.
+  // after a Pause event are Unpause or Suspend. No data argument.
+  kSbEventTypePause,
+
+  // The application is returning to the foreground (STARTED) after having been
+  // put in the PAUSED (e.g. partially-obscured) state. The application should
+  // unpause foreground activity like animations and video playback. Can only be
+  // received after a Pause or Resume event. No data argument.
+  kSbEventTypeUnpause,
+
+  // The operating system will put the application into a Suspended state after
+  // this event is handled. The application is expected to stop periodic
+  // background work, release ALL graphics and video resources, and flush any
+  // pending SbStorage writes. Some platforms will terminate the application if
+  // work is done or resources are retained after suspension. Can only be
+  // received after a Pause event. The only events that should be dispatched
+  // after a Suspend event are Resume or Stop. On some platforms, the process
+  // may also be killed after Suspend without a Stop event. No data argument.
   kSbEventTypeSuspend,
 
-  // The operating system has restored the application to normal execution after
-  // a Pause event. This is the first even the application will receive coming
-  // out of Pause, and it will only be received immediately after a Pause event.
-  // No data argument.
+  // The operating system has restored the application to the PAUSED state from
+  // the SUSPENDED state. This is the first event the application will receive
+  // coming out of SUSPENDED, and it will only be received after a Suspend
+  // event. The application will now be in the PAUSED state. No data argument.
   kSbEventTypeResume,
 
   // The operating system will shut the application down entirely after this
-  // event is handled. This is an opportunity for the application to save any
-  // state that it wishes to before its process space is revoked. Can only be
-  // recieved after a Start event. May be received after a Pause event. No data
-  // argument.
+  // event is handled. Can only be recieved after a Suspend event, in the
+  // SUSPENDED state. No data argument.
   kSbEventTypeStop,
 
   // A user input event, including keyboard, mouse, gesture, or something else.
