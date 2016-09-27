@@ -79,9 +79,7 @@ void LibxmlXMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (!IsStringUTF8(std::string(data, size))) {
-    static const char* kWarningNotUTF8 = "Ignoring non-UTF8 XML input.";
-    OnParsingIssue(kWarning, kWarningNotUTF8);
+  if (CheckInputAndUpdateSeverity(data, size) >= kError) {
     return;
   }
 
