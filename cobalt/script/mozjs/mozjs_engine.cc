@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
+#include "cobalt/browser/web_module.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "third_party/mozjs/cobalt_config/include/jscustomallocator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -107,6 +108,12 @@ MozjsEngine::MozjsEngine() {
   runtime_ =
       JS_NewRuntime(kGarbageCollectionThresholdBytes, JS_NO_HELPER_THREADS);
   CHECK(runtime_);
+
+  // Sets the size of the native stack that should not be exceeded.
+  // Setting three quarters of the web module stack size to ensure that native
+  // stack won't exceed the stack size.
+  JS_SetNativeStackQuota(runtime_,
+                         browser::WebModule::kWebModuleStackSize / 4 * 3);
 
   JS_SetRuntimePrivate(runtime_, this);
 

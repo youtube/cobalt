@@ -23,7 +23,6 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
-#include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
@@ -568,18 +567,10 @@ WebModule::WebModule(
       window_close_callback, media_module, network_module, window_dimensions,
       resource_provider, kDOMMaxElementDepth, layout_refresh_rate, options);
 
-#if defined(COBALT_BUILD_TYPE_DEBUG)
-  // Non-optimized builds require a bigger stack size.
-  const size_t kBaseStackSize = 2 * 1024 * 1024;
-#else
-  const size_t kBaseStackSize = 256 * 1024;
-#endif
-
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  size_t stack_size = kBaseStackSize + base::kAsanAdditionalStackSize;
   thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_DEFAULT, stack_size));
+      base::Thread::Options(MessageLoop::TYPE_DEFAULT, kWebModuleStackSize));
   DCHECK(message_loop());
 
   message_loop()->PostTask(
