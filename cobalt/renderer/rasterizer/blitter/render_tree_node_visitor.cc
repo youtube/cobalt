@@ -240,18 +240,23 @@ void RenderTreeNodeVisitor::Visit(
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::PunchThroughVideoNode* punch_through_video_node) {
-  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
-  SbBlitterSetBlending(context_, false);
   SbBlitterRect blitter_rect =
       RectFToBlitterRect(render_state_.transform.TransformRect(
           punch_through_video_node->data().rect));
-  SbBlitterFillRect(context_, blitter_rect);
 
-  if (!punch_through_video_node->data().set_bounds_cb.is_null()) {
-    punch_through_video_node->data().set_bounds_cb.Run(
-        math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
-                   blitter_rect.height));
+  if (punch_through_video_node->data().set_bounds_cb.is_null()) {
+    return;
   }
+  bool render_punch_through =
+      punch_through_video_node->data().set_bounds_cb.Run(
+          math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
+                     blitter_rect.height));
+  if (!render_punch_through) {
+    return;
+  }
+  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
+  SbBlitterSetBlending(context_, false);
+  SbBlitterFillRect(context_, blitter_rect);
 }
 
 namespace {

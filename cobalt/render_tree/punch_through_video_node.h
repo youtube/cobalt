@@ -41,7 +41,7 @@ namespace render_tree {
 //          support punch out video rendering.
 class PunchThroughVideoNode : public Node {
  public:
-  typedef base::Callback<void(const math::Rect&)> SetBoundsCB;
+  typedef base::Callback<bool(const math::Rect&)> SetBoundsCB;
 
   struct Builder {
     Builder(const math::RectF& rect, const SetBoundsCB& set_bounds_cb)
