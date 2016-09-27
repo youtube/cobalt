@@ -18,6 +18,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/log.h"
+#include "starboard/shared/signal/signal_internal.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -26,48 +27,44 @@ namespace signal {
 
 namespace {
 
-const int kSignalsToTrap[] = {
-    SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV,
+const int kCrashSignalsToTrap[] = {
+    SIGABRT, SIGFPE, SIGILL, SIGSEGV,
 };
 
-const char* GetSignalName(int signal_id) {
-  switch (signal_id) {
-    case SIGABRT:
-      return "SIGABRT";
-    case SIGFPE:
-      return "SIGFPE";
-    case SIGILL:
-      return "SIGILL";
-    case SIGINT:
-      return "SIGINT";
-    case SIGSEGV:
-      return "SIGSEGV";
-    default:
-      return "UNKNOWN SIGNAL";
-  }
-}
+const int kStopSignalsToTrap[] = {
+    SIGTERM, SIGINT,
+};
 
 void DumpStackSignalSafe(int signal_id) {
-  const char* signal_name = GetSignalName(signal_id);
-  SbLogRawFormatF("\nCaught signal: %s (%d)\n", signal_name, signal_id);
-  SbLogFlush();
+  LogSignalCaught(signal_id);
   SbLogRawDumpStack(1);
 
   UninstallCrashSignalHandlers();
   SbSystemBreakIntoDebugger();
 }
 
+void Stop(int signal_id) {
+  LogSignalCaught(signal_id);
+  SbSystemRequestStop(0);
+}
+
 }  // namespace
 
 void InstallCrashSignalHandlers() {
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kSignalsToTrap); ++i) {
-    ::signal(kSignalsToTrap[i], &DumpStackSignalSafe);
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kCrashSignalsToTrap); ++i) {
+    ::signal(kCrashSignalsToTrap[i], &DumpStackSignalSafe);
+  }
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
+    ::signal(kStopSignalsToTrap[i], &Stop);
   }
 }
 
 void UninstallCrashSignalHandlers() {
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kSignalsToTrap); ++i) {
-    ::signal(kSignalsToTrap[i], SIG_DFL);
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kCrashSignalsToTrap); ++i) {
+    ::signal(kCrashSignalsToTrap[i], SIG_DFL);
+  }
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
+    ::signal(kStopSignalsToTrap[i], SIG_DFL);
   }
 }
 

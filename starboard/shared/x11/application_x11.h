@@ -63,7 +63,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() SB_OVERRIDE;
-  Event* PollNextSystemEvent() SB_OVERRIDE;
   Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
   void WakeSystemEventWait() SB_OVERRIDE;
 

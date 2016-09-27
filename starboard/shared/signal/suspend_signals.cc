@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/signal/crash_signals.h"
+#include "starboard/shared/signal/suspend_signals.h"
 
 #include <signal.h>
 
 #include "starboard/configuration.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/shared/signal/signal_internal.h"
+#include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -26,14 +28,6 @@ namespace shared {
 namespace signal {
 
 namespace {
-
-const int kCrashSignalsToTrap[] = {
-    SIGABRT, SIGFPE, SIGILL, SIGSEGV,
-};
-
-const int kStopSignalsToTrap[] = {
-    SIGTERM, SIGINT,
-};
 
 void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
   struct sigaction action = {0};
@@ -45,38 +39,33 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
   ::sigaction(signal_id, &action, NULL);
 }
 
-void DumpStackSignalSafe(int signal_id) {
-  LogSignalCaught(signal_id);
-  SbLogFlush();
-  SbLogRawDumpStack(1);
-
-  UninstallCrashSignalHandlers();
-  SbSystemBreakIntoDebugger();
+void SuspendDone(void* /*context*/) {
+  SetSignalHandler(SIGTSTP, SIG_DFL);
+  raise(SIGTSTP);
 }
 
-void Stop(int signal_id) {
+void Suspend(int signal_id) {
   LogSignalCaught(signal_id);
-  SbSystemRequestStop(0);
+  starboard::Application::Get()->Suspend(NULL, &SuspendDone);
+}
+
+void Resume(int signal_id) {
+  LogSignalCaught(signal_id);
+  SetSignalHandler(SIGTSTP, &Suspend);
+  // TODO: Resume or Unpause based on state.
+  starboard::Application::Get()->Unpause(NULL, NULL);
 }
 
 }  // namespace
 
-void InstallCrashSignalHandlers() {
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kCrashSignalsToTrap); ++i) {
-    SetSignalHandler(kCrashSignalsToTrap[i], &DumpStackSignalSafe);
-  }
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
-    SetSignalHandler(kStopSignalsToTrap[i], &Stop);
-  }
+void InstallSuspendSignalHandlers() {
+  SetSignalHandler(SIGTSTP, &Suspend);
+  SetSignalHandler(SIGCONT, &Resume);
 }
 
-void UninstallCrashSignalHandlers() {
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kCrashSignalsToTrap); ++i) {
-    SetSignalHandler(kCrashSignalsToTrap[i], SIG_DFL);
-  }
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
-    SetSignalHandler(kStopSignalsToTrap[i], SIG_DFL);
-  }
+void UninstallSuspendSignalHandlers() {
+  SetSignalHandler(SIGTSTP, SIG_DFL);
+  SetSignalHandler(SIGCONT, SIG_DFL);
 }
 
 }  // namespace signal
