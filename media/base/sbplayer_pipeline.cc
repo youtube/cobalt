@@ -118,12 +118,13 @@ class SetBoundsCaller : public base::RefCountedThreadSafe<SetBoundsCaller> {
     base::Lock lock_;
     player_ = player;
   }
-  void SetBounds(const gfx::Rect& rect) {
+  bool SetBounds(const gfx::Rect& rect) {
     base::AutoLock auto_lock(lock_);
-    if (SbPlayerIsValid(player_)) {
-      SbPlayerSetBounds(player_, rect.x(), rect.y(), rect.width(),
-                        rect.height());
+    if (!SbPlayerIsValid(player_)) {
+      return false;
     }
+    SbPlayerSetBounds(player_, rect.x(), rect.y(), rect.width(), rect.height());
+    return true;
   }
 
  private:
