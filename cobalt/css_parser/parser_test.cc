@@ -38,6 +38,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
+#include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/focus_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
 #include "cobalt/cssom/font_style_value.h"
@@ -52,6 +53,7 @@
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"
@@ -8260,6 +8262,119 @@ TEST_F(ParserTest, ParsesValidMediaListWithIntegers) {
   ASSERT_EQ(media_list->media_text(), ", ");
   math::Size size;
   EXPECT_TRUE(media_list->EvaluateConditionValue(size));
+}
+
+TEST_F(ParserTest, ParsesNoneFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("filter: none;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            style->GetPropertyValue(cssom::kFilterProperty));
+}
+
+TEST_F(ParserTest, ParsesFilterWithKeywordInitial) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("filter: initial;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kFilterProperty));
+}
+
+TEST_F(ParserTest, ParsesFilterWithKeywordInherit) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("filter: inherit;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
+            style->GetPropertyValue(cssom::kFilterProperty));
+}
+
+TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(projection.msh),"
+          "                        180deg 1.5rad,"
+          "                        matrix3d(1, 0, 0, 0,"
+          "                                 0, 1, 0, 0,"
+          "                                 0, 0, 1, 0,"
+          "                                 0, 0, 0, 1));",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  ASSERT_EQ(1, filter_list->value().size());
+
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
+  EXPECT_EQ(1.5f, mtm_function->vertical_fov());
+}
+
+TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(projection.msh)"
+          "                     640 480 url(p2.msh)"
+          "                     1920 1080 url(yeehaw.msh)"
+          "                     33 22 url(yoda.msh),"
+          "                    100deg 60deg,"
+          "                    matrix3d(1, 0, 0, 5,"
+          "                             0, 2, 0, 0,"
+          "                             6, 0, 3, 0,"
+          "                             0, 7, 0, 4));",
+          source_location_);
+
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+
+  const cssom::MTMFunction::ResolutionMatchedMeshListBuilder& meshes =
+      mtm_function->resolution_matched_meshes();
+
+  ASSERT_EQ(3, meshes.size());
+  EXPECT_EQ(640, meshes[0]->width_match());
+  EXPECT_EQ(22, meshes[2]->height_match());
+
+  EXPECT_EQ(
+      "yeehaw.msh",
+      dynamic_cast<cssom::URLValue*>(meshes[1]->mesh_url().get())->value());
+}
+
+TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(p.msh),"
+          "                    100deg 60deg,"
+          "                    matrix3d(1, 0, 0, 5,"
+          "                             0, 2, 0, 0,"
+          "                             6, 0, 3, 0,"
+          "                             0, 7, 0, 4));",
+          source_location_);
+
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+
+  const glm::mat4& actual = mtm_function->transform();
+  EXPECT_TRUE(
+      glm::all(glm::equal(glm::vec4(1.0f, 0.0f, 0.0f, 5.0f), actual[0])));
+  EXPECT_TRUE(
+      glm::all(glm::equal(glm::vec4(6.0f, 0.0f, 3.0f, 0.0f), actual[2])));
+  EXPECT_EQ(7.0f, actual[3][1]);
+  EXPECT_EQ(2.0f, actual[1][1]);
+  EXPECT_EQ(0.0f, actual[2][3]);
+  EXPECT_EQ(4.0f, actual[3][3]);
 }
 
 }  // namespace css_parser

@@ -20,6 +20,7 @@
 
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
+#include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -28,6 +29,7 @@
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
+#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_key_list_value.h"
@@ -59,6 +61,8 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitAbsoluteURL, void(AbsoluteURLValue* absolute_url_value));
   MOCK_METHOD1(VisitCalc, void(CalcValue* calc_value));
   MOCK_METHOD1(VisitFontStyle, void(FontStyleValue* font_style_value));
+  MOCK_METHOD1(VisitFilterFunctionList,
+               void(FilterFunctionListValue* filter_list_value));
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitInteger, void(IntegerValue* integer_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
@@ -108,6 +112,23 @@ TEST(PropertyValueVisitorTest, VisitsCalcValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitCalc(calc_value.get()));
   calc_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsFilterListValue) {
+  MTMFunction::ResolutionMatchedMeshListBuilder resMs;
+  resMs.push_back(
+      new MTMFunction::ResolutionMatchedMesh(22, 22, new URLValue("a.msh")));
+
+  FilterFunctionListValue::Builder builder;
+  builder.push_back(new MTMFunction(new URLValue("p.msh"), resMs.Pass(), 120,
+                                    60, glm::mat4(1.0f)));
+
+  scoped_refptr<FilterFunctionListValue> filter_list_value =
+      new FilterFunctionListValue(builder.Pass());
+
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitFilterFunctionList(filter_list_value.get()));
+  filter_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsFontStyleValue) {
