@@ -278,13 +278,25 @@
     'include_dirs': [ '<(DEPTH)' ],
     'libraries': [ '<@(platform_libraries)' ],
 
-    # TODO: This is needed to support the option to include
-    # posix_emulation.h to all compiled source files. This dependency should
-    # be refactored and removed.
-    'include_dirs_target': [
-      '<(DEPTH)/lbshell/src',
-    ],
     'conditions': [
+      ['final_executable_type=="shared_library"', {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'defines': [
+              # Rewrite main() functions into StarboardMain. TODO: This is a
+              # hack, it would be better to be more surgical, here.
+              'main=StarboardMain',
+            ],
+            'cflags': [
+              # To link into a shared library on Linux and similar platforms,
+              # the compiler must be told to generate Position Independent Code.
+              # This appears to cause errors when linking the code statically,
+              # however.
+              '-fPIC',
+            ],
+          }],
+        ],
+      }],
       ['posix_emulation_target_type == "shared_library"', {
         'defines': [
           '__LB_BASE_SHARED__=1',
@@ -304,6 +316,10 @@
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/lb_shell',
           # headers that we don't need, but should exist somewhere in the path:
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
+          # TODO: This is needed to support the option to include
+          # posix_emulation.h to all compiled source files. This dependency
+          # should be refactored and removed.
+          '<(DEPTH)/lbshell/src',
         ],
       }],  # OS == "lb_shell"
       ['OS == "starboard"', {
