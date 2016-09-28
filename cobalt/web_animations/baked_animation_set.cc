@@ -16,6 +16,8 @@
 
 #include "cobalt/web_animations/baked_animation_set.h"
 
+#include <algorithm>
+
 #include "cobalt/web_animations/animation_effect_read_only.h"
 
 namespace cobalt {
@@ -33,8 +35,7 @@ void BakedAnimation::Apply(const base::TimeDelta& timeline_time,
                            cssom::CSSComputedStyleData* in_out_style) const {
   // Get the animation's local time from the Animation::Data object.
   base::optional<base::TimeDelta> local_time =
-      animation_data_.ComputeLocalTimeFromTimelineTime(
-          timeline_time.InMillisecondsF());
+      animation_data_.ComputeLocalTimeFromTimelineTime(timeline_time);
 
   // Obtain the iteration progress from the AnimationEffectTimingReadOnly::Data
   // object.
@@ -50,6 +51,13 @@ void BakedAnimation::Apply(const base::TimeDelta& timeline_time,
   keyframe_data_.ApplyAnimation(in_out_style,
                                 *iteration_progress.iteration_progress,
                                 *iteration_progress.current_iteration);
+}
+
+base::TimeDelta BakedAnimation::end_time() const {
+  base::TimeDelta end_time_local =
+      effect_timing_data_.time_until_after_phase(base::TimeDelta());
+
+  return *animation_data_.ComputeTimelineTimeFromLocalTime(end_time_local);
 }
 
 BakedAnimationSet::BakedAnimationSet(const AnimationSet& animation_set) {
@@ -75,6 +83,16 @@ void BakedAnimationSet::Apply(const base::TimeDelta& timeline_time,
        iter != animations_.end(); ++iter) {
     (*iter)->Apply(timeline_time, in_out_style);
   }
+}
+
+base::TimeDelta BakedAnimationSet::end_time() const {
+  base::TimeDelta max_end_time = -base::TimeDelta::Max();
+  for (AnimationList::const_iterator iter = animations_.begin();
+       iter != animations_.end(); ++iter) {
+    base::TimeDelta animation_end_time = (*iter)->end_time();
+    max_end_time = std::max(animation_end_time, max_end_time);
+  }
+  return max_end_time;
 }
 
 }  // namespace web_animations

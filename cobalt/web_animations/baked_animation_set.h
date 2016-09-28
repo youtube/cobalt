@@ -49,6 +49,10 @@ class BakedAnimation {
   void Apply(const base::TimeDelta& timeline_time,
              cssom::CSSComputedStyleData* in_out_style) const;
 
+  // Returns the timeline time at which this animation will end.  If the
+  // animation has no ending, base::TimeDelta::Max() will be returned.
+  base::TimeDelta end_time() const;
+
  private:
   const Animation::Data animation_data_;
   const AnimationEffectTimingReadOnly::Data effect_timing_data_;
@@ -66,6 +70,10 @@ class BakedAnimationSet {
   // it to the output animated style.
   void Apply(const base::TimeDelta& timeline_time,
              cssom::CSSComputedStyleData* in_out_style) const;
+
+  // Returns the timeline time at which point all animations in the set are
+  // ended, or base::TimeDelta::Max() if at leats one animation will never end.
+  base::TimeDelta end_time() const;
 
  private:
   typedef ScopedVector<BakedAnimation> AnimationList;
