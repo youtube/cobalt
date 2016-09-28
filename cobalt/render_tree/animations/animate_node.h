@@ -73,9 +73,19 @@ class AnimateNode : public Node {
     // Convenience method to attach a single animation to a target node.
     template <typename T>
     void Add(const scoped_refptr<T>& target_node,
+             const typename Animation<T>::Function& single_animation,
+             base::TimeDelta expiry) {
+      AddInternal(target_node,
+                  scoped_refptr<AnimationListBase>(
+                      new AnimationList<T>(single_animation, expiry)));
+    }
+
+    template <typename T>
+    void Add(const scoped_refptr<T>& target_node,
              const typename Animation<T>::Function& single_animation) {
-      AddInternal(target_node, scoped_refptr<AnimationListBase>(
-                                   new AnimationList<T>(single_animation)));
+      AddInternal(target_node,
+                  scoped_refptr<AnimationListBase>(new AnimationList<T>(
+                      single_animation, base::TimeDelta::Max())));
     }
 
     // Merge all mappings from another AnimateNode::Builder into this one.
@@ -137,6 +147,12 @@ class AnimateNode : public Node {
   // Returns the sub-tree for which the animations apply to.
   const scoped_refptr<Node> source() const { return source_; }
 
+  // Returns the time at which all animations will have completed, or
+  // base::TimeDelta::Max() if they will never complete.
+  // It will be true that AnimateNode::Apply(x) == AnimateNode::Apply(y) for
+  // all x, y >= expiry().
+  const base::TimeDelta& expiry() const { return expiry_; }
+
  private:
   // A helper render tree visitor class used to compile sub render-tree
   // animations.
@@ -168,6 +184,7 @@ class AnimateNode : public Node {
   // that guides us towards all nodes that need to be animated.
   TraverseList traverse_list_;
   scoped_refptr<Node> source_;
+  base::TimeDelta expiry_;
 };
 
 }  // namespace animations
