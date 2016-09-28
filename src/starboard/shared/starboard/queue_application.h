@@ -54,10 +54,13 @@ class QueueApplication : public Application {
   virtual bool MayHaveSystemEvents() = 0;
 
   // Returns an event if one exists, otherwise returns NULL.
-  virtual Event* PollNextSystemEvent() = 0;
+  virtual Event* PollNextSystemEvent() {
+    return WaitForSystemEventWithTimeout(SbTime());
+  }
 
   // Waits for an event until the timeout |time| runs out.  If an event occurs
-  // in this time, it is returned, otherwise NULL is returned.
+  // in this time, it is returned, otherwise NULL is returned. If |time| is zero
+  // or negative, then this should function effectively like a no-wait poll.
   virtual Event* WaitForSystemEventWithTimeout(SbTime time) = 0;
 
   // Wakes up any thread waiting within a call to
@@ -65,6 +68,20 @@ class QueueApplication : public Application {
   virtual void WakeSystemEventWait() = 0;
 
  private:
+  // Specialization of Queue for starboard events.  It differs in that it has
+  // the responsibility of deleting heap allocated starboard events in its
+  // destructor.  Note the non-virtual destructor, which is intentional and
+  // safe, as Queue has no virtual functions and EventQueue is never used
+  // polymorphically.
+  class EventQueue : public Queue<Event*> {
+   public:
+    ~EventQueue() {
+      while (Event* event = Poll()) {
+        delete event;
+      }
+    }
+  };
+
   class TimedEventQueue {
    public:
     TimedEventQueue();
@@ -99,7 +116,7 @@ class QueueApplication : public Application {
   TimedEventQueue timed_event_queue_;
 
   // The queue of events that have not yet been dispatched.
-  Queue<Event*> event_queue_;
+  EventQueue event_queue_;
 };
 
 }  // namespace starboard

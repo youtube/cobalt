@@ -19,7 +19,11 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "cobalt/base/c_val.h"
+#include "cobalt/base/poller.h"
+#include "cobalt/browser/web_module.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
+#include "third_party/mozjs/cobalt_config/include/jscustomallocator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
@@ -38,6 +42,64 @@ JSSecurityCallbacks security_callbacks = {
   CheckAccessStub,
   MozjsGlobalEnvironment::CheckEval
 };
+
+#if defined(__LB_SHELL__FOR_RELEASE__)
+const int kPollerPeriodMs = 2000;
+#else  // #if defined(__LB_SHELL__FOR_RELEASE__)
+const int kPollerPeriodMs = 20;
+#endif  // #if defined(__LB_SHELL__FOR_RELEASE__)
+
+class EngineStats {
+ public:
+  EngineStats();
+
+  static EngineStats* GetInstance() {
+    return Singleton<EngineStats,
+                     StaticMemorySingletonTraits<EngineStats> >::get();
+  }
+
+  void EngineCreated() {
+    base::AutoLock auto_lock(lock_);
+    ++engine_count_;
+  }
+
+  void EngineDestroyed() {
+    base::AutoLock auto_lock(lock_);
+    --engine_count_;
+  }
+
+  void Update() {
+    base::AutoLock auto_lock(lock_);
+    allocated_memory_ =
+        MemoryAllocatorReporter::Get()->GetCurrentBytesAllocated();
+    mapped_memory_ = MemoryAllocatorReporter::Get()->GetCurrentBytesMapped();
+    memory_sum_ = allocated_memory_ + mapped_memory_;
+  }
+
+ private:
+  base::Lock lock_;
+  base::CVal<size_t, base::CValPublic> allocated_memory_;
+  base::CVal<size_t, base::CValPublic> mapped_memory_;
+  base::CVal<size_t, base::CValPublic> memory_sum_;
+  base::CVal<size_t> engine_count_;
+
+  // Repeating timer to query the used bytes.
+  scoped_ptr<base::PollerWithThread> poller_;
+};
+
+EngineStats::EngineStats()
+    : allocated_memory_("Memory.JS.AllocatedMemory", 0,
+                        "JS memory occupied by the Mozjs allocator."),
+      mapped_memory_("Memory.JS.MappedMemory", 0, "JS mapped memory."),
+      memory_sum_("Memory.JS", 0,
+                  "Total memory occupied by the Mozjs allocator and heap."),
+      engine_count_("Count.JS.Engine", 0,
+                    "Total JavaScript engine registered.") {
+  poller_.reset(new base::PollerWithThread(
+      base::Bind(&EngineStats::Update, base::Unretained(this)),
+      base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
+}
+
 }  // namespace
 
 MozjsEngine::MozjsEngine() {
@@ -46,6 +108,12 @@ MozjsEngine::MozjsEngine() {
   runtime_ =
       JS_NewRuntime(kGarbageCollectionThresholdBytes, JS_NO_HELPER_THREADS);
   CHECK(runtime_);
+
+  // Sets the size of the native stack that should not be exceeded.
+  // Setting three quarters of the web module stack size to ensure that native
+  // stack won't exceed the stack size.
+  JS_SetNativeStackQuota(runtime_,
+                         browser::WebModule::kWebModuleStackSize / 4 * 3);
 
   JS_SetRuntimePrivate(runtime_, this);
 
@@ -68,10 +136,13 @@ MozjsEngine::MozjsEngine() {
 
   // Callback to be called during garbage collection during the sweep phase.
   JS_SetFinalizeCallback(runtime_, &MozjsEngine::FinalizeCallback);
+
+  EngineStats::GetInstance()->EngineCreated();
 }
 
 MozjsEngine::~MozjsEngine() {
   DCHECK(thread_checker_.CalledOnValidThread());
+  EngineStats::GetInstance()->EngineDestroyed();
   JS_DestroyRuntime(runtime_);
 }
 

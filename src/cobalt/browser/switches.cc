@@ -48,10 +48,6 @@ const char kExtraWebFileDir[] = "web_file_path";
 // Setting this switch causes all certificate errors to be ignored.
 const char kIgnoreCertificateErrors[] = "ignore_certificate_errors";
 
-// Setting this switch defines the startup URL that Cobalt will use.  If no
-// value is set, a default URL will be used.
-const char kInitialURL[] = "url";
-
 // If this flag is set, input will be continuously generated randomly instead of
 // taken from an external input device (like a controller).
 const char kInputFuzzer[] = "input_fuzzer";
@@ -104,6 +100,10 @@ const char kWebDriverPort[] = "webdriver_port";
 // downloaded from a web page.  While it depends on the platform, often (and
 // ideally) these images are cached within GPU memory.
 const char kImageCacheSizeInBytes[] = "image_cache_size_in_bytes";
+
+// Setting this switch defines the startup URL that Cobalt will use.  If no
+// value is set, a default URL will be used.
+const char kInitialURL[] = "url";
 
 // Determines the capacity of the remote typefaces cache which manages all
 // typefaces downloaded from a web page.

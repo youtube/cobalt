@@ -39,20 +39,21 @@ namespace cobalt {
 namespace dom {
 
 // The font cache is typically owned by dom::Document and handles the following:
+//   - Tracking of font faces, which it uses to determine if a specified
+//     font family is local or remote, and for url determination in requesting
+//     remote typefaces.
 //   - Creation and caching of font lists, which it provides to the used
 //     style provider as requested. Font lists handle most layout-related font
 //     cache interactions. Layout objects only interact with the font cache
 //     through their font lists.
-//   - Tracking of font faces, which it uses to determine if a specified
-//     font family is local or remote, and for url determination in requesting
-//     remote typefaces.
 //   - Retrieval of typefaces, either locally from the resource provider or
-//     remotely from the remote typeface cache.
-//   - Caching the indices of the glyphs that the typeface provides for specific
-//     characters, so that only the first query of a specific font character
-//     necessitates the glyph lookup.
-//   - Determination of the fallback typeface for a specific character, and
-//     caching of that information for subsequent lookups.
+//     remotely from the remote typeface cache, and caching of both typefaces
+//     and fonts to facilitate sharing of them across font lists.
+//   - Determination of the fallback typeface for a specific character using a
+//     specific font style, and caching of that information for subsequent
+//     lookups.
+//   - Creation of glyph buffers, which is accomplished by passing the request
+//    to the resource provider.
 // NOTE: The font cache is not thread-safe and must only used within a single
 // thread.
 class FontCache {

@@ -139,6 +139,9 @@ BrowserModule::BrowserModule(const GURL& url,
                       options.network_module_options),
       render_tree_combiner_(renderer_module_.pipeline(),
                             renderer_module_.render_target()->GetSize()),
+#if defined(ENABLE_SCREENSHOT)
+      screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
+#endif  // defined(ENABLE_SCREENSHOT)
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options.web_module_recreated_callback),
@@ -158,9 +161,6 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
-#if defined(ENABLE_SCREENSHOT)
-      screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
-#endif  // defined(ENABLE_SCREENSHOT)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           h5vcc_url_handler_(this, system_window, account_manager)),
       web_module_options_(options.web_module_options),
@@ -190,7 +190,7 @@ BrowserModule::BrowserModule(const GURL& url,
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_console_.reset(new DebugConsole(
-      base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
+      base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
       media_module_.get(), &network_module_,
       renderer_module_.render_target()->GetSize(),
@@ -239,18 +239,19 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   }
 
   // Destroy old WebModule first, so we don't get a memory high-watermark after
-  // the second WebModule's construtor runs, but before scoped_ptr::reset() is
+  // the second WebModule's constructor runs, but before scoped_ptr::reset() is
   // run.
   web_module_.reset(NULL);
 
   // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size = renderer_module_.render_target()->GetSize();
   DestroySplashScreen();
-  splash_screen_.reset(new SplashScreen(
-      base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
-      &network_module_, viewport_size,
-      renderer_module_.pipeline()->GetResourceProvider(),
-      kLayoutMaxRefreshFrequencyInHz));
+  splash_screen_.reset(
+      new SplashScreen(base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
+                                  base::Unretained(this)),
+                       &network_module_, viewport_size,
+                       renderer_module_.pipeline()->GetResourceProvider(),
+                       kLayoutMaxRefreshFrequencyInHz));
 
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
@@ -270,9 +271,10 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
   web_module_.reset(new WebModule(
-      url,
-      base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
+      url, base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
+                      base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz, options));
@@ -282,6 +284,14 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 }
 
 void BrowserModule::OnLoad() {
+  // Repost to our own message loop if necessary. This also prevents
+  // asynchonrous access to this object by |web_module_| during destruction.
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::OnLoad, weak_this_));
+    return;
+  }
+
   DestroySplashScreen();
   web_module_loaded_.Signal();
 }
@@ -303,16 +313,28 @@ void BrowserModule::RequestScreenshotToBuffer(
 }
 #endif
 
+void BrowserModule::ProcessRenderTreeSubmissionQueue() {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::ProcessRenderTreeSubmissionQueue()");
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  render_tree_submission_queue_.ProcessAll();
+}
+
+void BrowserModule::QueueOnRenderTreeProduced(
+    const browser::WebModule::LayoutResults& layout_results) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::QueueOnRenderTreeProduced()");
+  render_tree_submission_queue_.AddMessage(
+      base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this),
+                 layout_results));
+  self_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
+}
+
 void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::OnRenderTreeProduced, weak_this_,
-                   layout_results));
-    return;
-  }
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
@@ -325,6 +347,20 @@ void BrowserModule::OnRenderTreeProduced(
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
+#endif
+}
+
+void BrowserModule::OnWindowClose() {
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (input_device_manager_fuzzer_) {
+    return;
+  }
+#endif
+
+#if defined(OS_STARBOARD)
+  SbSystemRequestStop(0);
+#else
+  LOG(WARNING) << "window.close is not supported on this platform.";
 #endif
 }
 
@@ -372,17 +408,23 @@ void BrowserModule::OnSetMediaConfig(const std::string& config) {
   }
 }
 
+void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
+    const browser::WebModule::LayoutResults& layout_results) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::QueueOnDebugConsoleRenderTreeProduced()");
+  render_tree_submission_queue_.AddMessage(
+      base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
+                 base::Unretained(this), layout_results));
+  self_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
+}
+
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced, weak_this_,
-                   layout_results));
-    return;
-  }
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));

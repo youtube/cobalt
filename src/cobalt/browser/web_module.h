@@ -27,6 +27,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
@@ -150,6 +151,7 @@ class WebModule {
   WebModule(const GURL& initial_url,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const OnErrorCallback& error_callback,
+            const base::Closure& window_close_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
@@ -180,6 +182,15 @@ class WebModule {
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+#if defined(COBALT_BUILD_TYPE_DEBUG)
+  // Non-optimized builds require a bigger stack size.
+  static const size_t kBaseStackSize = 2 * 1024 * 1024;
+#else
+  static const size_t kBaseStackSize = 256 * 1024;
+#endif
+  static const size_t kWebModuleStackSize =
+      kBaseStackSize + base::kAsanAdditionalStackSize;
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.
@@ -187,7 +198,9 @@ class WebModule {
     ConstructionData(
         const GURL& initial_url,
         const OnRenderTreeProducedCallback& render_tree_produced_callback,
-        const OnErrorCallback& error_callback, media::MediaModule* media_module,
+        const OnErrorCallback& error_callback,
+        const base::Closure& window_close_callback,
+        media::MediaModule* media_module,
         network::NetworkModule* network_module,
         const math::Size& window_dimensions,
         render_tree::ResourceProvider* resource_provider,
@@ -196,6 +209,7 @@ class WebModule {
         : initial_url(initial_url),
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
+          window_close_callback(window_close_callback),
           media_module(media_module),
           network_module(network_module),
           window_dimensions(window_dimensions),
@@ -207,6 +221,7 @@ class WebModule {
     GURL initial_url;
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
+    const base::Closure& window_close_callback;
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
     math::Size window_dimensions;

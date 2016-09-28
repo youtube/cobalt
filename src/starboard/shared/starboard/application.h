@@ -38,6 +38,32 @@ namespace starboard {
 // dispatching events to the Starboard event handler, SbEventHandle.
 class Application {
  public:
+  // You can use a void(void *) function to signal that a state-transition event
+  // has completed.
+  typedef SbEventDataDestructor EventHandledCallback;
+
+  // Enumeration of states that the application can be in.
+  enum State {
+    // The initial Unstarted state.
+    kStateUnstarted,
+
+    // The normal foreground, fully-visible state after receiving the initial
+    // START event or after UNPAUSE from Paused.
+    kStateStarted,
+
+    // The background-but-visible or partially-obscured state after receiving an
+    // PAUSE event from Started or RESUME event from Suspended.
+    kStatePaused,
+
+    // The fully-obscured or about-to-be-terminated state after receiving a
+    // SUSPEND event in Paused.
+    kStateSuspended,
+
+    // The completely terminated state after receiving the STOP event in the
+    // Suspended state.
+    kStateStopped,
+  };
+
   // Structure to keep track of scheduled events, also used as the data argument
   // for kSbEventTypeScheduled Events.
   struct TimedEvent {
@@ -75,8 +101,6 @@ class Application {
   // deleting the event and calling the destructor on its data when it is
   // deleted.
   struct Event {
-    Event(SbEvent* event, SbEventDataDestructor destructor)
-        : event(event), destructor(destructor), error_level(0) {}
     Event(SbEventType type, void* data, SbEventDataDestructor destructor)
         : event(new SbEvent()), destructor(destructor), error_level(0) {
       event->type = type;
@@ -90,7 +114,7 @@ class Application {
       event->data = data;
     }
     ~Event() {
-      if (destructor && event->data) {
+      if (destructor) {
         destructor(event->data);
       }
       if (event) {
@@ -120,8 +144,45 @@ class Application {
   // initialization and teardown events. Returns the resulting error level.
   int Run(int argc, char** argv);
 
+  // Signals that the application should transition from STARTED to PAUSED as
+  // soon as possible. Does nothing if already PAUSED or SUSPENDED. May be
+  // called from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Pause(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to STARTED as soon as
+  // possible, moving through all required state transitions to get there. Does
+  // nothing if already STARTED. May be called from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Unpause(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to SUSPENDED as soon as
+  // possible, moving through all required state transitions to get there. Does
+  // nothing if already SUSPENDED. May be called from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Suspend(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to PAUSED from SUSPENDED as
+  // soon as possible. Does nothing if already PAUSED or STARTED. May be called
+  // from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Resume(void* context, EventHandledCallback callback);
+
   // Signals that the application should gracefully terminate as soon as
-  // possible. May be called from an external thread.
+  // possible. Will transition through PAUSED and SUSPENDED to STOPPED as
+  // appropriate for the current state. May be called from an external thread.
   void Stop(int error_level);
 
   // Schedules an event into the event queue.  May be called from an external
@@ -199,9 +260,13 @@ class Application {
   // event that initializes and starts Cobalt.
   void SetStartLink(const char* start_link);
 
+  // Returns whether the current thread is the Application thread.
   bool IsCurrentThread() const {
     return SbThreadIsEqual(thread_, SbThreadGetCurrent());
   }
+
+  // Returns the current application state.
+  State state() const { return state_; }
 
  private:
   // Dispatches |event| to the system event handler, taking ownership of the
@@ -222,6 +287,10 @@ class Application {
   // The deep link included in the Start event sent to Cobalt. Initially NULL,
   // derived classes may set it during initialization using |SetStartLink|.
   char* start_link_;
+
+  // The current state that the application is in based on what events it has
+  // actually processed. Should only be accessed on the main thread.
+  State state_;
 };
 
 }  // namespace starboard

@@ -101,7 +101,7 @@ class DummyBrush : public Brush {
   }
 };
 
-void SetBounds(const cobalt::math::Rect&) {}
+bool SetBounds(const cobalt::math::Rect&) { return false; }
 
 }  // namespace
 

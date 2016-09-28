@@ -17,6 +17,10 @@
 
 #include "js/Utility.h"
 
+#ifdef USE_ZLIB
+#include "zlib.h"
+#endif
+
 /* Forward declarations. */
 struct JSContext;
 
@@ -261,6 +265,32 @@ ClearAllBitArrayElements(size_t *array, size_t length)
 }
 
 #ifdef USE_ZLIB
+
+class Compressor
+{
+    /* Number of bytes we should hand to zlib each compressMore() call. */
+    static const size_t CHUNKSIZE = 2048;
+    z_stream zs;
+    const unsigned char *inp;
+    size_t inplen;
+    size_t outbytes;
+
+  public:
+    enum Status {
+        MOREOUTPUT,
+        DONE,
+        CONTINUE,
+        OOM
+    };
+
+    Compressor(const unsigned char *inp, size_t inplen);
+    ~Compressor();
+    bool init();
+    void setOutput(unsigned char *out, size_t outlen);
+    size_t outWritten() const { return outbytes; }
+    /* Compress some of the input. Return true if it should be called again. */
+    Status compressMore();
+};
 
 /*
  * Decompress a string. The caller must know the length of the output and
