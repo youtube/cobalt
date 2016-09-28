@@ -109,6 +109,7 @@
         '<(DEPTH)/starboard/shared/stub/player_seek.cc',
         '<(DEPTH)/starboard/shared/stub/player_set_bounds.cc',
         '<(DEPTH)/starboard/shared/stub/player_set_pause.cc',
+        '<(DEPTH)/starboard/shared/stub/player_set_volume.cc',
         '<(DEPTH)/starboard/shared/stub/player_write_end_of_stream.cc',
         '<(DEPTH)/starboard/shared/stub/player_write_sample.cc',
         '<(DEPTH)/starboard/shared/stub/socket_accept.cc',
