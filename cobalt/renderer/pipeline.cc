@@ -190,11 +190,11 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   // Start the rasterization timer if it is not yet started.
   if (!rasterize_timer_) {
-    // We submit render trees as fast as the rasterizer can consume them.
-    // Practically, this will result in the rate being limited to the
-    // display's refresh rate.
+    // We artificially limit the period between submissions to 15ms, in case
+    // a platform does not rate limit itself during swaps.  This limit may need
+    // to be reduced if we wish to support 120 FPS animations.
     rasterize_timer_.emplace(
-        FROM_HERE, base::TimeDelta(),
+        FROM_HERE, base::TimeDelta::FromMilliseconds(15),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true, true);
     rasterize_timer_->Reset();
@@ -219,14 +219,37 @@ void Pipeline::RasterizeCurrentTree() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
   base::TimeTicks now = base::TimeTicks::Now();
+  Submission submission = submission_queue_->GetCurrentSubmission(now);
+
+#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
+  // If our render tree hasn't changed from the one that was previously rendered
+  // and the animations on the previously rendered tree have expired, and it's
+  // okay on this system to not flip the display buffer frequently, then we
+  // can just not do anything here.
+  if (submission.render_tree == last_rendered_expired_render_tree_) {
+    return;
+  }
+#endif  // #if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
+
   rasterize_current_tree_interval_timer_.Start(now);
   rasterize_current_tree_timer_.Start(now);
 
   // Rasterize the last submitted render tree.
-  RasterizeSubmissionToRenderTarget(
-      submission_queue_->GetCurrentSubmission(now), render_target_);
+  RasterizeSubmissionToRenderTarget(submission, render_target_);
 
   rasterize_current_tree_timer_.Stop();
+
+#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
+  // Check whether the animations in the render tree that was just rasterized
+  // have expired or not, and if so, mark that down so that if we see it in
+  // the future we don't spend the time re-rendering it.
+  render_tree::animations::AnimateNode* animate_node =
+      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+          submission.render_tree.get());
+  last_rendered_expired_render_tree_ =
+      animate_node->expiry() <= submission.time_offset ? submission.render_tree
+                                                       : NULL;
+#endif  // defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
