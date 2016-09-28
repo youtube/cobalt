@@ -206,6 +206,8 @@
         '<(DEPTH)/starboard/shared/pthread/thread_yield.cc',
         '<(DEPTH)/starboard/shared/signal/crash_signals.cc',
         '<(DEPTH)/starboard/shared/signal/crash_signals.h',
+        '<(DEPTH)/starboard/shared/signal/suspend_signals.cc',
+        '<(DEPTH)/starboard/shared/signal/suspend_signals.h',
         '<(DEPTH)/starboard/shared/starboard/application.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_create.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_destroy.cc',

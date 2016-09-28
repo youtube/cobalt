@@ -30,7 +30,6 @@ extern const char kDisableWebmVp9[];
 extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
 extern const char kIgnoreCertificateErrors[];
-extern const char kInitialURL[];
 extern const char kInputFuzzer[];
 extern const char kNullAudioStreamer[];
 extern const char kNullSavegame[];
@@ -46,6 +45,7 @@ extern const char kWebDriverPort[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kImageCacheSizeInBytes[];
+extern const char kInitialURL[];
 extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];

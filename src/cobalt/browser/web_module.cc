@@ -321,7 +321,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
       data.options.location_policy, data.options.csp_enforcement_mode,
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
-      data.options.csp_insecure_allowed_token);
+      data.window_close_callback, data.options.csp_insecure_allowed_token);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -556,15 +556,17 @@ WebModule::Options::Options()
 WebModule::WebModule(
     const GURL& initial_url,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
-    const OnErrorCallback& error_callback, media::MediaModule* media_module,
-    network::NetworkModule* network_module, const math::Size& window_dimensions,
+    const OnErrorCallback& error_callback,
+    const base::Closure& window_close_callback,
+    media::MediaModule* media_module, network::NetworkModule* network_module,
+    const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
-      initial_url, render_tree_produced_callback, error_callback, media_module,
-      network_module, window_dimensions, resource_provider, kDOMMaxElementDepth,
-      layout_refresh_rate, options);
+      initial_url, render_tree_produced_callback, error_callback,
+      window_close_callback, media_module, network_module, window_dimensions,
+      resource_provider, kDOMMaxElementDepth, layout_refresh_rate, options);
 
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   // Non-optimized builds require a bigger stack size.

@@ -113,7 +113,7 @@ namespace rasterizer {
 
 namespace {
 
-void SetBounds(const math::Rect&) {}
+bool SetBounds(bool result, const math::Rect&) { return result; }
 
 }  // namespace
 
@@ -2749,14 +2749,30 @@ TEST_F(PixelTest, BoxShadowInsetCircleSpread) {
       RoundedCorners(50, 50)));
 }
 
-TEST_F(PixelTest, PunchThroughVideoNodePunchesThrough) {
+// If SetBoundsCB() returns false, the PunchThroughVideoNode should have no
+// effect.
+TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
                                 scoped_ptr<Brush>(new SolidColorBrush(
                                     ColorRGBA(0.5f, 0.5f, 1.0f, 1.0f)))));
 
   builder.AddChild(new PunchThroughVideoNode(PunchThroughVideoNode::Builder(
-      RectF(50, 50, 100, 100), base::Bind(SetBounds))));
+      RectF(50, 50, 100, 100), base::Bind(SetBounds, false))));
+
+  TestTree(new CompositionNode(builder.Pass()));
+}
+
+// If SetBoundsCB() returns true, the PunchThroughVideoNode should trigger the
+// painting of a solid rectangle with RGBA(0, 0, 0, 0).
+TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsTrue) {
+  CompositionNode::Builder builder;
+  builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
+                                scoped_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(0.5f, 0.5f, 1.0f, 1.0f)))));
+
+  builder.AddChild(new PunchThroughVideoNode(PunchThroughVideoNode::Builder(
+      RectF(50, 50, 100, 100), base::Bind(SetBounds, true))));
 
   TestTree(new CompositionNode(builder.Pass()));
 }

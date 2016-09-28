@@ -107,6 +107,7 @@ class Window : public EventTarget {
          const std::string& default_security_policy,
          dom::CspEnforcementType csp_enforcement_mode,
          const base::Closure& csp_policy_changed_callback,
+         const base::Closure& window_close_callback,
          int csp_insecure_allowed_token = 0);
 
   // Web API: Window
@@ -116,6 +117,7 @@ class Window : public EventTarget {
   const scoped_refptr<Document>& document() const;
   const scoped_refptr<Location>& location() const;
   const scoped_refptr<History>& history() const;
+  void Close();
 
   scoped_refptr<Window> frames() { return this; }
   unsigned int length() { return 0; }
@@ -275,6 +277,8 @@ class Window : public EventTarget {
   scoped_refptr<Storage> session_storage_;
 
   scoped_refptr<Screen> screen_;
+
+  base::Closure window_close_callback_;
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;

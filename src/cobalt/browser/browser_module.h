@@ -24,6 +24,7 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/account/account_manager.h"
+#include "cobalt/base/message_queue.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
@@ -125,6 +126,8 @@ class BrowserModule {
 
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.
+  void QueueOnRenderTreeProduced(
+      const browser::WebModule::LayoutResults& layout_results);
   void OnRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
 
@@ -162,12 +165,17 @@ class BrowserModule {
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen();
 
+  // Called when web module has received window.close.
+  void OnWindowClose();
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Toggles the input fuzzer on/off.  Ignores the parameter.
   void OnFuzzerToggle(const std::string&);
 
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
+  void QueueOnDebugConsoleRenderTreeProduced(
+      const browser::WebModule::LayoutResults& layout_results);
   void OnDebugConsoleRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -186,6 +194,9 @@ class BrowserModule {
   // system splash screen after the first render has completed.
   void OnRendererSubmissionRasterized();
 #endif  // OS_STARBOARD
+
+  // Process all messages queued into the |render_tree_submission_queue_|.
+  void ProcessRenderTreeSubmissionQueue();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -239,6 +250,18 @@ class BrowserModule {
   // Manages the two render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;
 
+#if defined(ENABLE_SCREENSHOT)
+  // Helper object to create screen shots of the last layout tree.
+  scoped_ptr<ScreenShotWriter> screen_shot_writer_;
+#endif  // defined(ENABLE_SCREENSHOT)
+
+  // Keeps track of all messages containing render tree submissions that will
+  // ultimately reference the |render_tree_combiner_| and the
+  // |renderer_module_|.  It is important that this is destroyed before the
+  // above mentioned references are.  It must however outlive all WebModules
+  // that may be producing render trees.
+  base::MessageQueue render_tree_submission_queue_;
+
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
@@ -274,11 +297,6 @@ class BrowserModule {
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
-
-#if defined(ENABLE_SCREENSHOT)
-  // Helper object to create screen shots of the last layout tree.
-  scoped_ptr<ScreenShotWriter> screen_shot_writer_;
-#endif  // defined(ENABLE_SCREENSHOT)
 
   // Handler object for h5vcc URLs.
   H5vccURLHandler h5vcc_url_handler_;

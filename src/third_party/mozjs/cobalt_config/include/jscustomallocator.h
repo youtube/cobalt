@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef gc_JSCUSTOMALLOCATOR_H
+#define gc_JSCUSTOMALLOCATOR_H
+
+#include <algorithm>
+
 #include "jstypes.h"
+#include "memory_allocator_reporter.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -20,25 +26,58 @@
 #define JS_OOM_POSSIBLY_FAIL_REPORT(cx) do {} while(0)
 
 static JS_INLINE void* js_malloc(size_t bytes) {
-  return SbMemoryAllocate(bytes);
-}
-
-static JS_INLINE void* js_calloc(size_t bytes) {
-  return SbMemoryCalloc(bytes, 1);
+  size_t reservation_bytes = AllocationMetadata::GetReservationBytes(bytes);
+  MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(reservation_bytes);
+  void* metadata = SbMemoryAllocate(reservation_bytes);
+  AllocationMetadata::SetSizeToBaseAddress(metadata, reservation_bytes);
+  return AllocationMetadata::GetUserAddressFromBaseAddress(metadata);
 }
 
 static JS_INLINE void* js_calloc(size_t nmemb, size_t size) {
-  return SbMemoryCalloc(nmemb, size);
+  size_t total_size = nmemb * size;
+  void* memory = js_malloc(total_size);
+  if (memory) {
+    SbMemorySet(memory, 0, total_size);
+  }
+  return memory;
 }
 
-static JS_INLINE void* js_realloc(void* p, size_t bytes) {
-  return SbMemoryReallocate(p, bytes);
+static JS_INLINE void* js_calloc(size_t bytes) {
+  return js_calloc(bytes, 1);
 }
 
 static JS_INLINE void js_free(void* p) {
-  SbMemoryFree(p);
+  if (p == NULL) {
+    return;
+  }
+
+  AllocationMetadata* metadata =
+      AllocationMetadata::GetMetadataFromUserAddress(p);
+  MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(-static_cast<ssize_t>(
+      AllocationMetadata::GetSizeOfAllocationFromMetadata(metadata)));
+  SbMemoryFree(metadata);
+}
+
+static JS_INLINE void* js_realloc(void* p, size_t bytes) {
+  AllocationMetadata* metadata =
+      AllocationMetadata::GetMetadataFromUserAddress(p);
+  size_t current_size =
+      AllocationMetadata::GetSizeOfAllocationFromMetadata(metadata);
+  size_t adjusted_size = AllocationMetadata::GetReservationBytes(bytes);
+
+  MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(
+      static_cast<ssize_t>(adjusted_size - current_size));
+  void* new_ptr = SbMemoryReallocate(metadata, adjusted_size);
+  AllocationMetadata::SetSizeToBaseAddress(new_ptr, adjusted_size);
+  return AllocationMetadata::GetUserAddressFromBaseAddress(new_ptr);
 }
 
 static JS_INLINE char* js_strdup(char* s) {
-  return SbStringDuplicate(s);
+  size_t length = SbStringGetLength(s) + 1;
+
+  char* new_ptr = reinterpret_cast<char*>(js_malloc(length));
+  SbStringCopy(new_ptr, s, length);
+  return new_ptr;
 }
+
+#endif /* gc_JSCUSTOMALLOCATOR_H */

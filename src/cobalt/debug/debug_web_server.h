@@ -79,11 +79,14 @@ class DebugWebServer : public net::HttpServer::Delegate,
 
   void StartServer(int port);
 
+  void StopServer();
+
   void SendErrorResponseOverWebSocket(int id, const std::string& message);
 
   base::ThreadChecker thread_checker_;
   base::Thread http_server_thread_;
   scoped_ptr<net::StreamListenSocketFactory> factory_;
+  // net::HttpServer is a ref-counted object, so we have to use scoped_refptr.
   scoped_refptr<net::HttpServer> server_;
   GetDebugServerCallback get_debug_server_callback_;
 

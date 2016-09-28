@@ -82,6 +82,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const std::string& default_security_policy,
                CspEnforcementType csp_enforcement_mode,
                const base::Closure& csp_policy_changed_callback,
+               const base::Closure& window_close_callback,
                int csp_insecure_allowed_token)
     : width_(width),
       height_(height),
@@ -120,7 +121,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
-      screen_(new Screen(width, height)) {
+      screen_(new Screen(width, height)),
+      window_close_callback_(window_close_callback) {
 #if defined(ENABLE_TEST_RUNNER)
   test_runner_ = new TestRunner();
 #endif  // ENABLE_TEST_RUNNER
@@ -134,6 +136,13 @@ const scoped_refptr<Location>& Window::location() const {
 }
 
 const scoped_refptr<History>& Window::history() const { return history_; }
+
+// https://www.w3.org/TR/html5/browsers.html#dom-window-close
+void Window::Close() {
+  if (!window_close_callback_.is_null()) {
+    window_close_callback_.Run();
+  }
+}
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 

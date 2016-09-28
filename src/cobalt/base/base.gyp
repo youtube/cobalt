@@ -44,6 +44,7 @@
         'log_message_handler.h',
         'math.cc',
         'math.h',
+        'message_queue.h',
         'poller.h',
         'polymorphic_downcast.h',
         'polymorphic_equatable.h',

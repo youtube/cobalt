@@ -18,7 +18,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/log.h"
-#include "starboard/memory.h"
+#include "starboard/shared/signal/signal_internal.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -27,42 +27,26 @@ namespace signal {
 
 namespace {
 
-const int kSignalsToTrap[] = {
-    SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV,
+const int kCrashSignalsToTrap[] = {
+    SIGABRT, SIGFPE, SIGILL, SIGSEGV,
 };
 
-const char* GetSignalName(int signal_id) {
-  switch (signal_id) {
-    case SIGABRT:
-      return "SIGABRT";
-    case SIGFPE:
-      return "SIGFPE";
-    case SIGILL:
-      return "SIGILL";
-    case SIGINT:
-      return "SIGINT";
-    case SIGSEGV:
-      return "SIGSEGV";
-    default:
-      return "UNKNOWN SIGNAL";
-  }
-}
-
-typedef void (*SignalHandlerFunction)(int);
+const int kStopSignalsToTrap[] = {
+    SIGTERM, SIGINT,
+};
 
 void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
-    struct sigaction action = {0};
+  struct sigaction action = {0};
 
-    action.sa_handler = handler;
-    action.sa_flags = 0;
-    ::sigemptyset(&action.sa_mask);
+  action.sa_handler = handler;
+  action.sa_flags = 0;
+  ::sigemptyset(&action.sa_mask);
 
-    ::sigaction(signal_id, &action, NULL);
+  ::sigaction(signal_id, &action, NULL);
 }
 
 void DumpStackSignalSafe(int signal_id) {
-  const char* signal_name = GetSignalName(signal_id);
-  SbLogRawFormatF("\nCaught signal: %s (%d)\n", signal_name, signal_id);
+  LogSignalCaught(signal_id);
   SbLogFlush();
   SbLogRawDumpStack(1);
 
@@ -70,17 +54,28 @@ void DumpStackSignalSafe(int signal_id) {
   SbSystemBreakIntoDebugger();
 }
 
+void Stop(int signal_id) {
+  LogSignalCaught(signal_id);
+  SbSystemRequestStop(0);
+}
+
 }  // namespace
 
 void InstallCrashSignalHandlers() {
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kSignalsToTrap); ++i) {
-    SetSignalHandler(kSignalsToTrap[i], &DumpStackSignalSafe);
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kCrashSignalsToTrap); ++i) {
+    SetSignalHandler(kCrashSignalsToTrap[i], &DumpStackSignalSafe);
+  }
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
+    SetSignalHandler(kStopSignalsToTrap[i], &Stop);
   }
 }
 
 void UninstallCrashSignalHandlers() {
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kSignalsToTrap); ++i) {
-    SetSignalHandler(kSignalsToTrap[i], SIG_DFL);
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kCrashSignalsToTrap); ++i) {
+    SetSignalHandler(kCrashSignalsToTrap[i], SIG_DFL);
+  }
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
+    SetSignalHandler(kStopSignalsToTrap[i], SIG_DFL);
   }
 }
 

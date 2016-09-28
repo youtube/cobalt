@@ -54,10 +54,13 @@ class QueueApplication : public Application {
   virtual bool MayHaveSystemEvents() = 0;
 
   // Returns an event if one exists, otherwise returns NULL.
-  virtual Event* PollNextSystemEvent() = 0;
+  virtual Event* PollNextSystemEvent() {
+    return WaitForSystemEventWithTimeout(SbTime());
+  }
 
   // Waits for an event until the timeout |time| runs out.  If an event occurs
-  // in this time, it is returned, otherwise NULL is returned.
+  // in this time, it is returned, otherwise NULL is returned. If |time| is zero
+  // or negative, then this should function effectively like a no-wait poll.
   virtual Event* WaitForSystemEventWithTimeout(SbTime time) = 0;
 
   // Wakes up any thread waiting within a call to

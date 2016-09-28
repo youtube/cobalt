@@ -82,6 +82,7 @@
       'js/src/jsweakmap.cpp',
       'js/src/jsworkers.cpp',
       'js/src/jswrapper.cpp',
+      'js/src/memory_allocator_reporter.cpp',
       'js/src/perf/jsperf.cpp',
       'js/src/perf/pm_stub.cpp',
       'js/src/prmjtime.cpp',
