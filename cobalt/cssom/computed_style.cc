@@ -2919,6 +2919,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderTopStyleProperty:
     case kColorProperty:
     case kContentProperty:
+    case kFilterProperty:
     case kFontFamilyProperty:
     case kFontStyleProperty:
     case kOpacityProperty:
@@ -3026,6 +3027,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBoxShadowProperty:
     case kContentProperty:
     case kDisplayProperty:
+    case kFilterProperty:
     case kFontFamilyProperty:
     case kFontProperty:
     case kFontStyleProperty:

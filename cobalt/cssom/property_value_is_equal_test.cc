@@ -15,6 +15,7 @@
  */
 
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -23,6 +24,7 @@
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
+#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -592,6 +594,60 @@ TEST(PropertyValueIsEqualTest, URLsAreNotEqual) {
   scoped_refptr<URLValue> value_a(new URLValue(url_a));
   std::string url_b("google/search.png");
   scoped_refptr<URLValue> value_b(new URLValue(url_b));
+
+  EXPECT_FALSE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
+  FilterFunctionListValue::Builder filter_list_a;
+  filter_list_a.push_back(new MTMFunction(
+      new URLValue("somemesh.msh"),
+      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
+                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f)));
+  filter_list_a.push_back(new MTMFunction(
+      new URLValue("sphere.msh"),
+      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+  scoped_refptr<FilterFunctionListValue> value_a(
+      new FilterFunctionListValue(filter_list_a.Pass()));
+
+  FilterFunctionListValue::Builder filter_list_b;
+  filter_list_b.push_back(new MTMFunction(
+      new URLValue("somemesh.msh"),
+      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
+                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f)));
+  filter_list_b.push_back(new MTMFunction(
+      new URLValue("sphere.msh"),
+      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+  scoped_refptr<FilterFunctionListValue> value_b(
+      new FilterFunctionListValue(filter_list_b.Pass()));
+
+  EXPECT_TRUE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
+  FilterFunctionListValue::Builder filter_list_a;
+  filter_list_a.push_back(new MTMFunction(
+      new URLValue("format.msh"),
+      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+  scoped_refptr<FilterFunctionListValue> value_a(
+      new FilterFunctionListValue(filter_list_a.Pass()));
+
+  FilterFunctionListValue::Builder filter_list_b;
+  filter_list_b.push_back(new MTMFunction(
+      new URLValue("format.msh"),
+      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+  scoped_refptr<FilterFunctionListValue> value_b(
+      new FilterFunctionListValue(filter_list_b.Pass()));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
