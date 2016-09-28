@@ -68,12 +68,14 @@ class EventTarget : public script::Wrappable,
   void DispatchEventAndRunCallback(base::Token event_name,
                                    const base::Closure& dispatched_callback);
 
-  // Posts a task on the current message loop to dispatch event.
+  // Posts a task on the current message loop to dispatch event. It does nothing
+  // if there is no current message loop.
   void PostToDispatchEvent(const tracked_objects::Location& location,
                            base::Token event_name);
 
   // Posts a task on the current message loop to dispatch event, and runs
-  // dispatched_callback after finish.
+  // dispatched_callback after finish.  It does nothing if there is no current
+  // message loop.
   void PostToDispatchEventAndRunCallback(
       const tracked_objects::Location& location, base::Token event_name,
       const base::Closure& dispatched_callback);
