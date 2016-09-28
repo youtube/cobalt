@@ -151,6 +151,9 @@
     '<(DEPTH)/third_party/skia/src/fonts/SkGScalerContext.h',
     '<(DEPTH)/third_party/skia/src/fonts/SkTestScalerContext.cpp',
     '<(DEPTH)/third_party/skia/src/fonts/SkTestScalerContext.h',
+
+    # Conflicts with cobalt implementation.
+    '<(DEPTH)/third_party/skia/src/gpu/gl/GrGLCreateNativeInterface_none.cpp',
   ],
 
   # Exclude Skia OpenGL backend source files.
