@@ -195,6 +195,7 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kColorProperty:
     case kContentProperty:
     case kFontFamilyProperty:
+    case kFilterProperty:
     case kFontProperty:
     case kFontStyleProperty:
     case kFontWeightProperty:
