@@ -111,6 +111,18 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   }
 }
 
+// Used to post parameters to SbPlayerPipeline::StartTask() as the number of
+// parameters exceed what base::Bind() can support.
+struct StartTaskParameters {
+  scoped_refptr<Demuxer> demuxer;
+  SetDecryptorReadyCB decryptor_ready_cb;
+  PipelineStatusCB ended_cb;
+  PipelineStatusCB error_cb;
+  PipelineStatusCB seek_cb;
+  Pipeline::BufferingStateCB buffering_state_cb;
+  base::Closure duration_change_cb;
+};
+
 class SetBoundsCaller : public base::RefCountedThreadSafe<SetBoundsCaller> {
  public:
   SetBoundsCaller() : player_(kSbPlayerInvalid) {}
@@ -180,7 +192,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int> >
       DecodingBuffers;
 
-  void StartTask();
+  void StartTask(const StartTaskParameters& parameters);
+  void SetVolumeTask(float volume);
+  void SetPlaybackRateTask(float volume);
+  void SetDurationTask(TimeDelta duration);
 
   // DataSourceHost (by way of DemuxerHost) implementation.
   void SetTotalBytes(int64 total_bytes) OVERRIDE;
@@ -222,20 +237,18 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
 
   void UpdateDecoderConfig(const scoped_refptr<DemuxerStream>& stream);
 
-  // Message loop used to execute pipeline tasks.
+  // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
-  // MediaLog to which to log events.
-  scoped_refptr<MediaLog> media_log_;
-
-  // Lock used to serialize access for the following data members.
-  mutable base::Lock lock_;
-
-  // The window this player associates with.
+  // The window this player associates with.  It should only be assigned in the
+  // dtor and accesed once by SbPlayerCreate().
   PipelineWindow window_;
 
-  // Whether or not the pipeline is running.
-  bool running_;
+  // The current ticket associated with the |player_|.
+  int ticket_;
+
+  // Lock used to serialize access for the following member variables.
+  mutable base::Lock lock_;
 
   // Amount of available buffered data.  Set by filters.
   Ranges<int64> buffered_byte_ranges_;
@@ -261,12 +274,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   // the filters.
   float playback_rate_;
 
-  // Status of the pipeline.  Initialized to PIPELINE_OK which indicates that
-  // the pipeline is operating correctly. Any other value indicates that the
-  // pipeline is stopped or is stopping.  Clients can call the Stop() method to
-  // reset the pipeline state, and restore this to PIPELINE_OK.
-  PipelineStatus status_;
-
   // Whether the media contains rendered audio and video streams.
   // TODO(fischman,scherkus): replace these with checks for
   // {audio,video}_decoder_ once extraction of {Audio,Video}Decoder from the
@@ -274,15 +281,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   bool has_audio_;
   bool has_video_;
 
-  int ticket_;
+  mutable PipelineStatistics statistics_;
 
-  // The following data members are only accessed by tasks posted to
+  // The following member variables are only accessed by tasks posted to
   // |message_loop_|.
-  scoped_ptr<FilterCollection> filter_collection_;
-
-  // Temporary callback used for Start() and Seek().
-  PipelineStatusCB seek_cb_;
-  SbMediaTime seek_time_;
 
   // Temporary callback used for Stop().
   base::Closure stop_cb_;
@@ -300,13 +302,19 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   bool video_read_in_progress_;
   TimeDelta duration_;
 
-  mutable PipelineStatistics statistics_;
-
-  SbPlayer player_;
-
   DecodingBuffers decoding_buffers_;
-
   scoped_refptr<SetBoundsCaller> set_bounds_caller_;
+
+  // The following member variables can be accessed from WMPI thread but all
+  // modifications to them happens on the pipeline thread.  So any access of
+  // them from the WMPI thread and any modification to them on the pipeline
+  // thread has to guarded by lock.  Access to them from the pipeline thread
+  // needn't to be guarded.
+
+  // Temporary callback used for Start() and Seek().
+  PipelineStatusCB seek_cb_;
+  SbMediaTime seek_time_;
+  SbPlayer player_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -316,19 +324,19 @@ SbPlayerPipeline::SbPlayerPipeline(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     MediaLog* media_log)
     : window_(window),
+      ticket_(SB_PLAYER_INITIAL_TICKET),
       message_loop_(message_loop),
-      media_log_(media_log),
       total_bytes_(0),
       natural_size_(0, 0),
       volume_(1.f),
       playback_rate_(0.f),
       has_audio_(false),
       has_video_(false),
-      ticket_(SB_PLAYER_INITIAL_TICKET),
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
-      player_(kSbPlayerInvalid),
-      set_bounds_caller_(new SetBoundsCaller) {}
+      set_bounds_caller_(new SetBoundsCaller),
+      seek_time_(0),
+      player_(kSbPlayerInvalid) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() {
   DCHECK(player_ == kSbPlayerInvalid);
@@ -341,24 +349,19 @@ void SbPlayerPipeline::Start(scoped_ptr<FilterCollection> filter_collection,
                              const PipelineStatusCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb) {
-  DCHECK(!filter_collection_);
   DCHECK(filter_collection);
 
-  // Assign the parameters here instead of posting it to StartTask() as the
-  // number of parameters exceeds the maximum number of parameters that Bind
-  // supports.
-  filter_collection_ = filter_collection.Pass();
-  decryptor_ready_cb_ = decryptor_ready_cb;
-  ended_cb_ = ended_cb;
-  error_cb_ = error_cb;
-  seek_cb_ = seek_cb;
-  buffering_state_cb_ = buffering_state_cb;
-  duration_change_cb_ = duration_change_cb;
+  StartTaskParameters parameters;
+  parameters.demuxer = filter_collection->GetDemuxer();
+  parameters.decryptor_ready_cb = decryptor_ready_cb;
+  parameters.ended_cb = ended_cb;
+  parameters.error_cb = error_cb;
+  parameters.seek_cb = seek_cb;
+  parameters.buffering_state_cb = buffering_state_cb;
+  parameters.duration_change_cb = duration_change_cb;
 
-  demuxer_ = filter_collection_->GetDemuxer();
-
-  message_loop_->PostTask(FROM_HERE,
-                          base::Bind(&SbPlayerPipeline::StartTask, this));
+  message_loop_->PostTask(
+      FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
 }
 
 void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
@@ -373,11 +376,17 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
 
   if (SbPlayerIsValid(player_)) {
     set_bounds_caller_->SetPlayer(kSbPlayerInvalid);
+    SbPlayer player = player_;
+    {
+      base::AutoLock auto_lock(lock_);
+      player_ = kSbPlayerInvalid;
+    }
+
     DLOG(INFO) << "Destroying SbPlayer.";
-    SbPlayerDestroy(player_);
+    SbPlayerDestroy(player);
     DLOG(INFO) << "SbPlayer destroyed.";
-    player_ = kSbPlayerInvalid;
   }
+
   // When Stop() is in progress, we no longer need to call |error_cb_|.
   error_cb_.Reset();
   if (demuxer_) {
@@ -405,8 +414,11 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
   // Increase |ticket_| so all upcoming need data requests from the SbPlayer
   // are ignored.
   ++ticket_;
-  seek_cb_ = seek_cb;
-  seek_time_ = TimeDeltaToSbMediaTime(time);
+  {
+    base::AutoLock auto_lock(lock_);
+    seek_cb_ = seek_cb;
+    seek_time_ = TimeDeltaToSbMediaTime(time);
+  }
   demuxer_->Seek(time, BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerSeeked, this)));
 }
@@ -432,9 +444,9 @@ void SbPlayerPipeline::SetPlaybackRate(float playback_rate) {
 
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
-  if (SbPlayerIsValid(player_)) {
-    SbPlayerSetPause(player_, playback_rate_ == 0.0);
-  }
+  message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&SbPlayerPipeline::SetPlaybackRateTask, this, playback_rate));
 }
 
 float SbPlayerPipeline::GetVolume() const {
@@ -448,9 +460,8 @@ void SbPlayerPipeline::SetVolume(float volume) {
 
   base::AutoLock auto_lock(lock_);
   volume_ = volume;
-  if (SbPlayerIsValid(player_)) {
-    // SbPlayerSetVolume(player_, volume_);
-  }
+  message_loop_->PostTask(
+      FROM_HERE, base::Bind(&SbPlayerPipeline::SetVolumeTask, this, volume));
 }
 
 TimeDelta SbPlayerPipeline::GetMediaTime() const {
@@ -526,12 +537,48 @@ Pipeline::SetBoundsCB SbPlayerPipeline::GetSetBoundsCB() {
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 }
 
-void SbPlayerPipeline::StartTask() {
+void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
+  DCHECK(!demuxer_);
+
+  demuxer_ = parameters.demuxer;
+  decryptor_ready_cb_ = parameters.decryptor_ready_cb;
+  ended_cb_ = parameters.ended_cb;
+  error_cb_ = parameters.error_cb;
+  {
+    base::AutoLock auto_lock(lock_);
+    seek_cb_ = parameters.seek_cb;
+  }
+  buffering_state_cb_ = parameters.buffering_state_cb;
+  duration_change_cb_ = parameters.duration_change_cb;
 
   demuxer_->Initialize(
       this, BindToCurrentLoop(
                 base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
+}
+
+void SbPlayerPipeline::SetVolumeTask(float volume) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (SbPlayerIsValid(player_)) {
+    SbPlayerSetVolume(player_, volume_);
+  }
+}
+
+void SbPlayerPipeline::SetPlaybackRateTask(float volume) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (SbPlayerIsValid(player_)) {
+    SbPlayerSetPause(player_, playback_rate_ == 0.0);
+  }
+}
+
+void SbPlayerPipeline::SetDurationTask(TimeDelta duration) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (!duration_change_cb_.is_null()) {
+    duration_change_cb_.Run();
+  }
 }
 
 void SbPlayerPipeline::SetTotalBytes(int64 total_bytes) {
@@ -542,7 +589,9 @@ void SbPlayerPipeline::SetTotalBytes(int64 total_bytes) {
 void SbPlayerPipeline::SetDuration(TimeDelta duration) {
   base::AutoLock auto_lock(lock_);
   duration_ = duration;
-  duration_change_cb_.Run();
+  message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&SbPlayerPipeline::SetDurationTask, this, duration));
 }
 
 void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
@@ -562,6 +611,8 @@ void SbPlayerPipeline::AddBufferedTimeRange(TimeDelta start, TimeDelta end) {
 }
 
 void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
   const AudioDecoderConfig& audio_config =
       demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
   SbMediaAudioHeader audio_header;
@@ -573,14 +624,23 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = audio_config.bits_per_channel();
   audio_header.audio_specific_config_size = 0;
-  player_ =
-      SbPlayerCreate(window_, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
-                     SB_PLAYER_NO_DURATION, drm_system, &audio_header,
-                     DeallocateSampleCB, DecoderStatusCB, PlayerStatusCB, this);
+
+  {
+    base::AutoLock auto_lock(lock_);
+    player_ = SbPlayerCreate(window_, kSbMediaVideoCodecH264,
+                             kSbMediaAudioCodecAac, SB_PLAYER_NO_DURATION,
+                             drm_system, &audio_header, DeallocateSampleCB,
+                             DecoderStatusCB, PlayerStatusCB, this);
+    SetPlaybackRateTask(playback_rate_);
+    SetVolumeTask(volume_);
+  }
+
   set_bounds_caller_->SetPlayer(player_);
 }
 
 void SbPlayerPipeline::SetDecryptor(Decryptor* decryptor) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
   if (!decryptor) {
     return;
   }
@@ -599,28 +659,30 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     return;
   }
 
-  base::AutoLock auto_lock(lock_);
-  has_audio_ = demuxer_->GetStream(DemuxerStream::AUDIO) != NULL;
-  DCHECK(has_audio_);
-  has_video_ = demuxer_->GetStream(DemuxerStream::VIDEO) != NULL;
+  {
+    base::AutoLock auto_lock(lock_);
+    has_audio_ = demuxer_->GetStream(DemuxerStream::AUDIO) != NULL;
+    DCHECK(has_audio_);
+    has_video_ = demuxer_->GetStream(DemuxerStream::VIDEO) != NULL;
 
-  buffering_state_cb_.Run(kHaveMetadata);
+    buffering_state_cb_.Run(kHaveMetadata);
 
-  NOTIMPLEMENTED() << "Dynamically determinate codecs";
+    NOTIMPLEMENTED() << "Dynamically determinate codecs";
 
-  const AudioDecoderConfig& audio_config =
-      demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
-  bool is_encrypted = audio_config.is_encrypted();
-  if (has_video_) {
-    const VideoDecoderConfig& video_config =
-        demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
-    natural_size_ = video_config.natural_size();
-    is_encrypted |= video_config.is_encrypted();
-  }
-  if (is_encrypted) {
-    decryptor_ready_cb_.Run(
-        BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDecryptor, this)));
-    return;
+    const AudioDecoderConfig& audio_config =
+        demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
+    bool is_encrypted = audio_config.is_encrypted();
+    if (has_video_) {
+      const VideoDecoderConfig& video_config =
+          demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
+      natural_size_ = video_config.natural_size();
+      is_encrypted |= video_config.is_encrypted();
+    }
+    if (is_encrypted) {
+      decryptor_ready_cb_.Run(
+          BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDecryptor, this)));
+      return;
+    }
   }
 
   CreatePlayer(kSbDrmSystemInvalid);
@@ -642,7 +704,12 @@ void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
 }
 
 void SbPlayerPipeline::OnDemuxerStopped() {
-  base::AutoLock auto_lock(lock_);
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerStopped, this));
+    return;
+  }
+
   base::ResetAndReturn(&stop_cb_).Run();
 }
 
@@ -685,7 +752,12 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     }
     if (!seek_cb_.is_null()) {
       buffering_state_cb_.Run(kPrerollCompleted);
-      base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
+      PipelineStatusCB seek_cb;
+      {
+        base::AutoLock auto_lock(lock_);
+        seek_cb = base::ResetAndReturn(&seek_cb_);
+      }
+      seek_cb.Run(PIPELINE_OK);
     }
     return;
   }
@@ -807,7 +879,12 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
     case kSbPlayerStatePresenting:
       buffering_state_cb_.Run(kPrerollCompleted);
       if (!seek_cb_.is_null()) {
-        base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
+        PipelineStatusCB seek_cb;
+        {
+          base::AutoLock auto_lock(lock_);
+          seek_cb = base::ResetAndReturn(&seek_cb_);
+        }
+        seek_cb.Run(PIPELINE_OK);
       }
       break;
     case kSbPlayerStateEndOfStream:
