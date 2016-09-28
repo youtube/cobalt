@@ -920,7 +920,6 @@ void SbPlayerPipeline::DecoderStatusCB(SbPlayer player,
                                        SbPlayerDecoderState state,
                                        int ticket) {
   SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
-  DCHECK_EQ(pipeline->player_, player);
   pipeline->message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::OnDecoderStatus, pipeline, type,
                             state, ticket));
@@ -942,7 +941,6 @@ void SbPlayerPipeline::DeallocateSampleCB(SbPlayer player,
                                           void* context,
                                           const void* sample_buffer) {
   SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
-  DCHECK_EQ(pipeline->player_, player);
   pipeline->message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::OnDeallocateSample, pipeline,
                             sample_buffer));
