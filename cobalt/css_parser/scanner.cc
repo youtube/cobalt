@@ -312,7 +312,8 @@ inline bool IsEqualToCssIdentifier(const char* actual, const char* expected) {
     // The input must be part of an identifier if "actual" or "expected"
     // contains '-'. Otherwise ToAsciiLowerUnchecked('\r') would be equal
     // to '-'.
-    DCHECK((*expected >= 'a' && *expected <= 'z') || *expected == '-');
+    DCHECK((*expected >= 'a' && *expected <= 'z') ||
+           (*expected >= '0' && *expected <= '9') || *expected == '-');
     DCHECK(*expected != '-' || IsCssLetter(*actual));
     if (ToAsciiLowerUnchecked(*actual++) != (*expected++)) {
       return false;
@@ -771,6 +772,15 @@ Token Scanner::ScanFromDash(TokenValue* token_value) {
     if (*input_iterator_ == '(') {
       // Cache the open brace.
       open_braces_.push('(');
+
+      if (!has_escape) {
+        Token function_token;
+        if (DetectKnownFunctionTokenAndMaybeChangeParsingMode(
+                name, &function_token)) {
+          ++input_iterator_;
+          return function_token;
+        }
+      }
 
       ++input_iterator_;
       token_value->string = name;
@@ -1323,6 +1333,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kBottomProperty))) {
         *property_name_token = kBottomToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFilterProperty))) {
+        *property_name_token = kFilterToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
@@ -2417,6 +2432,13 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       }
       return false;
 
+    case 8:
+      if (IsEqualToCssIdentifier(name.begin, "matrix3d")) {
+        *known_function_token = kMatrix3dFunctionToken;
+        return true;
+      }
+      return false;
+
     case 9:
       if (IsEqualToCssIdentifier(name.begin, "translate")) {
         *known_function_token = kTranslateFunctionToken;
@@ -2448,6 +2470,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       if (IsEqualToCssIdentifier(name.begin, "nth-of-type")) {
         parsing_mode_ = kNthChildMode;
         *known_function_token = kNthOfTypeFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "-cobalt-mtm")) {
+        *known_function_token = kCobaltMtmFunctionToken;
         return true;
       }
       return false;
