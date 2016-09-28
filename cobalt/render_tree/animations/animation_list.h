@@ -77,6 +77,9 @@ class Animation {
 // letting us collect animation lists in a single collection, at the cost of
 // needing to type cast in a few places.
 class AnimationListBase : public base::RefCountedThreadSafe<AnimationListBase> {
+ public:
+  virtual base::TimeDelta GetExpiry() const = 0;
+
  protected:
   virtual ~AnimationListBase() {}
   friend class base::RefCountedThreadSafe<AnimationListBase>;
@@ -99,23 +102,32 @@ class AnimationList : public AnimationListBase {
   struct Builder {
     DECLARE_AS_MOVABLE(Builder);
 
-    Builder() {}
+    Builder() : expiry(base::TimeDelta::Max()) {}
     explicit Builder(Moved moved) { animations.swap(moved->animations); }
-    explicit Builder(const typename Animation<T>::Function& single_animation) {
+    explicit Builder(const typename Animation<T>::Function& single_animation,
+                     base::TimeDelta expiry)
+        : expiry(expiry) {
       animations.push_back(single_animation);
     }
 
     InternalList animations;
+    // When do the animations expire?  base::TimeDelta::Max() implies that they
+    // never expire.
+    base::TimeDelta expiry;
   };
 
   explicit AnimationList(typename Builder::Moved builder) : data_(builder) {}
   // Convenience constructor to allow for easy construction of AnimationLists
-  // containing a single Animation.
+  // containing a single Animation.  |expiry| indicates the time at which the
+  // animation ceases, or base::TimeDelta::Max() if that never occurs.
   explicit AnimationList(
-      const typename Animation<T>::Function& single_animation)
-      : data_(single_animation) {}
+      const typename Animation<T>::Function& single_animation,
+      base::TimeDelta expiry)
+      : data_(single_animation, expiry) {}
 
   const Builder& data() const { return data_; }
+
+  base::TimeDelta GetExpiry() const OVERRIDE { return data_.expiry; }
 
  private:
   ~AnimationList() OVERRIDE {}
