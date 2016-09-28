@@ -34,6 +34,13 @@
 #include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/submission_queue.h"
 
+#if defined(OS_STARBOARD) && !SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER
+// If there is no need to frequently flip the display buffer, then enable
+// support for an optimization where the scene is not re-rasterized each frame
+// if it has not changed from the last frame.
+#define DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE
+#endif
+
 namespace cobalt {
 namespace renderer {
 
@@ -165,6 +172,13 @@ class Pipeline {
   // Manages a queue of render tree submissions that are to be rendered in
   // the future.
   base::optional<SubmissionQueue> submission_queue_;
+
+#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
+  // Keep track of the last render tree we rendered whose animations have
+  // expired so that if we see that we are asked to rasterize that render tree
+  // again, we know that we do not have to do anything.
+  scoped_refptr<render_tree::Node> last_rendered_expired_render_tree_;
+#endif  // defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
 
   // Timers for tracking how frequently |RasterizeCurrentTree| is called and
   // the amount of time spent in |RasterizeCurrentTree| each call.
