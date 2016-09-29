@@ -20,6 +20,7 @@
 
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsdbgapi.h"
 #include "third_party/mozjs/js/src/jsscript.h"
 
@@ -28,6 +29,7 @@ namespace script {
 namespace mozjs {
 namespace util {
 std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
+  JSAutoRequest auto_request(context);
   JS::StackDescription* stack_description =
       JS::DescribeStack(context, max_frames);
   if (max_frames == 0) {

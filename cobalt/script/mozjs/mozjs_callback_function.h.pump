@@ -77,12 +77,12 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
     CallbackResult<R> callback_result;
+    JSAutoRequest auto_request(context_);
     JS::RootedObject function(context_, weak_function_.Get());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
     } else {
-      JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
       JSExceptionState* previous_exception_state =
           JS_SaveExceptionState(context_);
