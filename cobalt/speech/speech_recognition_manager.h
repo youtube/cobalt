@@ -19,9 +19,11 @@
 
 #include <string>
 
-#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/speech/mic.h"
 #include "cobalt/speech/speech_recognition_config.h"
+#include "cobalt/speech/speech_recognition_error.h"
+#include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
 
 namespace cobalt {
@@ -35,8 +37,10 @@ namespace speech {
 class SpeechRecognitionManager {
  public:
   typedef ::media::AudioBus AudioBus;
+  typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;
 
-  explicit SpeechRecognitionManager(loader::FetcherFactory* fetcher_factory);
+  SpeechRecognitionManager(network::NetworkModule* network_module,
+                           const EventCallback& event_callback);
   ~SpeechRecognitionManager();
 
   // Start/Stop speech recognizer and microphone. Multiple calls would be
@@ -48,14 +52,20 @@ class SpeechRecognitionManager {
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<AudioBus> audio_bus);
   void OnDataCompletion();
-  void OnError();
+  void OnMicError();
+
+  // Callbacks from recognizer.
+  void OnRecognizerResult(const scoped_refptr<SpeechRecognitionEvent>& event);
+  void OnRecognizerError();
 
   base::WeakPtrFactory<SpeechRecognitionManager> weak_ptr_factory_;
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in
   // order to associate the WeakPtr with the constructing thread.
   base::WeakPtr<SpeechRecognitionManager> weak_this_;
-
   scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
+
+  // Callback for sending dom events if available.
+  EventCallback event_callback_;
   SpeechRecognizer recognizer_;
   scoped_ptr<Mic> mic_;
 };
