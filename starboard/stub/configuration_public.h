@@ -359,7 +359,7 @@
 //    macro should be set to a value that is greater than the sum of the above
 //    source buffer stream memory limits with extra room to take account of
 //    fragmentations and memory used by demuxers.
-#define SB_MEDIA_MAIN_BUFFER_BUDGET (128U * 1024U * 1024U)
+#define SB_MEDIA_MAIN_BUFFER_BUDGET (32U * 1024U * 1024U)
 
 // Specifies how much GPU memory to reserve up-front for media source buffers.
 // This should only be set to non-zero on system with limited CPU memory and
