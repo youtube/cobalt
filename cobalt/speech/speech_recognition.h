@@ -107,6 +107,9 @@ class SpeechRecognition : public dom::EventTarget {
  private:
   ~SpeechRecognition() OVERRIDE {}
 
+  // Callback from recognition manager.
+  bool OnEventAvailable(const scoped_refptr<dom::Event>& event);
+
   // Handles main operations of speech recognition including audio encoding,
   // mic audio retrieving and audio data recognizing.
   SpeechRecognitionManager manager_;
