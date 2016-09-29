@@ -15,5 +15,5 @@
 #include "starboard/system.h"
 
 int SbSystemGetNumberOfProcessors() {
-  return 0;
+  return 1;
 }
