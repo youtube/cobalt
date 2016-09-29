@@ -21,6 +21,8 @@
       'target_name': 'speech',
       'type': 'static_library',
       'sources': [
+        'audio_encoder_flac.cc',
+        'audio_encoder_flac.h',
         'mic.h',
         'speech_recognition.cc',
         'speech_recognition.h',
@@ -43,6 +45,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/third_party/flac/flac.gyp:libflac',
       ],
       'conditions': [
         ['OS=="starboard"', {
