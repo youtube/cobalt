@@ -390,6 +390,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
 
+#if !defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
+#error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
+#endif
+
 // --- Derived Configuration -------------------------------------------------
 
 // Whether the current platform is little endian.

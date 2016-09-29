@@ -303,6 +303,12 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 0
 
+// Whether the current platform should frequently flip their display buffer.
+// If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set
+// to 0), then optimizations where the display buffer is not flipped if the
+// scene hasn't changed are enabled.
+#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
+
 // --- Media Configuration ---------------------------------------------------
 
 // Specifies whether this platform has support for a possibly-decrypting
