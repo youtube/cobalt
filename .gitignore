@@ -183,6 +183,7 @@ v8.log
 /third_party/freetype
 /third_party/freetype2
 /third_party/gles2_conform
+/third_party/glm
 /third_party/gnu_binutils/
 /third_party/gold
 /third_party/googlemac
