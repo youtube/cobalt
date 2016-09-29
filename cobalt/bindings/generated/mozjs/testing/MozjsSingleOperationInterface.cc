@@ -58,13 +58,13 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
     bool* had_exception) const {
   bool success = false;
   base::optional<int32_t > cobalt_return_value;
+  JSAutoRequest auto_request(context_);
   JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
 
   // This could be set to NULL if it was garbage collected.
   JS::RootedObject implementing_object(context_, implementing_object_.Get());
   DLOG_IF(WARNING, !implementing_object) << "Implementing object is NULL.";
   if (implementing_object) {
-    JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, implementing_object);
 
     // Get callable object.
