@@ -101,7 +101,11 @@ TEST_F(SbBlitterPixelTest, SimpleNonStretchBlitRectToRect) {
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
 }
 
-TEST_F(SbBlitterPixelTest, MagnifyBlitRectToRect) {
+#if SB_HAS(BILINEAR_FILTERING_SUPPORT)
+TEST_F(SbBlitterPixelTest, MagnifyBlitRectToRectInterpolated) {
+#else
+TEST_F(SbBlitterPixelTest, MagnifyBlitRectToRectNotInterpolated) {
+#endif
   // Create an image with a height and width of 2x2.
   SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
       device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
