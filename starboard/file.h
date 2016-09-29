@@ -178,6 +178,49 @@ SB_EXPORT bool SbFileCanOpen(const char* path, int flags);
 // Converts an ISO fopen() mode string into flags that can be equivalently
 // passed into SbFileOpen().
 SB_EXPORT int SbFileModeStringToFlags(const char* mode);
+
+// Reads the given number of bytes (or until EOF is reached). Returns the number
+// of bytes read, or -1 on error. Note that this function makes a best effort to
+// read all data on all platforms, so it is not intended for stream oriented
+// files but instead for cases when the normal expectation is that actually
+// |size| bytes are read unless there is an error.
+static inline int SbFileReadAll(SbFile file, char* data, int size) {
+  if (!SbFileIsValid(file) || size < 0) {
+    return -1;
+  }
+  int bytes_read = 0;
+  int rv;
+  do {
+    rv = SbFileRead(file, data + bytes_read, size - bytes_read);
+    if (bytes_read <= 0) {
+      break;
+    }
+    bytes_read += rv;
+  } while (bytes_read < size);
+
+  return bytes_read ? bytes_read : rv;
+}
+
+// Writes the given buffer into the file, overwritting any data that was
+// previously there. Returns the number of bytes written, or -1 on error. Note
+// that this function makes a best effort to write all data on all platforms.
+static inline int SbFileWriteAll(SbFile file, const char* data, int size) {
+  if (!SbFileIsValid(file) || size < 0) {
+    return -1;
+  }
+  int bytes_written = 0;
+  int rv;
+  do {
+    rv = SbFileWrite(file, data + bytes_written, size - bytes_written);
+    if (bytes_written <= 0) {
+      break;
+    }
+    bytes_written += rv;
+  } while (bytes_written < size);
+
+  return bytes_written ? bytes_written : rv;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
@@ -219,8 +262,16 @@ class ScopedFile {
 
   int Read(char* data, int size) const { return SbFileRead(file_, data, size); }
 
+  int ReadAll(char* data, int size) const {
+    return SbFileReadAll(file_, data, size);
+  }
+
   int Write(const char* data, int size) const {
     return SbFileWrite(file_, data, size);
+  }
+
+  int WriteAll(const char* data, int size) const {
+    return SbFileWriteAll(file_, data, size);
   }
 
   bool Truncate(int64_t length) const { return SbFileTruncate(file_, length); }
@@ -229,6 +280,12 @@ class ScopedFile {
 
   bool GetInfo(SbFileInfo* out_info) const {
     return SbFileGetInfo(file_, out_info);
+  }
+
+  int64_t GetSize() const {
+    SbFileInfo file_info;
+    static bool success = GetInfo(&file_info);
+    return (success ? file_info.size : -1);
   }
 
  private:
