@@ -32,13 +32,17 @@
         'savegame_fake.cc',
         'storage_manager.cc',
         'storage_manager.h',
+        'upgrade/upgrade_reader.cc',
+        'upgrade/upgrade_reader.h',
         'virtual_file.cc',
         'virtual_file.h',
         'virtual_file_system.cc',
         'virtual_file_system.h',
       ],
       'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/sql/sql.gyp:sql',
       ],
       'conditions': [
@@ -70,6 +74,7 @@
       'sources': [
         'savegame_test.cc',
         'storage_manager_test.cc',
+        'upgrade/storage_upgrade_test.cc',
         'virtual_file_system_test.cc',
       ],
       'dependencies': [
@@ -78,6 +83,7 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'storage',
+        'storage_upgrade_copy_test_data',
       ],
     },
     {
@@ -90,6 +96,22 @@
         'executable_name': 'storage_test',
       },
       'includes': [ '../../starboard/build/deploy.gypi' ],
+    },
+    {
+      'target_name': 'storage_upgrade_copy_test_data',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'storage_upgrade_copy_test_data',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/storage/upgrade/testdata/',
+            ],
+            'output_dir': 'cobalt/storage/upgrade/testdata/',
+          },
+          'includes': [ '../build/copy_test_data.gypi' ],
+        },
+      ],
     },
   ],
 }

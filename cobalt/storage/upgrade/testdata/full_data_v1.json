@@ -1,0 +1,37 @@
+UPG0
+{
+  "cookies": [
+    {
+      "url": "https://www.youtube.com",
+      "name": "cookie_name",
+      "value": "cookie_value",
+      "domain": "cookie.domain",
+      "path": "cookie/path",
+      "creation": "13119668760000000",
+      "expiration": "13120000000000000",
+      "last_acess": "13119668770000000",
+      "http_only": true
+    },
+    {
+      "url": "http://www.somewhere.com",
+      "name": "cookie_name_2",
+      "value": "cookie_value_2",
+      "domain": "cookie.domain2",
+      "path": "cookie/path/2",
+      "creation": "13109668760000000",
+      "expiration": "13110000000000000",
+      "last_acess": "13109668770000000",
+      "http_only": true
+    }
+  ],
+  "local_storage_entries": [
+    {
+      "key": "key-1",
+      "value": "value-1"
+    },
+    {
+      "key": "key-2",
+      "value": "value-2"
+    }
+  ]
+}
