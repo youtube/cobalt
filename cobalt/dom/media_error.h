@@ -44,7 +44,7 @@ class MediaError : public script::Wrappable {
 
   // Web API: MediaError
   //
-  Code code() const { return code_; }
+  uint32 code() const { return code_; }
 
   DEFINE_WRAPPABLE_TYPE(MediaError);
 
