@@ -1,0 +1,21 @@
+UPG0
+{
+  "cookies": [
+    {
+      "name": "cookie_name",
+      "value": "cookie_value"
+    }
+  ],
+  "local_storage_entries": [
+    {
+      "key": "key-1"
+    },
+    {
+      "value": "value-2"
+    },
+    {
+      "key": "key-3",
+      "value": "value-3"
+    }
+  ]
+}
