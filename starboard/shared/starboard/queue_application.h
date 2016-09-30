@@ -85,6 +85,7 @@ class QueueApplication : public Application {
   class TimedEventQueue {
    public:
     TimedEventQueue();
+    ~TimedEventQueue();
 
     // Returns whether the new event pushed up the next wakeup time.
     bool Inject(TimedEvent* timed_event);
