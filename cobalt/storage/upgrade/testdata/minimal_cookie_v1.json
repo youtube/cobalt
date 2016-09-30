@@ -1,0 +1,10 @@
+UPG0
+{
+  "cookies": [
+    {
+      "url": "https://www.youtube.com",
+      "name": "cookie_name",
+      "value": "cookie_value"
+    }
+  ]
+}

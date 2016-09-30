@@ -1,0 +1,22 @@
+UPG0
+{
+  "cookies": [
+    {
+      "url": "https://www.youtube.com",
+      "name": "cookie_name",
+      "value": "cookie_value",
+      "unexpected": "dummy_value"
+    }
+  ],
+  "local_storage_entries": [
+    {
+      "key": "key-1",
+      "value": "value-1",
+      "unexpected": "dummy_value"
+    },
+    {
+      "key": "key-2",
+      "value": "value-2"
+    }
+  ]
+}
