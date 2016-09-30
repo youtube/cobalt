@@ -128,6 +128,7 @@
     #   - scratch_surface_cache_size_in_bytes
     #   - surface_cache_size_in_bytes
     #   - image_cache_size_in_bytes
+    #   - skia_glyph_atlas_width * skia_glyph_atlas_height
     #
     # The other caches affect CPU memory usage.
 
@@ -167,6 +168,15 @@
     # image_cache_size_in_bytes *
     #     image_cache_capacity_multiplier_when_playing_video.
     'image_cache_capacity_multiplier_when_playing_video%': '1.0f',
+
+    # Determines the size in pixels of the glyph atlas where rendered glyphs are
+    # cached. The resulting memory usage is 2 bytes of GPU memory per pixel.
+    # When a value is used that is too small, thrashing may occur that will
+    # result in visible stutter. Such thrashing is more likely to occur when CJK
+    # language glyphs are rendered and when the size of the glyphs in pixels is
+    # larger, such as for higher resolution displays.
+    'skia_glyph_atlas_width%': '2048',
+    'skia_glyph_atlas_height%': '2048',
 
     # Compiler configuration.
 
