@@ -595,7 +595,15 @@ void SbPlayerPipeline::SetDuration(TimeDelta duration) {
 }
 
 void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
-  NOTIMPLEMENTED();
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerError, this, error));
+    return;
+  }
+
+  if (error != PIPELINE_OK && !error_cb_.is_null()) {
+    base::ResetAndReturn(&error_cb_).Run(error);
+  }
 }
 
 void SbPlayerPipeline::AddBufferedByteRange(int64 start, int64 end) {
@@ -893,7 +901,9 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
     case kSbPlayerStateDestroyed:
       break;
     case kSbPlayerStateError:
-      // TODO: Handle error
+      if (!error_cb_.is_null()) {
+        base::ResetAndReturn(&error_cb_).Run(PIPELINE_ERROR_DECODE);
+      }
       break;
   }
 }
