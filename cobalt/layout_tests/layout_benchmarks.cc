@@ -45,14 +45,18 @@ class RendererBenchmarkRunner {
   RendererBenchmarkRunner()
       : done_gathering_samples_(true, false),
         system_window_(system_window::CreateSystemWindow(
-            &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight))),
-        renderer_module_(system_window_.get(),
-                         renderer::RendererModule::Options()) {}
+            &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight))) {
+    // Since we'd like to measure the renderer, we force it to rasterize each
+    // frame despite the fact that the render tree may not be changing.
+    renderer::RendererModule::Options renderer_options;
+    renderer_options.submit_even_if_render_tree_is_unchanged = true;
+    renderer_module_.emplace(system_window_.get(), renderer_options);
+  }
 
   // Return the resource provider from the internal renderer so that it can
   // be used during layout.
   render_tree::ResourceProvider* GetResourceProvider() {
-    return renderer_module_.pipeline()->GetResourceProvider();
+    return renderer_module_->pipeline()->GetResourceProvider();
   }
 
   // Run the renderer benchmarks and perform the measurements.
@@ -67,11 +71,11 @@ class RendererBenchmarkRunner {
     submission_with_callback.on_rasterized_callback = base::Bind(
         &RendererBenchmarkRunner::OnSubmitComplete, base::Unretained(this));
 
-    renderer_module_.pipeline()->Submit(submission_with_callback);
+    renderer_module_->pipeline()->Submit(submission_with_callback);
 
     done_gathering_samples_.Wait();
 
-    renderer_module_.pipeline()->Clear();
+    renderer_module_->pipeline()->Clear();
   }
 
  private:
@@ -93,7 +97,7 @@ class RendererBenchmarkRunner {
   base::EventDispatcher event_dispatcher_;
 
   scoped_ptr<system_window::SystemWindow> system_window_;
-  renderer::RendererModule renderer_module_;
+  base::optional<renderer::RendererModule> renderer_module_;
 };
 
 }  // namespace

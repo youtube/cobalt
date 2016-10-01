@@ -71,6 +71,12 @@ void RendererModule::Options::SetPerPlatformDefaultOptions() {
   scratch_surface_cache_size_in_bytes =
       COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
 
+  // If there is no need to frequently flip the display buffer, then enable
+  // support for an optimization where the scene is not re-rasterized each frame
+  // if it has not changed from the last frame.
+  submit_even_if_render_tree_is_unchanged =
+      SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER;
+
   create_rasterizer_function = base::Bind(&CreateRasterizer);
 }
 

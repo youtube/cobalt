@@ -1,4 +1,4 @@
-/*
+  /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -171,7 +171,7 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
     Pipeline pipeline(
         base::Bind(render_module_options.create_rasterizer_function,
                    graphics_context.get(), render_module_options),
-        dummy_output_surface, NULL);
+        dummy_output_surface, NULL, true);
 
     // Our test render tree will consist of only a single ImageNode.
     scoped_refptr<ImageNode> test_node = new ImageNode(
