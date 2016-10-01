@@ -47,6 +47,8 @@ void RendererModule::Options::SetPerPlatformDefaultOptions() {
   scratch_surface_cache_size_in_bytes =
       COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
 
+  submit_even_if_render_tree_is_unchanged = true;
+
   create_rasterizer_function = base::Bind(&CreateRasterizer);
 }
 

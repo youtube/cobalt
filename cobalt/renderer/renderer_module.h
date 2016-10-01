@@ -60,6 +60,12 @@ class RendererModule {
     // nodes that are most CPU-expensive to render into surfaces.
     int surface_cache_size_in_bytes;
 
+    // If this flag is set to true, the pipeline will not re-submit a render
+    // tree if it has not changed from the previous submission.  This can save
+    // CPU time so long as there's no problem with the fact that the display
+    // buffer will not be frequently swapped.
+    bool submit_even_if_render_tree_is_unchanged;
+
    private:
     // Implemented per-platform, and allows each platform to customize
     // the renderer options.
