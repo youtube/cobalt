@@ -62,7 +62,8 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
     pipeline_ = make_scoped_ptr(new renderer::Pipeline(
         base::Bind(options.create_rasterizer_function, graphics_context_.get(),
                    options),
-        display_->GetRenderTarget(), graphics_context_.get()));
+        display_->GetRenderTarget(), graphics_context_.get(),
+        options.submit_even_if_render_tree_is_unchanged));
   }
 }
 

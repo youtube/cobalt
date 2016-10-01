@@ -88,7 +88,8 @@ class RendererPipelineTest : public ::testing::Test {
     submission_count_ = 0;
     start_time_ = base::TimeTicks::Now();
     pipeline_.reset(new Pipeline(
-        base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL));
+        base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL,
+                   true));
   }
 
   static void DummyAnimateFunction(
