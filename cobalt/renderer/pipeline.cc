@@ -65,12 +65,15 @@ void DestructSubmissionOnMessageLoop(MessageLoop* message_loop,
 
 Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
                    const scoped_refptr<backend::RenderTarget>& render_target,
-                   backend::GraphicsContext* graphics_context)
+                   backend::GraphicsContext* graphics_context,
+                   bool submit_even_if_render_tree_is_unchanged)
     : rasterizer_created_event_(true, false),
       render_target_(render_target),
       graphics_context_(graphics_context),
       rasterizer_thread_("Rasterizer"),
       submission_disposal_thread_("Rasterizer Submission Disposal"),
+      submit_even_if_render_tree_is_unchanged_(
+          submit_even_if_render_tree_is_unchanged),
       rasterize_current_tree_interval_timer_(
           "Renderer.Rasterize.Interval",
           kRasterizeCurrentTreeTimerTimeIntervalInMs),
@@ -221,15 +224,14 @@ void Pipeline::RasterizeCurrentTree() {
   base::TimeTicks now = base::TimeTicks::Now();
   Submission submission = submission_queue_->GetCurrentSubmission(now);
 
-#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
   // If our render tree hasn't changed from the one that was previously rendered
   // and the animations on the previously rendered tree have expired, and it's
   // okay on this system to not flip the display buffer frequently, then we
   // can just not do anything here.
-  if (submission.render_tree == last_rendered_expired_render_tree_) {
+  if (!submit_even_if_render_tree_is_unchanged_ &&
+      submission.render_tree == last_rendered_expired_render_tree_) {
     return;
   }
-#endif  // #if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
 
   rasterize_current_tree_interval_timer_.Start(now);
   rasterize_current_tree_timer_.Start(now);
@@ -239,7 +241,6 @@ void Pipeline::RasterizeCurrentTree() {
 
   rasterize_current_tree_timer_.Stop();
 
-#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
   // Check whether the animations in the render tree that was just rasterized
   // have expired or not, and if so, mark that down so that if we see it in
   // the future we don't spend the time re-rendering it.
@@ -249,7 +250,6 @@ void Pipeline::RasterizeCurrentTree() {
   last_rendered_expired_render_tree_ =
       animate_node->expiry() <= submission.time_offset ? submission.render_tree
                                                        : NULL;
-#endif  // defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
