@@ -132,6 +132,25 @@ TCPClientSocketStarboard::~TCPClientSocketStarboard() {
   net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
+int TCPClientSocketStarboard::AdoptSocket(SbSocket socket) {
+  DCHECK(!SbSocketIsValid(socket_));
+
+  int error = SetupSocket(socket);
+  if (error) {
+    return error;
+  }
+
+  socket_ = socket;
+
+  // This is to make GetPeerAddress() work. It's up to the caller to ensure that
+  // |address_| contains a reasonable address for this socket. (i.e. at least
+  // match IPv4 vs IPv6!).
+  current_address_index_ = 0;
+  use_history_.set_was_ever_connected();
+
+  return OK;
+}
+
 int TCPClientSocketStarboard::Connect(const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
 
