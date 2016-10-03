@@ -33,7 +33,14 @@ class FakeExceptionState : public script::ExceptionState {
   void SetSimpleException(script::MessageType /*message_type*/, ...) OVERRIDE {
     // no-op
   }
-  scoped_refptr<DOMException> dom_exception_;
+  dom::DOMException::ExceptionCode GetExceptionCode() {
+    return dom_exception_ ? static_cast<dom::DOMException::ExceptionCode>(
+                                dom_exception_->code())
+                          : dom::DOMException::kNone;
+  }
+
+ private:
+  scoped_refptr<dom::DOMException> dom_exception_;
 };
 }  // namespace
 
@@ -180,16 +187,12 @@ TEST(TimeRangesTest, IndexOutOfRangeException) {
   {
     FakeExceptionState exception_state;
     time_ranges->Start(2, &exception_state);
-    ASSERT_TRUE(exception_state.dom_exception_);
-    EXPECT_EQ(DOMException::kIndexSizeErr,
-              exception_state.dom_exception_->code());
+    EXPECT_EQ(DOMException::kIndexSizeErr, exception_state.GetExceptionCode());
   }
   {
     FakeExceptionState exception_state;
     time_ranges->End(2, &exception_state);
-    ASSERT_TRUE(exception_state.dom_exception_);
-    EXPECT_EQ(DOMException::kIndexSizeErr,
-              exception_state.dom_exception_->code());
+    EXPECT_EQ(DOMException::kIndexSizeErr, exception_state.GetExceptionCode());
   }
 }
 
