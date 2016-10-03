@@ -79,7 +79,7 @@ typedef void (*SbSocketWaiterCallback)(SbSocketWaiter waiter,
                                        int ready_interests);
 
 // Well-defined value for an invalid socket watcher handle.
-const SbSocketWaiter kSbSocketWaiterInvalid = (SbSocketWaiter)NULL;
+#define kSbSocketWaiterInvalid ((SbSocketWaiter)NULL)
 
 // Returns whether the given socket handle is valid.
 static SB_C_INLINE bool SbSocketWaiterIsValid(SbSocketWaiter watcher) {

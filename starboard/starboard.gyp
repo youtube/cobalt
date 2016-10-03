@@ -23,15 +23,31 @@
       'type': 'none',
       'sources': [
         'atomic.h',
+        'audio_sink.h',
+        'blitter.h',
+        'byte_swap.h',
+        'character.h',
         'condition_variable.h',
         'configuration.h',
         'directory.h',
         'double.h',
+        'drm.h',
+        'event.h',
         'export.h',
         'file.h',
+        'input.h',
+        'key.h',
         'log.h',
+        'media.h',
         'memory.h',
         'mutex.h',
+        'once.h',
+        'player.h',
+        'queue.h',
+        'socket.h',
+        'socket_waiter.h',
+        'spin_lock.h',
+        'storage.h',
         'string.h',
         'system.h',
         'thread.h',
@@ -39,11 +55,13 @@
         'time.h',
         'time_zone.h',
         'types.h',
+        'user.h',
+        'window.h',
       ],
       'conditions': [
         ['starboard_path == ""', {
           # TODO: Make starboard_path required. This legacy condition is only
-          # here to support starboard-linux while it still exists.
+          # here to support semi-starboard platforms while they still exist.
           'dependencies': [
             '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
           ],
@@ -57,6 +75,17 @@
           'export_dependent_settings': [
             '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
           ],
+        }],
+        ['final_executable_type=="shared_library"', {
+          'all_dependent_settings': {
+            'target_conditions': [
+              ['_type=="executable" and _toolset=="target"', {
+                'sources': [
+                  '<(DEPTH)/starboard/shared/starboard/shared_main_adapter.cc',
+                ],
+              }],
+            ],
+          },
         }],
       ],
     },
