@@ -122,6 +122,9 @@
 // Whether the current platform provides the standard header limits.h.
 #define SB_HAS_LIMITS_H 1
 
+// Whether the current platform provides the standard header float.h.
+#define SB_HAS_FLOAT_H 1
+
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
