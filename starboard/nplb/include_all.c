@@ -15,6 +15,7 @@
 // Includes all headers in a C context to make sure they compile as C files.
 
 #include "starboard/atomic.h"
+#include "starboard/audio_sink.h"
 #include "starboard/blitter.h"
 #include "starboard/byte_swap.h"
 #include "starboard/character.h"
@@ -26,6 +27,7 @@
 #include "starboard/event.h"
 #include "starboard/export.h"
 #include "starboard/file.h"
+#include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
