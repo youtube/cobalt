@@ -100,6 +100,7 @@
         'file_truncate_test.cc',
         'file_write_test.cc',
         'include_all.c',
+        'include_all_too.c',
         'log_flush_test.cc',
         'log_format_test.cc',
         'log_is_tty_test.cc',

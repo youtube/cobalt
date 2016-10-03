@@ -48,7 +48,7 @@ typedef struct SbWindowSize {
   //
   // Values greater than 1.0f mean that the video resolution is higher (denser,
   // larger) than the graphics resolution. This is a common case as devices
-  // often have less video decoding capabilities than graphics rendering
+  // often have more video decoding capabilities than graphics rendering
   // capabilities (or memory, etc...).
   //
   // Values less than 1.0f mean that the maximum video resolution is smaller
@@ -74,7 +74,7 @@ typedef struct SbWindowOptions {
 } SbWindowOptions;
 
 // Well-defined value for an invalid window handle.
-const SbWindow kSbWindowInvalid = (SbWindow)NULL;
+#define kSbWindowInvalid ((SbWindow)NULL)
 
 // Returns whether the given window handle is valid.
 static SB_C_INLINE bool SbWindowIsValid(SbWindow window) {

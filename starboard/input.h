@@ -79,7 +79,7 @@ typedef enum SbInputDeviceType {
   //
   // Produces Move, Press, and Unpress events.
   kSbInputDeviceTypeTouchPad,
-} SbInputType;
+} SbInputDeviceType;
 
 // The action that an input event represents.
 typedef enum SbInputEventType {
