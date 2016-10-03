@@ -32,6 +32,10 @@ class SurfaceImpl {
   virtual int GetWidth() const = 0;
   virtual int GetHeight() const = 0;
 
+  // Returns true if the surface is a window surface, false if the surface is a
+  // pixel buffer or a pixmap.
+  virtual bool IsWindowSurface() const = 0;
+
  private:
 };
 
