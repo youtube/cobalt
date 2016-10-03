@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <time.h>
+// Imports and calls into StarboardMain() from main(). Can be used to
+// link into a shared Starboard executable to turn it into a traditional
+// executable.
 
 #include "starboard/configuration.h"
-#include "starboard/shared/signal/crash_signals.h"
-#include "starboard/shared/signal/suspend_signals.h"
-#include "starboard/shared/x11/application_x11.h"
 
-extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
-  tzset();
-  starboard::shared::signal::InstallCrashSignalHandlers();
-  starboard::shared::signal::InstallSuspendSignalHandlers();
-  starboard::shared::x11::ApplicationX11 application;
-  int result = application.Run(argc, argv);
-  starboard::shared::signal::UninstallSuspendSignalHandlers();
-  starboard::shared::signal::UninstallCrashSignalHandlers();
-  return result;
+#undef main
+
+extern "C" {
+
+SB_IMPORT_PLATFORM int StarboardMain(int argc, char** argv);
+
+int main(int argc, char** argv) {
+  return StarboardMain(argc, argv);
 }
+
+}  // extern "C"
