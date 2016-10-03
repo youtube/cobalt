@@ -26,7 +26,8 @@ SbMediaTime GetMediaTime(SbMediaTime media_pts,
   SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_pts_update_time;
   return media_pts + elapsed * kSbMediaTimeSecond / kSbTimeSecond;
 }
-}
+
+}  // namespace
 
 SbPlayerPrivate::SbPlayerPrivate(
     SbWindow window,
