@@ -125,6 +125,22 @@ void CSSDeclaredStyleDeclaration::SetPropertyValue(
   RecordMutation();
 }
 
+void CSSDeclaredStyleDeclaration::SetProperty(
+    const std::string& property_name, const std::string& property_value,
+    const std::string& priority, script::ExceptionState* /*exception_state*/) {
+  DLOG(INFO) << "CSSDeclaredStyleDeclaration::SetProperty(" << property_name
+             << "," << property_value << "," << priority << ")";
+  DCHECK(css_parser_);
+  if (!data_) {
+    data_ = new CSSDeclaredStyleData();
+  }
+  css_parser_->ParsePropertyIntoDeclarationData(
+      property_name, property_value, non_trivial_static_fields.Get().location,
+      data_.get());
+
+  RecordMutation();
+}
+
 void CSSDeclaredStyleDeclaration::RecordMutation() {
   if (mutation_observer_) {
     // Trigger layout update.
