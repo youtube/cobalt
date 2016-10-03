@@ -38,6 +38,8 @@ namespace cssom {
 // for computed styles.
 class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
  public:
+  using CSSStyleDeclaration::SetProperty;
+
   CSSComputedStyleDeclaration() {}
   // From CSSStyleDeclaration.
 
@@ -52,6 +54,11 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value,
                         script::ExceptionState* exception_state) OVERRIDE;
+
+  void SetProperty(const std::string& property_name,
+                   const std::string& property_value,
+                   const std::string& priority,
+                   script::ExceptionState* exception_state) OVERRIDE;
 
   // Custom.
 
