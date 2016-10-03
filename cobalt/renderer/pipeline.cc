@@ -124,6 +124,11 @@ Pipeline::~Pipeline() {
                             base::Unretained(&submission_queue_shutdown)));
   submission_queue_shutdown.Wait();
 
+  // This potential reference to a render tree whose animations may have ended
+  // must be destroyed before we shutdown the rasterizer thread since it may
+  // contain references to render tree nodes and resources.
+  last_rendered_expired_render_tree_ = NULL;
+
   // Submit a shutdown task to the rasterizer thread so that it can shutdown
   // anything that must be shutdown from that thread.
   rasterizer_thread_.message_loop()->PostTask(
@@ -244,12 +249,15 @@ void Pipeline::RasterizeCurrentTree() {
   // Check whether the animations in the render tree that was just rasterized
   // have expired or not, and if so, mark that down so that if we see it in
   // the future we don't spend the time re-rendering it.
-  render_tree::animations::AnimateNode* animate_node =
-      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
-          submission.render_tree.get());
-  last_rendered_expired_render_tree_ =
-      animate_node->expiry() <= submission.time_offset ? submission.render_tree
-                                                       : NULL;
+  if (!submit_even_if_render_tree_is_unchanged_) {
+    render_tree::animations::AnimateNode* animate_node =
+        base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+            submission.render_tree.get());
+    last_rendered_expired_render_tree_ =
+        animate_node->expiry() <= submission.time_offset
+            ? submission.render_tree
+            : NULL;
+  }
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
