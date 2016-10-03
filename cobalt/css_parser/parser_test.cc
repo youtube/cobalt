@@ -8377,5 +8377,19 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
   EXPECT_EQ(4.0f, actual[3][3]);
 }
 
+TEST_F(ParserTest, EmptyPropertyValueRemovesProperty) {
+  // Test that parsing an empty property value removes the previously declared
+  // property value.
+  scoped_refptr<cssom::CSSDeclaredStyleData> style_data =
+      parser_.ParseStyleDeclarationList("display: inline;", source_location_);
+
+  scoped_refptr<cssom::CSSDeclaredStyleDeclaration> style =
+      new cssom::CSSDeclaredStyleDeclaration(style_data, &parser_);
+
+  style->SetPropertyValue(std::string("display"), std::string(), NULL);
+  EXPECT_EQ(style->GetPropertyValue("display"), "");
+  EXPECT_FALSE(style_data->GetPropertyValue(cssom::kDisplayProperty));
+}
+
 }  // namespace css_parser
 }  // namespace cobalt

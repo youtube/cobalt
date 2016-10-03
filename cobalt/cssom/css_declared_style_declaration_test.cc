@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include "cobalt/cssom/css_style_declaration.h"
 
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_declared_style_declaration.h"
@@ -37,12 +35,14 @@ namespace cssom {
 using ::testing::_;
 using ::testing::Return;
 
+namespace {
 class MockMutationObserver : public MutationObserver {
  public:
   MOCK_METHOD0(OnCSSMutation, void());
 };
+}  // namespace
 
-TEST(CSSStyleDeclarationTest, BackgroundSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BackgroundSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -58,7 +58,7 @@ TEST(CSSStyleDeclarationTest, BackgroundSetter) {
   style->set_background(background, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BackgroundColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BackgroundColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -74,7 +74,7 @@ TEST(CSSStyleDeclarationTest, BackgroundColorSetter) {
   style->set_background_color(background_color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BackgroundImageSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BackgroundImageSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -90,7 +90,7 @@ TEST(CSSStyleDeclarationTest, BackgroundImageSetter) {
   style->set_background_image(background_image, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BackgroundPositionSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BackgroundPositionSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -106,7 +106,7 @@ TEST(CSSStyleDeclarationTest, BackgroundPositionSetter) {
   style->set_background_position(background_position, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BackgroundRepeatSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BackgroundRepeatSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -122,7 +122,7 @@ TEST(CSSStyleDeclarationTest, BackgroundRepeatSetter) {
   style->set_background_repeat(background_repeat, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BackgroundSizeSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BackgroundSizeSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -138,7 +138,7 @@ TEST(CSSStyleDeclarationTest, BackgroundSizeSetter) {
   style->set_background_size(background_size, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -153,7 +153,7 @@ TEST(CSSStyleDeclarationTest, BorderSetter) {
   style->set_border(border, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderBottomSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderBottomSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -169,7 +169,7 @@ TEST(CSSStyleDeclarationTest, BorderBottomSetter) {
   style->set_border_bottom(border_bottom, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderBottomColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderBottomColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -185,7 +185,7 @@ TEST(CSSStyleDeclarationTest, BorderBottomColorSetter) {
   style->set_border_bottom_color(border_bottom_color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderBottomStyleSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderBottomStyleSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -201,7 +201,7 @@ TEST(CSSStyleDeclarationTest, BorderBottomStyleSetter) {
   style->set_border_bottom_style(border_bottom_style, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderBottomWidthSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderBottomWidthSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> width =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -217,7 +217,7 @@ TEST(CSSStyleDeclarationTest, BorderBottomWidthSetter) {
   width->set_border_bottom_width(border_bottom_width, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -233,7 +233,7 @@ TEST(CSSStyleDeclarationTest, BorderColorSetter) {
   style->set_border_color(border_color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderLeftSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderLeftSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -249,7 +249,7 @@ TEST(CSSStyleDeclarationTest, BorderLeftSetter) {
   style->set_border_left(border_left, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderLeftColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderLeftColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -265,7 +265,7 @@ TEST(CSSStyleDeclarationTest, BorderLeftColorSetter) {
   style->set_border_left_color(border_left_color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderLeftStyleSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderLeftStyleSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -281,7 +281,7 @@ TEST(CSSStyleDeclarationTest, BorderLeftStyleSetter) {
   style->set_border_left_style(border_left_style, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderLeftWidthSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderLeftWidthSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> width =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -297,7 +297,7 @@ TEST(CSSStyleDeclarationTest, BorderLeftWidthSetter) {
   width->set_border_left_width(border_left_width, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderRadiusSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderRadiusSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -313,7 +313,7 @@ TEST(CSSStyleDeclarationTest, BorderRadiusSetter) {
   style->set_border_radius(border_radius, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderRightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderRightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -329,7 +329,7 @@ TEST(CSSStyleDeclarationTest, BorderRightSetter) {
   style->set_border_right(border_right, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderRightColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderRightColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -345,7 +345,7 @@ TEST(CSSStyleDeclarationTest, BorderRightColorSetter) {
   style->set_border_right_color(border_right_color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderRightStyleSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderRightStyleSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -361,7 +361,7 @@ TEST(CSSStyleDeclarationTest, BorderRightStyleSetter) {
   style->set_border_right_style(border_right_style, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderRightWidthSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderRightWidthSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> width =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -377,7 +377,7 @@ TEST(CSSStyleDeclarationTest, BorderRightWidthSetter) {
   width->set_border_right_width(border_right_width, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderStyleSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderStyleSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -393,7 +393,7 @@ TEST(CSSStyleDeclarationTest, BorderStyleSetter) {
   style->set_border_style(border_style, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderTopSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderTopSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -409,7 +409,7 @@ TEST(CSSStyleDeclarationTest, BorderTopSetter) {
   style->set_border_top(border_top, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderTopColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderTopColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -425,7 +425,7 @@ TEST(CSSStyleDeclarationTest, BorderTopColorSetter) {
   style->set_border_top_color(border_top_color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderTopStyleSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderTopStyleSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -441,7 +441,7 @@ TEST(CSSStyleDeclarationTest, BorderTopStyleSetter) {
   style->set_border_top_style(border_top_style, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BorderTopWidthSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BorderTopWidthSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> width =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -457,7 +457,7 @@ TEST(CSSStyleDeclarationTest, BorderTopWidthSetter) {
   width->set_border_top_width(border_top_width, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BottomSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BottomSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -472,7 +472,7 @@ TEST(CSSStyleDeclarationTest, BottomSetter) {
   style->set_bottom(bottom, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, BoxShadowSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, BoxShadowSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -488,7 +488,7 @@ TEST(CSSStyleDeclarationTest, BoxShadowSetter) {
   style->set_box_shadow(box_shadow, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, ColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, ColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -503,7 +503,7 @@ TEST(CSSStyleDeclarationTest, ColorSetter) {
   style->set_color(color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, ContentSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, ContentSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -519,7 +519,7 @@ TEST(CSSStyleDeclarationTest, ContentSetter) {
   style->set_content(content, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, DisplaySetter) {
+TEST(CSSDeclaredStyleDeclarationTest, DisplaySetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -535,7 +535,7 @@ TEST(CSSStyleDeclarationTest, DisplaySetter) {
   style->set_display(display, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, FontSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, FontSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -550,7 +550,7 @@ TEST(CSSStyleDeclarationTest, FontSetter) {
   style->set_font(font, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, FontFamilySetter) {
+TEST(CSSDeclaredStyleDeclarationTest, FontFamilySetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -566,7 +566,7 @@ TEST(CSSStyleDeclarationTest, FontFamilySetter) {
   style->set_font_family(font_family, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, FontSizeSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, FontSizeSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -582,7 +582,7 @@ TEST(CSSStyleDeclarationTest, FontSizeSetter) {
   style->set_font_size(font_size, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, FontStyleSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, FontStyleSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -598,7 +598,7 @@ TEST(CSSStyleDeclarationTest, FontStyleSetter) {
   style->set_font_style(font_style, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, FontWeightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, FontWeightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -614,7 +614,7 @@ TEST(CSSStyleDeclarationTest, FontWeightSetter) {
   style->set_font_weight(font_weight, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, HeightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, HeightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -629,7 +629,7 @@ TEST(CSSStyleDeclarationTest, HeightSetter) {
   style->set_height(height, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, LeftSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, LeftSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -644,7 +644,7 @@ TEST(CSSStyleDeclarationTest, LeftSetter) {
   style->set_left(left, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, LineHeightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, LineHeightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -660,7 +660,7 @@ TEST(CSSStyleDeclarationTest, LineHeightSetter) {
   style->set_line_height(line_height, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MarginSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MarginSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -675,7 +675,7 @@ TEST(CSSStyleDeclarationTest, MarginSetter) {
   style->set_margin(margin, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MarginBottomSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MarginBottomSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -691,7 +691,7 @@ TEST(CSSStyleDeclarationTest, MarginBottomSetter) {
   style->set_margin_bottom(margin_bottom, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MarginLeftSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MarginLeftSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -707,7 +707,7 @@ TEST(CSSStyleDeclarationTest, MarginLeftSetter) {
   style->set_margin_left(margin_left, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MarginRightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MarginRightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -723,7 +723,7 @@ TEST(CSSStyleDeclarationTest, MarginRightSetter) {
   style->set_margin_right(margin_right, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MarginTopSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MarginTopSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -739,7 +739,7 @@ TEST(CSSStyleDeclarationTest, MarginTopSetter) {
   style->set_margin_top(margin_top, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MaxHeightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MaxHeightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -755,7 +755,7 @@ TEST(CSSStyleDeclarationTest, MaxHeightSetter) {
   style->set_max_height(max_height, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MaxWidthSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MaxWidthSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -771,7 +771,7 @@ TEST(CSSStyleDeclarationTest, MaxWidthSetter) {
   style->set_max_width(max_width, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MinHeightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MinHeightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -787,7 +787,7 @@ TEST(CSSStyleDeclarationTest, MinHeightSetter) {
   style->set_min_height(min_height, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, MinWidthSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, MinWidthSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -803,7 +803,7 @@ TEST(CSSStyleDeclarationTest, MinWidthSetter) {
   style->set_min_width(min_width, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, OpacitySetter) {
+TEST(CSSDeclaredStyleDeclarationTest, OpacitySetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -819,7 +819,7 @@ TEST(CSSStyleDeclarationTest, OpacitySetter) {
   style->set_opacity(opacity, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, OverflowSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, OverflowSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -835,7 +835,7 @@ TEST(CSSStyleDeclarationTest, OverflowSetter) {
   style->set_overflow(overflow, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, OverflowWrapSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, OverflowWrapSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -852,7 +852,7 @@ TEST(CSSStyleDeclarationTest, OverflowWrapSetter) {
   style->set_overflow_wrap(overflow_wrap, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, PaddingSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PaddingSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -868,7 +868,7 @@ TEST(CSSStyleDeclarationTest, PaddingSetter) {
   style->set_padding(padding, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, PaddingBottomSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PaddingBottomSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -884,7 +884,7 @@ TEST(CSSStyleDeclarationTest, PaddingBottomSetter) {
   style->set_padding_bottom(padding_bottom, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, PaddingLeftSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PaddingLeftSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -900,7 +900,7 @@ TEST(CSSStyleDeclarationTest, PaddingLeftSetter) {
   style->set_padding_left(padding_left, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, PaddingRightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PaddingRightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -916,7 +916,7 @@ TEST(CSSStyleDeclarationTest, PaddingRightSetter) {
   style->set_padding_right(padding_right, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, PaddingTopSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PaddingTopSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -932,7 +932,7 @@ TEST(CSSStyleDeclarationTest, PaddingTopSetter) {
   style->set_padding_top(padding_top, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, PositionSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PositionSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -948,7 +948,7 @@ TEST(CSSStyleDeclarationTest, PositionSetter) {
   style->set_position(position, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, RightSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, RightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -963,7 +963,7 @@ TEST(CSSStyleDeclarationTest, RightSetter) {
   style->set_right(right, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TextAlignSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TextAlignSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -979,7 +979,7 @@ TEST(CSSStyleDeclarationTest, TextAlignSetter) {
   style->set_text_align(text_align, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TextDecorationColorSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TextDecorationColorSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -996,7 +996,7 @@ TEST(CSSStyleDeclarationTest, TextDecorationColorSetter) {
   style->set_text_decoration_color(text_decoration_color, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TextDecorationLineSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TextDecorationLineSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1013,7 +1013,7 @@ TEST(CSSStyleDeclarationTest, TextDecorationLineSetter) {
   style->set_text_decoration_line(text_decoration_line, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TextIndentSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TextIndentSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1030,7 +1030,7 @@ TEST(CSSStyleDeclarationTest, TextIndentSetter) {
   style->set_text_indent(text_indent, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TextOverflowSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TextOverflowSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1047,7 +1047,7 @@ TEST(CSSStyleDeclarationTest, TextOverflowSetter) {
   style->set_text_overflow(text_overflow, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TextShadowSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TextShadowSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1064,7 +1064,7 @@ TEST(CSSStyleDeclarationTest, TextShadowSetter) {
   style->set_text_shadow(text_shadow, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TextTransformSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TextTransformSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1081,7 +1081,7 @@ TEST(CSSStyleDeclarationTest, TextTransformSetter) {
   style->set_text_transform(text_transform, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TopSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TopSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1096,7 +1096,7 @@ TEST(CSSStyleDeclarationTest, TopSetter) {
   style->set_top(top, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TransformSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TransformSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1112,7 +1112,7 @@ TEST(CSSStyleDeclarationTest, TransformSetter) {
   style->set_transform(transform, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TransformOriginSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TransformOriginSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1128,7 +1128,7 @@ TEST(CSSStyleDeclarationTest, TransformOriginSetter) {
   style->set_transform_origin(transform_origin, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TransitionSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TransitionSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1144,7 +1144,7 @@ TEST(CSSStyleDeclarationTest, TransitionSetter) {
   style->set_transition(transition, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TransitionDelaySetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TransitionDelaySetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1160,7 +1160,7 @@ TEST(CSSStyleDeclarationTest, TransitionDelaySetter) {
   style->set_transition_delay(transition_delay, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TransitionDurationSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TransitionDurationSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1176,7 +1176,7 @@ TEST(CSSStyleDeclarationTest, TransitionDurationSetter) {
   style->set_transition_duration(transition_duration, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TransitionPropertySetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TransitionPropertySetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1192,7 +1192,7 @@ TEST(CSSStyleDeclarationTest, TransitionPropertySetter) {
   style->set_transition_property(transition_property, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, TransitionTimingFunctionSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, TransitionTimingFunctionSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1209,7 +1209,7 @@ TEST(CSSStyleDeclarationTest, TransitionTimingFunctionSetter) {
   style->set_transition_timing_function(transition_timing_function, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, VerticalAlignSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, VerticalAlignSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1225,7 +1225,7 @@ TEST(CSSStyleDeclarationTest, VerticalAlignSetter) {
   style->set_vertical_align(vertical_align, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, VisibilitySetter) {
+TEST(CSSDeclaredStyleDeclarationTest, VisibilitySetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1241,7 +1241,7 @@ TEST(CSSStyleDeclarationTest, VisibilitySetter) {
   style->set_visibility(visibility, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, WhiteSpaceSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, WhiteSpaceSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1258,7 +1258,7 @@ TEST(CSSStyleDeclarationTest, WhiteSpaceSetter) {
   style->set_white_space(white_space, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, WidthSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, WidthSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1273,7 +1273,7 @@ TEST(CSSStyleDeclarationTest, WidthSetter) {
   style->set_width(width, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, WordWrapSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, WordWrapSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1290,7 +1290,7 @@ TEST(CSSStyleDeclarationTest, WordWrapSetter) {
   style->set_word_wrap(word_wrap, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, ZIndexSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, ZIndexSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1306,7 +1306,7 @@ TEST(CSSStyleDeclarationTest, ZIndexSetter) {
   style->set_z_index(z_index, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, CSSTextSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, CSSTextSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1318,7 +1318,7 @@ TEST(CSSStyleDeclarationTest, CSSTextSetter) {
   style->set_css_text(css_text, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, CSSTextSetterEmptyString) {
+TEST(CSSDeclaredStyleDeclarationTest, CSSTextSetterEmptyString) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleData> initial_style =
       new CSSDeclaredStyleData();
@@ -1338,7 +1338,7 @@ TEST(CSSStyleDeclarationTest, CSSTextSetterEmptyString) {
   style->set_css_text(css_text, NULL);
 }
 
-TEST(CSSStyleDeclarationTest, CSSTextGetter) {
+TEST(CSSDeclaredStyleDeclarationTest, CSSTextGetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<PercentageValue> background_size = new PercentageValue(0.50f);
   scoped_refptr<LengthValue> bottom = new LengthValue(16, kPixelsUnit);
@@ -1357,7 +1357,7 @@ TEST(CSSStyleDeclarationTest, CSSTextGetter) {
 // TODO: Add GetPropertyValue tests, property getter tests and tests
 // that checking if the attributes' setter and the getter are consistent when
 // fully support converting PropertyValue to std::string.
-TEST(CSSStyleDeclarationTest, PropertyValueSetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PropertyValueSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1374,7 +1374,57 @@ TEST(CSSStyleDeclarationTest, PropertyValueSetter) {
                           NULL);
 }
 
-TEST(CSSStyleDeclarationTest, PropertyValueGetter) {
+TEST(CSSDeclaredStyleDeclarationTest, PropertyValueSetterTwice) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string background = "rgba(0, 0, 0, .8)";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBackgroundProperty), background, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->SetPropertyValue(GetPropertyName(kBackgroundProperty), background,
+                          NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, PropertySetterWithTwoValues) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string background = "rgba(0, 0, 0, .8)";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBackgroundProperty), background, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->SetProperty(GetPropertyName(kBackgroundProperty), background, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, PropertySetterWithThreeValues) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string background = "rgba(0, 0, 0, .8)";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBackgroundProperty), background, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->SetProperty(GetPropertyName(kBackgroundProperty), background,
+                     std::string(), NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, PropertyValueGetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleData> initial_style =
       new CSSDeclaredStyleData();
@@ -1387,7 +1437,8 @@ TEST(CSSStyleDeclarationTest, PropertyValueGetter) {
             "center");
 }
 
-TEST(CSSStyleDeclarationTest, UnknownDeclaredStylePropertyValueShouldBeEmpty) {
+TEST(CSSDeclaredStyleDeclarationTest,
+     UnknownDeclaredStylePropertyValueShouldBeEmpty) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleData> initial_style =
       new CSSDeclaredStyleData();
@@ -1397,7 +1448,26 @@ TEST(CSSStyleDeclarationTest, UnknownDeclaredStylePropertyValueShouldBeEmpty) {
   EXPECT_EQ(style->GetPropertyValue("cobalt_cobalt_cobalt"), "");
 }
 
-TEST(CSSStyleDeclarationTest, LengthAttributeGetterEmpty) {
+TEST(CSSDeclaredStyleDeclarationTest, RemoveProperty) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleData> initial_style =
+      new CSSDeclaredStyleData();
+  initial_style->SetPropertyValueAndImportance(
+      kDisplayProperty, KeywordValue::GetInline(), false);
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(initial_style, &css_parser);
+
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kDisplayProperty), std::string(""), _, _));
+  style->RemoveProperty(GetPropertyName(kDisplayProperty), NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, LengthAttributeGetterEmpty) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1405,7 +1475,7 @@ TEST(CSSStyleDeclarationTest, LengthAttributeGetterEmpty) {
   EXPECT_EQ(style->length(), 0);
 }
 
-TEST(CSSStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
+TEST(CSSDeclaredStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleData> initial_style =
       new CSSDeclaredStyleData();
@@ -1419,7 +1489,7 @@ TEST(CSSStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
   EXPECT_EQ(style->length(), 2);
 }
 
-TEST(CSSStyleDeclarationTest, ItemGetterEmpty) {
+TEST(CSSDeclaredStyleDeclarationTest, ItemGetterEmpty) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
@@ -1427,7 +1497,7 @@ TEST(CSSStyleDeclarationTest, ItemGetterEmpty) {
   EXPECT_FALSE(style->Item(0));
 }
 
-TEST(CSSStyleDeclarationTest, ItemGetterNotEmpty) {
+TEST(CSSDeclaredStyleDeclarationTest, ItemGetterNotEmpty) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleData> initial_style =
       new CSSDeclaredStyleData();
@@ -1442,7 +1512,7 @@ TEST(CSSStyleDeclarationTest, ItemGetterNotEmpty) {
   EXPECT_TRUE(style->Item(1));
   EXPECT_FALSE(style->Item(2));
 
-  // The order is not important, as long as with properties are represented.
+  // The order is not important, as long as declared properties are represented.
   if (style->Item(0).value() == GetPropertyName(kDisplayProperty)) {
     EXPECT_EQ(style->Item(1).value(), GetPropertyName(kTextAlignProperty));
   } else {
