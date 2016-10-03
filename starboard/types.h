@@ -47,6 +47,10 @@
 #include <stdarg.h>
 #endif
 
+#if SB_HAS(FLOAT_H)
+#include <float.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -163,6 +167,10 @@ static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt kSbInt32Min
+
+#if !SB_HAS(FLOAT_H)
+#define DBL_MANT_DIG 53
+#endif
 
 // --- Standard Include Emulation Audits ---------------------------------------
 
