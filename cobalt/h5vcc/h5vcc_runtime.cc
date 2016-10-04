@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include "cobalt/h5vcc/h5vcc_runtime.h"
+
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/h5vcc/h5vcc_runtime.h"
 #include "cobalt/system_window/application_event.h"
 
 namespace cobalt {
@@ -79,8 +80,10 @@ void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
 void H5vccRuntime::OnDeepLinkEvent(const base::Event* event) {
   const base::DeepLinkEvent* deep_link_event =
       base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
-  on_deep_link()->DispatchEvent(deep_link_event->link());
+  if (!deep_link_event->IsH5vccLink()) {
+    DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
+    on_deep_link()->DispatchEvent(deep_link_event->link());
+  }
 }
 }  // namespace h5vcc
 }  // namespace cobalt
