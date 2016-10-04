@@ -92,6 +92,7 @@
 #endif
 
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/memory.h"
 
 using namespace js;
 using namespace js::cli;
@@ -108,6 +109,14 @@ typedef enum JSShellExitCode {
 
 size_t gStackChunkSize = 8192;
 
+#if defined(STARBOARD)
+size_t CalculateStackQuota() {
+    void* stack_high;
+    void* stack_low;
+    SbMemoryGetStackBounds(&stack_high, &stack_low);
+    return 3 * (reinterpret_cast<intptr_t>(stack_high) - reinterpret_cast<intptr_t>(stack_low)) / 4;
+}
+#else
 /*
  * Note: This limit should match the stack limit set by the browser in
  *       js/xpconnect/src/XPCJSRuntime.cpp
@@ -117,9 +126,14 @@ size_t gMaxStackSize = 2 * 128 * sizeof(size_t) * 1024;
 #else
 size_t gMaxStackSize = 128 * sizeof(size_t) * 1024;
 #endif
+#endif
 
 #ifdef JS_THREADSAFE
+#if defined(STARBOARD)
+static PRTLSIndex gStackBaseThreadIndex;
+#else
 static unsigned gStackBaseThreadIndex;
+#endif  // defined(STARBOARD)
 #else
 static uintptr_t gStackBase;
 #endif
@@ -5422,7 +5436,12 @@ ShellMain(int argc, char **argv, char **envp)
     JS_SetTrustedPrincipals(rt, &shellTrustedPrincipals);
     JS_SetSecurityCallbacks(rt, &securityCallbacks);
 
+#if defined(STARBOARD)
+    // This sets the quota to 3/4 the stack size.
+    JS_SetNativeStackQuota(rt, CalculateStackQuota());
+#else
     JS_SetNativeStackQuota(rt, gMaxStackSize);
+#endif
 
     if (!InitWatchdog(rt))
         return 1;

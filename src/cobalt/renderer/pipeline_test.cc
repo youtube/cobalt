@@ -88,15 +88,30 @@ class RendererPipelineTest : public ::testing::Test {
     submission_count_ = 0;
     start_time_ = base::TimeTicks::Now();
     pipeline_.reset(new Pipeline(
-        base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL));
-
-    // We create a render tree here composed of only a single, empty
-    // CompositionNode that is meant to act as a dummy/placeholder.
-    dummy_render_tree_ = scoped_refptr<cobalt::render_tree::Node>(
-        new cobalt::render_tree::CompositionNode(
-            cobalt::render_tree::CompositionNode::Builder()));
+        base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL,
+                   true));
   }
 
+  static void DummyAnimateFunction(
+      cobalt::render_tree::CompositionNode::Builder* composition_node_builder,
+      base::TimeDelta time) {}
+
+  // We create a render tree composed of only a single, empty CompositionNode
+  // that is meant to act as a dummy/placeholder.  It is animated to ensure that
+  // it changes every frame and so the Pipeline must rasterize it each frame.
+  scoped_refptr<cobalt::render_tree::Node> MakeDummyAnimatedRenderTree() {
+    scoped_refptr<cobalt::render_tree::CompositionNode> dummy_node(
+        new cobalt::render_tree::CompositionNode(
+            cobalt::render_tree::CompositionNode::Builder()));
+
+    cobalt::render_tree::animations::AnimateNode::Builder animate_builder;
+    animate_builder.Add(dummy_node, base::Bind(&DummyAnimateFunction));
+    scoped_refptr<cobalt::render_tree::animations::AnimateNode> animate_node(
+        new cobalt::render_tree::animations::AnimateNode(animate_builder,
+                                                         dummy_node));
+
+    return animate_node;
+  }
   // Checks that Submit() was called on mock_rasterizer_ the expect number of
   // times given the refresh rate and lower/upper bounds for how long the
   // pipeline was active.
@@ -131,7 +146,6 @@ class RendererPipelineTest : public ::testing::Test {
 
   base::TimeTicks start_time_;  // Record the time that we started the pipeline.
   scoped_ptr<Pipeline> pipeline_;
-  scoped_refptr<cobalt::render_tree::Node> dummy_render_tree_;
   int submission_count_;
 };
 
@@ -146,7 +160,8 @@ class RendererPipelineTest : public ::testing::Test {
 TEST_F(
     RendererPipelineTest,
     FLAKY_RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit) {
-  pipeline_->Submit(cobalt::renderer::Submission(dummy_render_tree_));
+  pipeline_->Submit(
+      cobalt::renderer::Submission(MakeDummyAnimatedRenderTree()));
 
   // Wait a little bit to give the pipeline some time to rasterize the submitted
   // render tree.
@@ -179,7 +194,8 @@ TEST_F(
       break;
     }
 
-    pipeline_->Submit(cobalt::renderer::Submission(dummy_render_tree_));
+    pipeline_->Submit(
+        cobalt::renderer::Submission(MakeDummyAnimatedRenderTree()));
 
     const base::TimeDelta kSubmitDelay(base::TimeDelta::FromMilliseconds(1));
     // While we want to submit faster than the rasterizer is rasterizing,

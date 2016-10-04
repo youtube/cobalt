@@ -11,7 +11,9 @@
 #include "vm/ThreadPool.h"
 
 #ifdef JS_THREADSAFE
+#if !defined(STARBOARD)
 #  include "prthread.h"
+#endif  // !defined(STARBOARD)
 #endif
 
 using namespace js;
@@ -207,8 +209,10 @@ ThreadPool::init()
         numWorkers_ = 0;
 
 # ifdef DEBUG
+#if !defined(STARBOARD)
     if (char *jsthreads = getenv("JS_THREADPOOL_SIZE"))
         numWorkers_ = strtol(jsthreads, NULL, 10);
+#endif  // !defined(STARBOARD)
 # endif
 #endif
 

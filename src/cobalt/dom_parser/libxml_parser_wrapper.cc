@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/element.h"
@@ -150,6 +151,10 @@ void LibxmlParserWrapper::OnEndDocument() {
   if (!node_stack_.empty() && !error_callback_.is_null()) {
     error_callback_.Run("Node stack not empty at end of document.");
   }
+
+  if (IsFullDocument()) {
+    document_->PostToDispatchEvent(FROM_HERE, base::Tokens::domcontentloaded());
+  }
 }
 
 void LibxmlParserWrapper::OnStartElement(
@@ -214,8 +219,8 @@ void LibxmlParserWrapper::OnComment(const std::string& comment) {
 
 void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
                                          const std::string& message) {
-  if (severity > issue_level_) {
-    issue_level_ = severity;
+  if (severity > max_severity_) {
+    max_severity_ = severity;
   }
   if (severity < LibxmlParserWrapper::kFatal) {
     LOG(WARNING) << message;
@@ -228,6 +233,32 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
 
 void LibxmlParserWrapper::OnCDATABlock(const std::string& value) {
   node_stack_.top()->AppendChild(new dom::CDATASection(document_, value));
+}
+
+LibxmlParserWrapper::IssueSeverity
+LibxmlParserWrapper::CheckInputAndUpdateSeverity(const char* data,
+                                                 size_t size) {
+  if (max_severity_ >= kError) {
+    return max_severity_;
+  }
+
+  // Check the total input size.
+  total_input_size_ += size;
+  if (total_input_size_ > kMaxTotalInputSize) {
+    static const char kErrorTooLong[] = "Parser input is too long.";
+    OnParsingIssue(kError, kErrorTooLong);
+    return max_severity_;
+  }
+
+  // Check the encoding of the input.
+  if (!IsStringUTF8(std::string(data, size))) {
+    static const char kErrorNotUTF8[] =
+        "Parser input contains non-UTF8 characters.";
+    OnParsingIssue(kError, kErrorNotUTF8);
+    return max_severity_;
+  }
+
+  return max_severity_;
 }
 
 }  // namespace dom_parser

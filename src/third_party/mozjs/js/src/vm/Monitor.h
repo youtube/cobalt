@@ -9,6 +9,10 @@
 
 #include "jslock.h"
 
+#if defined(STARBOARD) && defined(JS_THREADSAFE)
+#include "pr_starboard.h"
+#endif  // defined(STARBOARD) && defined(JS_THREADSAFE)
+
 namespace js {
 
 // A base class used for types intended to be used in a parallel

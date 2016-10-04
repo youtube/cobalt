@@ -128,6 +128,7 @@
     #   - scratch_surface_cache_size_in_bytes
     #   - surface_cache_size_in_bytes
     #   - image_cache_size_in_bytes
+    #   - skia_glyph_atlas_width * skia_glyph_atlas_height
     #
     # The other caches affect CPU memory usage.
 
@@ -167,6 +168,15 @@
     # image_cache_size_in_bytes *
     #     image_cache_capacity_multiplier_when_playing_video.
     'image_cache_capacity_multiplier_when_playing_video%': '1.0f',
+
+    # Determines the size in pixels of the glyph atlas where rendered glyphs are
+    # cached. The resulting memory usage is 2 bytes of GPU memory per pixel.
+    # When a value is used that is too small, thrashing may occur that will
+    # result in visible stutter. Such thrashing is more likely to occur when CJK
+    # language glyphs are rendered and when the size of the glyphs in pixels is
+    # larger, such as for higher resolution displays.
+    'skia_glyph_atlas_width%': '2048',
+    'skia_glyph_atlas_height%': '2048',
 
     # Compiler configuration.
 
@@ -268,13 +278,25 @@
     'include_dirs': [ '<(DEPTH)' ],
     'libraries': [ '<@(platform_libraries)' ],
 
-    # TODO: This is needed to support the option to include
-    # posix_emulation.h to all compiled source files. This dependency should
-    # be refactored and removed.
-    'include_dirs_target': [
-      '<(DEPTH)/lbshell/src',
-    ],
     'conditions': [
+      ['final_executable_type=="shared_library"', {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'defines': [
+              # Rewrite main() functions into StarboardMain. TODO: This is a
+              # hack, it would be better to be more surgical, here.
+              'main=StarboardMain',
+            ],
+            'cflags': [
+              # To link into a shared library on Linux and similar platforms,
+              # the compiler must be told to generate Position Independent Code.
+              # This appears to cause errors when linking the code statically,
+              # however.
+              '-fPIC',
+            ],
+          }],
+        ],
+      }],
       ['posix_emulation_target_type == "shared_library"', {
         'defines': [
           '__LB_BASE_SHARED__=1',
@@ -294,6 +316,10 @@
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/lb_shell',
           # headers that we don't need, but should exist somewhere in the path:
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
+          # TODO: This is needed to support the option to include
+          # posix_emulation.h to all compiled source files. This dependency
+          # should be refactored and removed.
+          '<(DEPTH)/lbshell/src',
         ],
       }],  # OS == "lb_shell"
       ['OS == "starboard"', {

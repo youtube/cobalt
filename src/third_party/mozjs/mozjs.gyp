@@ -34,6 +34,10 @@
       'JS_USE_CUSTOM_ALLOCATOR',
       # Do not export symbols that are declare with JS_PUBLIC_[API|DATA].
       'STATIC_JS_API',
+      # Option that enables support for running multiple threads of JavaScript
+      # code concurrently as long as no objects or strings are shared between
+      # them.
+      'JS_THREADSAFE',
     ],
     'include_dirs': [
       'cobalt_config/include',
@@ -368,7 +372,7 @@
       # Host tool used to generate a header file that defines a huge switch
       # statement for JavaScript keywords.
       'target_name': 'mozjs_keyword_header_gen',
-      'type': '<(final_executable_type)',
+      'type': 'executable',
       'toolsets': ['host'],
       'sources': [
         'js/src/jskwgen.cpp',
@@ -378,7 +382,7 @@
     {
       # Host tool used to generate a header file that defines opcode lengths.
       'target_name': 'mozjs_opcode_length_header_gen',
-      'type': '<(final_executable_type)',
+      'type': 'executable',
       'toolsets': ['host'],
       'sources': [
         'js/src/jsoplengen.cpp',

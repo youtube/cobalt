@@ -13,9 +13,13 @@
 #include "jsalloc.h"
 
 #ifdef JS_THREADSAFE
+#if defined(STARBOARD)
+#include "pr_starboard.h"
+#else  // defined(STARBOARD)
 #  include "prtypes.h"
 #  include "prlock.h"
 #  include "prcvar.h"
+#endif  // defined(STARBOARD)
 #endif
 
 struct JSContext;

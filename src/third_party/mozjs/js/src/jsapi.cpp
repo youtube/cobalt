@@ -5134,7 +5134,7 @@ JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
     const int64_t kFileSize = info.size;
     FileContents buffer(cx);
     buffer.resize(kFileSize);
-    if (SbFileRead(file, buffer.begin(), kFileSize) < 0) {
+    if (SbFileReadAll(file, buffer.begin(), kFileSize) < 0) {
         return NULL;
     }
     JSScript *script = Compile(cx, obj, options, buffer.begin(),
@@ -5519,12 +5519,23 @@ extern JS_PUBLIC_API(bool)
 JS::Evaluate(JSContext *cx, HandleObject obj, CompileOptions options,
              const char *filename, jsval *rval)
 {
+#if defined(STARBOARD)
+    starboard::ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead, NULL,
+                               NULL);
+    const int64_t kFileSize = file.GetSize();
+    FileContents buffer(cx);
+    buffer.resize(kFileSize);
+    if (file.ReadAll(buffer.begin(), kFileSize) < 0) {
+        return false;
+    }
+#else
     FileContents buffer(cx);
     {
         AutoFile file;
         if (!file.open(cx, filename) || !file.readAll(cx, buffer))
             return false;
     }
+#endif
 
     options.setFileAndLine(filename, 1);
     return Evaluate(cx, obj, options, buffer.begin(), buffer.length(), rval);

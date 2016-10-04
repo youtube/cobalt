@@ -19,8 +19,8 @@
 
 // On Cobalt we would like to avoid re-rasterizing glyphs as much as possible,
 // so increase the default atlas size.
-#define GR_ATLAS_TEXTURE_WIDTH 2048
-#define GR_ATLAS_TEXTURE_HEIGHT 2048
+#define GR_ATLAS_TEXTURE_WIDTH COBALT_SKIA_GLYPH_ATLAS_WIDTH
+#define GR_ATLAS_TEXTURE_HEIGHT COBALT_SKIA_GLYPH_ATLAS_HEIGHT
 
 // On Cobalt, not being able to fit glyphs into the atlas is a big penalty,
 // since its software rendering is not optimized.  Increase the plot size

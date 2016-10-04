@@ -100,6 +100,15 @@ SbTimeMonotonic QueueApplication::GetNextTimedEventTargetTime() {
 
 QueueApplication::TimedEventQueue::TimedEventQueue() : set_(&IsLess) {}
 
+QueueApplication::TimedEventQueue::~TimedEventQueue() {
+  ScopedLock lock(mutex_);
+  for (TimedEventMap::iterator i = map_.begin(); i != map_.end(); ++i) {
+    delete i->second;
+  }
+  map_.clear();
+  set_.clear();
+}
+
 bool QueueApplication::TimedEventQueue::Inject(TimedEvent* timed_event) {
   ScopedLock lock(mutex_);
   SbTimeMonotonic oldTime = GetTimeLocked();

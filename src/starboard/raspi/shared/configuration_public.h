@@ -63,6 +63,14 @@
 #define SB_IS_WCHAR_T_SIGNED 1
 #endif
 
+// --- Architecture Configuration --------------------------------------------
+
+// On the current version of Raspbian, real time thread scheduling seems to be
+// broken in that higher priority threads do not always have priority over lower
+// priority threads.  It looks like the thread created last will always have the
+// highest priority.
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+
 // --- Attribute Configuration -----------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
@@ -227,6 +235,12 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
 
+// Whether the current platform should frequently flip their display buffer.
+// If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set
+// to 0), then optimizations where the display buffer is not flipped if the
+// scene hasn't changed are enabled.
+#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
+
 // --- Media Configuration ---------------------------------------------------
 
 // Specifies whether this platform has support for a possibly-decrypting
@@ -283,7 +297,7 @@
 //    macro should be set to a value that is greater than the sum of the above
 //    source buffer stream memory limits with extra room to take account of
 //    fragmentations and memory used by demuxers.
-#define SB_MEDIA_MAIN_BUFFER_BUDGET (128U * 1024U * 1024U)
+#define SB_MEDIA_MAIN_BUFFER_BUDGET (32U * 1024U * 1024U)
 
 // Specifies how much GPU memory to reserve up-front for media source buffers.
 // This should only be set to non-zero on system with limited CPU memory and

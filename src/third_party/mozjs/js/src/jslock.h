@@ -11,6 +11,17 @@
 
 #ifdef JS_THREADSAFE
 
+#if defined(STARBOARD)
+#include "starboard/atomic.h"
+
+#define JS_ATOMIC_INCREMENT(p) SbAtomicBarrier_Increment((SbAtomic32*)(p), 1)
+#define JS_ATOMIC_DECREMENT(p) SbAtomicBarrier_Increment((SbAtomic32*)(p), -1)
+#define JS_ATOMIC_ADD(p, v) \
+  SbAtomicBarrier_Increment((SbAtomic32*)(p), (SbAtomic32)(v))
+#define JS_ATOMIC_SET(p, v) \
+  SbAtomicNoBarrier_Exchange((SbAtomic32*)(p), (SbAtomic32)(v))
+
+#else  // defined(STARBOARD)
 # include "pratom.h"
 # include "prlock.h"
 # include "prcvar.h"
@@ -21,6 +32,7 @@
 # define JS_ATOMIC_DECREMENT(p)      PR_ATOMIC_DECREMENT((int32_t *)(p))
 # define JS_ATOMIC_ADD(p,v)          PR_ATOMIC_ADD((int32_t *)(p), (int32_t)(v))
 # define JS_ATOMIC_SET(p,v)          PR_ATOMIC_SET((int32_t *)(p), (int32_t)(v))
+#endif  // defined(STARBOARD)
 
 namespace js {
     // Defined in jsgc.cpp.

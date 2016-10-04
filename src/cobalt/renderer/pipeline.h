@@ -59,7 +59,8 @@ class Pipeline {
   // thread safe objects.
   Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
            const scoped_refptr<backend::RenderTarget>& render_target,
-           backend::GraphicsContext* graphics_context);
+           backend::GraphicsContext* graphics_context,
+           bool submit_even_if_render_tree_is_unchanged);
   ~Pipeline();
 
   // Submit a new render tree to the renderer pipeline.  After calling this
@@ -165,6 +166,15 @@ class Pipeline {
   // Manages a queue of render tree submissions that are to be rendered in
   // the future.
   base::optional<SubmissionQueue> submission_queue_;
+
+  // Keep track of the last render tree we rendered whose animations have
+  // expired so that if we see that we are asked to rasterize that render tree
+  // again, we know that we do not have to do anything.
+  scoped_refptr<render_tree::Node> last_rendered_expired_render_tree_;
+
+  // If true, we will submit the current render tree to the rasterizer every
+  // frame, even if it hasn't changed.
+  const bool submit_even_if_render_tree_is_unchanged_;
 
   // Timers for tracking how frequently |RasterizeCurrentTree| is called and
   // the amount of time spent in |RasterizeCurrentTree| each call.

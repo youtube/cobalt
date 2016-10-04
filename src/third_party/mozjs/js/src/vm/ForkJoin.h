@@ -360,7 +360,11 @@ struct ForkJoinSlice : ThreadSafeContext
 
 #if defined(JS_THREADSAFE) && defined(JS_ION)
     // Initialized by InitializeTLS()
+#if defined(STARBOARD)
+  static PRTLSIndex ThreadPrivateIndex;
+#else   // defined(STARBOARD)
     static unsigned ThreadPrivateIndex;
+#endif  // defined(STARBOARD)
     static bool TLSInitialized;
 #endif
 
