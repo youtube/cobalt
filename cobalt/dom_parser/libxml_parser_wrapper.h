@@ -137,8 +137,9 @@ class LibxmlParserWrapper {
   }
 
  private:
-  // Maximum total input size, 1MB.
-  static const size_t kMaxTotalInputSize = 1 * 1024 * 1024;
+  // Maximum total input size, as specified in Libxml's value
+  // XML_MAX_TEXT_LENGTH in parserInternals.h.
+  static const size_t kMaxTotalInputSize = 10000000;
 
   const scoped_refptr<dom::Document> document_;
   const scoped_refptr<dom::Node> parent_node_;
