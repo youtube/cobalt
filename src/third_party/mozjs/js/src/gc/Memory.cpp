@@ -7,6 +7,7 @@
 #include "gc/Memory.h"
 
 #include "jscntxt.h"
+#include "memory_allocator_reporter.h"
 
 #include "js/HeapAPI.h"
 
@@ -324,13 +325,23 @@ MapMemory(size_t length, int prot, int flags, int fd, off_t offset)
     JS_ASSERT(flags == 0);
     JS_ASSERT(fd == -1);
     JS_ASSERT(offset == 0);
-    return SbMemoryMap(length, prot, "mozjs::gc::MapMemory");
+
+    void* result = SbMemoryMap(length, prot, "mozjs::gc::MapMemory");
+    if (result != SB_MEMORY_MAP_FAILED) {
+      MemoryAllocatorReporter::Get()->UpdateMappedBytes(length);
+    }
+    return result;
 }
 
 static inline bool
 UnmapMemory(void* region, size_t length)
 {
-    return SbMemoryUnmap(region, length);
+    bool success = SbMemoryUnmap(region, length);
+    if (success) {
+      MemoryAllocatorReporter::Get()->UpdateMappedBytes(
+          -static_cast<ssize_t>(length));
+    }
+    return success;
 }
 #else
 
