@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/string_util.h"
 #include "cobalt/base/event.h"
 
 namespace base {
@@ -28,6 +29,9 @@ class DeepLinkEvent : public Event {
  public:
   explicit DeepLinkEvent(const std::string& link) : link_(link) {}
   const std::string& link() const { return link_; }
+  bool IsH5vccLink() const {
+    return StartsWithASCII(link_, "h5vcc", true);
+  }
 
   BASE_EVENT_SUBCLASS(DeepLinkEvent);
 
