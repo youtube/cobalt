@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/deep_link_event.h"
 #include "cobalt/network/network_event.h"
 #include "cobalt/system_window/application_event.h"
 #include "cobalt/system_window/starboard/system_window.h"
@@ -65,6 +66,9 @@ void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
   } else if (starboard_event->type == kSbEventTypeNetworkDisconnect) {
     cobalt_event.reset(
         new network::NetworkEvent(network::NetworkEvent::kDisconnection));
+  } else if (starboard_event->type == kSbEventTypeLink) {
+    const char* link = static_cast<const char*>(starboard_event->data);
+    cobalt_event.reset(new base::DeepLinkEvent(link));
   }
 
   // Dispatch the Cobalt event, if created.

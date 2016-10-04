@@ -31,6 +31,7 @@
         'c_val.h',
         'c_val_time_interval_entry_stats.h',
         'c_val_time_interval_timer.h',
+        'deep_link_event.h',
         'do_main.h',
         'do_main_starboard.h',
         'event.h',

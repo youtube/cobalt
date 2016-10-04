@@ -92,7 +92,8 @@ class LibxmlParserWrapper {
         first_chunk_location_(first_chunk_location),
         error_callback_(error_callback),
         depth_limit_exceeded_(false),
-        issue_level_(kNoIssue) {}
+        max_severity_(kNoIssue),
+        total_input_size_(0) {}
   virtual ~LibxmlParserWrapper() {}
 
   // These functions are for Libxml interface, calls are forwarded here by
@@ -120,6 +121,9 @@ class LibxmlParserWrapper {
   // Returns true when the input is a full document, false when it's a fragment.
   bool IsFullDocument() { return document_ == parent_node_; }
 
+  // Checks the input, updates and returns the maximum issue severity.
+  IssueSeverity CheckInputAndUpdateSeverity(const char* data, size_t size);
+
   const scoped_refptr<dom::Document>& document() { return document_; }
   const base::SourceLocation& first_chunk_location() {
     return first_chunk_location_;
@@ -128,13 +132,14 @@ class LibxmlParserWrapper {
     return error_callback_;
   }
 
-  IssueSeverity issue_level() const { return issue_level_; }
-
   const std::stack<scoped_refptr<dom::Node> >& node_stack() {
     return node_stack_;
   }
 
  private:
+  // Maximum total input size, 1MB.
+  static const size_t kMaxTotalInputSize = 1 * 1024 * 1024;
+
   const scoped_refptr<dom::Document> document_;
   const scoped_refptr<dom::Node> parent_node_;
   const scoped_refptr<dom::Node> reference_node_;
@@ -145,7 +150,8 @@ class LibxmlParserWrapper {
   const base::Callback<void(const std::string&)> error_callback_;
 
   bool depth_limit_exceeded_;
-  IssueSeverity issue_level_;
+  IssueSeverity max_severity_;
+  size_t total_input_size_;
 
   std::stack<scoped_refptr<dom::Node> > node_stack_;
 
