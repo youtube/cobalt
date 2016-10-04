@@ -68,9 +68,24 @@ class QueueApplication : public Application {
   virtual void WakeSystemEventWait() = 0;
 
  private:
+  // Specialization of Queue for starboard events.  It differs in that it has
+  // the responsibility of deleting heap allocated starboard events in its
+  // destructor.  Note the non-virtual destructor, which is intentional and
+  // safe, as Queue has no virtual functions and EventQueue is never used
+  // polymorphically.
+  class EventQueue : public Queue<Event*> {
+   public:
+    ~EventQueue() {
+      while (Event* event = Poll()) {
+        delete event;
+      }
+    }
+  };
+
   class TimedEventQueue {
    public:
     TimedEventQueue();
+    ~TimedEventQueue();
 
     // Returns whether the new event pushed up the next wakeup time.
     bool Inject(TimedEvent* timed_event);
@@ -102,7 +117,7 @@ class QueueApplication : public Application {
   TimedEventQueue timed_event_queue_;
 
   // The queue of events that have not yet been dispatched.
-  Queue<Event*> event_queue_;
+  EventQueue event_queue_;
 };
 
 }  // namespace starboard
