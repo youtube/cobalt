@@ -29,6 +29,15 @@ namespace signal {
 
 namespace {
 
+int UnblockSignal(int signal_id) {
+  sigset_t mask;
+  ::sigemptyset(&mask);
+  ::sigaddset(&mask, signal_id);
+
+  sigset_t previous_mask;
+  return ::sigprocmask(SIG_UNBLOCK, &mask, &previous_mask);
+}
+
 void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
   struct sigaction action = {0};
 
@@ -40,8 +49,7 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
 }
 
 void SuspendDone(void* /*context*/) {
-  SetSignalHandler(SIGTSTP, SIG_DFL);
-  raise(SIGTSTP);
+  raise(SIGSTOP);
 }
 
 void Suspend(int signal_id) {
@@ -51,8 +59,7 @@ void Suspend(int signal_id) {
 
 void Resume(int signal_id) {
   LogSignalCaught(signal_id);
-  SetSignalHandler(SIGTSTP, &Suspend);
-  // TODO: Resume or Unpause based on state.
+  // TODO: Resume or Unpause based on state before suspend?
   starboard::Application::Get()->Unpause(NULL, NULL);
 }
 
@@ -60,12 +67,13 @@ void Resume(int signal_id) {
 
 void InstallSuspendSignalHandlers() {
   SetSignalHandler(SIGTSTP, &Suspend);
+  UnblockSignal(SIGTSTP);
   SetSignalHandler(SIGCONT, &Resume);
 }
 
 void UninstallSuspendSignalHandlers() {
-  SetSignalHandler(SIGTSTP, SIG_DFL);
   SetSignalHandler(SIGCONT, SIG_DFL);
+  SetSignalHandler(SIGTSTP, SIG_DFL);
 }
 
 }  // namespace signal
