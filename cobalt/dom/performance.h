@@ -17,12 +17,14 @@
 #ifndef COBALT_DOM_PERFORMANCE_H_
 #define COBALT_DOM_PERFORMANCE_H_
 
-#include "cobalt/script/wrappable.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/dom/performance_timing.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
+
+class MemoryInfo;
 
 // Implements the Performance IDL interface, an instance of which is created
 // and owned by the Window object.
@@ -31,10 +33,13 @@ class Performance : public script::Wrappable {
  public:
   explicit Performance(const scoped_refptr<base::Clock>& clock);
 
+  // Web API: Performance
+  scoped_refptr<PerformanceTiming> timing() const;
+  scoped_refptr<MemoryInfo> memory() const;
+
+  // Custom, not in any spec.
   // Returns the time since timing()->navigation_start(), in milliseconds.
   double Now() const;
-
-  scoped_refptr<PerformanceTiming> timing() const;
 
   DEFINE_WRAPPABLE_TYPE(Performance);
 
@@ -42,6 +47,7 @@ class Performance : public script::Wrappable {
   ~Performance() OVERRIDE;
 
   scoped_refptr<PerformanceTiming> timing_;
+  scoped_refptr<MemoryInfo> memory_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };

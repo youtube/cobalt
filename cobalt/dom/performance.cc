@@ -17,12 +17,13 @@
 #include "cobalt/dom/performance.h"
 
 #include "base/time.h"
+#include "cobalt/dom/memory_info.h"
 
 namespace cobalt {
 namespace dom {
 
 Performance::Performance(const scoped_refptr<base::Clock>& clock)
-    : timing_(new PerformanceTiming(clock)) {}
+    : timing_(new PerformanceTiming(clock)), memory_(new MemoryInfo()) {}
 
 double Performance::Now() const {
   return timing_->GetNavigationStartClock()->Now().InMillisecondsF();
@@ -31,6 +32,8 @@ double Performance::Now() const {
 Performance::~Performance() {}
 
 scoped_refptr<PerformanceTiming> Performance::timing() const { return timing_; }
+
+scoped_refptr<MemoryInfo> Performance::memory() const { return memory_; }
 
 }  // namespace dom
 }  // namespace cobalt
