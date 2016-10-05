@@ -272,10 +272,10 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 // kSbMediaTypeVideo, and must be NULL otherwise.  |sample_drm_info| must be
 // provided for encrypted samples, and must be NULL otherwise.
 //
-// The lifetime of |video_sample_info| and |sample_drm_info| are not guaranteed
-// past the call to SbPlayerWriteSample, so the implementation must copy any
-// information it wants to retain from those structures synchronously, before it
-// returns.
+// The lifetime of |video_sample_info| and |sample_drm_info| (as well as member
+// |subsample_mapping| contained inside it) are not guaranteed past the call to
+// SbPlayerWriteSample, so the implementation must copy any information it wants
+// to retain from those structures synchronously, before it returns.
 SB_EXPORT void SbPlayerWriteSample(
     SbPlayer player,
     SbMediaType sample_type,
