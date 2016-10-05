@@ -36,9 +36,11 @@
 #define GOOGLE_PROTOBUF_COMMON_H__
 
 #include <assert.h>
+#include <string>
+
+#ifndef STARBOARD
 #include <stdlib.h>
 #include <cstddef>
-#include <string>
 #include <string.h>
 #if defined(__osf__)
 // Tru64 lacks stdint.h, but has inttypes.h which defines a superset of
@@ -47,6 +49,9 @@
 #elif !defined(_MSC_VER)
 #include <stdint.h>
 #endif
+#else
+#include "starboard/types.h"
+#endif  // STARBOARD
 
 #if defined(_MSC_VER) && defined(_CPPUNWIND)
   #define PROTOBUF_USE_EXCEPTIONS
