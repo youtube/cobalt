@@ -292,6 +292,7 @@ void VideoDecoder::TeardownCodec() {
 
 namespace starboard {
 namespace player {
+namespace filter {
 
 // static
 VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
@@ -303,6 +304,7 @@ VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
   return NULL;
 }
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 

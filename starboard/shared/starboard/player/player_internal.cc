@@ -17,9 +17,10 @@
 #include "starboard/log.h"
 
 using starboard::shared::starboard::player::InputBuffer;
-using starboard::shared::starboard::player::PlayerWorker;
 
 namespace {
+
+const SbTime kUpdateInterval = 5 * kSbTimeMillisecond;
 
 SbMediaTime GetMediaTime(SbMediaTime media_pts,
                          SbTimeMonotonic media_pts_update_time) {
@@ -30,16 +31,12 @@ SbMediaTime GetMediaTime(SbMediaTime media_pts,
 }  // namespace
 
 SbPlayerPrivate::SbPlayerPrivate(
-    SbWindow window,
-    SbMediaVideoCodec video_codec,
-    SbMediaAudioCodec audio_codec,
     SbMediaTime duration_pts,
-    SbDrmSystem drm_system,
-    const SbMediaAudioHeader* audio_header,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
-    void* context)
+    void* context,
+    starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
@@ -51,16 +48,13 @@ SbPlayerPrivate::SbPlayerPrivate(
       is_paused_(true),
       volume_(1.0),
       total_video_frames_(0),
-      worker_(this,
-              window,
-              video_codec,
-              audio_codec,
-              drm_system,
-              *audio_header,
-              decoder_status_func,
-              player_status_func,
-              this,
-              context) {}
+      worker_(new PlayerWorker(this,
+                               player_worker_handler.Pass(),
+                               decoder_status_func,
+                               player_status_func,
+                               this,
+                               kUpdateInterval,
+                               context)) {}
 
 void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
   {
@@ -72,7 +66,7 @@ void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
   }
 
   PlayerWorker::SeekEventData data = {seek_to_pts, ticket};
-  worker_.EnqueueEvent(data);
+  worker_->EnqueueEvent(data);
 }
 
 void SbPlayerPrivate::WriteSample(
@@ -89,18 +83,18 @@ void SbPlayerPrivate::WriteSample(
       sample_deallocate_func_, this, context_, sample_buffer,
       sample_buffer_size, sample_pts, video_sample_info, sample_drm_info);
   PlayerWorker::WriteSampleEventData data = {sample_type, input_buffer};
-  worker_.EnqueueEvent(data);
+  worker_->EnqueueEvent(data);
 }
 
 void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
   PlayerWorker::WriteEndOfStreamEventData data = {stream_type};
-  worker_.EnqueueEvent(data);
+  worker_->EnqueueEvent(data);
 }
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
 void SbPlayerPrivate::SetBounds(int x, int y, int width, int height) {
   PlayerWorker::SetBoundsEventData data = {x, y, width, height};
-  worker_.EnqueueEvent(data);
+  worker_->EnqueueEvent(data);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
 #endif
@@ -127,7 +121,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
 
 void SbPlayerPrivate::SetPause(bool pause) {
   PlayerWorker::SetPauseEventData data = {pause};
-  worker_.EnqueueEvent(data);
+  worker_->EnqueueEvent(data);
 }
 
 void SbPlayerPrivate::SetVolume(double volume) {
