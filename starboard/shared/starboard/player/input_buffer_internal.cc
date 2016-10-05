@@ -49,7 +49,14 @@ class InputBuffer::ReferenceCountedBuffer {
       video_sample_info_ = *video_sample_info;
     }
     if (has_drm_info_) {
+      SB_DCHECK(sample_drm_info->subsample_count > 0);
+
+      subsamples_.assign(sample_drm_info->subsample_mapping,
+                         sample_drm_info->subsample_mapping +
+                             sample_drm_info->subsample_count);
       drm_info_ = *sample_drm_info;
+      drm_info_.subsample_mapping =
+          subsamples_.empty() ? NULL : &subsamples_[0];
     }
   }
 
@@ -107,6 +114,7 @@ class InputBuffer::ReferenceCountedBuffer {
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
   std::vector<uint8_t> decrypted_data_;
+  std::vector<SbDrmSubSampleMapping> subsamples_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(ReferenceCountedBuffer);
 };
