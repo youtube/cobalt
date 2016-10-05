@@ -265,7 +265,7 @@ inline bool WireFormatLite::ReadRepeatedFixedSizePrimitive(
   if (size > 0) {
     const uint8* buffer = reinterpret_cast<const uint8*>(void_pointer);
     // The number of bytes each type occupies on the wire.
-    const int per_value_size = tag_size + sizeof(value);
+    const int per_value_size = static_cast<int>(tag_size + sizeof(value));
 
     int elements_available = min(values->Capacity() - values->size(),
                                  size / per_value_size);
@@ -358,7 +358,8 @@ inline bool WireFormatLite::ReadMessage(io::CodedInputStream* input,
   uint32 length;
   if (!input->ReadVarint32(&length)) return false;
   if (!input->IncrementRecursionDepth()) return false;
-  io::CodedInputStream::Limit limit = input->PushLimit(length);
+  io::CodedInputStream::Limit limit =
+      input->PushLimit(static_cast<int>(length));
   if (!value->MergePartialFromCodedStream(input)) return false;
   // Make sure that parsing stopped when the limit was hit, not at an endgroup
   // tag.
@@ -399,7 +400,8 @@ inline bool WireFormatLite::ReadMessageNoVirtual(
   uint32 length;
   if (!input->ReadVarint32(&length)) return false;
   if (!input->IncrementRecursionDepth()) return false;
-  io::CodedInputStream::Limit limit = input->PushLimit(length);
+  io::CodedInputStream::Limit limit =
+      input->PushLimit(static_cast<int>(length));
   if (!value->
       MessageType_WorkAroundCppLookupDefect::MergePartialFromCodedStream(input))
     return false;
@@ -468,7 +470,7 @@ inline void WireFormatLite::WriteDoubleNoTag(double value,
 }
 inline void WireFormatLite::WriteBoolNoTag(bool value,
                                            io::CodedOutputStream* output) {
-  output->WriteVarint32(value ? 1 : 0);
+  output->WriteVarint32(value ? 1 : 0u);
 }
 inline void WireFormatLite::WriteEnumNoTag(int value,
                                            io::CodedOutputStream* output) {
@@ -561,7 +563,7 @@ inline uint8* WireFormatLite::WriteDoubleNoTagToArray(double value,
 }
 inline uint8* WireFormatLite::WriteBoolNoTagToArray(bool value,
                                                     uint8* target) {
-  return io::CodedOutputStream::WriteVarint32ToArray(value ? 1 : 0, target);
+  return io::CodedOutputStream::WriteVarint32ToArray(value ? 1 : 0u, target);
 }
 inline uint8* WireFormatLite::WriteEnumNoTagToArray(int value,
                                                     uint8* target) {
@@ -661,14 +663,16 @@ inline uint8* WireFormatLite::WriteStringToArray(int field_number,
   //   WriteString() to avoid code duplication.  If the implementations become
   //   different, you will need to update that usage.
   target = WriteTagToArray(field_number, WIRETYPE_LENGTH_DELIMITED, target);
-  target = io::CodedOutputStream::WriteVarint32ToArray(value.size(), target);
+  target = io::CodedOutputStream::WriteVarint32ToArray(
+      static_cast<uint32>(value.size()), target);
   return io::CodedOutputStream::WriteStringToArray(value, target);
 }
 inline uint8* WireFormatLite::WriteBytesToArray(int field_number,
                                                 const string& value,
                                                 uint8* target) {
   target = WriteTagToArray(field_number, WIRETYPE_LENGTH_DELIMITED, target);
-  target = io::CodedOutputStream::WriteVarint32ToArray(value.size(), target);
+  target = io::CodedOutputStream::WriteVarint32ToArray(
+      static_cast<uint32>(value.size()), target);
   return io::CodedOutputStream::WriteStringToArray(value, target);
 }
 
@@ -685,7 +689,7 @@ inline uint8* WireFormatLite::WriteMessageToArray(int field_number,
                                                   uint8* target) {
   target = WriteTagToArray(field_number, WIRETYPE_LENGTH_DELIMITED, target);
   target = io::CodedOutputStream::WriteVarint32ToArray(
-    value.GetCachedSize(), target);
+      static_cast<uint32>(value.GetCachedSize()), target);
   return value.SerializeWithCachedSizesToArray(target);
 }
 
@@ -736,12 +740,12 @@ inline int WireFormatLite::EnumSize(int value) {
 }
 
 inline int WireFormatLite::StringSize(const string& value) {
-  return io::CodedOutputStream::VarintSize32(value.size()) +
-         value.size();
+  return static_cast<int>(io::CodedOutputStream::VarintSize32(
+      static_cast<uint32>(value.size())) + value.size());
 }
 inline int WireFormatLite::BytesSize(const string& value) {
-  return io::CodedOutputStream::VarintSize32(value.size()) +
-         value.size();
+  return static_cast<int>(io::CodedOutputStream::VarintSize32(
+      static_cast<uint32>(value.size())) + value.size());
 }
 
 
@@ -750,7 +754,7 @@ inline int WireFormatLite::GroupSize(const MessageLite& value) {
 }
 inline int WireFormatLite::MessageSize(const MessageLite& value) {
   int size = value.ByteSize();
-  return io::CodedOutputStream::VarintSize32(size) + size;
+  return io::CodedOutputStream::VarintSize32(static_cast<uint32>(size)) + size;
 }
 
 // See comment on ReadGroupNoVirtual to understand the need for this template
@@ -764,7 +768,7 @@ template<typename MessageType_WorkAroundCppLookupDefect>
 inline int WireFormatLite::MessageSizeNoVirtual(
     const MessageType_WorkAroundCppLookupDefect& value) {
   int size = value.MessageType_WorkAroundCppLookupDefect::ByteSize();
-  return io::CodedOutputStream::VarintSize32(size) + size;
+  return io::CodedOutputStream::VarintSize32(static_cast<uint32>(size)) + size;
 }
 
 }  // namespace internal
