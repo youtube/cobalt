@@ -52,6 +52,8 @@ class Savegame {
     // Delete the savegame file when the Savegame object goes out of scope.
     // This should only be used by tests.
     bool delete_on_destruction;
+    // Initial data to return from Read. Only for tests.
+    ByteVector test_initial_data;
   };
 
   static scoped_ptr<Savegame> Create(const Options& options);
@@ -82,7 +84,6 @@ class Savegame {
 
   DISALLOW_COPY_AND_ASSIGN(Savegame);
 };
-
 
 }  // namespace storage
 }  // namespace cobalt

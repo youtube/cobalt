@@ -31,6 +31,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 #include "cobalt/browser/screen_shot_writer.h"
+#include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/keycode.h"
@@ -121,7 +122,10 @@ BrowserModule::BrowserModule(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
       self_message_loop_(MessageLoop::current()),
-      storage_manager_(options.storage_manager_options),
+      storage_manager_(
+          scoped_ptr<StorageUpgradeHandler>(new StorageUpgradeHandler(url))
+              .PassAs<storage::StorageManager::UpgradeHandler>(),
+          options.storage_manager_options),
 #if defined(OS_STARBOARD)
       is_rendered_(false),
 #endif  // OS_STARBOARD
