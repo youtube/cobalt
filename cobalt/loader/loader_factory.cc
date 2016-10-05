@@ -29,12 +29,17 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
     const image::ImageDecoder::SuccessCallback& success_callback,
     const image::ImageDecoder::FailureCallback& failure_callback,
     const image::ImageDecoder::ErrorCallback& error_callback) {
-  return make_scoped_ptr(
-      new Loader(MakeFetcherCreator(url, url_security_callback),
-                 scoped_ptr<Decoder>(new image::ImageDecoder(
-                     resource_provider_, success_callback, failure_callback,
-                     error_callback)),
-                 error_callback));
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  scoped_ptr<Loader> loader(new Loader(
+      MakeFetcherCreator(url, url_security_callback),
+      scoped_ptr<Decoder>(
+          new image::ImageDecoder(resource_provider_, success_callback,
+                                  failure_callback, error_callback)),
+      error_callback,
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
+  OnLoaderCreated(loader.get());
+  return loader.Pass();
 }
 
 scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
@@ -42,19 +47,57 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
     const font::TypefaceDecoder::SuccessCallback& success_callback,
     const font::TypefaceDecoder::FailureCallback& failure_callback,
     const font::TypefaceDecoder::ErrorCallback& error_callback) {
-  return make_scoped_ptr(
-      new Loader(MakeFetcherCreator(url, url_security_callback),
-                 scoped_ptr<Decoder>(new font::TypefaceDecoder(
-                     resource_provider_, success_callback, failure_callback,
-                     error_callback)),
-                 error_callback));
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  scoped_ptr<Loader> loader(new Loader(
+      MakeFetcherCreator(url, url_security_callback),
+      scoped_ptr<Decoder>(
+          new font::TypefaceDecoder(resource_provider_, success_callback,
+                                    failure_callback, error_callback)),
+      error_callback,
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
+  OnLoaderCreated(loader.get());
+  return loader.Pass();
 }
 
 Loader::FetcherCreator LoaderFactory::MakeFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
   return base::Bind(&FetcherFactory::CreateSecureFetcher,
                     base::Unretained(fetcher_factory_), url,
                     url_security_callback);
+}
+
+void LoaderFactory::Suspend() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(resource_provider_);
+
+  resource_provider_ = NULL;
+  for (LoaderSet::const_iterator iter = active_loaders_.begin();
+       iter != active_loaders_.end(); ++iter) {
+    (*iter)->Abort();
+  }
+}
+
+void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(resource_provider);
+  DCHECK(!resource_provider_);
+
+  resource_provider_ = resource_provider;
+}
+
+void LoaderFactory::OnLoaderCreated(Loader* loader) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(active_loaders_.find(loader) == active_loaders_.end());
+  active_loaders_.insert(loader);
+}
+
+void LoaderFactory::OnLoaderDestroyed(Loader* loader) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(active_loaders_.find(loader) != active_loaders_.end());
+  active_loaders_.erase(loader);
 }
 
 }  // namespace loader

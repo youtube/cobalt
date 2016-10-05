@@ -60,6 +60,9 @@ class DebugConsole {
   // Returns the currently set debug console visibility mode.
   int GetMode();
 
+  void Suspend();
+  void Resume(render_tree::ResourceProvider* resource_provider);
+
  private:
   void OnError(const GURL& /* url */, const std::string& error) {
     LOG(ERROR) << error;

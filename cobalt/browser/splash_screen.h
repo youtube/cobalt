@@ -45,6 +45,9 @@ class SplashScreen {
                render_tree::ResourceProvider* resource_provider,
                float layout_refresh_rate, const Options& options = Options());
 
+  void Suspend();
+  void Resume(render_tree::ResourceProvider* resource_provider);
+
  private:
   void OnError(const GURL& /* url */, const std::string& error) {
     LOG(ERROR) << error;
