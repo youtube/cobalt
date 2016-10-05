@@ -26,6 +26,8 @@ class ApplicationEvent : public base::Event {
  public:
   enum Type {
     kQuit,
+    kPause,
+    kUnpause,
     kSuspend,
     kResume,
   };
