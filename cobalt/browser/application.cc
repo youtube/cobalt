@@ -244,6 +244,8 @@ int64 Application::lifetime_in_ms_ = 0;
 
 Application::AppStatus Application::app_status_ =
     Application::kUninitializedAppStatus;
+int Application::app_pause_count_ = 0;
+int Application::app_unpause_count_ = 0;
 int Application::app_suspend_count_ = 0;
 int Application::app_resume_count_ = 0;
 
@@ -544,13 +546,21 @@ void Application::OnApplicationEvent(const base::Event* event) {
     DLOG(INFO) << "Got quit event.";
     app_status_ = kWillQuitAppStatus;
     Quit();
+  } else if (app_event->type() == system_window::ApplicationEvent::kPause) {
+    DLOG(INFO) << "Got pause event.";
+    app_status_ = kPausedAppStatus;
+    ++app_pause_count_;
+  } else if (app_event->type() == system_window::ApplicationEvent::kUnpause) {
+    DLOG(INFO) << "Got unpause event.";
+    app_status_ = kRunningAppStatus;
+    ++app_unpause_count_;
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
-    app_status_ = kPausedAppStatus;
+    app_status_ = kSuspendedAppStatus;
     ++app_suspend_count_;
   } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
     DLOG(INFO) << "Got resume event.";
-    app_status_ = kRunningAppStatus;
+    app_status_ = kPausedAppStatus;
     ++app_resume_count_;
   }
 }
@@ -607,6 +617,10 @@ void Application::RegisterUserLogs() {
                             &lifetime_in_ms_, sizeof(lifetime_in_ms_));
     base::UserLog::Register(base::UserLog::kAppStatusIndex, "AppStatus",
                             &app_status_, sizeof(app_status_));
+    base::UserLog::Register(base::UserLog::kAppPauseCountIndex, "PauseCnt",
+                            &app_pause_count_, sizeof(app_pause_count_));
+    base::UserLog::Register(base::UserLog::kAppUnpauseCountIndex, "UnpauseCnt",
+                            &app_unpause_count_, sizeof(app_unpause_count_));
     base::UserLog::Register(base::UserLog::kAppSuspendCountIndex, "SuspendCnt",
                             &app_suspend_count_, sizeof(app_suspend_count_));
     base::UserLog::Register(base::UserLog::kAppResumeCountIndex, "ResumeCnt",
