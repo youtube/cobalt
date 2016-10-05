@@ -20,7 +20,6 @@
 #include "base/stringprintf.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/storage.h"
-#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -166,6 +165,11 @@ void StorageArea::Init() {
 void StorageArea::OnInitComplete(scoped_ptr<StorageMap> data) {
   storage_map_.reset(data.release());
   read_event_.Signal();
+}
+
+// static
+std::string StorageArea::GetLocalStorageIdForUrl(const GURL& url) {
+  return OriginToDatabaseIdentifier(url.GetOrigin()) + kLocalStorageSuffix;
 }
 
 }  // namespace dom

@@ -23,6 +23,13 @@ namespace storage {
 
 Savegame::ByteVector* SavegameFake::s_persistent_data_;
 
+SavegameFake::SavegameFake(const Options& options) : Savegame(options) {
+  if (options.test_initial_data.size() > 0 && !s_persistent_data_) {
+    s_persistent_data_ = new ByteVector();
+    *s_persistent_data_ = options.test_initial_data;
+  }
+}
+
 bool SavegameFake::PlatformRead(ByteVector* bytes_ptr) {
   if (s_persistent_data_) {
     *bytes_ptr = *s_persistent_data_;

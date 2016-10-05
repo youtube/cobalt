@@ -23,6 +23,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -53,6 +54,8 @@ class StorageArea {
   int size_bytes() const { return size_bytes_; }
   Storage* storage_node() const { return storage_node_; }
   const std::string& identifier() const { return identifier_; }
+
+  static std::string GetLocalStorageIdForUrl(const GURL& url);
 
  private:
   void Init();
