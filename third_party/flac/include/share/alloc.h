@@ -5,6 +5,10 @@
 #ifndef THIRD_PARTY_FLAC_INCLUDE_SHARE_ALLOC_H
 #define THIRD_PARTY_FLAC_INCLUDE_SHARE_ALLOC_H
 
+#ifdef STARBOARD
+#include "starboard/types.h"
+#endif  // STARBOARD
+
 void *safe_malloc_(size_t size);
 
 void *safe_calloc_(size_t num_items, size_t size);

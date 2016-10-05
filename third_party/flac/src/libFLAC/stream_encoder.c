@@ -33,6 +33,7 @@
 #  include <config.h>
 #endif
 
+#ifndef STARBOARD
 #if defined _MSC_VER || defined __MINGW32__
 #include <io.h> /* for _setmode() */
 #include <fcntl.h> /* for _O_BINARY */
@@ -43,9 +44,12 @@
 #endif
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy() */
 #include <sys/types.h> /* for off_t */
+#endif  // STARBOARD
+#include <stdlib.h> /* for malloc() */
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #if defined _MSC_VER || defined __BORLANDC__ || defined __MINGW32__
 #if _MSC_VER <= 1600 || defined __BORLANDC__ /* @@@ [2G limit] */
 #define fseeko fseek
@@ -54,9 +58,6 @@
 #define fseeko _fseeki64
 #define ftello _ftelli64
 #endif
-#elif defined(__LB_SHELL__)
-#define fseeko fseek
-#define ftello ftell
 #endif
 #include "FLAC/assert.h"
 #include "FLAC/stream_decoder.h"
@@ -322,12 +323,13 @@ static FLAC__StreamDecoderWriteStatus verify_write_callback_(const FLAC__StreamD
 static void verify_metadata_callback_(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data);
 static void verify_error_callback_(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
 
+#ifndef COBALT
 static FLAC__StreamEncoderReadStatus file_read_callback_(const FLAC__StreamEncoder *encoder, FLAC__byte buffer[], size_t *bytes, void *client_data);
 static FLAC__StreamEncoderSeekStatus file_seek_callback_(const FLAC__StreamEncoder *encoder, FLAC__uint64 absolute_byte_offset, void *client_data);
 static FLAC__StreamEncoderTellStatus file_tell_callback_(const FLAC__StreamEncoder *encoder, FLAC__uint64 *absolute_byte_offset, void *client_data);
 static FLAC__StreamEncoderWriteStatus file_write_callback_(const FLAC__StreamEncoder *encoder, const FLAC__byte buffer[], size_t bytes, unsigned samples, unsigned current_frame, void *client_data);
 static FILE *get_binary_stdout_(void);
-
+#endif  // COBALT
 
 /***********************************************************************
  *
@@ -401,7 +403,9 @@ typedef struct FLAC__StreamEncoderPrivate {
 	FLAC__StreamEncoderProgressCallback progress_callback;
 	void *client_data;
 	unsigned first_seekpoint_to_check;
+#ifndef COBALT
 	FILE *file;                            /* only used when encoding to a file */
+#endif  // COBALT
 	FLAC__uint64 bytes_written;
 	FLAC__uint64 samples_written;
 	unsigned frames_written;
@@ -558,7 +562,9 @@ FLAC_API FLAC__StreamEncoder *FLAC__stream_encoder_new(void)
 		return 0;
 	}
 
+#ifndef COBALT
 	encoder->private_->file = 0;
+#endif  // COBALT
 
 	set_defaults_(encoder);
 
@@ -1165,6 +1171,7 @@ FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_stream(
 	);
 }
 
+#ifndef COBALT
 FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_ogg_stream(
 	FLAC__StreamEncoder *encoder,
 	FLAC__StreamEncoderReadCallback read_callback,
@@ -1318,6 +1325,7 @@ FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_ogg_file(
 {
 	return init_file_internal_(encoder, filename, progress_callback, client_data, /*is_ogg=*/true);
 }
+#endif  // COBALT
 
 FLAC_API FLAC__bool FLAC__stream_encoder_finish(FLAC__StreamEncoder *encoder)
 {
@@ -1367,11 +1375,13 @@ FLAC_API FLAC__bool FLAC__stream_encoder_finish(FLAC__StreamEncoder *encoder)
 		}
 	}
 
+#ifndef COBALT
 	if(0 != encoder->private_->file) {
 		if(encoder->private_->file != stdout)
 			fclose(encoder->private_->file);
 		encoder->private_->file = 0;
 	}
+#endif  // COBALT
 
 #if FLAC__HAS_OGG
 	if(encoder->private_->is_ogg)
@@ -4259,6 +4269,7 @@ void verify_error_callback_(const FLAC__StreamDecoder *decoder, FLAC__StreamDeco
 	encoder->protected_->state = FLAC__STREAM_ENCODER_VERIFY_DECODER_ERROR;
 }
 
+#ifndef COBALT
 FLAC__StreamEncoderReadStatus file_read_callback_(const FLAC__StreamEncoder *encoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
 {
 	(void)client_data;
@@ -4363,3 +4374,4 @@ FILE *get_binary_stdout_(void)
 
 	return stdout;
 }
+#endif  // COBALT

@@ -33,7 +33,11 @@
 #define FLAC__PRIVATE__CRC_H
 
 #include "FLAC/ordinals.h"
+#ifndef STARBOARD
 #include <stdlib.h>
+#else  // STARBOARD
+#include "starboard/types.h"
+#endif  // STARBOARD
 
 /* 8 bit CRC generator, MSB shifted first
 ** polynomial = x^8 + x^2 + x^1 + x^0

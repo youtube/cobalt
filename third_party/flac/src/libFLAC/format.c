@@ -36,6 +36,10 @@
 #include <stdio.h>
 #include <stdlib.h> /* for qsort() */
 #include <string.h> /* for memset() */
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 #include "FLAC/assert.h"
 #include "FLAC/format.h"
 #include "private/format.h"
