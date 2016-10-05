@@ -221,6 +221,12 @@ int DebugConsole::GetMode() {
   return mode_;
 }
 
+void DebugConsole::Suspend() { web_module_->Suspend(); }
+
+void DebugConsole::Resume(render_tree::ResourceProvider* resource_provider) {
+  web_module_->Resume(resource_provider);
+}
+
 }  // namespace browser
 }  // namespace cobalt
 

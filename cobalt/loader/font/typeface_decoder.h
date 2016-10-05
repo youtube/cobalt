@@ -48,6 +48,8 @@ class TypefaceDecoder : public Decoder {
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
 
+  void Abort() OVERRIDE;
+
  private:
   void ReleaseRawData();
 
@@ -57,6 +59,8 @@ class TypefaceDecoder : public Decoder {
 
   scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data_;
   bool is_raw_data_too_large_;
+
+  bool aborted_;
 };
 
 }  // namespace font

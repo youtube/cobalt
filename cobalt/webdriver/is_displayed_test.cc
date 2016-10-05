@@ -59,11 +59,12 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
                                                      kImageCacheCapacity,
                                                      loader_factory_.get())),
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
+        resource_provider_(resource_provider_stub_.get()),
         html_element_context_(
             &fetcher_factory_, css_parser_.get(), dom_parser_.get(),
             NULL /* can_play_type_handler  */,
             NULL /* web_media_player_factory */, &script_runner_,
-            NULL /* media_source_registry */, resource_provider_stub_.get(),
+            NULL /* media_source_registry */, &resource_provider_,
             image_cache_.get(), NULL /* reduced_image_cache_capacity_manager */,
             NULL /* remote_font_cache */, dom_stat_tracker_.get(),
             "" /* language */) {}
@@ -99,6 +100,7 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
   scoped_ptr<loader::LoaderFactory> loader_factory_;
   scoped_ptr<loader::image::ImageCache> image_cache_;
   scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
+  render_tree::ResourceProvider* resource_provider_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;
   scoped_ptr<loader::Loader> document_loader_;
