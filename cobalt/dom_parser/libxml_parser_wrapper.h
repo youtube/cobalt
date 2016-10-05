@@ -61,9 +61,9 @@ class LibxmlParserWrapper {
  public:
   enum IssueSeverity {
     kNoIssue,
-    kWarning,
-    kError,
-    kFatal,
+    kWarning,  // A simple warning
+    kError,    // A recoverable error
+    kFatal,    // A fatal error
     kIssueSeverityCount,
   };
 
