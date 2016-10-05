@@ -15,13 +15,13 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/queue.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/audio_renderer_internal.h"
-#include "starboard/shared/starboard/player/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/window.h"
@@ -31,6 +31,12 @@ namespace shared {
 namespace starboard {
 namespace player {
 
+// This class creates a thread that executes events posted to an internally
+// created queue. This guarantees that all such events are processed on the same
+// thread.
+//
+// This class serves as the base class for platform specific PlayerWorkers so
+// they needn't maintain the thread and queue internally.
 class PlayerWorker {
  public:
   class Host {
@@ -78,6 +84,9 @@ class PlayerWorker {
       kStop,
     };
 
+    // TODO: No longer use a union so individual members can have non trivial
+    // ctor and WriteSampleEventData::input_buffer no longer has to be a
+    // pointer.
     union Data {
       SeekEventData seek;
       WriteSampleEventData write_sample;
@@ -116,63 +125,90 @@ class PlayerWorker {
     Data data;
   };
 
-  static const SbTime kUpdateInterval = 5 * kSbTimeMillisecond;
+  class Handler {
+   public:
+    typedef void (PlayerWorker::*UpdateMediaTimeCB)(SbMediaTime media_time);
+    typedef SbPlayerState (PlayerWorker::*GetPlayerStateCB)() const;
+    typedef void (PlayerWorker::*UpdatePlayerStateCB)(
+        SbPlayerState player_state);
+
+    typedef PlayerWorker::SeekEventData SeekEventData;
+    typedef PlayerWorker::WriteSampleEventData WriteSampleEventData;
+    typedef PlayerWorker::WriteEndOfStreamEventData WriteEndOfStreamEventData;
+    typedef PlayerWorker::SetPauseEventData SetPauseEventData;
+    typedef PlayerWorker::SetBoundsEventData SetBoundsEventData;
+
+    virtual ~Handler() {}
+
+    // This function will be called once inside PlayerWorker's ctor to setup the
+    // callbacks required by the Handler.
+    virtual void Setup(PlayerWorker* player_worker,
+                       SbPlayer player,
+                       UpdateMediaTimeCB update_media_time_cb,
+                       GetPlayerStateCB get_player_state_cb,
+                       UpdatePlayerStateCB update_player_state_cb) = 0;
+
+    // All the Process* functions return false to signal a fatal error.  The
+    // event processing loop in PlayerWorker will termimate in this case.
+    virtual bool ProcessInitEvent() = 0;
+    virtual bool ProcessSeekEvent(const SeekEventData& data) = 0;
+    virtual bool ProcessWriteSampleEvent(const WriteSampleEventData& data,
+                                         bool* written) = 0;
+    virtual bool ProcessWriteEndOfStreamEvent(
+        const WriteEndOfStreamEventData& data) = 0;
+    virtual bool ProcessSetPauseEvent(const SetPauseEventData& data) = 0;
+    virtual bool ProcessUpdateEvent(const SetBoundsEventData& data) = 0;
+    virtual void ProcessStopEvent() = 0;
+  };
 
   PlayerWorker(Host* host,
-               SbWindow window,
-               SbMediaVideoCodec video_codec,
-               SbMediaAudioCodec audio_codec,
-               SbDrmSystem drm_system,
-               const SbMediaAudioHeader& audio_header,
+               scoped_ptr<Handler> handler,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
                SbPlayer player,
+               SbTime update_interval,
                void* context);
-  ~PlayerWorker();
+  virtual ~PlayerWorker();
 
   template <typename EventData>
   void EnqueueEvent(const EventData& event_data) {
+    SB_DCHECK(SbThreadIsValid(thread_));
     queue_.Put(new Event(event_data));
   }
 
  private:
+  void UpdateMediaTime(SbMediaTime time);
+
+  SbPlayerState player_state() const { return player_state_; }
+  void UpdatePlayerState(SbPlayerState player_state);
+
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
+  bool DoInit();
+  bool DoSeek(const SeekEventData& data);
+  bool DoWriteSample(const WriteSampleEventData& data);
+  bool DoWriteEndOfStream(const WriteEndOfStreamEventData& data);
+  bool DoUpdate(const SetBoundsEventData& data);
+  void DoStop();
 
-  bool ProcessInitEvent();
-  bool ProcessSeekEvent(const SeekEventData& data);
-  bool ProcessWriteSampleEvent(const WriteSampleEventData& data, bool* retry);
-  bool ProcessWriteEndOfStreamEvent(const WriteEndOfStreamEventData& data);
-  bool ProcessSetPauseEvent(const SetPauseEventData& data);
-  bool ProcessUpdateEvent(const SetBoundsEventData& bounds);
-  void ProcessStopEvent();
-
-  void UpdateDecoderState(SbMediaType type);
-  void UpdatePlayerState(SbPlayerState player_state);
+  void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
   SbThread thread_;
   Queue<Event*> queue_;
 
   Host* host_;
+  scoped_ptr<Handler> handler_;
 
-  SbWindow window_;
-  SbMediaVideoCodec video_codec_;
-  SbMediaAudioCodec audio_codec_;
-  SbDrmSystem drm_system_;
-  SbMediaAudioHeader audio_header_;
   SbPlayerDecoderStatusFunc decoder_status_func_;
   SbPlayerStatusFunc player_status_func_;
   SbPlayer player_;
   void* context_;
-
-  AudioRenderer* audio_renderer_;
-  VideoRenderer* video_renderer_;
-  SbPlayerDecoderState audio_decoder_state_;
-  SbPlayerDecoderState video_decoder_state_;
-
-  bool paused_;
   int ticket_;
+
   SbPlayerState player_state_;
+  const SbTime update_interval_;
+  WriteSampleEventData pending_audio_sample_;
+  WriteSampleEventData pending_video_sample_;
 };
 
 }  // namespace player

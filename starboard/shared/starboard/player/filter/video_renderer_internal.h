@@ -12,28 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_RENDERER_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_RENDERER_INTERNAL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
 
 #include <list>
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
 class VideoRenderer : private VideoDecoder::Host {
  public:
-  explicit VideoRenderer(VideoDecoder* decoder);
-  ~VideoRenderer();
+  explicit VideoRenderer(scoped_ptr<VideoDecoder> decoder);
 
   bool is_valid() const { return true; }
 
@@ -80,12 +81,13 @@ class VideoRenderer : private VideoDecoder::Host {
   bool end_of_stream_written_;
   bool need_more_input_;
 
-  VideoDecoder* decoder_;
+  scoped_ptr<VideoDecoder> decoder_;
 };
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_RENDERER_INTERNAL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
