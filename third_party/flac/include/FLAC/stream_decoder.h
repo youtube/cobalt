@@ -1105,6 +1105,7 @@ FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_stream(
 	void *client_data
 );
 
+#ifndef COBALT
 /** Initialize the decoder instance to decode Ogg FLAC streams.
  *
  *  This flavor of initialization sets up the decoder to decode from a
@@ -1367,6 +1368,7 @@ FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_ogg_file(
 	FLAC__StreamDecoderErrorCallback error_callback,
 	void *client_data
 );
+#endif  // COBALT
 
 /** Finish the decoding process.
  *  Flushes the decoding buffer, releases resources, resets the decoder

@@ -56,7 +56,9 @@ FLAC__bool FLAC__bitreader_clear(FLAC__BitReader *br);
 void FLAC__bitreader_set_framesync_location(FLAC__BitReader* br);
 FLAC__bool FLAC__bitreader_rewind_to_after_last_seen_framesync(
     FLAC__BitReader* br);
+#ifndef COBALT
 void FLAC__bitreader_dump(const FLAC__BitReader *br, FILE *out);
+#endif  // COBALT
 
 /*
  * CRC functions
