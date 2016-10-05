@@ -83,17 +83,25 @@ std::string GetSavePath() {
   return test_path.Append("local_storage_database_test.bin").value();
 }
 
+class DummyUpgradeHandler : public storage::StorageManager::UpgradeHandler {
+  void OnUpgrade(storage::StorageManager* /*storage*/, const char* /*data*/,
+                 int /*size*/) OVERRIDE {}
+};
+
 class LocalStorageDatabaseTest : public ::testing::Test {
  protected:
   LocalStorageDatabaseTest()
       : message_loop_(MessageLoop::TYPE_DEFAULT),
         host_("https://www.example.com") {
+    scoped_ptr<storage::StorageManager::UpgradeHandler> upgrade_handler(
+        new DummyUpgradeHandler());
     storage::StorageManager::Options options;
     options.savegame_options.path_override = GetSavePath();
     options.savegame_options.delete_on_destruction = true;
     options.savegame_options.factory = &storage::SavegameFake::Create;
 
-    storage_manager_.reset(new storage::StorageManager(options));
+    storage_manager_.reset(
+        new storage::StorageManager(upgrade_handler.Pass(), options));
     db_.reset(new LocalStorageDatabase(storage_manager_.get()));
   }
 

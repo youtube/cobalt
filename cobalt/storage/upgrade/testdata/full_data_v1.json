@@ -2,22 +2,22 @@ UPG0
 {
   "cookies": [
     {
-      "url": "https://www.youtube.com",
+      "url": "https://www.example.com/1",
       "name": "cookie_name",
       "value": "cookie_value",
-      "domain": "cookie.domain",
-      "path": "cookie/path",
+      "domain": ".example.com",
+      "path": "/1",
       "creation": "13119668760000000",
       "expiration": "13120000000000000",
       "last_acess": "13119668770000000",
       "http_only": true
     },
     {
-      "url": "http://www.somewhere.com",
+      "url": "http://www.somewhere.com/2",
       "name": "cookie_name_2",
       "value": "cookie_value_2",
-      "domain": "cookie.domain2",
-      "path": "cookie/path/2",
+      "domain": ".somewhere.com",
+      "path": "/2",
       "creation": "13109668760000000",
       "expiration": "13110000000000000",
       "last_acess": "13109668770000000",

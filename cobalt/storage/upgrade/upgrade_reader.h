@@ -57,6 +57,8 @@ class UpgradeReader {
   // storage entry doesn't exist, return NULL.
   const LocalStorageEntry* GetLocalStorageEntry(int index) const;
 
+  static bool IsUpgradeData(const char* data, int size);
+
  private:
   // Process the parsed values and populate |cookies_| and
   // |local_storage_entries_|.

@@ -37,7 +37,7 @@ message SaveData {
 
   // A single cookie.
   mesage Cookie {
-    // URL in canonical form, e.g. "https://www.youtube.com/". Must be provided
+    // URL in canonical form, e.g. "https://www.example.com/". Must be provided
     // or the cookie will be ignored.
     string url = 1;
 
@@ -48,7 +48,7 @@ message SaveData {
     // or the cookie will be ignored.
     string value = 3;
 
-    // Domain, e.g. ".youtube.com". Defaults to the domain of the "url" field.
+    // Domain, e.g. ".example.com". Defaults to the domain of the "url" field.
     string domain = 4;
 
     // Optional virtual path, defaults to "/".
