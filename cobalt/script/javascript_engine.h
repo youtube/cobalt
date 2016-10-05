@@ -41,6 +41,11 @@ class JavaScriptEngine {
   // Javascript object. This may mean collection needs to happen sooner.
   virtual void ReportExtraMemoryCost(size_t bytes) = 0;
 
+  // Updates the memory usage and returns the total memory that is reserved by
+  // the engine. This includes the part that is actually occupied by JS objects,
+  // and the part that is not yet.
+  virtual size_t UpdateMemoryStatsAndReturnReserved() = 0;
+
  protected:
   virtual ~JavaScriptEngine() {}
   friend class scoped_ptr<JavaScriptEngine>;
