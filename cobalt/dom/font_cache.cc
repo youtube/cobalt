@@ -42,7 +42,7 @@ FontCache::RequestedRemoteTypefaceInfo::RequestedRemoteTypefaceInfo(
                         typeface_load_event_callback);
 }
 
-FontCache::FontCache(render_tree::ResourceProvider* resource_provider,
+FontCache::FontCache(render_tree::ResourceProvider** resource_provider,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
                      const base::Closure& external_typeface_load_event_callback,
                      const std::string& language)
@@ -180,23 +180,26 @@ const scoped_refptr<render_tree::Typeface>&
 FontCache::GetCharacterFallbackTypeface(int32 utf32_character,
                                         const render_tree::FontStyle& style) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(resource_provider());
   return GetCachedLocalTypeface(
-      resource_provider_->GetCharacterFallbackTypeface(utf32_character, style,
-                                                       language_));
+      resource_provider()->GetCharacterFallbackTypeface(utf32_character, style,
+                                                        language_));
 }
 
 scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
     const char16* text_buffer, int32 text_length, bool is_rtl,
     FontList* font_list) {
-  return resource_provider_->CreateGlyphBuffer(text_buffer,
-                                               static_cast<size_t>(text_length),
-                                               language_, is_rtl, font_list);
+  DCHECK(resource_provider());
+  return resource_provider()->CreateGlyphBuffer(
+      text_buffer, static_cast<size_t>(text_length), language_, is_rtl,
+      font_list);
 }
 
 float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
                               bool is_rtl, FontList* font_list,
                               render_tree::FontVector* maybe_used_fonts) {
-  return resource_provider_->GetTextWidth(
+  DCHECK(resource_provider());
+  return resource_provider()->GetTextWidth(
       text_buffer, static_cast<size_t>(text_length), language_, is_rtl,
       font_list, maybe_used_fonts);
 }
@@ -342,6 +345,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
 scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
     const std::string& family, render_tree::FontStyle style, float size,
     FontListFont::State* state) {
+  DCHECK(resource_provider());
   // Only request the local font from the resource provider if the family is
   // empty or the resource provider actually has the family. The reason for this
   // is that the resource provider's |GetLocalTypeface()| is guaranteed to
@@ -349,14 +353,14 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
   // the subsequent fonts in the font list need to be attempted. An empty family
   // signifies using the default font.
   if (!family.empty() &&
-      !resource_provider_->HasLocalFontFamily(family.c_str())) {
+      !resource_provider()->HasLocalFontFamily(family.c_str())) {
     *state = FontListFont::kUnavailableState;
     return NULL;
   } else {
     *state = FontListFont::kLoadedState;
     return GetFontFromTypefaceAndSize(
         GetCachedLocalTypeface(
-            resource_provider_->GetLocalTypeface(family.c_str(), style)),
+            resource_provider()->GetLocalTypeface(family.c_str(), style)),
         size);
   }
 }

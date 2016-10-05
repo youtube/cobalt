@@ -141,7 +141,7 @@ BrowserModule::BrowserModule(const GURL& url,
           options.media_module_options)),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
-      render_tree_combiner_(renderer_module_.pipeline(),
+      render_tree_combiner_(&renderer_module_,
                             renderer_module_.render_target()->GetSize()),
 #if defined(ENABLE_SCREENSHOT)
       screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
@@ -169,7 +169,8 @@ BrowserModule::BrowserModule(const GURL& url,
           h5vcc_url_handler_(this, system_window, account_manager)),
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
-      will_quit_(false) {
+      will_quit_(false),
+      suspended_(false) {
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
@@ -617,6 +618,72 @@ void BrowserModule::GetDebugServerInternal(
 void BrowserModule::SetProxy(const std::string& proxy_rules) {
   // NetworkModule will ensure this happens on the correct thread.
   network_module_.SetProxy(proxy_rules);
+}
+
+void BrowserModule::Suspend() {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK(!suspended_);
+
+// First release the resource provider used by all of our web modules.
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (debug_console_) {
+    debug_console_->Suspend();
+  }
+#endif
+  if (splash_screen_) {
+    splash_screen_->Suspend();
+  }
+  if (web_module_) {
+    web_module_->Suspend();
+  }
+
+  // Flush out any submitted render trees pushed since we started shutting down
+  // the web modules above.
+  render_tree_submission_queue_.ProcessAll();
+
+#if defined(ENABLE_SCREENSHOT)
+  // The screenshot writer may be holding on to a reference to a render tree
+  // which could in turn be referencing resources like images, so clear that
+  // out.
+  screen_shot_writer_->ClearLastPipelineSubmission();
+#endif
+
+  // Clear out the render tree combiner so that it doesn't hold on to any
+  // render tree resources either.
+  render_tree_combiner_.Reset();
+
+  // Place the renderer module into a suspended state where it releases all its
+  // graphical resources.
+  renderer_module_.Suspend();
+
+  suspended_ = true;
+}
+
+void BrowserModule::Resume() {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK(suspended_);
+
+  renderer_module_.Resume();
+
+  // Note that at this point, it is probable that this resource provider is
+  // different than the one that was managed in the associated call to
+  // Suspend().
+  render_tree::ResourceProvider* resource_provider =
+      renderer_module_.pipeline()->GetResourceProvider();
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (debug_console_) {
+    debug_console_->Resume(resource_provider);
+  }
+#endif
+  if (splash_screen_) {
+    splash_screen_->Resume(resource_provider);
+  }
+  if (web_module_) {
+    web_module_->Resume(resource_provider);
+  }
+
+  suspended_ = false;
 }
 
 #if defined(OS_STARBOARD)

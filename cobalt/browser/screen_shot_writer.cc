@@ -82,6 +82,10 @@ void ScreenShotWriter::SetLastPipelineSubmission(
   last_submission_time_ = base::TimeTicks::HighResNow();
 }
 
+void ScreenShotWriter::ClearLastPipelineSubmission() {
+  last_submission_ = base::nullopt;
+}
+
 void ScreenShotWriter::RasterizationComplete(
     const PNGEncodeCompleteCallback& encode_complete_callback,
     scoped_array<uint8> pixel_data, const math::Size& dimensions) {

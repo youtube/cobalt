@@ -53,6 +53,8 @@ class ImageDecoder : public Decoder {
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
 
+  void Abort() OVERRIDE;
+
   // Call this function to use the StubImageDecoder which produces a small image
   // without decoding.
   static void UseStubImageDecoder();
@@ -63,6 +65,8 @@ class ImageDecoder : public Decoder {
     kDecoding,
     kNotApplicable,
     kUnsupportedImageFormat,
+    kNoResourceProvider,
+    kAborted,
   };
 
   // The current longest signature is WEBP signature.

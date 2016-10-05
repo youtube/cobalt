@@ -320,6 +320,9 @@ class Document : public Node, public cssom::MutationObserver {
   // Exposed for test purposes.
   void UpdateSelectorTree();
 
+  // Invalidates the document's cached layout tree and associated data.
+  void InvalidateLayout();
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:

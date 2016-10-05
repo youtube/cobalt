@@ -182,6 +182,14 @@ class WebModule {
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Suspends the WebModule from creating new render trees, and releases this
+  // web module's reference to the resource provider, clearing it out and
+  // releasing all references to any resources created from it.
+  void Suspend();
+  // Resumes the WebModule, possibly with a new resource provider.  This method
+  // can only be called if we have previously suspended the WebModule.
+  void Resume(render_tree::ResourceProvider* resource_provider);
+
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   // Non-optimized builds require a bigger stack size.
   static const size_t kBaseStackSize = 2 * 1024 * 1024;
