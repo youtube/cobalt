@@ -47,7 +47,10 @@
 #define GOOGLE_PROTOBUF_REPEATED_FIELD_H__
 
 #include <string>
+#ifndef STARBOARD
 #include <iterator>
+#endif  // STARBOARD
+
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/message_lite.h>
 
@@ -308,7 +311,8 @@ class LIBPROTOBUF_EXPORT StringTypeHandlerBase {
 class StringTypeHandler : public StringTypeHandlerBase {
  public:
   static int SpaceUsed(const string& value)  {
-    return sizeof(value) + StringSpaceUsedExcludingSelf(value);
+    return static_cast<int>(
+        sizeof(value) + StringSpaceUsedExcludingSelf(value));
   }
 };
 
@@ -601,7 +605,7 @@ void RepeatedField<Element>::Reserve(int new_size) {
 
   Element* old_elements = elements_;
   total_size_ = max(total_size_ * 2, new_size);
-  elements_ = new Element[total_size_];
+  elements_ = new Element[static_cast<size_t>(total_size_)];
   MoveArray(elements_, old_elements, current_size_);
   if (old_elements != initial_space_) {
     delete [] old_elements;
@@ -1194,7 +1198,7 @@ template<typename T> class RepeatedFieldBackInsertIterator
   RepeatedFieldBackInsertIterator<T>& operator++() {
     return *this;
   }
-  RepeatedFieldBackInsertIterator<T>& operator++(int ignores_parameter) {
+  RepeatedFieldBackInsertIterator<T>& operator++(int /*ignores_parameter*/) {
     return *this;
   }
 
@@ -1225,7 +1229,7 @@ template<typename T> class RepeatedPtrFieldBackInsertIterator
   RepeatedPtrFieldBackInsertIterator<T>& operator++() {
     return *this;
   }
-  RepeatedPtrFieldBackInsertIterator<T>& operator++(int ignores_parameter) {
+  RepeatedPtrFieldBackInsertIterator<T>& operator++(int /*ignores_parameter*/) {
     return *this;
   }
 
@@ -1254,7 +1258,7 @@ template<typename T> class AllocatedRepeatedPtrFieldBackInsertIterator
     return *this;
   }
   AllocatedRepeatedPtrFieldBackInsertIterator<T>& operator++(
-      int ignores_parameter) {
+      int /*ignores_parameter*/) {
     return *this;
   }
 
