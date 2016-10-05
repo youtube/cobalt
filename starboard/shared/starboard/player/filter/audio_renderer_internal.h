@@ -12,27 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_AUDIO_RENDERER_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_AUDIO_RENDERER_INTERNAL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
 
 #include <vector>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
 class AudioRenderer {
  public:
-  AudioRenderer(AudioDecoder* decoder, const SbMediaAudioHeader& audio_header);
+  AudioRenderer(scoped_ptr<AudioDecoder> decoder,
+                const SbMediaAudioHeader& audio_header);
   ~AudioRenderer();
 
   bool is_valid() const { return true; }
@@ -90,13 +93,14 @@ class AudioRenderer {
   int frames_consumed_;
   bool end_of_stream_reached_;
 
-  AudioDecoder* decoder_;
+  scoped_ptr<AudioDecoder> decoder_;
   SbAudioSink audio_sink_;
 };
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_AUDIO_RENDERER_INTERNAL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_

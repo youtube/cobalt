@@ -35,13 +35,12 @@ extern "C" {
 
 // An indicator of whether the decoder can accept more samples.
 typedef enum SbPlayerDecoderState {
-  // The decoder is ready for and eager to receive more samples.  Note that
-  // once the decoder notifies the user with kSbPlayerDecoderStateNeedsData,
-  // it cannot enter kSbPlayerDecoderStateBufferFull before SbPlayerWriteSample
-  // or SbPlayerWriteEndOfStream is called.
+  // The decoder is asking for one more sample.
   kSbPlayerDecoderStateNeedsData,
 
   // The decoder is not ready for any more samples, so do not send them.
+  // Note that this enum value has been deprecated and the SbPlayer
+  // implementation should no longer use this value.
   kSbPlayerDecoderStateBufferFull,
 
   // The player has been destroyed, and will send no more callbacks.
@@ -61,7 +60,8 @@ typedef enum SbPlayerState {
   kSbPlayerStatePrerolling,
 
   // The player is presenting media, and it is either actively playing in
-  // real-time, or it is paused.
+  // real-time, or it is paused.  Note that the implementation should use this
+  // state to signal that the preroll has been finished.
   kSbPlayerStatePresenting,
 
   // The player is presenting media, but it is paused at the end of the stream.
@@ -124,7 +124,11 @@ typedef struct SbPlayerPrivate* SbPlayer;
 // this callback was dispatched. This is to distinguish status callbacks for
 // interrupting seeks. These callbacks will happen on a different thread than
 // the calling thread, and it is not valid to call SbPlayer functions from
-// within this callback.
+// within this callback. After an update with kSbPlayerDecoderStateNeedsData,
+// the user of the player will make at most one call to SbPlayerWriteSample() or
+// SbPlayerWriteEndOfStream(). The player implementation should update the
+// decoder status again after such call to notify its user to continue writing
+// more frames.
 typedef void (*SbPlayerDecoderStatusFunc)(SbPlayer player,
                                           void* context,
                                           SbMediaType type,
@@ -207,8 +211,8 @@ SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // |context| will be passed back into all callbacks, and is generally used to
 // point at a class or struct that contains state associated with the player.
 //
-// The associated decoder of the returned player should be assumed to be in
-// kSbPlayerDecoderStateBufferFull until SbPlayerSeek() has been called on it.
+// The associated decoder of the returned player should be assumed to be not in
+// kSbPlayerDecoderStateNeedsData until SbPlayerSeek() has been called on it.
 //
 // It is expected that the thread that calls SbPlayerCreate is the same thread
 // that calls the other SbPlayer functions for that player, or that there is a

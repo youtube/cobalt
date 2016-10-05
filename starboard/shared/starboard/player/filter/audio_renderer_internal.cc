@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 
 #include <algorithm>
 
@@ -22,6 +22,7 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
 namespace {
 // TODO: This should be retrieved from the decoder.
@@ -29,7 +30,7 @@ namespace {
 const int kMaxFramesPerAccessUnit = 1024 * 2;
 }  // namespace
 
-AudioRenderer::AudioRenderer(AudioDecoder* decoder,
+AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                              const SbMediaAudioHeader& audio_header)
     : channels_(audio_header.number_of_channels),
       paused_(true),
@@ -40,7 +41,7 @@ AudioRenderer::AudioRenderer(AudioDecoder* decoder,
       offset_in_frames_(0),
       frames_consumed_(0),
       end_of_stream_reached_(false),
-      decoder_(decoder),
+      decoder_(decoder.Pass()),
       audio_sink_(kSbAudioSinkInvalid) {
   SB_DCHECK(decoder_ != NULL);
   frame_buffers_[0] = &frame_buffer_[0];
@@ -50,7 +51,6 @@ AudioRenderer::~AudioRenderer() {
   if (audio_sink_ != kSbAudioSinkInvalid) {
     SbAudioSinkDestroy(audio_sink_);
   }
-  delete decoder_;
 }
 
 void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
@@ -240,6 +240,7 @@ void AudioRenderer::AppendFrames(const float* source_buffer,
   frames_in_buffer_ += frames_to_append;
 }
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
