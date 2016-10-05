@@ -33,7 +33,10 @@
 #define FLAC__CALLBACK_H
 
 #include "ordinals.h"
+
+#ifndef STARBOARD
 #include <stdlib.h> /* for size_t */
+#endif  // STARBOARD
 
 /** \file include/FLAC/callback.h
  *

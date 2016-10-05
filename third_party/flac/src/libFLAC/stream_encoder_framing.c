@@ -33,8 +33,13 @@
 #  include <config.h>
 #endif
 
+#ifndef STARBOARD
 #include <stdio.h>
 #include <string.h> /* for strlen() */
+#endif  // STARBOARD
+
+#include "starboard/client_porting/poem/string_poem.h"
+
 #include "private/stream_encoder_framing.h"
 #include "private/crc.h"
 #include "FLAC/assert.h"
