@@ -372,6 +372,10 @@
       MozjsGlobalEnvironment* global_environment =
           static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      JS::RootedObject object(context);
+      if (arg.isObject()) {
+        object = JSVAL_TO_OBJECT(arg);
+      }
 {% endif %}
 {% for test, overload in resolution_tests %}
       if ({{test("arg")}}) {
