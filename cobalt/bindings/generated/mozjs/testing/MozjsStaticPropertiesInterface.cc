@@ -425,6 +425,10 @@ JSBool staticfcn_staticFunction(
       MozjsGlobalEnvironment* global_environment =
           static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      JS::RootedObject object(context);
+      if (arg.isObject()) {
+        object = JSVAL_TO_OBJECT(arg);
+      }
       if (arg.isNumber()) {
         return staticfcn_staticFunction2(
                   context, argc, vp);
@@ -446,8 +450,12 @@ JSBool staticfcn_staticFunction(
       MozjsGlobalEnvironment* global_environment =
           static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      JS::RootedObject object(context);
+      if (arg.isObject()) {
+        object = JSVAL_TO_OBJECT(arg);
+      }
       if (arg.isObject() ? wrapper_factory->DoesObjectImplementInterface(
-              JSVAL_TO_OBJECT(arg), base::GetTypeId<ArbitraryInterface>()) :
+              object, base::GetTypeId<ArbitraryInterface>()) :
               false) {
         return staticfcn_staticFunction5(
                   context, argc, vp);

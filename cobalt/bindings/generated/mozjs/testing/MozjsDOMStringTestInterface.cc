@@ -189,6 +189,17 @@ InterfaceData* CreateCachedInterfaceData() {
 JSBool get_property(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DOMStringTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    vp.set(JS::UndefinedValue());
+    return false;
+  }
+
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -233,6 +244,17 @@ JSBool set_property(
 JSBool get_readOnlyProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DOMStringTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    vp.set(JS::UndefinedValue());
+    return false;
+  }
+
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -255,6 +277,17 @@ JSBool get_readOnlyProperty(
 JSBool get_readOnlyTokenProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DOMStringTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    vp.set(JS::UndefinedValue());
+    return false;
+  }
+
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -277,6 +310,17 @@ JSBool get_readOnlyTokenProperty(
 JSBool get_nullIsEmptyProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DOMStringTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    vp.set(JS::UndefinedValue());
+    return false;
+  }
+
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -321,6 +365,17 @@ JSBool set_nullIsEmptyProperty(
 JSBool get_undefinedIsEmptyProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DOMStringTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    vp.set(JS::UndefinedValue());
+    return false;
+  }
+
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -365,6 +420,17 @@ JSBool set_undefinedIsEmptyProperty(
 JSBool get_nullableUndefinedIsEmptyProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DOMStringTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    vp.set(JS::UndefinedValue());
+    return false;
+  }
+
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
