@@ -58,6 +58,9 @@
         'user.h',
         'window.h',
       ],
+      'dependencies': [
+        'common/common.gyp:common',
+      ],
       'conditions': [
         ['starboard_path == ""', {
           # TODO: Make starboard_path required. This legacy condition is only

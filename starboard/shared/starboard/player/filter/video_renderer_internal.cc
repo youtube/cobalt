@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 
 #include <algorithm>
 
@@ -20,19 +20,16 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
-VideoRenderer::VideoRenderer(VideoDecoder* decoder)
+VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder)
     : seeking_(false),
       seeking_to_pts_(0),
       end_of_stream_written_(false),
       need_more_input_(true),
-      decoder_(decoder) {
+      decoder_(decoder.Pass()) {
   SB_DCHECK(decoder_ != NULL);
   decoder_->SetHost(this);
-}
-
-VideoRenderer::~VideoRenderer() {
-  delete decoder_;
 }
 
 void VideoRenderer::WriteSample(const InputBuffer& input_buffer) {
@@ -132,6 +129,7 @@ void VideoRenderer::OnDecoderStatusUpdate(VideoDecoder::Status status,
   need_more_input_ = (status == VideoDecoder::kNeedMoreInput);
 }
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared

@@ -14,8 +14,15 @@
 
 #include "starboard/player.h"
 
+#include "starboard/configuration.h"
 #include "starboard/log.h"
+#include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
+#include "starboard/shared/starboard/player/player_worker.h"
+
+using starboard::shared::starboard::player::filter::
+    FilterBasedPlayerWorkerHandler;
+using starboard::shared::starboard::player::PlayerWorker;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
@@ -27,6 +34,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
                         void* context) {
+  SB_UNREFERENCED_PARAMETER(window);
+
   if (audio_codec != kSbMediaAudioCodecAac) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;
@@ -42,7 +51,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  return new SbPlayerPrivate(window, video_codec, audio_codec, duration_pts,
-                             drm_system, audio_header, sample_deallocate_func,
-                             decoder_status_func, player_status_func, context);
+  starboard::scoped_ptr<PlayerWorker::Handler> handler(
+      new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
+                                         *audio_header));
+  return new SbPlayerPrivate(duration_pts, sample_deallocate_func,
+                             decoder_status_func, player_status_func, context,
+                             handler.Pass());
 }

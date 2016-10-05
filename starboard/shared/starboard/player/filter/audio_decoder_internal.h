@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_AUDIO_DECODER_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_AUDIO_DECODER_INTERNAL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
 
 #include <vector>
 
@@ -25,6 +25,7 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
 // This class decodes encoded audio stream into playable audio data.
 class AudioDecoder {
@@ -53,9 +54,10 @@ class AudioDecoder {
                               const SbMediaAudioHeader& audio_header);
 };
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_AUDIO_DECODER_INTERNAL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
