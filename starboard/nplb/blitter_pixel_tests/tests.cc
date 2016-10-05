@@ -99,6 +99,8 @@ TEST_F(SbBlitterPixelTest, SimpleNonStretchBlitRectToRect) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 #if SB_HAS(BILINEAR_FILTERING_SUPPORT)
@@ -116,6 +118,8 @@ TEST_F(SbBlitterPixelTest, MagnifyBlitRectToRectNotInterpolated) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, 2, 2),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, MinifyBlitRectToRect) {
@@ -128,6 +132,8 @@ TEST_F(SbBlitterPixelTest, MinifyBlitRectToRect) {
   SbBlitterBlitRectToRect(
       context_, checker_image, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
       SbBlitterMakeRect(0, 0, GetWidth() / 8, GetHeight() / 8));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectPartialSourceRect) {
@@ -141,6 +147,8 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectPartialSourceRect) {
       context_, checker_image,
       SbBlitterMakeRect(GetWidth() / 2, 0, GetWidth() / 2, GetHeight()),
       SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiled) {
@@ -153,6 +161,8 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiled) {
   SbBlitterBlitRectToRectTiled(
       context_, checker_image, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
       SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiledWithNoTiling) {
@@ -165,6 +175,8 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiledWithNoTiling) {
   SbBlitterBlitRectToRectTiled(
       context_, checker_image, SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
       SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiledNegativeOffset) {
@@ -178,6 +190,8 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiledNegativeOffset) {
       context_, checker_image,
       SbBlitterMakeRect(-GetWidth(), -GetHeight(), GetWidth(), GetHeight()),
       SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitRectToRectTiledOffCenter) {
@@ -192,6 +206,8 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectTiledOffCenter) {
       SbBlitterMakeRect(-GetWidth() / 2, -GetHeight() / 2, GetWidth(),
                         GetHeight()),
       SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 void DrawRectsWithBatchBlit(SbBlitterSurface texture,
@@ -225,6 +241,8 @@ TEST_F(SbBlitterPixelTest, BlitRectsToRects) {
   SbBlitterSetRenderTarget(context_, render_target_);
 
   DrawRectsWithBatchBlit(checker_image, context_, GetWidth(), GetHeight());
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 SbBlitterSurface CreateCheckerImageWithPixelData(SbBlitterDevice device,
@@ -333,6 +351,8 @@ TEST_F(SbBlitterPixelTest, BlitRectToRectFromPixelData) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitRedGreenRectToRectFromPixelData) {
@@ -343,6 +363,8 @@ TEST_F(SbBlitterPixelTest, BlitRedGreenRectToRectFromPixelData) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitHalfTransparentRectToRectFromPixelData) {
@@ -353,6 +375,8 @@ TEST_F(SbBlitterPixelTest, BlitHalfTransparentRectToRectFromPixelData) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitCanPunchThrough) {
@@ -368,6 +392,8 @@ TEST_F(SbBlitterPixelTest, BlitCanPunchThrough) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlitCanBlend) {
@@ -383,6 +409,8 @@ TEST_F(SbBlitterPixelTest, BlitCanBlend) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, SimpleAlphaBlitWithNoColorModulation) {
@@ -397,6 +425,8 @@ TEST_F(SbBlitterPixelTest, SimpleAlphaBlitWithNoColorModulation) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithNoColorModulationOnRed) {
@@ -410,6 +440,8 @@ TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithNoColorModulationOnRed) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, AlphaBlitWithBlueColorModulation) {
@@ -422,6 +454,8 @@ TEST_F(SbBlitterPixelTest, AlphaBlitWithBlueColorModulation) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithBlueColorModulationOnRed) {
@@ -436,6 +470,8 @@ TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithBlueColorModulationOnRed) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithAlphaColorModulationOnRed) {
@@ -450,6 +486,8 @@ TEST_F(SbBlitterPixelTest, BlendedAlphaBlitWithAlphaColorModulationOnRed) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlendedColorBlitWithAlphaColorModulationOnRed) {
@@ -465,6 +503,8 @@ TEST_F(SbBlitterPixelTest, BlendedColorBlitWithAlphaColorModulationOnRed) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, BlendedColorBlitWithAlphaColorModulation) {
@@ -478,6 +518,8 @@ TEST_F(SbBlitterPixelTest, BlendedColorBlitWithAlphaColorModulation) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, FillRectColorIsNotPremultiplied) {
@@ -512,6 +554,8 @@ TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRect) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRectTiled) {
@@ -529,6 +573,8 @@ TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRectTiled) {
       context_, checker_image,
       SbBlitterMakeRect(0, 0, GetWidth() * 2, GetHeight() * 2),
       SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRects) {
@@ -543,6 +589,8 @@ TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRects) {
   SbBlitterSetScissor(
       context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
   DrawRectsWithBatchBlit(checker_image, context_, GetWidth(), GetHeight());
+
+  SbBlitterDestroySurface(checker_image);
 }
 
 TEST_F(SbBlitterPixelTest, ScissorResetsWhenSetRenderTargetIsCalled) {
