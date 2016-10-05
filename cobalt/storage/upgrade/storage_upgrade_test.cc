@@ -34,9 +34,6 @@ namespace upgrade {
 
 namespace {
 
-const int kHeaderSize = 4;
-const char kHeader[] = "UPG0";
-
 void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(pathname);
   EXPECT_TRUE(string_out);
@@ -44,9 +41,11 @@ void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
   file_path = file_path.Append(pathname);
   EXPECT_TRUE(file_util::ReadFileToString(file_path, string_out));
-  EXPECT_GT(string_out->length(), static_cast<size_t>(kHeaderSize));
-  EXPECT_LE(string_out->length(), static_cast<size_t>(10 * 1024 * 1024));
-  EXPECT_EQ(string_out->find(kHeader), 0);
+  const char* data = string_out->c_str();
+  const int size = static_cast<int>(string_out->length());
+  EXPECT_GT(size, 0);
+  EXPECT_LE(size, 10 * 1024 * 1024);
+  EXPECT_TRUE(UpgradeReader::IsUpgradeData(data, size));
 }
 
 void ValidateCookie(const net::CanonicalCookie* cookie, const std::string& url,
@@ -94,14 +93,13 @@ TEST(StorageUpgradeTest, UpgradeMinimalCookie) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/minimal_cookie_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(
-      file_contents.c_str() + kHeaderSize,
-      static_cast<int>(file_contents.length()) - kHeaderSize);
+  UpgradeReader upgrade_reader(file_contents.c_str(),
+                               static_cast<int>(file_contents.length()));
 
   // 1 cookie.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 1);
   const net::CanonicalCookie* cookie = upgrade_reader.GetCookie(0);
-  ValidateCookie(cookie, "https://www.youtube.com/", "cookie_name",
+  ValidateCookie(cookie, "https://www.example.com/", "cookie_name",
                  "cookie_value");
   EXPECT_FALSE(upgrade_reader.GetCookie(1));
 
@@ -115,9 +113,8 @@ TEST(StorageUpgradeTest, UpgradeMinimalLocalStorageEntry) {
   ReadFileToString(
       "cobalt/storage/upgrade/testdata/minimal_local_storage_entry_v1.json",
       &file_contents);
-  UpgradeReader upgrade_reader(
-      file_contents.c_str() + kHeaderSize,
-      static_cast<int>(file_contents.length()) - kHeaderSize);
+  UpgradeReader upgrade_reader(file_contents.c_str(),
+                               static_cast<int>(file_contents.length()));
 
   // 0 cookies.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 0);
@@ -135,24 +132,23 @@ TEST(StorageUpgradeTest, UpgradeFullData) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/full_data_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(
-      file_contents.c_str() + kHeaderSize,
-      static_cast<int>(file_contents.length()) - kHeaderSize);
+  UpgradeReader upgrade_reader(file_contents.c_str(),
+                               static_cast<int>(file_contents.length()));
 
   // 2 cookies.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 2);
   const net::CanonicalCookie* cookie = upgrade_reader.GetCookie(0);
   base::Time creation = base::Time::FromInternalValue(13119668760000000L);
   base::Time expiration = base::Time::FromInternalValue(13120000000000000L);
-  ValidateCookie(cookie, "https://www.youtube.com/", "cookie_name",
-                 "cookie_value", "cookie.domain", "cookie/path", creation,
-                 expiration, true);
+  ValidateCookie(cookie, "https://www.example.com/1", "cookie_name",
+                 "cookie_value", ".example.com", "/1", creation, expiration,
+                 true);
   cookie = upgrade_reader.GetCookie(1);
   creation = base::Time::FromInternalValue(13109668760000000L);
   expiration = base::Time::FromInternalValue(13110000000000000L);
-  ValidateCookie(cookie, "https://www.somewhere.com/", "cookie_name_2",
-                 "cookie_value_2", "cookie.domain2", "cookie/path/2", creation,
-                 expiration, true);
+  ValidateCookie(cookie, "https://www.somewhere.com/2", "cookie_name_2",
+                 "cookie_value_2", ".somewhere.com", "/2", creation, expiration,
+                 true);
   EXPECT_FALSE(upgrade_reader.GetCookie(2));
 
   // 2 local storage entries.
@@ -169,9 +165,8 @@ TEST(StorageUpgradeTest, UpgradeMissingFields) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/missing_fields_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(
-      file_contents.c_str() + kHeaderSize,
-      static_cast<int>(file_contents.length()) - kHeaderSize);
+  UpgradeReader upgrade_reader(file_contents.c_str(),
+                               static_cast<int>(file_contents.length()));
 
   // 1 cookie with missing fields, 2 local storage entries with missing fields,
   // 1 valid local storage entry.
@@ -188,9 +183,8 @@ TEST(StorageUpgradeTest, UpgradeMalformed) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/malformed_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(
-      file_contents.c_str() + kHeaderSize,
-      static_cast<int>(file_contents.length()) - kHeaderSize);
+  UpgradeReader upgrade_reader(file_contents.c_str(),
+                               static_cast<int>(file_contents.length()));
 
   // No cookies or local storage entries available in malformed data.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 0);
@@ -203,14 +197,13 @@ TEST(StorageUpgradeTest, UpgradeExtraFields) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/extra_fields_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(
-      file_contents.c_str() + kHeaderSize,
-      static_cast<int>(file_contents.length()) - kHeaderSize);
+  UpgradeReader upgrade_reader(file_contents.c_str(),
+                               static_cast<int>(file_contents.length()));
 
   // 1 cookie, extra fields should be ignored.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 1);
   const net::CanonicalCookie* cookie = upgrade_reader.GetCookie(0);
-  ValidateCookie(cookie, "https://www.youtube.com/", "cookie_name",
+  ValidateCookie(cookie, "https://www.example.com/", "cookie_name",
                  "cookie_value");
   EXPECT_FALSE(upgrade_reader.GetCookie(1));
 

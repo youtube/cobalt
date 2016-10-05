@@ -31,6 +31,8 @@
 
 using ::testing::_;
 using ::testing::InvokeWithoutArgs;
+using ::testing::NotNull;
+using ::testing::Eq;
 
 namespace cobalt {
 namespace storage {
@@ -40,9 +42,15 @@ namespace {
 // Used to be able to intercept QueueFlush().
 class MockStorageManager : public StorageManager {
  public:
-  explicit MockStorageManager(const Options& options)
-      : StorageManager(options) {}
+  MockStorageManager(scoped_ptr<StorageManager::UpgradeHandler> upgrade_handler,
+                     const Options& options)
+      : StorageManager(upgrade_handler.Pass(), options) {}
   MOCK_METHOD1(QueueFlush, void(const base::Closure& callback));
+};
+
+class MockUpgradeHandler : public StorageManager::UpgradeHandler {
+ public:
+  MOCK_METHOD3(OnUpgrade, void(StorageManager*, const char*, int));
 };
 
 class CallbackWaiter {
@@ -120,15 +128,22 @@ class StorageManagerTest : public ::testing::Test {
   ~StorageManagerTest() { storage_manager_.reset(NULL); }
 
   template <typename StorageManagerType>
-  void Init(bool delete_savegame = true) {
+  void Init(bool delete_savegame = true,
+            const Savegame::ByteVector* initial_data = NULL) {
     // Destroy the current one first. We can't have two VFSs with the same name
     // concurrently.
     storage_manager_.reset(NULL);
-    StorageManager::Options options;
 
+    scoped_ptr<StorageManager::UpgradeHandler> upgrade_handler(
+        new MockUpgradeHandler());
+    StorageManager::Options options;
     options.savegame_options.delete_on_destruction = delete_savegame;
     options.savegame_options.factory = &SavegameFake::Create;
-    storage_manager_.reset(new StorageManagerType(options));
+    if (initial_data) {
+      options.savegame_options.test_initial_data = *initial_data;
+    }
+    storage_manager_.reset(
+        new StorageManagerType(upgrade_handler.Pass(), options));
   }
 
   MessageLoop message_loop_;
@@ -194,6 +209,28 @@ TEST_F(StorageManagerTest, Flush) {
     storage_manager_->Flush();
   }
   EXPECT_EQ(true, waiter.TimedWait());
+}
+
+TEST_F(StorageManagerTest, Upgrade) {
+  Savegame::ByteVector initial_data;
+  initial_data.push_back('U');
+  initial_data.push_back('P');
+  initial_data.push_back('G');
+  initial_data.push_back('0');
+  Init<StorageManager>(true, &initial_data);
+
+  // We expect a call to the upgrade handler when it reads this data.
+  MockUpgradeHandler& upgrade_handler =
+      *dynamic_cast<MockUpgradeHandler*>(storage_manager_->upgrade_handler());
+  EXPECT_CALL(upgrade_handler,
+              OnUpgrade(Eq(storage_manager_.get()), NotNull(), Eq(4)))
+      .Times(1);
+
+  FlushWaiter waiter;
+  storage_manager_->FlushNow(
+      base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
+  EXPECT_EQ(true, waiter.TimedWait());
+  message_loop_.RunUntilIdle();
 }
 
 }  // namespace storage

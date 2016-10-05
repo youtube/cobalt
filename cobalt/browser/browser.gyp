@@ -35,6 +35,8 @@
         'resource_provider_array_buffer_allocator.h',
         'splash_screen.cc',
         'splash_screen.h',
+        'storage_upgrade_handler.cc',
+        'storage_upgrade_handler.h',
         'switches.cc',
         'switches.h',
         'trace_manager.cc',
@@ -113,6 +115,25 @@
             'defines': [ 'ENABLE_SCREENSHOT', ],
           },
         }],
+      ],
+    },
+
+    {
+      'target_name': 'browser_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'storage_upgrade_handler_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/cobalt/network/network.gyp:network',
+        '<(DEPTH)/cobalt/storage/storage.gyp:storage',
+        '<(DEPTH)/cobalt/storage/storage.gyp:storage_upgrade_copy_test_data',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        'browser',
       ],
     },
 
