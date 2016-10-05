@@ -3,10 +3,15 @@
 // found in the LICENSE file.
 
 #include <limits.h>
+
+#ifndef STARBOARD
 #if !defined _MSC_VER
 #include <stdint.h>
 #endif
 #include <stdlib.h>
+#endif  // STARBOARD
+
+#include "starboard/client_porting/poem/stdio_poem.h"
 #include "share/alloc.h"
 
 void *safe_malloc_(size_t size) {
