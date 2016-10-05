@@ -21,7 +21,6 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/base/poller.h"
 #include "cobalt/script/javascriptcore/jsc_global_environment.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/InitializeThreading.h"
@@ -32,12 +31,6 @@ namespace script {
 namespace javascriptcore {
 
 namespace {
-
-#if defined(__LB_SHELL__FOR_RELEASE__)
-const int kPollerPeriodMs = 2000;
-#else  // #if defined(__LB_SHELL__FOR_RELEASE__)
-const int kPollerPeriodMs = 20;
-#endif  // #if defined(__LB_SHELL__FOR_RELEASE__)
 
 class JSCEngineStats {
  public:
@@ -58,31 +51,24 @@ class JSCEngineStats {
     --js_engine_count_;
   }
 
+  size_t UpdateMemoryStatsAndReturnReserved() {
+    base::AutoLock auto_lock(lock_);
+    if (js_engine_count_.value() == 0) {
+      return 0;
+    }
+    return OSAllocator::getCurrentBytesAllocated();
+  }
+
  private:
   friend struct StaticMemorySingletonTraits<JSCEngineStats>;
 
-  void Update() {
-    base::AutoLock auto_lock(lock_);
-    if (js_engine_count_.value() > 0) {
-      js_memory_ = OSAllocator::getCurrentBytesAllocated();
-    }
-  }
-
   base::Lock lock_;
-  base::CVal<base::cval::SizeInBytes, base::CValPublic> js_memory_;
   base::CVal<size_t> js_engine_count_;
-  scoped_ptr<base::PollerWithThread> poller_;
 };
 
 JSCEngineStats::JSCEngineStats()
-    : js_memory_("Memory.JS", 0,
-                 "Total memory occupied by the JSC page allocator."),
-      js_engine_count_("Count.JS.Engine", 0,
-                       "Total JavaScript engine registered.") {
-  poller_.reset(new base::PollerWithThread(
-      base::Bind(&JSCEngineStats::Update, base::Unretained(this)),
-      base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
-}
+    : js_engine_count_("Count.JS.Engine", 0,
+                       "Total JavaScript engine registered.") {}
 
 }  // namespace
 
@@ -113,6 +99,10 @@ void JSCEngine::ReportExtraMemoryCost(size_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
   JSC::JSLockHolder lock(global_data_.get());
   global_data_->heap.reportExtraMemoryCost(bytes);
+}
+
+size_t JSCEngine::UpdateMemoryStatsAndReturnReserved() {
+  return JSCEngineStats::GetInstance()->UpdateMemoryStatsAndReturnReserved();
 }
 
 }  // namespace javascriptcore

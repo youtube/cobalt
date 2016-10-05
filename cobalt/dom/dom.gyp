@@ -175,6 +175,8 @@
         'media_query_list.h',
         'media_source.cc',
         'media_source.h',
+        'memory_info.cc',
+        'memory_info.h',
         'mime_type_array.cc',
         'mime_type_array.h',
         'named_node_map.cc',
