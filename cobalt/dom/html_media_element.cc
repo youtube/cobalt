@@ -509,7 +509,9 @@ void HTMLMediaElement::CreateMediaPlayer() {
     html_element_context()->image_cache()->Purge();
     // Ensure that all resource destructions are flushed and the memory is
     // reclaimed.
-    html_element_context()->resource_provider()->Finish();
+    if (*html_element_context()->resource_provider()) {
+      (*html_element_context()->resource_provider())->Finish();
+    }
   }
 
   player_.reset();

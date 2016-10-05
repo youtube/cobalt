@@ -17,7 +17,7 @@
 #ifndef COBALT_BROWSER_RENDER_TREE_COMBINER_H_
 #define COBALT_BROWSER_RENDER_TREE_COMBINER_H_
 
-#include "cobalt/renderer/pipeline.h"
+#include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
 
 namespace cobalt {
@@ -29,9 +29,11 @@ namespace browser {
 // otherwise (e.g. in release builds) a stub implementation is used.
 class RenderTreeCombiner {
  public:
-  explicit RenderTreeCombiner(renderer::Pipeline* renderer_pipeline,
+  explicit RenderTreeCombiner(renderer::RendererModule* renderer_module,
                               const math::Size& viewport_size);
   ~RenderTreeCombiner();
+
+  void Reset();
 
   // Update the main web module render tree.
   void UpdateMainRenderTree(const renderer::Submission& render_tree_submission);
@@ -61,7 +63,7 @@ class RenderTreeCombiner {
 
   // Local reference to the render pipeline, so we can submit the combined tree.
   // Reference counted pointer not necessary here.
-  renderer::Pipeline* renderer_pipeline_;
+  renderer::RendererModule* renderer_module_;
 
   // The size of the output viewport.
   math::Size viewport_size_;
@@ -79,7 +81,7 @@ class RenderTreeCombiner {
   base::optional<renderer::Submission> debug_console_render_tree_;
 #else   // ENABLE_DEBUG_CONSOLE
   // Use this local reference even in release builds to submit the main tree.
-  renderer::Pipeline* renderer_pipeline_;
+  renderer::RendererModule* renderer_module_;
 #endif  // ENABLE_DEBUG_CONSOLE
 };
 

@@ -62,7 +62,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
-               render_tree::ResourceProvider* resource_provider,
+               render_tree::ResourceProvider** resource_provider,
                loader::image::ImageCache* image_cache,
                loader::image::ReducedCacheCapacityManager*
                    reduced_image_cache_capacity_manager,

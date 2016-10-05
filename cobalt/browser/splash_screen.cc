@@ -42,5 +42,10 @@ SplashScreen::SplashScreen(
       layout_refresh_rate, web_module_options));
 }
 
+void SplashScreen::Suspend() { web_module_->Suspend(); }
+void SplashScreen::Resume(render_tree::ResourceProvider* resource_provider) {
+  web_module_->Resume(resource_provider);
+}
+
 }  // namespace browser
 }  // namespace cobalt

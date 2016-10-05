@@ -39,6 +39,11 @@ void RenderOverlay::SetOverlay(
   Process();
 }
 
+void RenderOverlay::ClearInput() {
+  input_layout_ = LayoutResults(NULL, base::TimeDelta());
+  input_receipt_time_ = base::nullopt;
+}
+
 void RenderOverlay::Process() {
   if (input_layout_.render_tree) {
     // Calculate a modified layout time accounting for the offset between now

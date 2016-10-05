@@ -45,6 +45,8 @@ class RenderOverlay {
   // Updates the overlay that will be added to the input layout.
   void SetOverlay(const scoped_refptr<render_tree::Node>& overlay);
 
+  void ClearInput();
+
  private:
   // Adds the overlay (if any) to the input layout and passes on to the
   // callback specified in the constructor.
