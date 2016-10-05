@@ -458,6 +458,17 @@ JSBool staticget_{{attribute.idl_name}}(
 JSBool get_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<{{impl_class}}>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    vp.set(JS::UndefinedValue());
+    return false;
+  }
+
 {{ nonstatic_function_prologue(impl_class) }}
 {% endif %}
 {{ call_cobalt_function(impl_class, attribute.type,
