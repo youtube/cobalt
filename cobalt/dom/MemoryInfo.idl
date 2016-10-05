@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/navigation-timing/#performance
+// This is a non-standard interface in Chromium.
+// https://docs.webplatform.org/wiki/apis/timing/properties/memory
 
-interface Performance {
-  readonly attribute PerformanceTiming timing;
-
-  // Chromium custom member.
-  readonly attribute MemoryInfo memory;
+[
+  NoInterfaceObject,
+] interface MemoryInfo {
+  [CallWith=EnvironmentSettings] readonly attribute unsigned long totalJSHeapSize;
+  [CallWith=EnvironmentSettings] readonly attribute unsigned long usedJSHeapSize;
 };
