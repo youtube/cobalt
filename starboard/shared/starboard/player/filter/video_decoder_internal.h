@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DECODER_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DECODER_INTERNAL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -23,6 +23,7 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
 // This class decodes encoded video stream into video frames.
 class VideoDecoder {
@@ -64,9 +65,10 @@ class VideoDecoder {
   static VideoDecoder* Create(SbMediaVideoCodec video_codec);
 };
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DECODER_INTERNAL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
