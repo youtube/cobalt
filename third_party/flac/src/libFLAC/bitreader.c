@@ -346,6 +346,7 @@ FLAC__bool FLAC__bitreader_rewind_to_after_last_seen_framesync(FLAC__BitReader *
 	}
 }
 
+#ifndef COBALT
 void FLAC__bitreader_dump(const FLAC__BitReader *br, FILE *out)
 {
 	uint32_t i, j;
@@ -375,6 +376,7 @@ void FLAC__bitreader_dump(const FLAC__BitReader *br, FILE *out)
 		}
 	}
 }
+#endif  // COBALT
 
 void FLAC__bitreader_reset_read_crc16(FLAC__BitReader *br, FLAC__uint16 seed)
 {
