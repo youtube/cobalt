@@ -884,7 +884,7 @@ inline const uint8* CodedInputStream::ExpectTagFromArray(
 inline void CodedInputStream::GetDirectBufferPointerInline(const void** data,
                                                            int* size) {
   *data = buffer_;
-  *size = buffer_end_ - buffer_;
+  *size = static_cast<int>(buffer_end_ - buffer_);
 }
 
 inline bool CodedInputStream::ExpectAtEnd() {
@@ -913,7 +913,7 @@ inline uint8* CodedOutputStream::GetDirectBufferForNBytesAndAdvance(int size) {
 inline uint8* CodedOutputStream::WriteVarint32ToArray(uint32 value,
                                                         uint8* target) {
   if (value < 0x80) {
-    *target = value;
+    *target = static_cast<uint8>(value);
     return target + 1;
   } else {
     return WriteVarint32FallbackToArray(value, target);
@@ -977,7 +977,7 @@ inline void CodedOutputStream::WriteTag(uint32 value) {
 inline uint8* CodedOutputStream::WriteTagToArray(
     uint32 value, uint8* target) {
   if (value < (1 << 7)) {
-    target[0] = value;
+    target[0] = static_cast<uint8>(value);
     return target + 1;
   } else if (value < (1 << 14)) {
     target[0] = static_cast<uint8>(value | 0x80);
@@ -1054,7 +1054,7 @@ inline MessageFactory* CodedInputStream::GetExtensionFactory() {
 }
 
 inline int CodedInputStream::BufferSize() const {
-  return buffer_end_ - buffer_;
+  return static_cast<int>(buffer_end_ - buffer_);
 }
 
 inline CodedInputStream::CodedInputStream(ZeroCopyInputStream* input)
