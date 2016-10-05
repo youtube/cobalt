@@ -32,7 +32,10 @@
 #ifndef FLAC__STREAM_ENCODER_H
 #define FLAC__STREAM_ENCODER_H
 
+#ifndef COBALT
 #include <stdio.h> /* for FILE */
+#endif  // COBALT
+
 #include "export.h"
 #include "format.h"
 #include "stream_decoder.h"
@@ -1470,6 +1473,7 @@ FLAC_API FLAC__uint64 FLAC__stream_encoder_get_total_samples_estimate(const FLAC
  */
 FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_stream(FLAC__StreamEncoder *encoder, FLAC__StreamEncoderWriteCallback write_callback, FLAC__StreamEncoderSeekCallback seek_callback, FLAC__StreamEncoderTellCallback tell_callback, FLAC__StreamEncoderMetadataCallback metadata_callback, void *client_data);
 
+#ifndef COBALT
 /** Initialize the encoder instance to encode Ogg FLAC streams.
  *
  *  This flavor of initialization sets up the encoder to encode to a FLAC
@@ -1671,6 +1675,7 @@ FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_file(FLAC__Stre
  *    see FLAC__StreamEncoderInitStatus for the meanings of other return values.
  */
 FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_ogg_file(FLAC__StreamEncoder *encoder, const char *filename, FLAC__StreamEncoderProgressCallback progress_callback, void *client_data);
+#endif // COBALT
 
 /** Finish the encoding process.
  *  Flushes the encoding buffer, releases resources, resets the encoder
