@@ -558,10 +558,14 @@ void Application::OnApplicationEvent(const base::Event* event) {
     DLOG(INFO) << "Got suspend event.";
     app_status_ = kSuspendedAppStatus;
     ++app_suspend_count_;
+    browser_module_->Suspend();
+    DLOG(INFO) << "Finished suspending.";
   } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
     DLOG(INFO) << "Got resume event.";
     app_status_ = kPausedAppStatus;
     ++app_resume_count_;
+    browser_module_->Resume();
+    DLOG(INFO) << "Finished resuming.";
   }
 }
 

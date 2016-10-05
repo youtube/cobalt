@@ -640,6 +640,22 @@ void Document::UpdateSelectorTree() {
   }
 }
 
+void Document::InvalidateLayout() {
+  // Set all invalidation flags and recursively invalidate the computed style.
+  is_selector_tree_dirty_ = true;
+  is_computed_style_dirty_ = true;
+  are_font_faces_dirty_ = true;
+  are_keyframes_dirty_ = true;
+
+  scoped_refptr<HTMLHtmlElement> current_html = html();
+  if (current_html) {
+    current_html->InvalidateComputedStylesRecursively();
+  }
+
+  // Finally, also destroy all cached layout boxes.
+  InvalidateLayoutBoxesFromNodeAndDescendants();
+}
+
 void Document::DispatchOnLoadEvent() {
   TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
 

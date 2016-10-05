@@ -48,7 +48,7 @@ class HTMLElementContext {
                      media::WebMediaPlayerFactory* web_media_player_factory,
                      script::ScriptRunner* script_runner,
                      MediaSource::Registry* media_source_registry,
-                     render_tree::ResourceProvider* resource_provider,
+                     render_tree::ResourceProvider** resource_provider,
                      loader::image::ImageCache* image_cache,
                      loader::image::ReducedCacheCapacityManager*
                          reduced_image_cache_capacity_manager,
@@ -75,7 +75,7 @@ class HTMLElementContext {
     return media_source_registry_;
   }
 
-  render_tree::ResourceProvider* resource_provider() const {
+  render_tree::ResourceProvider** resource_provider() const {
     return resource_provider_;
   }
 
@@ -108,7 +108,7 @@ class HTMLElementContext {
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
   MediaSource::Registry* const media_source_registry_;
-  render_tree::ResourceProvider* resource_provider_;
+  render_tree::ResourceProvider** resource_provider_;
   loader::image::ImageCache* const image_cache_;
   loader::image::ReducedCacheCapacityManager* const
       reduced_image_cache_capacity_manager_;

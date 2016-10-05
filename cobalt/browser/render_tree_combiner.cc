@@ -23,13 +23,19 @@ namespace cobalt {
 namespace browser {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline,
-                                       const math::Size& viewport_size)
+RenderTreeCombiner::RenderTreeCombiner(
+    renderer::RendererModule* renderer_module, const math::Size& viewport_size)
     : render_debug_console_(true),
-      renderer_pipeline_(renderer_pipeline),
+      renderer_module_(renderer_module),
       viewport_size_(viewport_size) {}
 
 RenderTreeCombiner::~RenderTreeCombiner() {}
+
+void RenderTreeCombiner::Reset() {
+  main_render_tree_ = base::nullopt;
+  debug_console_render_tree_ = base::nullopt;
+  main_render_tree_receipt_time_ = base::nullopt;
+}
 
 void RenderTreeCombiner::UpdateMainRenderTree(
     const renderer::Submission& render_tree_submission) {
@@ -62,7 +68,7 @@ void RenderTreeCombiner::SubmitToRenderer() {
           main_render_tree_->time_offset +
           (base::TimeTicks::HighResNow() - *main_render_tree_receipt_time_);
 
-      renderer_pipeline_->Submit(combined_submission);
+      renderer_module_->pipeline()->Submit(combined_submission);
     } else {
       // If we are rendering the debug console by itself, give it a solid black
       // background to it.
@@ -76,24 +82,26 @@ void RenderTreeCombiner::SubmitToRenderer() {
       renderer::Submission combined_submission(*debug_console_render_tree_);
       combined_submission.render_tree =
           new render_tree::CompositionNode(builder);
-      renderer_pipeline_->Submit(combined_submission);
+      renderer_module_->pipeline()->Submit(combined_submission);
     }
   } else if (main_render_tree_) {
-    renderer_pipeline_->Submit(*main_render_tree_);
+    renderer_module_->pipeline()->Submit(*main_render_tree_);
   }
 }
 #else   // ENABLE_DEBUG_CONSOLE
-RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline,
-                                       const math::Size& viewport_size)
-    : renderer_pipeline_(renderer_pipeline) {
+RenderTreeCombiner::RenderTreeCombiner(
+    renderer::RendererModule* renderer_module, const math::Size& viewport_size)
+    : renderer_module_(renderer_module) {
   UNREFERENCED_PARAMETER(viewport_size);
 }
 
 RenderTreeCombiner::~RenderTreeCombiner() {}
 
+void RenderTreeCombiner::Reset() {}
+
 void RenderTreeCombiner::UpdateMainRenderTree(
     const renderer::Submission& render_tree_submission) {
-  renderer_pipeline_->Submit(render_tree_submission);
+  renderer_module_->pipeline()->Submit(render_tree_submission);
 }
 
 void RenderTreeCombiner::UpdateDebugConsoleRenderTree(

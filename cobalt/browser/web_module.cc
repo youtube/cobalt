@@ -108,6 +108,9 @@ class WebModule::Impl {
   void CreateDebugServerIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  void Suspend();
+  void Resume(render_tree::ResourceProvider* resource_provider);
+
  private:
   class DocumentLoadedObserver;
 
@@ -318,7 +321,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-      resource_provider_, image_cache_.get(),
+      &resource_provider_, image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       local_storage_database_.get(), data.media_module, data.media_module,
       execution_state_.get(), script_runner_.get(),
@@ -359,10 +362,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
 
+  resource_provider_ = data.resource_provider;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset(
       new debug::RenderOverlay(data.render_tree_produced_callback));
-  resource_provider_ = data.resource_provider;
 #endif  // ENABLE_DEBUG_CONSOLE
 
 #if !defined(COBALT_FORCE_CSP)
@@ -543,6 +547,44 @@ void WebModule::Impl::InjectCustomWindowAttributes(
        iter != attributes.end(); ++iter) {
     global_environment_->Bind(iter->first, iter->second.Run());
   }
+}
+
+void WebModule::Impl::Suspend() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Suspend()");
+  DCHECK(resource_provider_);
+
+  // Stop the generation of render trees.
+  layout_manager_->Suspend();
+
+  // Clear out all image resources from the image cache.
+  image_cache_->Purge();
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // The debug overlay may be holding onto a render tree, clear that out.
+  debug_overlay_->ClearInput();
+#endif
+
+  // Clear out the loader factory's resource provider, possibly aborting any
+  // in-progress loads.
+  loader_factory_->Suspend();
+
+  // Finally mark that we have no resource provider.
+  resource_provider_ = NULL;
+}
+
+void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Resume()");
+  DCHECK(resource_provider);
+  DCHECK(!resource_provider_);
+
+  resource_provider_ = resource_provider;
+
+  loader_factory_->Resume(resource_provider_);
+
+  // Permit render trees to be generated again.  Layout will have been
+  // invalidated with the call to Suspend(), so the layout manager's first task
+  // will be to perform a full re-layout.
+  layout_manager_->Resume();
 }
 
 WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)
@@ -746,6 +788,25 @@ debug::DebugServer* WebModule::GetDebugServer() {
   return impl_->debug_server();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+void WebModule::Suspend() {
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Suspend, base::Unretained(impl_.get())));
+
+  base::WaitableEvent resource_provider_released(true, false);
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
+                            base::Unretained(&resource_provider_released)));
+
+  resource_provider_released.Wait();
+}
+
+void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::Resume,
+                            base::Unretained(impl_.get()), resource_provider));
+}
 
 }  // namespace browser
 }  // namespace cobalt

@@ -62,7 +62,9 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
       state_(kWaitingForHeader) {
   signature_cache_.position = 0;
 
-  DCHECK(resource_provider_);
+  if (!resource_provider_) {
+    state_ = kNoResourceProvider;
+  }
 }
 
 LoadResponseType ImageDecoder::OnResponseStarted(
@@ -132,10 +134,26 @@ void ImageDecoder::Finish() {
     case kUnsupportedImageFormat:
       error_callback_.Run("Unsupported image format.");
       break;
+    case kNoResourceProvider:
+      failure_callback_.Run("No resource provider was passed to the decoder.");
+      break;
+    case kAborted:
+      error_callback_.Run("ImageDecoder received an external signal to abort.");
+      break;
     case kNotApplicable:
       // no image is available.
       failure_callback_.Run(failure_message_);
       break;
+  }
+}
+
+void ImageDecoder::Abort() {
+  if (state_ == kDecoding) {
+    DCHECK(decoder_);
+    decoder_.reset();
+    state_ = kAborted;
+  } else if (state_ == kWaitingForHeader) {
+    state_ = kAborted;
   }
 }
 
@@ -164,6 +182,8 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
     } break;
     case kNotApplicable:
     case kUnsupportedImageFormat:
+    case kAborted:
+    case kNoResourceProvider:
     default: {
       // Do not attempt to continue processing data.
       DCHECK(!decoder_);

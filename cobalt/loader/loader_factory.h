@@ -17,6 +17,8 @@
 #ifndef COBALT_LOADER_LOADER_FACTORY_H_
 #define COBALT_LOADER_LOADER_FACTORY_H_
 
+#include <set>
+
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/typeface_decoder.h"
@@ -50,15 +52,35 @@ class LoaderFactory {
       const font::TypefaceDecoder::FailureCallback& failure_callback,
       const font::TypefaceDecoder::ErrorCallback& error_callback);
 
+  // Clears out the loader factory's resource provider, aborting any in-progress
+  // loads.
+  void Suspend();
+  // Resets a new resource provider for this loader factory to use.  The
+  // previous resource provider must have been cleared before this method is
+  // called.
+  void Resume(render_tree::ResourceProvider* resource_provider);
+
  private:
+  void OnLoaderCreated(Loader* loader);
+  void OnLoaderDestroyed(Loader* loader);
+
   Loader::FetcherCreator MakeFetcherCreator(
       const GURL& url, const csp::SecurityCallback& url_security_callback);
+
+  // Ensures that the LoaderFactory methods are only called from the same
+  // thread.
+  base::ThreadChecker thread_checker_;
 
   // Used to create the Fetcher component of the loaders.
   FetcherFactory* fetcher_factory_;
 
   // Used to create render_tree resources.
   render_tree::ResourceProvider* resource_provider_;
+
+  // Keeps track of all active loaders so that if a suspend event occurs they
+  // can be aborted.
+  typedef std::set<Loader*> LoaderSet;
+  LoaderSet active_loaders_;
 };
 
 }  // namespace loader
