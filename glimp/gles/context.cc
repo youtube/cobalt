@@ -2116,14 +2116,8 @@ void Context::Finish() {
 
 void Context::SwapBuffers() {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
-  egl::Surface* surface = default_draw_framebuffer_->color_attachment_surface();
-  // If surface is a pixel buffer or a pixmap, eglSwapBuffers has no effect, and
-  // no error is generated.
-  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglSwapBuffers.xhtml
-  if (surface->impl()->IsWindowSurface()) {
-    Flush();
-    impl_->SwapBuffers(surface);
-  }
+  Flush();
+  impl_->SwapBuffers(default_draw_framebuffer_->color_attachment_surface());
 }
 
 bool Context::BindTextureToEGLSurface(egl::Surface* surface) {
