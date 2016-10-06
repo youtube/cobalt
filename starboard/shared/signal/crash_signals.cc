@@ -28,19 +28,23 @@ namespace signal {
 namespace {
 
 const int kCrashSignalsToTrap[] = {
-    SIGABRT, SIGFPE, SIGILL, SIGSEGV,
+    SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGSEGV, SIGSYS,
 };
 
 const int kStopSignalsToTrap[] = {
-    SIGTERM, SIGINT,
+    SIGTERM, SIGINT, SIGHUP,
 };
 
-void DumpStackSignalSafe(int signal_id) {
-  LogSignalCaught(signal_id);
-  SbLogRawDumpStack(1);
-
+void Crash(int signal_id) {
+  DumpStackSignalSafe(signal_id);
   UninstallCrashSignalHandlers();
   SbSystemBreakIntoDebugger();
+}
+
+void Quit(int signal_id) {
+  DumpStackSignalSafe(signal_id);
+  ::signal(SIGQUIT, SIG_DFL);
+  ::raise(SIGQUIT);
 }
 
 void Stop(int signal_id) {
@@ -52,11 +56,12 @@ void Stop(int signal_id) {
 
 void InstallCrashSignalHandlers() {
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kCrashSignalsToTrap); ++i) {
-    ::signal(kCrashSignalsToTrap[i], &DumpStackSignalSafe);
+    ::signal(kCrashSignalsToTrap[i], &Crash);
   }
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
     ::signal(kStopSignalsToTrap[i], &Stop);
   }
+  ::signal(SIGQUIT, &Quit);
 }
 
 void UninstallCrashSignalHandlers() {
@@ -66,6 +71,7 @@ void UninstallCrashSignalHandlers() {
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kStopSignalsToTrap); ++i) {
     ::signal(kStopSignalsToTrap[i], SIG_DFL);
   }
+  ::signal(SIGQUIT, SIG_DFL);
 }
 
 }  // namespace signal
