@@ -196,11 +196,11 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   // Start the rasterization timer if it is not yet started.
   if (!rasterize_timer_) {
-    // We artificially limit the period between submissions to 15ms, in case
-    // a platform does not rate limit itself during swaps.  This limit may need
-    // to be reduced if we wish to support 120 FPS animations.
+    // We artificially limit the period between submissions to 7ms, in case a
+    // platform does not rate limit itself during swaps. This was changed from
+    // 15ms to accommodate 120fps requirements on some platforms.
     rasterize_timer_.emplace(
-        FROM_HERE, base::TimeDelta::FromMilliseconds(15),
+        FROM_HERE, base::TimeDelta::FromMilliseconds(7),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true, true);
     rasterize_timer_->Reset();
