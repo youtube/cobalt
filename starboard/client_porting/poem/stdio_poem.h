@@ -21,8 +21,8 @@
 
 #if !defined(POEM_NO_EMULATION)
 
-#include "starboard/string.h"
 #include "starboard/memory.h"
+#include "starboard/string.h"
 
 #define wcsncmp(s1, s2, c) SbStringCompareWide(s1, s2, c)
 
@@ -35,6 +35,7 @@
 #define vsscanf SbStringScan
 #define sscanf SbStringScanF
 #define malloc(sz) SbMemoryAllocateUnchecked(sz)
+#define calloc(c, s) SbMemoryCalloc(c, s)
 #define free(a) SbMemoryFree(a)
 #define realloc(m, sz) SbMemoryReallocateUnchecked(m, sz)
 
