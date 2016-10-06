@@ -142,6 +142,14 @@ SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
 // and another call to SbMemoryMap(0x1000) returns (void*)0xB000,
 // SbMemoryUnmap(0xA000, 0x2000) should free both.
 SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
+
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+// Flushes any data in the given virtual address range that is cached locally in
+// the current processor core to physical memory, ensuring that data and
+// instruction caches are cleared. This is required to be called on executable
+// memory that has been written to and might be executed in the future.
+SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
+#endif
 #endif  // SB_HAS(MMAP)
 
 // Gets the stack bounds for the current thread, placing the highest addressable
