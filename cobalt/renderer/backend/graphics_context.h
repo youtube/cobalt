@@ -62,6 +62,9 @@ class GraphicsContext {
   virtual scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) = 0;
 
+  // Waits until all drawing is finished.
+  virtual void Finish() = 0;
+
  private:
   GraphicsSystem* system_;
 };
