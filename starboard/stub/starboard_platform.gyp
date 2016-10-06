@@ -89,6 +89,7 @@
         '<(DEPTH)/starboard/shared/stub/memory_compare.cc',
         '<(DEPTH)/starboard/shared/stub/memory_copy.cc',
         '<(DEPTH)/starboard/shared/stub/memory_find_byte.cc',
+        '<(DEPTH)/starboard/shared/stub/memory_flush.cc',
         '<(DEPTH)/starboard/shared/stub/memory_free.cc',
         '<(DEPTH)/starboard/shared/stub/memory_free_aligned.cc',
         '<(DEPTH)/starboard/shared/stub/memory_get_stack_bounds.cc',
