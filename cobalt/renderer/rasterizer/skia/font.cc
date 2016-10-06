@@ -117,7 +117,8 @@ const math::RectF& Font::GetGlyphBounds(render_tree::GlyphIndex glyph) {
   paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
 
   SkRect skia_bounds;
-  float width = paint.measureText(&glyph, 2, &skia_bounds);
+  float width =
+      paint.measureText(&glyph, sizeof(render_tree::GlyphIndex), &skia_bounds);
 
   // Both cache and return the glyph's bounds.
   if (glyph < kPrimaryPageSize) {
