@@ -38,6 +38,7 @@
       'defines': [
         'FT_CONFIG_OPTION_SYSTEM_ZLIB',
         'FT2_BUILD_LIBRARY',
+        'FT_CONFIG_CONFIG_H="ftconfig.h"',
         'FT_CONFIG_MODULES_H="ftmodule.h"',
         'FT_CONFIG_OPTIONS_H="ftoption.h"',
       ],
@@ -53,6 +54,12 @@
         'include_dirs': [
           '<(ft2_dir)/include_cobalt',
           '<(ft2_dir)/include',
+        ],
+        'defines': [
+          'FT_CONFIG_OPTION_SYSTEM_ZLIB',
+          'FT_CONFIG_CONFIG_H="ftconfig.h"',
+          'FT_CONFIG_MODULES_H="ftmodule.h"',
+          'FT_CONFIG_OPTIONS_H="ftoption.h"',
         ],
       },
       'msvs_disabled_warnings': [4146],
