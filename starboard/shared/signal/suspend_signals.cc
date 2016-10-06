@@ -63,17 +63,27 @@ void Resume(int signal_id) {
   starboard::Application::Get()->Unpause(NULL, NULL);
 }
 
+void Ignore(int signal_id) {
+  LogSignalCaught(signal_id);
+  SbLogRawDumpStack(1);
+  SbLogFlush();
+}
+
 }  // namespace
 
 void InstallSuspendSignalHandlers() {
   SetSignalHandler(SIGTSTP, &Suspend);
   UnblockSignal(SIGTSTP);
   SetSignalHandler(SIGCONT, &Resume);
+
+  // We might receive SIGPIPE after resuming. We should not terminate.
+  SetSignalHandler(SIGPIPE, &Ignore);
 }
 
 void UninstallSuspendSignalHandlers() {
   SetSignalHandler(SIGCONT, SIG_DFL);
   SetSignalHandler(SIGTSTP, SIG_DFL);
+  SetSignalHandler(SIGPIPE, SIG_DFL);
 }
 
 }  // namespace signal
