@@ -121,6 +121,7 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
 
     // Submit the render tree to be rendered.
     rasterizer->Submit(animated, test_surface);
+    graphics_context->Finish();
 
     if (i == 0) {
       // Enable tracing again after one iteration has passed and any lazy

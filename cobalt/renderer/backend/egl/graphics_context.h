@@ -58,6 +58,8 @@ class GraphicsContextEGL : public GraphicsContext {
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
 
+  void Finish() OVERRIDE;
+
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.
   class ScopedMakeCurrent {
