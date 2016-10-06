@@ -28,28 +28,44 @@ inline const char* GetSignalName(int signal_id) {
   switch (signal_id) {
     case SIGABRT:
       return "SIGABRT";
+    case SIGBUS:
+      return "SIGBUS";
     case SIGCONT:
       return "SIGCONT";
     case SIGFPE:
       return "SIGFPE";
+    case SIGHUP:
+      return "SIGHUP";
     case SIGILL:
       return "SIGILL";
     case SIGINT:
       return "SIGINT";
+    case SIGPIPE:
+      return "SIGPIPE";
+    case SIGQUIT:
+      return "SIGQUIT";
     case SIGSEGV:
       return "SIGSEGV";
+    case SIGSYS:
+      return "SIGSYS";
     case SIGTSTP:
       return "SIGTSTP";
     case SIGTERM:
       return "SIGTERM";
     default:
-      return "UNKNOWN SIGNAL";
+      return "UNKNOWN";
   }
 }
 
 inline void LogSignalCaught(int signal_id) {
   const char* signal_name = GetSignalName(signal_id);
   SbLogRawFormatF("\nCaught signal: %s (%d)\n", signal_name, signal_id);
+  SbLogFlush();
+}
+
+inline void DumpStackSignalSafe(int signal_id) {
+  LogSignalCaught(signal_id);
+  SbLogRawDumpStack(2);
   SbLogFlush();
 }
 
