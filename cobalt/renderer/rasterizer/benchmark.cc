@@ -184,6 +184,10 @@ void RunCreateImageViaResourceProviderBenchmark(AlphaFormat alpha_format) {
       CreateDefaultRasterizer(graphics_context.get());
 
   ResourceProvider* resource_provider = rasterizer->GetResourceProvider();
+  if (!resource_provider->AlphaFormatSupported(alpha_format)) {
+    // Only run the test if the alpha format is supported.
+    return;
+  }
 
   const int kIterationCount = 20;
   const Size kImageSize(400, 400);
