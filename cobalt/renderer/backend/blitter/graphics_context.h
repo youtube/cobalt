@@ -38,6 +38,7 @@ class GraphicsContextBlitter : public GraphicsContext {
       const math::Size& dimensions) OVERRIDE;
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
+  void Finish() OVERRIDE;
 
   SbBlitterContext GetSbBlitterContext() const { return context_; }
   SbBlitterDevice GetSbBlitterDevice() const { return device_; }
