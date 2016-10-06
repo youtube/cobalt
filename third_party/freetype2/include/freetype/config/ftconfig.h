@@ -38,6 +38,10 @@
 #ifndef __FTCONFIG_H__
 #define __FTCONFIG_H__
 
+// This file should not be included, as we override ftconfig.h by defining
+// FT_CONFIG_OPTIONS_H via GYP, and changing the include order.
+#error "Do not include this file in Cobalt."
+
 #include <ft2build.h>
 #include FT_CONFIG_OPTIONS_H
 #include FT_CONFIG_STANDARD_LIBRARY_H
