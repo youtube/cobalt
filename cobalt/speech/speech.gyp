@@ -23,6 +23,8 @@
       'sources': [
         'audio_encoder_flac.cc',
         'audio_encoder_flac.h',
+        'chunked_byte_buffer.cc',
+        'chunked_byte_buffer.h',
         'mic.h',
         'speech_recognition.cc',
         'speech_recognition.h',
@@ -59,6 +61,30 @@
           ],
         }],
       ],
+    },
+    {
+      'target_name': 'speech_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'chunked_byte_buffer_unittest.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
+
+    {
+      'target_name': 'speech_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'speech_test',
+      ],
+      'variables': {
+        'executable_name': 'speech_test',
+      },
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }
