@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include "cobalt/h5vcc/h5vcc_runtime.h"
+
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/h5vcc/h5vcc_runtime.h"
 #include "cobalt/system_window/application_event.h"
 
 namespace cobalt {
@@ -67,11 +68,11 @@ const scoped_refptr<H5vccRuntimeEventTarget>& H5vccRuntime::on_resume() const {
 void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
   const system_window::ApplicationEvent* app_event =
       base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
-  if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
+  if (app_event->type() == system_window::ApplicationEvent::kPause) {
     DLOG(INFO) << "Got pause event.";
     on_pause()->DispatchEvent();
-  } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
-    DLOG(INFO) << "Got resume event.";
+  } else if (app_event->type() == system_window::ApplicationEvent::kUnpause) {
+    DLOG(INFO) << "Got unpause event.";
     on_resume()->DispatchEvent();
   }
 }
@@ -79,8 +80,10 @@ void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
 void H5vccRuntime::OnDeepLinkEvent(const base::Event* event) {
   const base::DeepLinkEvent* deep_link_event =
       base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
-  on_deep_link()->DispatchEvent(deep_link_event->link());
+  if (!deep_link_event->IsH5vccLink()) {
+    DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
+    on_deep_link()->DispatchEvent(deep_link_event->link());
+  }
 }
 }  // namespace h5vcc
 }  // namespace cobalt

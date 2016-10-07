@@ -58,6 +58,8 @@ class GraphicsContextEGL : public GraphicsContext {
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
 
+  void Finish() OVERRIDE;
+
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.
   class ScopedMakeCurrent {
@@ -105,6 +107,13 @@ class GraphicsContextEGL : public GraphicsContext {
   void SwapBuffers(RenderTargetEGL* surface);
 
   void Blit(GLuint texture, int x, int y, int width, int height);
+
+  bool ReadPixelsNeedVerticalFlip() {
+    if (!read_pixels_needs_vertical_flip_) {
+      read_pixels_needs_vertical_flip_ = ComputeReadPixelsNeedVerticalFlip();
+    }
+    return *read_pixels_needs_vertical_flip_;
+  }
 
  private:
   // Performs a test to determine if the pixel data returned by glReadPixels

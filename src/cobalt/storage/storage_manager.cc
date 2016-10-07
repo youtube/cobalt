@@ -23,6 +23,7 @@
 #include "base/debug/trace_event.h"
 #include "base/stringprintf.h"
 #include "cobalt/storage/savegame_thread.h"
+#include "cobalt/storage/upgrade/upgrade_reader.h"
 #include "cobalt/storage/virtual_file.h"
 #include "cobalt/storage/virtual_file_system.h"
 #include "sql/statement.h"
@@ -134,8 +135,10 @@ const std::string& GetFirstValidDatabaseFile(
 
 }  // namespace
 
-StorageManager::StorageManager(const Options& options)
-    : options_(options),
+StorageManager::StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
+                               const Options& options)
+    : upgrade_handler_(upgrade_handler.Pass()),
+      options_(options),
       sql_thread_(new base::Thread("StorageManager SQL")),
       ALLOW_THIS_IN_INITIALIZER_LIST(sql_context_(new SqlContext(this))),
       connection_(new sql::Connection()),
@@ -145,6 +148,7 @@ StorageManager::StorageManager(const Options& options)
       flush_requested_(false),
       no_flushes_pending_(true /* manual reset */,
                           true /* initially signalled */) {
+  DCHECK(upgrade_handler_);
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   savegame_thread_.reset(new SavegameThread(options_.savegame_options));
   // Start the savegame load immediately.
@@ -249,6 +253,7 @@ void StorageManager::FinishInit() {
   sql_vfs_.reset(new SqlVfs("cobalt_vfs", vfs_.get()));
   flush_timer_.reset(new base::OneShotTimer<StorageManager>());
   // Savegame has finished loading. Now initialize the database connection.
+  // Check if this is upgrade data, if so, handle it, otherwise:
   // Check if the savegame data contains a VFS header.
   // If so, proceed to deserialize it.
   // If not, load the file into the VFS directly.
@@ -257,18 +262,25 @@ void StorageManager::FinishInit() {
   DCHECK(loaded_raw_bytes);
   Savegame::ByteVector& raw_bytes = *loaded_raw_bytes;
   VirtualFileSystem::SerializedHeader header = {};
-  if (raw_bytes.size() > 0) {
-    if (raw_bytes.size() >= sizeof(VirtualFileSystem::SerializedHeader)) {
-      memcpy(&header, &raw_bytes[0],
-             sizeof(VirtualFileSystem::SerializedHeader));
-    }
 
-    if (VirtualFileSystem::GetHeaderVersion(header) == -1) {
-      VirtualFile* vf = vfs_->Open(kDefaultSaveFile);
-      vf->Write(&raw_bytes[0], static_cast<int>(raw_bytes.size()),
-                0 /* offset */);
+  if (raw_bytes.size() > 0) {
+    const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);
+    int buffer_size = static_cast<int>(raw_bytes.size());
+    // Is this upgrade data?
+    if (upgrade::UpgradeReader::IsUpgradeData(buffer, buffer_size)) {
+      upgrade_handler_->OnUpgrade(this, buffer, buffer_size);
     } else {
-      vfs_->Deserialize(&raw_bytes[0], static_cast<int>(raw_bytes.size()));
+      if (raw_bytes.size() >= sizeof(VirtualFileSystem::SerializedHeader)) {
+        memcpy(&header, &raw_bytes[0],
+               sizeof(VirtualFileSystem::SerializedHeader));
+      }
+
+      if (VirtualFileSystem::GetHeaderVersion(header) == -1) {
+        VirtualFile* vf = vfs_->Open(kDefaultSaveFile);
+        vf->Write(&raw_bytes[0], buffer_size, 0 /* offset */);
+      } else {
+        vfs_->Deserialize(&raw_bytes[0], buffer_size);
+      }
     }
   }
 

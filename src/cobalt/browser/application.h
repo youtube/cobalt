@@ -67,6 +67,9 @@ class Application {
   // Called to handle an application event.
   void OnApplicationEvent(const base::Event* event);
 
+  // Called to handle a deep link event.
+  void OnDeepLinkEvent(const base::Event* event);
+
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleRecreated();
 
@@ -88,6 +91,7 @@ class Application {
   base::EventCallback account_event_callback_;
   base::EventCallback network_event_callback_;
   base::EventCallback application_event_callback_;
+  base::EventCallback deep_link_event_callback_;
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.
@@ -113,6 +117,7 @@ class Application {
     kUninitializedAppStatus,
     kRunningAppStatus,
     kPausedAppStatus,
+    kSuspendedAppStatus,
     kWillQuitAppStatus,
     kQuitAppStatus,
     kShutDownAppStatus,
@@ -156,6 +161,8 @@ class Application {
   static AppStatus app_status_;
   static int app_suspend_count_;
   static int app_resume_count_;
+  static int app_pause_count_;
+  static int app_unpause_count_;
 
   static NetworkStatus network_status_;
   static int network_connect_count_;

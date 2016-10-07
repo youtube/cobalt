@@ -2,7 +2,7 @@ UPG0
 {
   "cookies": [
     {
-      "url": "https://www.youtube.com",
+      "url": "https://www.example.com",
       "name": "cookie_name",
       "value": "cookie_value",
       "unexpected": "dummy_value"

@@ -54,12 +54,18 @@ void EventHandler::HandleEvent(const SbEvent* starboard_event) {
 void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
   // Create a Cobalt event from the Starboard event, if recognized.
   scoped_ptr<base::Event> cobalt_event;
-  if (starboard_event->type == kSbEventTypeResume) {
+  if (starboard_event->type == kSbEventTypePause) {
     cobalt_event.reset(new system_window::ApplicationEvent(
-        system_window::ApplicationEvent::kResume));
+        system_window::ApplicationEvent::kPause));
+  } else if (starboard_event->type == kSbEventTypeUnpause) {
+    cobalt_event.reset(new system_window::ApplicationEvent(
+        system_window::ApplicationEvent::kUnpause));
   } else if (starboard_event->type == kSbEventTypeSuspend) {
     cobalt_event.reset(new system_window::ApplicationEvent(
         system_window::ApplicationEvent::kSuspend));
+  } else if (starboard_event->type == kSbEventTypeResume) {
+    cobalt_event.reset(new system_window::ApplicationEvent(
+        system_window::ApplicationEvent::kResume));
   } else if (starboard_event->type == kSbEventTypeNetworkConnect) {
     cobalt_event.reset(
         new network::NetworkEvent(network::NetworkEvent::kConnection));

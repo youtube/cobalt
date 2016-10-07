@@ -1688,6 +1688,13 @@ void ComputedBackgroundImageSingleLayerProvider::VisitURL(URLValue* url_value) {
     absolute_url = url_value->Resolve(base_url_);
   }
 
+  if (!absolute_url.is_valid()) {
+    DLOG(WARNING) << "Invalid url: " << absolute_url.spec();
+    // No further process is needed if the url is invalid.
+    computed_background_image_ = KeywordValue::GetNone();
+    return;
+  }
+
   computed_background_image_ = new AbsoluteURLValue(absolute_url);
 }
 
