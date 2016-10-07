@@ -30,6 +30,10 @@ namespace upgrade {
 
 namespace {
 
+// The header at the start of upgrade data.
+const int kHeaderSize = 4;
+const char kHeader[] = "UPG0";
+
 // Used as a sanity check.
 const int kMaxUpgradeDataSize = 10 * 1024 * 1024;
 
@@ -104,8 +108,13 @@ const base::DictionaryValue* GetListItem(
 
 UpgradeReader::UpgradeReader(const char* data, int size) {
   DCHECK(data);
-  DCHECK_GT(size, 0);
+  DCHECK_GE(size, kHeaderSize);
   DCHECK_LE(size, kMaxUpgradeDataSize);
+
+  // Check the header and offset the data.
+  DCHECK(IsUpgradeData(data, size));
+  data += kHeaderSize;
+  size -= kHeaderSize;
 
   base::JSONReader json_reader;
   scoped_ptr<base::Value> parsed(
@@ -198,6 +207,11 @@ void UpgradeReader::AddLocalStorageEntryIfValid(
   }
 
   local_storage_entries_.push_back(LocalStorageEntry(key, value));
+}
+
+// static
+bool UpgradeReader::IsUpgradeData(const char* data, int size) {
+  return size >= kHeaderSize && memcmp(data, kHeader, kHeaderSize) == 0;
 }
 
 void UpgradeReader::ProcessValues(const base::DictionaryValue* dictionary) {

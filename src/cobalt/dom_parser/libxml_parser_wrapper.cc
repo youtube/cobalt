@@ -214,12 +214,15 @@ void LibxmlParserWrapper::OnComment(const std::string& comment) {
 
 void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
                                          const std::string& message) {
+  DCHECK(severity >= kWarning && severity <= kFatal);
   if (severity > max_severity_) {
     max_severity_ = severity;
   }
   if (severity < LibxmlParserWrapper::kFatal) {
-    LOG(WARNING) << message;
+    LOG(WARNING) << "Libxml "
+                 << (severity == kWarning ? "Warning: " : "Error: ") << message;
   } else {
+    LOG(ERROR) << "Libxml Fatal Error: " << message;
     if (!error_callback_.is_null()) {
       error_callback_.Run(message);
     }
@@ -233,23 +236,23 @@ void LibxmlParserWrapper::OnCDATABlock(const std::string& value) {
 LibxmlParserWrapper::IssueSeverity
 LibxmlParserWrapper::CheckInputAndUpdateSeverity(const char* data,
                                                  size_t size) {
-  if (max_severity_ >= kError) {
+  if (max_severity_ == kFatal) {
     return max_severity_;
   }
 
   // Check the total input size.
   total_input_size_ += size;
   if (total_input_size_ > kMaxTotalInputSize) {
-    static const char kErrorTooLong[] = "Parser input is too long.";
-    OnParsingIssue(kError, kErrorTooLong);
+    static const char kMessageInputTooLong[] = "Parser input is too long.";
+    OnParsingIssue(kFatal, kMessageInputTooLong);
     return max_severity_;
   }
 
   // Check the encoding of the input.
   if (!IsStringUTF8(std::string(data, size))) {
-    static const char kErrorNotUTF8[] =
+    static const char kMessageInputNotUTF8[] =
         "Parser input contains non-UTF8 characters.";
-    OnParsingIssue(kError, kErrorNotUTF8);
+    OnParsingIssue(kFatal, kMessageInputNotUTF8);
     return max_severity_;
   }
 

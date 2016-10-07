@@ -30,7 +30,7 @@ namespace storage {
 // We only support a single "file".
 class SavegameFake : public Savegame {
  public:
-  explicit SavegameFake(const Options& options) : Savegame(options) {}
+  explicit SavegameFake(const Options& options);
 
   ~SavegameFake() OVERRIDE {
     if (options_.delete_on_destruction) {

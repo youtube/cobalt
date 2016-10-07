@@ -97,7 +97,7 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (CheckInputAndUpdateSeverity(data, size) >= kError) {
+  if (CheckInputAndUpdateSeverity(data, size) == kFatal) {
     return;
   }
 

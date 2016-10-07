@@ -388,7 +388,9 @@ void MozjsGlobalEnvironment::ReportErrorHandler(JSContext* context,
   if (global_object_proxy && global_object_proxy->last_error_message_) {
     *(global_object_proxy->last_error_message_) = error_message;
   } else {
-    DLOG(ERROR) << "JS Error: " << error_message;
+    const char *filename = report->filename ? report->filename : "(none)";
+    LOG(ERROR) << "JS Error: " << filename << ":" << report->lineno << ":"
+               << report->column << ": " << error_message;
   }
 }
 
