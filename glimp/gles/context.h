@@ -234,15 +234,16 @@ class Context {
   void ReleaseContext();
   void SetError(GLenum error) { error_ = error; }
 
-  // Returns the bound buffer slot for the specific specified target.
+  // Returns the bound buffer for the specific specified target.
   // This returns a pointer because it is used by glBindBuffer() which modifies
   // what the returned scoped_refptr points to.
   nb::scoped_refptr<Buffer>* GetBoundBufferForTarget(GLenum target);
 
-  // Returns the bound texture slot for the specific specified target.
+  // Returns the bound texture for the specific specified target and slot.
   // This returns a pointer because it is used by glBindTexture() which modifies
   // what the returned scoped_refptr points to.
-  nb::scoped_refptr<Texture>* GetBoundTextureForTarget(GLenum target);
+  nb::scoped_refptr<Texture>* GetBoundTextureForTarget(GLenum target,
+                                                       GLenum texture);
 
   void SetupExtensionsString();
 
