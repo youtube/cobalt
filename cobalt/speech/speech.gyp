@@ -20,11 +20,19 @@
     {
       'target_name': 'speech',
       'type': 'static_library',
+      'msvs_disabled_warnings': [
+        # Dereferencing NULL pointer in generated file
+        # google_streaming_api.pb.cc.
+        6011,
+      ],
       'sources': [
         'audio_encoder_flac.cc',
         'audio_encoder_flac.h',
         'chunked_byte_buffer.cc',
         'chunked_byte_buffer.h',
+        'google_streaming_api.pb.cc',
+        'google_streaming_api.pb.h',
+        'google_streaming_api.pb.proto',
         'mic.h',
         'speech_recognition.cc',
         'speech_recognition.h',
@@ -48,6 +56,10 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
+      ],
+      'include_dirs': [
+        # Get protobuf headers from the chromium tree.
+        '<(DEPTH)/third_party/protobuf/src',
       ],
       'conditions': [
         ['OS=="starboard"', {
