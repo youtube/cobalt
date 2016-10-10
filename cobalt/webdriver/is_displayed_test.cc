@@ -29,6 +29,7 @@
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom_parser/parser.h"
+#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -52,9 +53,11 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
-        image_cache_(loader::image::CreateImageCache(
-            "WebdriverTest.ImageCache", kImageCacheCapacity,
-            resource_provider_stub_.get(), &fetcher_factory_)),
+        loader_factory_(new loader::LoaderFactory(
+            &fetcher_factory_, resource_provider_stub_.get())),
+        image_cache_(loader::image::CreateImageCache("WebdriverTest.ImageCache",
+                                                     kImageCacheCapacity,
+                                                     loader_factory_.get())),
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
         html_element_context_(
             &fetcher_factory_, css_parser_.get(), dom_parser_.get(),
@@ -93,6 +96,7 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
   scoped_ptr<render_tree::ResourceProviderStub> resource_provider_stub_;
+  scoped_ptr<loader::LoaderFactory> loader_factory_;
   scoped_ptr<loader::image::ImageCache> image_cache_;
   scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;
