@@ -41,7 +41,6 @@ namespace loader {
 
 // CacheType must provide the following:
 //   typedef SpecificResourceType ResourceType;
-//   typedef SpecificDecoderProviderType DecoderProviderType;
 //   static uint32 GetEstimatedSizeInBytes(
 //       const scoped_refptr<ResourceType>& resource);
 
@@ -61,7 +60,12 @@ class CachedResource
  public:
   typedef ResourceCache<CacheType> ResourceCacheType;
   typedef typename CacheType::ResourceType ResourceType;
-  typedef typename CacheType::DecoderProviderType DecoderProviderType;
+
+  typedef base::Callback<scoped_ptr<Loader>(
+      const GURL&, const csp::SecurityCallback&,
+      const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
+      const base::Callback<void(const std::string&)>&,
+      const base::Callback<void(const std::string&)>&)> CreateLoaderFunction;
 
   // This class can be used to attach success, failure, or error callbacks to
   // CachedResource objects that are executed when the resource finishes
@@ -95,8 +99,7 @@ class CachedResource
   // Request fetching and decoding a single resource based on the url.
   CachedResource(const GURL& url,
                  const csp::SecurityCallback& security_callback,
-                 const DecoderProviderType* decoder_provider,
-                 loader::FetcherFactory* fetcher_factory,
+                 const CreateLoaderFunction& create_loader_function,
                  ResourceCacheType* resource_cache);
 
   // Resource is available. CachedResource is a wrapper of the resource
@@ -148,6 +151,7 @@ class CachedResource
   void RunCallbacks(CallbackType type);
 
   const GURL url_;
+
   scoped_refptr<ResourceType> resource_;
   ResourceCacheType* const resource_cache_;
   scoped_ptr<Loader> loader_;
@@ -218,20 +222,16 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
 template <typename CacheType>
 CachedResource<CacheType>::CachedResource(
     const GURL& url, const csp::SecurityCallback& security_callback,
-    const DecoderProviderType* decoder_provider,
-    loader::FetcherFactory* fetcher_factory, ResourceCacheType* resource_cache)
+    const CreateLoaderFunction& create_loader_function,
+    ResourceCacheType* resource_cache)
     : url_(url), resource_cache_(resource_cache) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
-  scoped_ptr<Decoder> decoder = decoder_provider->CreateDecoder(
+  loader_ = create_loader_function.Run(
+      url, security_callback,
       base::Bind(&CachedResource::OnLoadingSuccess, base::Unretained(this)),
       base::Bind(&CachedResource::OnLoadingFailure, base::Unretained(this)),
       base::Bind(&CachedResource::OnLoadingError, base::Unretained(this)));
-  loader_ = make_scoped_ptr(new Loader(
-      base::Bind(&FetcherFactory::CreateSecureFetcher,
-                 base::Unretained(fetcher_factory), url, security_callback),
-      decoder.Pass(),
-      base::Bind(&CachedResource::OnLoadingError, base::Unretained(this))));
 }
 
 template <typename CacheType>
@@ -387,11 +387,12 @@ class ResourceCache {
  public:
   typedef CachedResource<CacheType> CachedResourceType;
   typedef typename CacheType::ResourceType ResourceType;
-  typedef typename CacheType::DecoderProviderType DecoderProviderType;
+
+  typedef
+      typename CachedResourceType::CreateLoaderFunction CreateLoaderFunction;
 
   ResourceCache(const std::string& name, uint32 cache_capacity,
-                scoped_ptr<DecoderProviderType> decoder_provider,
-                loader::FetcherFactory* fetcher_factory);
+                const CreateLoaderFunction& create_loader_function);
 
   // |CreateCachedResource| returns CachedResource. If the CachedResource is not
   // in |cached_resource_map_| or its resource is not in
@@ -443,8 +444,8 @@ class ResourceCache {
 
   uint32 cache_capacity_;
 
-  scoped_ptr<DecoderProviderType> decoder_provider_;
-  loader::FetcherFactory* const fetcher_factory_;
+  CreateLoaderFunction create_loader_function_;
+
   csp::SecurityCallback security_callback_;
 
   // |cached_resource_map_| stores the cached resources that are currently
@@ -471,12 +472,10 @@ class ResourceCache {
 template <typename CacheType>
 ResourceCache<CacheType>::ResourceCache(
     const std::string& name, uint32 cache_capacity,
-    scoped_ptr<DecoderProviderType> decoder_provider,
-    loader::FetcherFactory* fetcher_factory)
+    const CreateLoaderFunction& create_loader_function)
     : name_(name),
       cache_capacity_(cache_capacity),
-      decoder_provider_(decoder_provider.release()),
-      fetcher_factory_(fetcher_factory),
+      create_loader_function_(create_loader_function),
       size_in_bytes_(base::StringPrintf("%s.Size", name_.c_str()), 0,
                      "Total number of bytes currently used by the cache."),
       capacity_in_bytes_(base::StringPrintf("%s.Capacity", name_.c_str()),
@@ -485,8 +484,7 @@ ResourceCache<CacheType>::ResourceCache(
                          "Exceeding this results in *unused* resources being "
                          "purged.") {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
-  DCHECK(decoder_provider_.get());
-  DCHECK(fetcher_factory_);
+  DCHECK(!create_loader_function_.is_null());
 }
 
 template <typename CacheType>
@@ -516,9 +514,8 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
 
   // If the resource doesn't exist, create a cached resource and fetch the
   // resource based on the url.
-  scoped_refptr<CachedResourceType> cached_resource(
-      new CachedResourceType(url, security_callback_, decoder_provider_.get(),
-                             fetcher_factory_, this));
+  scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
+      url, security_callback_, create_loader_function_, this));
   cached_resource_map_.insert(
       std::make_pair(url.spec(), cached_resource.get()));
   return cached_resource;

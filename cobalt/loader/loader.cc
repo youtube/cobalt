@@ -69,10 +69,9 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
 // Loader
 //////////////////////////////////////////////////////////////////
 
-Loader::Loader(
-    base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
-    scoped_ptr<Decoder> decoder,
-    base::Callback<void(const std::string&)> error_callback)
+Loader::Loader(const FetcherCreator& fetcher_creator,
+               scoped_ptr<Decoder> decoder,
+               const base::Callback<void(const std::string&)>& error_callback)
     : decoder_(decoder.Pass()),
       fetcher_to_decoder_adaptor_(
           new FetcherToDecoderAdapter(decoder_.get(), error_callback)),
