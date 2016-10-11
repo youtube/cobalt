@@ -48,6 +48,36 @@ using base::TimeDelta;
 
 namespace {
 
+SbMediaAudioCodec SbMediaAudioCodecFromMediaAudioCodec(AudioCodec codec) {
+  if (codec == kCodecAAC) {
+    return kSbMediaAudioCodecAac;
+  } else if (codec == kCodecVorbis) {
+    return kSbMediaAudioCodecVorbis;
+  } else if (codec == kCodecOpus) {
+    return kSbMediaAudioCodecOpus;
+  }
+  DLOG(ERROR) << "Unsupported audio codec " << codec;
+  return kSbMediaAudioCodecNone;
+}
+
+SbMediaVideoCodec SbMediaVideoCodecFromMediaVideoCodec(VideoCodec codec) {
+  if (codec == kCodecH264) {
+    return kSbMediaVideoCodecH264;
+  } else if (codec == kCodecVC1) {
+    return kSbMediaVideoCodecVc1;
+  } else if (codec == kCodecMPEG2) {
+    return kSbMediaVideoCodecMpeg2;
+  } else if (codec == kCodecTheora) {
+    return kSbMediaVideoCodecTheora;
+  } else if (codec == kCodecVP8) {
+    return kSbMediaVideoCodecVp8;
+  } else if (codec == kCodecVP9) {
+    return kSbMediaVideoCodecVp9;
+  }
+  DLOG(ERROR) << "Unsupported video codec " << codec;
+  return kSbMediaVideoCodecNone;
+}
+
 TimeDelta SbMediaTimeToTimeDelta(SbMediaTime timestamp) {
   return TimeDelta::FromMicroseconds(timestamp * Time::kMicrosecondsPerSecond /
                                      kSbMediaTimeSecond);
@@ -68,7 +98,11 @@ bool IsEncrypted(const scoped_refptr<DemuxerStream>& stream) {
 }
 
 void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
-                       SbDrmSampleInfo* drm_info) {
+                       SbDrmSampleInfo* drm_info,
+                       SbDrmSubSampleMapping* subsample_mapping) {
+  DCHECK(drm_info);
+  DCHECK(subsample_mapping);
+
   const DecryptConfig* config = buffer->GetDecryptConfig();
   if (!config || config->iv().empty() || config->key_id().empty()) {
     drm_info->initialization_vector_size = 0;
@@ -104,10 +138,9 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
         reinterpret_cast<const SbDrmSubSampleMapping*>(
             &config->subsamples()[0]);
   } else {
-    // TODO: According to the SbDrm interface we have to provide a subsample
-    //       with exactly one element covering the whole sample.  This needs
-    //       extra memory management.
-    drm_info->subsample_mapping = NULL;
+    drm_info->subsample_mapping = subsample_mapping;
+    subsample_mapping->clear_byte_count = 0;
+    subsample_mapping->encrypted_byte_count = buffer->GetDataSize();
   }
 }
 
@@ -633,17 +666,36 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   audio_header.bits_per_sample = audio_config.bits_per_channel();
   audio_header.audio_specific_config_size = 0;
 
+  const VideoDecoderConfig& video_config =
+      demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
+
+  SbMediaAudioCodec audio_codec =
+      SbMediaAudioCodecFromMediaAudioCodec(audio_config.codec());
+  SbMediaVideoCodec video_codec =
+      SbMediaVideoCodecFromMediaVideoCodec(video_config.codec());
+
   {
     base::AutoLock auto_lock(lock_);
-    player_ = SbPlayerCreate(window_, kSbMediaVideoCodecH264,
-                             kSbMediaAudioCodecAac, SB_PLAYER_NO_DURATION,
-                             drm_system, &audio_header, DeallocateSampleCB,
-                             DecoderStatusCB, PlayerStatusCB, this);
+    player_ =
+        SbPlayerCreate(window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION,
+                       drm_system, &audio_header, DeallocateSampleCB,
+                       DecoderStatusCB, PlayerStatusCB, this);
     SetPlaybackRateTask(playback_rate_);
     SetVolumeTask(volume_);
   }
 
-  set_bounds_caller_->SetPlayer(player_);
+  if (SbPlayerIsValid(player_)) {
+    set_bounds_caller_->SetPlayer(player_);
+    return;
+  }
+
+  PipelineStatusCB seek_cb;
+  {
+    base::AutoLock auto_lock(lock_);
+    DCHECK(!seek_cb_.is_null());
+    seek_cb = base::ResetAndReturn(&seek_cb_);
+  }
+  seek_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
 }
 
 void SbPlayerPipeline::SetDecryptor(Decryptor* decryptor) {
@@ -674,8 +726,6 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     has_video_ = demuxer_->GetStream(DemuxerStream::VIDEO) != NULL;
 
     buffering_state_cb_.Run(kHaveMetadata);
-
-    NOTIMPLEMENTED() << "Dynamically determinate codecs";
 
     const AudioDecoderConfig& audio_config =
         demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
@@ -780,9 +830,10 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 
   bool is_encrypted = IsEncrypted(stream);
   SbDrmSampleInfo drm_info;
+  SbDrmSubSampleMapping subsample_mapping;
 
   if (is_encrypted && !buffer->IsEndOfStream()) {
-    FillDrmSampleInfo(buffer, &drm_info);
+    FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
   if (type == DemuxerStream::AUDIO) {
@@ -842,6 +893,7 @@ void SbPlayerPipeline::OnDecoderStatus(SbMediaType type,
     case kSbPlayerDecoderStateNeedsData:
       break;
     case kSbPlayerDecoderStateBufferFull:
+      DLOG(WARNING) << "kSbPlayerDecoderStateBufferFull has been deprecated.";
       return;
     case kSbPlayerDecoderStateDestroyed:
       return;
