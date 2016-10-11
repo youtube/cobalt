@@ -129,6 +129,7 @@
 #endif
 #include <google/protobuf/stubs/common.h>
 
+#include "starboard/client_porting/poem/string_poem.h"
 
 namespace google {
 namespace protobuf {
