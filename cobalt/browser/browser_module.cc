@@ -431,6 +431,11 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
+  if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
+    render_tree_combiner_.UpdateDebugConsoleRenderTree(base::nullopt);
+    return;
+  }
+
   render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
 }
