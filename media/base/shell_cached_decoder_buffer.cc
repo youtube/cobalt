@@ -22,7 +22,7 @@ ShellCachedDecoderBuffer::ShellCachedDecoderBuffer(
     const scoped_refptr<media::DecoderBuffer>& source_buffer,
     void* destination,
     FreeCB free_cb)
-    : media::DecoderBuffer(NULL, 0),  // Initialize with empty data first.
+    : media::DecoderBuffer(NULL, 0, source_buffer->IsKeyframe()),
       source_buffer_(source_buffer),
       free_cb_(free_cb) {
   DCHECK(source_buffer);

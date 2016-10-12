@@ -75,10 +75,10 @@ class MEDIA_EXPORT ShellBufferFactory
   // Returns false if the allocator will never be able to allocate a buffer
   // of the requested size. Note that if memory is currently available this
   // function will call the callback provided _before_ returning true.
-  bool AllocateBuffer(size_t size, AllocCB cb);
+  bool AllocateBuffer(size_t size, bool is_keyframe, AllocCB cb);
   // This function tries to allocate a DecoderBuffer immediately. It returns
   // NULL on failure.
-  scoped_refptr<DecoderBuffer> AllocateBufferNow(size_t size);
+  scoped_refptr<DecoderBuffer> AllocateBufferNow(size_t size, bool is_keyframe);
   // Returns a newly allocated byte field if there's room for it, or NULL if
   // there isn't. Note that this raw allocation method provides no guarantee
   // that ShellBufferFactory will still exist when the memory is to be freed.

@@ -55,7 +55,9 @@ void ShellBufferFactory::Initialize() {
   }
 }
 
-bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
+bool ShellBufferFactory::AllocateBuffer(size_t size,
+                                        bool is_keyframe,
+                                        AllocCB cb) {
   TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateBuffer()", "size",
                size);
   // Zero-size buffers are allocation error, allocate an EOS buffer explicity
@@ -77,7 +79,7 @@ bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
     if (pending_allocs_.size() == 0) {
       uint8* bytes = Allocate_Locked(size);
       if (bytes) {
-        instant_buffer = new DecoderBuffer(bytes, size);
+        instant_buffer = new DecoderBuffer(bytes, size, is_keyframe);
         TRACE_EVENT0(
             "media_stack",
             "ShellBufferFactory::AllocateBuffer() finished allocation.");
@@ -89,7 +91,7 @@ bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
       TRACE_EVENT0("media_stack",
                    "ShellBufferFactory::AllocateBuffer() deferred.");
       pending_allocs_.push_back(
-          std::make_pair(cb, new DecoderBuffer(NULL, size)));
+          std::make_pair(cb, new DecoderBuffer(NULL, size, is_keyframe)));
     }
   }
 
@@ -101,7 +103,8 @@ bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
 }
 
 scoped_refptr<DecoderBuffer> ShellBufferFactory::AllocateBufferNow(
-    size_t size) {
+    size_t size,
+    bool is_keyframe) {
   TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateBufferNow()", "size",
                size);
   // Zero-size buffers are allocation error, allocate an EOS buffer explicity
@@ -121,7 +124,8 @@ scoped_refptr<DecoderBuffer> ShellBufferFactory::AllocateBufferNow(
         "ShellBufferFactory::AllocateBufferNow() failed as size is too large.");
     return NULL;
   }
-  scoped_refptr<DecoderBuffer> buffer = new DecoderBuffer(bytes, size);
+  scoped_refptr<DecoderBuffer> buffer =
+      new DecoderBuffer(bytes, size, is_keyframe);
   TRACE_EVENT0("media_stack",
                "ShellBufferFactory::AllocateBufferNow() finished allocation.");
   DCHECK(!buffer->IsEndOfStream());
