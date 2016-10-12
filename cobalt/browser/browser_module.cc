@@ -624,7 +624,8 @@ void BrowserModule::Suspend() {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(!suspended_);
 
-// First release the resource provider used by all of our web modules.
+// First suspend all our web modules which implies that they will release their
+// resource provider and all resources created through it.
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {
     debug_console_->Suspend();
