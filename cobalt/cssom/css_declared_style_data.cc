@@ -65,7 +65,14 @@ void CSSDeclaredStyleData::ClearPropertyValueAndImportance(PropertyKey key) {
         ExpandShorthandProperty(key);
     for (LonghandPropertySet::const_iterator iter = longhand_properties.begin();
          iter != longhand_properties.end(); ++iter) {
-      ClearPropertyValueAndImportanceForLonghandProperty(*iter);
+      PropertyKey longhand_key = *iter;
+      if (IsShorthandProperty(longhand_key)) {
+        // If the property is another shorthand property, then recurse to clear
+        // it's registered longhand properties.
+        ClearPropertyValueAndImportance(longhand_key);
+      } else {
+        ClearPropertyValueAndImportanceForLonghandProperty(longhand_key);
+      }
     }
   } else {
     ClearPropertyValueAndImportanceForLonghandProperty(key);
