@@ -342,7 +342,8 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // AllocateBuffer will return false if the requested size is larger
   // than the maximum limit for a single buffer.
   if (!ShellBufferFactory::Instance()->AllocateBuffer(
-          au->GetMaxSize(), base::Bind(&ShellDemuxer::BufferAllocated, this))) {
+          au->GetMaxSize(), au->IsKeyframe(),
+          base::Bind(&ShellDemuxer::BufferAllocated, this))) {
     DLOG(ERROR) << "buffer allocation failed.";
     host_->OnDemuxerError(PIPELINE_ERROR_COULD_NOT_RENDER);
     return;
