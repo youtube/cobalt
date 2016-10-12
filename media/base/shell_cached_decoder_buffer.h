@@ -38,10 +38,10 @@ class ShellCachedDecoderBuffer : public media::DecoderBuffer {
       FreeCB free_cb);
   ~ShellCachedDecoderBuffer();
 
-  virtual const media::DecryptConfig* GetDecryptConfig() const OVERRIDE {
+  const media::DecryptConfig* GetDecryptConfig() const OVERRIDE {
     return source_buffer_->GetDecryptConfig();
   }
-  virtual void SetDecryptConfig(scoped_ptr<media::DecryptConfig>) OVERRIDE {
+  void SetDecryptConfig(scoped_ptr<media::DecryptConfig>) OVERRIDE {
     NOTREACHED();
   }
 

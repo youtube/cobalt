@@ -102,6 +102,10 @@ class WebMediaPlayer {
   virtual const Ranges<base::TimeDelta>& GetBufferedTimeRanges() = 0;
   virtual float GetMaxTimeSeekable() const = 0;
 
+  // Suspend/Resume
+  virtual void Suspend() = 0;
+  virtual void Resume() = 0;
+
   // True if the loaded media has a playable video/audio track.
   virtual bool HasVideo() const = 0;
   virtual bool HasAudio() const = 0;

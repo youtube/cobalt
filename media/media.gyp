@@ -716,7 +716,15 @@
             ['sb_media_platform == "starboard"', {
               'sources': [
                 'audio/shell_audio_streamer_starboard.cc',
+                'base/decoder_buffer_cache.cc',
+                'base/decoder_buffer_cache.h',
+                'base/sbplayer_set_bounds_helper.cc',
+                'base/sbplayer_set_bounds_helper.h',
                 'base/sbplayer_pipeline.cc',
+                'base/starboard_player.cc',
+                'base/starboard_player.h',
+                'base/starboard_utils.cc',
+                'base/starboard_utils.h',
                 'crypto/starboard_decryptor.cc',
                 'crypto/starboard_decryptor.h',
               ],
