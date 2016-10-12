@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <map>
 #include <vector>
 
 #include "base/basictypes.h"  // For COMPILE_ASSERT
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/bind_to_loop.h"
@@ -34,9 +35,10 @@
 #include "media/base/pipeline.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
+#include "media/base/sbplayer_set_bounds_helper.h"
+#include "media/base/starboard_player.h"
 #include "media/base/video_decoder_config.h"
 #include "media/crypto/starboard_decryptor.h"
-#include "starboard/player.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -47,102 +49,6 @@ using base::Time;
 using base::TimeDelta;
 
 namespace {
-
-SbMediaAudioCodec SbMediaAudioCodecFromMediaAudioCodec(AudioCodec codec) {
-  if (codec == kCodecAAC) {
-    return kSbMediaAudioCodecAac;
-  } else if (codec == kCodecVorbis) {
-    return kSbMediaAudioCodecVorbis;
-  } else if (codec == kCodecOpus) {
-    return kSbMediaAudioCodecOpus;
-  }
-  DLOG(ERROR) << "Unsupported audio codec " << codec;
-  return kSbMediaAudioCodecNone;
-}
-
-SbMediaVideoCodec SbMediaVideoCodecFromMediaVideoCodec(VideoCodec codec) {
-  if (codec == kCodecH264) {
-    return kSbMediaVideoCodecH264;
-  } else if (codec == kCodecVC1) {
-    return kSbMediaVideoCodecVc1;
-  } else if (codec == kCodecMPEG2) {
-    return kSbMediaVideoCodecMpeg2;
-  } else if (codec == kCodecTheora) {
-    return kSbMediaVideoCodecTheora;
-  } else if (codec == kCodecVP8) {
-    return kSbMediaVideoCodecVp8;
-  } else if (codec == kCodecVP9) {
-    return kSbMediaVideoCodecVp9;
-  }
-  DLOG(ERROR) << "Unsupported video codec " << codec;
-  return kSbMediaVideoCodecNone;
-}
-
-TimeDelta SbMediaTimeToTimeDelta(SbMediaTime timestamp) {
-  return TimeDelta::FromMicroseconds(timestamp * Time::kMicrosecondsPerSecond /
-                                     kSbMediaTimeSecond);
-}
-
-SbMediaTime TimeDeltaToSbMediaTime(TimeDelta timedelta) {
-  return timedelta.InMicroseconds() * kSbMediaTimeSecond /
-         Time::kMicrosecondsPerSecond;
-}
-
-bool IsEncrypted(const scoped_refptr<DemuxerStream>& stream) {
-  if (stream->type() == DemuxerStream::AUDIO) {
-    return stream->audio_decoder_config().is_encrypted();
-  } else {
-    DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
-    return stream->video_decoder_config().is_encrypted();
-  }
-}
-
-void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
-                       SbDrmSampleInfo* drm_info,
-                       SbDrmSubSampleMapping* subsample_mapping) {
-  DCHECK(drm_info);
-  DCHECK(subsample_mapping);
-
-  const DecryptConfig* config = buffer->GetDecryptConfig();
-  if (!config || config->iv().empty() || config->key_id().empty()) {
-    drm_info->initialization_vector_size = 0;
-    drm_info->identifier_size = 0;
-    drm_info->subsample_count = 0;
-    drm_info->subsample_mapping = NULL;
-    return;
-  }
-
-  DCHECK_LE(config->iv().size(), sizeof(drm_info->initialization_vector));
-  DCHECK_LE(config->key_id().size(), sizeof(drm_info->identifier));
-
-  if (config->iv().size() > sizeof(drm_info->initialization_vector) ||
-      config->key_id().size() > sizeof(drm_info->identifier)) {
-    drm_info->initialization_vector_size = 0;
-    drm_info->identifier_size = 0;
-    drm_info->subsample_count = 0;
-    drm_info->subsample_mapping = NULL;
-    return;
-  }
-
-  memcpy(drm_info->initialization_vector, &config->iv()[0],
-         config->iv().size());
-  drm_info->initialization_vector_size = config->iv().size();
-  memcpy(drm_info->identifier, &config->key_id()[0], config->key_id().size());
-  drm_info->identifier_size = config->key_id().size();
-  drm_info->subsample_count = config->subsamples().size();
-
-  if (drm_info->subsample_count > 0) {
-    COMPILE_ASSERT(sizeof(SbDrmSubSampleMapping) == sizeof(SubsampleEntry),
-                   SubSampleEntrySizesMatch);
-    drm_info->subsample_mapping =
-        reinterpret_cast<const SbDrmSubSampleMapping*>(
-            &config->subsamples()[0]);
-  } else {
-    drm_info->subsample_mapping = subsample_mapping;
-    subsample_mapping->clear_byte_count = 0;
-    subsample_mapping->encrypted_byte_count = buffer->GetDataSize();
-  }
-}
 
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
 // parameters exceed what base::Bind() can support.
@@ -156,32 +62,11 @@ struct StartTaskParameters {
   base::Closure duration_change_cb;
 };
 
-class SetBoundsCaller : public base::RefCountedThreadSafe<SetBoundsCaller> {
- public:
-  SetBoundsCaller() : player_(kSbPlayerInvalid) {}
-  void SetPlayer(SbPlayer player) {
-    base::Lock lock_;
-    player_ = player;
-  }
-  bool SetBounds(const gfx::Rect& rect) {
-    base::AutoLock auto_lock(lock_);
-    if (!SbPlayerIsValid(player_)) {
-      return false;
-    }
-    SbPlayerSetBounds(player_, rect.x(), rect.y(), rect.width(), rect.height());
-    return true;
-  }
-
- private:
-  base::Lock lock_;
-  SbPlayer player_;
-
-  DISALLOW_COPY_AND_ASSIGN(SetBoundsCaller);
-};
-
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
-class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
+class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
+                                      public DemuxerHost,
+                                      public StarboardPlayer::Host {
  public:
   // Constructs a media pipeline that will execute on |message_loop|.
   SbPlayerPipeline(PipelineWindow window,
@@ -189,6 +74,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
                    MediaLog* media_log);
   ~SbPlayerPipeline() OVERRIDE;
 
+  void Suspend() OVERRIDE;
+  void Resume() OVERRIDE;
   void Start(scoped_ptr<FilterCollection> filter_collection,
              const SetDecryptorReadyCB& decryptor_ready_cb,
              const PipelineStatusCB& ended_cb,
@@ -218,13 +105,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   SetBoundsCB GetSetBoundsCB() OVERRIDE;
 
  private:
-  // A map from raw data pointer returned by DecoderBuffer::GetData() to the
-  // DecoderBuffer and a reference count.  The reference count indicates how
-  // many instances of the DecoderBuffer is currently being decoded in the
-  // pipeline.
-  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int> >
-      DecodingBuffers;
-
   void StartTask(const StartTaskParameters& parameters);
   void SetVolumeTask(float volume);
   void SetPlaybackRateTask(float volume);
@@ -245,30 +125,17 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
   void OnDemuxerStreamRead(DemuxerStream::Type type,
-                           int ticket,
                            DemuxerStream::Status status,
                            const scoped_refptr<DecoderBuffer>& buffer);
 
-  void OnDecoderStatus(SbMediaType type,
-                       SbPlayerDecoderState state,
-                       int ticket);
-  void OnPlayerStatus(SbPlayerState state, int ticket);
-  void OnDeallocateSample(const void* sample_buffer);
-
-  static void DecoderStatusCB(SbPlayer player,
-                              void* context,
-                              SbMediaType type,
-                              SbPlayerDecoderState state,
-                              int ticket);
-  static void PlayerStatusCB(SbPlayer player,
-                             void* context,
-                             SbPlayerState state,
-                             int ticket);
-  static void DeallocateSampleCB(SbPlayer player,
-                                 void* context,
-                                 const void* sample_buffer);
+  // StarboardPlayer::Host implementation.
+  void OnNeedData(DemuxerStream::Type type) OVERRIDE;
+  void OnPlayerStatus(SbPlayerState state) OVERRIDE;
 
   void UpdateDecoderConfig(const scoped_refptr<DemuxerStream>& stream);
+
+  void SuspendTask(base::WaitableEvent* done_event);
+  void ResumeTask(base::WaitableEvent* done_event);
 
   // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -276,9 +143,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   // The window this player associates with.  It should only be assigned in the
   // dtor and accesed once by SbPlayerCreate().
   PipelineWindow window_;
-
-  // The current ticket associated with the |player_|.
-  int ticket_;
 
   // Lock used to serialize access for the following member variables.
   mutable base::Lock lock_;
@@ -335,8 +199,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
   bool video_read_in_progress_;
   TimeDelta duration_;
 
-  DecodingBuffers decoding_buffers_;
-  scoped_refptr<SetBoundsCaller> set_bounds_caller_;
+  scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
+
+  bool flushing_;
 
   // The following member variables can be accessed from WMPI thread but all
   // modifications to them happens on the pipeline thread.  So any access of
@@ -346,8 +211,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline, public DemuxerHost {
 
   // Temporary callback used for Start() and Seek().
   PipelineStatusCB seek_cb_;
-  SbMediaTime seek_time_;
-  SbPlayer player_;
+  base::TimeDelta seek_time_;
+  scoped_ptr<StarboardPlayer> player_;
+  bool suspended_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -357,7 +223,6 @@ SbPlayerPipeline::SbPlayerPipeline(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     MediaLog* media_log)
     : window_(window),
-      ticket_(SB_PLAYER_INITIAL_TICKET),
       message_loop_(message_loop),
       total_bytes_(0),
       natural_size_(0, 0),
@@ -367,12 +232,34 @@ SbPlayerPipeline::SbPlayerPipeline(
       has_video_(false),
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
-      set_bounds_caller_(new SetBoundsCaller),
-      seek_time_(0),
-      player_(kSbPlayerInvalid) {}
+      flushing_(false),
+      set_bounds_helper_(new SbPlayerSetBoundsHelper),
+      suspended_(false) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() {
-  DCHECK(player_ == kSbPlayerInvalid);
+  DCHECK(!player_);
+}
+
+void SbPlayerPipeline::Suspend() {
+  DCHECK(!message_loop_->BelongsToCurrentThread());
+
+  base::WaitableEvent waitable_event(true, /* manual_reset */
+                                     false /* initially_signaled */);
+  message_loop_->PostTask(FROM_HERE,
+                          base::Bind(&SbPlayerPipeline::SuspendTask,
+                                     base::Unretained(this), &waitable_event));
+  waitable_event.Wait();
+}
+
+void SbPlayerPipeline::Resume() {
+  DCHECK(!message_loop_->BelongsToCurrentThread());
+
+  base::WaitableEvent waitable_event(true, /* manual_reset */
+                                     false /* initially_signaled */);
+  message_loop_->PostTask(FROM_HERE,
+                          base::Bind(&SbPlayerPipeline::ResumeTask,
+                                     base::Unretained(this), &waitable_event));
+  waitable_event.Wait();
 }
 
 void SbPlayerPipeline::Start(scoped_ptr<FilterCollection> filter_collection,
@@ -407,16 +294,15 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   DCHECK(stop_cb_.is_null());
   DCHECK(!stop_cb.is_null());
 
-  if (SbPlayerIsValid(player_)) {
-    set_bounds_caller_->SetPlayer(kSbPlayerInvalid);
-    SbPlayer player = player_;
+  if (player_) {
+    scoped_ptr<StarboardPlayer> player;
     {
       base::AutoLock auto_lock(lock_);
-      player_ = kSbPlayerInvalid;
+      player = player_.Pass();
     }
 
     DLOG(INFO) << "Destroying SbPlayer.";
-    SbPlayerDestroy(player);
+    player.reset();
     DLOG(INFO) << "SbPlayer destroyed.";
   }
 
@@ -437,20 +323,27 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
     return;
   }
 
-  if (!SbPlayerIsValid(player_)) {
+  if (!player_) {
     seek_cb.Run(PIPELINE_ERROR_INVALID_STATE);
   }
 
   DCHECK(seek_cb_.is_null());
   DCHECK(!seek_cb.is_null());
 
-  // Increase |ticket_| so all upcoming need data requests from the SbPlayer
-  // are ignored.
-  ++ticket_;
+  flushing_ = true;
+
+  if (audio_read_in_progress_ || video_read_in_progress_) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb));
+    return;
+  }
+
+  player_->PrepareForSeek();
+
   {
     base::AutoLock auto_lock(lock_);
     seek_cb_ = seek_cb;
-    seek_time_ = TimeDeltaToSbMediaTime(time);
+    seek_time_ = time;
   }
   demuxer_->Seek(time, BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerSeeked, this)));
@@ -500,17 +393,16 @@ void SbPlayerPipeline::SetVolume(float volume) {
 TimeDelta SbPlayerPipeline::GetMediaTime() const {
   base::AutoLock auto_lock(lock_);
 
-  if (!SbPlayerIsValid(player_)) {
+  if (!player_) {
     return TimeDelta();
   }
   if (!seek_cb_.is_null()) {
-    return SbMediaTimeToTimeDelta(seek_time_);
+    return seek_time_;
   }
-  SbPlayerInfo info;
-  SbPlayerGetInfo(player_, &info);
-  statistics_.video_frames_decoded = info.total_video_frames;
-  statistics_.video_frames_dropped = info.dropped_video_frames;
-  return SbMediaTimeToTimeDelta(info.current_media_pts);
+  base::TimeDelta media_time;
+  player_->GetInfo(&statistics_.video_frames_decoded,
+                   &statistics_.video_frames_dropped, &media_time);
+  return media_time;
 }
 
 Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
@@ -564,7 +456,7 @@ PipelineStatistics SbPlayerPipeline::GetStatistics() const {
 
 Pipeline::SetBoundsCB SbPlayerPipeline::GetSetBoundsCB() {
 #if SB_IS(PLAYER_PUNCHED_OUT)
-  return base::Bind(&SetBoundsCaller::SetBounds, set_bounds_caller_);
+  return base::Bind(&SbPlayerSetBoundsHelper::SetBounds, set_bounds_helper_);
 #else   // SB_IS(PLAYER_PUNCHED_OUT)
   return Pipeline::SetBoundsCB();
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
@@ -594,16 +486,16 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
 void SbPlayerPipeline::SetVolumeTask(float volume) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  if (SbPlayerIsValid(player_)) {
-    SbPlayerSetVolume(player_, volume_);
+  if (player_) {
+    player_->SetVolume(volume_);
   }
 }
 
 void SbPlayerPipeline::SetPlaybackRateTask(float volume) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  if (SbPlayerIsValid(player_)) {
-    SbPlayerSetPause(player_, playback_rate_ == 0.0);
+  if (player_) {
+    player_->SetPause(playback_rate_ == 0.0);
   }
 }
 
@@ -654,40 +546,35 @@ void SbPlayerPipeline::AddBufferedTimeRange(TimeDelta start, TimeDelta end) {
 void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  if (suspended_) {
+    message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system));
+    return;
+  }
+
+  // TODO:  Check |suspended_| here as the pipeline can be suspended before the
+  // player is created.  In this case we should delay creating the player as the
+  // creation of player may fail.
   const AudioDecoderConfig& audio_config =
       demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
-  SbMediaAudioHeader audio_header;
-  audio_header.format_tag = 0x00ff;
-  audio_header.number_of_channels =
-      ChannelLayoutToChannelCount(audio_config.channel_layout());
-  audio_header.samples_per_second = audio_config.samples_per_second();
-  audio_header.average_bytes_per_second = 1;
-  audio_header.block_alignment = 4;
-  audio_header.bits_per_sample = audio_config.bits_per_channel();
-  audio_header.audio_specific_config_size = 0;
-
   const VideoDecoderConfig& video_config =
       demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
 
-  SbMediaAudioCodec audio_codec =
-      SbMediaAudioCodecFromMediaAudioCodec(audio_config.codec());
-  SbMediaVideoCodec video_codec =
-      SbMediaVideoCodecFromMediaVideoCodec(video_config.codec());
-
   {
     base::AutoLock auto_lock(lock_);
-    player_ =
-        SbPlayerCreate(window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION,
-                       drm_system, &audio_header, DeallocateSampleCB,
-                       DecoderStatusCB, PlayerStatusCB, this);
+    player_.reset(new StarboardPlayer(message_loop_, audio_config, video_config,
+                                      window_, drm_system, this,
+                                      set_bounds_helper_.get()));
     SetPlaybackRateTask(playback_rate_);
     SetVolumeTask(volume_);
   }
 
-  if (SbPlayerIsValid(player_)) {
-    set_bounds_caller_->SetPlayer(player_);
+  if (player_->IsValid()) {
     return;
   }
+
+  player_.reset();
 
   PipelineStatusCB seek_cb;
   {
@@ -750,14 +637,8 @@ void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (status == PIPELINE_OK) {
-    if (audio_read_in_progress_ || video_read_in_progress_) {
-      message_loop_->PostTask(
-          FROM_HERE,
-          base::Bind(&SbPlayerPipeline::OnDemuxerSeeked, this, status));
-      return;
-    }
-    ++ticket_;
-    SbPlayerSeek(player_, seek_time_, ticket_);
+    flushing_ = false;
+    player_->Seek(seek_time_);
   }
 }
 
@@ -773,7 +654,6 @@ void SbPlayerPipeline::OnDemuxerStopped() {
 
 void SbPlayerPipeline::OnDemuxerStreamRead(
     DemuxerStream::Type type,
-    int ticket,
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(type == DemuxerStream::AUDIO || type == DemuxerStream::VIDEO)
@@ -782,21 +662,14 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   if (!message_loop_->BelongsToCurrentThread()) {
     message_loop_->PostTask(
         FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this,
-                              type, ticket, status, buffer));
+                              type, status, buffer));
     return;
   }
 
   scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(type);
 
-  if (ticket != ticket_) {
-    if (status == DemuxerStream::kConfigChanged) {
-      UpdateDecoderConfig(stream);
-    }
-    return;
-  }
-
   // In case if Stop() has been called.
-  if (!SbPlayerIsValid(player_)) {
+  if (!player_) {
     return;
   }
 
@@ -824,115 +697,57 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     NOTIMPLEMENTED() << "Update decoder config";
     UpdateDecoderConfig(stream);
     stream->Read(
-        base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type, ticket));
+        base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
     return;
-  }
-
-  bool is_encrypted = IsEncrypted(stream);
-  SbDrmSampleInfo drm_info;
-  SbDrmSubSampleMapping subsample_mapping;
-
-  if (is_encrypted && !buffer->IsEndOfStream()) {
-    FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
   if (type == DemuxerStream::AUDIO) {
     audio_read_in_progress_ = false;
-    if (buffer->IsEndOfStream()) {
-      SbPlayerWriteEndOfStream(player_, kSbMediaTypeAudio);
-      return;
-    }
-    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->GetData());
-    if (iter == decoding_buffers_.end()) {
-      decoding_buffers_[buffer->GetData()] = std::make_pair(buffer, 1);
-    } else {
-      ++iter->second.second;
-    }
-    SbPlayerWriteSample(player_, kSbMediaTypeAudio, buffer->GetData(),
-                        buffer->GetDataSize(),
-                        TimeDeltaToSbMediaTime(buffer->GetTimestamp()), NULL,
-                        is_encrypted ? &drm_info : NULL);
-    return;
+  } else {
+    video_read_in_progress_ = false;
   }
 
-  video_read_in_progress_ = false;
-  if (buffer->IsEndOfStream()) {
-    SbPlayerWriteEndOfStream(player_, kSbMediaTypeVideo);
-    return;
-  }
-  SbMediaVideoSampleInfo video_info;
-  NOTIMPLEMENTED() << "Fill video_info";
-  video_info.is_key_frame = false;
-  video_info.frame_width = 1;
-  video_info.frame_height = 1;
-  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->GetData());
-  if (iter == decoding_buffers_.end()) {
-    decoding_buffers_[buffer->GetData()] = std::make_pair(buffer, 1);
-  } else {
-    ++iter->second.second;
-  }
-  SbPlayerWriteSample(player_, kSbMediaTypeVideo, buffer->GetData(),
-                      buffer->GetDataSize(),
-                      TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
-                      &video_info, is_encrypted ? &drm_info : NULL);
+  player_->WriteBuffer(type, buffer);
 }
 
-void SbPlayerPipeline::OnDecoderStatus(SbMediaType type,
-                                       SbPlayerDecoderState state,
-                                       int ticket) {
+void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
   // In case if Stop() has been called.
-  if (!SbPlayerIsValid(player_)) {
-    return;
-  }
-  if (ticket != ticket_) {
+  if (!player_) {
     return;
   }
 
-  switch (state) {
-    case kSbPlayerDecoderStateNeedsData:
-      break;
-    case kSbPlayerDecoderStateBufferFull:
-      DLOG(WARNING) << "kSbPlayerDecoderStateBufferFull has been deprecated.";
-      return;
-    case kSbPlayerDecoderStateDestroyed:
-      return;
+  if (flushing_) {
+    return;
   }
 
-  DCHECK_EQ(state, kSbPlayerDecoderStateNeedsData);
-  if (type == kSbMediaTypeAudio) {
+  if (type == DemuxerStream::AUDIO) {
     if (audio_read_in_progress_) {
       return;
     }
     audio_read_in_progress_ = true;
   } else {
-    DCHECK_EQ(type, kSbMediaTypeVideo);
+    DCHECK_EQ(type, DemuxerStream::VIDEO);
     if (video_read_in_progress_) {
       return;
     }
     video_read_in_progress_ = true;
   }
-  DemuxerStream::Type stream_type =
-      (type == kSbMediaTypeAudio) ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
-  scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(stream_type);
-  stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this,
-                          stream_type, ticket));
+  scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(type);
+  stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
 }
 
-void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
+void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // In case if Stop() has been called.
-  if (!SbPlayerIsValid(player_)) {
-    return;
-  }
-  if (ticket != ticket_) {
+  if (!player_) {
     return;
   }
   switch (state) {
     case kSbPlayerStateInitialized:
-      ++ticket_;
-      SbPlayerSeek(player_, 0, ticket_);
+      NOTREACHED();
       break;
     case kSbPlayerStatePrerolling:
       break;
@@ -960,57 +775,10 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state, int ticket) {
   }
 }
 
-void SbPlayerPipeline::OnDeallocateSample(const void* sample_buffer) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
-  DCHECK(iter != decoding_buffers_.end());
-  if (iter == decoding_buffers_.end()) {
-    LOG(ERROR) << "SbPlayerPipeline::OnDeallocateSample encounters unknown "
-               << "sample_buffer " << sample_buffer;
-    return;
-  }
-  --iter->second.second;
-  if (iter->second.second == 0) {
-    decoding_buffers_.erase(iter);
-  }
-}
-
-// static
-void SbPlayerPipeline::DecoderStatusCB(SbPlayer player,
-                                       void* context,
-                                       SbMediaType type,
-                                       SbPlayerDecoderState state,
-                                       int ticket) {
-  SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
-  pipeline->message_loop_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerPipeline::OnDecoderStatus, pipeline, type,
-                            state, ticket));
-}
-
-// static
-void SbPlayerPipeline::PlayerStatusCB(SbPlayer player,
-                                      void* context,
-                                      SbPlayerState state,
-                                      int ticket) {
-  SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
-  pipeline->message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&SbPlayerPipeline::OnPlayerStatus, pipeline, state, ticket));
-}
-
-// static
-void SbPlayerPipeline::DeallocateSampleCB(SbPlayer player,
-                                          void* context,
-                                          const void* sample_buffer) {
-  SbPlayerPipeline* pipeline = reinterpret_cast<SbPlayerPipeline*>(context);
-  pipeline->message_loop_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerPipeline::OnDeallocateSample, pipeline,
-                            sample_buffer));
-}
-
 void SbPlayerPipeline::UpdateDecoderConfig(
     const scoped_refptr<DemuxerStream>& stream) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
   if (stream->type() == DemuxerStream::AUDIO) {
     stream->audio_decoder_config();
   } else {
@@ -1018,7 +786,47 @@ void SbPlayerPipeline::UpdateDecoderConfig(
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
     base::AutoLock auto_lock(lock_);
     natural_size_ = decoder_config.natural_size();
+    player_->UpdateVideoResolution(static_cast<int>(natural_size_.width()),
+                                   static_cast<int>(natural_size_.height()));
   }
+}
+
+void SbPlayerPipeline::SuspendTask(base::WaitableEvent* done_event) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(done_event);
+  DCHECK(!suspended_);
+
+  if (suspended_) {
+    done_event->Signal();
+    return;
+  }
+
+  if (player_) {
+    player_->Suspend();
+  }
+
+  suspended_ = true;
+
+  done_event->Signal();
+}
+
+void SbPlayerPipeline::ResumeTask(base::WaitableEvent* done_event) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(done_event);
+  DCHECK(suspended_);
+
+  if (!suspended_) {
+    done_event->Signal();
+    return;
+  }
+
+  if (player_) {
+    player_->Resume();
+  }
+
+  suspended_ = false;
+
+  done_event->Signal();
 }
 
 }  // namespace
