@@ -54,7 +54,7 @@ TEST(SbMemoryMapTest, DoesNotLeak) {
   // Map 4x the amount of system memory (sequentially, not at once).
   int64_t bytes_mapped = SbSystemGetTotalCPUMemory() / 4;
   for (int64_t total_bytes_mapped = 0;
-       total_bytes_mapped < SbSystemGetTotalCPUMemory() * 4;
+       total_bytes_mapped < SbSystemGetTotalCPUMemory() * 3;
        total_bytes_mapped += bytes_mapped) {
     void* memory = SbMemoryMap(bytes_mapped, kSbMemoryMapProtectWrite, "test");
     ASSERT_NE(kFailed, memory);
@@ -102,7 +102,8 @@ static int sum(int x, int y) {
   return x + y;
 }
 
-// It's not clear how portable this test is.
+// This test is known to run on x64, ARM, and MIPS32 with MIPS32 and MIPS16
+// instructions.
 TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
   void* memory = SbMemoryMap(
       kSize, kSbMemoryMapProtectReadWrite | kSbMemoryMapProtectExec, "test");
@@ -120,9 +121,19 @@ TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
   // cast to a uint* which will be implicitly casted to a void* below.
   uint8_t* sum_function_start = reinterpret_cast<uint8_t*>(&sum);
 
+  // MIPS16 instruction are kept odd addresses to differentiate between that and
+  // MIPS32 instructions. Most other instructions are aligned to at least even
+  // addresses, so this code should do nothing for those architectures.
+  // https://www.linux-mips.org/wiki/MIPS16
+  ptrdiff_t sum_function_offset =
+      sum_function_start -
+      reinterpret_cast<uint8_t*>(
+          reinterpret_cast<intptr_t>(sum_function_start) & ~0x1);
+  sum_function_start -= sum_function_offset;
+
   // Get the last address of the page that |sum_function_start| is on.
   uint8_t* sum_function_page_end = reinterpret_cast<uint8_t*>(
-      (reinterpret_cast<intptr_t>(&sum) / SB_MEMORY_PAGE_SIZE) *
+      (reinterpret_cast<intptr_t>(sum_function_start) / SB_MEMORY_PAGE_SIZE) *
           SB_MEMORY_PAGE_SIZE +
       SB_MEMORY_PAGE_SIZE);
   ASSERT_TRUE(SbMemoryIsAligned(sum_function_page_end, SB_MEMORY_PAGE_SIZE));
@@ -132,8 +143,10 @@ TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
   ASSERT_LE(bytes_to_copy, SB_MEMORY_PAGE_SIZE);
 
   SbMemoryCopy(memory, sum_function_start, bytes_to_copy);
-  SumFunction mapped_function =
-      reinterpret_cast<SumFunction>(reinterpret_cast<char*>(memory));
+  SbMemoryFlush(memory, bytes_to_copy);
+
+  SumFunction mapped_function = reinterpret_cast<SumFunction>(
+      reinterpret_cast<uint8_t*>(memory) + sum_function_offset);
 
   EXPECT_EQ(4, (*mapped_function)(1, 3));
   EXPECT_EQ(5, (*mapped_function)(10, -5));

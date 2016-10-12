@@ -181,6 +181,14 @@ class WebModule {
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Suspends the WebModule from creating new render trees, and releases this
+  // web module's reference to the resource provider, clearing it out and
+  // releasing all references to any resources created from it.
+  void Suspend();
+  // Resumes the WebModule, possibly with a new resource provider.  This method
+  // can only be called if we have previously suspended the WebModule.
+  void Resume(render_tree::ResourceProvider* resource_provider);
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

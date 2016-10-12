@@ -44,6 +44,8 @@ class Decoder {
 
   // This is called when all data are sent in and decoding should be finalized.
   virtual void Finish() = 0;
+
+  virtual void Abort() { NOTREACHED() << "Abort not supported."; }
 };
 
 }  // namespace loader

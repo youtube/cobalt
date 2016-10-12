@@ -113,6 +113,13 @@ class BrowserModule {
   // Change the network proxy settings while the application is running.
   void SetProxy(const std::string& proxy_rules);
 
+  // Suspends the browser module from activity, and releases all graphical
+  // resources, placing the application into a low-memory state.
+  void Suspend();
+
+  // Undoes the call to Suspend(), returning to normal functionality.
+  void Resume();
+
  private:
   // Recreates web module with the given URL.
   void NavigateInternal(const GURL& url);
@@ -320,6 +327,8 @@ class BrowserModule {
   // this object) and read from another. This lock is used to
   // ensure synchronous access.
   base::Lock quit_lock_;
+
+  bool suspended_;
 };
 
 }  // namespace browser

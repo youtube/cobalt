@@ -68,6 +68,9 @@ class LayoutManager {
                 LayoutStatTracker* layout_stat_tracker);
   ~LayoutManager();
 
+  void Suspend();
+  void Resume();
+
  private:
   class Impl;
   const scoped_ptr<Impl> impl_;

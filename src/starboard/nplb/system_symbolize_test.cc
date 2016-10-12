@@ -26,8 +26,9 @@ TEST(SbSystemSymbolizeTest, SunnyDay) {
   EXPECT_NE(static_cast<void*>(NULL), stack[0]);
   char buffer[1024] = {0};
   bool result = SbSystemSymbolize(stack[0], buffer, SB_ARRAY_SIZE_INT(buffer));
-  EXPECT_TRUE(result);
-  EXPECT_LT(0, SbStringGetLength(buffer));
+  if (result) {
+    EXPECT_LT(0, SbStringGetLength(buffer));
+  }
 }
 
 TEST(SbSystemSymbolizeTest, RainyDay) {

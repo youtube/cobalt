@@ -109,6 +109,9 @@ class WebModule::Impl {
   void CreateDebugServerIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  void Suspend();
+  void Resume(render_tree::ResourceProvider* resource_provider);
+
  private:
   class DocumentLoadedObserver;
 
@@ -142,6 +145,9 @@ class WebModule::Impl {
   // Simple flag used for basic error checking.
   bool is_running_;
 
+  // Object that provides renderer resources like images and fonts.
+  render_tree::ResourceProvider* resource_provider_;
+
   // CSS parser.
   scoped_ptr<css_parser::Parser> css_parser_;
 
@@ -150,6 +156,10 @@ class WebModule::Impl {
 
   // FetcherFactory that is used to create a fetcher according to URL.
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+
+  // LoaderFactory that is used to acquire references to resources from a
+  // URL.
+  scoped_ptr<loader::LoaderFactory> loader_factory_;
 
   // ImageCache that is used to manage image cache logic.
   scoped_ptr<loader::image::ImageCache> image_cache_;
@@ -212,7 +222,6 @@ class WebModule::Impl {
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
   scoped_ptr<debug::RenderOverlay> debug_overlay_;
-  render_tree::ResourceProvider* resource_provider_;
 
   // The core of the debugging system, described here:
   // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y
@@ -250,6 +259,8 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
 
 WebModule::Impl::Impl(const ConstructionData& data)
     : name_(data.options.name), is_running_(false) {
+  resource_provider_ = data.resource_provider;
+
   css_parser_ = css_parser::Parser::Create();
   DCHECK(css_parser_);
 
@@ -262,11 +273,14 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.network_module, data.options.extra_web_file_dir));
   DCHECK(fetcher_factory_);
 
+  loader_factory_.reset(
+      new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_));
+
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
       base::StringPrintf("Memory.%s.ImageCache", name_.c_str()),
       static_cast<uint32>(data.options.image_cache_capacity),
-      data.resource_provider, fetcher_factory_.get());
+      loader_factory_.get());
   DCHECK(image_cache_);
 
   reduced_image_cache_capacity_manager_.reset(
@@ -278,7 +292,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   remote_typeface_cache_ = loader::font::CreateRemoteTypefaceCache(
       base::StringPrintf("Memory.%s.RemoteTypefaceCache", name_.c_str()),
       static_cast<uint32>(data.options.remote_typeface_cache_capacity),
-      data.resource_provider, fetcher_factory_.get());
+      loader_factory_.get());
   DCHECK(remote_typeface_cache_);
 
   local_storage_database_.reset(
@@ -308,7 +322,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-      data.resource_provider, image_cache_.get(),
+      &resource_provider_, image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       local_storage_database_.get(), data.media_module, data.media_module,
       execution_state_.get(), script_runner_.get(),
@@ -349,10 +363,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
 
+  resource_provider_ = data.resource_provider;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset(
       new debug::RenderOverlay(data.render_tree_produced_callback));
-  resource_provider_ = data.resource_provider;
 #endif  // ENABLE_DEBUG_CONSOLE
 
 #if !defined(COBALT_FORCE_CSP)
@@ -533,6 +548,44 @@ void WebModule::Impl::InjectCustomWindowAttributes(
        iter != attributes.end(); ++iter) {
     global_environment_->Bind(iter->first, iter->second.Run());
   }
+}
+
+void WebModule::Impl::Suspend() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Suspend()");
+  DCHECK(resource_provider_);
+
+  // Stop the generation of render trees.
+  layout_manager_->Suspend();
+
+  // Clear out all image resources from the image cache.
+  image_cache_->Purge();
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // The debug overlay may be holding onto a render tree, clear that out.
+  debug_overlay_->ClearInput();
+#endif
+
+  // Clear out the loader factory's resource provider, possibly aborting any
+  // in-progress loads.
+  loader_factory_->Suspend();
+
+  // Finally mark that we have no resource provider.
+  resource_provider_ = NULL;
+}
+
+void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Resume()");
+  DCHECK(resource_provider);
+  DCHECK(!resource_provider_);
+
+  resource_provider_ = resource_provider;
+
+  loader_factory_->Resume(resource_provider_);
+
+  // Permit render trees to be generated again.  Layout will have been
+  // invalidated with the call to Suspend(), so the layout manager's first task
+  // will be to perform a full re-layout.
+  layout_manager_->Resume();
 }
 
 WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)
@@ -744,6 +797,25 @@ debug::DebugServer* WebModule::GetDebugServer() {
   return impl_->debug_server();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+void WebModule::Suspend() {
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Suspend, base::Unretained(impl_.get())));
+
+  base::WaitableEvent resource_provider_released(true, false);
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
+                            base::Unretained(&resource_provider_released)));
+
+  resource_provider_released.Wait();
+}
+
+void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::Resume,
+                            base::Unretained(impl_.get()), resource_provider));
+}
 
 }  // namespace browser
 }  // namespace cobalt

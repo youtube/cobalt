@@ -51,6 +51,9 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // Called to perform a synchronous layout.
   void DoSynchronousLayout();
 
+  void Suspend();
+  void Resume();
+
  private:
   void StartLayoutTimer();
   void DoLayoutAndProduceRenderTree();
@@ -88,6 +91,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // the box tree remains valid.
   scoped_refptr<BlockLevelBlockContainerBox> initial_containing_block_;
 
+  bool suspended_;
+
   DISALLOW_COPY_AND_ASSIGN(Impl);
 };
 
@@ -108,7 +113,8 @@ LayoutManager::Impl::Impl(
       layout_timer_(true, true, true),
       dom_max_element_depth_(dom_max_element_depth),
       layout_refresh_rate_(layout_refresh_rate),
-      layout_stat_tracker_(layout_stat_tracker) {
+      layout_stat_tracker_(layout_stat_tracker),
+      suspended_(false) {
   window_->document()->AddObserver(this);
   window_->SetSynchronousLayoutCallback(
       base::Bind(&Impl::DoSynchronousLayout, base::Unretained(this)));
@@ -166,11 +172,35 @@ void LayoutManager::Impl::OnMutation() {
 
 void LayoutManager::Impl::DoSynchronousLayout() {
   TRACE_EVENT0("cobalt::layout", "LayoutManager::Impl::DoSynchronousLayout()");
+  if (suspended_) {
+    return;
+  }
+
   layout::UpdateComputedStylesAndLayoutBoxTree(
       locale_, window_->document(), dom_max_element_depth_,
       used_style_provider_.get(), layout_stat_tracker_,
       line_break_iterator_.get(), character_break_iterator_.get(),
       &initial_containing_block_);
+}
+
+void LayoutManager::Impl::Suspend() {
+  // Mark that we are suspended so that we don't try to perform any layouts.
+  suspended_ = true;
+
+  // Clear our reference to the initial containing block to allow any resources
+  // like images that were referenced by it to be released.
+  initial_containing_block_ = NULL;
+
+  // Invalidate the document's layout so that all references to any resources
+  // such as images will be released.
+  window_->document()->InvalidateLayout();
+}
+
+void LayoutManager::Impl::Resume() {
+  // Mark that we are no longer suspended and indicate that the layout is
+  // dirty since when Suspend() was called we invalidated our previous layout.
+  layout_dirty_ = true;
+  suspended_ = false;
 }
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -210,6 +240,8 @@ void LayoutManager::Impl::StartLayoutTimer() {
 void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   TRACE_EVENT0("cobalt::layout",
                "LayoutManager::Impl::DoLayoutAndProduceRenderTree()");
+
+  if (suspended_) return;
 
   const scoped_refptr<dom::Document>& document = window_->document();
 
@@ -279,6 +311,9 @@ LayoutManager::LayoutManager(
                      layout_stat_tracker)) {}
 
 LayoutManager::~LayoutManager() {}
+
+void LayoutManager::Suspend() { impl_->Suspend(); }
+void LayoutManager::Resume() { impl_->Resume(); }
 
 }  // namespace layout
 }  // namespace cobalt

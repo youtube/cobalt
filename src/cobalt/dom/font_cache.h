@@ -171,7 +171,7 @@ class FontCache {
   typedef std::map<CharacterFallbackKey, CharacterFallbackTypefaceMap>
       CharacterFallbackTypefaceMaps;
 
-  FontCache(render_tree::ResourceProvider* resource_provider,
+  FontCache(render_tree::ResourceProvider** resource_provider,
             loader::font::RemoteTypefaceCache* remote_typeface_cache,
             const base::Closure& external_typeface_load_event_callback,
             const std::string& language);
@@ -233,6 +233,10 @@ class FontCache {
                      render_tree::FontVector* maybe_used_fonts);
 
  private:
+  render_tree::ResourceProvider* resource_provider() const {
+    return *resource_provider_;
+  }
+
   void ProcessInactiveFontLists(const base::TimeTicks& current_time);
   void ProcessInactiveFonts(const base::TimeTicks& current_time);
 
@@ -268,7 +272,7 @@ class FontCache {
   // so that they'll be re-requested from the cache.
   void OnRemoteTypefaceLoadEvent(const GURL& url);
 
-  render_tree::ResourceProvider* const resource_provider_;
+  render_tree::ResourceProvider** resource_provider_;
 
   // TODO: Explore eliminating the remote typeface cache and moving its
   // logic into the font cache when the loader interface improves.

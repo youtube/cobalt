@@ -32,6 +32,8 @@ class UserLog {
     kAppStatusIndex,
     kAppSuspendCountIndex,
     kAppResumeCountIndex,
+    kAppPauseCountIndex,
+    kAppUnpauseCountIndex,
     kNetworkStatusIndex,
     kNetworkConnectCountIndex,
     kNetworkDisconnectCountIndex,

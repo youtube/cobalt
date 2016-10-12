@@ -113,6 +113,7 @@ class Application {
     kUninitializedAppStatus,
     kRunningAppStatus,
     kPausedAppStatus,
+    kSuspendedAppStatus,
     kWillQuitAppStatus,
     kQuitAppStatus,
     kShutDownAppStatus,
@@ -156,6 +157,8 @@ class Application {
   static AppStatus app_status_;
   static int app_suspend_count_;
   static int app_resume_count_;
+  static int app_pause_count_;
+  static int app_unpause_count_;
 
   static NetworkStatus network_status_;
   static int network_connect_count_;
