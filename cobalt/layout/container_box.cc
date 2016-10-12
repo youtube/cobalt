@@ -400,7 +400,7 @@ namespace {
 
 Vector2dLayoutUnit GetOffsetFromContainingBlockToStackingContext(
     Box* child_box) {
-  DCHECK(child_box->IsPositioned());
+  DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
 
   Vector2dLayoutUnit relative_position;
   for (Box *containing_block = child_box->GetContainingBlock(),
@@ -454,7 +454,7 @@ Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
     if (!current_box) {
       // Positioned elements may have their containing block farther
       // up the hierarchy than the stacking context, so handle this case here.
-      DCHECK(child_box->IsPositioned());
+      DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
       return -GetOffsetFromContainingBlockToStackingContext(child_box);
     }
 #if !defined(NDEBUG)
