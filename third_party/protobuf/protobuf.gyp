@@ -6,6 +6,21 @@
   'conditions': [
     ['use_system_protobuf==0', {
       'conditions': [
+        ['OS!="starboard" and actual_target_arch=="win"', {
+          'target_defaults': {
+            'msvs_disabled_warnings': [
+              # forcing value to bool 'true' or 'false' (performance warning)
+              4800,
+            ],
+          },
+        }],
+        ['OS!="starboard" and actual_target_arch=="ps3"', {
+          'target_defaults': {
+            'cflags_cc_host': [
+              '-Wno-unused-result',
+            ],
+          },
+        }],
         ['OS!="win"', {
           'variables': {
             'config_h_dir':

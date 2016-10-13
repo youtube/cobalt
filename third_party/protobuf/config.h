@@ -58,8 +58,11 @@
 /* Define to 1 if you have the `mkdir' function. */
 #define HAVE_MKDIR 1
 
+// Starboard has its own thread management.
+#ifndef STARBOARD
 /* Define if you have POSIX threads libraries and header files. */
 #define HAVE_PTHREAD 1
+#endif  // STARBOARD
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
