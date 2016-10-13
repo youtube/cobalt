@@ -89,9 +89,15 @@ std::string URLUtils::hash() const {
   return url_.has_ref() ? "#" + url_.ref() : "";
 }
 
+// Algorithm for set_hash:
+//   https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-urlutils-hash
 void URLUtils::set_hash(const std::string& hash) {
+  // 3. Let input be the given value with a single leading "#" removed, if any.
+  std::string hash_value =
+      !hash.empty() && hash[0] == '#' ? hash.substr(1) : hash;
+
   GURL::Replacements replacements;
-  replacements.SetRefStr(hash);
+  replacements.SetRefStr(hash_value);
   GURL new_url = url_.ReplaceComponents(replacements);
   RunPreUpdateSteps(new_url, "");
 }
@@ -100,9 +106,15 @@ std::string URLUtils::search() const {
   return url_.has_query() ? "?" + url_.query() : "";
 }
 
+// Algorithm for set_search:
+//   https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-urlutils-search
 void URLUtils::set_search(const std::string& search) {
+  // 3. Let input be the given value with a single leading "?" removed, if any.
+  std::string search_value =
+      !search.empty() && search[0] == '?' ? search.substr(1) : search;
+
   GURL::Replacements replacements;
-  replacements.SetQueryStr(search);
+  replacements.SetQueryStr(search_value);
   GURL new_url = url_.ReplaceComponents(replacements);
   RunPreUpdateSteps(new_url, "");
 }
