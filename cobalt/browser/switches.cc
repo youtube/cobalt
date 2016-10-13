@@ -52,6 +52,9 @@ const char kIgnoreCertificateErrors[] = "ignore_certificate_errors";
 // taken from an external input device (like a controller).
 const char kInputFuzzer[] = "input_fuzzer";
 
+// Set the minimum logging level: info|warning|error|fatal.
+const char kMinLogLevel[] = "min_log_level";
+
 // Use the NullAudioStreamer. Audio will be decoded but will not play back. No
 // audio output library will be initialized or used.
 const char kNullAudioStreamer[] = "null_audio_streamer";
