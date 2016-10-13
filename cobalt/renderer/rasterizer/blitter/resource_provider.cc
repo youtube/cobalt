@@ -92,6 +92,13 @@ scoped_refptr<Typeface> ResourceProvider::GetLocalTypeface(
                                                    font_style);
 }
 
+scoped_refptr<render_tree::Typeface>
+ResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
+    const std::string& font_face_name) {
+  return skia_resource_provider_->GetLocalTypefaceByFaceNameIfAvailable(
+      font_face_name);
+}
+
 scoped_refptr<Typeface> ResourceProvider::GetCharacterFallbackTypeface(
     int32 utf32_character, FontStyle font_style, const std::string& language) {
   return skia_resource_provider_->GetCharacterFallbackTypeface(

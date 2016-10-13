@@ -155,7 +155,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
         return TryGetRemoteFont(source_iterator->GetUrl(), size, state);
       } else {
         scoped_refptr<render_tree::Font> font =
-            TryGetLocalFont(source_iterator->GetName(), style, size, state);
+            TryGetLocalFontByFaceName(source_iterator->GetName(), size, state);
         if (font != NULL) {
           return font;
         }
@@ -283,6 +283,7 @@ void FontCache::ProcessInactiveFonts(const base::TimeTicks& current_time) {
 
 const scoped_refptr<render_tree::Typeface>& FontCache::GetCachedLocalTypeface(
     const scoped_refptr<render_tree::Typeface>& typeface) {
+  DCHECK(typeface);
   // Check to see if a typeface with a matching id is already in the cache. If
   // it is not, then add the passed in typeface to the cache.
   scoped_refptr<render_tree::Typeface>& cached_typeface =
@@ -308,6 +309,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
   // completed or the timer expires.
   if (requested_remote_typeface_iterator ==
       requested_remote_typeface_cache_.end()) {
+    DLOG(INFO) << "Requested remote font from " << url;
     // Create the remote typeface load event's callback. This callback occurs on
     // successful loads, failed loads, and when the request's timer expires.
     base::Closure typeface_load_event_callback = base::Bind(
@@ -317,7 +319,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
     // the iterator from the return value of the map insertion.
     requested_remote_typeface_iterator =
         requested_remote_typeface_cache_
-            .insert(std::make_pair(
+            .insert(RequestedRemoteTypefaceMap::value_type(
                 url, new RequestedRemoteTypefaceInfo(
                          cached_remote_typeface, typeface_load_event_callback)))
             .first;
@@ -346,6 +348,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
     const std::string& family, render_tree::FontStyle style, float size,
     FontListFont::State* state) {
   DCHECK(resource_provider());
+  DCHECK(resource_provider() != NULL);
   // Only request the local font from the resource provider if the family is
   // empty or the resource provider actually has the family. The reason for this
   // is that the resource provider's |GetLocalTypeface()| is guaranteed to
@@ -363,6 +366,28 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
             resource_provider()->GetLocalTypeface(family.c_str(), style)),
         size);
   }
+}
+
+scoped_refptr<render_tree::Font> FontCache::TryGetLocalFontByFaceName(
+    const std::string& font_face, float size, FontListFont::State* state) {
+  do {
+    if (font_face.empty()) {
+      break;
+    }
+    const scoped_refptr<render_tree::Typeface>& typeface(
+        resource_provider()->GetLocalTypefaceByFaceNameIfAvailable(font_face));
+    if (!typeface) {
+      break;
+    }
+    const scoped_refptr<render_tree::Typeface>& typeface_cached(
+        GetCachedLocalTypeface(typeface));
+
+    *state = FontListFont::kLoadedState;
+    return GetFontFromTypefaceAndSize(typeface_cached, size);
+  } while (false);
+
+  *state = FontListFont::kUnavailableState;
+  return NULL;
 }
 
 void FontCache::OnRemoteTypefaceLoadEvent(const GURL& url) {
