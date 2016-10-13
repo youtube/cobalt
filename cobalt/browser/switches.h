@@ -31,6 +31,7 @@ extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
 extern const char kIgnoreCertificateErrors[];
 extern const char kInputFuzzer[];
+extern const char kMinLogLevel[];
 extern const char kNullAudioStreamer[];
 extern const char kNullSavegame[];
 extern const char kPartialLayout[];
