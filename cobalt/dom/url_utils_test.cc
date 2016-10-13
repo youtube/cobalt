@@ -92,6 +92,11 @@ TEST(URLUtilsTest, SetHashShouldWorkAsExpected) {
   EXPECT_TRUE(url_utils.url().is_valid());
   EXPECT_EQ("https://user:pass@google.com:99/foo;bar?q=a#hash",
             url_utils.href());
+
+  url_utils.set_hash("#hash2");
+  EXPECT_TRUE(url_utils.url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:99/foo;bar?q=a#hash2",
+            url_utils.href());
 }
 
 TEST(URLUtilsTest, SetSearchShouldWorkAsExpected) {
@@ -99,6 +104,11 @@ TEST(URLUtilsTest, SetSearchShouldWorkAsExpected) {
   url_utils.set_search("b=c");
   EXPECT_TRUE(url_utils.url().is_valid());
   EXPECT_EQ("https://user:pass@google.com:99/foo;bar?b=c#ref",
+            url_utils.href());
+
+  url_utils.set_search("?d=e");
+  EXPECT_TRUE(url_utils.url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:99/foo;bar?d=e#ref",
             url_utils.href());
 }
 
