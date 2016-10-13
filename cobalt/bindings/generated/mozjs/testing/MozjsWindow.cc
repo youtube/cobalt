@@ -489,12 +489,12 @@ JSBool fcn_getStackTrace(
       WrapperPrivate::GetFromObject(context, object);
   Window* impl =
       wrapper_private->wrappable<Window>().get();
-  MozjsGlobalEnvironment* global_environment =
+  MozjsGlobalEnvironment* callwith_global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(context,
-              impl->GetStackTrace(global_environment->GetStackTrace()),
+              impl->GetStackTrace(callwith_global_environment->GetStackTrace()),
               &result_value);
   }
   if (!exception_state.is_exception_set()) {
