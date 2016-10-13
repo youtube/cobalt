@@ -65,7 +65,7 @@ SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
   CHECK(SbBlitterIsSurfaceValid(surface_));
 }
 
-void SinglePlaneImage::EnsureInitialized() {}
+bool SinglePlaneImage::EnsureInitialized() { return false; }
 
 const SkBitmap& SinglePlaneImage::GetBitmap() const {
   // This function will only ever get called if the Skia software renderer needs

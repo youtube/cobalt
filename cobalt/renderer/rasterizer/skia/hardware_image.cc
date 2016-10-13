@@ -210,12 +210,14 @@ const SkBitmap& HardwareFrontendImage::GetBitmap() const {
   return backend_image_->GetBitmap();
 }
 
-void HardwareFrontendImage::EnsureInitialized() {
+bool HardwareFrontendImage::EnsureInitialized() {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   if (!initialize_backend_image_.is_null()) {
     initialize_backend_image_.Run();
     initialize_backend_image_.Reset();
+    return true;
   }
+  return false;
 }
 
 void HardwareFrontendImage::InitializeBackendImageFromImageData(
@@ -257,16 +259,18 @@ HardwareMultiPlaneImage::HardwareMultiPlaneImage(
 
 HardwareMultiPlaneImage::~HardwareMultiPlaneImage() {}
 
-void HardwareMultiPlaneImage::EnsureInitialized() {
+bool HardwareMultiPlaneImage::EnsureInitialized() {
   // A multi-plane image is not considered backend-initialized until all its
   // single-plane images are backend-initialized, thus we ensure that all
   // the component images are backend-initialized.
+  bool initialized = false;
   for (int i = 0; i < render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes;
        ++i) {
     if (planes_[i]) {
-      planes_[i]->EnsureInitialized();
+      initialized |= planes_[i]->EnsureInitialized();
     }
   }
+  return initialized;
 }
 
 }  // namespace skia
