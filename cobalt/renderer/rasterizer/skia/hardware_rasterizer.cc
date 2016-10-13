@@ -70,6 +70,8 @@ class HardwareRasterizer::Impl {
   scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
       const math::Size& size);
 
+  void ResetSkiaState();
+
   base::ThreadChecker thread_checker_;
 
   backend::GraphicsContextEGL* graphics_context_;
@@ -238,6 +240,8 @@ void HardwareRasterizer::Impl::Submit(
                        base::Unretained(this));
     RenderTreeNodeVisitor visitor(
         canvas, &create_scratch_surface_function,
+        base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
+                   base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
@@ -303,6 +307,8 @@ HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
     return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>();
   }
 }
+
+void HardwareRasterizer::Impl::ResetSkiaState() { gr_context_->resetContext(); }
 
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,

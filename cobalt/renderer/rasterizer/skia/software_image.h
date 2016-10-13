@@ -55,7 +55,7 @@ class SoftwareImage : public SinglePlaneImage {
 
   const SkBitmap& GetBitmap() const OVERRIDE { return bitmap_; }
 
-  void EnsureInitialized() OVERRIDE {}
+  bool EnsureInitialized() OVERRIDE { return false; }
 
  private:
   void Initialize(uint8_t* source_data,
@@ -95,7 +95,7 @@ class SoftwareMultiPlaneImage : public MultiPlaneImage {
     return planes_[plane_index]->GetBitmap();
   }
 
-  void EnsureInitialized() OVERRIDE {}
+  bool EnsureInitialized() OVERRIDE { return false; }
 
  private:
   math::Size size_;

@@ -72,13 +72,15 @@ namespace skia {
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SkCanvas* render_target,
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
+    const base::Closure& reset_skia_context_function,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache, Type visitor_type)
     : draw_state_(render_target),
       create_scratch_surface_function_(create_scratch_surface_function),
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache),
-      visitor_type_(visitor_type) {
+      visitor_type_(visitor_type),
+      reset_skia_context_function_(reset_skia_context_function) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -264,9 +266,9 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
 
   // Render our source sub-tree into the offscreen surface.
   {
-    RenderTreeNodeVisitor sub_visitor(canvas, create_scratch_surface_function_,
-                                      surface_cache_delegate_, surface_cache_,
-                                      kType_SubVisitor);
+    RenderTreeNodeVisitor sub_visitor(
+        canvas, create_scratch_surface_function_, reset_skia_context_function_,
+        surface_cache_delegate_, surface_cache_, kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -622,7 +624,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // This should be a quick operation, and it needs to happen eventually, so
   // if it is not done now, it will be done in the next frame, or the one after
   // that.
-  image->EnsureInitialized();
+  if (image->EnsureInitialized()) {
+    // EnsureInitialized() may make a number of GL calls that results in GL
+    // state being modified behind Skia's back, therefore we have Skia reset its
+    // state in this case.
+    if (!reset_skia_context_function_.is_null()) {
+      reset_skia_context_function_.Run();
+    }
+  }
 
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
