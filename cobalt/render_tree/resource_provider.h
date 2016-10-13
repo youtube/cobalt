@@ -107,6 +107,16 @@ class ResourceProvider {
   virtual scoped_refptr<Typeface> GetLocalTypeface(const char* font_family_name,
                                                    FontStyle font_style) = 0;
 
+  // Given a set of typeface information, this method returns the locally
+  // available typeface that best fits the specified parameters. In the case
+  // where no typeface is found that matches the font family name, NULL is
+  // returned.
+  //
+  // Font's typeface (aka face name) is combination of a style and a font
+  // family.  Font's style consists of weight, and a slant (but not size).
+  virtual scoped_refptr<Typeface> GetLocalTypefaceByFaceNameIfAvailable(
+      const std::string& font_face_name) = 0;
+
   // Given a UTF-32 character, a set of typeface information, and a language,
   // this method returns the best-fit locally available fallback typeface that
   // provides a glyph for the specified character. In the case where no fallback

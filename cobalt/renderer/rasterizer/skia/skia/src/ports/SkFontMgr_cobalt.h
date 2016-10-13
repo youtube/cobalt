@@ -26,7 +26,6 @@
 #include "cobalt/base/poller.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "SkFontHost.h"
-#include "SkFontHost_FreeType_common.h"
 #include "SkFontDescriptor.h"
 #include "SkFontMgr.h"
 #include "SkThread.h"
@@ -48,15 +47,25 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
  public:
   struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
     SkFontStyleSetEntry_Cobalt(const SkString& file_path, const int index,
-                               const SkFontStyle& style)
+                               const SkFontStyle& style,
+                               const std::string& full_name,
+                               const std::string& postscript_name)
         : font_file_path(file_path),
           ttc_index(index),
           font_style(style),
+          full_font_name(full_name.data(), full_name.size()),
+          font_postscript_name(postscript_name.data(), postscript_name.size()),
           typeface(NULL) {}
 
     const SkString font_file_path;
     const int ttc_index;
     const SkFontStyle font_style;
+
+    // these two members are declared as std::string since we have a hasher
+    // for std::string, but not SkString at this point.
+    const std::string full_font_name;
+    const std::string font_postscript_name;
+
     SkAutoTUnref<SkTypeface> typeface;
   };
 
@@ -129,7 +138,19 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   SkFontMgr_Cobalt(const char* directory,
                    const SkTArray<SkString, true>& default_fonts);
 
+  // Note: Unlike the other similar onMatch* functions, this function can return
+  // NULL.  This is so that we can try other things in case the match is not
+  // found.
+  SkTypeface* matchFaceNameOnlyIfFound(const std::string& font_face_name) const;
+
  protected:
+  // Note: These match*Name helper functions can return NULL.
+  SkTypeface* matchFullFontFaceName(const std::string& font_face_name) const;
+  SkTypeface* matchPostScriptName(const std::string& font_face_name) const;
+  SkTypeface* matchFullFontFaceNameHelper(
+      SkFontStyleSet_Cobalt* style_set,
+      SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* style) const;
+
   // From SkFontMgr
   virtual int onCountFamilies() const SK_OVERRIDE;
 
@@ -184,6 +205,20 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   //  the same (non-replicated) set of typefaces.
   typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToFamilyMap;
 
+  struct FontFaceInfo {
+    FontFaceInfo() : style_set_entry(NULL), style_set_entry_parent(NULL) {}
+    FontFaceInfo(SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* entry,
+                 SkFontStyleSet_Cobalt* parent)
+        : style_set_entry(entry), style_set_entry_parent(parent) {}
+
+    SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* style_set_entry;
+    SkFontStyleSet_Cobalt* style_set_entry_parent;
+  };
+
+  typedef base::hash_map<std::string, FontFaceInfo>
+      FullFontNameToFontFaceInfoMap;
+  typedef base::hash_map<std::string, FontFaceInfo> PostScriptToFontFaceInfoMap;
+
   void BuildNameToFamilyMap(const char* base_path,
                             SkTDArray<FontFamily*>* families);
   void FindDefaultFont(const SkTArray<SkString, true>& default_fonts);
@@ -223,6 +258,8 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   SkTArray<SkString> family_names_;
   NameToFamilyMap name_to_family_map_;
+  FullFontNameToFontFaceInfoMap fullfontname_to_fontface_info_map_;
+  PostScriptToFontFaceInfoMap postscriptname_to_fontface_info_map_;
 
   SkTArray<SkFontStyleSet_Cobalt*> fallback_families_;
 
