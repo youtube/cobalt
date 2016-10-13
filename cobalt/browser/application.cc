@@ -50,6 +50,9 @@
 #endif  // defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace browser {
@@ -61,7 +64,12 @@ const char kDefaultURL[] = "https://www.youtube.com/tv";
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
+#if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
+  const int kDefaultRemoteDebuggingPort =
+      SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT;
+#else
   const int kDefaultRemoteDebuggingPort = 9222;
+#endif  // defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
   int remote_debugging_port = kDefaultRemoteDebuggingPort;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
