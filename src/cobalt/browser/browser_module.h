@@ -23,6 +23,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/message_queue.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
@@ -47,6 +48,10 @@
 #include "cobalt/browser/trace_manager.h"
 #include "cobalt/debug/debug_server.h"
 #endif  // ENABLE_DEBUG_CONSOLE
+
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#endif
 
 namespace cobalt {
 namespace browser {
@@ -114,6 +119,15 @@ class BrowserModule {
   void SetProxy(const std::string& proxy_rules);
 
  private:
+#if defined(OS_STARBOARD)
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+  static void CoreDumpHandler(void* browser_module_as_void);
+  int on_error_triggered_count_;
+  int recovery_mechanism_triggered_count_;
+  int submit_done_timeout_count_;
+#endif
+#endif
+
   // Recreates web module with the given URL.
   void NavigateInternal(const GURL& url);
 
@@ -199,6 +213,11 @@ class BrowserModule {
 
   // Process all messages queued into the |render_tree_submission_queue_|.
   void ProcessRenderTreeSubmissionQueue();
+
+#if defined(COBALT_CHECK_SUBMITDONE_TIMEOUT)
+  // Poll for render timeout. Called from timeout_polling_thread_.
+  void OnPollForRenderTimeout(const GURL& url);
+#endif
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -315,6 +334,14 @@ class BrowserModule {
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
+
+#if defined(COBALT_CHECK_SUBMITDONE_TIMEOUT)
+  base::Thread timeout_polling_thread_;
+
+  // Counts the number of continuous render timeout expirations. This value is
+  // updated and used from OnPollForRenderTimeout.
+  int render_timeout_count_;
+#endif
 
   // Set when the application is about to quit. May be set from a thread other
   // than the one hosting this object, and read from another.

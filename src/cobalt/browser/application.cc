@@ -430,6 +430,10 @@ Application::Application(const base::Closure& quit_closure)
       base::Bind(&Application::OnApplicationEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(system_window::ApplicationEvent::TypeId(),
                                      application_event_callback_);
+  deep_link_event_callback_ =
+      base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
+                                     deep_link_event_callback_);
 
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -479,6 +483,8 @@ Application::~Application() {
                                         network_event_callback_);
   event_dispatcher_.RemoveEventCallback(
       system_window::ApplicationEvent::TypeId(), application_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::DeepLinkEvent::TypeId(), deep_link_event_callback_);
 
   app_status_ = kShutDownAppStatus;
 }
@@ -548,6 +554,15 @@ void Application::OnApplicationEvent(const base::Event* event) {
     DLOG(INFO) << "Got resume event.";
     app_status_ = kRunningAppStatus;
     ++app_resume_count_;
+  }
+}
+
+void Application::OnDeepLinkEvent(const base::Event* event) {
+  const base::DeepLinkEvent* deep_link_event =
+      base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
+  // TODO: Remove this when terminal application states are properly handled.
+  if (deep_link_event->IsH5vccLink()) {
+    browser_module_->Navigate(GURL(deep_link_event->link()));
   }
 }
 

@@ -21,11 +21,13 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
+#include "base/time.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
@@ -36,10 +38,69 @@
 #include "cobalt/dom/keycode.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "starboard/atomic.h"
+#include "starboard/system.h"
+#include "starboard/time.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#define HANDLE_CORE_DUMP
+#include "starboard/ps4/core_dump_handler.h"
+#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#endif  // OS_STARBOARD
 
 namespace cobalt {
+
+#if defined(COBALT_CHECK_SUBMITDONE_TIMEOUT)
+namespace timestamp {
+// This is a temporary workaround.
+extern SbAtomic64 g_last_submit_done_timestamp;
+}  // namespace timestamp
+
+namespace {
+struct NonTrivialGlobalVariables {
+  NonTrivialGlobalVariables();
+
+  SbAtomic64* last_submit_done_timestamp;
+};
+
+NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
+  last_submit_done_timestamp = &cobalt::timestamp::g_last_submit_done_timestamp;
+  SbAtomicNoBarrier_Exchange64(last_submit_done_timestamp,
+                               static_cast<SbAtomic64>(SbTimeGetNow()));
+}
+
+base::LazyInstance<NonTrivialGlobalVariables> non_trivial_global_variables =
+    LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
+#endif
+
 namespace browser {
 namespace {
+
+#if defined(COBALT_CHECK_SUBMITDONE_TIMEOUT)
+// Timeout for last submitDone().
+const int kLastSubmitDoneTimeoutSeconds = 15;
+
+// Polling interval for timeout_polling_thread_.
+const int kRenderTimeOutPollingDelaySeconds = 1;
+
+// Minimum number of continuous times the timeout expirations. This is used to
+// prevent unintended behavior in situations such as when returning from
+// suspended state. Note that the timeout response trigger will be delayed
+// after the actual timeout expiration by this value times the polling delay.
+const int kMinimumContinuousRenderTimeoutExpirations = 2;
+
+// Name for timeout_polling_thread_.
+const char* kTimeoutPollingThreadName = "TimeoutPolling";
+
+// This specifies the percentage of calls to OnRenderTimeout() that result in a
+// call to OnError().
+const int kRenderTimeoutErrorPercentage = 99;
+
+#endif
 
 // This constant defines the maximum rate at which the layout engine will
 // refresh over time.  Since there is little benefit in performing a layout
@@ -165,7 +226,25 @@ BrowserModule::BrowserModule(const GURL& url,
           h5vcc_url_handler_(this, system_window, account_manager)),
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
+#if defined(COBALT_CHECK_SUBMITDONE_TIMEOUT)
+      timeout_polling_thread_(kTimeoutPollingThreadName),
+      render_timeout_count_(0),
+#endif
       will_quit_(false) {
+#if defined(HANDLE_CORE_DUMP)
+  on_error_triggered_count_ = 0;
+  recovery_mechanism_triggered_count_ = 0;
+  submit_done_timeout_count_ = 0;
+  SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
+#endif
+#if defined(COBALT_CHECK_SUBMITDONE_TIMEOUT)
+  timeout_polling_thread_.Start();
+  timeout_polling_thread_.message_loop()->PostDelayedTask(
+      FROM_HERE, base::Bind(&BrowserModule::OnPollForRenderTimeout,
+                            base::Unretained(this), url),
+      base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
+#endif
+
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
@@ -211,6 +290,9 @@ BrowserModule::BrowserModule(const GURL& url,
 
 BrowserModule::~BrowserModule() {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+#if defined(HANDLE_CORE_DUMP)
+  SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
+#endif
 }
 
 void BrowserModule::Navigate(const GURL& url) {
@@ -226,6 +308,20 @@ void BrowserModule::Reload() {
       "location.reload();",
       base::SourceLocation("[object BrowserModule]", 1, 1));
 }
+
+#if defined(HANDLE_CORE_DUMP)
+// static
+void BrowserModule::CoreDumpHandler(void* browser_module_as_void) {
+  BrowserModule* browser_module =
+      static_cast<BrowserModule*>(browser_module_as_void);
+  SbCoreDumpLogInteger("BrowserModule.on_error_triggered_count_",
+                       browser_module->on_error_triggered_count_);
+  SbCoreDumpLogInteger("BrowserModule.recovery_mechanism_triggered_count_",
+                       browser_module->recovery_mechanism_triggered_count_);
+  SbCoreDumpLogInteger("BrowserModule.submit_done_timeout_count_",
+                       browser_module->submit_done_timeout_count_);
+}
+#endif
 
 void BrowserModule::NavigateInternal(const GURL& url) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
@@ -454,6 +550,9 @@ void BrowserModule::InjectKeyEventToMainWebModule(
 }
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
+#if defined(HANDLE_CORE_DUMP)
+  on_error_triggered_count_++;
+#endif
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
 
@@ -609,6 +708,53 @@ void BrowserModule::OnRendererSubmissionRasterized() {
   }
 }
 #endif  // OS_STARBOARD
+
+#if defined(COBALT_CHECK_SUBMITDONE_TIMEOUT)
+void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
+  SbTime last_submitdone_timestamp = static_cast<SbTime>(SbAtomicAcquire_Load64(
+      non_trivial_global_variables.Get().last_submit_done_timestamp));
+  base::Time last_submitdone =
+      base::Time::FromSbTime(last_submitdone_timestamp);
+  bool timeout_expiration =
+      base::Time::Now() -
+          base::TimeDelta::FromSeconds(kLastSubmitDoneTimeoutSeconds) >
+      last_submitdone;
+  bool timeout_response_trigger = false;
+  if (timeout_expiration) {
+    // The timeout only triggers if the timeout expiration has been detected
+    // without interruption at least kMinimumContinuousRenderTimeoutExpirations
+    // times.
+    ++render_timeout_count_;
+    timeout_response_trigger =
+        render_timeout_count_ >= kMinimumContinuousRenderTimeoutExpirations;
+  } else {
+    render_timeout_count_ = 0;
+  }
+
+  if (timeout_response_trigger) {
+#if defined(HANDLE_CORE_DUMP)
+    submit_done_timeout_count_++;
+#endif
+    SbAtomicNoBarrier_Exchange64(
+        non_trivial_global_variables.Get().last_submit_done_timestamp,
+        static_cast<SbAtomic64>(kSbTimeMax));
+    if (SbSystemGetRandomUInt64() <
+        kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
+      OnError(url, std::string("Rendering Timeout"));
+#if defined(HANDLE_CORE_DUMP)
+      recovery_mechanism_triggered_count_++;
+#endif
+    } else {
+      SB_DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
+    }
+  } else {
+    timeout_polling_thread_.message_loop()->PostDelayedTask(
+        FROM_HERE, base::Bind(&BrowserModule::OnPollForRenderTimeout,
+                              base::Unretained(this), url),
+        base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
+  }
+}
+#endif
 
 }  // namespace browser
 }  // namespace cobalt

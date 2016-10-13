@@ -61,9 +61,9 @@ class LibxmlParserWrapper {
  public:
   enum IssueSeverity {
     kNoIssue,
-    kWarning,
-    kError,
-    kFatal,
+    kWarning,  // A simple warning
+    kError,    // A recoverable error
+    kFatal,    // A fatal error
     kIssueSeverityCount,
   };
 
@@ -137,8 +137,9 @@ class LibxmlParserWrapper {
   }
 
  private:
-  // Maximum total input size, 1MB.
-  static const size_t kMaxTotalInputSize = 1 << 16;
+  // Maximum total input size, as specified in Libxml's value
+  // XML_MAX_TEXT_LENGTH in parserInternals.h.
+  static const size_t kMaxTotalInputSize = 10000000;
 
   const scoped_refptr<dom::Document> document_;
   const scoped_refptr<dom::Node> parent_node_;
