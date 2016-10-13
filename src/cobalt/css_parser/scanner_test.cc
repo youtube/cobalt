@@ -172,6 +172,17 @@ TEST_F(ScannerTest, ScansInvalidFunction) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansInvalidFunctionWithNumber) {
+  Scanner scanner("sample-matrix4d()", &string_pool_);
+
+  ASSERT_EQ(kInvalidFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("sample-matrix4d", token_value_.string);
+
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansFunctionLikeMediaAnd) {
   Scanner scanner("@media tv and(monochrome)", &string_pool_);
 
@@ -265,6 +276,15 @@ TEST_F(ScannerTest, ScansIdentifier) {
 
   ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ("sample-identifier", token_value_.string);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansIdentifierWithNumber) {
+  Scanner scanner("matrix3d5s7wss-47", &string_pool_);
+
+  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("matrix3d5s7wss-47", token_value_.string);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -414,12 +434,43 @@ TEST_F(ScannerTest, ScansUnknownDashFunction) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansUnknownDashFunctionWithNumber) {
+  Scanner scanner("-cobalt-ma5555gic()", &string_pool_);
+
+  ASSERT_EQ(kInvalidFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("-cobalt-ma5555gic", token_value_.string);
+
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansUnknownDashFunctionWithoutClosingAtEnd) {
   Scanner scanner("-cobalt-magic(", &string_pool_);
 
   ASSERT_EQ(kInvalidFunctionToken,
             yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ("-cobalt-magic", token_value_.string);
+
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansKnownDashFunction) {
+  Scanner scanner("-cobalt-mtm()", &string_pool_);
+
+  ASSERT_EQ(kCobaltMtmFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansKnownDashFunctionWithoutClosingAtEnd) {
+  Scanner scanner("-cobalt-mtm(", &string_pool_);
+
+  ASSERT_EQ(kCobaltMtmFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
 
   ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
@@ -938,6 +989,15 @@ TEST_F(ScannerTest, ScansScaleFunctionWithoutEndBraceAtEndOfFile) {
   Scanner scanner("scale(", &string_pool_);
 
   ASSERT_EQ(kScaleFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansMatrix3dFunction) {
+  Scanner scanner("matrix3d()", &string_pool_);
+
+  ASSERT_EQ(kMatrix3dFunctionToken,
             yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));

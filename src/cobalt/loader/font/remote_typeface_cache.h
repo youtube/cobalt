@@ -19,8 +19,9 @@
 
 #include <string>
 
-#include "cobalt/loader/font/typeface_decoder.h"
+#include "cobalt/loader/loader_factory.h"
 #include "cobalt/loader/resource_cache.h"
+#include "cobalt/render_tree/typeface.h"
 
 namespace cobalt {
 
@@ -33,33 +34,10 @@ class Typeface;
 namespace loader {
 namespace font {
 
-// |RemoteTypefaceDecoderProvider| provides a mechanism for |ResourceCache| to
-// create typeface decoders, without requiring it to know anything about the
-// render_tree.
-struct RemoteTypefaceDecoderProvider {
- public:
-  explicit RemoteTypefaceDecoderProvider(
-      render_tree::ResourceProvider* resource_provider)
-      : resource_provider_(resource_provider) {}
-
-  scoped_ptr<Decoder> CreateDecoder(
-      const TypefaceDecoder::SuccessCallback& success_callback,
-      const TypefaceDecoder::FailureCallback& failure_callback,
-      const TypefaceDecoder::ErrorCallback& error_callback) const {
-    return make_scoped_ptr<Decoder>(
-        new TypefaceDecoder(resource_provider_, success_callback,
-                            failure_callback, error_callback));
-  }
-
- private:
-  render_tree::ResourceProvider* resource_provider_;
-};
-
 // |RemoteTypefaceResourceCacheType| provides the types and implements the
 // functions required by |ResourceCache<CacheType>|
 struct RemoteTypefaceResourceCacheType {
   typedef render_tree::Typeface ResourceType;
-  typedef RemoteTypefaceDecoderProvider DecoderProviderType;
 
   static uint32 GetEstimatedSizeInBytes(
       const scoped_refptr<ResourceType>& resource) {
@@ -76,17 +54,14 @@ typedef CachedRemoteTypefaceReferenceWithCallbacks::
 typedef ResourceCache<RemoteTypefaceResourceCacheType> RemoteTypefaceCache;
 
 // CreateTypefaceCache() provides a mechanism for creating a remote typeface
-// cache, without requiring the caller to deal with the typeface decoder
-// provider
+// cache.
 inline static scoped_ptr<RemoteTypefaceCache> CreateRemoteTypefaceCache(
     const std::string& name, uint32 cache_capacity,
-    render_tree::ResourceProvider* resource_provider,
-    loader::FetcherFactory* fetcher_factory) {
+    loader::LoaderFactory* loader_factory) {
   return make_scoped_ptr<RemoteTypefaceCache>(new RemoteTypefaceCache(
       name, cache_capacity,
-      make_scoped_ptr<RemoteTypefaceDecoderProvider>(
-          new RemoteTypefaceDecoderProvider(resource_provider)),
-      fetcher_factory));
+      base::Bind(&loader::LoaderFactory::CreateTypefaceLoader,
+                 base::Unretained(loader_factory))));
 }
 
 }  // namespace font

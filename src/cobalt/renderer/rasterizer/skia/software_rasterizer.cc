@@ -120,7 +120,7 @@ void SoftwareRasterizer::Impl::Submit(
     RenderTreeNodeVisitor::CreateScratchSurfaceFunction
         create_scratch_surface_function = base::Bind(&CreateScratchSurface);
     RenderTreeNodeVisitor visitor(
-        render_target, &create_scratch_surface_function,
+        render_target, &create_scratch_surface_function, base::Closure(),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
 

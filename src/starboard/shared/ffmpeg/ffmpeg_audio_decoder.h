@@ -20,13 +20,13 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class AudioDecoder : public starboard::player::AudioDecoder {
+class AudioDecoder : public starboard::player::filter::AudioDecoder {
  public:
   typedef starboard::player::InputBuffer InputBuffer;
 

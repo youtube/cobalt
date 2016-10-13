@@ -69,14 +69,15 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
 // Loader
 //////////////////////////////////////////////////////////////////
 
-Loader::Loader(
-    base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
-    scoped_ptr<Decoder> decoder,
-    base::Callback<void(const std::string&)> error_callback)
+Loader::Loader(const FetcherCreator& fetcher_creator,
+               scoped_ptr<Decoder> decoder,
+               const base::Callback<void(const std::string&)>& error_callback,
+               const OnDestructionFunction& on_destruction)
     : decoder_(decoder.Pass()),
       fetcher_to_decoder_adaptor_(
           new FetcherToDecoderAdapter(decoder_.get(), error_callback)),
-      fetcher_(fetcher_creator.Run(fetcher_to_decoder_adaptor_.get())) {
+      fetcher_(fetcher_creator.Run(fetcher_to_decoder_adaptor_.get())),
+      on_destruction_(on_destruction) {
   DCHECK(decoder_);
   DCHECK(!error_callback.is_null());
   DCHECK(!fetcher_creator.is_null());
@@ -92,9 +93,15 @@ Loader::Loader(
 }
 
 Loader::~Loader() {
+  if (!on_destruction_.is_null()) {
+    on_destruction_.Run(this);
+  }
+
   DCHECK(thread_checker_.CalledOnValidThread());
   fetcher_creator_error_closure_.Cancel();
 }
+
+void Loader::Abort() { decoder_->Abort(); }
 
 }  // namespace loader
 }  // namespace cobalt

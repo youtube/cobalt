@@ -19,39 +19,18 @@
 
 #include <string>
 
-#include "cobalt/loader/image/image_decoder.h"
+#include "cobalt/loader/loader_factory.h"
 #include "cobalt/loader/resource_cache.h"
+#include "cobalt/render_tree/image.h"
 
 namespace cobalt {
 namespace loader {
 namespace image {
 
-// |ImageDecoderProvider| provides a mechanism for |ResourceCache| to create
-// decoders, without requiring it to know anything about the render_tree.
-struct ImageDecoderProvider {
- public:
-  explicit ImageDecoderProvider(
-      render_tree::ResourceProvider* resource_provider)
-      : resource_provider_(resource_provider) {}
-
-  scoped_ptr<Decoder> CreateDecoder(
-      const ImageDecoder::SuccessCallback& success_callback,
-      const ImageDecoder::FailureCallback& failure_callback,
-      const ImageDecoder::ErrorCallback& error_callback) const {
-    return make_scoped_ptr<Decoder>(
-        new ImageDecoder(resource_provider_, success_callback, failure_callback,
-                         error_callback));
-  }
-
- private:
-  render_tree::ResourceProvider* resource_provider_;
-};
-
 // |ImageResourceCacheType| provides the types and implements the functions
 // required by |ResourceCache<ImageResourceCacheType>|
 struct ImageResourceCacheType {
   typedef render_tree::Image ResourceType;
-  typedef ImageDecoderProvider DecoderProviderType;
 
   static uint32 GetEstimatedSizeInBytes(
       const scoped_refptr<ResourceType>& resource) {
@@ -67,16 +46,14 @@ typedef CachedImageReferenceWithCallbacks::CachedResourceReferenceVector
 
 typedef ResourceCache<ImageResourceCacheType> ImageCache;
 
-// CreateImageCache() provides a mechanism for creating an |ImageCache|, without
-// requiring the caller to deal with the |ImageDecoderProvider|
+// CreateImageCache() provides a mechanism for creating an |ImageCache|.
 inline static scoped_ptr<ImageCache> CreateImageCache(
     const std::string& name, uint32 cache_capacity,
-    render_tree::ResourceProvider* resource_provider,
-    loader::FetcherFactory* fetcher_factory) {
-  return make_scoped_ptr<ImageCache>(new ImageCache(
-      name, cache_capacity, make_scoped_ptr<ImageDecoderProvider>(
-                                new ImageDecoderProvider(resource_provider)),
-      fetcher_factory));
+    loader::LoaderFactory* loader_factory) {
+  return make_scoped_ptr<ImageCache>(
+      new ImageCache(name, cache_capacity,
+                     base::Bind(&loader::LoaderFactory::CreateImageLoader,
+                                base::Unretained(loader_factory))));
 }
 
 // The ReducedCacheCapacityManager is a helper class that manages state which

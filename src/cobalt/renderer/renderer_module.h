@@ -76,12 +76,18 @@ class RendererModule {
                           const Options& options);
   ~RendererModule();
 
+  void Suspend();
+  void Resume();
+
   renderer::Pipeline* pipeline() { return pipeline_.get(); }
   const scoped_refptr<renderer::backend::RenderTarget> render_target() {
     return display_->GetRenderTarget();
   }
 
  private:
+  system_window::SystemWindow* system_window_;
+  Options options_;
+
   scoped_ptr<renderer::backend::GraphicsSystem> graphics_system_;
   scoped_ptr<renderer::backend::Display> display_;
   scoped_ptr<renderer::backend::GraphicsContext> graphics_context_;

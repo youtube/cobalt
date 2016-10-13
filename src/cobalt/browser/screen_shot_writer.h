@@ -57,6 +57,11 @@ class ScreenShotWriter {
   // screenshot is requested.
   void SetLastPipelineSubmission(const renderer::Submission& submission);
 
+  // Clears the last submission from the pipeline, putting the ScreenShotWriter
+  // into a state similar to when it was first created, where there was no
+  // "last pipeline submission".
+  void ClearLastPipelineSubmission();
+
  private:
   // Callback function that will be fired from the rasterizer thread when
   // rasterization of |last_submission_| is complete.

@@ -36,16 +36,21 @@ namespace loader {
 // TODO: Migrate Loader design doc to markdown in this directory.
 class Loader {
  public:
+  typedef base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> FetcherCreator;
+  typedef base::Callback<void(Loader*)> OnDestructionFunction;
+
   // The construction of Loader initiates the loading. It takes the ownership
   // of a Decoder and creates and manages a Fetcher using the given creation
   // method.
   // The fetcher creator, decoder and error callback shouldn't be NULL.
   // It is allowed to destroy the loader in the error callback.
-  Loader(base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
-         scoped_ptr<Decoder> decoder,
-         base::Callback<void(const std::string&)> error_callback);
+  Loader(const FetcherCreator& fetcher_creator, scoped_ptr<Decoder> decoder,
+         const base::Callback<void(const std::string&)>& error_callback,
+         const OnDestructionFunction& on_destruction = OnDestructionFunction());
 
   ~Loader();
+
+  void Abort();
 
  private:
   class FetcherToDecoderAdapter;
@@ -56,6 +61,8 @@ class Loader {
 
   base::CancelableClosure fetcher_creator_error_closure_;
   base::ThreadChecker thread_checker_;
+
+  OnDestructionFunction on_destruction_;
 
   DISALLOW_COPY_AND_ASSIGN(Loader);
 };

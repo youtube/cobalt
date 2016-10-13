@@ -30,8 +30,25 @@ RendererModule::Options::Options() {
 }
 
 RendererModule::RendererModule(system_window::SystemWindow* system_window,
-                               const Options& options) {
+                               const Options& options)
+    : system_window_(system_window), options_(options) {
   TRACE_EVENT0("cobalt::renderer", "RendererModule::RendererModule()");
+
+  Resume();
+}
+
+RendererModule::~RendererModule() {}
+
+void RendererModule::Suspend() {
+  TRACE_EVENT0("cobalt::renderer", "RendererModule::Suspend()");
+  pipeline_.reset();
+  graphics_context_.reset();
+  display_.reset();
+  graphics_system_.reset();
+}
+
+void RendererModule::Resume() {
+  TRACE_EVENT0("cobalt::renderer", "RendererModule::Resume()");
 
   // Load up the platform's default graphics system.
   {
@@ -43,8 +60,8 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
   // specified in the constructor args to get the render target.
   {
     TRACE_EVENT0("cobalt::renderer", "GraphicsSystem::CreateDisplay()");
-    DCHECK(system_window);
-    display_ = graphics_system_->CreateDisplay(system_window);
+    DCHECK(system_window_);
+    display_ = graphics_system_->CreateDisplay(system_window_);
   }
 
   // Create a graphics context associated with the default display's render
@@ -60,14 +77,11 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
   {
     TRACE_EVENT0("cobalt::renderer", "new renderer::Pipeline()");
     pipeline_ = make_scoped_ptr(new renderer::Pipeline(
-        base::Bind(options.create_rasterizer_function, graphics_context_.get(),
-                   options),
+        base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
+                   options_),
         display_->GetRenderTarget(), graphics_context_.get(),
-        options.submit_even_if_render_tree_is_unchanged));
+        options_.submit_even_if_render_tree_is_unchanged));
   }
-}
-
-RendererModule::~RendererModule() {
 }
 
 }  // namespace renderer

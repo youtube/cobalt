@@ -15,28 +15,27 @@
 #ifndef MemoryAllocatorReporter_h
 #define MemoryAllocatorReporter_h
 
-#include <sys/types.h>
-
 #include "starboard/mutex.h"
+#include "starboard/types.h"
 
 class AllocationMetadata {
  public:
   static AllocationMetadata* GetMetadataFromUserAddress(void* ptr);
   static void* GetUserAddressFromBaseAddress(void* base_ptr);
-  static size_t GetReservationBytes(size_t bytes_requested) {
+  static int64_t GetReservationBytes(int64_t bytes_requested) {
     return sizeof(AllocationMetadata) + bytes_requested;
   }
-  static size_t GetSizeOfAllocationFromMetadata(AllocationMetadata* metadata) {
+  static int64_t GetSizeOfAllocationFromMetadata(AllocationMetadata* metadata) {
     return metadata ? metadata->size_requested() : 0;
   }
-  static void SetSizeToBaseAddress(void* base_ptr, size_t size);
+  static void SetSizeToBaseAddress(void* base_ptr, int64_t size);
 
-  size_t size_requested() { return size_requested_; }
-  void set_size_requested(size_t size) { size_requested_ = size; }
+  int64_t size_requested() { return size_requested_; }
+  void set_size_requested(int64_t size) { size_requested_ = size; }
 
  private:
   // Bytes requested by the underlying allocator.
-  size_t size_requested_;
+  int64_t size_requested_;
 };
 
 // Reporter that is used to report memory allocation.
@@ -47,16 +46,16 @@ class MemoryAllocatorReporter {
   MemoryAllocatorReporter()
       : current_bytes_allocated_(0), current_bytes_mapped_(0) {}
 
-  void UpdateAllocatedBytes(ssize_t bytes);
-  ssize_t GetCurrentBytesAllocated();
+  void UpdateAllocatedBytes(int64_t bytes);
+  int64_t GetCurrentBytesAllocated();
 
-  void UpdateMappedBytes(ssize_t bytes);
-  ssize_t GetCurrentBytesMapped();
+  void UpdateMappedBytes(int64_t bytes);
+  int64_t GetCurrentBytesMapped();
 
  private:
   starboard::Mutex mutex_;
-  ssize_t current_bytes_allocated_;
-  ssize_t current_bytes_mapped_;
+  int64_t current_bytes_allocated_;
+  int64_t current_bytes_mapped_;
 };
 
 #endif /* MemoryAllocatorReporter_h */

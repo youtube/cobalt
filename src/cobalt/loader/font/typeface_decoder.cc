@@ -28,7 +28,8 @@ TypefaceDecoder::TypefaceDecoder(
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
-      is_raw_data_too_large_(false) {
+      is_raw_data_too_large_(false),
+      aborted_(false) {
   UNREFERENCED_PARAMETER(failure_callback);
 
   DCHECK(resource_provider_);
@@ -69,6 +70,17 @@ void TypefaceDecoder::Finish() {
     return;
   }
 
+  if (aborted_) {
+    error_callback_.Run(
+        "TypefaceDecoder's ResourceProvider has been externally aborted.");
+    return;
+  }
+  if (!resource_provider_) {
+    error_callback_.Run(
+        "No resource provider was passed to the TypefaceDecoder.");
+    return;
+  }
+
   std::string error_string;
   scoped_refptr<render_tree::Typeface> decoded_typeface =
       resource_provider_->CreateTypefaceFromRawData(raw_data_.Pass(),
@@ -82,6 +94,8 @@ void TypefaceDecoder::Finish() {
 }
 
 void TypefaceDecoder::ReleaseRawData() { raw_data_.reset(); }
+
+void TypefaceDecoder::Abort() { aborted_ = true; }
 
 }  // namespace font
 }  // namespace loader

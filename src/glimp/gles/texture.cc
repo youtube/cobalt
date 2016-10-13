@@ -24,14 +24,8 @@ namespace gles {
 
 Texture::Texture(nb::scoped_ptr<TextureImpl> impl)
     : impl_(impl.Pass()),
-      target_valid_(false),
       texture_allocated_(false),
       bound_to_surface_(NULL) {}
-
-void Texture::SetTarget(GLenum target) {
-  target_ = target;
-  target_valid_ = true;
-}
 
 void Texture::Initialize(GLint level,
                          PixelFormat pixel_format,

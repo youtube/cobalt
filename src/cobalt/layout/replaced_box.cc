@@ -20,7 +20,9 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
+#include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
@@ -42,10 +44,11 @@ using render_tree::animations::AnimateNode;
 using render_tree::CompositionNode;
 using render_tree::FilterNode;
 using render_tree::ImageNode;
+using render_tree::MapToMeshFilter;
+using render_tree::Node;
 using render_tree::PunchThroughVideoNode;
 using render_tree::RectNode;
 using render_tree::SolidColorBrush;
-using render_tree::MapToMeshFilter;
 
 namespace {
 
@@ -259,9 +262,14 @@ void ReplacedBox::RenderAndAnimateContent(
       composition_node, base::Bind(AnimateCB, replace_image_cb_, set_bounds_cb_,
                                    content_box_size()));
 
-  // TODO: Apply map to mesh filter if present.
+  Node* animate_node = new AnimateNode(animate_node_builder, composition_node);
+
+  const cssom::MTMFunction* mtm_filter_function =
+      cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
+
   border_node_builder->AddChild(
-      new AnimateNode(animate_node_builder, composition_node));
+      mtm_filter_function ? new FilterNode(MapToMeshFilter(), animate_node)
+                          : animate_node);
 }
 
 void ReplacedBox::UpdateContentSizeAndMargins(

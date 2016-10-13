@@ -748,8 +748,10 @@ namespace glm
 ///////////////////////////////////////////////////////////////////////////////////
 // countof
 
-#ifndef __has_feature
-#	define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#ifdef __has_feature
+#	define GLM_HAS_FEATURE __has_feature
+#else
+#	define GLM_HAS_FEATURE(x) 0 // Compatibility with non-clang compilers.
 #endif
 
 #if GLM_HAS_CONSTEXPR_PARTIAL

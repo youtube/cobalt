@@ -190,6 +190,7 @@ void AudioDecoder::TeardownCodec() {
 
 namespace starboard {
 namespace player {
+namespace filter {
 
 // static
 AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
@@ -203,6 +204,7 @@ AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
   return NULL;
 }
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 

@@ -664,11 +664,13 @@ void HTMLElement::UpdateComputedStyleRecursively(
 
 void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
   layout_boxes_.reset();
+  cached_background_images_.clear();
   Node::InvalidateLayoutBoxesFromNodeAndAncestors();
 }
 
 void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
   layout_boxes_.reset();
+  cached_background_images_.clear();
   Node::InvalidateLayoutBoxesFromNodeAndDescendants();
 }
 

@@ -329,6 +329,13 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
     SetPropertyValue(kDisplayProperty, display);
   }
 
+  const scoped_refptr<PropertyValue>& filter() const {
+    return GetPropertyValueReference(kFilterProperty);
+  }
+  void set_filter(const scoped_refptr<PropertyValue>& filter) {
+    SetPropertyValue(kFilterProperty, filter);
+  }
+
   const scoped_refptr<PropertyValue>& font_family() const {
     return GetPropertyValueReference(kFontFamilyProperty);
   }

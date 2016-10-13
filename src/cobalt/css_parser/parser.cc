@@ -66,6 +66,7 @@
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"

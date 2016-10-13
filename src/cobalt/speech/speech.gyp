@@ -20,9 +20,19 @@
     {
       'target_name': 'speech',
       'type': 'static_library',
+      'msvs_disabled_warnings': [
+        # Dereferencing NULL pointer in generated file
+        # google_streaming_api.pb.cc.
+        6011,
+      ],
       'sources': [
         'audio_encoder_flac.cc',
         'audio_encoder_flac.h',
+        'chunked_byte_buffer.cc',
+        'chunked_byte_buffer.h',
+        'google_streaming_api.pb.cc',
+        'google_streaming_api.pb.h',
+        'google_streaming_api.pb.proto',
         'mic.h',
         'speech_recognition.cc',
         'speech_recognition.h',
@@ -47,6 +57,10 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
       ],
+      'include_dirs': [
+        # Get protobuf headers from the chromium tree.
+        '<(DEPTH)/third_party/protobuf/src',
+      ],
       'conditions': [
         ['OS=="starboard"', {
           'sources': [
@@ -59,6 +73,30 @@
           ],
         }],
       ],
+    },
+    {
+      'target_name': 'speech_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'chunked_byte_buffer_unittest.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
+
+    {
+      'target_name': 'speech_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'speech_test',
+      ],
+      'variables': {
+        'executable_name': 'speech_test',
+      },
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }
