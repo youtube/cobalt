@@ -32,6 +32,7 @@
 #include "SkString.h"
 #include "SkTArray.h"
 #include "SkTSearch.h"
+#include "third_party/skia/src/ports/SkFontHost_FreeType_common.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -257,8 +258,14 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
                           ? SkFontStyle::kItalic_Slant
                           : SkFontStyle::kUpright_Slant);
 
-    styles_.push_back().reset(SkNEW_ARGS(SkFontStyleSetEntry_Cobalt,
-                                         (path_name, font_file.index, style)));
+    std::string full_font_name(font_file.full_font_name.c_str(),
+                               font_file.full_font_name.size());
+    std::string postcript_name(font_file.postcript_name.c_str(),
+                               font_file.postcript_name.size());
+
+    styles_.push_back().reset(SkNEW_ARGS(
+        SkFontStyleSetEntry_Cobalt,
+        (path_name, font_file.index, style, full_font_name, postcript_name)));
   }
 }
 
@@ -636,6 +643,79 @@ SkFontStyleSet_Cobalt* SkFontMgr_Cobalt::onMatchFamily(
   return NULL;
 }
 
+SkTypeface* SkFontMgr_Cobalt::matchFullFontFaceNameHelper(
+    SkFontStyleSet_Cobalt* style_set,
+    SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* style) const {
+  DCHECK(style_set != NULL);
+  if (!style) {
+    NOTREACHED() << "style should not be NULL.";
+    return NULL;
+  }
+
+  if (style->typeface == NULL) {
+    if (!style_set) {
+      return NULL;
+    }
+    style_set->CreateSystemTypeface(style);
+  }
+
+  if (style->typeface != NULL) {
+    return SkRef(style->typeface.get());
+  }
+
+  return NULL;
+}
+
+SkTypeface* SkFontMgr_Cobalt::matchFaceNameOnlyIfFound(
+    const std::string& font_face_name) const {
+  // Prioritize looking it up postscript name first since some of our client
+  // applications prefer this method to specify face names.
+  SkTypeface* typeface = matchPostScriptName(font_face_name);
+  if (typeface != NULL) return typeface;
+
+  typeface = matchFullFontFaceName(font_face_name);
+  if (typeface != NULL) return typeface;
+
+  return NULL;
+}
+
+SkTypeface* SkFontMgr_Cobalt::matchFullFontFaceName(
+    const std::string& font_face_name) const {
+  SkAutoMutexAcquire scoped_mutex(style_sets_mutex_);
+
+  if (font_face_name.empty()) {
+    return NULL;
+  }
+
+  FullFontNameToFontFaceInfoMap::const_iterator font_face_iterator =
+      fullfontname_to_fontface_info_map_.find(font_face_name);
+
+  if (font_face_iterator != fullfontname_to_fontface_info_map_.end()) {
+    return matchFullFontFaceNameHelper(
+        font_face_iterator->second.style_set_entry_parent,
+        font_face_iterator->second.style_set_entry);
+  }
+
+  return NULL;
+}
+
+SkTypeface* SkFontMgr_Cobalt::matchPostScriptName(
+    const std::string& font_face_name) const {
+  if (font_face_name.empty()) {
+    return NULL;
+  }
+
+  PostScriptToFontFaceInfoMap::const_iterator font_face_iterator =
+      postscriptname_to_fontface_info_map_.find(font_face_name);
+  if (font_face_iterator != postscriptname_to_fontface_info_map_.end()) {
+    return matchFullFontFaceNameHelper(
+        font_face_iterator->second.style_set_entry_parent,
+        font_face_iterator->second.style_set_entry);
+  }
+
+  return NULL;
+}
+
 SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyle(
     const char family_name[], const SkFontStyle& style) const {
   SkTypeface* tf = NULL;
@@ -766,6 +846,54 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
     // Verify that the set successfully added entries.
     if (new_set->styles_.count() == 0) {
       continue;
+    }
+
+    for (SkAutoTUnref<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
+             font_style_set_entry = new_set->styles_.begin();
+         font_style_set_entry != new_set->styles_.end();
+         ++font_style_set_entry) {
+      if (!font_style_set_entry) {
+        NOTREACHED() << " Font Style entry is invalid";
+        continue;
+      } else if ((*font_style_set_entry).get() == NULL) {
+        NOTREACHED() << " Font Style entry is NULL";
+        continue;
+      }
+
+      const std::string& full_font_name =
+          (*font_style_set_entry)->full_font_name;
+      DCHECK(!full_font_name.empty());
+      if (fullfontname_to_fontface_info_map_.find(full_font_name) ==
+          fullfontname_to_fontface_info_map_.end()) {
+        DLOG(INFO) << "Adding Full font name [" << full_font_name << "].";
+        fullfontname_to_fontface_info_map_[full_font_name] =
+            FullFontNameToFontFaceInfoMap::mapped_type(
+                font_style_set_entry->get(), new_set.get());
+      } else {
+        // Purposely, not overwriting the entry gives priority to the
+        // earlier entry.  This is consistent with how fonts.xml gives
+        // priority to fonts that are specified earlier in the file.
+        NOTREACHED() << "Full font name [" << full_font_name
+                     << "] already registered in BuildNameToFamilyMap.";
+      }
+
+      const std::string& postscript_font_name =
+          (*font_style_set_entry)->font_postscript_name;
+      DCHECK(!postscript_font_name.empty());
+      if (postscriptname_to_fontface_info_map_.find(postscript_font_name) ==
+          fullfontname_to_fontface_info_map_.end()) {
+        DLOG(INFO) << "Adding Postscript name [" << postscript_font_name
+                   << "].";
+        postscriptname_to_fontface_info_map_[postscript_font_name] =
+            PostScriptToFontFaceInfoMap::mapped_type(
+                font_style_set_entry->get(), new_set.get());
+      } else {
+        // Purposely, not overwriting the entry gives priority to the
+        // earlier entry.  This is consistent with how fonts.xml gives
+        // priority to fonts that are specified earlier in the file.
+        NOTREACHED() << "Adding Postscript name [" << postscript_font_name
+                     << "] already registered in BuildNameToFamilyMap.";
+      }
     }
 
     font_style_sets_.push_back().reset(SkRef(new_set.get()));

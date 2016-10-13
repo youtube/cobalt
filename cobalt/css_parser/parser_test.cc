@@ -7975,7 +7975,7 @@ TEST_F(ParserTest, ParsesFontFaceFamily) {
 
 TEST_F(ParserTest, ParsesFontFaceSrcLocalString) {
   scoped_refptr<cssom::CSSFontFaceDeclarationData> font_face =
-      parser_.ParseFontFaceDeclarationList("src: local('Roboto');",
+      parser_.ParseFontFaceDeclarationList("src: local('Roboto Regular');",
                                            source_location_);
 
   scoped_refptr<cssom::PropertyListValue> src_list =
@@ -7987,12 +7987,12 @@ TEST_F(ParserTest, ParsesFontFaceSrcLocalString) {
       dynamic_cast<cssom::LocalSrcValue*>(
           src_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(local_src);
-  EXPECT_EQ("Roboto", local_src->value());
+  EXPECT_EQ("Roboto Regular", local_src->value());
 }
 
 TEST_F(ParserTest, ParsesFontFaceSrcLocalIdentifier) {
   scoped_refptr<cssom::CSSFontFaceDeclarationData> font_face =
-      parser_.ParseFontFaceDeclarationList("src: local(Roboto);",
+      parser_.ParseFontFaceDeclarationList("src: local(Roboto Regular);",
                                            source_location_);
 
   scoped_refptr<cssom::PropertyListValue> src_list =
@@ -8004,7 +8004,7 @@ TEST_F(ParserTest, ParsesFontFaceSrcLocalIdentifier) {
       dynamic_cast<cssom::LocalSrcValue*>(
           src_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(local_src);
-  EXPECT_EQ("Roboto", local_src->value());
+  EXPECT_EQ("Roboto Regular", local_src->value());
 }
 
 TEST_F(ParserTest, ParsesFontFaceSrcUrlWithoutFormat) {

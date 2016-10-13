@@ -21,6 +21,7 @@
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
@@ -108,11 +109,30 @@ bool SoftwareResourceProvider::HasLocalFontFamily(
 
 scoped_refptr<render_tree::Typeface> SoftwareResourceProvider::GetLocalTypeface(
     const char* font_family_name, render_tree::FontStyle font_style) {
-  TRACE_EVENT0("cobalt::renderer", "SoftwareResourceProvider::GetLocalFont()");
+  TRACE_EVENT0("cobalt::renderer",
+               "SoftwareResourceProvider::GetLocalTypeface()");
 
   SkAutoTUnref<SkTypeface> typeface(font_manager_->matchFamilyStyle(
       font_family_name, CobaltFontStyleToSkFontStyle(font_style)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
+}
+
+scoped_refptr<render_tree::Typeface>
+SoftwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
+    const std::string& font_face_name) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SoftwareResourceProvider::GetLocalTypefaceIfAvailable()");
+
+  SkFontMgr_Cobalt* font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager_.get());
+
+  SkTypeface* typeface = font_manager->matchFaceNameOnlyIfFound(font_face_name);
+  if (typeface != NULL) {
+    SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
+    return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
+  }
+
+  return NULL;
 }
 
 scoped_refptr<render_tree::Typeface>

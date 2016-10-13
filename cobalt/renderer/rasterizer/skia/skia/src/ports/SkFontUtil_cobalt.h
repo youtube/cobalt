@@ -25,7 +25,6 @@
 #include "SkString.h"
 #include "SkTDArray.h"
 
-
 // The font_character_map namespace contains all of the constants, typedefs, and
 // utility functions used with determining whether or not a font supports a
 // character.
@@ -110,6 +109,9 @@ struct FontFileInfo {
   int index;
   int weight;
   FontStyle style;
+
+  SkString full_font_name;
+  SkString postcript_name;
 };
 
 // A font family provides one or more names for a collection of fonts, each of
