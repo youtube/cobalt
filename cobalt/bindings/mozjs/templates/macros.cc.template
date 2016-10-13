@@ -256,10 +256,10 @@
  #}
 {% macro add_extra_arguments(arguments_list, raises_exception, call_with) %}
 {% if call_with %}
-  MozjsGlobalEnvironment* global_environment =
+  MozjsGlobalEnvironment* callwith_global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-{% do arguments_list.insert(0,
-                            'global_environment->Get%s()'|format(call_with)) %}
+{% do arguments_list.insert(
+    0, 'callwith_global_environment->Get%s()'|format(call_with)) %}
 {% endif %}
 {% do arguments_list.append('&exception_state') if raises_exception %}
 {%- endmacro %}
