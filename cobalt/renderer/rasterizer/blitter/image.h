@@ -77,7 +77,7 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   SbBlitterSurface surface() const { return surface_; }
 
   // Overrides from skia::SinglePlaneImage.
-  void EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() OVERRIDE;
 
   // When GetBitmap() is called on a blitter::SinglePlaneImage for the first
   // time, we do a one-time download of the pixel data from the Blitter API

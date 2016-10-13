@@ -100,7 +100,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // restraint should always be satisfied naturally.
   const SkBitmap& GetBitmap() const OVERRIDE;
 
-  void EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() OVERRIDE;
 
  private:
   ~HardwareFrontendImage() OVERRIDE;
@@ -164,7 +164,7 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
     return planes_[plane_index]->GetBitmap();
   }
 
-  void EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() OVERRIDE;
 
  private:
   ~HardwareMultiPlaneImage() OVERRIDE;
