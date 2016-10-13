@@ -41,7 +41,8 @@ class Image : public render_tree::Image {
   // to be referenced in a render tree before then, and thus this function will
   // fast-track the initialization of the backend object if it has not yet
   // executed.
-  virtual void EnsureInitialized() = 0;
+  // Returns true if an initialization actually took place.
+  virtual bool EnsureInitialized() = 0;
 
   // Mechanism to allow dynamic type checking on Image objects.
   virtual base::TypeId GetTypeId() const = 0;
