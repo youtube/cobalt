@@ -368,6 +368,20 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
 #endif
 
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+
+#if !defined(SB_HAS_REAL_TIME_PRIORITY_SUPPORT)
+#error "Your platform must define SB_HAS_REAL_TIME_PRIORITY_SUPPORT."
+#endif
+
+#else  // SB_HAS(THREAD_PRIORITY_SUPPORT)
+
+#if defined(SB_HAS_REAL_TIME_PRIORITY_SUPPORT)
+#error "Don't define SB_HAS_REAL_TIME_PRIORITY_SUPPORT without priorities."
+#endif
+
+#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT)
+
 #if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
 // Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
 // as SB_PREFERRED_RGBA_BYTE_ORDER_*.
