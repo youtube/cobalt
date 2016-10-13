@@ -48,8 +48,10 @@ int SetupSocket(SbSocket socket) {
   SbSocketSetTcpNoDelay(socket, true);
   SbSocketSetTcpKeepAlive(socket, true, kTCPKeepAliveDuration);
   SbSocketSetTcpWindowScaling(socket, true);
-  SbSocketSetReceiveBufferSize(socket,
-                               TCPClientSocketStarboard::kReceiveBufferSize);
+  if (TCPClientSocketStarboard::kReceiveBufferSize != 0) {
+    SbSocketSetReceiveBufferSize(socket,
+                                 TCPClientSocketStarboard::kReceiveBufferSize);
+  }
   return 0;
 }
 

@@ -25,7 +25,7 @@ void Initialize() {
   s_instance = new MemoryAllocatorReporter();
 }
 
-void* OffsetPointer(void* base, ssize_t offset) {
+void* OffsetPointer(void* base, int64_t offset) {
   uintptr_t base_as_int = reinterpret_cast<uintptr_t>(base);
   return reinterpret_cast<void*>(base_as_int + offset);
 }
@@ -38,17 +38,17 @@ AllocationMetadata* AllocationMetadata::GetMetadataFromUserAddress(void* ptr) {
 
   // The metadata lives just in front of the data.
   void* meta_addr =
-      OffsetPointer(ptr, -static_cast<ssize_t>(sizeof(AllocationMetadata)));
+      OffsetPointer(ptr, -static_cast<int64_t>(sizeof(AllocationMetadata)));
   return reinterpret_cast<AllocationMetadata*>(meta_addr);
 }
 
 void* AllocationMetadata::GetUserAddressFromBaseAddress(void* base_ptr) {
   void* adjusted_base =
-      OffsetPointer(base_ptr, static_cast<ssize_t>(sizeof(AllocationMetadata)));
+      OffsetPointer(base_ptr, static_cast<int64_t>(sizeof(AllocationMetadata)));
   return adjusted_base;
 }
 
-void AllocationMetadata::SetSizeToBaseAddress(void* base_ptr, size_t size) {
+void AllocationMetadata::SetSizeToBaseAddress(void* base_ptr, int64_t size) {
   if (base_ptr) {
     AllocationMetadata* metadata =
         reinterpret_cast<AllocationMetadata*>(base_ptr);
@@ -56,22 +56,22 @@ void AllocationMetadata::SetSizeToBaseAddress(void* base_ptr, size_t size) {
   }
 }
 
-void MemoryAllocatorReporter::UpdateAllocatedBytes(ssize_t bytes) {
+void MemoryAllocatorReporter::UpdateAllocatedBytes(int64_t bytes) {
   starboard::ScopedLock lock(mutex_);
   current_bytes_allocated_ += bytes;
 }
 
-ssize_t MemoryAllocatorReporter::GetCurrentBytesAllocated() {
+int64_t MemoryAllocatorReporter::GetCurrentBytesAllocated() {
   starboard::ScopedLock lock(mutex_);
   return current_bytes_allocated_;
 }
 
-void MemoryAllocatorReporter::UpdateMappedBytes(ssize_t bytes) {
+void MemoryAllocatorReporter::UpdateMappedBytes(int64_t bytes) {
   starboard::ScopedLock lock(mutex_);
   current_bytes_mapped_ += bytes;
 }
 
-ssize_t MemoryAllocatorReporter::GetCurrentBytesMapped() {
+int64_t MemoryAllocatorReporter::GetCurrentBytesMapped() {
   starboard::ScopedLock lock(mutex_);
   return current_bytes_mapped_;
 }
