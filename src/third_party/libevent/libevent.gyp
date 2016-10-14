@@ -63,6 +63,15 @@
                     ],
                   },
                 }],
+                [ 'target_os == "tizen"', {
+                  'sources': [ 'epoll_sub.c' ],
+                  'include_dirs': [ 'starboard/tizen' ],
+                  'link_settings': {
+                    'libraries': [
+                      '-lrt',
+                    ],
+                  },
+                }],
                 [ 'target_os == "orbis"', {
                   'include_dirs': [ 'starboard/ps4' ],
                   }
