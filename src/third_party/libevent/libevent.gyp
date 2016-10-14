@@ -63,6 +63,15 @@
                     ],
                   },
                 }],
+                [ 'target_os == "tizen"', {
+                  'sources': [ 'epoll_sub.c' ],
+                  'include_dirs': [ 'starboard/tizen' ],
+                  'link_settings': {
+                    'libraries': [
+                      '-lrt',
+                    ],
+                  },
+                }],
                 [ 'target_os == "orbis"', {
                   'include_dirs': [ 'starboard/ps4' ],
                   }
@@ -82,6 +91,10 @@
                   '-lrt',
                 ],
               },
+            }],
+            [ 'OS == "tizen"', {
+              'sources': [ 'epoll.c' ],
+              'include_dirs': [ 'tizen' ],
             }],
             [ '(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "target"', {
               # On android, epoll_create(), epoll_ctl(), epoll_wait() and

@@ -44,6 +44,7 @@ def _GetHostOS():
   """Returns the name of the hosting OS."""
   host_os_names = {
       'linux2': 'linux',
+      'linux3': 'tizen',
       'win32': 'win',
   }
 
