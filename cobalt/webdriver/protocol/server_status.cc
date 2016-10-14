@@ -16,9 +16,6 @@
 
 #include "cobalt/webdriver/protocol/server_status.h"
 
-// TODO: Support running WebDriver on platforms other than Linux.
-#include <sys/utsname.h>
-
 #include "cobalt/version.h"
 
 namespace cobalt {
@@ -26,11 +23,26 @@ namespace webdriver {
 namespace protocol {
 
 ServerStatus::ServerStatus() {
-  struct utsname name_buffer;
-  if (uname(&name_buffer) == 0) {
-    os_name_ = name_buffer.sysname;
-    os_version_ = name_buffer.version;
-    os_arch_ = name_buffer.machine;
+  const size_t kSystemPropertyMaxLength = 1024;
+  char value[kSystemPropertyMaxLength];
+  bool result;
+
+  result = SbSystemGetProperty(kSbSystemPropertyPlatformName, value,
+                               kSystemPropertyMaxLength);
+  if (result) {
+    os_name_ = value;
+  }
+
+  result = SbSystemGetProperty(kSbSystemPropertyFirmwareVersion, value,
+                               kSystemPropertyMaxLength);
+  if (result) {
+    os_version_ = value;
+  }
+
+  result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber, value,
+                               kSystemPropertyMaxLength);
+  if (result) {
+    os_arch_ = value;
   }
   build_time_ = __DATE__ " (" __TIME__ ")";
   build_version_ = COBALT_VERSION;
@@ -42,9 +54,16 @@ scoped_ptr<base::Value> ServerStatus::ToValue(const ServerStatus& status) {
   build_value->SetString("version", status.build_version_);
 
   scoped_ptr<base::DictionaryValue> os_value(new base::DictionaryValue());
-  os_value->SetString("arch", status.os_arch_);
-  os_value->SetString("name", status.os_name_);
-  os_value->SetString("version", status.os_version_);
+
+  if (status.os_arch_) {
+    os_value->SetString("arch", *status.os_arch_);
+  }
+  if (status.os_name_) {
+    os_value->SetString("name", *status.os_name_);
+  }
+  if (status.os_version_) {
+    os_value->SetString("version", *status.os_version_);
+  }
 
   scoped_ptr<base::DictionaryValue> status_value(new base::DictionaryValue());
   status_value->Set("os", os_value.release());
