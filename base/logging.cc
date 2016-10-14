@@ -406,6 +406,25 @@ bool InitializeLogFileHandle() {
   return true;
 }
 
+#if defined(OS_STARBOARD)
+SbLogPriority LogLevelToStarboardLogPriority(int level) {
+  switch (level) {
+    case LOG_INFO:
+      return kSbLogPriorityInfo;
+    case LOG_WARNING:
+      return kSbLogPriorityWarning;
+    case LOG_ERROR:
+    case LOG_ERROR_REPORT:
+      return kSbLogPriorityError;
+    case LOG_FATAL:
+      return kSbLogPriorityFatal;
+    default:
+      NOTREACHED() << "Unrecognized log level.";
+      return kSbLogPriorityInfo;
+  }
+}
+#endif  // defined(OS_STARBOARD)
+
 }  // namespace
 
 
@@ -467,6 +486,11 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
 
 void SetMinLogLevel(int level) {
   min_log_level = std::min(LOG_ERROR_REPORT, level);
+
+#if defined(OS_STARBOARD)
+  starboard::logging::SetMinLogLevel(
+      LogLevelToStarboardLogPriority(std::min(LOG_FATAL, level)));
+#endif
 }
 
 int GetMinLogLevel() {
@@ -650,23 +674,7 @@ LogMessage::~LogMessage() {
   if (logging_destination == LOG_ONLY_TO_SYSTEM_DEBUG_LOG ||
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
 #if defined(OS_STARBOARD)
-    SbLogPriority priority = kSbLogPriorityUnknown;
-    switch (severity_) {
-      case LOG_INFO:
-        priority = kSbLogPriorityInfo;
-        break;
-      case LOG_WARNING:
-        priority = kSbLogPriorityWarning;
-        break;
-      case LOG_ERROR:
-      case LOG_ERROR_REPORT:
-        priority = kSbLogPriorityError;
-        break;
-      case LOG_FATAL:
-        priority = kSbLogPriorityFatal;
-        break;
-    }
-    SbLog(priority, str_newline.c_str());
+    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
 #elif defined(OS_WIN) || defined(COBALT_WIN)
     OutputDebugStringA(str_newline.c_str());
 #elif defined(OS_ANDROID) || defined(__LB_ANDROID__)
