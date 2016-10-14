@@ -19,6 +19,11 @@
       'type': 'none',
 
       # Use the system-provided implementation of GLES2.
+      'direct_dependent_settings': {
+        'defines': [
+          'GL_GLEXT_PROTOTYPES',
+        ],
+      },
     },
   ],
 }
