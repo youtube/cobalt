@@ -55,8 +55,7 @@ class SpeechRecognitionManager {
   void OnMicError();
 
   // Callbacks from recognizer.
-  void OnRecognizerResult(const scoped_refptr<SpeechRecognitionEvent>& event);
-  void OnRecognizerError();
+  void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
 
   base::WeakPtrFactory<SpeechRecognitionManager> weak_ptr_factory_;
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in

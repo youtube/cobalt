@@ -34,9 +34,7 @@ SpeechRecognitionManager::SpeechRecognitionManager(
       event_callback_(event_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           recognizer_(network_module,
-                      base::Bind(&SpeechRecognitionManager::OnRecognizerResult,
-                                 base::Unretained(this)),
-                      base::Bind(&SpeechRecognitionManager::OnRecognizerError,
+                      base::Bind(&SpeechRecognitionManager::OnRecognizerEvent,
                                  base::Unretained(this)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(mic_(Mic::Create(
           kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
@@ -93,32 +91,17 @@ void SpeechRecognitionManager::OnDataCompletion() {
   recognizer_.RecognizeAudio(dummy_audio_bus.Pass(), true);
 }
 
-void SpeechRecognitionManager::OnRecognizerResult(
-    const scoped_refptr<SpeechRecognitionEvent>& event) {
+void SpeechRecognitionManager::OnRecognizerEvent(
+    const scoped_refptr<dom::Event>& event) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     // Called from recognizer thread.
     main_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&SpeechRecognitionManager::OnRecognizerResult,
+        FROM_HERE, base::Bind(&SpeechRecognitionManager::OnRecognizerEvent,
                               weak_this_, event));
     return;
   }
 
   event_callback_.Run(event);
-}
-
-void SpeechRecognitionManager::OnRecognizerError() {
-  if (!main_message_loop_->BelongsToCurrentThread()) {
-    // Called from recognizer thread.
-    main_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&SpeechRecognitionManager::OnRecognizerError, weak_this_));
-    return;
-  }
-
-  // TODO: Could be other error types based on the recognizer response.
-  event_callback_.Run(
-      scoped_refptr<SpeechRecognitionError>(new SpeechRecognitionError(
-          SpeechRecognitionError::kNetwork, "Recognition Failed.")));
 }
 
 void SpeechRecognitionManager::OnMicError() {
