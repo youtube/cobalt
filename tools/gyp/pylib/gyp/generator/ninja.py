@@ -91,7 +91,7 @@ def QuoteShellArgument(arg, flavor):
     return arg  # No quoting necessary.
   if flavor in ['win', 'xb1']:
     return gyp.msvs_emulation.QuoteForRspFile(arg)
-  elif flavor in ['ps3', 'ps4'] :
+  elif flavor in ['ps3', 'ps3-starboard', 'ps4'] :
     # Escape double quotes.
     return '"' + arg.replace('\"', '\\\"') + '"'
   return "'" + arg.replace("'", "'" + '"\'"' + "'")  + "'"
