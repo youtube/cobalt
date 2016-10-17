@@ -19,7 +19,9 @@ void SkDebugf_FileLine(const char* file, int line, bool fatal,
   base::StringAppendV(&message, format, ap);
   va_end(ap);
 
-  logging::LogMessage(file, line,
-                      fatal ? logging::LOG_FATAL : logging::LOG_INFO).stream()
-      << message;
+  if (fatal) {
+    logging::LogMessage(file, line, logging::LOG_FATAL).stream() << message;
+  } else if (DLOG_IS_ON(INFO)) {
+    logging::LogMessage(file, line, logging::LOG_INFO).stream() << message;
+  }
 }
