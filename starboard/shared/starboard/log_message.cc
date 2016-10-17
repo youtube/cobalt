@@ -51,7 +51,11 @@ void SetMinLogLevel(SbLogPriority priority) {
 }
 
 SbLogPriority GetMinLogLevel() {
+#if SB_LOGGING_IS_OFFICIAL_BUILD
+  return SB_LOG_FATAL;
+#else
   return g_min_log_level;
+#endif
 }
 
 void Break() {
