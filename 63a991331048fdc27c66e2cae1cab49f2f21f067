@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_6fda3d37",
+        "filename": "packaging/cobalt.manifest",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "This file should in packaging directory...:(\nActually i need packing directory include all build files for tizen build...\nex). gbs.conf, manifest, build script, spec file.\nIf cobalt rule is that, please tell me. I will move to there.",
+      "parentUuid": "7c8bb7e0_a9ffe542",
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_49689933",
         "filename": "packaging/cobalt.spec",
         "patchSetId": 6
@@ -30,6 +48,30 @@
       "writtenOn": "2016-10-15T01:57:49Z",
       "side": 1,
       "message": "We\u0027re going to be removing LGPL v2 code (JSC) soon.\nBut, all the Cobalt code is Apache 2.0, and most of the Chromium code is BSD-3-clause. SpiderMonkey and NSPR and other bits of code are MPL. There are a variety of other licenses as well...",
+      "range": {
+        "startLine": 5,
+        "startChar": 11,
+        "endLine": 5,
+        "endChar": 19
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7c8bb7e0_cf0d89e5",
+        "filename": "packaging/cobalt.spec",
+        "patchSetId": 6
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "Then. I will modify (LGPL v2 or BSD-3-clause).\nand modify (MPL or BSD-3-clause) after move to SpiderMonkey",
+      "parentUuid": "7c8bb7e0_49689933",
       "range": {
         "startLine": 5,
         "startChar": 11,
@@ -65,6 +107,30 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_0f04d1bf",
+        "filename": "src/starboard/tizen/armv7l/gyp_configuration.gypi",
+        "patchSetId": 6
+      },
+      "lineNbr": 91,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "OK. I will remote that",
+      "parentUuid": "7c8bb7e0_c986e99f",
+      "range": {
+        "startLine": 90,
+        "startChar": 0,
+        "endLine": 91,
+        "endChar": 21
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_8948e1a2",
         "filename": "src/starboard/tizen/armv7l/system_get_property.cc",
         "patchSetId": 6
@@ -76,6 +142,30 @@
       "writtenOn": "2016-10-15T01:57:49Z",
       "side": 1,
       "message": "Is Tizen running XWindows ?",
+      "range": {
+        "startLine": 23,
+        "startChar": 29,
+        "endLine": 23,
+        "endChar": 32
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7c8bb7e0_ef064dca",
+        "filename": "src/starboard/tizen/armv7l/system_get_property.cc",
+        "patchSetId": 6
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "No..:( we use Wayland...\nBut still porting progress.\nWe will modify that after add wayland port~",
+      "parentUuid": "7c8bb7e0_8948e1a2",
       "range": {
         "startLine": 23,
         "startChar": 29,
@@ -111,6 +201,30 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_2fd43505",
+        "filename": "src/starboard/tizen/armv7l/system_get_property.cc",
+        "patchSetId": 6
+      },
+      "lineNbr": 49,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "We will fix this source for our User-Agent :)",
+      "parentUuid": "7c8bb7e0_e9564d44",
+      "range": {
+        "startLine": 44,
+        "startChar": 0,
+        "endLine": 49,
+        "endChar": 46
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_692a3db1",
         "filename": "src/starboard/tizen/shared/configuration_public.h",
         "patchSetId": 6
@@ -128,6 +242,24 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_4f02d9b8",
+        "filename": "src/starboard/tizen/shared/configuration_public.h",
+        "patchSetId": 6
+      },
+      "lineNbr": 48,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "OK. I will check and add that!",
+      "parentUuid": "7c8bb7e0_692a3db1",
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_e9040d34",
         "filename": "src/starboard/tizen/shared/configuration_public.h",
         "patchSetId": 6
@@ -139,6 +271,30 @@
       "writtenOn": "2016-10-15T01:57:49Z",
       "side": 1,
       "message": "This only needs to be ~80 for 4k video, and ~40 for 1080p.",
+      "range": {
+        "startLine": 299,
+        "startChar": 37,
+        "endLine": 299,
+        "endChar": 41
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7c8bb7e0_efededdb",
+        "filename": "src/starboard/tizen/shared/configuration_public.h",
+        "patchSetId": 6
+      },
+      "lineNbr": 299,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "we need to 4k video, then we remain this value?\nOr we need to fix that?",
+      "parentUuid": "7c8bb7e0_e9040d34",
       "range": {
         "startLine": 299,
         "startChar": 37,
@@ -174,6 +330,30 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_0feb71c7",
+        "filename": "src/starboard/tizen/shared/configuration_public.h",
+        "patchSetId": 6
+      },
+      "lineNbr": 352,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "I will change to 128k.",
+      "parentUuid": "7c8bb7e0_892f81be",
+      "range": {
+        "startLine": 352,
+        "startChar": 40,
+        "endLine": 352,
+        "endChar": 49
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_e9ebad35",
         "filename": "src/third_party/libevent/libevent.gyp",
         "patchSetId": 6
@@ -185,6 +365,30 @@
       "writtenOn": "2016-10-15T01:57:49Z",
       "side": 1,
       "message": "Would you be able to just use the linux configuration here?",
+      "range": {
+        "startLine": 66,
+        "startChar": 0,
+        "endLine": 74,
+        "endChar": 19
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7c8bb7e0_2ffd1597",
+        "filename": "src/third_party/libevent/libevent.gyp",
+        "patchSetId": 6
+      },
+      "lineNbr": 74,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-17T02:22:25Z",
+      "side": 1,
+      "message": "We need to OS\u003d\u003d\"tizen\" and target_os \u003d\u003d \"tizen\".\nSo i create this part...\nand include_dirs is different.\nIf you have any idea, please guide to me :)",
+      "parentUuid": "7c8bb7e0_e9ebad35",
       "range": {
         "startLine": 66,
         "startChar": 0,
