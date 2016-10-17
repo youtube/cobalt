@@ -50,10 +50,15 @@ void ConsoleCommandManager::HandleCommand(const std::string& channel,
                                           const std::string& message) const {
   DCHECK_GT(channel.length(), size_t(0));
   base::AutoLock auto_lock(lock_);
-  CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
-  if (iter != command_channel_map_.end()) {
+  CommandHandlerMap::const_iterator iter =
+      command_channel_map_.lower_bound(channel);
+  bool handler_found = false;
+  while (iter != command_channel_map_.end() && iter->first == channel) {
+    handler_found = true;
     iter->second->callback().Run(message);
-  } else {
+    ++iter;
+  }
+  if (!handler_found) {
     DLOG(WARNING) << "No command handler registered for channel: " << channel;
   }
 }
@@ -71,8 +76,9 @@ std::set<std::string> ConsoleCommandManager::GetRegisteredChannels() const {
 std::string ConsoleCommandManager::GetShortHelp(
     const std::string& channel) const {
   base::AutoLock auto_lock(lock_);
-  CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
-  if (iter != command_channel_map_.end()) {
+  for (CommandHandlerMap::const_iterator iter =
+           command_channel_map_.lower_bound(channel);
+       iter != command_channel_map_.end() && iter->first == channel; ++iter) {
     return iter->second->short_help();
   }
   return "No help available for unregistered channel: " + channel;
@@ -81,8 +87,9 @@ std::string ConsoleCommandManager::GetShortHelp(
 std::string ConsoleCommandManager::GetLongHelp(
     const std::string& channel) const {
   base::AutoLock auto_lock(lock_);
-  CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
-  if (iter != command_channel_map_.end()) {
+  for (CommandHandlerMap::const_iterator iter =
+           command_channel_map_.lower_bound(channel);
+       iter != command_channel_map_.end() && iter->first == channel; ++iter) {
     return iter->second->long_help();
   }
   return "No help available for unregistered channel: " + channel;
@@ -92,14 +99,22 @@ void ConsoleCommandManager::RegisterCommandHandler(
     const CommandHandler* handler) {
   DCHECK_GT(handler->channel().length(), size_t(0));
   base::AutoLock auto_lock(lock_);
-  command_channel_map_[handler->channel()] = handler;
+  command_channel_map_.insert(std::make_pair(handler->channel(), handler));
 }
 
 void ConsoleCommandManager::UnregisterCommandHandler(
     const CommandHandler* handler) {
-  DCHECK_GT(handler->channel().length(), size_t(0));
+  const std::string& channel = handler->channel();
+  DCHECK_GT(channel.length(), size_t(0));
   base::AutoLock auto_lock(lock_);
-  command_channel_map_.erase(handler->channel());
+  for (CommandHandlerMap::iterator iter =
+           command_channel_map_.lower_bound(channel);
+       iter != command_channel_map_.end() && iter->first == channel; ++iter) {
+    if (iter->second == handler) {
+      command_channel_map_.erase(iter);
+      break;
+    }
+  }
 }
 
 #else   // ENABLE_DEBUG_CONSOLE
