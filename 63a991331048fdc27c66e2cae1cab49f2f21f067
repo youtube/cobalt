@@ -37,6 +37,24 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_da89c508",
+        "filename": "packaging/cobalt.manifest",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-17T04:59:28Z",
+      "side": 1,
+      "message": "Sorry, yes, my language was overly-soft, but it is a hard rule that platform-specific files like this must be contained within the port directory. We could not support a multitude of platforms without containing each one to some extent.\n\nThey could be copied to a staging area as part of running gyp_cobalt or something by placing logic inside gyp_configuration.py.",
+      "parentUuid": "7c8bb7e0_6fda3d37",
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_49689933",
         "filename": "packaging/cobalt.spec",
         "patchSetId": 6
@@ -72,6 +90,30 @@
       "side": 1,
       "message": "Then. I will modify (LGPL v2 or BSD-3-clause).\nand modify (MPL or BSD-3-clause) after move to SpiderMonkey",
       "parentUuid": "7c8bb7e0_49689933",
+      "range": {
+        "startLine": 5,
+        "startChar": 11,
+        "endLine": 5,
+        "endChar": 19
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7c8bb7e0_7a96792a",
+        "filename": "packaging/cobalt.spec",
+        "patchSetId": 6
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-17T04:59:28Z",
+      "side": 1,
+      "message": "Note that we already use SpiderMonkey as the default on Linux.",
+      "parentUuid": "7c8bb7e0_cf0d89e5",
       "range": {
         "startLine": 5,
         "startChar": 11,
@@ -307,6 +349,30 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_3a90f128",
+        "filename": "src/starboard/tizen/shared/configuration_public.h",
+        "patchSetId": 6
+      },
+      "lineNbr": 299,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-17T04:59:28Z",
+      "side": 1,
+      "message": "I would recommend reducing this to 80 MB",
+      "parentUuid": "7c8bb7e0_efededdb",
+      "range": {
+        "startLine": 299,
+        "startChar": 37,
+        "endLine": 299,
+        "endChar": 41
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_892f81be",
         "filename": "src/starboard/tizen/shared/configuration_public.h",
         "patchSetId": 6
@@ -354,6 +420,30 @@
     },
     {
       "key": {
+        "uuid": "7c8bb7e0_faa92967",
+        "filename": "src/starboard/tizen/shared/configuration_public.h",
+        "patchSetId": 6
+      },
+      "lineNbr": 352,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-17T04:59:28Z",
+      "side": 1,
+      "message": "You don\u0027t think 0 would be better? You might want to run tests by transferring a large file and seeing which setting is faster. This can have an effect on effect media download bandwidth.",
+      "parentUuid": "7c8bb7e0_0feb71c7",
+      "range": {
+        "startLine": 352,
+        "startChar": 40,
+        "endLine": 352,
+        "endChar": 49
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_e9ebad35",
         "filename": "src/third_party/libevent/libevent.gyp",
         "patchSetId": 6
@@ -389,6 +479,30 @@
       "side": 1,
       "message": "We need to OS\u003d\u003d\"tizen\" and target_os \u003d\u003d \"tizen\".\nSo i create this part...\nand include_dirs is different.\nIf you have any idea, please guide to me :)",
       "parentUuid": "7c8bb7e0_e9ebad35",
+      "range": {
+        "startLine": 66,
+        "startChar": 0,
+        "endLine": 74,
+        "endChar": 19
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7c8bb7e0_3ac79132",
+        "filename": "src/third_party/libevent/libevent.gyp",
+        "patchSetId": 6
+      },
+      "lineNbr": 74,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-17T04:59:28Z",
+      "side": 1,
+      "message": "Why do you need OS\u003d\u003d\"tizen\" and target_os \u003d\u003d \"tizen\" ?\n\nOS must equal \"starboard\" on all platforms, or Cobalt will not work.\n\nI think you might be able to just set target_os\u003d\u003d\"linux\" and could avoid some of the modifications here and in other gyp files. At least until we move these to feature-based checks.",
+      "parentUuid": "7c8bb7e0_2ffd1597",
       "range": {
         "startLine": 66,
         "startChar": 0,
