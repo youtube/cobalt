@@ -65,7 +65,8 @@ class VideoDecoderFuzzer {
     if (au_index_ < demuxer_->GetFrameCount()) {
       MediaSourceDemuxer::AUDescriptor desc = demuxer_->GetFrame(au_index_);
       current_au_buffer_ =
-          ::media::ShellBufferFactory::Instance()->AllocateBufferNow(desc.size);
+          ::media::ShellBufferFactory::Instance()->AllocateBufferNow(
+              desc.size, desc.is_keyframe);
       memcpy(current_au_buffer_->GetWritableData(), &au_data_[0] + desc.offset,
              desc.size);
       ++au_index_;

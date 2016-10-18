@@ -42,7 +42,7 @@ using ::media::DecoderBuffer;
 using ::media::DemuxerStream;
 using ::media::ChunkDemuxer;
 
-typedef base::Callback<void(::media::Buffer*)> AppendBufferCB;
+typedef base::Callback<void(::media::DecoderBuffer*)> AppendBufferCB;
 
 const char kSourceId[] = "id";
 
@@ -268,8 +268,9 @@ MediaSourceDemuxer::MediaSourceDemuxer(const std::vector<uint8>& content)
   }
 }
 
-void MediaSourceDemuxer::AppendBuffer(::media::Buffer* buffer) {
+void MediaSourceDemuxer::AppendBuffer(::media::DecoderBuffer* buffer) {
   AUDescriptor desc = {0};
+  desc.is_keyframe = buffer->IsKeyframe();
   desc.offset = au_data_.size();
   desc.size = buffer->GetDataSize();
   desc.timestamp = buffer->GetTimestamp();

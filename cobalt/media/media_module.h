@@ -22,8 +22,12 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
+#include "base/threading/thread.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/can_play_type_handler.h"
@@ -59,6 +63,10 @@ class MediaModule : public CanPlayTypeHandler,
   typedef ::media::WebMediaPlayer WebMediaPlayer;
   typedef render_tree::Image Image;
 
+  MediaModule() : thread_("media_module") {
+    thread_.Start();
+    message_loop_ = thread_.message_loop_proxy();
+  }
   virtual ~MediaModule() {}
 
   // Returns true when the setting is set successfully or if the setting has
@@ -70,6 +78,9 @@ class MediaModule : public CanPlayTypeHandler,
     return false;
   }
 
+  void Suspend();
+  void Resume();
+
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   virtual ::media::ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
     return NULL;
@@ -79,51 +90,8 @@ class MediaModule : public CanPlayTypeHandler,
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.
   // WebMediaPlayerDelegate methods
-  void RegisterPlayer(WebMediaPlayer* player) OVERRIDE {
-    DCHECK(players_.find(player) == players_.end());
-    players_.insert(std::make_pair(player, false));
-    // Track debug state for the most recently added WebMediaPlayer instance.
-    RegisterDebugState(player);
-  }
-
-  void UnregisterPlayer(WebMediaPlayer* player) OVERRIDE {
-    DCHECK(players_.find(player) != players_.end());
-    players_.erase(players_.find(player));
-    if (players_.empty()) {
-      DeregisterDebugState();
-    } else {
-      RegisterDebugState(players_.begin()->first);
-    }
-  }
-
-  // Functions to allow pause/resume of all active players.  Note that the
-  // caller should block the main thread to ensure that media related JS/DOM
-  // code doesn't get a chance to run between the call to PauseAllPlayers() and
-  // ResumeAllPlayers().  Otherwise the JS/DOM code might bring the players back
-  // to playback states.
-  void PauseAllPlayers() {
-    for (Players::iterator iter = players_.begin(); iter != players_.end();
-         ++iter) {
-      DCHECK(!iter->second);
-      if (!iter->second && !iter->first->IsPaused()) {
-        iter->first->Pause();
-        iter->second = true;
-      }
-    }
-  }
-
-  void ResumeAllPlayers() {
-    for (Players::iterator iter = players_.begin(); iter != players_.end();
-         ++iter) {
-      if (iter->second) {
-        DCHECK(iter->first->IsPaused());
-        if (iter->first->IsPaused()) {
-          iter->first->Play();
-        }
-        iter->second = false;
-      }
-    }
-  }
+  void RegisterPlayer(WebMediaPlayer* player) OVERRIDE;
+  void UnregisterPlayer(WebMediaPlayer* player) OVERRIDE;
 
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
@@ -133,23 +101,20 @@ class MediaModule : public CanPlayTypeHandler,
       const Options& options = Options());
 
  private:
-  void RegisterDebugState(WebMediaPlayer* player) {
-    void* debug_state_address = NULL;
-    size_t debug_state_size = 0;
-    if (player->GetDebugReportDataAddress(&debug_state_address,
-                                          &debug_state_size)) {
-      base::UserLog::Register(base::UserLog::kWebMediaPlayerState,
-                              "MediaPlyrState", debug_state_address,
-                              debug_state_size);
-    }
-  }
-  void DeregisterDebugState() {
-    base::UserLog::Deregister(base::UserLog::kWebMediaPlayerState);
-  }
+  void RegisterDebugState(WebMediaPlayer* player);
+  void DeregisterDebugState();
+  void SuspendTask();
+  void ResumeTask();
+  void RegisterPlayerTask(WebMediaPlayer* player);
+  void UnregisterPlayerTask(WebMediaPlayer* player);
 
   // When the value of a particular player is true, it means the player is
   // paused by us.
   typedef std::map<WebMediaPlayer*, bool> Players;
+
+  // The thread that |players_| is accessed from,
+  base::Thread thread_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
   Players players_;
 };
 
