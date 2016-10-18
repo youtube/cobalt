@@ -24,6 +24,7 @@
         'can_play_type_handler.h',
         'fetcher_buffered_data_source.cc',
         'fetcher_buffered_data_source.h',
+        'media_module.cc',
         'media_module.h',
         'media_module_stub.cc',
         'media_module_stub.h',
