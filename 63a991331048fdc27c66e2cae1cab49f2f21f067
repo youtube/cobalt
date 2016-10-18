@@ -126,6 +126,30 @@
     },
     {
       "key": {
+        "uuid": "1c6b9b00_8446301b",
+        "filename": "packaging/cobalt.spec",
+        "patchSetId": 6
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-18T01:42:20Z",
+      "side": 1,
+      "message": "We have not decided yet JSC or SpiderMonkey...\nCuz we need to analysis performance when launch TV target between JSC and SpiderMonkey...",
+      "parentUuid": "7c8bb7e0_7a96792a",
+      "range": {
+        "startLine": 5,
+        "startChar": 11,
+        "endLine": 5,
+        "endChar": 19
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "7c8bb7e0_c986e99f",
         "filename": "src/starboard/tizen/armv7l/gyp_configuration.gypi",
         "patchSetId": 6
@@ -503,6 +527,30 @@
       "side": 1,
       "message": "Why do you need OS\u003d\u003d\"tizen\" and target_os \u003d\u003d \"tizen\" ?\n\nOS must equal \"starboard\" on all platforms, or Cobalt will not work.\n\nI think you might be able to just set target_os\u003d\u003d\"linux\" and could avoid some of the modifications here and in other gyp files. At least until we move these to feature-based checks.",
       "parentUuid": "7c8bb7e0_2ffd1597",
+      "range": {
+        "startLine": 66,
+        "startChar": 0,
+        "endLine": 74,
+        "endChar": 19
+      },
+      "revId": "63a991331048fdc27c66e2cae1cab49f2f21f067",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "1c6b9b00_842f5055",
+        "filename": "src/third_party/libevent/libevent.gyp",
+        "patchSetId": 6
+      },
+      "lineNbr": 74,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-18T01:42:20Z",
+      "side": 1,
+      "message": "Ok. we only use target_os \u003d\u003d \"tizen\" :)\nActually we have very confuse about OS flag...\nSo we use OS \u003d\u003d \"starboard\" and target_os \u003d\u003d \"tizen\" right?",
+      "parentUuid": "7c8bb7e0_3ac79132",
       "range": {
         "startLine": 66,
         "startChar": 0,
