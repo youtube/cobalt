@@ -15,6 +15,7 @@ import re
 import socket
 import sys
 import threading
+import unittest
 
 arg_parser = argparse.ArgumentParser(
     description="Runs Webdriver-based Cobalt benchmarks")
@@ -49,6 +50,46 @@ COBALT_WEBDRIVER_CAPABILITIES = {
     "platform": "LINUX"
 }
 
+_webdriver = None
+
+
+def GetWebDriver():
+  """Returns the active connect WebDriver instance."""
+  return _webdriver
+
+
+def ImportSeleniumModule(submodule=None):
+  """Dynamically imports a selenium.webdriver submodule.
+
+  This is done because selenium 3.0 is not commonly pre-installed
+  on workstations, and we want to have a friendly error message for that
+  case.
+
+  Args:
+    submodule: module subpath underneath "selenium.webdriver"
+  Returns:
+    appropriate module
+  """
+  if submodule:
+    module_path = ".".join(("selenium", submodule))
+  else:
+    module_path = "selenium"
+  # As of this writing, Google uses selenium 3.0.0b2 internally, so
+  # thats what we will target here as well.
+  try:
+    module = importlib.import_module(module_path)
+    if submodule is None:
+      # Only the top-level module has __version__
+      if not module.__version__.startswith("3.0"):
+        raise ImportError("Not version 3.0.x")
+  except ImportError:
+    sys.stderr.write("Could not import {}\n"
+                     "Please install selenium >= 3.0.0b2.\n"
+                     "Commonly: \"sudo pip install 'selenium>=3.0.0b2'\"\n"
+                     .format(module_path))
+    sys.exit(1)
+  return module
+
 
 class CobaltRunner(object):
   """Runs a Cobalt browser w/ a WebDriver client attached."""
@@ -61,17 +102,7 @@ class CobaltRunner(object):
   thread = None
 
   def __init__(self, platform, executable, devkit_name, log_file_path):
-    # As of this writing, Google uses selenium 3.0.0b2 internally, so
-    # thats what we will target here as well.
-    try:
-      self.selenium_webdriver_module = importlib.import_module(
-          "selenium.webdriver")
-      if not self.selenium_webdriver_module.__version__.startswith("3.0"):
-        raise ImportError("Not version 3.0.x")
-    except ImportError:
-      sys.stderr.write("Please install selenium >= 3.0.0b2.\n"
-                       "Commonly: \"sudo pip install 'selenium>=3.0.0b2'\"\n")
-      sys.exit(1)
+    self.selenium_webdriver_module = ImportSeleniumModule("webdriver")
 
     script_path = os.path.dirname(__file__)
     sys.path.append(script_path + "/../../tools/lbshell/")
@@ -116,9 +147,11 @@ class CobaltRunner(object):
     return self.launcher.GetIPAddress()
 
   def _StartWebdriver(self, port):
+    global _webdriver
     url = "http://{}:{}/".format(self._GetIPAddress(), port)
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
+    _webdriver = self.webdriver
     self.test_script_started.set()
 
   def WaitForStart(self):
@@ -180,8 +213,7 @@ def main():
     devkit_name = socket.gethostname()
 
   with CobaltRunner(platform, executable, devkit_name, args.log_file):
-    # TODO run tests here
-    pass
+    unittest.main()
   return 0
 
 
