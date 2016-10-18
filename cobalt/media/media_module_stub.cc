@@ -54,6 +54,10 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
   }
   float GetMaxTimeSeekable() const OVERRIDE { return 0.f; }
 
+  // Suspend/Resume
+  void Suspend() OVERRIDE {}
+  void Resume() OVERRIDE {}
+
   // True if the loaded media has a playable video/audio track.
   bool HasVideo() const OVERRIDE { return false; }
   bool HasAudio() const OVERRIDE { return false; }
