@@ -881,7 +881,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
           (*font_style_set_entry)->font_postscript_name;
       DCHECK(!postscript_font_name.empty());
       if (postscriptname_to_fontface_info_map_.find(postscript_font_name) ==
-          fullfontname_to_fontface_info_map_.end()) {
+          postscriptname_to_fontface_info_map_.end()) {
         DLOG(INFO) << "Adding Postscript name [" << postscript_font_name
                    << "].";
         postscriptname_to_fontface_info_map_[postscript_font_name] =
