@@ -236,9 +236,6 @@
     'werror': '',
     # Cobalt doesn't currently support tcmalloc.
     'linux_use_tcmalloc': 0,
-
-    'enable_webdriver%': 0,
-
     # The event polling mechanism available on this platform to support libevent.
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
@@ -456,6 +453,7 @@
         'enable_network_logging': 1,
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
+        'enable_webdriver%': 1,
       },
     },
     {
@@ -467,6 +465,7 @@
         'enable_network_logging': 0,
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
+        'enable_webdriver': 0,
       },
     }],
   ],
