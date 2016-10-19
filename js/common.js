@@ -24,7 +24,7 @@
 $(document).ready(function() {
 
   /** Generated table of contents */
-  $.getScript("/assets/js/jekyll-table-of-contents.js", function() {
+  $.getScript("/cobalt/assets/js/jekyll-table-of-contents.js", function() {
     $('#toc').toc({ listType: 'ul' });
     $('#standard-menu-links>ul:first-child').
         addClass('nav navbar-nav navbar-right');
@@ -169,7 +169,7 @@ $(document).ready(function() {
   }));
 
   /** Collapsible menus in left nav */
-  $.getScript("/assets/js/simple-expand.js", function() {
+  $.getScript("/cobalt/assets/js/simple-expand.js", function() {
     $('#sidebar li ul li b').simpleexpand({'defaultTarget': 'ul'});
   });
 
