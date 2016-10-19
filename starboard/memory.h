@@ -11,12 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+//
 // Memory allocation, alignment, copying, and comparing.
+//
+// DO NOT CALL SbMemoryAllocateUnchecked(), SbMemoryAllocateChecked()
+// SbMemoryReallocateUnchecked(), SbMemoryReallocateChecked(),
+// SbMemoryAllocateAlignedUnchecked(), SbMemoryAllocateAlignedChecked(),
+// SbMemoryFree(), SbMemoryFreeAligned(). They are internal.
 
 #ifndef STARBOARD_MEMORY_H_
 #define STARBOARD_MEMORY_H_
 
+#include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
@@ -26,16 +32,6 @@ extern "C" {
 #endif
 
 #define SB_MEMORY_MAP_FAILED ((void*)-1)  // NOLINT(readability/casting)
-
-#if defined(SB_ABORT_ON_ALLOCATION_FAILURE)
-#define SbMemoryAllocate SbMemoryAllocateChecked
-#define SbMemoryReallocate SbMemoryReallocateChecked
-#define SbMemoryAllocateAligned SbMemoryAllocateAlignedChecked
-#else
-#define SbMemoryAllocate SbMemoryAllocateUnchecked
-#define SbMemoryReallocate SbMemoryReallocateUnchecked
-#define SbMemoryAllocateAligned SbMemoryAllocateAlignedUnchecked
-#endif
 
 // The bitwise OR of these flags should be passed to SbMemoryMap to indicate
 // how the mapped memory can be used.
@@ -71,16 +67,10 @@ static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
 // Allocates a chunk of memory of at least |size| bytes, returning it. If unable
 // to allocate the memory, it returns NULL. If |size| is 0, it may return NULL
 // or it may return a unique pointer value that can be passed to
-// SbMemoryFree. Meant to be a drop-in replacement for malloc.
-SB_EXPORT void* SbMemoryAllocateUnchecked(size_t size);
-
-// Same as SbMemoryAllocateUnchecked, but will abort() in the case of an
-// allocation failure.
-static SB_C_FORCE_INLINE void* SbMemoryAllocateChecked(size_t size) {
-  void* address = SbMemoryAllocateUnchecked(size);
-  SbAbortIfAllocationFailed(size, address);
-  return address;
-}
+// SbMemoryDeallocate. Meant to be a drop-in replacement for malloc.
+//
+// This memory function should be called from the Cobalt codebase.
+SB_EXPORT void* SbMemoryAllocate(size_t size);
 
 // Attempts to resize |memory| to be at least |size| bytes, without touching the
 // contents. If it cannot perform the fast resize, it will allocate a new chunk
@@ -89,41 +79,66 @@ static SB_C_FORCE_INLINE void* SbMemoryAllocateChecked(size_t size) {
 // return NULL, leaving the given memory chunk unchanged. |memory| may be NULL,
 // in which case it behaves exactly like SbMemoryAllocateUnchecked.  If |size|
 // is 0, it may return NULL or it may return a unique pointer value that can be
-// passed to SbMemoryFree. Meant to be a drop-in replacement for realloc.
-SB_EXPORT void* SbMemoryReallocateUnchecked(void* memory, size_t size);
+// passed to SbMemoryDeallocate. Meant to be a drop-in replacement for realloc.
+//
+// This memory function should be called from the Cobalt codebase.
+SB_EXPORT void* SbMemoryReallocate(void* memory, size_t size);
 
-// Same as SbMemoryReallocateUnchecked, but will abort() in the case of an
-// allocation failure
-static SB_C_FORCE_INLINE void* SbMemoryReallocateChecked(void* memory,
-                                                         size_t size) {
-  void* address = SbMemoryReallocateUnchecked(memory, size);
-  SbAbortIfAllocationFailed(size, address);
-  return address;
-}
+// Allocates a chunk of memory of at least |size| bytes, aligned to
+// |alignment|, returning it. |alignment| must be a power of two, otherwise
+// behavior is undefined. If unable to allocate the memory, it returns NULL.
+// If |size| is 0, it may return NULL or it may return a unique aligned pointer
+// value that can be passed to SbMemoryDeallocateAligned. Meant to be a drop-in
+// replacement for memalign.
+//
+// This memory function should be called from the Cobalt codebase.
+SB_EXPORT void* SbMemoryAllocateAligned(size_t alignment, size_t size);
 
 // Frees a previously allocated chunk of memory. If |memory| is NULL, then it
 // does nothing.  Meant to be a drop-in replacement for free.
-SB_EXPORT void SbMemoryFree(void* memory);
-
-// Allocates a chunk of memory of at least |size| bytes, aligned to |alignment|,
-// returning it. |alignment| must be a power of two, otherwise behavior is
-// undefined. If unable to allocate the memory, it returns NULL. If |size| is 0,
-// it may return NULL or it may return a unique aligned pointer value that can
-// be passed to SbMemoryFreeAligned. Meant to be a drop-in replacement for
-// memalign.
-SB_EXPORT void* SbMemoryAllocateAlignedUnchecked(size_t alignment, size_t size);
-
-// Same as SbMemoryAllocateAlignedUnchecked, but will abort() in the case of an
-// allocation failure
-static SB_C_FORCE_INLINE void* SbMemoryAllocateAlignedChecked(size_t alignment,
-                                                              size_t size) {
-  void* address = SbMemoryAllocateAlignedUnchecked(alignment, size);
-  SbAbortIfAllocationFailed(size, address);
-  return address;
-}
+//
+// This memory function should be called from the Cobalt codebase.
+SB_EXPORT void SbMemoryDeallocate(void* memory);
 
 // Frees a previously allocated chunk of aligned memory. If |memory| is NULL,
 // then it does nothing.  Meant to be a drop-in replacement for _aligned_free.
+//
+// This memory function should be called from the Cobalt codebase.
+SB_EXPORT void SbMemoryDeallocateAligned(void* memory);
+
+/////////////////////////////////////////////////////////////////
+// The following functions must be provided by Starboard ports.
+/////////////////////////////////////////////////////////////////
+
+// This is the implementation of SbMemoryAllocate that must be
+// provided by Starboard ports.
+//
+// DO NOT CALL. Call SbMemoryAllocate(...) instead.
+SB_EXPORT void* SbMemoryAllocateUnchecked(size_t size);
+
+// This is the implementation of SbMemoryReallocate that must be
+// provided by Starboard ports.
+//
+// DO NOT CALL. Call SbMemoryReallocate(...) instead.
+SB_EXPORT void* SbMemoryReallocateUnchecked(void* memory, size_t size);
+
+// This is the implementation of SbMemoryAllocateAligned that must be
+// provided by Starboard ports.
+//
+// DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.
+SB_EXPORT void* SbMemoryAllocateAlignedUnchecked(size_t alignment,
+                                                 size_t size);
+
+// This is the implementation of SbMemoryDeallocate that must be provided by
+// Starboard ports.
+//
+// DO NOT CALL. Call SbMemoryDeallocate(...) instead.
+SB_EXPORT void SbMemoryFree(void* memory);
+
+// This is the implementation of SbMemoryFreeAligned that must be provided by
+// Starboard ports.
+//
+// DO NOT CALL. Call SbMemoryDeallocateAligned(...) instead.
 SB_EXPORT void SbMemoryFreeAligned(void* memory);
 
 #if SB_HAS(MMAP)
@@ -205,6 +220,32 @@ static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
   }
   return result;
 }
+
+/////////////////////////////////////////////////////////////////
+// Deprecated. Do not use.
+/////////////////////////////////////////////////////////////////
+
+// Same as SbMemoryAllocateUnchecked, but will abort() in the case of an
+// allocation failure.
+//
+// DO NOT CALL. Call SbMemoryAllocate(...) instead.
+SB_DEPRECATED(
+    SB_EXPORT void* SbMemoryAllocateChecked(size_t size));
+
+// Same as SbMemoryReallocateUnchecked, but will abort() in the case of an
+// allocation failure.
+//
+// DO NOT CALL. Call SbMemoryReallocate(...) instead.
+SB_DEPRECATED(
+    SB_EXPORT void* SbMemoryReallocateChecked(void* memory, size_t size));
+
+// Same as SbMemoryAllocateAlignedUnchecked, but will abort() in the case of an
+// allocation failure.
+//
+// DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.
+SB_DEPRECATED(
+    SB_EXPORT void* SbMemoryAllocateAlignedChecked(size_t alignment,
+                                                   size_t size));
 
 #ifdef __cplusplus
 }  // extern "C"
