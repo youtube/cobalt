@@ -17,6 +17,8 @@
 #ifndef COBALT_SPEECH_MIC_H_
 #define COBALT_SPEECH_MIC_H_
 
+#include <string>
+
 #include "base/callback.h"
 #include "media/base/audio_bus.h"
 
@@ -59,6 +61,8 @@ class Mic {
   const CompletionCallback completion_callback_;
   const ErrorCallback error_callback_;
 };
+
+std::string GetSpeechAPIKey();
 
 }  // namespace speech
 }  // namespace cobalt
