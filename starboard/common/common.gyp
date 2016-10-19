@@ -19,8 +19,12 @@
   'targets': [
     {
       'target_name': 'common',
-      'type': 'none',
+      'type': 'static_library',
+      'variables': {
+        'includes_starboard': 1,
+      },
       'sources': [
+        'memory.cc',
         'move.h',
         'reset_and_return.h',
         'scoped_ptr.h',
