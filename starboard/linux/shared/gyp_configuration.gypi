@@ -21,7 +21,6 @@
     'target_os': 'linux',
     #'starboard_path%': 'starboard/linux/x64x11',
 
-    'enable_webdriver': '1',
     'in_app_dial%': 1,
     'gl_type%': 'system_gles3',
 
