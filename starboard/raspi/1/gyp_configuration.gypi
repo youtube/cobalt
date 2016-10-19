@@ -17,7 +17,6 @@
     'target_arch': 'arm',
     'target_os': 'linux',
 
-    'enable_webdriver': '1',
     'in_app_dial%': 0,
     'sysroot%': '/',
     'gl_type': 'system_gles2',
