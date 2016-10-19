@@ -25,6 +25,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
+#include "cobalt/speech/mic.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "net/base/escape.h"
 #include "net/url_request/url_fetcher.h"
@@ -35,8 +36,6 @@ namespace speech {
 namespace {
 const char kBaseStreamURL[] =
     "https://www.google.com/speech-api/full-duplex/v1";
-// TODO: hide this key to somewhere else.
-const char kSpeechAPIKey[] = "";
 const char kUp[] = "up";
 const char kDown[] = "down";
 const char kClient[] = "com.speech.tv";
@@ -244,7 +243,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "client", kClient);
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
-  up_url = AppendQueryParameter(up_url, "key", kSpeechAPIKey);
+  up_url = AppendQueryParameter(up_url, "key", GetSpeechAPIKey());
 
   // Language is required. If no language is specified, use the system language.
   if (!config.lang.empty()) {
