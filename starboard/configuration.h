@@ -186,6 +186,18 @@ struct CompileAssert {};
 #endif  // SB_IS(COMPILER_MSVC)
 #endif  // !defined(SB_UNLIKELY)
 
+// Macro for tagging a function as deprecated, which will trigger a compiler
+// warning when referenced.
+// Usage:
+//  SB_DEPRECATED(void OldFunction(int bar));
+#if SB_IS(COMPILER_GCC)
+#define SB_DEPRECATED(FUNC) FUNC __attribute__ ((deprecated))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_DEPRECATED(FUNC) __declspec(deprecated) FUNC
+#else
+#define SB_DEPRECATED(FUNC) FUNC
+#endif
+
 // A macro to disallow the copy constructor and operator= functions
 // This should be used in the private: declarations for a class
 #define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
