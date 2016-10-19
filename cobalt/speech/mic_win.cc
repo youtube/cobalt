@@ -38,5 +38,7 @@ scoped_ptr<Mic> Mic::Create(int sample_rate,
       new MicWin(sample_rate, data_received, completion, error));
 }
 
+std::string GetSpeechAPIKey() { return ""; }
+
 }  // namespace speech
 }  // namespace cobalt
