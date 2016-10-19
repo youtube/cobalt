@@ -16,8 +16,6 @@
     'target_arch': 'x64',
     'target_os': 'linux',
 
-    'enable_webdriver': '1',
-
     # Use a stub rasterizer and graphical setup.
     'rasterizer_type': 'stub',
 
