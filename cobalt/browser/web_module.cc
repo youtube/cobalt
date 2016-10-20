@@ -615,9 +615,6 @@ void WebModule::Impl::Suspend() {
   // Stop the generation of render trees.
   layout_manager_->Suspend();
 
-  // Clear out all image resources from the image cache.
-  image_cache_->Purge();
-
 #if defined(ENABLE_DEBUG_CONSOLE)
   // The debug overlay may be holding onto a render tree, clear that out.
   debug_overlay_->ClearInput();
@@ -626,6 +623,17 @@ void WebModule::Impl::Suspend() {
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+
+  // Ensure the document is not holding onto any more image cached resources so
+  // that they are eligible to be purged.
+  window_->document()->PurgeCachedResourceReferencesRecursively();
+
+  // Clear out all image resources from the image cache. We need to do this
+  // after we abort all in-progress loads, and after we clear all document
+  // references, or they will still be referenced and won't be cleared from the
+  // cache.
+  image_cache_->Purge();
+  remote_typeface_cache_->Purge();
 
   // Finally mark that we have no resource provider.
   resource_provider_ = NULL;

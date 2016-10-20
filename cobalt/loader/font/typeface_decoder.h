@@ -47,20 +47,20 @@ class TypefaceDecoder : public Decoder {
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
-
-  void Abort() OVERRIDE;
+  bool Suspend() OVERRIDE;
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
  private:
   void ReleaseRawData();
 
-  render_tree::ResourceProvider* const resource_provider_;
+  render_tree::ResourceProvider* resource_provider_;
   const SuccessCallback success_callback_;
   const ErrorCallback error_callback_;
 
   scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data_;
   bool is_raw_data_too_large_;
 
-  bool aborted_;
+  bool suspended_;
 };
 
 }  // namespace font
