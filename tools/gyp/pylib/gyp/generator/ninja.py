@@ -183,7 +183,7 @@ class Target:
     # For bundles, the .TOC should be produced for the binary, not for
     # FinalOutput(). But the naive approach would put the TOC file into the
     # bundle, so don't do this for bundles for now.
-    if flavor in ['win', 'xb1', 'ps3', 'ps4'] or self.bundle:
+    if flavor in ['win', 'xb1', 'ps3', 'ps3-starboard', 'ps4'] or self.bundle:
       return False
     return self.type in ('shared_library', 'loadable_module')
 
@@ -251,7 +251,7 @@ class NinjaWriter:
 
     self.abs_build_dir = abs_build_dir
     self.obj_ext = '.obj' if flavor == 'win' else '.o'
-    if flavor in ['win', 'ps3', 'xb1', 'ps4']:
+    if flavor in ['win', 'ps3', 'ps3-starboard', 'xb1', 'ps4']:
       # See docstring of msvs_emulation.GenerateEnvironmentFiles().
       self.win_env = {}
       for arch in ('x86', 'x64'):
@@ -411,7 +411,7 @@ class NinjaWriter:
     self.xcode_settings = self.msvs_settings = None
     if self.flavor == 'mac':
       self.xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
-    if (self.flavor in ['win', 'ps3', 'xb1', 'ps4']
+    if (self.flavor in ['win', 'ps3', 'ps3-starboard', 'xb1', 'ps4']
         and is_windows):
       self.msvs_settings = gyp.msvs_emulation.MsvsSettings(spec,
                                                            generator_flags)
@@ -580,7 +580,7 @@ class NinjaWriter:
       return False
     elif self.flavor == 'win':
       return self.msvs_settings.IsRuleRunUnderCygwin(action)
-    elif self.flavor in ['ps3', 'xb1', 'ps4'] :
+    elif self.flavor in ['ps3', 'ps3-starboard', 'xb1', 'ps4'] :
       return str(action.get('msvs_cygwin_shell', 1)) != '0'
     return False
 
@@ -976,7 +976,7 @@ class NinjaWriter:
           if (self.flavor in ['win', 'xb1'] and target.component_objs and
               self.msvs_settings.IsUseLibraryDependencyInputs(config_name)):
             extra_link_deps.extend(target.component_objs)
-          elif (self.flavor in ['win', 'xb1', 'ps3'] and
+          elif (self.flavor in ['win', 'xb1', 'ps3', 'ps3-starboard'] and
                 target.import_lib):
             extra_link_deps.append(target.import_lib)
           elif target.UsesToc(self.flavor):
@@ -1058,7 +1058,7 @@ class NinjaWriter:
           extra_bindings.append(('implibflag',
                                  '/IMPLIB:%s' % self.target.import_lib))
           output = [output, self.target.import_lib]
-      elif self.flavor == 'ps3':
+      elif self.flavor in ['ps3', 'ps3-starboard']:
         # Tell Ninja we'll be generating a .sprx and a stub library.
         # Bind the variable '$prx' to our output binary so we can
         # refer to it in the linker rules.
@@ -1322,7 +1322,7 @@ class NinjaWriter:
     type_in_output_root = ['executable', 'loadable_module']
     if self.flavor == 'mac' and self.toolset == 'target':
       type_in_output_root += ['shared_library', 'static_library']
-    elif self.flavor in ['win', 'ps3'] and self.toolset == 'target':
+    elif self.flavor in ['win', 'ps3', 'ps3-starboard'] and self.toolset == 'target':
       type_in_output_root += ['shared_library']
 
     if type in type_in_output_root or self.is_standalone_static_library:
@@ -1380,7 +1380,7 @@ class NinjaWriter:
     rspfile = None
     rspfile_content = None
     args = [self.ExpandSpecial(arg, self.base_to_build) for arg in args]
-    if (self.flavor in ['win', 'ps3', 'xb1', 'ps4']
+    if (self.flavor in ['win', 'ps3', 'ps3-starboard', 'xb1', 'ps4']
         and is_windows):
       rspfile = rule_name + '.$unique_name.rsp'
       # The cygwin case handles this inside the bash sub-shell.
@@ -1461,7 +1461,7 @@ def CalculateVariables(default_variables, params):
       default_variables['MSVS_OS_BITS'] = 64
     else:
       default_variables['MSVS_OS_BITS'] = 32
-  elif flavor == 'ps3':
+  elif flavor in ['ps3', 'ps3-starboard']:
     if is_windows:
       # This is required for BuildCygwinBashCommandLine() to work.
       import gyp.generator.msvs as msvs_generator
@@ -1607,7 +1607,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   # - If there is no 'make_global_settings' for CC.host/CXX.host or
   #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
   #   to cc/cxx.
-  if (flavor == 'win' or (flavor in ['ps3', 'ps4'] and is_windows)):
+  if (flavor == 'win' or (flavor in ['ps3', 'ps3-starboard', 'ps4'] and is_windows)):
     cc = 'cl.exe'
     cxx = 'cl.exe'
     ld = 'link.exe'
@@ -1680,11 +1680,11 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.variable('asm', 'ml.exe')
     master_ninja.variable('mt', 'mt.exe')
     master_ninja.variable('use_dep_database', '1')
-  elif flavor in ['ps3', 'ps4']:
+  elif flavor in ['ps3', 'ps3-starboard', 'ps4']:
     # Require LD to be set.
     master_ninja.variable('ld', os.environ.get('LD'))
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
-    if flavor =='ps3':
+    if flavor in ['ps3', 'ps3-starboard']:
       master_ninja.variable('prx_export_pickup', os.environ['PRX_EXPORT_PICKUP'])
     ar_flags = os.environ.get('ARFLAGS', 'rcs')
     master_ninja.variable('arFlags', ar_flags)
@@ -1737,9 +1737,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   master_ninja.newline()
 
   if flavor not in ['win', 'xb1']:
-    if flavor in ['ps3', 'ps4'] :
+    if flavor in ['ps3', 'ps3-starboard', 'ps4'] :
       # uca := Unnamed Console A
-      dep_format = 'snc' if (flavor == 'ps3') else 'uca'
+      dep_format = 'snc' if (flavor in ['ps3', 'ps3-starboard']) else 'uca'
       master_ninja.rule(
         'cc',
         description='CC $out',
@@ -1830,7 +1830,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
 
     ld_cmd = '$ld'
 
-    if flavor in ['ps3', 'ps4'] and is_windows:
+    if flavor in ['ps3', 'ps3-starboard', 'ps4'] and is_windows:
       alink_command = 'cmd.exe /c ' + alink_command
       alink_thin_command = 'cmd.exe /c ' + alink_thin_command
       ld_cmd = '%s gyp-win-tool link-wrapper $arch $ld' % python_exec
@@ -1848,7 +1848,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       rspfile='$out.rsp',
       rspfile_content='$in_newline')
 
-    if flavor == 'ps3':
+    if flavor in ['ps3', 'ps3-starboard']:
       # TODO: Can we suppress the warnings from verlog.txt rather than
       # rm'ing it?
       ld_cmd = 'rm -f $verlog && ' + ld_cmd
@@ -1903,7 +1903,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
         command=(mtime_preserving_solink_base % {
             'suffix': '-Wl,--start-group $in $solibs -Wl,--end-group $libs'}))
 
-    if flavor in ['ps3', 'ps4']:
+    if flavor in ['ps3', 'ps3-starboard', 'ps4']:
       # PS3 and PS4 linkers don't know about rpath.
       rpath = ''
     else:
