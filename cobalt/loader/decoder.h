@@ -18,6 +18,7 @@
 #define COBALT_LOADER_DECODER_H_
 
 #include "cobalt/loader/loader_types.h"
+#include "cobalt/render_tree/resource_provider.h"
 #include "net/http/http_response_headers.h"
 
 namespace cobalt {
@@ -45,7 +46,13 @@ class Decoder {
   // This is called when all data are sent in and decoding should be finalized.
   virtual void Finish() = 0;
 
-  virtual void Abort() { NOTREACHED() << "Abort not supported."; }
+  // Suspends the decode of this resource, resetting internal state. Returns
+  // whether the decoder was reset correctly. If not, the load will have to be
+  // aborted.
+  virtual bool Suspend() = 0;
+
+  // Resumes the decode of this resource, starting over from the zero state.
+  virtual void Resume(render_tree::ResourceProvider* resource_provider) = 0;
 };
 
 }  // namespace loader

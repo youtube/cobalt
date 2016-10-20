@@ -218,6 +218,10 @@ class Node : public EventTarget {
 
   virtual scoped_refptr<Node> Duplicate() const = 0;
 
+  // Purges all cached resource reference from the current node and all
+  // descendents.
+  void PurgeCachedResourceReferencesRecursively();
+
   DEFINE_WRAPPABLE_TYPE(Node);
 
  protected:
@@ -243,6 +247,10 @@ class Node : public EventTarget {
   virtual void InvalidateLayoutBoxCrossReferencesFromNode() {}
   // Invalidate the render tree nodes within the layout boxes of this node.
   virtual void InvalidateRenderTreeNodesFromNode() {}
+
+  // Releases image resources and invalidates computed style if there are images
+  // associated with this html element in the image cache.
+  virtual void ReleaseImagesAndInvalidateComputedStyleIfNecessary() {}
 
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();
