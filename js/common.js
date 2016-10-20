@@ -55,7 +55,7 @@ $(document).ready(function() {
   //    anchors:
   //      offset-scroll-speed: 1000
   // The value is specified in milliseconds.
-  var OFFSET_HEIGHT = 265;
+  var OFFSET_HEIGHT = 65;
 
   var scroll_speed_from_config;
   scroll_speed_from_config = "";
