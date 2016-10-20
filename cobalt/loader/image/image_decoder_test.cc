@@ -58,6 +58,8 @@ class MockImageDecoder : public Decoder {
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
 
   void Finish() OVERRIDE;
+  bool Suspend() OVERRIDE;
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
   scoped_refptr<render_tree::Image> Image();
 
@@ -91,6 +93,13 @@ void MockImageDecoder::DecodeChunk(const char* data, size_t size) {
 }
 
 void MockImageDecoder::Finish() { image_decoder_->Finish(); }
+
+bool MockImageDecoder::Suspend() { return image_decoder_->Suspend(); }
+
+void MockImageDecoder::Resume(
+    render_tree::ResourceProvider* resource_provider) {
+  image_decoder_->Resume(resource_provider);
+}
 
 scoped_refptr<render_tree::Image> MockImageDecoder::Image() {
   return image_decoder_callback_.image;

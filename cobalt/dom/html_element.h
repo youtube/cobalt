@@ -261,6 +261,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   void CopyDirectionality(const HTMLElement& other);
 
+  // Releases image resources and invalidates computed style if there are images
+  // associated with this html element in the image cache.
+  void ReleaseImagesAndInvalidateComputedStyleIfNecessary() OVERRIDE;
+
  private:
   // From Node.
   void OnMutation() OVERRIDE;
@@ -288,10 +292,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Returns true if the element is the root element as defined in
   // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
-
-  // Releases image resources and invalidates computed style if there are images
-  // associated with this html element in the image cache.
-  void ReleaseImagesAndInvalidateComputedStyleIfNecessary();
 
   // The directionality of the html element is determined by the 'dir'
   // attribute.
