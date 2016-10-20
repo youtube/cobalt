@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en" itemscope itemtype="https://schema.org/WebPage">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cobalt / Starboard Module Reference: system.h</title>
+
+            <!-- Webfont -->
+    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    
+    <!-- Material Design Lite -->
+    <link href="/cobalt/assets/material-design-lite/material.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Bootstrap -->
+    <link href="/cobalt/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- Styles -->
+    <link rel="stylesheet" type="text/css" href="/cobalt/css/site.css" />
+
+    <!-- Font Awesome icons -->
+    <link href="/cobalt/assets/font-awesome-4.4.0/css/font-awesome.min.css"
+          rel="stylesheet"
+          type="text/css">
+    
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/cobalt/assets/bootstrap/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+
+    <!-- material design lite -->
+    <script src="/cobalt/assets/material-design-lite/material.min.js"></script>
+
+    <!-- Include the common site javascript -->
+    <script src="/cobalt/js/common.js" type="text/javascript" charset="utf-8"></script>
+
+    <!-- metadata -->
+    <meta name="og:title" content="Cobalt / "/>
+    <meta name="og:image" content="/cobalt/images/cobalt-logo.png"/>
+    <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
+  </head>
+  <body class="" id="top_of_page">
+
+    <span id="toc-depth" data-toc-depth="h2,h3"></span>
+    <nav id="common-nav" class="navbar navbar-fixed-top inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      
+      <a class="navbar-brand" href="/">
+        <img class="logo" src="/cobalt/images/cobalt-logo.png" alt="Cobalt">
+      </a>
+      
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right" id="standard-menu-links">
+      <li><a href="/cobalt/starboard/porting.html">Porters</a></li>
+      <li><a href="/cobalt/development/quick-start.html">Developers</a></li>
+      <li><a href="/cobalt/contributors/index.html">Contributors</a></li>
+      <li><a href="https://cobalt.googlesource.com/cobalt"><i class="fa fa-github"></i> Code Repo</a></li>
+      </ul>
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="collapsed-left-menu">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu no-top-margin">Porters</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+                <li><b>Starboard modules</b>
+          <ul>
+                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
+          </ul>
+      </ul>
+    </li>
+  </ul>
+</li>
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu">Developers</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
+        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+  
+
+<li class="expand-container" data-expander-target-search="relative">
+<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+</li>
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container -->
+</nav>
+    
+<div id="masthead">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-11">
+        <h1>Starboard Module Reference: system.h</h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container">
+    <div class="row scroll-margin" id="toc-content-row">
+    <div class="col-md-2" id="leftCol">
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="sidebar">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu no-top-margin">Porters</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+                <li><b>Starboard modules</b>
+          <ul>
+                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
+          </ul>
+      </ul>
+    </li>
+  </ul>
+</li>
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu">Developers</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
+        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+<li class="expand-container" data-expander-target-search="relative">
+<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+</li>
+      </ul>
+    </div>
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
+      <div class="nav nav-stacked" id="tocSidebar">
+        
+        <div id="toc"></div>
+        
+        
+      </div>
+    </div>
+    <div class="col-md-7" id="centerCol">
+      <div id="content">
+        <p>This module defines a broad set of APIs that allow the client application
+to query build and runtime properties of the enclosing system.</p>
+
+<h2 id="enums">Enums</h2>
+
+<h3 id="sbsystemcapabilityid">SbSystemCapabilityId</h3>
+
+<p>Runtime capabilities are boolean properties of a platform that can&#39;t be
+determined at compile-time. They may vary from device to device, but they
+will not change over the course of a single execution. They often specify
+particular behavior of other APIs within the bounds of their operating range.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbSystemCapabilityReversedEnterAndBack</code> -  Whether this system has reversed Enter and Back keys.</li>
+<li>  <code class="prettyprint">kSbSystemCapabilityCanQueryGPUMemoryStats</code> - Whether this system has the ability to report on GPU memory usage.If (and only if) a system has this capcability willSbSystemGetTotalGPUMemory() and SbSystemGetUsedGPUMemory() be valid tocall.</li>
+</ul>
+
+<h3 id="sbsystemconnectiontype">SbSystemConnectionType</h3>
+
+<p>Enumeration of network connection types.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbSystemConnectionTypeWired</code> -  The system is on a wired connection.</li>
+<li>  <code class="prettyprint">kSbSystemConnectionTypeWireless</code> - The system is on a wireless connection.</li>
+<li>  <code class="prettyprint">kSbSystemConnectionTypeUnknown</code> - The system connection type is unknown.</li>
+</ul>
+
+<h3 id="sbsystemdevicetype">SbSystemDeviceType</h3>
+
+<p>Enumeration of device types.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbSystemDeviceTypeBlueRayDiskPlayer</code> -  Blue-ray Disc Player (BDP).</li>
+<li>  <code class="prettyprint">kSbSystemDeviceTypeGameConsole</code> - A relatively high-powered TV device used primarily for playing games.</li>
+<li>  <code class="prettyprint">kSbSystemDeviceTypeOverTheTopBox</code> - Over the top (OTT) devices stream content via the Internet over anothertype of network, e.g. cable or satellite.</li>
+<li>  <code class="prettyprint">kSbSystemDeviceTypeSetTopBox</code> - Set top boxes (STBs) stream content primarily over cable or satellite.Some STBs can also stream OTT content via the Internet.</li>
+<li>  <code class="prettyprint">kSbSystemDeviceTypeTV</code> - A Smart TV is a TV that can directly run applications that stream OTTcontent via the Internet.</li>
+<li>  <code class="prettyprint">kSbSystemDeviceTypeDesktopPC</code> - Desktop PC.</li>
+<li>  <code class="prettyprint">kSbSystemDeviceTypeUnknown</code> - Unknown device.</li>
+</ul>
+
+<h3 id="sbsystempathid">SbSystemPathId</h3>
+
+<p>Enumeration of special paths that the platform can define.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbSystemPathContentDirectory</code> -  Path to where the local content files that ship with the binary are available.</li>
+<li>  <code class="prettyprint">kSbSystemPathCacheDirectory</code> - Path to the directory that can be used as a local file cache, ifavailable.</li>
+<li>  <code class="prettyprint">kSbSystemPathDebugOutputDirectory</code> - Path to the directory where debug output (e.g. logs, trace output,screenshots) can be written into.</li>
+<li>  <code class="prettyprint">kSbSystemPathSourceDirectory</code> - Path to the directory containing the root of the source tree.</li>
+<li>  <code class="prettyprint">kSbSystemPathTempDirectory</code> - Path to a directory where temporary files can be written.</li>
+<li>  <code class="prettyprint">kSbSystemPathTestOutputDirectory</code> - Path to a directory where test results can be written.</li>
+<li>  <code class="prettyprint">kSbSystemPathExecutableFile</code> - Full path to the executable file.</li>
+</ul>
+
+<h3 id="sbsystemplatformerrorresponse">SbSystemPlatformErrorResponse</h3>
+
+<p>Possible responses for <code class="prettyprint">SbSystemPlatformErrorCallback</code>.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbSystemPlatformErrorResponsePositive</code></li>
+<li>  <code class="prettyprint">kSbSystemPlatformErrorResponseNegative</code></li>
+</ul>
+
+<h3 id="sbsystemplatformerrortype">SbSystemPlatformErrorType</h3>
+
+<p>Enumeration of possible values for the <code class="prettyprint">type</code> parameter passed to  the
+<code class="prettyprint">SbSystemRaisePlatformError</code> function.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbSystemPlatformErrorTypeConnectionError</code> -  Cobalt received a network connection error, or a network disconnection event.</li>
+<li>  <code class="prettyprint">kSbSystemPlatformErrorTypeUserSignedOut</code> - The current user is not signed in (e.g. to PSN network).</li>
+</ul>
+
+<h3 id="sbsystempropertyid">SbSystemPropertyId</h3>
+
+<p>System properties that can be queried for. Many of these are used in
+User-Agent string generation.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbSystemPropertyChipsetModelNumber</code> -  The full model number of the main platform chipset, including any vendor-specific prefixes.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyFirmwareVersion</code> - The production firmware version number which the device is currentlyrunning.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyFriendlyName</code> - A friendly name for this actual device. It may include user-personalizationlike &quot;Upstairs Bedroom.&quot; It may be displayed to users as part of some kindof device selection (e.g. in-app DIAL).</li>
+<li>  <code class="prettyprint">kSbSystemPropertyManufacturerName</code> - A deprecated alias for |kSbSystemPropertyBrandName|.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyBrandName</code> - The name of the brand under which the device is being sold.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyModelName</code> - The final production model number of the device.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyModelYear</code> - The year the device was launched, e.g. &quot;2016&quot;.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyNetworkOperatorName</code> - The name of the network operator that owns the target device, ifapplicable.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyPlatformName</code> - The name of the operating system and platform, suitable for inclusion in aUser-Agent, say.</li>
+<li>  <code class="prettyprint">kSbSystemPropertyPlatformUuid</code> - A universally-unique ID for the current user.</li>
+</ul>
+
+<h2 id="structs">Structs</h2>
+
+<h3 id="sbsystemplatformerrorprivate">SbSystemPlatformErrorPrivate</h3>
+
+<p>Private structure used to represent a raised platform error.</p>
+
+<h2 id="functions">Functions</h2>
+
+<h3 id="sbsystembinarysearch">SbSystemBinarySearch</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Binary searches a sorted table <code class="prettyprint">base</code> of <code class="prettyprint">element_count</code> objects, each
+element <code class="prettyprint">element_width</code> bytes in size for an element that <code class="prettyprint">comparator</code>
+compares equal to <code class="prettyprint">key</code>.<br>
+This function is meant to be a drop-in replacement for <code class="prettyprint">bsearch</code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemBinarySearch-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemBinarySearch-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemBinarySearch-declaration">
+<pre>
+SB_EXPORT void* SbSystemBinarySearch(const void* key,
+                                     const void* base,
+                                     size_t element_count,
+                                     size_t element_width,
+                                     SbSystemComparator comparator);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemBinarySearch-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void* SbSystemBinarySearch(const void* /*key*/,
+                           const void* /*base*/,
+                           size_t /*element_count*/,
+                           size_t /*element_width*/,
+                           SbSystemComparator /*comparator*/) {
+  return NULL;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>const void*</code><br>        <code>key</code></td>
+    <td>The key to search for in the table.</td>
+  </tr>
+  <tr>
+    <td><code>const void*</code><br>        <code>base</code></td>
+    <td>The sorted table of elements to be searched.</td>
+  </tr>
+  <tr>
+    <td><code>size_t</code><br>        <code>element_count</code></td>
+    <td>The number of elements in the table.</td>
+  </tr>
+  <tr>
+    <td><code>size_t</code><br>        <code>element_width</code></td>
+    <td>The size, in bytes, of each element in the table.</td>
+  </tr>
+  <tr>
+    <td><code>SbSystemComparator</code><br>        <code>comparator</code></td>
+    <td>A value that indicates how the element in the table should
+compare to the specified <code>key</code>.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystembreakintodebugger">SbSystemBreakIntoDebugger</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Breaks the current program into the debugger, if a debugger is attached.
+If a debugger is not attached, this function aborts the program.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemBreakIntoDebugger-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemBreakIntoDebugger-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemBreakIntoDebugger-declaration">
+<pre>
+SB_EXPORT void SbSystemBreakIntoDebugger();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemBreakIntoDebugger-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void SbSystemBreakIntoDebugger() {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemclearlasterror">SbSystemClearLastError</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Clears the last error set by a Starboard call in the current thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemClearLastError-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemClearLastError-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemClearLastError-declaration">
+<pre>
+SB_EXPORT void SbSystemClearLastError();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemClearLastError-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void SbSystemClearLastError() {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemclearplatformerror">SbSystemClearPlatformError</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Clears a platform error that was previously raised by a call to
+<code class="prettyprint">SbSystemRaisePlatformError</code>. The platform may use this, for example,
+to close a dialog that was opened in response to the error.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemClearPlatformError-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemClearPlatformError-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemClearPlatformError-declaration">
+<pre>
+SB_EXPORT void SbSystemClearPlatformError(SbSystemPlatformError handle);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemClearPlatformError-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void SbSystemClearPlatformError(SbSystemPlatformError handle) {
+  SB_UNREFERENCED_PARAMETER(handle);
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbSystemPlatformError</code><br>        <code>handle</code></td>
+    <td>The platform error to be cleared.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemgetconnectiontype">SbSystemGetConnectionType</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the device&#39;s current network connection type.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetConnectionType-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetConnectionType-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetConnectionType-declaration">
+<pre>
+SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetConnectionType-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+SbSystemConnectionType SbSystemGetConnectionType() {
+  return kSbSystemConnectionTypeUnknown;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgetdevicetype">SbSystemGetDeviceType</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the type of the device.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetDeviceType-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetDeviceType-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetDeviceType-declaration">
+<pre>
+SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetDeviceType-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+SbSystemDeviceType SbSystemGetDeviceType() {
+  return kSbSystemDeviceTypeUnknown;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgeterrorstring">SbSystemGetErrorString</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Generates a human-readable string for an error. The return value specifies
+the total desired length of the string.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetErrorString-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetErrorString-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetErrorString-declaration">
+<pre>
+SB_EXPORT int SbSystemGetErrorString(SbSystemError error,
+                                     char* out_string,
+                                     int string_length);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetErrorString-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+int SbSystemGetErrorString(SbSystemError /*error*/,
+                           char* /*out_string*/,
+                           int /*string_length*/) {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbSystemError</code><br>        <code>error</code></td>
+    <td>The error for which a human-readable string is generated.</td>
+  </tr>
+  <tr>
+    <td><code>char*</code><br>        <code>out_string</code></td>
+    <td>The generated string. This value may be null, and it is
+always terminated with a null byte. TODO: Is <code>out_string</code> terminated with
+a null byte if it is null?</td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>        <code>string_length</code></td>
+    <td>The maximum length of the error string.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemgetlasterror">SbSystemGetLastError</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Gets the last platform-specific error code produced by any Starboard call in
+the current thread for diagnostic purposes. Semantic reactions to Starboard
+function call results should be modeled explicitly.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetLastError-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetLastError-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetLastError-declaration">
+<pre>
+SB_EXPORT SbSystemError SbSystemGetLastError();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetLastError-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+SbSystemError SbSystemGetLastError() {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgetlocaleid">SbSystemGetLocaleId</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Gets the system&#39;s current POSIX-style Locale ID. The locale represents the
+location, language, and cultural conventions that the system wants to use,
+which affects which text is displayed to the user as well as how displayed
+numbers, dates, currency, and similar values are formatted.<br>
+At its simplest, the locale ID can just be a BCP 47 language code, like
+<code class="prettyprint">en_US</code>. Currently, POSIX also wants to include the encoding as in
+<code class="prettyprint">en_US.UTF8</code>. POSIX also allows a couple very bare-bones locales, like &quot;C&quot;
+or &quot;POSIX&quot;, but they are not supported here. POSIX also supports different
+locale settings for a few different purposes, but Starboard only exposes one
+locale at a time.<br>
+RFC 5646 describes BCP 47 language codes:
+<a href="https://tools.ietf.org/html/bcp47">https://tools.ietf.org/html/bcp47</a><br>
+For more information than you probably want about POSIX locales, see:
+<a href="http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html">http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html</a></p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetLocaleId-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetLocaleId-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetLocaleId-declaration">
+<pre>
+SB_EXPORT const char* SbSystemGetLocaleId();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetLocaleId-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+const char* SbSystemGetLocaleId() {
+  return NULL;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgetnumberofprocessors">SbSystemGetNumberOfProcessors</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the number of processor cores available to this application. If the
+process is sandboxed to a subset of the physical cores, the function returns
+that sandboxed limit.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetNumberOfProcessors-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetNumberOfProcessors-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetNumberOfProcessors-declaration">
+<pre>
+SB_EXPORT int SbSystemGetNumberOfProcessors();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetNumberOfProcessors-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+int SbSystemGetNumberOfProcessors() {
+  return 1;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgetpath">SbSystemGetPath</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Retrieves the platform-defined system path specified by <code class="prettyprint">path_id</code> and
+places it as a zero-terminated string into the user-allocated <code class="prettyprint">out_path</code>
+unless it is longer than <code class="prettyprint">path_length</code> - 1. This implementation must be
+thread-safe.<br>
+This function returns <code class="prettyprint">true</code> if the path is retrieved successfully. It
+returns <code class="prettyprint">false</code> under any of the following conditions and, in any such
+case, <code class="prettyprint">out_path</code> is not changed:
+<ul><li><code class="prettyprint">path_id</code> is invalid for this platform
+</li><li><code class="prettyprint">path_length</code> is too short for the given result
+</li><li><code class="prettyprint">out_path</code> is NULL</li></ul></p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetPath-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetPath-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetPath-declaration">
+<pre>
+SB_EXPORT bool SbSystemGetPath(SbSystemPathId path_id,
+                               char* out_path,
+                               int path_length);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetPath-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+bool SbSystemGetPath(SbSystemPathId /*path_id*/, char* /*out_path*/,
+                     int /*path_size*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbSystemPathId</code><br>        <code>path_id</code></td>
+    <td>The system path to be retrieved.</td>
+  </tr>
+  <tr>
+    <td><code>char*</code><br>        <code>out_path</code></td>
+    <td>The platform-defined system path specified by <code>path_id</code>.</td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>        <code>path_length</code></td>
+    <td>The length of the system path.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemgetproperty">SbSystemGetProperty</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Retrieves the platform-defined system property specified by <code class="prettyprint">property_id</code> and
+places it as a zero-terminated string into the user-allocated <code class="prettyprint">out_value</code>
+unless it is longer than <code class="prettyprint">value_length</code> - 1. This implementation must be
+thread-safe.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetProperty-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetProperty-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetProperty-declaration">
+<pre>
+SB_EXPORT bool SbSystemGetProperty(SbSystemPropertyId property_id,
+                                   char* out_value,
+                                   int value_length);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetProperty-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+bool SbSystemGetProperty(SbSystemPropertyId /*property_id*/,
+                         char* /*out_value*/,
+                         int /*value_length*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbSystemPropertyId</code><br>        <code>property_id</code></td>
+    <td>The system path to be retrieved.</td>
+  </tr>
+  <tr>
+    <td><code>char*</code><br>        <code>out_value</code></td>
+    <td>The platform-defined system property specified by <code>property_id</code>.</td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>        <code>value_length</code></td>
+    <td>The length of the system property.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemgetrandomdata">SbSystemGetRandomData</h3>
+
+<p><strong>Description</strong></p>
+
+<p>A cryptographically secure random number generator that produces an
+arbitrary, non-negative number of <code class="prettyprint">buffer_size</code> random, non-negative bytes.
+The generated number is placed in <code class="prettyprint">out_buffer</code>. This function does not
+require manual seeding.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetRandomData-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetRandomData-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbSystemGetRandomData-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetRandomData-declaration">
+<pre>
+SB_EXPORT void SbSystemGetRandomData(void* out_buffer, int buffer_size);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetRandomData-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void SbSystemGetRandomData(void* /*out_buffer*/, int /*buffer_size*/) {
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbSystemGetRandomData-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+#include &quot;starboard/file.h&quot;
+#include &quot;starboard/log.h&quot;
+#include &quot;starboard/mutex.h&quot;
+#include &quot;starboard/once.h&quot;
+
+namespace {
+
+// We keep the open file descriptor for /dev/urandom around so we don&#39;t need to
+// reopen it (which is expensive).
+class URandomFile {
+ public:
+  URandomFile() {
+    file_ =
+        SbFileOpen(&quot;/dev/urandom&quot;, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+    SB_DCHECK(SbFileIsValid(file_)) &lt;&lt; &quot;Cannot open /dev/urandom&quot;;
+  }
+
+  ~URandomFile() { SbFileClose(file_); }
+
+  SbFile file() const { return file_; }
+
+ private:
+  SbFile file_;
+};
+
+// A file that will produce any number of very random bytes.
+URandomFile* g_urandom_file = NULL;
+
+// Control to initialize g_urandom_file.
+SbOnceControl g_urandom_file_once = SB_ONCE_INITIALIZER;
+
+// Lazily initialize g_urandom_file.
+void InitializeRandom() {
+  SB_DCHECK(g_urandom_file == NULL);
+  g_urandom_file = new URandomFile();
+}
+
+}  // namespace
+
+void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
+  SB_DCHECK(out_buffer);
+  char* buffer = reinterpret_cast&lt;char*&gt;(out_buffer);
+  int remaining = buffer_size;
+  bool once_result = SbOnce(&amp;g_urandom_file_once, &amp;InitializeRandom);
+  SB_DCHECK(once_result);
+
+  SbFile file = g_urandom_file-&gt;file();
+  do {
+    // This is unsynchronized access to the File that could happen from multiple
+    // threads. It doesn&#39;t appear that there is any locking in the Chromium
+    // POSIX implementation that is very similar.
+    int result = SbFileRead(file, buffer, remaining);
+    if (result &lt;= 0)
+      break;
+
+    remaining -= result;
+    buffer += result;
+  } while (remaining);
+
+  SB_CHECK(remaining == 0);
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>void*</code><br>        <code>out_buffer</code></td>
+    <td>A pointer for the generated random number. This value must
+not be null.</td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>        <code>buffer_size</code></td>
+    <td>The size of the random number, in bytes.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemgetrandomuint64">SbSystemGetRandomUInt64</h3>
+
+<p><strong>Description</strong></p>
+
+<p>A cryptographically secure random number generator that gets 64 random bits
+and returns them as an <code class="prettyprint">uint64_t</code>. This function does not require manual
+seeding.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT uint64_t SbSystemGetRandomUInt64();
+</code></pre></div>
+<h3 id="sbsystemgetstack">SbSystemGetStack</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Places up to <code class="prettyprint">stack_size</code> instruction pointer addresses of the current
+execution stack into <code class="prettyprint">out_stack</code>. The return value specifies the number
+of entries added.<br>
+The returned stack frames are in &quot;downward&quot; order from the calling frame
+toward the entry point of the thread. So, if all the stack frames do not
+fit, the ones truncated will be the less interesting ones toward the thread
+entry point.<br>
+This function is used in crash signal handlers and, therefore, it must
+be async-signal-safe on platforms that support signals. The following
+document discusses what it means to be async-signal-safe on POSIX:
+<a href="http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03">http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03</a></p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetStack-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetStack-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbSystemGetStack-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetStack-declaration">
+<pre>
+SB_EXPORT int SbSystemGetStack(void** out_stack, int stack_size);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetStack-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+int SbSystemGetStack(void** /*out_stack*/, int /*stack_size*/) {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbSystemGetStack-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+#include &lt;execinfo.h&gt;
+
+#include &lt;algorithm&gt;
+
+int SbSystemGetStack(void** out_stack, int stack_size) {
+  int count = std::max(backtrace(out_stack, stack_size), 0);
+
+  if (count &lt; 1) {
+    // No stack, for some reason.
+    return count;
+  }
+
+  // We have an extra stack frame (for this very function), so let&#39;s remove it.
+  for (int i = 1; i &lt; count; ++i) {
+    out_stack[i - 1] = out_stack[i];
+  }
+
+  return count - 1;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>void**</code><br>        <code>out_stack</code></td>
+    <td>A non-NULL array of <code>void *</code> of at least <code>stack_size</code> entries.</td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>        <code>stack_size</code></td>
+    <td>The maximum number of instruction pointer addresses to be
+placed into <code>out_stack</code> from the current execution stack.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemgettotalcpumemory">SbSystemGetTotalCPUMemory</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the total CPU memory (in bytes) potentially available to this
+application. If the process is sandboxed to a maximum allowable limit,
+the function returns the lesser of the physical and sandbox limits.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetTotalCPUMemory-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetTotalCPUMemory-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbSystemGetTotalCPUMemory-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetTotalCPUMemory-declaration">
+<pre>
+SB_EXPORT int64_t SbSystemGetTotalCPUMemory();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetTotalCPUMemory-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+int64_t SbSystemGetTotalCPUMemory() {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbSystemGetTotalCPUMemory-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+#include &lt;unistd.h&gt;
+
+#include &quot;starboard/log.h&quot;
+
+int64_t SbSystemGetTotalCPUMemory() {
+  long pages = sysconf(_SC_PHYS_PAGES);     // NOLINT[runtime/int]
+  long page_size = sysconf(_SC_PAGE_SIZE);  // NOLINT[runtime/int]
+  if (pages == -1 || page_size == -1) {
+    SB_NOTREACHED();
+    return 0;
+  }
+
+  return static_cast&lt;int64_t&gt;(pages) * page_size;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgettotalgpumemory">SbSystemGetTotalGPUMemory</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the total GPU memory (in bytes) available for use by this
+application. This function may only be called the return value for calls to
+SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is <code class="prettyprint">true</code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetTotalGPUMemory-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetTotalGPUMemory-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetTotalGPUMemory-declaration">
+<pre>
+SB_EXPORT int64_t SbSystemGetTotalGPUMemory();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetTotalGPUMemory-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+int64_t SbSystemGetTotalGPUMemory() {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgetusedcpumemory">SbSystemGetUsedCPUMemory</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the total physical CPU memory (in bytes) used by this application.
+This value should always be less than (or, in particularly exciting
+situations, equal to) <code><a href="#sbsystemgettotalcpumemory">SbSystemGetTotalCPUMemory()</a></code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetUsedCPUMemory-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetUsedCPUMemory-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbSystemGetUsedCPUMemory-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetUsedCPUMemory-declaration">
+<pre>
+SB_EXPORT int64_t SbSystemGetUsedCPUMemory();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetUsedCPUMemory-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+int64_t SbSystemGetUsedCPUMemory() {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbSystemGetUsedCPUMemory-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/sysinfo.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;unistd.h&gt;
+
+#include &quot;starboard/file.h&quot;
+#include &quot;starboard/log.h&quot;
+#include &quot;starboard/string.h&quot;
+
+// We find the current amount of used memory on Linux by opening
+// &#39;/proc/self/status&#39; and scan the file for its &quot;VmRSS&quot; entry.  Essentially,
+// we need to parse a buffer that has the following format:
+//
+// xxxxxx:       45327 kB
+// yyyyyy:          23 kB
+// VmRSS:        87432 kB
+// zzzzzz:        3213 kB
+// ...
+//
+// And here, we would want to return the value 87432 * 1024.
+// See http://man7.org/linux/man-pages/man5/proc.5.html for more details.
+
+// Searches for the value of VmRSS and returns it.  Will modify |buffer| in
+// order to do so quickly and easily.
+int64_t SearchForVmRSSValue(char* buffer, size_t length) {
+  // Search for the string &quot;&quot;VmRSS:&quot;.
+  const char kSearchString[] = &quot;\nVmRSS:&quot;;
+  enum State {
+    // We are currently searching for kSearchString
+    kSearchingForSearchString,
+    // We found the search string and are advancing through spaces/tabs until
+    // we see a number.
+    kAdvancingSpacesToNumber,
+    // We found the number and are now searching for the end of it.
+    kFindingEndOfNumber,
+  };
+  State state = kSearchingForSearchString;
+  const char* number_start = NULL;
+  for (size_t i = 0; i &lt; length - sizeof(kSearchString); ++i) {
+    if (state == kSearchingForSearchString) {
+      if (SbStringCompare(&amp;buffer[i], kSearchString,
+                          sizeof(kSearchString) - 1) == 0) {
+        // Advance until we find a number.
+        state = kAdvancingSpacesToNumber;
+        i += sizeof(kSearchString) - 2;
+      }
+    } else if (state == kAdvancingSpacesToNumber) {
+      if (buffer[i] &gt;= &#39;0&#39; &amp;&amp; buffer[i] &lt;= &#39;9&#39;) {
+        // We found the start of the number, record where that is and then
+        // continue searching for the end of the number.
+        number_start = &amp;buffer[i];
+        state = kFindingEndOfNumber;
+      }
+    } else {
+      SB_DCHECK(state == kFindingEndOfNumber);
+      if (buffer[i] &lt; &#39;0&#39; || buffer[i] &gt; &#39;9&#39;) {
+        // Drop a null at the end of the number so that we can call atoi() on
+        // it and return.
+        buffer[i] = &#39;\0&#39;;
+        return SbStringAToI(number_start);
+      }
+    }
+  }
+
+  SB_LOG(ERROR) &lt;&lt; &quot;Could not find &#39;VmRSS:&#39; in /proc/self/status.&quot;;
+  return 0;
+}
+
+int64_t SbSystemGetUsedCPUMemory() {
+  // Read our process&#39; current physical memory usage from /proc/self/status.
+  // This requires a bit of parsing through the output to find the value for
+  // the &quot;VmRSS&quot; field which indicates used physical memory.
+  starboard::ScopedFile status_file(&quot;/proc/self/status&quot;,
+                                    kSbFileOpenOnly | kSbFileRead);
+  if (!status_file.IsValid()) {
+    SB_LOG(ERROR)
+        &lt;&lt; &quot;Error opening /proc/self/status in order to query self memory &quot;
+           &quot;usage.&quot;;
+    return 0;
+  }
+
+  // Read the entire file into memory.
+  const int kBufferSize = 2048;
+  char buffer[kBufferSize];
+  int remaining = kBufferSize;
+  char* output_pointer = buffer;
+  do {
+    int result = status_file.Read(output_pointer, remaining);
+    if (result &lt;= 0)
+      break;
+
+    remaining -= result;
+    output_pointer += result;
+  } while (remaining);
+
+  // Return the result, multiplied by 1024 because it is given in kilobytes.
+  return SearchForVmRSSValue(buffer,
+                             static_cast&lt;size_t&gt;(output_pointer - buffer)) *
+         1024;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemgetusedgpumemory">SbSystemGetUsedGPUMemory</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the current amount of GPU memory (in bytes) that is currently being
+used by this application. This function may only be called if the return
+value for calls to
+SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is <code class="prettyprint">true</code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemGetUsedGPUMemory-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemGetUsedGPUMemory-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemGetUsedGPUMemory-declaration">
+<pre>
+SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemGetUsedGPUMemory-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+int64_t SbSystemGetUsedGPUMemory() {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemhascapability">SbSystemHasCapability</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the platform has the runtime capability specified by
+<code class="prettyprint">capability_id</code>. Returns false for any unknown capabilities. This
+implementation must be thread-safe.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemHasCapability-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemHasCapability-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemHasCapability-declaration">
+<pre>
+SB_EXPORT bool SbSystemHasCapability(SbSystemCapabilityId capability_id);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemHasCapability-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+bool SbSystemHasCapability(SbSystemCapabilityId /*capability_id*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbSystemCapabilityId</code><br>        <code>capability_id</code></td>
+    <td>The runtime capability to check.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemhidesplashscreen">SbSystemHideSplashScreen</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Hides the system splash screen on systems that support a splash screen that
+is displayed while the application is loading. This function may be called
+from any thread and must be idempotent.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemHideSplashScreen-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemHideSplashScreen-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemHideSplashScreen-declaration">
+<pre>
+SB_EXPORT void SbSystemHideSplashScreen();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemHideSplashScreen-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void SbSystemHideSplashScreen() {}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemisdebuggerattached">SbSystemIsDebuggerAttached</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Attempts to determine whether the current program is running inside or
+attached to a debugger. The function returns <code class="prettyprint">false</code> if neither of those
+cases is true.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemIsDebuggerAttached-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemIsDebuggerAttached-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbSystemIsDebuggerAttached-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemIsDebuggerAttached-declaration">
+<pre>
+SB_EXPORT bool SbSystemIsDebuggerAttached();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemIsDebuggerAttached-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+bool SbSystemIsDebuggerAttached() {
+  return false;
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbSystemIsDebuggerAttached-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+#include &lt;fcntl.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;unistd.h&gt;
+
+#include &quot;starboard/log.h&quot;
+
+#include &quot;starboard/shared/posix/file_internal.h&quot;
+#include &quot;starboard/shared/posix/handle_eintr.h&quot;
+
+// Adapted from base/debug/debugger_posix.cc
+bool SbSystemIsDebuggerAttached() {
+  // We can look in /proc/self/status for TracerPid.  We are likely used in
+  // crash handling, so we are careful not to use the heap or have side effects.
+  // Another option that is common is to try to ptrace yourself, but then we
+  // can&#39;t detach without forking(), and that&#39;s not so great.
+
+  // NOTE: This code MUST be async-signal safe (it&#39;s used by in-process stack
+  // dumping signal handler). NO malloc or stdio is allowed here.
+
+  int status_fd = open(&quot;/proc/self/status&quot;, O_RDONLY);
+  if (status_fd == -1)
+    return false;
+
+  // We assume our line will be in the first 1024 characters and that we can
+  // read this much all at once.  In practice this will generally be true.
+  // This simplifies and speeds up things considerably.
+  char buf[1024];
+
+  ssize_t num_read = HANDLE_EINTR(read(status_fd, buf, sizeof(buf) - 1));
+  SB_DCHECK(num_read &lt; sizeof(buf));
+  if (HANDLE_EINTR(close(status_fd)) &lt; 0)
+    return false;
+
+  if (num_read &lt;= 0)
+    return false;
+
+  buf[num_read] = &#39;\0&#39;;
+  const char tracer[] = &quot;TracerPid:\t&quot;;
+  char* pid_index = strstr(buf, tracer);
+  if (pid_index == NULL)
+    return false;
+
+  // Our pid is 0 without a debugger, assume this for any pid starting with 0.
+  pid_index += strlen(tracer);
+  return pid_index &lt; (buf + num_read) &amp;&amp; *pid_index != &#39;0&#39;;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbsystemplatformerrorisvalid">SbSystemPlatformErrorIsValid</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Checks whether a <code class="prettyprint">SbSystemPlatformError</code> is valid.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbSystemPlatformErrorIsValid(
+    SbSystemPlatformError handle) {
+  return handle != kSbSystemPlatformErrorInvalid;
+}
+</code></pre></div>
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbSystemPlatformError</code></td>
+    <td><code>handle</code></td>
+  </tr>
+</table>
+
+<h3 id="sbsystemraiseplatformerror">SbSystemRaisePlatformError</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Cobalt calls this function to notify the platform that an error has occurred
+in the application that the platform may need to handle. The platform is
+expected to then notify the user of the error and to provide a means for
+any required interaction, such as by showing a dialog.<br>
+The return value is a handle that may be used in a subsequent call to
+<code class="prettyprint">SbClearPlatformError</code>. For example, the handle could be used to
+programatically dismiss a dialog that was raised in response to the error.
+The lifetime of the object referenced by the handle is until the user reacts
+to the error or the error is dismissed by a call to
+SbSystemClearPlatformError, whichever happens first. Note that if the
+platform cannot respond to the error, then this function should return
+<code class="prettyprint">kSbSystemPlatformErrorInvalid</code>.<br>
+This function may be called from any thread, and it is the platform&#39;s
+responsibility to decide how to handle an error received while a previous
+error is still pending. If that platform can only handle one error at a
+time, then it may queue the second error or ignore it by returning
+<code class="prettyprint">kSbSystemPlatformErrorInvalid</code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemRaisePlatformError-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemRaisePlatformError-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemRaisePlatformError-declaration">
+<pre>
+SB_EXPORT SbSystemPlatformError
+SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
+                           SbSystemPlatformErrorCallback callback,
+                           void* user_data);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemRaisePlatformError-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+#include &quot;starboard/log.h&quot;
+
+SbSystemPlatformError SbSystemRaisePlatformError(
+    SbSystemPlatformErrorType type,
+    SbSystemPlatformErrorCallback callback,
+    void* user_data) {
+  SB_UNREFERENCED_PARAMETER(callback);
+  SB_UNREFERENCED_PARAMETER(user_data);
+  std::string message;
+  switch (type) {
+    case kSbSystemPlatformErrorTypeConnectionError:
+      message = &quot;Connection error.&quot;;
+      break;
+    case kSbSystemPlatformErrorTypeUserSignedOut:
+      message = &quot;User is not signed in.&quot;;
+      break;
+    case kSbSystemPlatformErrorTypeUserAgeRestricted:
+      message = &quot;User is age restricted.&quot;;
+      break;
+    default:
+      message = &quot;&lt;unknown&gt;&quot;;
+      break;
+  }
+  SB_DLOG(INFO) &lt;&lt; &quot;SbSystemRaisePlatformError: &quot; &lt;&lt; message;
+  return kSbSystemPlatformErrorInvalid;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbSystemPlatformErrorType</code><br>        <code>type</code></td>
+    <td>An error type, from the SbSystemPlatformErrorType enum,
+that defines the error.</td>
+  </tr>
+  <tr>
+    <td><code>SbSystemPlatformErrorCallback</code><br>        <code>callback</code></td>
+    <td>A function that may be called by the platform to let the caller
+know that the user has reacted to the error.</td>
+  </tr>
+  <tr>
+    <td><code>void*</code><br>        <code>user_data</code></td>
+    <td>An opaque pointer that the platform should pass as an argument
+to the callback function, if it is called.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemrequeststop">SbSystemRequestStop</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Requests that the application be terminated gracefully at the next
+convenient point. In the meantime, some work may continue to be done, and
+unrelated system events may be dispatched. This function eventually causes
+a <code class="prettyprint">kSbEventTypeStop</code> event to be dispatched to the application. When the
+process finally terminates, it returns <code class="prettyprint">error_level</code>, if that has any
+meaning on the current platform.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemRequestStop-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemRequestStop-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemRequestStop-declaration">
+<pre>
+SB_EXPORT void SbSystemRequestStop(int error_level);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemRequestStop-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void SbSystemRequestStop(int /*error_level*/) {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>int</code><br>        <code>error_level</code></td>
+    <td>An integer that will serve as the return value for the
+process that is eventually terminated as a result of a call to this
+function.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemsort">SbSystemSort</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Sorts an array of elements <code class="prettyprint">base</code>, with <code class="prettyprint">element_count</code> elements of
+<code class="prettyprint">element_width</code> bytes each, using <code class="prettyprint">comparator</code> as the comparison function.<br>
+This function is meant to be a drop-in replacement for <code class="prettyprint">qsort</code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemSort-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemSort-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemSort-declaration">
+<pre>
+SB_EXPORT void SbSystemSort(void* base,
+                            size_t element_count,
+                            size_t element_width,
+                            SbSystemComparator comparator);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemSort-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+void SbSystemSort(void* /*base*/,
+                  size_t /*element_count*/,
+                  size_t /*element_width*/,
+                  SbSystemComparator /*comparator*/) {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>void*</code><br>        <code>base</code></td>
+    <td>The array of elements to be sorted.</td>
+  </tr>
+  <tr>
+    <td><code>size_t</code><br>        <code>element_count</code></td>
+    <td>The number of elements in the array.</td>
+  </tr>
+  <tr>
+    <td><code>size_t</code><br>        <code>element_width</code></td>
+    <td>The size, in bytes, of each element in the array.</td>
+  </tr>
+  <tr>
+    <td><code>SbSystemComparator</code><br>        <code>comparator</code></td>
+    <td>A value that indicates how the array should be sorted.</td>
+  </tr>
+</table>
+
+<h3 id="sbsystemsymbolize">SbSystemSymbolize</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Looks up <code class="prettyprint">address</code> as an instruction pointer and places up to
+(<code class="prettyprint">buffer_size - 1</code>) characters of the symbol associated with it in
+<code class="prettyprint">out_buffer</code>, which must not be NULL. <code class="prettyprint">out_buffer</code> will be NULL-terminated.<br>
+The return value indicates whether the function found a reasonable match
+for <code class="prettyprint">address</code>. If the return value is <code class="prettyprint">false</code>, then <code class="prettyprint">out_buffer</code> is not
+modified.<br>
+This function is used in crash signal handlers and, therefore, it must
+be async-signal-safe on platforms that support signals.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSystemSymbolize-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSystemSymbolize-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbSystemSymbolize-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSystemSymbolize-declaration">
+<pre>
+SB_EXPORT bool SbSystemSymbolize(const void* address,
+                                 char* out_buffer,
+                                 int buffer_size);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSystemSymbolize-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+bool SbSystemSymbolize(const void* /*address*/, char* /*out_buffer*/,
+                       int /*buffer_size*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbSystemSymbolize-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/system.h&quot;
+
+#include &quot;base/third_party/symbolize/symbolize.h&quot;
+
+bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
+  // I believe this casting-away const in the implementation is better than the
+  // alternative of removing const-ness from the address parameter.
+  return google::Symbolize(const_cast&lt;void*&gt;(address), out_buffer, buffer_size);
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>const void*</code><br>        <code>address</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>char*</code><br>        <code>out_buffer</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>        <code>buffer_size</code></td>
+    <td></td>
+  </tr>
+</table>
+
+        
+          
+            
+          
+        
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+    
+
+<footer>
+<div class="container">
+    <div class="row">
+        <div class="col-md-5 column-left">
+    <span class="copyright-text">© Cobalt Team 2016</span>
+        </div>
+        <div class="col-md-2 column-middle">
+  <img class="footer-logo" src="/cobalt/images/cobalt-logo.png" alt="Cobalt"/>
+        </div>
+        <div class="col-md-5 column-right">&nbsp;</div>
+            </div>
+</div>
+</footer>
+
+    
+  </body>
+</html>

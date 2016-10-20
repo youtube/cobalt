@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en" itemscope itemtype="https://schema.org/WebPage">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cobalt / Starboard Module Reference: thread.h</title>
+
+            <!-- Webfont -->
+    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    
+    <!-- Material Design Lite -->
+    <link href="/cobalt/assets/material-design-lite/material.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Bootstrap -->
+    <link href="/cobalt/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- Styles -->
+    <link rel="stylesheet" type="text/css" href="/cobalt/css/site.css" />
+
+    <!-- Font Awesome icons -->
+    <link href="/cobalt/assets/font-awesome-4.4.0/css/font-awesome.min.css"
+          rel="stylesheet"
+          type="text/css">
+    
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/cobalt/assets/bootstrap/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+
+    <!-- material design lite -->
+    <script src="/cobalt/assets/material-design-lite/material.min.js"></script>
+
+    <!-- Include the common site javascript -->
+    <script src="/cobalt/js/common.js" type="text/javascript" charset="utf-8"></script>
+
+    <!-- metadata -->
+    <meta name="og:title" content="Cobalt / "/>
+    <meta name="og:image" content="/cobalt/images/cobalt-logo.png"/>
+    <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
+  </head>
+  <body class="" id="top_of_page">
+
+    <span id="toc-depth" data-toc-depth="h2,h3"></span>
+    <nav id="common-nav" class="navbar navbar-fixed-top inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      
+      <a class="navbar-brand" href="/">
+        <img class="logo" src="/cobalt/images/cobalt-logo.png" alt="Cobalt">
+      </a>
+      
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right" id="standard-menu-links">
+      <li><a href="/cobalt/starboard/porting.html">Porters</a></li>
+      <li><a href="/cobalt/development/quick-start.html">Developers</a></li>
+      <li><a href="/cobalt/contributors/index.html">Contributors</a></li>
+      <li><a href="https://cobalt.googlesource.com/cobalt"><i class="fa fa-github"></i> Code Repo</a></li>
+      </ul>
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="collapsed-left-menu">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu no-top-margin">Porters</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+                <li><b>Starboard modules</b>
+          <ul>
+                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
+          </ul>
+      </ul>
+    </li>
+  </ul>
+</li>
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu">Developers</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
+        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+  
+
+<li class="expand-container" data-expander-target-search="relative">
+<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+</li>
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container -->
+</nav>
+    
+<div id="masthead">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-11">
+        <h1>Starboard Module Reference: thread.h</h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container">
+    <div class="row scroll-margin" id="toc-content-row">
+    <div class="col-md-2" id="leftCol">
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="sidebar">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu no-top-margin">Porters</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+                <li><b>Starboard modules</b>
+          <ul>
+                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
+          </ul>
+      </ul>
+    </li>
+  </ul>
+</li>
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu">Developers</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
+        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+<li class="expand-container" data-expander-target-search="relative">
+<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+</li>
+      </ul>
+    </div>
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
+      <div class="nav nav-stacked" id="tocSidebar">
+        
+        <div id="toc"></div>
+        
+        
+      </div>
+    </div>
+    <div class="col-md-7" id="centerCol">
+      <div id="content">
+        <p>This module defines functionality related to thread creation and cleanup.</p>
+
+<h2 id="enums">Enums</h2>
+
+<h3 id="sbthreadpriority">SbThreadPriority</h3>
+
+<p>A spectrum of thread priorities. Platforms map them appropriately to their
+own priority system. Note that scheduling is platform-specific, and what
+these priorities mean, if they mean anything at all, is also
+platform-specific.<br>
+In particular, several of these priority values can map to the same priority
+on a given platform. The only guarantee is that each lower priority should be
+treated less-than-or-equal-to a higher priority.</p>
+
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbThreadPriorityLowest</code> -  The lowest thread priority available on the current platform.</li>
+<li>  <code class="prettyprint">kSbThreadPriorityLow</code> - A lower-than-normal thread priority, if available on the current platform.</li>
+<li>  <code class="prettyprint">kSbThreadPriorityNormal</code> - Really, what is normal? You should spend time pondering that question morethan you consider less-important things, but less than you think aboutmore-important things.</li>
+<li>  <code class="prettyprint">kSbThreadPriorityHigh</code> - A higher-than-normal thread priority, if available on the current platform.</li>
+<li>  <code class="prettyprint">kSbThreadPriorityHighest</code> - The highest thread priority available on the current platform that isn&#39;tconsidered &quot;real-time&quot; or &quot;time-critical,&quot; if those terms have any meaningon the current platform.</li>
+<li>  <code class="prettyprint">kSbThreadPriorityRealTime</code> - If the platform provides any kind of real-time or time-critical scheduling,this priority will request that treatment. Real-time scheduling generallymeans that the thread will have more consistency in scheduling thannon-real-time scheduled threads, often by being more deterministic in howthreads run in relation to each other. But exactly how being real-timeaffects the thread scheduling is platform-specific.<br>For platforms where that is not offered, or otherwise not meaningful, thiswill just be the highest priority available in the platform&#39;s scheme, whichmay be the same as kThreadPriority_Highest.</li>
+<li>  <code class="prettyprint">kSbThreadNoPriority</code> - Well-defined constant value to mean &quot;no priority.&quot;  This means to use thedefault priority assignment method of that platform. This may mean toinherit the priority of the spawning thread, or it may mean a specificdefault priority, or it may mean something else, depending on the platform.</li>
+</ul>
+
+<h2 id="structs">Structs</h2>
+
+<h3 id="sbthreadlocalkeyprivate">SbThreadLocalKeyPrivate</h3>
+
+<p>Private structure representing a thread-local key.</p>
+
+<h2 id="functions">Functions</h2>
+
+<h3 id="sbthreadcreate">SbThreadCreate</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Creates a new thread, which starts immediately.
+<ul><li>If the function succeeds, the return value is a handle to the newly
+created thread.
+</li><li>If the function fails, the return value is <code class="prettyprint">kSbThreadInvalid</code>.</li></ul></p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadCreate-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadCreate-declaration">
+<pre>
+SB_EXPORT SbThread SbThreadCreate(int64_t stack_size,
+                                  SbThreadPriority priority,
+                                  SbThreadAffinity affinity,
+                                  bool joinable,
+                                  const char* name,
+                                  SbThreadEntryPoint entry_point,
+                                  void* context);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadCreate-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+SbThread SbThreadCreate(int64_t /*stack_size*/,
+                        SbThreadPriority /*priority*/,
+                        SbThreadAffinity /*affinity*/,
+                        bool /*joinable*/,
+                        const char* /*name*/,
+                        SbThreadEntryPoint /*entry_point*/,
+                        void* /*context*/) {
+  return kSbThreadInvalid;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>int64_t</code><br>        <code>stack_size</code></td>
+    <td>The amount of memory reserved for the thread. Set the value
+to <code>0</code> to indicate that the default stack size should be used.</td>
+  </tr>
+  <tr>
+    <td><code>SbThreadPriority</code><br>        <code>priority</code></td>
+    <td>The thread's priority. This value can be set to
+<code>kSbThreadNoPriority</code> to use the platform's default priority (e.g.
+possibly a fixed, standard priority, or possibly a priority inherited
+from the thread that is calling <code>SbThreadCreate()</code>). TODO: the "e.g." in
+this definition seems to identify two separate things that
+<code>kSbThreadNoPriority</code> might mean ... just want to confirm that's right.
+(The alternative would be to say that the value could be set to
+<code>kSbThreadNoPriority</code> or could be set to inherit the priority from the
+thread calling <code>SbThreadCreate</code>.</td>
+  </tr>
+  <tr>
+    <td><code>SbThreadAffinity</code><br>        <code>affinity</code></td>
+    <td>The thread's affinity. This value can be set to
+<code>kSbThreadNoAffinity</code> to use the platform's default affinity.</td>
+  </tr>
+  <tr>
+    <td><code>bool</code><br>        <code>joinable</code></td>
+    <td>Indicates whether the thread can be joined (<code>true</code>) or should
+start out "detached" (<code>false</code>). Note that for joinable threads, when
+you are done with the thread handle, you must call <code>SbThreadJoin</code> to
+release system resources associated with the thread. This is not necessary
+for detached threads, but detached threads cannot be joined.</td>
+  </tr>
+  <tr>
+    <td><code>const char*</code><br>        <code>name</code></td>
+    <td>A name used to identify the thread. This value is used mainly for
+debugging, it can be <code>NULL</code>, and it might not be used in production builds.</td>
+  </tr>
+  <tr>
+    <td><code>SbThreadEntryPoint</code><br>        <code>entry_point</code></td>
+    <td>A pointer to a function that will be executed on the newly
+created thread.</td>
+  </tr>
+  <tr>
+    <td><code>void*</code><br>        <code>context</code></td>
+    <td>This value will be passed to the <code>entry_point</code> function.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadcreatelocalkey">SbThreadCreateLocalKey</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Creates and returns a new, unique key for thread local data. If the function
+does not succeed, the function returns <code class="prettyprint">kSbThreadLocalKeyInvalid</code>.<br>
+If <code class="prettyprint">destructor</code> is specified, it can only be called in the owning thread,
+in which case, it is called on every thread&#39;s local values when the thread
+exits. Thread interruption is not viable.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadCreateLocalKey-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadCreateLocalKey-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadCreateLocalKey-declaration">
+<pre>
+SB_EXPORT SbThreadLocalKey
+SbThreadCreateLocalKey(SbThreadLocalDestructor destructor);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadCreateLocalKey-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+SbThreadLocalKey SbThreadCreateLocalKey(
+    SbThreadLocalDestructor /*destructor*/) {
+  return kSbThreadLocalKeyInvalid;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadLocalDestructor</code><br>        <code>destructor</code></td>
+    <td>A pointer to a function. The value may be NULL if no clean up
+is needed.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreaddestroylocalkey">SbThreadDestroyLocalKey</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Destroys thread local data for the specified key. The function is a no-op
+if the key is invalid (kSbThreadLocalKeyInvalid`) or has already been
+destroyed. This function does NOT call the destructor on any stored values.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadDestroyLocalKey-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadDestroyLocalKey-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadDestroyLocalKey-declaration">
+<pre>
+SB_EXPORT void SbThreadDestroyLocalKey(SbThreadLocalKey key);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadDestroyLocalKey-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+void SbThreadDestroyLocalKey(SbThreadLocalKey /*key*/) {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadLocalKey</code><br>        <code>key</code></td>
+    <td>The key for which to destroy thread local data.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreaddetach">SbThreadDetach</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Detaches <code class="prettyprint">thread</code>, which prevents it from being joined. This is sort of like
+a non-blocking join. This function is a no-op if the thread is already
+detached or if the thread is already being joined by another thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadDetach-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadDetach-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadDetach-declaration">
+<pre>
+SB_EXPORT void SbThreadDetach(SbThread thread);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadDetach-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+void SbThreadDetach(SbThread /*thread*/) {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThread</code><br>        <code>thread</code></td>
+    <td>The thread to be detached.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadgetcurrent">SbThreadGetCurrent</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the handle of the currently executing thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadGetCurrent-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadGetCurrent-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadGetCurrent-declaration">
+<pre>
+SB_EXPORT SbThread SbThreadGetCurrent();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadGetCurrent-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+SbThread SbThreadGetCurrent() {
+  return kSbThreadInvalid;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbthreadgetid">SbThreadGetId</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the Thread ID of the currently executing thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadGetId-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadGetId-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbThreadGetId-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadGetId-declaration">
+<pre>
+SB_EXPORT SbThreadId SbThreadGetId();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadGetId-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+SbThreadId SbThreadGetId() {
+  return 0;
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbThreadGetId-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+#include &lt;sys/syscall.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;unistd.h&gt;
+
+SbThreadId SbThreadGetId() {
+  // This is not portable outside of Linux.
+  return static_cast&lt;SbThreadId&gt;(syscall(SYS_gettid));
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbthreadgetlocalvalue">SbThreadGetLocalValue</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the pointer-sized value for <code class="prettyprint">key</code> in the currently executing thread&#39;s
+local storage. Returns <code class="prettyprint">NULL</code> if key is <code class="prettyprint">kSbThreadLocalKeyInvalid</code> or if the
+key has already been destroyed.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadGetLocalValue-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadGetLocalValue-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadGetLocalValue-declaration">
+<pre>
+SB_EXPORT void* SbThreadGetLocalValue(SbThreadLocalKey key);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadGetLocalValue-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+void* SbThreadGetLocalValue(SbThreadLocalKey /*key*/) {
+  return NULL;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadLocalKey</code><br>        <code>key</code></td>
+    <td>The key for which to return the value.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadgetname">SbThreadGetName</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the debug name of the currently executing thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadGetName-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadGetName-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbThreadGetName-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadGetName-declaration">
+<pre>
+SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadGetName-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+void SbThreadGetName(char* /*buffer*/, int /*buffer_size*/) {
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbThreadGetName-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+#include &lt;pthread.h&gt;
+
+void SbThreadGetName(char* buffer, int buffer_size) {
+  pthread_getname_np(pthread_self(), buffer, static_cast&lt;size_t&gt;(buffer_size));
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>char*</code><br>        <code>buffer</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>        <code>buffer_size</code></td>
+    <td></td>
+  </tr>
+</table>
+
+<h3 id="sbthreadisequal">SbThreadIsEqual</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Indicates whether <code class="prettyprint">thread1</code> and <code class="prettyprint">thread2</code> refer to the same thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadIsEqual-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadIsEqual-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadIsEqual-declaration">
+<pre>
+SB_EXPORT bool SbThreadIsEqual(SbThread thread1, SbThread thread2);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadIsEqual-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+bool SbThreadIsEqual(SbThread /*thread1*/, SbThread /*thread2*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThread</code><br>        <code>thread1</code></td>
+    <td>The first thread to compare.</td>
+  </tr>
+  <tr>
+    <td><code>SbThread</code><br>        <code>thread2</code></td>
+    <td>The second thread to compare.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadisvalid">SbThreadIsValid</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the given thread handle is valid.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbThreadIsValid(SbThread thread) {
+  return thread != kSbThreadInvalid;
+}
+</code></pre></div>
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThread</code></td>
+    <td><code>thread</code></td>
+  </tr>
+</table>
+
+<h3 id="sbthreadisvalidaffinity">SbThreadIsValidAffinity</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the given thread affinity is valid.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
+  return affinity != kSbThreadNoAffinity;
+}
+</code></pre></div>
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadAffinity</code></td>
+    <td><code>affinity</code></td>
+  </tr>
+</table>
+
+<h3 id="sbthreadisvalidid">SbThreadIsValidId</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the given thread ID is valid.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbThreadIsValidId(SbThreadId id) {
+  return id != kSbThreadInvalidId;
+}
+</code></pre></div>
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadId</code></td>
+    <td><code>id</code></td>
+  </tr>
+</table>
+
+<h3 id="sbthreadisvalidlocalkey">SbThreadIsValidLocalKey</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the given thread local variable key is valid.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
+  return key != kSbThreadLocalKeyInvalid;
+}
+</code></pre></div>
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadLocalKey</code></td>
+    <td><code>key</code></td>
+  </tr>
+</table>
+
+<h3 id="sbthreadisvalidpriority">SbThreadIsValidPriority</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the given thread priority is valid.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbThreadIsValidPriority(SbThreadPriority priority) {
+  return priority != kSbThreadNoPriority;
+}
+</code></pre></div>
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadPriority</code></td>
+    <td><code>priority</code></td>
+  </tr>
+</table>
+
+<h3 id="sbthreadjoin">SbThreadJoin</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Joins the thread on which this function is called with joinable <code class="prettyprint">thread</code>.
+This function blocks the caller until the designated thread exits, and then
+cleans up that thread&#39;s resources. The cleanup process essentially detaches
+thread.<br>
+The return value is <code class="prettyprint">true</code> if the function is successful and <code class="prettyprint">false</code> if
+<code class="prettyprint">thread</code> is invalid or detached.<br>
+Each joinable thread can only be joined once and must be joined to be fully
+cleaned up. Once <code>SbThreadJoin</code> is called, the thread behaves as if it were
+detached to all threads other than the joining thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadJoin-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadJoin-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadJoin-declaration">
+<pre>
+SB_EXPORT bool SbThreadJoin(SbThread thread, void** out_return);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadJoin-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+bool SbThreadJoin(SbThread /*thread*/, void** /*out_return*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThread</code><br>        <code>thread</code></td>
+    <td>The thread to which the current thread will be joined. The
+<code>thread</code> must have been created with <code><a href="#sbthreadcreate">SbThreadCreate</a></code>.</td>
+  </tr>
+  <tr>
+    <td><code>void**</code><br>        <code>out_return</code></td>
+    <td>If this is not <code>NULL</code>, then the <code>SbThreadJoin</code> function populates
+it with the return value of the thread's <code>main</code> function.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadsetlocalvalue">SbThreadSetLocalValue</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Sets the pointer-sized value for <code class="prettyprint">key</code> in the currently executing thread&#39;s
+local storage. The return value indicates whether <code class="prettyprint">key</code> is valid and has
+not already been destroyed.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadSetLocalValue-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadSetLocalValue-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadSetLocalValue-declaration">
+<pre>
+SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadSetLocalValue-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+bool SbThreadSetLocalValue(SbThreadLocalKey /*key*/, void* /*value*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbThreadLocalKey</code><br>        <code>key</code></td>
+    <td>The key for which to set the key value.</td>
+  </tr>
+  <tr>
+    <td><code>void*</code><br>        <code>value</code></td>
+    <td>The new pointer-sized key value.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadsetname">SbThreadSetName</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Sets the debug name of the currently executing thread by copying the
+specified name string.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadSetName-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadSetName-stub" class="mdl-tabs__tab">stub</a>
+    <a href="#SbThreadSetName-linux" class="mdl-tabs__tab">linux</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadSetName-declaration">
+<pre>
+SB_EXPORT void SbThreadSetName(const char* name);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadSetName-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+void SbThreadSetName(const char* /*name*/) {
+}
+</code></pre></div>
+<p></div>
+  <div class="mdl-tabs__panel" id="SbThreadSetName-linux"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+#include &lt;errno.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;unistd.h&gt;
+
+#include &quot;starboard/log.h&quot;
+#include &quot;starboard/string.h&quot;
+
+void SbThreadSetName(const char* name) {
+  // We don&#39;t want to rename the main thread.
+  if (SbThreadGetId() == getpid()) {
+    return;
+  }
+
+  const int kMaxThreadNameLength = 16;
+  char buffer[kMaxThreadNameLength];
+
+  if (SbStringGetLength(name) &gt;= SB_ARRAY_SIZE_INT(buffer)) {
+    SbStringCopy(buffer, name, SB_ARRAY_SIZE_INT(buffer));
+    SB_DLOG(WARNING) &lt;&lt; &quot;Thread name \&quot;&quot; &lt;&lt; name &lt;&lt; &quot;\&quot; was truncated to \&quot;&quot;
+                     &lt;&lt; buffer &lt;&lt; &quot;\&quot;&quot;;
+    name = buffer;
+  }
+
+  if (pthread_setname_np(pthread_self(), name) != 0) {
+    SB_DLOG(ERROR) &lt;&lt; &quot;Failed to set thread name to &quot; &lt;&lt; name;
+  }
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>const char*</code><br>        <code>name</code></td>
+    <td>The name to assign to the thread.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadsleep">SbThreadSleep</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Sleeps the currently executing thread.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadSleep-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadSleep-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadSleep-declaration">
+<pre>
+SB_EXPORT void SbThreadSleep(SbTime duration);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadSleep-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+void SbThreadSleep(SbTime /*duration*/) {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbTime</code><br>        <code>duration</code></td>
+    <td>The minimum amount of time that the currently executing thread
+should sleep. The function is a no-op if this value is negative or <code>0</code>.</td>
+  </tr>
+</table>
+
+<h3 id="sbthreadyield">SbThreadYield</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Yields the currently executing thread, so another thread has a chance to run.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbThreadYield-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbThreadYield-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbThreadYield-declaration">
+<pre>
+SB_EXPORT void SbThreadYield();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbThreadYield-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/thread.h&quot;
+
+void SbThreadYield() {
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+        
+          
+            
+          
+        
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+    
+
+<footer>
+<div class="container">
+    <div class="row">
+        <div class="col-md-5 column-left">
+    <span class="copyright-text">© Cobalt Team 2016</span>
+        </div>
+        <div class="col-md-2 column-middle">
+  <img class="footer-logo" src="/cobalt/images/cobalt-logo.png" alt="Cobalt"/>
+        </div>
+        <div class="col-md-5 column-right">&nbsp;</div>
+            </div>
+</div>
+</footer>
+
+    
+  </body>
+</html>

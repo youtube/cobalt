@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en" itemscope itemtype="https://schema.org/WebPage">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cobalt / Starboard Module Reference: directory.h</title>
+
+            <!-- Webfont -->
+    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    
+    <!-- Material Design Lite -->
+    <link href="/cobalt/assets/material-design-lite/material.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Bootstrap -->
+    <link href="/cobalt/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- Styles -->
+    <link rel="stylesheet" type="text/css" href="/cobalt/css/site.css" />
+
+    <!-- Font Awesome icons -->
+    <link href="/cobalt/assets/font-awesome-4.4.0/css/font-awesome.min.css"
+          rel="stylesheet"
+          type="text/css">
+    
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/cobalt/assets/bootstrap/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+
+    <!-- material design lite -->
+    <script src="/cobalt/assets/material-design-lite/material.min.js"></script>
+
+    <!-- Include the common site javascript -->
+    <script src="/cobalt/js/common.js" type="text/javascript" charset="utf-8"></script>
+
+    <!-- metadata -->
+    <meta name="og:title" content="Cobalt / "/>
+    <meta name="og:image" content="/cobalt/images/cobalt-logo.png"/>
+    <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
+  </head>
+  <body class="" id="top_of_page">
+
+    <span id="toc-depth" data-toc-depth="h2,h3"></span>
+    <nav id="common-nav" class="navbar navbar-fixed-top inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      
+      <a class="navbar-brand" href="/">
+        <img class="logo" src="/cobalt/images/cobalt-logo.png" alt="Cobalt">
+      </a>
+      
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right" id="standard-menu-links">
+      <li><a href="/cobalt/starboard/porting.html">Porters</a></li>
+      <li><a href="/cobalt/development/quick-start.html">Developers</a></li>
+      <li><a href="/cobalt/contributors/index.html">Contributors</a></li>
+      <li><a href="https://cobalt.googlesource.com/cobalt"><i class="fa fa-github"></i> Code Repo</a></li>
+      </ul>
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="collapsed-left-menu">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu no-top-margin">Porters</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+                <li><b>Starboard modules</b>
+          <ul>
+                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
+          </ul>
+      </ul>
+    </li>
+  </ul>
+</li>
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu">Developers</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
+        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+  
+
+<li class="expand-container" data-expander-target-search="relative">
+<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+</li>
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container -->
+</nav>
+    
+<div id="masthead">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-11">
+        <h1>Starboard Module Reference: directory.h</h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container">
+    <div class="row scroll-margin" id="toc-content-row">
+    <div class="col-md-2" id="leftCol">
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="sidebar">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu no-top-margin">Porters</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+                <li><b>Starboard modules</b>
+          <ul>
+                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
+                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
+          </ul>
+      </ul>
+    </li>
+  </ul>
+</li>
+<li class="expand-container" data-expander-target-search="relative">
+          <h4 class="submenu">Developers</h4>
+  <ul class="content">
+    <li><b>Guides</b>
+      <ul>
+        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
+        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
+      </ul>
+    </li>
+    <li><b>Reference</b>
+      <ul>
+        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+<li class="expand-container" data-expander-target-search="relative">
+<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+</li>
+      </ul>
+    </div>
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
+      <div class="nav nav-stacked" id="tocSidebar">
+        
+        <div id="toc"></div>
+        
+        
+      </div>
+    </div>
+    <div class="col-md-7" id="centerCol">
+      <div id="content">
+        <p>This module provides directory listing functions.</p>
+
+<h2 id="structs">Structs</h2>
+
+<h3 id="sbdirectoryentry">SbDirectoryEntry</h3>
+
+<p>Represents a directory entry.</p>
+
+<p><strong>Members</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Members</th></tr>
+  <tr>
+    <td><code>char</code><br>        <code>name[SB_FILE_MAX_NAME]</code></td>    <td>The name of this directory entry.</td>  </tr>
+</table>
+
+<h3 id="sbdirectory">SbDirectory</h3>
+
+<p>A handle to an open directory stream.</p>
+
+<h2 id="functions">Functions</h2>
+
+<h3 id="sbdirectorycanopen">SbDirectoryCanOpen</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Indicates whether <code><a href="#sbdirectoryopen">SbDirectoryOpen</a></code> is allowed for the given <code class="prettyprint">path</code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDirectoryCanOpen-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDirectoryCanOpen-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDirectoryCanOpen-declaration">
+<pre>
+SB_EXPORT bool SbDirectoryCanOpen(const char* path);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDirectoryCanOpen-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
+
+bool SbDirectoryCanOpen(const char* /*path*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>const char*</code><br>        <code>path</code></td>
+    <td>The path to be checked.</td>
+  </tr>
+</table>
+
+<h3 id="sbdirectoryclose">SbDirectoryClose</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Closes an open directory stream handle. The return value indicates whether
+the directory was closed successfully.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDirectoryClose-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDirectoryClose-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDirectoryClose-declaration">
+<pre>
+SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDirectoryClose-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
+
+bool SbDirectoryClose(SbDirectory /*directory*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbDirectory</code><br>        <code>directory</code></td>
+    <td>The directory stream handle to close.</td>
+  </tr>
+</table>
+
+<h3 id="sbdirectorycreate">SbDirectoryCreate</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Creates the directory <code class="prettyprint">path</code>, assuming the parent directory already exists.
+This function returns <code class="prettyprint">true</code> if the directory now exists (even if it existed
+before) and returns <code class="prettyprint">false</code> if the directory does not exist.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDirectoryCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDirectoryCreate-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDirectoryCreate-declaration">
+<pre>
+SB_EXPORT bool SbDirectoryCreate(const char* path);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDirectoryCreate-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
+
+bool SbDirectoryCreate(const char* /*path*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>const char*</code><br>        <code>path</code></td>
+    <td>The path to be created.</td>
+  </tr>
+</table>
+
+<h3 id="sbdirectorygetnext">SbDirectoryGetNext</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Populates <code class="prettyprint">out_entry</code> with the next entry in the specified directory stream,
+and moves the stream forward by one entry.<br>
+This function returns <code class="prettyprint">true</code> if there was a next directory, and <code class="prettyprint">false</code>
+at the end of the directory stream.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDirectoryGetNext-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDirectoryGetNext-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDirectoryGetNext-declaration">
+<pre>
+SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
+                                  SbDirectoryEntry* out_entry);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDirectoryGetNext-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
+
+bool SbDirectoryGetNext(SbDirectory /*directory*/,
+                        SbDirectoryEntry* /*out_entry*/) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbDirectory</code><br>        <code>directory</code></td>
+    <td>The directory stream from which to retrieve the next directory.</td>
+  </tr>
+  <tr>
+    <td><code>SbDirectoryEntry*</code><br>        <code>out_entry</code></td>
+    <td>The variable to be populated with the next directory entry.</td>
+  </tr>
+</table>
+
+<h3 id="sbdirectoryisvalid">SbDirectoryIsValid</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the given directory stream handle is valid.</p>
+
+<p><strong>Declaration</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbDirectoryIsValid(SbDirectory directory) {
+  return directory != kSbDirectoryInvalid;
+}
+</code></pre></div>
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbDirectory</code></td>
+    <td><code>directory</code></td>
+  </tr>
+</table>
+
+<h3 id="sbdirectoryopen">SbDirectoryOpen</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Opens the given existing directory for listing. This function returns
+kSbDirectoryInvalidHandle if it is not successful.<br>
+If <code class="prettyprint">out_error</code> is provided by the caller, it will be set to the appropriate
+SbFileError code on failure.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDirectoryOpen-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDirectoryOpen-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDirectoryOpen-declaration">
+<pre>
+SB_EXPORT SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDirectoryOpen-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
+
+SbDirectory SbDirectoryOpen(const char* /*path*/, SbFileError* /*out_error*/) {
+  return kSbDirectoryInvalid;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>const char*</code><br>        <code>path</code></td>
+    <td> </td>  </tr>
+  <tr>
+    <td><code>SbFileError*</code><br>        <code>out_error</code></td>
+    <td>A variable that can be set to identify the reason that the
+directory could not be opened.</td>
+  </tr>
+</table>
+
+        
+          
+            
+          
+        
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+    
+
+<footer>
+<div class="container">
+    <div class="row">
+        <div class="col-md-5 column-left">
+    <span class="copyright-text">© Cobalt Team 2016</span>
+        </div>
+        <div class="col-md-2 column-middle">
+  <img class="footer-logo" src="/cobalt/images/cobalt-logo.png" alt="Cobalt"/>
+        </div>
+        <div class="col-md-5 column-right">&nbsp;</div>
+            </div>
+</div>
+</footer>
+
+    
+  </body>
+</html>
