@@ -76,7 +76,7 @@ void LoaderFactory::Suspend() {
   resource_provider_ = NULL;
   for (LoaderSet::const_iterator iter = active_loaders_.begin();
        iter != active_loaders_.end(); ++iter) {
-    (*iter)->Abort();
+    (*iter)->Suspend();
   }
 }
 
@@ -86,6 +86,10 @@ void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
   DCHECK(!resource_provider_);
 
   resource_provider_ = resource_provider;
+  for (LoaderSet::const_iterator iter = active_loaders_.begin();
+       iter != active_loaders_.end(); ++iter) {
+    (*iter)->Resume(resource_provider);
+  }
 }
 
 void LoaderFactory::OnLoaderCreated(Loader* loader) {

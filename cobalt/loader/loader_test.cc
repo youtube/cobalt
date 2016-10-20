@@ -73,33 +73,47 @@ class LoaderCallback {
 // Mocks & Stubs
 //////////////////////////////////////////////////////////////////////////
 
-class StubFetcherError : public Fetcher {
- public:
-  explicit StubFetcherError(Handler* handler) : Fetcher(handler) {
-    handler->OnError(this, "Fake error for test");
-  }
-
-  static scoped_ptr<Fetcher> Create(Handler* handler) {
-    return scoped_ptr<Fetcher>(new StubFetcherError(handler));
-  }
-};
-
-class StubFetcherReceivedDone : public Fetcher {
- public:
-  explicit StubFetcherReceivedDone(Handler* handler) : Fetcher(handler) {
-    handler->OnReceived(this, NULL, 0);
-    handler->OnDone(this);
-  }
-
-  static scoped_ptr<Fetcher> Create(Handler* handler) {
-    return scoped_ptr<Fetcher>(new StubFetcherReceivedDone(handler));
-  }
-};
-
 class MockDecoder : public Decoder {
  public:
   MOCK_METHOD2(DecodeChunk, void(const char*, size_t));
   MOCK_METHOD0(Finish, void());
+  MOCK_METHOD0(Suspend, bool());
+  MOCK_METHOD1(Resume, void(render_tree::ResourceProvider*));
+};
+
+class MockFetcher : public Fetcher {
+ public:
+  explicit MockFetcher(Handler* handler) : Fetcher(handler) {}
+
+  void FireError(const char* message) { handler()->OnError(this, message); }
+
+  void FireReceived(const char* data, size_t size) {
+    handler()->OnReceived(this, data, size);
+  }
+
+  void FireDone() { handler()->OnDone(this); }
+
+  static scoped_ptr<Fetcher> Create(Handler* handler) {
+    return scoped_ptr<Fetcher>(new MockFetcher(handler));
+  }
+};
+
+struct MockFetcherFactory {
+ public:
+  MockFetcherFactory(): count(0) {}
+  // Way to access the last fetcher created by the fetcher factory.
+  MockFetcher* fetcher;
+  int count;
+
+  scoped_ptr<Fetcher> Create(Fetcher::Handler* handler) {
+    fetcher = new MockFetcher(handler);
+    ++count;
+    return scoped_ptr<Fetcher>(fetcher);
+  }
+
+  Loader::FetcherCreator GetFetcherCreator() {
+    return base::Bind(&MockFetcherFactory::Create, base::Unretained(this));
+  }
 };
 
 class MockLoaderCallback : public LoaderCallback {
@@ -138,30 +152,77 @@ LoaderTest::LoaderTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {
 
 TEST_F(LoaderTest, FetcherError) {
   MockLoaderCallback mock_loader_callback;
+  MockFetcherFactory mock_fetcher_factory;
   MockDecoder* mock_decoder = new MockDecoder();  // To be owned by loader.
   EXPECT_CALL(*mock_decoder, DecodeChunk(_, _)).Times(0);
   EXPECT_CALL(*mock_decoder, Finish()).Times(0);
   EXPECT_CALL(mock_loader_callback, OnError(_));
 
-  Loader loader(base::Bind(&StubFetcherError::Create),
+  Loader loader(mock_fetcher_factory.GetFetcherCreator(),
                 scoped_ptr<Decoder>(mock_decoder),
                 base::Bind(&MockLoaderCallback::OnError,
                            base::Unretained(&mock_loader_callback)));
+  mock_fetcher_factory.fetcher->FireError("Fail");
+}
+
+TEST_F(LoaderTest, FetcherSuspendAbort) {
+  MockLoaderCallback mock_loader_callback;
+  MockFetcherFactory mock_fetcher_factory;
+  MockDecoder* mock_decoder = new MockDecoder();  // To be owned by loader.
+  EXPECT_CALL(*mock_decoder, DecodeChunk(_, _)).Times(0);
+  EXPECT_CALL(*mock_decoder, Finish()).Times(0);
+  EXPECT_CALL(*mock_decoder, Suspend());
+  EXPECT_CALL(*mock_decoder, Resume(_)).Times(0);
+  EXPECT_CALL(mock_loader_callback, OnError(_));
+
+  Loader loader(mock_fetcher_factory.GetFetcherCreator(),
+                scoped_ptr<Decoder>(mock_decoder),
+                base::Bind(&MockLoaderCallback::OnError,
+                           base::Unretained(&mock_loader_callback)));
+  loader.Suspend();
+}
+
+TEST_F(LoaderTest, FetcherSuspendResumeDone) {
+  MockLoaderCallback mock_loader_callback;
+  MockFetcherFactory mock_fetcher_factory;
+  MockDecoder* mock_decoder = new MockDecoder();  // To be owned by loader.
+  ON_CALL(*mock_decoder, Suspend()).WillByDefault(testing::Return(true));
+
+  EXPECT_CALL(*mock_decoder, Suspend());
+  EXPECT_CALL(*mock_decoder, Resume(_));
+
+  EXPECT_CALL(*mock_decoder, DecodeChunk(_, _)).Times(0);
+  EXPECT_CALL(mock_loader_callback, OnError(_)).Times(0);
+  EXPECT_CALL(*mock_decoder, Finish());
+
+  Loader loader(mock_fetcher_factory.GetFetcherCreator(),
+                scoped_ptr<Decoder>(mock_decoder),
+                base::Bind(&MockLoaderCallback::OnError,
+                           base::Unretained(&mock_loader_callback)));
+  loader.Suspend();
+  loader.Resume(NULL);
+
+  // The fetcher should have been torn down and recreated.
+  EXPECT_EQ(2, mock_fetcher_factory.count);
+  mock_fetcher_factory.fetcher->FireDone();
 }
 
 TEST_F(LoaderTest, FetcherReceiveDone) {
   InSequence dummy;
 
   MockLoaderCallback mock_loader_callback;
+  MockFetcherFactory mock_fetcher_factory;
   MockDecoder* mock_decoder = new MockDecoder();  // To be owned by loader.
   EXPECT_CALL(mock_loader_callback, OnError(_)).Times(0);
   EXPECT_CALL(*mock_decoder, DecodeChunk(_, _));
   EXPECT_CALL(*mock_decoder, Finish());
 
-  Loader loader(base::Bind(&StubFetcherReceivedDone::Create),
+  Loader loader(mock_fetcher_factory.GetFetcherCreator(),
                 scoped_ptr<Decoder>(mock_decoder),
                 base::Bind(&MockLoaderCallback::OnError,
                            base::Unretained(&mock_loader_callback)));
+  mock_fetcher_factory.fetcher->FireReceived(NULL, 0);
+  mock_fetcher_factory.fetcher->FireDone();
 }
 
 // Typical usage of Loader.
