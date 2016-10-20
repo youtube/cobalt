@@ -52,8 +52,8 @@ class ImageDecoder : public Decoder {
       const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
-
-  void Abort() OVERRIDE;
+  bool Suspend() OVERRIDE;
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
   // Call this function to use the StubImageDecoder which produces a small image
   // without decoding.
@@ -66,7 +66,7 @@ class ImageDecoder : public Decoder {
     kNotApplicable,
     kUnsupportedImageFormat,
     kNoResourceProvider,
-    kAborted,
+    kSuspended,
   };
 
   // The current longest signature is WEBP signature.
@@ -81,7 +81,7 @@ class ImageDecoder : public Decoder {
   bool InitializeInternalDecoder(const uint8* input_bytes, size_t size,
                                  size_t* consumed_size);
 
-  render_tree::ResourceProvider* const resource_provider_;
+  render_tree::ResourceProvider* resource_provider_;
   const SuccessCallback success_callback_;
   const FailureCallback failure_callback_;
   const ErrorCallback error_callback_;

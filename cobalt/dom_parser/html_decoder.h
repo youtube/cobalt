@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
@@ -60,6 +61,11 @@ class HTMLDecoder : public loader::Decoder {
       const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
+  bool Suspend() OVERRIDE { return false; }
+
+  void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
+    NOTIMPLEMENTED();
+  };
 
  private:
   // This subclass is responsible for providing the handlers for the interface

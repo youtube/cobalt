@@ -26,6 +26,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher.h"
+#include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
 namespace loader {
@@ -38,6 +39,7 @@ class Loader {
  public:
   typedef base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> FetcherCreator;
   typedef base::Callback<void(Loader*)> OnDestructionFunction;
+  typedef base::Callback<void(const std::string&)> OnErrorFunction;
 
   // The construction of Loader initiates the loading. It takes the ownership
   // of a Decoder and creates and manages a Fetcher using the given creation
@@ -45,16 +47,26 @@ class Loader {
   // The fetcher creator, decoder and error callback shouldn't be NULL.
   // It is allowed to destroy the loader in the error callback.
   Loader(const FetcherCreator& fetcher_creator, scoped_ptr<Decoder> decoder,
-         const base::Callback<void(const std::string&)>& error_callback,
+         const OnErrorFunction& on_error,
          const OnDestructionFunction& on_destruction = OnDestructionFunction());
 
   ~Loader();
 
-  void Abort();
+  // Suspends the load of this resource, expecting it to be resumed or destroyed
+  // later.
+  void Suspend();
+
+  // Resumes the load of this resource. Suspend must have been previously
+  // called.
+  void Resume(render_tree::ResourceProvider* resource_provider);
 
  private:
   class FetcherToDecoderAdapter;
 
+  // Starts the fetch-and-decode.
+  void Start();
+
+  FetcherCreator fetcher_creator_;
   scoped_ptr<Decoder> decoder_;
   scoped_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
   scoped_ptr<Fetcher> fetcher_;
@@ -62,7 +74,10 @@ class Loader {
   base::CancelableClosure fetcher_creator_error_closure_;
   base::ThreadChecker thread_checker_;
 
+  OnErrorFunction on_error_;
   OnDestructionFunction on_destruction_;
+
+  bool suspended_;
 
   DISALLOW_COPY_AND_ASSIGN(Loader);
 };

@@ -54,6 +54,8 @@ class MockTypefaceDecoder : public Decoder {
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
 
   void Finish() OVERRIDE;
+  bool Suspend() OVERRIDE;
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> Typeface();
 
@@ -82,6 +84,13 @@ void MockTypefaceDecoder::DecodeChunk(const char* data, size_t size) {
 }
 
 void MockTypefaceDecoder::Finish() { typeface_decoder_->Finish(); }
+
+bool MockTypefaceDecoder::Suspend() { return typeface_decoder_->Suspend(); }
+
+void MockTypefaceDecoder::Resume(
+    render_tree::ResourceProvider* resource_provider) {
+  typeface_decoder_->Resume(resource_provider);
+}
 
 scoped_refptr<render_tree::Typeface> MockTypefaceDecoder::Typeface() {
   return typeface_decoder_callback_.typeface;
