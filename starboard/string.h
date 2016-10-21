@@ -77,7 +77,8 @@ SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
                                  int destination_size);
 
 // Copies the string |source| into a buffer allocated by this function that can
-// be freed with SbMemoryFree. Meant to be a drop-in replacement for strdup.
+// be freed with SbMemoryDeallocate. Meant to be a drop-in replacement for
+// strdup.
 SB_EXPORT char* SbStringDuplicate(const char* source);
 
 // Finds the first occurrence of |character| in |str|, returning a pointer to

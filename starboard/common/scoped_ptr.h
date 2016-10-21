@@ -362,7 +362,7 @@ bool operator!=(C* p1, const scoped_array<C>& p2) {
 // passed as a template argument to scoped_ptr_malloc below.
 class ScopedPtrMallocFree {
  public:
-  inline void operator()(void* x) const { SbMemoryFree(x); }
+  inline void operator()(void* x) const { SbMemoryDeallocate(x); }
 };
 
 // scoped_ptr_malloc<> is similar to scoped_ptr<>, but it accepts a
