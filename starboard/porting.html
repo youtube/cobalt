@@ -306,15 +306,26 @@ devices. Some of the devices use big-endian MIPS chips, while others use
 little-endian MIPS chips. BobCo might define two platform configurations:</p>
 
 <ul>
-<li>  <code class="prettyprint">bobbox-mipsbe</code></li>
-<li>  <code class="prettyprint">bobbox-mipsle</code></li>
+<li>  <code class="prettyprint">bobbox-mipseb</code></li>
+<li>  <code class="prettyprint">bobbox-mipsel</code></li>
 </ul>
 
 <p>In this example, <code class="prettyprint">bobbox</code> is the family name and is used in both (all)
 of BobCo&#39;s platform configurations. The <code class="prettyprint">binary-variant</code> for devices with
-big-endian MIPS chips is <code class="prettyprint">mipsbe</code>. For devices with little-endian MIPS chips,
-the <code class="prettyprint">binary-variant</code> is <code class="prettyprint">mipsle</code>.</p>
+big-endian MIPS chips is <code class="prettyprint">mipseb</code>. For devices with little-endian MIPS chips,
+the <code class="prettyprint">binary-variant</code> is <code class="prettyprint">mipsel</code>.</p>
 
+<p>Starboard also supports sub-variant configurations to maximize your ability
+to share code between configurations. For example, if some of BobCo's devices
+that use little-endian chips use DirectFB, but other devices use OpenGL ES,
+BobCo could create two different configurations for little-endian chips:
+
+<ul>
+<li>  <code class="prettyprint">bobbox-mipsel-gles</code></li>
+<li>  <code class="prettyprint">bobbox-mipsel-dfb</code></li>
+</ul>
+
+<p>In this example, <code class="prettyprint">bobbox</code> is the family name and is used in both (all)
 <h3 id="2-add-source-tree-directories-for-your-starboard-port">2. Add Source Tree Directories for your Starboard Port</h3>
 
 <p>Add the following directories to the source tree for the <code class="prettyprint">&lt;family-name&gt;</code>
@@ -327,21 +338,32 @@ that you selected in step 1:</p>
 <p>This subdirectory contains code that is shared between architectures
 within a product family. For example, if BobBox devices run on many
 different platforms, then BobCo needs to define a different configuration
-for each platform. However, if all of the devices execute a particular
-function in the same way, BobCo can put that function in the <code class="prettyprint">shared</code>
+for each platform. However, if all of the configurations can use the same
+Starboard function implementation, BobCo can put that function in the
+<code class="prettyprint">shared</code>
 directory to make it accessible in every binary variant.
-TODO: Confirm that this is a good example.</p></li>
 <li><p><code class="prettyprint">src/third_party/starboard/&lt;family-name&gt;/&lt;binary-variant&gt;/</code></p>
 
 <p>You should create one directory for <em>each</em> <code class="prettyprint">&lt;binary-variant&gt;</code>. So, for
-example, BobCo would create the following directories:</p>
+example, BobCo could create the following directories:</p>
 
 <ul>
 <li>  <code class="prettyprint">src/third_party/starboard/bobbox/shared/</code></li>
-<li>  <code class="prettyprint">src/third_party/starboard/bobbox/mipsbe/</code></li>
-<li>  <code class="prettyprint">src/third_party/starboard/bobbox/mipsle/</code></li>
+<li>  <code class="prettyprint">src/third_party/starboard/bobbox/mipseb/</code></li>
+<li>  <code class="prettyprint">src/third_party/starboard/bobbox/mipsel/</code></li>
+<li>  <code class="prettyprint">src/third_party/starboard/bobbox/mipsel/dfb/</code></li>
+<li>  <code class="prettyprint">src/third_party/starboard/bobbox/mipsel/gles/</code></li>
 </ul></li>
 </ul>
+
+<p>Again, functions that work for all of the configurations would go in the
+<code class="prettyprint">shared</code> directory. Functions that work for all
+little-endian devices would go in the <code class="prettyprint">mipsel</code>
+directory. And functions specific to little-endian devices that use DirectFB
+or that use OpenGL ES would go in the
+<code class="prettyprint">mipsel/dfb</code> or
+<code class="prettyprint">mipsel/gles</code> directory.</p>
+
 
 <h3 id="3-add-required-binary-variant-files">3. Add required <code class="prettyprint">binary-variant</code> files</h3>
 
@@ -413,9 +435,9 @@ base class along with variant-specific subclasses.</p>
 that you copied in step 3:</p>
 
 <ol>
-<li><p><strong><code class="prettyprint">atomic_public.h</code>`</strong> - Ensure that this file points at the appropriate
+<li><p><strong><code class="prettyprint">atomic_public.h</code></strong> - Ensure that this file points at the appropriate
 shared or custom implementation.</p></li>
-<li><p><strong><code class="prettyprint">configuration_public.h</code>`</strong> - Adjust all of the <a href="../../reference/starboard/configuration-public.html">configuration values</a> as appropriate for
+<li><p><strong><code class="prettyprint">configuration_public.h</code></strong> - Adjust all of the <a href="../../reference/starboard/configuration-public.html">configuration values</a> as appropriate for
 your platform.</p></li>
 <li><p><strong><code class="prettyprint">gyp_configuration.py</code></strong></p>
 
@@ -537,14 +559,19 @@ system EGL + GLES3 implementation. Otherwise, set the value to
 </ul></li>
 <li>  <code class="prettyprint">in_app_dial</code> - Enables (or disables) the DIAL server that runs
 inside Cobalt. (This server only runs when Cobalt is running.)
-Set this value to <code class="prettyprint">0</code> if you already have system-wide DIAL
-support. In that case, a DIAL server running inside Cobalt would
-be redundant. Otherwise, set this value to <code class="prettyprint">1</code> if you want Cobalt
-to run as a DIAL-aware application. The <a href="http://www.dial-multiscreen.org/home">DIAL
+The <a href="http://www.dial-multiscreen.org/home">DIAL
 protocol</a> enables
 second-screen devices (like tablets and phones) to discover,
 launch, and interface with applications on first-screen devices
-(like televisions, set-top boxes, and Blu-ray players).</li>
+(like televisions, set-top boxes, and Blu-ray players).
+<ul>
+  <li>Set this value to <code class="prettyprint">0</code> if you already have system-wide DIAL support. In that case, a DIAL server running inside Cobalt would
+be redundant.</li>
+  <li>Set this value to <code class="prettyprint">1</code> if you want Cobalt
+to run a DIAL server whenever it is running. That server could only be used to
+connect with the current Cobalt application (e.g. YouTube).</li>
+</ul>
+</li>
 </ul></li>
 <li><p>Update your toolchain command-line flags and libraries. Ensure that
 you do not assume a particular workstation layout since that layout
