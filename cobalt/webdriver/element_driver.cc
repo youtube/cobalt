@@ -157,7 +157,7 @@ dom::Element* ElementDriver::GetWeakElement() {
 }
 
 util::CommandResult<void> ElementDriver::SendKeysInternal(
-    scoped_ptr<KeyboardEventVector> events) {
+    scoped_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
   DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
   if (!element_) {
@@ -174,7 +174,10 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
     if (!element_) {
       return CommandResult(protocol::Response::kStaleElementReference);
     }
-    element_->DispatchEvent((*events)[i]);
+    scoped_refptr<dom::KeyboardEvent> keyboard_event(
+              new dom::KeyboardEvent((*events)[i]));
+
+    element_->DispatchEvent(keyboard_event);
   }
   return CommandResult(protocol::Response::kSuccess);
 }
