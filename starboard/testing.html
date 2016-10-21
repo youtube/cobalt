@@ -279,7 +279,7 @@ end, Starboard provides a compliance test suite, called NPLB
 <p>All of the APIs that Cobalt defines are at least called by NPLB, and most of
 those APIs are verified in one way or another. The APIs that are most likely
 to just be implemented by a single system call, such as the Starboard functions
-defined in <a href="modules/string.html">string.h</a> and <a href="modules/memory.html">memory.h</a>
+defined in <a href="/cobalt/reference/starboard/modules/string.html">string.h</a> and <a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a>
 are not exhaustively tested.</p>
 
 <p>NPLB tests must work on all Starboard implementations, so they may make no
@@ -297,7 +297,7 @@ to keep things as self-contained as possible within a function and module.
 At the same time, the tests also aim to avoid avoid testing behavior that is
 effectively tested as part of another test.</p>
 
-<p>For example, <code><a href="modules/socket.html#sbsocketsendto">SbSocketSendTo</a></code> and <code><a href="modules/socket.html#sbsocketreceivefrom">SbSocketReceiveFrom</a></code> are tested
+<p>For example, the <code>SbSocketSendTo</code> and <code>SbSocketReceiveFrom</code> functions are tested
 together, ensuring that the API is self-consistent on both sides of a
 connection. Therefore, only one set of tests exist to cover those use cases,
 in <code>src/starboard/nplb/socket_receive_from_test.cc</code>.</p>
