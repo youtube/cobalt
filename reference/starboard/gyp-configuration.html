@@ -297,7 +297,13 @@
 <td style="text-align: left"><strong><code class="prettyprint">cobalt_config%</code></strong><br><br> Contains the current build configuration.<br><br>The default value is <code class="prettyprint">&#39;gold&#39;</code>.</td>
 </tr>
 <tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_enable_jit%</code></strong><br><br> Supported engine is currently only <code>javascriptcore<code>, as expected, rather than requiring it to be set for each platform. 'javascript_engine%': 'javascriptcore', Enable jit by default. It can be set to <code>0</code> to run in interpreter-only mode. Setting this to <code>1</code> on a platform or engine for which there is no JIT implementation is a no-op.<br><br>The default value is <code>1</code>.</td>
+</tr>
+<tr>
 <td style="text-align: left"><strong><code class="prettyprint">cobalt_fastbuild%</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package%</code></strong><br><br>Contains the current font package selection.  This can be used to trade font quality, coverage, and latency with smaller font package size. See content/fonts/README.md for more details.<br><br>The default value is <code>unlimited</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">cobalt_version%</code></strong><br><br> Build version number.<br><br>The default value is <code class="prettyprint">0</code>.</td>
@@ -351,6 +357,9 @@
 <td style="text-align: left"><strong><code class="prettyprint">compiler_flags_qa%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
 </tr>
 <tr>
+<td style="text-align: left"><strong><code class="prettyprint">default_renderer_options_dependency%</code></strong><br><br>Modify this value to adjust the default rasterizer setting for your platform.<br><br>The default value is <code>&lt;(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options</code>.</td>
+</tr>
+<tr>
 <td style="text-align: left"><strong><code class="prettyprint">enable_account_manager%</code></strong><br><br> Set to 1 to enable H5vccAccountManager.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
@@ -370,6 +379,12 @@
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">host_os%</code></strong><br><br> Contains the name of the hosting OS. The value is defined by gyp_cobalt.<br><br>The default value is <code class="prettyprint">&#39;win&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">image_cache_capacity_multiplier_when_playing_video%</code></strong><br><br> Modifying this value to be non-1.0f will result in the image cache capacity being cleared and then temporarily reduced for the duration that a video is playing.  This can be useful for some platforms if they are particularly constrained for (GPU) memory during video playback.  When playing a video, the image cache is reduced to: image_cache_size_in_bytes * image_cache_capacity_multiplier_when_playing_video.<br><br>The default value is <code>1.0f</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">image_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the image cache which manages image surfaces downloaded from a web page.  While it depends on the platform, often (and ideally) these images are cached within GPU memory.<br><br>The default value is <code>64 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">in_app_dial%</code></strong><br><br> Set to 1 to build with DIAL support.<br><br>The default value is <code class="prettyprint">0</code>.</td>
@@ -405,7 +420,10 @@
 <td style="text-align: left"><strong><code class="prettyprint">posix_emulation_target_type%</code></strong><br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">rasterizer_type%</code></strong><br><br> Defines what kind of rasterizer will be used.  This can be adjusted to force a stub graphics implementation or software graphics implementation. It can be one of the following options:<ul><li><code>hardware</code> - As much hardware acceleration of graphics commands as possible.<li><code>software</code> - Perform most rasterization using the CPU and only interact with the GPU to send the final image to the output window.<li><code>stub</code> - Stub graphics rasterization.  A rasterizer object will still be available and valid, but it will do nothing.<br><br>The default value is <code class="prettyprint">&#39;hardware&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">rasterizer_type%</code></strong><br><br> Defines what kind of rasterizer will be used.  This can be adjusted to force a stub graphics implementation or software graphics implementation. It can be one of the following options:<ul><li><code>hardware</code> - As much hardware acceleration of graphics commands as possible. Required for 360 rendering.<li><code>software</code> - Perform most rasterization using the CPU and only interact with the GPU to send the final image to the output window.<li><code>stub</code> - Stub graphics rasterization.  A rasterizer object will still be available and valid, but it will do nothing.<br><br>The default value is <code class="prettyprint">&#39;hardware&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">remote_typeface_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the remote typefaces cache which manages all typefaces downloaded from a web page.<br><br>The default value is <code>5 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">sb_has_deploy_step%</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
@@ -420,7 +438,13 @@
 <td style="text-align: left"><strong><code class="prettyprint">scratch_surface_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the scratch surface cache.  The scratch surface cache facilitates the reuse of temporary offscreen surfaces within a single frame.  This setting is only relevant when using the hardware-accelerated Skia rasterizer.<br><br>The default value is <code class="prettyprint">7 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">skia_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the skia cache.  The Skia cache is maintained within Skia and is used to cache the results of complicated effects such as shadows, so that Skia draw calls that are used repeatedly across frames can be cached into surfaces.  This setting is only relevant when using the hardware-accelerated Skia rasterizer.<br><br>The default value is <code class="prettyprint">4 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">skia_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the skia cache.  The Skia cache is maintained within Skia and is used to cache the results of complicated effects such as shadows, so that Skia draw calls that are used repeatedly across frames can be cached into surfaces.  This setting is only relevant when using the hardware-accelerated Skia rasterizer (e.g. as opposed to the Blitter API).<br><br>The default value is <code>4 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_height%</code></strong><br><br> The default value is <code>2048</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_width%</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays.<br><br>The default value is <code>2048</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">starboard_path%</code></strong><br><br> The relative path from src/ to the directory containing the starboard_platform.gyp file, or the empty string if not an autodiscovered platform.<br><br>The default value is <code class="prettyprint">&#39;&#39;</code>.</td>
@@ -432,7 +456,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">target_os%</code></strong><br><br> The operating system of the target, separate from the target_arch. In many cases, an &#39;unknown&#39; value is fine, but, if set to &#39;linux&#39;, then we can assume some things, and it&#39;ll save us some configuration time.<br><br>The default value is <code class="prettyprint">&#39;unknown&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">use_official_google_api_keys</code></strong><br><br> Supported engine is currently only &quot;javascriptcore&quot;. as expected, rather than requiring it to be set for each platform. &#39;javascript_engine%&#39;: &#39;javascriptcore&#39;, Customize variables used by Chromium&#39;s build/common.gypi. Disable a check that looks for an official google api key.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">use_official_google_api_keys</code></strong><br><br> Customize variables used by Chromium&#39;s build/common.gypi. Disable a check that looks for an official google api key.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">webkit_target_type%</code></strong><br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
@@ -471,7 +495,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">cobalt_copy_test_data</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">defines</code></strong><br><br> posix_emulation.h to all compiled source files. This dependency should be refactored and removed. headers that we don&#39;t need, but should exist somewhere in the path: Keeps common Starboard target changes in the starboard project.<br><br>The default value is <code class="prettyprint">[&#39;_USE_MATH_DEFINES&#39;]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">defines</code></strong><br><br> Keeps common Starboard target changes in the starboard project.<br><br>The default value is <code class="prettyprint">[&#39;_USE_MATH_DEFINES&#39;]</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">enable_about_scheme</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
