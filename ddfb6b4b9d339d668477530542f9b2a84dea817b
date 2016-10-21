@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7cce57f1_5cd91dd9",
+        "filename": "packaging/cobalt.spec",
+        "patchSetId": 4
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-21T03:15:30Z",
+      "side": 1,
+      "message": "Change to \nLicense:   MPL or BSD-3-clause\nSpiderMonkey(MPL), Chromium(BSD-3-clause)",
+      "range": {
+        "startLine": 5,
+        "startChar": 11,
+        "endLine": 5,
+        "endChar": 35
+      },
+      "revId": "ddfb6b4b9d339d668477530542f9b2a84dea817b",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    }
+  ]
+}
