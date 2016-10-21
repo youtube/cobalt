@@ -34,6 +34,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
 #include "cobalt/webdriver/element_mapping.h"
+#include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/protocol/cookie.h"
 #include "cobalt/webdriver/protocol/frame_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
@@ -89,7 +90,6 @@ class WindowDriver : private ElementMapping {
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
   typedef ElementDriverMap::iterator ElementDriverMapIt;
   typedef std::vector<protocol::ElementId> ElementIdVector;
-  typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
 
   // ScriptExecutor::ElementMapping implementation.
   protocol::ElementId ElementToId(
@@ -116,7 +116,7 @@ class WindowDriver : private ElementMapping {
       const protocol::Script& script);
 
   util::CommandResult<void> SendKeysInternal(
-      scoped_ptr<KeyboardEventVector> keyboard_events);
+      scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
 
   util::CommandResult<void> NavigateInternal(const GURL& url);
 
