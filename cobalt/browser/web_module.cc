@@ -111,7 +111,9 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Called to inject a keyboard event into the web module.
-  void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
+  void InjectKeyboardEvent(
+      scoped_refptr<dom::Element> element,
+      const dom::KeyboardEvent::Data& event);
 
   // Called to execute JavaScript in this WebModule. Sets the |result|
   // output parameter and signals |got_result|.
@@ -471,6 +473,7 @@ WebModule::Impl::~Impl() {
 }
 
 void WebModule::Impl::InjectKeyboardEvent(
+    scoped_refptr<dom::Element> element,
     const dom::KeyboardEvent::Data& event) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
@@ -485,7 +488,11 @@ void WebModule::Impl::InjectKeyboardEvent(
   // injected.
   web_module_stat_tracker_->OnInjectEvent(keyboard_event);
 
-  window_->InjectEvent(keyboard_event);
+  if (element) {
+    element->DispatchEvent(keyboard_event);
+  } else {
+    window_->InjectEvent(keyboard_event);
+  }
 }
 
 void WebModule::Impl::ExecuteJavascript(
@@ -562,6 +569,7 @@ void WebModule::Impl::CreateWindowDriver(
   window_driver_out->reset(new webdriver::WindowDriver(
       window_id, window_weak_,
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
       base::MessageLoopProxy::current()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
@@ -741,15 +749,27 @@ void WebModule::Initialize(const ConstructionData& data) {
   impl_.reset(new Impl(data));
 }
 
-void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
+void WebModule::InjectKeyboardEvent(
+    const dom::KeyboardEvent::Data& event) {
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::InjectKeyboardEvent,
+                                      base::Unretained(impl_.get()),
+                                      scoped_refptr<dom::Element>(),
+                                      event));
+}
+
+void WebModule::InjectKeyboardEvent(
+    scoped_refptr<dom::Element> element,
+    const dom::KeyboardEvent::Data& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
                event.type);
   DCHECK(message_loop());
   DCHECK(impl_);
+  DCHECK_EQ(MessageLoop::current(), message_loop());
 
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::InjectKeyboardEvent,
-                                      base::Unretained(impl_.get()), event));
+  impl_->InjectKeyboardEvent(element, event);
 }
 
 std::string WebModule::ExecuteJavascript(

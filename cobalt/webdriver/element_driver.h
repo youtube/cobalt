@@ -47,9 +47,14 @@ class WindowDriver;
 // will map to a method on this class.
 class ElementDriver {
  public:
+  typedef base::Callback<void(scoped_refptr<dom::Element>,
+                              const dom::KeyboardEvent::Data&)>
+      KeyboardEventInjector;
+
   ElementDriver(const protocol::ElementId& element_id,
                 const base::WeakPtr<dom::Element>& element,
                 ElementMapping* element_mapping,
+                KeyboardEventInjector keyboard_injector,
                 const scoped_refptr<base::MessageLoopProxy>& message_loop);
   const protocol::ElementId& element_id() { return element_id_; }
 
@@ -90,6 +95,7 @@ class ElementDriver {
   // These should only be accessed from |element_message_loop_|.
   base::WeakPtr<dom::Element> element_;
   ElementMapping* element_mapping_;
+  KeyboardEventInjector keyboard_injector_;
   scoped_refptr<base::MessageLoopProxy> element_message_loop_;
 
   friend class WindowDriver;
