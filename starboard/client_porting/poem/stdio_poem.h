@@ -34,10 +34,10 @@
 #define sprintf SbStringFormatUnsafeF
 #define vsscanf SbStringScan
 #define sscanf SbStringScanF
-#define malloc(sz) SbMemoryAllocateUnchecked(sz)
+#define malloc(sz) SbMemoryAllocate(sz)
 #define calloc(c, s) SbMemoryCalloc(c, s)
-#define free(a) SbMemoryFree(a)
-#define realloc(m, sz) SbMemoryReallocateUnchecked(m, sz)
+#define free(a) SbMemoryDeallocate(a)
+#define realloc(m, sz) SbMemoryReallocate(m, sz)
 
 #endif  // POEM_NO_EMULATION
 
