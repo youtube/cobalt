@@ -39,6 +39,8 @@ extern "C" {
 #endif
 
 #include "event-config.h"
+
+#ifndef STARBOARD
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -51,6 +53,7 @@ extern "C" {
 #include <sys/types.h>
 #endif
 #include <stdarg.h>
+#endif  // STARBOARD
 
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
@@ -160,10 +163,10 @@ int evutil_make_socket_nonblocking(int sock);
 #define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
 #endif
 
-
+#ifndef STARBOARD
 /* big-int related functions */
 ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
-
+#endif
 
 #ifdef _EVENT_HAVE_GETTIMEOFDAY
 #define evutil_gettimeofday(tv, tz) gettimeofday((tv), (tz))
