@@ -30,7 +30,7 @@ extern "C" {
 // For example: PST/PDT is 480 minutes (28800 seconds, 8 hours).
 typedef int SbTimeZone;
 
-// Gets the system's current SbTimeZone.
+// Gets the system's current SbTimeZone in minutes.
 SB_EXPORT SbTimeZone SbTimeZoneGetCurrent();
 
 // Gets the three-letter code of the current timezone in standard time,
