@@ -238,6 +238,11 @@
     'linux_use_tcmalloc': 0,
 
     'enable_webdriver%': 0,
+
+    # The event polling mechanism available on this platform to support libevent.
+    # Platforms may redefine to 'poll' if necessary.
+    # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
+    'sb_libevent_method%': 'epoll',
   },
 
   'target_defaults': {
