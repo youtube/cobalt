@@ -968,6 +968,7 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
     SetSelectedRange(ranges_.front());
     ranges_.front()->SeekToStart();
     seek_pending_ = false;
+    seek_buffer_timestamp_ = GetNextBufferTimestamp();
     return;
   }
 
@@ -986,10 +987,16 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
   SetSelectedRange(*itr);
   selected_range_->Seek(timestamp);
   seek_pending_ = false;
+  seek_buffer_timestamp_ = GetNextBufferTimestamp();
 }
 
 bool SourceBufferStream::IsSeekPending() const {
   return seek_pending_;
+}
+
+base::TimeDelta SourceBufferStream::GetSeekKeyframeTimestamp() const {
+  DCHECK(!IsSeekPending());
+  return seek_buffer_timestamp_;
 }
 
 void SourceBufferStream::OnSetDuration(base::TimeDelta duration) {
