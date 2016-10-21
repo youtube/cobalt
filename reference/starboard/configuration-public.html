@@ -657,7 +657,7 @@
 </tr>
 </thead><tbody>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_NETWORK_RECEIVE_BUFFER_SIZE</code></strong><br><br>Specifies the network receive buffer size.<br><br>The default value in the Stub implementation is <code class="prettyprint">(16 * 1024)</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_NETWORK_RECEIVE_BUFFER_SIZE</code></strong><br><br>Specifies the network receive buffer size in bytes, set via <a href="/cobalt/reference/starboard/modules/socket.html">SbSocketSetReceiveBufferSize()</a>.  Setting this to <code>0</code> indicates that SbSocketSetReceiveBufferSize() should not be called. Use this for OSs (such as Linux) where receive buffer auto-tuning is better.  On some platforms, this may affect max TCP window size which may dramatically affect throughput in the presence of latency.  If your platform does not have a good TCP auto-tuning mechanism, a setting of <code>(128 * 1024)</code> here is recommended.<br><br>The default value in the Stub implementation is <code class="prettyprint">(0)</code>.</td>
 </tr>
 </tbody></table>
 
