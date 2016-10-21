@@ -22,7 +22,7 @@ void* operator new(size_t size) {
 }
 
 void operator delete(void* pointer) {
-  SbMemoryFree(pointer);
+  SbMemoryDeallocate(pointer);
 }
 
 void* operator new[](size_t size) {
@@ -30,5 +30,5 @@ void* operator new[](size_t size) {
 }
 
 void operator delete[](void* pointer) {
-  SbMemoryFree(pointer);
+  SbMemoryDeallocate(pointer);
 }

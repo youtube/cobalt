@@ -34,7 +34,7 @@ TEST(SbMemorySetTest, SetsSomeData) {
     ASSERT_EQ('\xCD', data[i]);
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemorySetTest, SetsZeroData) {
@@ -50,7 +50,7 @@ TEST(SbMemorySetTest, SetsZeroData) {
     ASSERT_EQ(static_cast<char>(i), data[i]);
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemorySetTest, IgnoresExtraData) {
@@ -66,7 +66,7 @@ TEST(SbMemorySetTest, IgnoresExtraData) {
     ASSERT_EQ('\xCD', data[i]);
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 }  // namespace
