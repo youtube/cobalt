@@ -158,10 +158,12 @@ WindowDriver::WindowDriver(
     const protocol::WindowId& window_id,
     const base::WeakPtr<dom::Window>& window,
     const GetGlobalEnvironmentFunction& get_global_environment_function,
+    KeyboardEventInjector keyboard_injector,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : window_id_(window_id),
       window_(window),
       get_global_environment_(get_global_environment_function),
+      keyboard_injector_(keyboard_injector),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
       next_element_id_(0) {
@@ -351,6 +353,7 @@ protocol::ElementId WindowDriver::CreateNewElementDriver(
   std::pair<ElementDriverMapIt, bool> pair_it =
       element_drivers_.insert(std::make_pair(
           element_id.id(), new ElementDriver(element_id, weak_element, this,
+                                             keyboard_injector_,
                                              window_message_loop_)));
   DCHECK(pair_it.second)
       << "An ElementDriver was already mapped to the element id: "
@@ -426,11 +429,7 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
   }
 
   for (size_t i = 0; i < events->size(); ++i) {
-    // InjectEvent will send to the focused element.
-    scoped_refptr<dom::KeyboardEvent> keyboard_event(
-              new dom::KeyboardEvent((*events)[i]));
-
-    window_->InjectEvent(keyboard_event);
+    keyboard_injector_.Run(scoped_refptr<dom::Element>(), (*events)[i]);
   }
   return CommandResult(protocol::Response::kSuccess);
 }
