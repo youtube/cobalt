@@ -28,6 +28,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/webdriver/element_mapping.h"
+#include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
@@ -67,7 +68,6 @@ class ElementDriver {
       const std::string& property_name);
 
  private:
-  typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
   typedef std::vector<protocol::ElementId> ElementIdVector;
 
   // Get the dom::Element* that this ElementDriver wraps. This must be called
@@ -75,7 +75,7 @@ class ElementDriver {
   dom::Element* GetWeakElement();
 
   util::CommandResult<void> SendKeysInternal(
-      scoped_ptr<KeyboardEventVector> keyboard_events);
+      scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
 
   // Shared logic between FindElement and FindElements.
   template <typename T>
