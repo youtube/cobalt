@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
+#ifndef _EPOLL_INTERNAL_H_
+#define _EPOLL_INTERNAL_H_
+
 #include <sys/epoll.h>
 #include <sys/resource.h>
 
 #define epoll_ctl_del epoll_ctl
+
+#endif  // _EPOLL_INTERNAL_H_

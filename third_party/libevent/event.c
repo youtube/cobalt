@@ -28,6 +28,16 @@
 #include "config.h"
 #endif
 
+#ifdef STARBOARD
+#include "libevent-starboard.h"
+
+#include "compat/sys/queue.h"
+
+// Include Starboard poems after all system headers.
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -52,6 +62,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#endif  // STARBOARD
 
 #include "event.h"
 #include "event-internal.h"

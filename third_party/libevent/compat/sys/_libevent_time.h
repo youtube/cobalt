@@ -35,7 +35,9 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
+#ifndef STARBOARD
 #include <sys/types.h>
+#endif
 
 /*
  * Structure returned by gettimeofday(2) system call,
