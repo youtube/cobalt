@@ -418,7 +418,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
 }
 
 util::CommandResult<void> WindowDriver::SendKeysInternal(
-    scoped_ptr<KeyboardEventVector> events) {
+    scoped_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
   if (!window_) {
@@ -427,7 +427,10 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
 
   for (size_t i = 0; i < events->size(); ++i) {
     // InjectEvent will send to the focused element.
-    window_->InjectEvent((*events)[i]);
+    scoped_refptr<dom::KeyboardEvent> keyboard_event(
+              new dom::KeyboardEvent((*events)[i]));
+
+    window_->InjectEvent(keyboard_event);
   }
   return CommandResult(protocol::Response::kSuccess);
 }
