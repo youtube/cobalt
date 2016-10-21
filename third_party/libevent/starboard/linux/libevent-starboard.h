@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef _EVENT_STARBOARD_INTERNAL_H_
-#define _EVENT_STARBOARD_INTERNAL_H_
+#ifndef _LIBEVENT_STARBOARD_H_
+#define _LIBEVENT_STARBOARD_H_
 
-#include "starboard/memory.h"
+#include "starboard/types.h"
 
-#define calloc SbMemoryCalloc
-#define free SbMemoryDeallocate
-#define malloc SbMemoryAllocate
-#define realloc SbMemoryReallocate
+#include <errno.h>
+#include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
 
-#endif  /* _EVENT_STARBOARD_INTERNAL_H_ */
+#define HAVE_EPOLL 1
+#define HAVE_EPOLL_CTL 1
+
+#endif  // _LIBEVENT_STARBOARD_H_

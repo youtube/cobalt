@@ -30,6 +30,17 @@
 #include "config.h"
 #endif
 
+#ifdef STARBOARD
+#include "libevent-starboard.h"
+
+// Use libevent's local compatibility  versions of these.
+#include "third_party/libevent/compat/sys/queue.h"
+#include "third_party/libevent/compat/sys/_libevent_time.h"
+
+// Include Starboard poems after all system headers.
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else  // STARBOARD
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -47,10 +58,13 @@
 #ifdef CHECK_INVARIANTS
 #include <assert.h>
 #endif
+#endif  // STARBOARD
 
 #include "event.h"
 #include "event-internal.h"
+#ifndef STARBOARD
 #include "evsignal.h"
+#endif  // STARBOARD
 #include "log.h"
 
 struct pollop {
@@ -93,7 +107,9 @@ poll_init(struct event_base *base)
 	if (!(pollop = calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
+#ifndef STARBOARD
 	evsignal_init(base);
+#endif
 
 	return (pollop);
 }
@@ -152,11 +168,16 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			return (-1);
 		}
 
+#ifndef STARBOARD
 		evsignal_process(base);
+#endif
 		return (0);
-	} else if (base->sig.evsignal_caught) {
+	}
+#ifndef STARBOARD
+  else if (base->sig.evsignal_caught) {
 		evsignal_process(base);
 	}
+#endif
 
 	event_debug(("%s: poll reports %d", __func__, res));
 
@@ -208,8 +229,10 @@ poll_add(void *arg, struct event *ev)
 	struct pollfd *pfd = NULL;
 	int i;
 
+#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL)
 		return (evsignal_add(ev));
+#endif
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
 		return (0);
 
@@ -313,8 +336,10 @@ poll_del(void *arg, struct event *ev)
 	struct pollfd *pfd = NULL;
 	int i;
 
+#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL)
 		return (evsignal_del(ev));
+#endif
 
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
 		return (0);
@@ -364,7 +389,10 @@ poll_dealloc(struct event_base *base, void *arg)
 {
 	struct pollop *pop = arg;
 
+#ifndef STARBOARD
 	evsignal_dealloc(base);
+#endif
+
 	if (pop->event_set)
 		free(pop->event_set);
 	if (pop->event_r_back)
