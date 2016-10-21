@@ -41,6 +41,15 @@
 #include "config.h"
 #endif
 
+#ifdef STARBOARD
+#include "libevent-starboard.h"
+#include "starboard/log.h"
+#include "starboard/system.h"
+#include "starboard/types.h"
+
+// Include Starboard poems after all system headers.
+#include "starboard/client_porting/poem/string_poem.h"
+#else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -57,8 +66,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
-#include "event.h"
+#endif  // STARBOARD
 
+#include "event.h"
 #include "log.h"
 #include "evutil.h"
 
@@ -74,7 +84,11 @@ event_err(int eval, const char *fmt, ...)
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_ERR, errno, fmt, ap);
 	va_end(ap);
+#ifdef STARBOARD
+  SbSystemBreakIntoDebugger();
+#else
 	exit(eval);
+#endif
 }
 
 void
@@ -95,7 +109,11 @@ event_errx(int eval, const char *fmt, ...)
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_ERR, -1, fmt, ap);
 	va_end(ap);
+#ifdef STARBOARD
+  SbSystemBreakIntoDebugger();
+#else
 	exit(eval);
+#endif
 }
 
 void
@@ -139,6 +157,7 @@ _warn_helper(int severity, int log_errno, const char *fmt, va_list ap)
 	else
 		buf[0] = '\0';
 
+#ifndef STARBOARD
 	if (log_errno >= 0) {
 		len = strlen(buf);
 		if (len < sizeof(buf) - 3) {
@@ -146,6 +165,7 @@ _warn_helper(int severity, int log_errno, const char *fmt, va_list ap)
 			    strerror(log_errno));
 		}
 	}
+#endif
 
 	event_log(severity, buf);
 }
@@ -161,6 +181,26 @@ event_set_log_callback(event_log_cb cb)
 static void
 event_log(int severity, const char *msg)
 {
+#ifdef STARBOARD
+  SbLogPriority log_priority;
+  switch (severity) {
+    case _EVENT_LOG_DEBUG:
+		case _EVENT_LOG_MSG:
+      log_priority = kSbLogPriorityInfo;
+      break;
+    case _EVENT_LOG_WARN:
+      log_priority = kSbLogPriorityWarning;
+      break;
+    case _EVENT_LOG_ERR:
+      log_priority = kSbLogPriorityError;
+      break;
+    default:
+      SB_NOTREACHED();
+      log_priority = kSbLogPriorityUnknown;
+      break;
+  }
+  SbLog(log_priority, msg);
+#else  // STARBOARD
 	if (log_fn)
 		log_fn(severity, msg);
 	else {
@@ -184,4 +224,5 @@ event_log(int severity, const char *msg)
 		}
 		(void)fprintf(stderr, "[%s] %s\n", severity_str, msg);
 	}
+#endif  // STARBOARD
 }

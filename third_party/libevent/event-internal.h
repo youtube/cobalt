@@ -37,10 +37,6 @@ extern "C" {
 #include "evsignal.h"
 #endif
 
-#ifdef STARBOARD
-#include "event-starboard-internal.h"
-#endif
-
 struct eventop {
 	const char *name;
 	void *(*init)(struct event_base *);
