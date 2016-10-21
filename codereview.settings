@@ -1,3 +1,0 @@
-GERRIT_HOST: cobalt-review.googlesource.com
-GERRIT_AUTODETECT_BRANCH: true
-CODE_REVIEW_SERVER: cobalt-review.googlesource.com
