@@ -186,6 +186,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   PipelineStatusCB init_cb_;
   PipelineStatusCB seek_cb_;
+  bool delayed_audio_seek_;
 
   scoped_refptr<ChunkDemuxerStream> audio_;
   scoped_refptr<ChunkDemuxerStream> video_;
