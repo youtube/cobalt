@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7cce57f1_82bb2ea7",
+        "filename": "src/starboard/tizen/armv7l/system_get_property.cc",
+        "patchSetId": 7
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 5245
+      },
+      "writtenOn": "2016-10-21T10:53:26Z",
+      "side": 1,
+      "message": "Others are \"Raspian Linux armv7l\", \"DirectFB; Linux x86_64\", \"X11; Linux x86_64\". \u0027W\u0027 will look betther than \u0027w\u0027 if there is no special reason.",
+      "range": {
+        "startLine": 23,
+        "startChar": 29,
+        "endLine": 23,
+        "endChar": 36
+      },
+      "revId": "55e1b89ca571bbee57d1858924f7b9f5647d4bfe",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    }
+  ]
+}
