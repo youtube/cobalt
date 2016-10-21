@@ -1,0 +1,73 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7cce57f1_dc9a2dfa",
+        "filename": "packaging/cobalt.spec",
+        "patchSetId": 5
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-21T03:15:30Z",
+      "side": 1,
+      "message": "Change to \"License:   MPL or BSD-3-clause\"\nMPL(SpiderMonkey)\nBSD-3-clause(Chromium)",
+      "range": {
+        "startLine": 5,
+        "startChar": 11,
+        "endLine": 5,
+        "endChar": 35
+      },
+      "revId": "d4c3e734865dee546782628f62dae66a98f266ba",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7cce57f1_1c668545",
+        "filename": "src/starboard/tizen/armv7l/gyp_configuration.gypi",
+        "patchSetId": 5
+      },
+      "lineNbr": 96,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-21T03:15:30Z",
+      "side": 1,
+      "message": "Please remove this line.\nCheck \"https://cobalt-review.googlesource.com/#/c/2530/6/src/starboard/tizen/armv7l/gyp_configuration.gypi\"",
+      "range": {
+        "startLine": 95,
+        "startChar": 6,
+        "endLine": 96,
+        "endChar": 21
+      },
+      "revId": "d4c3e734865dee546782628f62dae66a98f266ba",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7cce57f1_7c8a21a7",
+        "filename": "src/starboard/tizen/armv7l/system_get_property.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2016-10-21T03:15:30Z",
+      "side": 1,
+      "message": "Change to WayLand. we don\u0027t use X11",
+      "range": {
+        "startLine": 23,
+        "startChar": 29,
+        "endLine": 23,
+        "endChar": 32
+      },
+      "revId": "d4c3e734865dee546782628f62dae66a98f266ba",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    }
+  ]
+}
