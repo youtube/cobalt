@@ -1267,6 +1267,10 @@
         ],
       }],
 
+      ['tizen_os==1',{
+        'use_system_icu%': 1,
+      }],
+
       ['os_posix==1 and chromeos==0 and OS!="android" and OS!="ios"', {
         'use_cups%': 1,
       }, {

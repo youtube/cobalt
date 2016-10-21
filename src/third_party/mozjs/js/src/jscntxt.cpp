@@ -1259,7 +1259,8 @@ JSRuntime::getDefaultLocale()
 
     char *locale, *lang, *p;
 #if defined(STARBOARD)
-    locale = const_cast<char*>(uloc_getDefault());
+    locale = setlocale(LC_ALL, NULL);
+    // locale = const_cast<char*>(uloc_getDefault());
 #elif defined(HAVE_SETLOCALE)
     locale = setlocale(LC_ALL, NULL);
 #else
