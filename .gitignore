@@ -1,0 +1,10 @@
+# remove auto generate files
+*.pyc
+*.tmp
+src/out
+src/third_party/llvm-build
+debugfiles.list
+debuglinks.list
+debugsources.list
+documentation.list
+
