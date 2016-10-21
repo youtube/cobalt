@@ -41,8 +41,8 @@ TEST(SbMemoryCopyTest, CopiesSomeData) {
     EXPECT_EQ(data2[i], static_cast<char>(i));
   }
 
-  SbMemoryFree(memory1);
-  SbMemoryFree(memory2);
+  SbMemoryDeallocate(memory1);
+  SbMemoryDeallocate(memory2);
 }
 
 TEST(SbMemoryCopyTest, CopiesZeroData) {
@@ -65,8 +65,8 @@ TEST(SbMemoryCopyTest, CopiesZeroData) {
     EXPECT_EQ(data2[i], static_cast<char>(0));
   }
 
-  SbMemoryFree(memory1);
-  SbMemoryFree(memory2);
+  SbMemoryDeallocate(memory1);
+  SbMemoryDeallocate(memory2);
 }
 
 }  // namespace

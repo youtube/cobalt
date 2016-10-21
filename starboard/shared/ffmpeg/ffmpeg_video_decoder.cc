@@ -82,7 +82,7 @@ int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame) {
 }
 
 void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
-  SbMemoryFree(frame->opaque);
+  SbMemoryDeallocate(frame->opaque);
   frame->opaque = NULL;
 
   // The FFmpeg API expects us to zero the data pointers in this callback.
