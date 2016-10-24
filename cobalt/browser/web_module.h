@@ -199,6 +199,9 @@ class WebModule {
   // can only be called if we have previously suspended the WebModule.
   void Resume(render_tree::ResourceProvider* resource_provider);
 
+  // Called when h5vcc.system.recordStats is set.
+  void OnSetRecordStats(bool set);
+
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   // Non-optimized builds require a bigger stack size.
   static const size_t kBaseStackSize = 2 * 1024 * 1024;
