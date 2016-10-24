@@ -29,7 +29,7 @@ static SB_C_INLINE int webp_abs(int a) {
 
 #define abs(x) webp_abs(x)
 #define calloc SbMemoryCalloc
-#define free SbMemoryFree
+#define free SbMemoryDeallocate
 #define malloc SbMemoryAllocate
 #define memcpy SbMemoryCopy
 #define memmove SbMemoryMove
