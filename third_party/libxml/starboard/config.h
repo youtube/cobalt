@@ -343,7 +343,7 @@
 #define XML_REALLOC SbMemoryReallocate
 
 /* free() wrapping */
-#define XML_FREE SbMemoryFree
+#define XML_FREE SbMemoryDeallocate
 
 /* memcmp() wrapping */
 #define XML_MEMCMP SbMemoryCompare
