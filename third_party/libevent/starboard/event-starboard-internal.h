@@ -20,7 +20,7 @@
 #include "starboard/memory.h"
 
 #define calloc SbMemoryCalloc
-#define free SbMemoryFree
+#define free SbMemoryDeallocate
 #define malloc SbMemoryAllocate
 #define realloc SbMemoryReallocate
 

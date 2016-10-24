@@ -22,7 +22,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include "starboard/system.h"
 #include "starboard/types.h"
 #define exit(x) SbSystemBreakIntoDebugger()
-#define free SbMemoryFree
+#define free SbMemoryDeallocate
 #define memcpy SbMemoryCopy
 #define realloc SbMemoryReallocate
 #else
