@@ -210,6 +210,9 @@ class BrowserModule {
   // Process all messages queued into the |render_tree_submission_queue_|.
   void ProcessRenderTreeSubmissionQueue();
 
+  // Called when h5vcc.system.record_stats is set
+  void OnSetRecordStats(bool set);
+
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
   //     own where it can ensure that its tasks are all resolved when it is
