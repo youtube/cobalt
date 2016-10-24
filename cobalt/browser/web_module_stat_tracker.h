@@ -54,6 +54,9 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // triggers flushing of periodic counts within the stat trackers.
   void OnRenderTreeProduced();
 
+  // Called when h5vcc.system.record_stats is set
+  void OnSetRecordStats(bool set);
+
  private:
   enum EventType {
     kEventTypeInvalid = -1,
@@ -90,6 +93,9 @@ class WebModuleStatTracker : public base::StopWatchOwner {
         duration_layout_update_used_sizes;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_layout_render_and_animate;
+
+    // Time series-related
+    base::CVal<std::string, base::CValPublic> event_durations;
   };
 
   // From base::StopWatchOwner
@@ -115,6 +121,9 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // Stop watch-related
   std::vector<base::StopWatch> stop_watches_;
   std::vector<base::TimeDelta> stop_watch_durations_;
+
+  // Time series-related
+  bool record_stats_;
 };
 
 }  // namespace browser
