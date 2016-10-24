@@ -221,6 +221,8 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url) {
+  web_module_loaded_.Reset();
+
   // Always post this as a task in case this is being called from the WebModule.
   self_message_loop_->PostTask(
       FROM_HERE, base::Bind(&BrowserModule::NavigateInternal, weak_this_, url));
@@ -236,8 +238,6 @@ void BrowserModule::Reload() {
 
 void BrowserModule::NavigateInternal(const GURL& url) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-
-  web_module_loaded_.Reset();
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
   // handles the URL, we don't use the web module.
