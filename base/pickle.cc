@@ -10,7 +10,7 @@
 #if defined(OS_STARBOARD)
 #include "starboard/memory.h"
 #define realloc SbMemoryReallocate
-#define free SbMemoryFree
+#define free SbMemoryDeallocate
 #define memcpy SbMemoryCopy
 #else
 #include <stdlib.h>
