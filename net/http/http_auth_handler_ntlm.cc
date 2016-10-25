@@ -15,7 +15,7 @@
 
 #if defined(OS_STARBOARD)
 #include "starboard/memory.h"
-#define free SbMemoryFree
+#define free SbMemoryDeallocate
 #endif
 
 namespace net {
