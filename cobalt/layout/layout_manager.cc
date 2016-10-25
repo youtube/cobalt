@@ -54,8 +54,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   void Suspend();
   void Resume();
 
-  void SetLayoutDirty();
-
  private:
   void StartLayoutTimer();
   void DoLayoutAndProduceRenderTree();
@@ -155,7 +153,7 @@ void LayoutManager::Impl::OnLoad() {
 #if defined(ENABLE_TEST_RUNNER)
   if (layout_trigger_ == kTestRunnerMode &&
       !window_->test_runner()->should_wait()) {
-    SetLayoutDirty();
+    layout_dirty_ = true;
 
     // Run the |DoLayoutAndProduceRenderTree| task after onload event finished.
     MessageLoop::current()->PostTask(
@@ -168,7 +166,7 @@ void LayoutManager::Impl::OnLoad() {
 
 void LayoutManager::Impl::OnMutation() {
   if (layout_trigger_ == kOnDocumentMutation) {
-    SetLayoutDirty();
+    layout_dirty_ = true;
   }
 }
 
@@ -201,19 +199,14 @@ void LayoutManager::Impl::Suspend() {
 void LayoutManager::Impl::Resume() {
   // Mark that we are no longer suspended and indicate that the layout is
   // dirty since when Suspend() was called we invalidated our previous layout.
-  SetLayoutDirty();
-  suspended_ = false;
-}
-
-void LayoutManager::Impl::SetLayoutDirty() {
   layout_dirty_ = true;
-  layout_stat_tracker_->OnLayoutDirty();
+  suspended_ = false;
 }
 
 #if defined(ENABLE_TEST_RUNNER)
 void LayoutManager::Impl::DoTestRunnerLayoutCallback() {
   DCHECK_EQ(kTestRunnerMode, layout_trigger_);
-  SetLayoutDirty();
+  layout_dirty_ = true;
 
   if (layout_trigger_ == kTestRunnerMode &&
       window_->test_runner()->should_wait()) {
@@ -302,7 +295,6 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 
     layout_dirty_ = false;
-    layout_stat_tracker_->OnLayoutClean();
 
     TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatLayout);
   }
