@@ -65,6 +65,8 @@ class ReuseAllocator : public Allocator {
 
   void PrintAllocations() const;
 
+  bool TryFree(void* memory);
+
  private:
   class MemoryBlock {
    public:
