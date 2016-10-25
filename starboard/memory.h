@@ -114,32 +114,37 @@ SB_EXPORT void SbMemoryDeallocateAligned(void* memory);
 // provided by Starboard ports.
 //
 // DO NOT CALL. Call SbMemoryAllocate(...) instead.
-SB_EXPORT void* SbMemoryAllocateUnchecked(size_t size);
+SB_DEPRECATED_EXTERNAL(
+    SB_EXPORT void* SbMemoryAllocateUnchecked(size_t size));
 
 // This is the implementation of SbMemoryReallocate that must be
 // provided by Starboard ports.
 //
 // DO NOT CALL. Call SbMemoryReallocate(...) instead.
-SB_EXPORT void* SbMemoryReallocateUnchecked(void* memory, size_t size);
+SB_DEPRECATED_EXTERNAL(
+    SB_EXPORT void* SbMemoryReallocateUnchecked(void* memory, size_t size));
 
 // This is the implementation of SbMemoryAllocateAligned that must be
 // provided by Starboard ports.
 //
 // DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.
-SB_EXPORT void* SbMemoryAllocateAlignedUnchecked(size_t alignment,
-                                                 size_t size);
+SB_DEPRECATED_EXTERNAL(
+    SB_EXPORT void* SbMemoryAllocateAlignedUnchecked(size_t alignment,
+                                                     size_t size));
 
 // This is the implementation of SbMemoryDeallocate that must be provided by
 // Starboard ports.
 //
 // DO NOT CALL. Call SbMemoryDeallocate(...) instead.
-SB_EXPORT void SbMemoryFree(void* memory);
+SB_DEPRECATED_EXTERNAL(
+    SB_EXPORT void SbMemoryFree(void* memory));
 
 // This is the implementation of SbMemoryFreeAligned that must be provided by
 // Starboard ports.
 //
 // DO NOT CALL. Call SbMemoryDeallocateAligned(...) instead.
-SB_EXPORT void SbMemoryFreeAligned(void* memory);
+SB_DEPRECATED_EXTERNAL(
+    SB_EXPORT void SbMemoryFreeAligned(void* memory));
 
 #if SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into an
@@ -229,21 +234,21 @@ static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
 // allocation failure.
 //
 // DO NOT CALL. Call SbMemoryAllocate(...) instead.
-SB_DEPRECATED(
+SB_DEPRECATED_EXTERNAL(
     SB_EXPORT void* SbMemoryAllocateChecked(size_t size));
 
 // Same as SbMemoryReallocateUnchecked, but will abort() in the case of an
 // allocation failure.
 //
 // DO NOT CALL. Call SbMemoryReallocate(...) instead.
-SB_DEPRECATED(
+SB_DEPRECATED_EXTERNAL(
     SB_EXPORT void* SbMemoryReallocateChecked(void* memory, size_t size));
 
 // Same as SbMemoryAllocateAlignedUnchecked, but will abort() in the case of an
 // allocation failure.
 //
 // DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.
-SB_DEPRECATED(
+SB_DEPRECATED_EXTERNAL(
     SB_EXPORT void* SbMemoryAllocateAlignedChecked(size_t alignment,
                                                    size_t size));
 
