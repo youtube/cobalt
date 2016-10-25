@@ -393,11 +393,11 @@ void SbPlayerPipeline::SetVolume(float volume) {
 TimeDelta SbPlayerPipeline::GetMediaTime() const {
   base::AutoLock auto_lock(lock_);
 
-  if (!player_) {
-    return TimeDelta();
-  }
   if (!seek_cb_.is_null()) {
     return seek_time_;
+  }
+  if (!player_) {
+    return TimeDelta();
   }
   base::TimeDelta media_time;
   player_->GetInfo(&statistics_.video_frames_decoded,
