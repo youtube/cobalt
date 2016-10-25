@@ -31,7 +31,10 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
     : dom_stat_tracker_(new dom::DomStatTracker(name)),
       layout_stat_tracker_(new layout::LayoutStatTracker(name)),
       should_track_event_stats_(should_track_event_stats),
-      current_event_type_(kEventTypeInvalid) {
+      current_event_type_(kEventTypeInvalid),
+      name_(name),
+      event_is_processing_(StringPrintf("Event.%s.IsProcessing", name.c_str()),
+          0, "Nonzero when an event is being processed.") {
   if (should_track_event_stats_) {
     event_stats_.reserve(kNumEventTypes);
     for (int i = 0; i < kNumEventTypes; ++i) {
@@ -58,6 +61,8 @@ void WebModuleStatTracker::OnInjectEvent(
   }
 
   EndCurrentEvent(false);
+
+  event_is_processing_ = 1;
 
   if (event->type() == base::Tokens::keydown()) {
     current_event_type_ = kEventTypeKeyDown;
@@ -169,6 +174,8 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   if (current_event_type_ == kEventTypeInvalid) {
     return;
   }
+
+  event_is_processing_ = 0;
 
   stop_watch_durations_[kStopWatchTypeEvent] = base::TimeDelta();
   stop_watches_[kStopWatchTypeEvent].Stop();
