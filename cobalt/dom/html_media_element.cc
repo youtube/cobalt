@@ -53,6 +53,33 @@ const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
 namespace {
 
+#define LOG_MEDIA_ELEMENT_ACTIVITIES 0
+
+#if LOG_MEDIA_ELEMENT_ACTIVITIES
+
+template <typename T>
+void LogMediaElementActivity(const char* function_name, const T& t) {
+  LOG(INFO) << function_name << " " << t;
+}
+
+template <typename T1, typename T2>
+void LogMediaElementActivity(const char* function_name, const T1& t1,
+                             const T2& t2) {
+  LOG(INFO) << function_name << " " << t1 << " " << t2;
+}
+
+#define MLOG() LOG(INFO) << __FUNCTION__
+#define MLOG_1(x) LogMediaElementActivity(__FUNCTION__, x)
+#define MLOG_2(x, y) LogMediaElementActivity(__FUNCTION__, x, y)
+
+#else  // LOG_MEDIA_ELEMENT_ACTIVITIES
+
+#define MLOG() do {} while (false)
+#define MLOG_1(x) do {} while (false)
+#define MLOG_2(x, y) do {} while (false)
+
+#endif  // LOG_MEDIA_ELEMENT_ACTIVITIES
+
 void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
                             script::ExceptionState* exception_state) {
   DCHECK_NE(exception, WebMediaPlayer::kMediaKeyExceptionNoError);
@@ -119,25 +146,35 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false) {
+  MLOG();
   html_media_element_count_log.Get().count++;
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
+  MLOG();
   SetSourceState(MediaSource::kReadyStateClosed);
   html_media_element_count_log.Get().count--;
 }
 
+scoped_refptr<MediaError> HTMLMediaElement::error() const {
+  MLOG_1(error_->code());
+  return error_;
+}
+
 std::string HTMLMediaElement::src() const {
+  MLOG_1(GetAttribute("src").value_or(""));
   return GetAttribute("src").value_or("");
 }
 
 void HTMLMediaElement::set_src(const std::string& src) {
+  MLOG_1(src);
   SetAttribute("src", src);
   ClearMediaPlayer();
   ScheduleLoad();
 }
 
 uint16_t HTMLMediaElement::network_state() const {
+  MLOG_1(network_state_);
   return static_cast<uint16_t>(network_state_);
 }
 
@@ -145,13 +182,17 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   scoped_refptr<TimeRanges> buffered = new TimeRanges;
 
   if (!player_) {
+    MLOG_1("empty");
     return buffered;
   }
 
   const ::media::Ranges<base::TimeDelta>& player_buffered =
       player_->GetBufferedTimeRanges();
 
+  MLOG_1("================================");
   for (int i = 0; i < static_cast<int>(player_buffered.size()); ++i) {
+    MLOG_2(player_buffered.start(i).InSecondsF(),
+           player_buffered.end(i).InSecondsF());
     buffered->Add(player_buffered.start(i).InSecondsF(),
                   player_buffered.end(i).InSecondsF());
   }
@@ -177,6 +218,7 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
   std::string result =
       html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
                                                                    key_system);
+  MLOG_2(mime_type + ',' + key_system, result);
   DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
              << key_system << ") -> " << result;
   return result;
@@ -186,15 +228,18 @@ void HTMLMediaElement::GenerateKeyRequest(
     const std::string& key_system,
     const base::optional<scoped_refptr<Uint8Array> >& init_data,
     script::ExceptionState* exception_state) {
+  MLOG_1(key_system);
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-generatekeyrequest
   // 1. If the first argument is null, throw a SYNTAX_ERR.
   if (key_system.empty()) {
+    MLOG_1("syntax error");
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   // 2. If networkState is NETWORK_EMPTY, throw an INVALID_STATE_ERR.
   if (network_state_ == kNetworkEmpty || !player_) {
+    MLOG_1("invalid state error");
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
@@ -211,6 +256,7 @@ void HTMLMediaElement::GenerateKeyRequest(
   }
 
   if (exception != WebMediaPlayer::kMediaKeyExceptionNoError) {
+    MLOG_2("exception:", exception);
     RaiseMediaKeyException(exception, exception_state);
   }
 }
@@ -220,21 +266,25 @@ void HTMLMediaElement::AddKey(
     const base::optional<scoped_refptr<Uint8Array> >& init_data,
     const base::optional<std::string>& session_id,
     script::ExceptionState* exception_state) {
+  MLOG_1(key_system);
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
   // 1. If the first or second argument is null, throw a SYNTAX_ERR.
   if (key_system.empty() || !key) {
+    MLOG_1("syntax error");
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   // 2. If the second argument is an empty array, throw a TYPE_MISMATCH_ERR.
   if (!key->length()) {
+    MLOG_1("type mismatch error");
     DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
     return;
   }
 
   // 3. If networkState is NETWORK_EMPTY, throw an INVALID_STATE_ERR.
   if (network_state_ == kNetworkEmpty || !player_) {
+    MLOG_1("invalid state error");
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
@@ -253,6 +303,7 @@ void HTMLMediaElement::AddKey(
   }
 
   if (exception != WebMediaPlayer::kMediaKeyExceptionNoError) {
+    MLOG_2("exception:", exception);
     RaiseMediaKeyException(exception, exception_state);
   }
 }
@@ -264,11 +315,13 @@ void HTMLMediaElement::CancelKeyRequest(
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
   // 1. If the first argument is null, throw a SYNTAX_ERR.
   if (key_system.empty()) {
+    MLOG_1("syntax error");
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   if (!player_) {
+    MLOG_1("invalid state error");
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
@@ -277,28 +330,36 @@ void HTMLMediaElement::CancelKeyRequest(
   WebMediaPlayer::MediaKeyException exception =
       player_->CancelKeyRequest(key_system, session_id.value_or(""));
   if (exception != WebMediaPlayer::kMediaKeyExceptionNoError) {
+    MLOG_2("exception:", exception);
     RaiseMediaKeyException(exception, exception_state);
   }
 }
 
 WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
+  MLOG_1(ready_state_);
   return ready_state_;
 }
 
-bool HTMLMediaElement::seeking() const { return seeking_; }
+bool HTMLMediaElement::seeking() const {
+  MLOG_1(seeking_);
+  return seeking_;
+}
 
 float HTMLMediaElement::current_time(
     script::ExceptionState* exception_state) const {
   UNREFERENCED_PARAMETER(exception_state);
 
   if (!player_) {
+    MLOG_2("player is NULL", 0);
     return 0;
   }
 
   if (seeking_) {
+    MLOG_2("seeking", last_seek_time_);
     return last_seek_time_;
   }
 
+  MLOG_2("player time", player_->GetCurrentTime());
   return player_->GetCurrentTime();
 }
 
@@ -310,36 +371,49 @@ void HTMLMediaElement::set_current_time(
   // WebMediaPlayer::kReadyStateHaveNothing, then raise an INVALID_STATE_ERR
   // exception.
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing || !player_) {
+    MLOG_1("invalid state error");
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
+  MLOG_2("seek to", time);
   Seek(time);
 }
 
 float HTMLMediaElement::duration() const {
   if (player_ && ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata) {
+    MLOG_2("player duration", player_->GetDuration());
     return player_->GetDuration();
   }
 
+  MLOG_1("NaN");
   return std::numeric_limits<float>::quiet_NaN();
 }
 
-bool HTMLMediaElement::paused() const { return paused_; }
+bool HTMLMediaElement::paused() const {
+  MLOG_1(paused_);
+  return paused_;
+}
 
 float HTMLMediaElement::default_playback_rate() const {
+  MLOG_1(default_playback_rate_);
   return default_playback_rate_;
 }
 
 void HTMLMediaElement::set_default_playback_rate(float rate) {
+  MLOG_1(rate);
   if (default_playback_rate_ != rate) {
     default_playback_rate_ = rate;
     ScheduleEvent(base::Tokens::ratechange());
   }
 }
 
-float HTMLMediaElement::playback_rate() const { return playback_rate_; }
+float HTMLMediaElement::playback_rate() const {
+  MLOG_1(playback_rate_);
+  return playback_rate_;
+}
 
 void HTMLMediaElement::set_playback_rate(float rate) {
+  MLOG_1(rate);
   if (playback_rate_ != rate) {
     playback_rate_ = rate;
     ScheduleEvent(base::Tokens::ratechange());
@@ -351,6 +425,7 @@ void HTMLMediaElement::set_playback_rate(float rate) {
 }
 
 const scoped_refptr<TimeRanges>& HTMLMediaElement::played() {
+  MLOG();
   if (playing_) {
     float time = current_time(NULL);
     if (time > last_seek_time_) {
@@ -367,8 +442,10 @@ const scoped_refptr<TimeRanges>& HTMLMediaElement::played() {
 
 scoped_refptr<TimeRanges> HTMLMediaElement::seekable() const {
   if (player_ && player_->GetMaxTimeSeekable() != 0) {
+    MLOG_2(0, player_->GetMaxTimeSeekable());
     return new TimeRanges(0, player_->GetMaxTimeSeekable());
   }
+  MLOG_1("empty");
   return new TimeRanges;
 }
 
@@ -376,12 +453,17 @@ bool HTMLMediaElement::ended() const {
   // 4.8.10.8 Playing the media resource
   // The ended attribute must return true if the media element has ended
   // playback and the direction of playback is forwards, and false otherwise.
+  MLOG_1(EndedPlayback() && playback_rate_ > 0);
   return EndedPlayback() && playback_rate_ > 0;
 }
 
-bool HTMLMediaElement::autoplay() const { return HasAttribute("autoplay"); }
+bool HTMLMediaElement::autoplay() const {
+  MLOG_1(HasAttribute("autoplay"));
+  return HasAttribute("autoplay");
+}
 
 void HTMLMediaElement::set_autoplay(bool autoplay) {
+  MLOG_1(autoplay);
   // The value of 'autoplay' is true when the 'autoplay' attribute is present.
   // The value of the attribute is irrelevant.
   if (autoplay) {
@@ -391,11 +473,18 @@ void HTMLMediaElement::set_autoplay(bool autoplay) {
   }
 }
 
-bool HTMLMediaElement::loop() const { return loop_; }
+bool HTMLMediaElement::loop() const {
+  MLOG_1(loop_);
+  return loop_;
+}
 
-void HTMLMediaElement::set_loop(bool loop) { loop_ = loop; }
+void HTMLMediaElement::set_loop(bool loop) {
+  MLOG_1(loop);
+  loop_ = loop;
+}
 
 void HTMLMediaElement::Play() {
+  MLOG();
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
     ScheduleLoad();
@@ -421,6 +510,7 @@ void HTMLMediaElement::Play() {
 }
 
 void HTMLMediaElement::Pause() {
+  MLOG();
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
     ScheduleLoad();
@@ -437,36 +527,45 @@ void HTMLMediaElement::Pause() {
   UpdatePlayState();
 }
 
-bool HTMLMediaElement::controls() const { return controls_; }
+bool HTMLMediaElement::controls() const {
+  MLOG_1(controls_);
+  return controls_;
+}
 
 void HTMLMediaElement::set_controls(bool controls) {
+  MLOG_1(controls);
   controls_ = controls;
   ConfigureMediaControls();
 }
 
 float HTMLMediaElement::volume(script::ExceptionState* exception_state) const {
   UNREFERENCED_PARAMETER(exception_state);
-
+  MLOG_1(volume_);
   return volume_;
 }
 
-void HTMLMediaElement::set_volume(float vol,
+void HTMLMediaElement::set_volume(float volume,
                                   script::ExceptionState* exception_state) {
-  if (vol < 0.0f || vol > 1.0f) {
+  MLOG_1(volume);
+  if (volume < 0.0f || volume > 1.0f) {
     DOMException::Raise(DOMException::kIndexSizeErr, exception_state);
     return;
   }
 
-  if (volume_ != vol) {
-    volume_ = vol;
+  if (volume_ != volume) {
+    volume_ = volume;
     UpdateVolume();
     ScheduleEvent(base::Tokens::volumechange());
   }
 }
 
-bool HTMLMediaElement::muted() const { return muted_; }
+bool HTMLMediaElement::muted() const {
+  MLOG_1(muted_);
+  return muted_;
+}
 
 void HTMLMediaElement::set_muted(bool muted) {
+  MLOG_1(muted);
   if (muted_ != muted) {
     muted_ = muted;
     // Avoid recursion when the player reports volume changes.
@@ -489,6 +588,7 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
+  MLOG();
   if (src().empty()) {
     reduced_image_cache_capacity_request_ = base::nullopt;
   } else if (html_element_context()
@@ -726,6 +826,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
+  MLOG();
   SetSourceState(MediaSource::kReadyStateClosed);
 
   player_.reset(NULL);
@@ -744,6 +845,7 @@ void HTMLMediaElement::ClearMediaPlayer() {
 }
 
 void HTMLMediaElement::NoneSupported() {
+  MLOG();
   StopPeriodicTimers();
   load_state_ = kWaitingForSource;
 
@@ -874,6 +976,7 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
 }
 
 void HTMLMediaElement::ScheduleEvent(base::Token event_name) {
+  MLOG_1(event_name);
   scoped_refptr<Event> event =
       new Event(event_name, Event::kNotBubbles, Event::kCancelable);
   event->set_target(this);
@@ -1227,6 +1330,7 @@ void HTMLMediaElement::ConfigureMediaControls() {
 }
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
+  MLOG_1(error->code());
   DLOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
 
   // 1 - The user agent should cancel the fetching process.
@@ -1370,6 +1474,7 @@ std::string HTMLMediaElement::SourceURL() const {
 
 void HTMLMediaElement::KeyAdded(const std::string& key_system,
                                 const std::string& session_id) {
+  MLOG_1(key_system);
   event_queue_.Enqueue(new MediaKeyCompleteEvent(key_system, session_id));
 }
 
@@ -1377,6 +1482,7 @@ void HTMLMediaElement::KeyError(const std::string& key_system,
                                 const std::string& session_id,
                                 MediaKeyErrorCode error_code,
                                 uint16 system_code) {
+  MLOG_1(key_system);
   MediaKeyError::Code code;
   switch (error_code) {
     case kUnknownError:
@@ -1411,6 +1517,7 @@ void HTMLMediaElement::KeyMessage(const std::string& key_system,
                                   const unsigned char* message,
                                   unsigned int message_length,
                                   const std::string& default_url) {
+  MLOG_1(key_system);
   event_queue_.Enqueue(new MediaKeyMessageEvent(
       key_system, session_id,
       new Uint8Array(NULL, message, message_length, NULL), default_url));
@@ -1420,12 +1527,14 @@ void HTMLMediaElement::KeyNeeded(const std::string& key_system,
                                  const std::string& session_id,
                                  const unsigned char* init_data,
                                  unsigned int init_data_length) {
+  MLOG_1(key_system);
   event_queue_.Enqueue(new MediaKeyNeededEvent(
       key_system, session_id,
       new Uint8Array(NULL, init_data, init_data_length, NULL)));
 }
 
 void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
+  MLOG_1(ready_state);
   if (!media_source_) {
     return;
   }
