@@ -41,9 +41,6 @@ class LayoutStatTracker : public base::StopWatchOwner {
   explicit LayoutStatTracker(const std::string& name);
   ~LayoutStatTracker();
 
-  void OnLayoutDirty();
-  void OnLayoutClean();
-
   // This function updates the CVals from the periodic values and then clears
   // those values.
   void FlushPeriodicTracking();
@@ -68,9 +65,6 @@ class LayoutStatTracker : public base::StopWatchOwner {
 
   // CVals. They are updated when the periodic counts are flushed.
   base::CVal<int, base::CValPublic> total_boxes_;
-
-  // This CVal is updated whenever the layout status changes
-  base::CVal<int, base::CValPublic> layout_dirty_;
 
   // Periodic counts. The counts are cleared after the CVals are updated in
   // |FlushPeriodicTracking|.
