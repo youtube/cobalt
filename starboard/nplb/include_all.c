@@ -32,6 +32,7 @@
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
+#include "starboard/microphone.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/player.h"
