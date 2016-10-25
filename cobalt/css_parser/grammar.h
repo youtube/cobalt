@@ -105,7 +105,7 @@ struct cobalt_yyltype {
 
 #if defined(OS_STARBOARD)
 #include "starboard/memory.h"
-#define YYFREE SbMemoryFree
+#define YYFREE SbMemoryDeallocate
 #define YYMALLOC SbMemoryAllocate
 #endif
 
