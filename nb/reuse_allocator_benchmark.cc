@@ -181,7 +181,7 @@ class DefaultAllocator : public nb::Allocator {
   void* Allocate(std::size_t size, std::size_t alignment) SB_OVERRIDE {
     return SbMemoryAllocateAligned(alignment, size);
   }
-  void Free(void* memory) SB_OVERRIDE { SbMemoryFree(memory); }
+  void Free(void* memory) SB_OVERRIDE { SbMemoryDeallocate(memory); }
   std::size_t GetCapacity() const SB_OVERRIDE { return 0; }
   std::size_t GetAllocated() const SB_OVERRIDE { return 0; }
   void PrintAllocations() const SB_OVERRIDE {}
@@ -210,7 +210,7 @@ void MemoryPlaybackTest(const std::string& filename) {
   SB_DLOG(INFO) << "Allocator high water mark: " << allocator_high_water_mark;
   SB_DLOG(INFO) << "Elapsed (ms): " << elapsed_time / kSbTimeMillisecond;
 
-  SbMemoryFree(fixed_no_free_memory);
+  SbMemoryDeallocate(fixed_no_free_memory);
 
   // Test again using the system allocator, to compare performance.
   DefaultAllocator default_allocator;
