@@ -24,8 +24,6 @@ namespace layout {
 LayoutStatTracker::LayoutStatTracker(const std::string& name)
     : total_boxes_(StringPrintf("Count.%s.Layout.Box", name.c_str()), 0,
                    "Total number of layout boxes."),
-      layout_dirty_(StringPrintf("Layout.%s.Dirty", name.c_str()), 0,
-                   "True if the layout is dirty."),
       boxes_created_count_(0),
       boxes_destroyed_count_(0),
       are_stop_watches_enabled_(false) {
@@ -50,14 +48,6 @@ void LayoutStatTracker::FlushPeriodicTracking() {
   for (size_t i = 0; i < kNumStopWatchTypes; ++i) {
     stop_watch_durations_[i] = base::TimeDelta();
   }
-}
-
-void LayoutStatTracker::OnLayoutDirty() {
-  layout_dirty_ = 1;
-}
-
-void LayoutStatTracker::OnLayoutClean() {
-  layout_dirty_ = 0;
 }
 
 void LayoutStatTracker::OnBoxCreated() { ++boxes_created_count_; }

@@ -124,6 +124,10 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   // Time series-related
   bool record_stats_;
+
+  std::string name_;
+
+  base::CVal<int, base::CValPublic> event_is_processing_;
 };
 
 }  // namespace browser

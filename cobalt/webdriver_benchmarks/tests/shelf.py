@@ -24,12 +24,13 @@ keys = partial_layout_benchmark.ImportSeleniumModule("webdriver.common.keys")
 DEFAULT_SHELVES_COUNT = 10
 SHELF_ITEMS_COUNT = 10
 
-# Seconds to sleep between each shelf step
-# TODO Wait for pending animations/layouts to complete instead.
-SHELF_STEP_TIME_SLEEP_SECONDS = 0.5
-
 
 class ShelfTest(tv_testcase.TvTestCase):
+
+  def _wait_for_layout(self):
+    while int(self.get_webdriver().execute_script(
+        "return h5vcc.cVal.getValue('Event.MainWebModule.IsProcessing')")):
+      time.sleep(0.1)
 
   def test_simple(self):
     self.load_tv()
@@ -42,13 +43,13 @@ class ShelfTest(tv_testcase.TvTestCase):
       self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_DOWN)
       self.poll_until_found(tv.FOCUSED_SHELF)
       self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
-      time.sleep(SHELF_STEP_TIME_SLEEP_SECONDS)
+      self._wait_for_layout()
 
     for _ in xrange(SHELF_ITEMS_COUNT):
       self.send_keys(tv.FOCUSED_TILE, keys.Keys.ARROW_RIGHT)
       self.poll_until_found(tv.FOCUSED_TILE)
       self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
-      time.sleep(SHELF_STEP_TIME_SLEEP_SECONDS)
+      self._wait_for_layout()
 
     print("ShelfTest event durations"
           + str(self.get_webdriver().execute_script(
