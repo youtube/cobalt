@@ -20,6 +20,9 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 
+// The maximum allowed string size of any recorded stat
+const std::string::size_type kMaxRecordedStatsBytes = 64 * 1024;
+
 namespace cobalt {
 namespace browser {
 
@@ -209,7 +212,7 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
     if (prev_durations.size() <= 2) {
       event_stats->event_durations =
           StringPrintf("[%ld]", duration_total.InMicroseconds());
-    } else {
+    } else if (prev_durations.size() < kMaxRecordedStatsBytes) {
       event_stats->event_durations
           = StringPrintf("%s,%ld]",
                          prev_durations.substr(
