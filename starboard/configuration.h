@@ -35,7 +35,7 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 1
+#define SB_MAXIMUM_API_VERSION 2
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -354,6 +354,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_MAX_THREAD_NAME_LENGTH)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
+#endif
+
+#if SB_VERSION(2) && !defined(SB_HAS_MICROPHONE)
+#error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
 #endif
 
 #if SB_HAS(PLAYER)
