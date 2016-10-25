@@ -32,7 +32,8 @@
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
-    'javascript_engine': 'javascriptcore',
+    'javascript_engine': 'mozjs',
+    'cobalt_enable_jit': 1,
 
     # RasPi 1 is ARMv6
     'arm_version': 6,
