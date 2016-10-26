@@ -57,16 +57,21 @@ AudioEncoderFlac::~AudioEncoderFlac() {
   FLAC__stream_encoder_delete(encoder_);
 }
 
-void AudioEncoderFlac::Encode(const AudioBus* audio_bus) {
+void AudioEncoderFlac::Encode(const ShellAudioBus* audio_bus) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   DCHECK_EQ(audio_bus->channels(), 1);
-  const float* audio_data = audio_bus->channel(0);
   uint32 frames = static_cast<uint32>(audio_bus->frames());
   scoped_array<FLAC__int32> flac_samples(new FLAC__int32[frames]);
   for (uint32 i = 0; i < frames; ++i) {
-    flac_samples[i] =
-        static_cast<FLAC__int32>(audio_data[i] * kMaxInt16AsFloat32);
+    if (audio_bus->sample_type() == ShellAudioBus::kFloat32) {
+      flac_samples[i] = static_cast<FLAC__int32>(
+          audio_bus->GetFloat32Sample(0, i) * kMaxInt16AsFloat32);
+    } else {
+      DCHECK_EQ(audio_bus->sample_type(), ShellAudioBus::kInt16);
+      flac_samples[i] =
+          static_cast<FLAC__int32>(audio_bus->GetInt16Sample(0, i));
+    }
   }
 
   FLAC__int32* flac_samples_ptr = flac_samples.get();

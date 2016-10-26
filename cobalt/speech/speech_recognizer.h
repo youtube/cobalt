@@ -42,7 +42,7 @@ namespace speech {
 // manager.
 class SpeechRecognizer : public net::URLFetcherDelegate {
  public:
-  typedef ::media::AudioBus AudioBus;
+  typedef ::media::ShellAudioBus ShellAudioBus;
   typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
   typedef SpeechRecognitionResultList::SpeechRecognitionResults
       SpeechRecognitionResults;
@@ -58,7 +58,7 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   // Stop speech recognizer.
   void Stop();
   // An encoded audio data is available and ready to be recognized.
-  void RecognizeAudio(scoped_ptr<AudioBus> audio_bus, bool is_last_chunk);
+  void RecognizeAudio(scoped_ptr<ShellAudioBus> audio_bus, bool is_last_chunk);
 
   // net::URLFetcherDelegate interface
   void OnURLFetchDownloadData(const net::URLFetcher* source,
@@ -71,7 +71,7 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
  private:
   void StartInternal(const SpeechRecognitionConfig& config, int sample_rate);
   void StopInternal();
-  void UploadAudioDataInternal(scoped_ptr<AudioBus> audio_bus,
+  void UploadAudioDataInternal(scoped_ptr<ShellAudioBus> audio_bus,
                                bool is_last_chunk);
   void ProcessAndFireSuccessEvent(const SpeechRecognitionResults& new_results);
 
