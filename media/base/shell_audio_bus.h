@@ -59,6 +59,7 @@ class MEDIA_EXPORT ShellAudioBus {
 
   size_t channels() const { return channels_; }
   size_t frames() const { return frames_; }
+  SampleType sample_type() const { return sample_type_; }
   size_t GetSampleSizeInBytes() const;
   const uint8* interleaved_data() const;
   const uint8* planar_data(size_t channel) const;
