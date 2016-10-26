@@ -47,6 +47,6 @@ typedef void* SbOnceControl;
 typedef void* SbThread;
 
 // Well-defined constant value to mean "no thread handle."
-#define kSbThreadInvalid (SbThread) - 1
+#define kSbThreadInvalid (SbThread)-1
 
 #endif  // STARBOARD_SHARED_STUB_THREAD_TYPES_PUBLIC_H_
