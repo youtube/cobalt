@@ -196,6 +196,10 @@ class JSFunction : public JSObject
 
     static inline size_t offsetOfEnvironment() { return offsetof(JSFunction, u.i.env_); }
     static inline size_t offsetOfAtom() { return offsetof(JSFunction, atom_); }
+#if defined(JS_CPU_MIPS)
+    static inline size_t offsetOfNargs() { return offsetof(JSFunction, nargs); }
+    static inline size_t offsetOfFlags() { return offsetof(JSFunction, flags); }
+#endif
 
     static bool createScriptForLazilyInterpretedFunction(JSContext *cx, js::HandleFunction fun);
 
@@ -235,6 +239,8 @@ class JSFunction : public JSObject
     }
 
     inline JSScript *existingScript();
+
+    inline JSScript* existingScriptForInlinedFunction();
 
     JSScript *nonLazyScript() const {
         JS_ASSERT(hasScript());

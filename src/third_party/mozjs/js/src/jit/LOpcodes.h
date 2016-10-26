@@ -247,6 +247,10 @@
 # include "x64/LOpcodes-x64.h"
 #elif defined(JS_CPU_ARM)
 # include "arm/LOpcodes-arm.h"
+#elif defined(JS_CPU_MIPS)
+# include "mips/LOpcodes-mips.h"
+#else
+# error "Unknown CPU architecture."
 #endif
 
 #define LIR_OPCODE_LIST(_)          \

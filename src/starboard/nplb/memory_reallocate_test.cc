@@ -24,20 +24,20 @@ const size_t kSize = 1024 * 128;
 TEST(SbMemoryReallocateTest, AllocatesNormally) {
   void* memory = SbMemoryReallocate(NULL, kSize);
   EXPECT_NE(static_cast<void*>(NULL), memory);
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryReallocateTest, AllocatesZero) {
   void* memory = SbMemoryReallocate(NULL, 0);
   // We can't expect anything here because some implementations may return an
   // allocated zero-size memory block, and some implementations may return NULL.
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryReallocateTest, AllocatesOne) {
   void* memory = SbMemoryReallocate(NULL, 1);
   EXPECT_NE(static_cast<void*>(NULL), memory);
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryReallocateTest, CanReadWriteToResult) {
@@ -52,7 +52,7 @@ TEST(SbMemoryReallocateTest, CanReadWriteToResult) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryReallocateTest, ReallocatesSmaller) {
@@ -74,7 +74,7 @@ TEST(SbMemoryReallocateTest, ReallocatesSmaller) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryReallocateTest, ReallocatesBigger) {
@@ -104,7 +104,7 @@ TEST(SbMemoryReallocateTest, ReallocatesBigger) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryReallocateTest, ReallocatestoZero) {
@@ -112,7 +112,7 @@ TEST(SbMemoryReallocateTest, ReallocatestoZero) {
   ASSERT_NE(static_cast<void*>(NULL), memory);
   memory = SbMemoryReallocate(memory, 0);
   // See allocates zero above.
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryReallocateTest, ReallocatestoSameSize) {
@@ -134,7 +134,7 @@ TEST(SbMemoryReallocateTest, ReallocatestoSameSize) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 }  // namespace

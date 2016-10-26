@@ -31,11 +31,10 @@
 
 #if ENABLE(ASSEMBLER) && CPU(MIPS)
 
-#include "AssemblerBuffer.h"
+#include "assembler/assembler/AssemblerBuffer.h"
 #include "assembler/wtf/Assertions.h"
 #include "assembler/wtf/SegmentedVector.h"
 
-#include "methodjit/Logging.h"
 #define IPFX  "        %s"
 #define ISPFX "        "
 #ifdef JS_METHODJIT_SPEW
@@ -180,6 +179,10 @@ public:
             : m_offset(-1)
         {
         }
+
+        bool isSet() const {
+            return m_offset != -1;
+        };
 
     private:
         JmpSrc(int offset)

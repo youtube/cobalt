@@ -18,6 +18,10 @@
 # include "jit/x64/MacroAssembler-x64.h"
 #elif defined(JS_CPU_ARM)
 # include "jit/arm/MacroAssembler-arm.h"
+#elif defined(JS_CPU_MIPS)
+# include "jit/mips/MacroAssembler-mips.h"
+#else
+# error "Unknown CPU architecture."
 #endif
 #include "jit/AsmJS.h"
 #include "jit/IonCompartment.h"
@@ -174,6 +178,22 @@ class MacroAssembler : public MacroAssemblerSpecific
         branchPtr(cond, Address(obj, JSObject::offsetOfShape()), shape, label);
     }
 
+#if defined(JS_CPU_MIPS)
+    template <typename Value>
+    void branchTestMIRType(Condition cond, const Value &val, MIRType type, Label *label) {
+        switch (type) {
+          case MIRType_Null:      return branchTestNull(cond, val, label);
+          case MIRType_Undefined: return branchTestUndefined(cond, val, label);
+          case MIRType_Boolean:   return branchTestBoolean(cond, val, label);
+          case MIRType_Int32:     return branchTestInt32(cond, val, label);
+          case MIRType_String:    return branchTestString(cond, val, label);
+          case MIRType_Object:    return branchTestObject(cond, val, label);
+          case MIRType_Double:    return branchTestDouble(cond, val, label);
+          default:
+            JS_NOT_REACHED("Bad MIRType");
+        }
+    }
+#else  // defined(JS_CPU_MIPS)
     template <typename Value>
     Condition testMIRType(Condition cond, const Value &val, MIRType type) {
         JS_ASSERT(type == MIRType_Null    || type == MIRType_Undefined  ||
@@ -198,6 +218,7 @@ class MacroAssembler : public MacroAssemblerSpecific
         cond = testMIRType(cond, val, type);
         j(cond, label);
     }
+#endif  // defined(JS_CPU_MIPS)
 
     // Branches to |label| if |reg| is false. |reg| should be a C++ bool.
     void branchIfFalseBool(const Register &reg, Label *label) {
@@ -357,6 +378,10 @@ class MacroAssembler : public MacroAssemblerSpecific
         uint32_t bit = JSFunction::INTERPRETED << 16;
         branchTest32(Assembler::NonZero, address, Imm32(bit), label);
     }
+
+#if defined(JS_CPU_MIPS)
+    void branchIfNotInterpretedConstructor(Register fun, Register scratch, Label *label);
+#endif
 
     using MacroAssemblerSpecific::Push;
 
@@ -721,6 +746,23 @@ class MacroAssembler : public MacroAssemblerSpecific
         return ret;
     }
 
+#if defined(JS_CPU_MIPS)
+    void branchTestObjectTruthy(bool truthy, Register objReg, Register scratch,
+                                Label *slowCheck, Label *checked)
+    {
+        // The branches to out-of-line code here implement a conservative version
+        // of the JSObject::isWrapper test performed in EmulatesUndefined.  If none
+        // of the branches are taken, we can check class flags directly.
+        loadObjClass(objReg, scratch);
+
+        branchPtr(Assembler::Equal, scratch, ImmWord(&ObjectProxyClass), slowCheck);
+        branchPtr(Assembler::Equal, scratch, ImmWord(&OuterWindowProxyClass), slowCheck);
+        branchPtr(Assembler::Equal, scratch, ImmWord(&FunctionProxyClass), slowCheck);
+
+        Condition cond = truthy ? Assembler::Zero : Assembler::NonZero;
+        branchTest32(cond, Address(scratch, Class::offsetOfFlags()), Imm32(JSCLASS_EMULATES_UNDEFINED), checked);
+    }
+#else  // defined(JS_CPU_MIPS)
     Condition branchTestObjectTruthy(bool truthy, Register objReg, Register scratch,
                                      Label *slowCheck)
     {
@@ -735,6 +777,7 @@ class MacroAssembler : public MacroAssemblerSpecific
         test32(Address(scratch, Class::offsetOfFlags()), Imm32(JSCLASS_EMULATES_UNDEFINED));
         return truthy ? Assembler::Zero : Assembler::NonZero;
     }
+#endif  // defined(JS_CPU_MIPS)
 
     void tagCallee(Register callee, ExecutionMode mode);
     void clearCalleeTag(Register callee, ExecutionMode mode);

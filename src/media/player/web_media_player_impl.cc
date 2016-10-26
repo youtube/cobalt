@@ -536,6 +536,14 @@ float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
   return static_cast<float>(pipeline_->GetMediaDuration().InSecondsF());
 }
 
+void WebMediaPlayerImpl::Suspend() {
+  pipeline_->Suspend();
+}
+
+void WebMediaPlayerImpl::Resume() {
+  pipeline_->Resume();
+}
+
 bool WebMediaPlayerImpl::DidLoadingProgress() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   return pipeline_->DidLoadingProgress();

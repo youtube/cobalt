@@ -27,7 +27,7 @@ H5vcc::H5vcc(const Settings& settings) {
       new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
   settings_ = new H5vccSettings(settings.media_module);
   storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
+  system_ = new H5vccSystem(settings.on_set_record_stats);
 }
 
 }  // namespace h5vcc

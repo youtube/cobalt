@@ -23,6 +23,7 @@
 #include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/audio_encoder_flac.h"
+#include "cobalt/speech/chunked_byte_buffer.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "media/base/audio_bus.h"
@@ -42,13 +43,12 @@ namespace speech {
 class SpeechRecognizer : public net::URLFetcherDelegate {
  public:
   typedef ::media::AudioBus AudioBus;
-  typedef base::Callback<void(const scoped_refptr<SpeechRecognitionEvent>&)>
-      ResultCallback;
-  typedef base::Callback<void(void)> ErrorCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
+  typedef SpeechRecognitionResultList::SpeechRecognitionResults
+      SpeechRecognitionResults;
 
   SpeechRecognizer(network::NetworkModule* network_module,
-                   const ResultCallback& result_callback,
-                   const ErrorCallback& error_callback);
+                   const EventCallback& event_callback);
   ~SpeechRecognizer() OVERRIDE;
 
   // Multiple calls to Start/Stop are allowed, the implementation should take
@@ -73,6 +73,7 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   void StopInternal();
   void UploadAudioDataInternal(scoped_ptr<AudioBus> audio_bus,
                                bool is_last_chunk);
+  void ProcessAndFireSuccessEvent(const SpeechRecognitionResults& new_results);
 
   // This is used for creating fetchers.
   network::NetworkModule* network_module_;
@@ -87,8 +88,11 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   scoped_ptr<net::URLFetcher> upstream_fetcher_;
   // Fetcher for receiving the streaming results.
   scoped_ptr<net::URLFetcher> downstream_fetcher_;
-  ResultCallback result_callback_;
-  ErrorCallback error_callback_;
+  EventCallback event_callback_;
+  // Used for processing proto buffer data.
+  ChunkedByteBuffer chunked_byte_buffer_;
+  // Used for accumulating final results.
+  SpeechRecognitionResults final_results_;
 };
 
 }  // namespace speech

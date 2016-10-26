@@ -15,10 +15,21 @@
 // gcc appears to use _mips_hard_float to denote
 // that the target is a hard-float target.
 #ifdef _mips_hard_float
-#define JS_CODEGEN_MIPS_HARDFP
+#define JS_CPU_MIPS_HARDFP
 #endif
 namespace js {
 namespace jit {
+
+// In bytes: slots needed for potential memory->memory move spills.
+//   +8 for cycles
+//   +4 for gpr spills
+//   +8 for double spills
+static const ptrdiff_t STACK_SLOT_SIZE = 4;
+// static const uint32_t STACK_SLOT_SIZE = 4;
+static const uint32_t DOUBLE_STACK_ALIGNMENT = 2;
+
+// An offset that is illegal for a local variable's stack allocation.
+static const int32_t INVALID_STACK_SLOT = -1;
 
 // Shadow stack space is not required on MIPS.
 static const uint32_t ShadowStackSpace = 0;
@@ -36,7 +47,7 @@ static const uint32_t BAILOUT_TABLE_ENTRY_SIZE = 2 * sizeof(void *);
 class Registers
 {
   public:
-    enum RegisterID {
+    typedef enum RegisterID {
         r0 = 0,
         r1,
         r2,
@@ -102,7 +113,7 @@ class Registers
         fp = r30,
         ra = r31,
         invalid_reg
-    };
+    } RegisterID;
     typedef RegisterID Code;
 
     static const char *GetName(Code code) {
@@ -116,8 +127,6 @@ class Registers
         JS_ASSERT(i < Total);
         return GetName(Code(i));
     }
-
-    static Code FromName(const char *name);
 
     static const Code StackPointer = sp;
     static const Code Invalid = invalid_reg;
@@ -144,6 +153,8 @@ class Registers
         (1 << Registers::t6) |
         (1 << Registers::t7);
 
+    // We use this constant to save registers when entering functions. This
+    // is why $ra is added here even though it is not "Non Volatile".
     static const uint32_t NonVolatileMask =
         (1 << Registers::s0) |
         (1 << Registers::s1) |
@@ -152,7 +163,8 @@ class Registers
         (1 << Registers::s4) |
         (1 << Registers::s5) |
         (1 << Registers::s6) |
-        (1 << Registers::s7);
+        (1 << Registers::s7) |
+        (1 << Registers::ra);
 
     static const uint32_t WrapperMask =
         VolatileMask |         // = arguments
@@ -176,8 +188,8 @@ class Registers
 
     // Registers returned from a JS -> JS call.
     static const uint32_t JSCallMask =
-        (1 << Registers::v0) |
-        (1 << Registers::v1);
+        (1 << Registers::a2) |
+        (1 << Registers::a3);
 
     // Registers returned from a JS -> C call.
     static const uint32_t CallMask =
@@ -253,8 +265,6 @@ class FloatRegisters
         JS_ASSERT(i < Total);
         return GetName(Code(i));
     }
-
-    static Code FromName(const char *name);
 
     static const Code Invalid = invalid_freg;
 

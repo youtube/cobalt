@@ -20,6 +20,9 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 
+// The maximum allowed string size of any recorded stat
+const std::string::size_type kMaxRecordedStatsBytes = 64 * 1024;
+
 namespace cobalt {
 namespace browser {
 
@@ -28,7 +31,10 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
     : dom_stat_tracker_(new dom::DomStatTracker(name)),
       layout_stat_tracker_(new layout::LayoutStatTracker(name)),
       should_track_event_stats_(should_track_event_stats),
-      current_event_type_(kEventTypeInvalid) {
+      current_event_type_(kEventTypeInvalid),
+      name_(name),
+      event_is_processing_(StringPrintf("Event.%s.IsProcessing", name.c_str()),
+          0, "Nonzero when an event is being processed.") {
   if (should_track_event_stats_) {
     event_stats_.reserve(kNumEventTypes);
     for (int i = 0; i < kNumEventTypes; ++i) {
@@ -56,6 +62,8 @@ void WebModuleStatTracker::OnInjectEvent(
 
   EndCurrentEvent(false);
 
+  event_is_processing_ = 1;
+
   if (event->type() == base::Tokens::keydown()) {
     current_event_type_ = kEventTypeKeyDown;
   } else if (event->type() == base::Tokens::keyup()) {
@@ -80,6 +88,17 @@ void WebModuleStatTracker::OnRenderTreeProduced() {
   // Counts are flushed after new render trees are produced.
   dom_stat_tracker_->FlushPeriodicTracking();
   layout_stat_tracker_->FlushPeriodicTracking();
+}
+
+void WebModuleStatTracker::OnSetRecordStats(bool set) {
+  record_stats_ = set;
+
+  // Every time this variable is set, we clear out our stats
+  for (ScopedVector<EventStats>::iterator it = event_stats_.begin();
+       it != event_stats_.end();
+       ++it) {
+    (*it)->event_durations = "[]";
+  }
 }
 
 WebModuleStatTracker::EventStats::EventStats(const std::string& name)
@@ -138,7 +157,11 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
           StringPrintf("Event.Duration.%s.Layout.RenderAndAnimate",
                        name.c_str()),
           base::TimeDelta(),
-          "RenderAndAnimate duration for event (in microseconds).") {}
+          "RenderAndAnimate duration for event (in microseconds)."),
+      event_durations(StringPrintf("Event.Durations.%s", name.c_str()),
+                     "[]",
+                     "JSON array of all event durations (in microseconds) "
+                     "since reset.") {}
 
 bool WebModuleStatTracker::IsStopWatchEnabled(int /*id*/) const { return true; }
 
@@ -151,6 +174,8 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   if (current_event_type_ == kEventTypeInvalid) {
     return;
   }
+
+  event_is_processing_ = 0;
 
   stop_watch_durations_[kStopWatchTypeEvent] = base::TimeDelta();
   stop_watches_[kStopWatchTypeEvent].Stop();
@@ -184,9 +209,25 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   // misleading as it merely indicates how long the user waited to initiate the
   // next event. When this occurs, the injection duration provides a much more
   // accurate picture of how long the event takes.
-  event_stats->duration_total = was_render_tree_produced
+  base::TimeDelta duration_total = was_render_tree_produced
                                     ? stop_watch_durations_[kStopWatchTypeEvent]
                                     : event_injection_duration;
+  event_stats->duration_total = duration_total;
+
+  if (record_stats_) {
+    std::string prev_durations = event_stats->event_durations.value();
+    if (prev_durations.size() <= 2) {
+      event_stats->event_durations =
+          StringPrintf("[%ld]", duration_total.InMicroseconds());
+    } else if (prev_durations.size() < kMaxRecordedStatsBytes) {
+      event_stats->event_durations
+          = StringPrintf("%s,%ld]",
+                         prev_durations.substr(
+                             0, prev_durations.size() - 1).c_str(),
+                             duration_total.InMicroseconds());
+    }
+  }
+
   event_stats->duration_dom_inject_event = event_injection_duration;
   event_stats->duration_dom_update_computed_style =
       dom_stat_tracker_->GetStopWatchTypeDuration(

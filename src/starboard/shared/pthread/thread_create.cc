@@ -16,22 +16,26 @@
 
 #include <pthread.h>
 #include <sched.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include "starboard/log.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/string.h"
 
-#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+#if SB_HAS(THREAD_PRIORITY_SUPPORT) && SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
 #if !defined(_POSIX_PRIORITY_SCHEDULING)
 #error "The _POSIX_PRIORITY_SCHEDULING define indicates that a pthreads \
 system supports thread priorities, however this define is not \
 defined on this system, contradicting the Starboard configuration \
 indicating that priority scheduling is supported."
 #endif  // !defined(_POSIX_PRIORITY_SCHEDULING)
-#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT)
+#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT) && SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
 
 namespace {
+
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+#if SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
 
 int SbThreadPriorityToPthread(SbThreadPriority priority) {
   switch (priority) {
@@ -52,14 +56,39 @@ int SbThreadPriorityToPthread(SbThreadPriority priority) {
   }
 }
 
+#else  // SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
+
+int SbThreadPriorityToNice(SbThreadPriority priority) {
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      return 10;
+    case kSbThreadPriorityLow:
+      return 5;
+    case kSbThreadNoPriority:
+    // Fall through on purpose to default to kThreadPriority_Normal.
+    case kSbThreadPriorityNormal:
+      return -5;
+    case kSbThreadPriorityHigh:
+      return -15;
+    case kSbThreadPriorityHighest:
+      return -18;
+    case kSbThreadPriorityRealTime:
+      return -19;
+    default:
+      SB_NOTREACHED();
+      return 0;
+  }
+}
+
+#endif  // #if SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
+#endif  // #if SB_HAS(THREAD_PRIORITY_SUPPORT)
+
 struct ThreadParams {
   SbThreadAffinity affinity;
   SbThreadEntryPoint entry_point;
   char name[128];
   void* context;
-#if SB_HAS(THREAD_PRIORITY_SUPPORT)
   SbThreadPriority priority;
-#endif  // #if SB_HAS(THREAD_PRIORITY_SUPPORT)
 };
 
 void* ThreadFunc(void* context) {
@@ -72,6 +101,7 @@ void* ThreadFunc(void* context) {
   }
 
 #if SB_HAS(THREAD_PRIORITY_SUPPORT)
+#if SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
   // Use Linux' regular scheduler for lowest priority threads.  Real-time
   // priority threads (of any priority) will always have priority over
   // non-real-time threads (e.g. threads whose scheduler is setup to be
@@ -84,7 +114,12 @@ void* ThreadFunc(void* context) {
         SbThreadPriorityToPthread(thread_params->priority);
     sched_setscheduler(0, SCHED_FIFO, &thread_sched_param);
   }
-#endif  // #if SB_HAS(THREAD_PRIORITY_SUPPORT)
+#else   // #if SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
+  // If we don't have real time thread priority support, then set the nice
+  // value instead for soft priority support.
+  setpriority(PRIO_PROCESS, 0, SbThreadPriorityToNice(thread_params->priority));
+#endif  // SB_HAS(REAL_TIME_PRIORITY_SUPPORT)
+#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT)
 
   delete thread_params;
 
@@ -143,9 +178,7 @@ SbThread SbThreadCreate(int64_t stack_size,
     params->name[0] = '\0';
   }
 
-#if SB_HAS(THREAD_PRIORITY_SUPPORT)
   params->priority = priority;
-#endif  // #if SB_HAS(THREAD_PRIORITY_SUPPORT)
 
   SbThread thread = kSbThreadInvalid;
   result = pthread_create(&thread, &attributes, ThreadFunc, params);

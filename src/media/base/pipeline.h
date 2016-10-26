@@ -77,6 +77,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   virtual ~Pipeline() {}
 
+  virtual void Suspend() {}
+  virtual void Resume() {}
+
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |seek_cb| when the initial seek/preroll has completed.
   //

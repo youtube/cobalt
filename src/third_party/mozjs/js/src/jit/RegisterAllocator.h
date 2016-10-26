@@ -309,7 +309,7 @@ class RegisterAllocator
 #if defined(JS_CPU_X64)
         if (mir->compilingAsmJS())
             allRegisters_.take(AnyRegister(HeapReg));
-#elif defined(JS_CPU_ARM)
+#elif defined(JS_CPU_ARM) || defined(JS_CPU_MIPS)
         if (mir->compilingAsmJS()) {
             allRegisters_.take(AnyRegister(HeapReg));
             allRegisters_.take(AnyRegister(GlobalReg));

@@ -79,7 +79,7 @@ EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 }
 
 inline void
-EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
+EmitTailCallVM(IonCode *target, MacroAssembler &masm, uint32_t argSize)
 {
     // We assume during this that R0 and R1 have been pushed, and that R2 is
     // unused.
@@ -99,7 +99,7 @@ EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
     // keep it there through the stub calls), but the VMWrapper code being
     // called expects the return address to also be pushed on the stack.
     MOZ_ASSERT(BaselineTailCallReg == ra);
-    masm.makeFrameDescriptor(t6, JitFrame_BaselineJS);
+    masm.makeFrameDescriptor(t6, IonFrame_BaselineJS);
     masm.subPtr(Imm32(sizeof(IonCommonFrameLayout)), StackPointer);
     masm.storePtr(t6, Address(StackPointer, IonCommonFrameLayout::offsetOfDescriptor()));
     masm.storePtr(ra, Address(StackPointer, IonCommonFrameLayout::offsetOfReturnAddress()));
@@ -116,11 +116,11 @@ EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
     masm.addPtr(Imm32(sizeof(intptr_t) * 2), reg);
     masm.subPtr(BaselineStackReg, reg);
 
-    masm.makeFrameDescriptor(reg, JitFrame_BaselineStub);
+    masm.makeFrameDescriptor(reg, IonFrame_BaselineStub);
 }
 
 inline void
-EmitCallVM(JitCode *target, MacroAssembler &masm)
+EmitCallVM(IonCode *target, MacroAssembler &masm)
 {
     EmitCreateStubFrameDescriptor(masm, t6);
     masm.push(t6);
@@ -153,7 +153,7 @@ EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
     // BaselineStubFrame if needed.
 
     // Push frame descriptor and return address.
-    masm.makeFrameDescriptor(scratch, JitFrame_BaselineJS);
+    masm.makeFrameDescriptor(scratch, IonFrame_BaselineJS);
     masm.subPtr(Imm32(STUB_FRAME_SIZE), StackPointer);
     masm.storePtr(scratch, Address(StackPointer, offsetof(BaselineStubFrame, descriptor)));
     masm.storePtr(BaselineTailCallReg, Address(StackPointer,
@@ -241,7 +241,7 @@ EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 }
 
 inline void
-EmitCallTypeUpdateIC(MacroAssembler &masm, JitCode *code, uint32_t objectOffset)
+EmitCallTypeUpdateIC(MacroAssembler &masm, IonCode *code, uint32_t objectOffset)
 {
     // R0 contains the value that needs to be typechecked.
     // The object we're updating is a boxed Value on the stack, at offset

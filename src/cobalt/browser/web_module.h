@@ -160,7 +160,16 @@ class WebModule {
   ~WebModule();
 
   // Call this to inject a keyboard event into the web module.
-  void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
+  // Event is directed at a specific element if the element is non-null.
+  // Otherwise, the currently focused element receives the event.
+  // If element is specified, we must be on the WebModule's message loop
+  void InjectKeyboardEvent(
+      scoped_refptr<dom::Element> element,
+      const dom::KeyboardEvent::Data& event);
+
+  // Call this to inject a keyboard event into the web module.
+  void InjectKeyboardEvent(
+      const dom::KeyboardEvent::Data& event);
 
   // Call this to execute Javascript code in this web module.  The calling
   // thread will block until the JavaScript has executed and the output results
@@ -189,6 +198,9 @@ class WebModule {
   // Resumes the WebModule, possibly with a new resource provider.  This method
   // can only be called if we have previously suspended the WebModule.
   void Resume(render_tree::ResourceProvider* resource_provider);
+
+  // Called when h5vcc.system.recordStats is set.
+  void OnSetRecordStats(bool set);
 
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   // Non-optimized builds require a bigger stack size.

@@ -77,7 +77,7 @@ Application::~Application() {
           reinterpret_cast<SbAtomicPtr>(NULL)));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
-  SbMemoryFree(start_link_);
+  SbMemoryDeallocate(start_link_);
 }
 
 int Application::Run(int argc, char** argv) {
@@ -141,7 +141,7 @@ void Application::HandleFrame(SbPlayer player,
 #endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 
 void Application::SetStartLink(const char* start_link) {
-  SbMemoryFree(start_link_);
+  SbMemoryDeallocate(start_link_);
   if (start_link) {
     start_link_ = SbStringDuplicate(start_link);
   } else {

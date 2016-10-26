@@ -258,6 +258,33 @@ JSFunction::existingScript()
     return u.i.s.script_;
 }
 
+inline JSScript*
+JSFunction::existingScriptForInlinedFunction() {
+    JS_ASSERT(isInterpreted());
+    if (isInterpretedLazy()) {
+        // Get the script from the canonical function. Ion used the
+        // canonical function to inline the script and because it has
+        // Baseline code it has not been relazified. Note that we can't
+        // use lazyScript->script_ here as it may be null in some cases,
+        // see bug 976536.
+
+        js::LazyScript *lazy = lazyScript();
+        JSFunction* fun = lazy->function();
+        JS_ASSERT(fun);
+        JSScript *script = fun->nonLazyScript();
+
+        if (zone()->needsBarrier())
+            js::LazyScript::writeBarrierPre(lazy);
+
+        flags &= ~INTERPRETED_LAZY;
+        flags |= INTERPRETED;
+        initScript(script);
+    }
+    JS_ASSERT(hasScript());
+    JS_ASSERT(u.i.s.script_);
+    return u.i.s.script_;
+}
+
 inline void
 JSFunction::setScript(JSScript *script_)
 {

@@ -64,10 +64,12 @@ std::string GetCssProperty(const std::string& property_name,
 ElementDriver::ElementDriver(
     const protocol::ElementId& element_id,
     const base::WeakPtr<dom::Element>& element, ElementMapping* element_mapping,
+    KeyboardEventInjector keyboard_event_injector,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : element_id_(element_id),
       element_(element),
       element_mapping_(element_mapping),
+      keyboard_injector_(keyboard_event_injector),
       element_message_loop_(message_loop) {}
 
 util::CommandResult<std::string> ElementDriver::GetTagName() {
@@ -157,7 +159,7 @@ dom::Element* ElementDriver::GetWeakElement() {
 }
 
 util::CommandResult<void> ElementDriver::SendKeysInternal(
-    scoped_ptr<KeyboardEventVector> events) {
+    scoped_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
   DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
   if (!element_) {
@@ -174,7 +176,8 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
     if (!element_) {
       return CommandResult(protocol::Response::kStaleElementReference);
     }
-    element_->DispatchEvent((*events)[i]);
+
+    keyboard_injector_.Run(element_.get(), (*events)[i]);
   }
   return CommandResult(protocol::Response::kSuccess);
 }

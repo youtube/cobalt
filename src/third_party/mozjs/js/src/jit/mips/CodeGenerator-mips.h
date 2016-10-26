@@ -26,8 +26,8 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
 
   protected:
     // Label for the common return path.
-    NonAssertingLabel returnLabel_;
-    NonAssertingLabel deoptLabel_;
+    HeapLabel *returnLabel_;
+    HeapLabel *deoptLabel_;
 
     inline Address ToAddress(const LAllocation &a) {
         MOZ_ASSERT(a.isMemory());
@@ -70,7 +70,7 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
         return ToOperand(def->output());
     }
 
-    MoveOperand toMoveOperand(const LAllocation *a) const;
+    MoveResolver::MoveOperand toMoveOperand(const LAllocation* a) const;
 
     template <typename T1, typename T2>
     bool bailoutCmp32(Assembler::Condition c, T1 lhs, T2 rhs, LSnapshot *snapshot) {
@@ -87,7 +87,7 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
               return bailoutCmp32(c, lhs.toReg(), rhs, snapshot);
         if (lhs.getTag() == Operand::MEM)
               return bailoutCmp32(c, lhs.toAddress(), rhs, snapshot);
-        MOZ_ASSUME_UNREACHABLE("Invalid operand tag.");
+        MOZ_NOT_REACHED("Invalid operand tag.");
         return false;
     }
     template<typename T>
@@ -114,30 +114,28 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     bool generateEpilogue();
     bool generateOutOfLineCode();
 
+    void branchToBlock(Assembler::FloatFormat fmt, FloatRegister lhs, FloatRegister rhs,
+                       MBasicBlock *mir, Assembler::DoubleCondition cond);
+
+    // Generate a jump to the start of the specified block, adding information
+    // if this is a loop backedge. Use this in place of jumping directly to
+    // mir->lir()->label(), or use getJumpLabelForBranch() if a label to use
+    // directly is needed.
+    void jumpToBlock(MBasicBlock *mir) {
+        // No jump necessary if we can fall through to the next block.
+        if (isNextBlock(mir->lir())) {
+            return;
+        }
+
+        masm.jump(mir->lir()->label());
+    }
+
     template <typename T>
     void branchToBlock(Register lhs, T rhs, MBasicBlock *mir, Assembler::Condition cond)
     {
         Label *label = mir->lir()->label();
-        if (Label *oolEntry = labelForBackedgeWithImplicitCheck(mir)) {
-            // Note: the backedge is initially a jump to the next instruction.
-            // It will be patched to the target block's label during link().
-            RepatchLabel rejoin;
-            CodeOffsetJump backedge;
-            Label skip;
-
-            masm.ma_b(lhs, rhs, &skip, Assembler::InvertCondition(cond), ShortJump);
-            backedge = masm.jumpWithPatch(&rejoin);
-            masm.bind(&rejoin);
-            masm.bind(&skip);
-
-            if (!patchableBackedges_.append(PatchableBackedgeInfo(backedge, label, oolEntry)))
-                MOZ_CRASH();
-        } else {
-            masm.ma_b(lhs, rhs, label, cond);
-        }
+        masm.ma_b(lhs, rhs, label, cond);
     }
-    void branchToBlock(Assembler::FloatFormat fmt, FloatRegister lhs, FloatRegister rhs,
-                       MBasicBlock *mir, Assembler::DoubleCondition cond);
 
     // Emits a branch that directs control flow to the true block if |cond| is
     // true, and the false block if |cond| is false.
@@ -152,6 +150,7 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
             jumpToBlock(mirTrue);
         }
     }
+
     void testNullEmitBranch(Assembler::Condition cond, const ValueOperand &value,
                             MBasicBlock *ifTrue, MBasicBlock *ifFalse)
     {
@@ -169,9 +168,7 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     // Instruction visitors.
     virtual bool visitMinMaxD(LMinMaxD *ins);
     virtual bool visitAbsD(LAbsD *ins);
-    virtual bool visitAbsF(LAbsF *ins);
     virtual bool visitSqrtD(LSqrtD *ins);
-    virtual bool visitSqrtF(LSqrtF *ins);
     virtual bool visitAddI(LAddI *ins);
     virtual bool visitSubI(LSubI *ins);
     virtual bool visitBitNotI(LBitNotI *ins);
@@ -192,30 +189,20 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     virtual bool visitCompare(LCompare *comp);
     virtual bool visitCompareAndBranch(LCompareAndBranch *comp);
     virtual bool visitTestDAndBranch(LTestDAndBranch *test);
-    virtual bool visitTestFAndBranch(LTestFAndBranch *test);
     virtual bool visitCompareD(LCompareD *comp);
-    virtual bool visitCompareF(LCompareF *comp);
     virtual bool visitCompareDAndBranch(LCompareDAndBranch *comp);
-    virtual bool visitCompareFAndBranch(LCompareFAndBranch *comp);
     virtual bool visitCompareB(LCompareB *lir);
     virtual bool visitCompareBAndBranch(LCompareBAndBranch *lir);
     virtual bool visitCompareV(LCompareV *lir);
     virtual bool visitCompareVAndBranch(LCompareVAndBranch *lir);
-    virtual bool visitBitAndAndBranch(LBitAndAndBranch *lir);
-    virtual bool visitAsmJSUInt32ToDouble(LAsmJSUInt32ToDouble *lir);
-    virtual bool visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir);
+    virtual bool visitUInt32ToDouble(LUInt32ToDouble *lir);
     virtual bool visitNotI(LNotI *ins);
     virtual bool visitNotD(LNotD *ins);
-    virtual bool visitNotF(LNotF *ins);
 
     virtual bool visitMathD(LMathD *math);
-    virtual bool visitMathF(LMathF *math);
     virtual bool visitFloor(LFloor *lir);
-    virtual bool visitFloorF(LFloorF *lir);
     virtual bool visitRound(LRound *lir);
-    virtual bool visitRoundF(LRoundF *lir);
     virtual bool visitTruncateDToInt32(LTruncateDToInt32 *ins);
-    virtual bool visitTruncateFToInt32(LTruncateFToInt32 *ins);
 
     // Out of line visitors.
     bool visitOutOfLineBailout(OutOfLineBailout *ool);
@@ -237,11 +224,11 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
 
   public:
     bool visitBox(LBox *box);
-    bool visitBoxFloatingPoint(LBoxFloatingPoint *box);
+    bool visitBoxDouble(LBoxDouble *box);
     bool visitUnbox(LUnbox *unbox);
     bool visitValue(LValue *value);
+    bool visitOsrValue(LOsrValue *value);
     bool visitDouble(LDouble *ins);
-    bool visitFloat32(LFloat32 *ins);
 
     bool visitLoadSlotV(LLoadSlotV *load);
     bool visitLoadSlotT(LLoadSlotT *load);
@@ -258,7 +245,6 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
 
     bool visitNegI(LNegI *lir);
     bool visitNegD(LNegD *lir);
-    bool visitNegF(LNegF *lir);
     bool visitLoadTypedArrayElementStatic(LLoadTypedArrayElementStatic *ins);
     bool visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic *ins);
     bool visitAsmJSLoadHeap(LAsmJSLoadHeap *ins);
@@ -270,8 +256,6 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
 
     bool visitAsmJSPassStackArg(LAsmJSPassStackArg *ins);
 
-    bool visitForkJoinGetSlice(LForkJoinGetSlice *ins);
-
     bool generateInvalidateEpilogue();
   protected:
     void postAsmJSCall(LAsmJSCall *lir) {}
@@ -279,6 +263,10 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     bool visitEffectiveAddress(LEffectiveAddress *ins);
     bool visitUDiv(LUDiv *ins);
     bool visitUMod(LUMod *ins);
+
+  public:
+    bool bailoutIf(Assembler::Condition condition, LSnapshot *snapshot);
+    bool visitMoveGroup(LMoveGroup *group);
 };
 
 typedef CodeGeneratorMIPS CodeGeneratorSpecific;

@@ -20,6 +20,8 @@
 # include "x64/Lowering-x64.h"
 #elif defined(JS_CPU_ARM)
 # include "arm/Lowering-arm.h"
+#elif defined(JS_CPU_MIPS)
+# include "mips/Lowering-mips.h"
 #else
 # error "CPU!"
 #endif

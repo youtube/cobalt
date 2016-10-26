@@ -17,6 +17,9 @@ class CodeGenerator;
 
 class MoveEmitterMIPS
 {
+    typedef MoveResolver::Move Move;
+    typedef MoveResolver::MoveOperand MoveOperand;
+
     bool inCycle_;
     MacroAssemblerMIPSCompat &masm;
 
@@ -28,6 +31,7 @@ class MoveEmitterMIPS
     // stack space has been allocated for that particular spill.
     int32_t pushedAtCycle_;
     int32_t pushedAtSpill_;
+    int32_t pushedAtDoubleSpill_;
 
     // These are registers that are available for temporary use. They may be
     // assigned InvalidReg. If no corresponding spill space has been assigned,
@@ -39,15 +43,15 @@ class MoveEmitterMIPS
     Register tempReg();
     FloatRegister tempFloatReg();
     Address cycleSlot() const;
+    Operand doubleSpillSlot() const;
     int32_t getAdjustedOffset(const MoveOperand &operand);
     Address getAdjustedAddress(const MoveOperand &operand);
 
     void emitMove(const MoveOperand &from, const MoveOperand &to);
-    void emitFloat32Move(const MoveOperand &from, const MoveOperand &to);
     void emitDoubleMove(const MoveOperand &from, const MoveOperand &to);
-    void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
-    void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
-    void emit(const MoveOp &move);
+    void breakCycle(const MoveOperand &from, const MoveOperand &to, Move::Kind kind);
+    void completeCycle(const MoveOperand &from, const MoveOperand &to, Move::Kind kind);
+    void emit(const Move& move);
 
   public:
     MoveEmitterMIPS(MacroAssemblerMIPSCompat &masm);

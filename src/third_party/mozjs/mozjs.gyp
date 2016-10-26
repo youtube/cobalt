@@ -66,6 +66,12 @@
           'JS_NUNBOX32=1',
         ],
       }],
+      [ 'target_arch == "mips"', {
+        'defines': [
+          'JS_CPU_MIPS=1',
+          'JS_NUNBOX32=1',
+        ],
+      }],
       [ 'cobalt_enable_jit == 1', {
         'defines': [
           '<@(common_jit_defines)',
@@ -74,6 +80,12 @@
       [ 'use_asan == 1', {
         'defines': [
           'MOZ_ASAN',
+        ],
+      }],
+      [ 'cobalt_config == "debug"', {
+        'defines': [
+          'DEBUG',
+          'JS_DEBUG',
         ],
       }],
     ],
@@ -165,6 +177,21 @@
             '<@(mozjs_jit_sources)',
           ],
         }],
+        [ 'target_arch == "mips" and cobalt_enable_jit == 1', {
+          'sources': [
+            'js/src/jit/mips/Architecture-mips.cpp',
+            'js/src/jit/mips/Assembler-mips.cpp',
+            'js/src/jit/mips/Bailouts-mips.cpp',
+            'js/src/jit/mips/BaselineCompiler-mips.cpp',
+            'js/src/jit/mips/BaselineIC-mips.cpp',
+            'js/src/jit/mips/CodeGenerator-mips.cpp',
+            'js/src/jit/mips/Lowering-mips.cpp',
+            'js/src/jit/mips/MacroAssembler-mips.cpp',
+            'js/src/jit/mips/MoveEmitter-mips.cpp',
+            'js/src/jit/mips/Trampoline-mips.cpp',
+            '<@(mozjs_jit_sources)',
+          ]
+        }]
       ],
       'dependencies': [
         'build_include_directory',

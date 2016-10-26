@@ -38,6 +38,10 @@
 # include "x64/Lowering-x64.h"
 #elif defined(JS_CPU_ARM)
 # include "arm/Lowering-arm.h"
+#elif defined(JS_CPU_MIPS)
+# include "mips/Lowering-mips.h"
+#else
+# error "Unknown CPU architecture."
 #endif
 #include "gc/Marking.h"
 
@@ -185,6 +189,11 @@ IonRuntime::IonRuntime()
     functionWrappers_(NULL),
     osrTempData_(NULL),
     flusher_(NULL)
+#if defined(JS_CPU_MIPS)
+    ,
+    exceptionTail_(NULL),
+    bailoutTail_(NULL)
+#endif
 {
 }
 
@@ -194,6 +203,108 @@ IonRuntime::~IonRuntime()
     freeOsrTempData();
 }
 
+#if defined(JS_CPU_MIPS)
+bool
+IonRuntime::initialize(JSContext *cx)
+{
+    // JS_ASSERT(cx->runtime()->currentThreadHasExclusiveAccess());
+    // JS_ASSERT(cx->runtime()->currentThreadOwnsInterruptLock());
+
+    // AutoCompartment ac(cx, cx->atomsCompartment());
+
+    IonContext ictx(cx, NULL);
+    AutoFlushCache afc("IonRuntime::initialize");
+
+    execAlloc_ = cx->runtime()->getExecAlloc(cx);
+    if (!execAlloc_)
+        return false;
+
+    if (!cx->compartment()->ensureIonCompartmentExists(cx))
+        return false;
+
+    functionWrappers_ = cx->new_<VMWrapperMap>(cx);
+    if (!functionWrappers_ || !functionWrappers_->init())
+        return false;
+
+    IonSpew(IonSpew_Codegen, "# Emitting exception tail stub");
+    exceptionTail_ = generateExceptionTailStub(cx);
+    if (!exceptionTail_)
+        return false;
+
+    IonSpew(IonSpew_Codegen, "# Emitting bailout tail stub");
+    bailoutTail_ = generateBailoutTailStub(cx);
+    if (!bailoutTail_)
+        return false;
+
+    if (cx->runtime()->jitSupportsFloatingPoint) {
+        IonSpew(IonSpew_Codegen, "# Emitting bailout tables");
+
+        // Initialize some Ion-only stubs that require floating-point support.
+        if (!bailoutTables_.reserve(FrameSizeClass::ClassLimit().classId()))
+            return false;
+
+        for (uint32_t id = 0;; id++) {
+            FrameSizeClass class_ = FrameSizeClass::FromClass(id);
+            if (class_ == FrameSizeClass::ClassLimit())
+                break;
+            bailoutTables_.infallibleAppend((IonCode *)NULL);
+            bailoutTables_[id] = generateBailoutTable(cx, id);
+            if (!bailoutTables_[id])
+                return false;
+        }
+
+        IonSpew(IonSpew_Codegen, "# Emitting bailout handler");
+        bailoutHandler_ = generateBailoutHandler(cx);
+        if (!bailoutHandler_)
+            return false;
+
+        IonSpew(IonSpew_Codegen, "# Emitting invalidator");
+        invalidator_ = generateInvalidator(cx);
+        if (!invalidator_)
+            return false;
+    }
+
+    IonSpew(IonSpew_Codegen, "# Emitting sequential arguments rectifier");
+    argumentsRectifier_ = generateArgumentsRectifier(cx, SequentialExecution, &argumentsRectifierReturnAddr_);
+    if (!argumentsRectifier_)
+        return false;
+
+#ifdef JS_THREADSAFE
+    IonSpew(IonSpew_Codegen, "# Emitting parallel arguments rectifier");
+    parallelArgumentsRectifier_ = generateArgumentsRectifier(cx, ParallelExecution, NULL);
+    if (!parallelArgumentsRectifier_)
+        return false;
+#endif
+
+    IonSpew(IonSpew_Codegen, "# Emitting EnterJIT sequence");
+    enterJIT_ = generateEnterJIT(cx, EnterJitOptimized);
+    if (!enterJIT_)
+        return false;
+
+    IonSpew(IonSpew_Codegen, "# Emitting EnterBaselineJIT sequence");
+    enterBaselineJIT_ = generateEnterJIT(cx, EnterJitBaseline);
+    if (!enterBaselineJIT_)
+        return false;
+
+    IonSpew(IonSpew_Codegen, "# Emitting Pre Barrier for Value");
+    valuePreBarrier_ = generatePreBarrier(cx, MIRType_Value);
+    if (!valuePreBarrier_)
+        return false;
+
+    IonSpew(IonSpew_Codegen, "# Emitting Pre Barrier for Shape");
+    shapePreBarrier_ = generatePreBarrier(cx, MIRType_Shape);
+    if (!shapePreBarrier_)
+        return false;
+
+    IonSpew(IonSpew_Codegen, "# Emitting VM function wrappers");
+    for (VMFunction *fun = VMFunction::functions; fun; fun = fun->next) {
+        if (!generateVMWrapper(cx, *fun))
+            return false;
+    }
+
+    return true;
+}
+#else
 bool
 IonRuntime::initialize(JSContext *cx)
 {
@@ -270,6 +381,7 @@ IonRuntime::initialize(JSContext *cx)
 
     return true;
 }
+#endif
 
 IonCode *
 IonRuntime::debugTrapHandler(JSContext *cx)
@@ -2367,6 +2479,69 @@ AutoFlushCache::AutoFlushCache(const char *nonce, IonRuntime *rt)
     }
     runtime_ = rt;
 }
+
+#if defined(JS_CPU_MIPS)
+AutoFlushCache::~AutoFlushCache()
+{
+    if (!runtime_) {
+        return;
+    }
+
+    flushAnyway();
+    IonSpewCont(IonSpew_CacheFlush, ">", name_);
+    if (runtime_->flusher() == this) {
+        IonSpewFin(IonSpew_CacheFlush);
+        runtime_->setFlusher(NULL);
+    }
+}
+
+void
+AutoFlushCache::update(uintptr_t newStart, size_t len) {
+    uintptr_t newStop = newStart + len;
+    if (this == NULL) {
+        // just flush right here and now.
+        JSC::ExecutableAllocator::cacheFlush((void*)newStart, len);
+        return;
+    }
+    used_ = true;
+    if (!start_) {
+        IonSpewCont(IonSpew_CacheFlush,  ".");
+        start_ = newStart;
+        stop_ = newStop;
+        return;
+    }
+
+    if (newStop < start_ - 4096 || newStart > stop_ + 4096) {
+        // If this would add too many pages to the range, bail and just do the flush now.
+        IonSpewCont(IonSpew_CacheFlush, "*");
+        JSC::ExecutableAllocator::cacheFlush((void*)newStart, len);
+        return;
+    }
+    start_ = Min(start_, newStart);
+    stop_ = Max(stop_, newStop);
+    IonSpewCont(IonSpew_CacheFlush, ".");
+}
+
+void
+AutoFlushCache::flushAnyway()
+{
+    if (!runtime_)
+        return;
+
+    IonSpewCont(IonSpew_CacheFlush, "|", name_);
+
+    if (!used_)
+        return;
+
+    if (start_) {
+        JSC::ExecutableAllocator::cacheFlush((void *)start_, size_t(stop_ - start_ + sizeof(Instruction)));
+    } else {
+        JSC::ExecutableAllocator::cacheFlush(NULL, 0xff000000);
+    }
+    used_ = false;
+}
+
+#endif  // defined(JS_CPU_MIPS)
 
 AutoFlushInhibitor::AutoFlushInhibitor(IonCompartment *ic)
   : ic_(ic),

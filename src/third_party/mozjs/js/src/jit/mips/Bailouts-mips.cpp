@@ -9,6 +9,10 @@
 #include "jscntxt.h"
 #include "jscompartment.h"
 
+#include "jit/Bailouts.h"
+#include "jit/IonCompartment.h"
+#include "jit/IonFrames-inl.h"
+
 using namespace js;
 using namespace js::jit;
 
@@ -21,7 +25,7 @@ IonBailoutIterator::IonBailoutIterator(const JitActivationIterator &activations,
     uint8_t *fp = sp + bailout->frameSize();
 
     current_ = fp;
-    type_ = JitFrame_IonJS;
+    type_ = IonFrame_OptimizedJS;
     topFrameSize_ = current_ - sp;
     topIonScript_ = script()->ionScript();
 
@@ -32,14 +36,19 @@ IonBailoutIterator::IonBailoutIterator(const JitActivationIterator &activations,
 
     // Compute the snapshot offset from the bailout ID.
     JitActivation *activation = activations.activation()->asJit();
-    JSRuntime *rt = activation->compartment()->runtimeFromMainThread();
-    JitCode *code = rt->jitRuntime()->getBailoutTable(bailout->frameClass());
+
+    JSCompartment* jsCompartment = activation->compartment();
+
+    IonCompartment* ionCompartment = jsCompartment->ionCompartment();
+
+    IonCode* code = ionCompartment->getBailoutTable(bailout->frameClass());
+
     uintptr_t tableOffset = bailout->tableOffset();
     uintptr_t tableStart = reinterpret_cast<uintptr_t>(code->raw());
 
-    MOZ_ASSERT(tableOffset >= tableStart &&
+    JS_ASSERT(tableOffset >= tableStart &&
               tableOffset < tableStart + code->instructionsSize());
-    MOZ_ASSERT((tableOffset - tableStart) % BAILOUT_TABLE_ENTRY_SIZE == 0);
+    JS_ASSERT((tableOffset - tableStart) % BAILOUT_TABLE_ENTRY_SIZE == 0);
 
     uint32_t bailoutId = ((tableOffset - tableStart) / BAILOUT_TABLE_ENTRY_SIZE) - 1;
     MOZ_ASSERT(bailoutId < BAILOUT_TABLE_SIZE);
@@ -57,7 +66,7 @@ IonBailoutIterator::IonBailoutIterator(const JitActivationIterator &activations,
     const OsiIndex *osiIndex = topIonScript_->getOsiIndex(returnAddressToFp_);
 
     current_ = (uint8_t*) bailout->fp();
-    type_ = JitFrame_IonJS;
+    type_ = IonFrame_OptimizedJS;
     topFrameSize_ = current_ - bailout->sp();
     snapshotOffset_ = osiIndex->snapshotOffset();
 }

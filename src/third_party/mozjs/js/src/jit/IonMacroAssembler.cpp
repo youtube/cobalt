@@ -134,6 +134,44 @@ template void MacroAssembler::guardType(const Address &address, types::Type type
 template void MacroAssembler::guardType(const ValueOperand &value, types::Type type,
                                         Register scratch, Label *matched, Label *miss);
 
+#if defined(JS_CPU_MIPS)
+void
+MacroAssembler::PushRegsInMask(RegisterSet set)
+{
+    int32_t diffG = set.gprs().size() * STACK_SLOT_SIZE;
+    int32_t diffF = set.fpus().size() * sizeof(double);
+
+    reserveStack(diffG);
+    // BackwardIterator in 31.
+    for (GeneralRegisterIterator iter(set.gprs()); iter.more(); iter++) {
+        diffG -= STACK_SLOT_SIZE;
+        storePtr(*iter, Address(StackPointer, diffG));
+    }
+    MOZ_ASSERT(diffG == 0);
+
+    // Double values have to be aligned. We reserve extra space so that we can
+    // start writing from the first aligned location.
+    // We reserve a whole extra double so that the buffer has even size.
+    ma_and(SecondScratchReg, sp, Imm32(~(StackAlignment - 1)));
+    reserveStack(diffF + sizeof(double));
+
+    // ForwardIterator in 31.
+    for (FloatRegisterIterator iter(set.fpus()); iter.more(); iter++) {
+        // Use assembly s.d because we have alligned the stack.
+        // :TODO: (Bug 972836) Fix this once odd regs can be used as
+        // float32 only. For now we skip saving odd regs for O32 ABI.
+
+        // :TODO: (Bug 985881) Make a switch for N32 ABI.
+        if ((*iter).code() % 2 == 0) {
+            as_sd(*iter, SecondScratchReg, -diffF);
+        }
+
+        diffF -= sizeof(double);
+    }
+
+    MOZ_ASSERT(diffF == 0);
+}
+#else  // defined(JS_CPU_MIPS)
 void
 MacroAssembler::PushRegsInMask(RegisterSet set)
 {
@@ -172,10 +210,14 @@ MacroAssembler::PushRegsInMask(RegisterSet set)
 #endif
     JS_ASSERT(diffF == 0);
 }
+#endif  // defined(JS_CPU_MIPS)
 
 void
 MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
 {
+#if defined(JS_CPU_MIPS)
+    MacroAssemblerSpecific::PopRegsInMaskIgnore(set, ignore);
+#else
     int32_t diffG = set.gprs().size() * STACK_SLOT_SIZE;
     int32_t diffF = set.fpus().size() * sizeof(double);
     const int32_t reservedG = diffG;
@@ -219,6 +261,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
         freeStack(reservedG);
     }
     JS_ASSERT(diffG == 0);
+#endif  // defined(JS_CPU_MIPS)
 }
 
 void
@@ -270,8 +313,14 @@ MacroAssembler::loadFromTypedArray(int arrayType, const T &src, AnyRegister dest
             convertUInt32ToDouble(temp, dest.fpu());
         } else {
             load32(src, dest.gpr());
-            test32(dest.gpr(), dest.gpr());
+
+#if defined(JS_CPU_MIPS)
+            branchTest32(Assembler::Signed, dest.gpr(), dest.gpr(), fail);
+#else
+            test32(dest.gpr(), dest.gpr());  // Resolved mips conflict.
             j(Assembler::Signed, fail);
+#endif
+
         }
         break;
       case TypedArray::TYPE_FLOAT32:
@@ -311,12 +360,20 @@ MacroAssembler::loadFromTypedArray(int arrayType, const T &src, const ValueOpera
       case TypedArray::TYPE_UINT32:
         // Don't clobber dest when we could fail, instead use temp.
         load32(src, temp);
+#if defined(JS_CPU_MIPS)
+        // Nothing...
+#else
         test32(temp, temp);
+#endif
         if (allowDouble) {
             // If the value fits in an int32, store an int32 type tag.
             // Else, convert the value to double and box it.
             Label done, isDouble;
+#if defined(JS_CPU_MIPS)
+            branchTest32(Assembler::Signed, temp, temp, &isDouble);
+#else
             j(Assembler::Signed, &isDouble);
+#endif
             {
                 tagValue(JSVAL_TYPE_INT32, temp, dest);
                 jump(&done);
@@ -329,7 +386,11 @@ MacroAssembler::loadFromTypedArray(int arrayType, const T &src, const ValueOpera
             bind(&done);
         } else {
             // Bailout if the value does not fit in an int32.
+#if defined(JS_CPU_MIPS)
+            branchTest32(Assembler::Signed, temp, temp, fail);
+#else
             j(Assembler::Signed, fail);
+#endif
             tagValue(JSVAL_TYPE_INT32, temp, dest);
         }
         break;
@@ -642,8 +703,12 @@ MacroAssembler::compareStrings(JSOp op, Register left, Register right, Register 
     branchTest32(Assembler::Zero, result, atomBit, &notAtom);
     branchTest32(Assembler::Zero, temp, atomBit, &notAtom);
 
+#if defined(JS_CPU_MIPS)
+    cmpPtrSet(JSOpToCondition(MCompare::Compare_String, op), left, right, result);
+#else
     cmpPtr(left, right);
     emitSet(JSOpToCondition(MCompare::Compare_String, op), result);
+#endif
     jump(&done);
 
     bind(&notAtom);
@@ -682,6 +747,7 @@ MacroAssembler::maybeRemoveOsrFrame(Register scratch)
     bind(&osrRemoved);
 }
 
+#if !defined(JS_CPU_MIPS)
 void
 MacroAssembler::performOsr()
 {
@@ -740,6 +806,7 @@ MacroAssembler::performOsr()
     enterOsr(calleeToken, code);
     ret();
 }
+#endif  // !defined(JS_CPU_MIPS)
 
 void
 MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
@@ -1251,3 +1318,44 @@ ABIArgIter::operator++(int)
     if (!done())
         gen_.next(types_[i_]);
 }
+
+#if defined(JS_CPU_MIPS)
+void MacroAssembler::branchIfNotInterpretedConstructor(Register fun, Register scratch, Label *label)
+{
+    // 16-bit loads are slow and unaligned 32-bit loads may be too so
+    // perform an aligned 32-bit load and adjust the bitmask accordingly.
+    JS_ASSERT(JSFunction::offsetOfNargs() % sizeof(uint32_t) == 0);
+    JS_ASSERT(JSFunction::offsetOfFlags() == JSFunction::offsetOfNargs() + 2);
+    JS_STATIC_ASSERT(IS_LITTLE_ENDIAN);
+
+    // Emit code for the following test:
+    //
+    // bool isInterpretedConstructor() const {
+    //     return isInterpreted() && !isFunctionPrototype() && !isArrow() &&
+    //         (!isSelfHostedBuiltin() || isSelfHostedConstructor());
+    // }
+
+    // First, ensure it's a scripted function.
+    load32(Address(fun, JSFunction::offsetOfNargs()), scratch);
+    branchTest32(Assembler::Zero, scratch, Imm32(JSFunction::INTERPRETED << 16), label);
+
+    // Common case: if IS_FUN_PROTO, ARROW and SELF_HOSTED are not set,
+    // the function is an interpreted constructor and we're done.
+    Label done;
+    uint32_t bits = (JSFunction::IS_FUN_PROTO | JSFunction::ARROW | JSFunction::SELF_HOSTED) << 16;
+    branchTest32(Assembler::Zero, scratch, Imm32(bits), &done);
+    {
+        // The callee is either Function.prototype, an arrow function or
+        // self-hosted. None of these are constructible, except self-hosted
+        // constructors, so branch to |label| if SELF_HOSTED_CTOR is not set.
+        branchTest32(Assembler::Zero, scratch, Imm32(JSFunction::SELF_HOSTED_CTOR << 16), label);
+
+#ifdef DEBUG
+        // Function.prototype should not have the SELF_HOSTED_CTOR flag.
+        branchTest32(Assembler::Zero, scratch, Imm32(JSFunction::IS_FUN_PROTO << 16), &done);
+        breakpoint();
+#endif
+    }
+    bind(&done);
+}
+#endif

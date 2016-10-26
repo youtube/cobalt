@@ -17,7 +17,7 @@ class LBox : public LInstructionHelper<2, 1, 0>
   public:
     LIR_HEADER(Box);
 
-    LBox(const LAllocation &in_payload, MIRType type)
+    LBox(const LAllocation& in_payload, MIRType type)
       : type_(type)
     {
         setOperand(0, in_payload);
@@ -31,14 +31,14 @@ class LBox : public LInstructionHelper<2, 1, 0>
     }
 };
 
-class LBoxFloatingPoint : public LInstructionHelper<2, 1, 1>
+class LBoxDouble : public LInstructionHelper<2, 1, 1>
 {
     MIRType type_;
 
   public:
-    LIR_HEADER(BoxFloatingPoint);
+    LIR_HEADER(BoxDouble);
 
-    LBoxFloatingPoint(const LAllocation &in, const LDefinition &temp, MIRType type)
+    LBoxDouble(const LAllocation &in, const LDefinition &temp, MIRType type)
       : type_(type)
     {
         setOperand(0, in);
@@ -72,53 +72,30 @@ class LUnbox : public LInstructionHelper<1, 2, 0>
     }
 };
 
-class LUnboxFloatingPoint : public LInstructionHelper<1, 2, 0>
+class LUnboxDouble : public LInstructionHelper<1, 2, 0>
 {
     MIRType type_;
 
   public:
-    LIR_HEADER(UnboxFloatingPoint);
+    LIR_HEADER(UnboxDouble);
 
     static const size_t Input = 0;
-
-    LUnboxFloatingPoint(MIRType type)
-      : type_(type)
-    { }
 
     MUnbox *mir() const {
         return mir_->toUnbox();
     }
-
-    MIRType type() const {
-        return type_;
-    }
-    const char *extraName() const {
-        return StringFromMIRType(type_);
-    }
 };
 
 // Convert a 32-bit unsigned integer to a double.
-class LAsmJSUInt32ToDouble : public LInstructionHelper<1, 1, 0>
+class LUInt32ToDouble : public LInstructionHelper<1, 1, 0>
 {
   public:
-    LIR_HEADER(AsmJSUInt32ToDouble)
+    LIR_HEADER(UInt32ToDouble)
 
-    LAsmJSUInt32ToDouble(const LAllocation &input) {
+    LUInt32ToDouble(const LAllocation &input) {
         setOperand(0, input);
     }
 };
-
-// Convert a 32-bit unsigned integer to a float32.
-class LAsmJSUInt32ToFloat32 : public LInstructionHelper<1, 1, 0>
-{
-  public:
-    LIR_HEADER(AsmJSUInt32ToFloat32)
-
-    LAsmJSUInt32ToFloat32(const LAllocation &input) {
-        setOperand(0, input);
-    }
-};
-
 
 class LDivI : public LBinaryMath<1>
 {
@@ -132,7 +109,7 @@ class LDivI : public LBinaryMath<1>
         setTemp(0, temp);
     }
 
-    MDiv *mir() const {
+    MDiv* mir() const {
         return mir_->toDiv();
     }
 };
@@ -144,14 +121,14 @@ class LDivPowTwoI : public LInstructionHelper<1, 1, 1>
   public:
     LIR_HEADER(DivPowTwoI)
 
-    LDivPowTwoI(const LAllocation &lhs, int32_t shift, const LDefinition &temp)
+    LDivPowTwoI(const LAllocation& lhs, int32_t shift, const LDefinition& temp)
       : shift_(shift)
     {
         setOperand(0, lhs);
         setTemp(0, temp);
     }
 
-    const LAllocation *numerator() {
+    const LAllocation* numerator() {
         return getOperand(0);
     }
 
@@ -159,7 +136,7 @@ class LDivPowTwoI : public LInstructionHelper<1, 1, 1>
         return shift_;
     }
 
-    MDiv *mir() const {
+    MDiv* mir() const {
         return mir_->toDiv();
     }
 };
@@ -177,7 +154,7 @@ class LModI : public LBinaryMath<1>
         setTemp(0, callTemp);
     }
 
-    const LDefinition *callTemp() {
+    const LDefinition* callTemp() {
         return getTemp(0);
     }
 
@@ -197,7 +174,7 @@ class LModPowTwoI : public LInstructionHelper<1, 1, 0>
         return shift_;
     }
 
-    LModPowTwoI(const LAllocation &lhs, int32_t shift)
+    LModPowTwoI(const LAllocation& lhs, int32_t shift)
       : shift_(shift)
     {
         setOperand(0, lhs);
@@ -208,7 +185,7 @@ class LModPowTwoI : public LInstructionHelper<1, 1, 0>
     }
 };
 
-class LModMaskI : public LInstructionHelper<1, 1, 1>
+class LModMaskI : public LInstructionHelper<1, 1, 2>
 {
     const int32_t shift_;
 
@@ -216,7 +193,7 @@ class LModMaskI : public LInstructionHelper<1, 1, 1>
     LIR_HEADER(ModMaskI);
 
     LModMaskI(const LAllocation &lhs, const LDefinition &temp1, int32_t shift)
-      : shift_(shift)
+    : shift_(shift)
     {
         setOperand(0, lhs);
         setTemp(0, temp1);
@@ -235,14 +212,14 @@ class LPowHalfD : public LInstructionHelper<1, 1, 0>
 {
   public:
     LIR_HEADER(PowHalfD);
-    LPowHalfD(const LAllocation &input) {
+    LPowHalfD(const LAllocation& input) {
         setOperand(0, input);
     }
 
-    const LAllocation *input() {
+    const LAllocation* input() {
         return getOperand(0);
     }
-    const LDefinition *output() {
+    const LDefinition* output() {
         return getDef(0);
     }
 };
@@ -261,19 +238,19 @@ class LTableSwitch : public LInstructionHelper<0, 1, 2>
         setMir(ins);
     }
 
-    MTableSwitch *mir() const {
+    MTableSwitch* mir() const {
         return mir_->toTableSwitch();
     }
 
     const LAllocation *index() {
         return getOperand(0);
     }
-    const LDefinition *tempInt() {
-        return getTemp(0);
+    const LAllocation *tempInt() {
+        return getTemp(0)->output();
     }
     // This is added to share the same CodeGenerator prefixes.
-    const LDefinition *tempPointer() {
-        return getTemp(1);
+    const LAllocation *tempPointer() {
+        return getTemp(1)->output();
     }
 };
 
@@ -283,8 +260,8 @@ class LTableSwitchV : public LInstructionHelper<0, BOX_PIECES, 3>
   public:
     LIR_HEADER(TableSwitchV);
 
-    LTableSwitchV(const LDefinition &inputCopy, const LDefinition &floatCopy,
-                  const LDefinition &jumpTablePointer, MTableSwitch *ins)
+    LTableSwitchV(const LDefinition& inputCopy, const LDefinition& floatCopy,
+                  const LDefinition& jumpTablePointer, MTableSwitch* ins)
     {
         setTemp(0, inputCopy);
         setTemp(1, floatCopy);
@@ -292,20 +269,20 @@ class LTableSwitchV : public LInstructionHelper<0, BOX_PIECES, 3>
         setMir(ins);
     }
 
-    MTableSwitch *mir() const {
+    MTableSwitch* mir() const {
         return mir_->toTableSwitch();
     }
 
     static const size_t InputValue = 0;
 
-    const LDefinition *tempInt() {
-        return getTemp(0);
+    const LAllocation* tempInt() {
+        return getTemp(0)->output();
     }
-    const LDefinition *tempFloat() {
-        return getTemp(1);
+    const LAllocation* tempFloat() {
+        return getTemp(1)->output();
     }
-    const LDefinition *tempPointer() {
-        return getTemp(2);
+    const LAllocation* tempPointer() {
+        return getTemp(2)->output();
     }
 };
 
@@ -314,14 +291,14 @@ class LGuardShape : public LInstructionHelper<0, 1, 1>
   public:
     LIR_HEADER(GuardShape);
 
-    LGuardShape(const LAllocation &in, const LDefinition &temp) {
+    LGuardShape(const LAllocation& in, const LDefinition& temp) {
         setOperand(0, in);
         setTemp(0, temp);
     }
-    const MGuardShape *mir() const {
+    const MGuardShape* mir() const {
         return mir_->toGuardShape();
     }
-    const LDefinition *tempInt() {
+    const LDefinition* tempInt() {
         return getTemp(0);
     }
 };
@@ -354,7 +331,7 @@ class LMulI : public LBinaryMath<0>
   public:
     LIR_HEADER(MulI);
 
-    MMul *mir() {
+    MMul* mir() {
         return mir_->toMul();
     }
 };
@@ -364,7 +341,7 @@ class LUDiv : public LBinaryMath<0>
   public:
     LIR_HEADER(UDiv);
 
-    MDiv *mir() {
+    MDiv* mir() {
         return mir_->toDiv();
     }
 };
@@ -374,7 +351,7 @@ class LUMod : public LBinaryMath<0>
   public:
     LIR_HEADER(UMod);
 
-    MMod *mir() {
+    MMod* mir() {
         return mir_->toMod();
     }
 };

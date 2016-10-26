@@ -205,7 +205,7 @@ typedef unsigned Long ULong;
 #if defined(STARBOARD)
 #include "starboard/memory.h"
 #define MALLOC SbMemoryAllocate
-#define FREE SbMemoryFree
+#define FREE SbMemoryDeallocate
 #else
 #include "stdlib.h"
 #include "string.h"

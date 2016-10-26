@@ -45,7 +45,7 @@ void RenderTreeCombiner::UpdateMainRenderTree(
 }
 
 void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
-    const renderer::Submission& render_tree_submission) {
+    const base::optional<renderer::Submission>& render_tree_submission) {
   debug_console_render_tree_ = render_tree_submission;
   SubmitToRenderer();
 }
@@ -105,7 +105,7 @@ void RenderTreeCombiner::UpdateMainRenderTree(
 }
 
 void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
-    const renderer::Submission& render_tree_submission) {
+    const base::optional<renderer::Submission>& render_tree_submission) {
   UNREFERENCED_PARAMETER(render_tree_submission);
 }
 #endif  // ENABLE_DEBUG_CONSOLE

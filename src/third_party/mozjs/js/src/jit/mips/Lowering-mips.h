@@ -56,8 +56,6 @@ class LIRGeneratorMIPS : public LIRGeneratorShared
                      MDefinition *src);
     bool lowerForFPU(LInstructionHelper<1, 2, 0> *ins, MDefinition *mir,
                      MDefinition *lhs, MDefinition *rhs);
-    bool lowerForBitAndAndBranch(LBitAndAndBranch *baab, MInstruction *mir,
-                                 MDefinition *lhs, MDefinition *rhs);
     bool lowerConstantDouble(double d, MInstruction *ins);
     bool lowerConstantFloat32(float d, MInstruction *ins);
     bool lowerTruncateDToInt32(MTruncateToInt32 *ins);
@@ -83,12 +81,13 @@ class LIRGeneratorMIPS : public LIRGeneratorShared
     bool visitGuardShape(MGuardShape *ins);
     bool visitGuardObjectType(MGuardObjectType *ins);
     bool visitAsmJSUnsignedToDouble(MAsmJSUnsignedToDouble *ins);
-    bool visitAsmJSUnsignedToFloat32(MAsmJSUnsignedToFloat32 *ins);
     bool visitAsmJSLoadHeap(MAsmJSLoadHeap *ins);
     bool visitAsmJSStoreHeap(MAsmJSStoreHeap *ins);
     bool visitAsmJSLoadFuncPtr(MAsmJSLoadFuncPtr *ins);
     bool visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStatic *ins);
-    bool visitForkJoinGetSlice(MForkJoinGetSlice *ins);
+    bool visitAsmJSUDiv(MAsmJSUDiv* ins);
+    bool visitAsmJSUMod(MAsmJSUDiv* ins);
+    bool visitInterruptCheck(MInterruptCheck *ins);
 
     static bool allowFloat32Optimizations() {
         return true;

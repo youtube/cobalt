@@ -289,6 +289,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
 
+  // Releases image resources and invalidates computed style if there are images
+  // associated with this html element in the image cache.
+  void ReleaseImagesAndInvalidateComputedStyleIfNecessary();
+
   // The directionality of the html element is determined by the 'dir'
   // attribute.
   // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality

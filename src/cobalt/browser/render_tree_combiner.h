@@ -40,7 +40,7 @@ class RenderTreeCombiner {
 
   // Update the debug console render tree.
   void UpdateDebugConsoleRenderTree(
-      const renderer::Submission& render_tree_submission);
+      const base::optional<renderer::Submission>& render_tree_submission);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   bool render_debug_console() const { return render_debug_console_; }

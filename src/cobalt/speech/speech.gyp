@@ -56,6 +56,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'include_dirs': [
         # Get protobuf headers from the chromium tree.

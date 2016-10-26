@@ -21,14 +21,16 @@ namespace {
 
 const size_t kSize = 1024 * 128;
 
-TEST(SbMemoryFreeTest, FreesNormally) {
-  void* memory = SbMemoryAllocate(kSize);
-  EXPECT_NE(static_cast<void*>(NULL), memory);
-  SbMemoryFree(memory);
+TEST(SbMemoryDeallocateAlignedTest, DeallocatesAligned) {
+  const size_t kMaxAlign = 4096 + 1;
+  for (size_t align = 2; align < kMaxAlign; align <<= 1) {
+    void* memory = SbMemoryAllocateAligned(align, kSize);
+    SbMemoryDeallocateAligned(memory);
+  }
 }
 
-TEST(SbMemoryFreeTest, FreesNull) {
-  SbMemoryFree(NULL);
+TEST(SbMemoryDeallocateAlignedTest, FreesNull) {
+  SbMemoryDeallocateAligned(NULL);
 }
 
 }  // namespace

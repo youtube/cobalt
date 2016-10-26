@@ -266,21 +266,8 @@ void* ReuseAllocator::Allocate(std::size_t size, std::size_t alignment) {
 }
 
 void ReuseAllocator::Free(void* memory) {
-  if (!memory) {
-    return;
-  }
-
-  AllocatedBlockMap::iterator it = allocated_blocks_.find(memory);
-  SB_DCHECK(it != allocated_blocks_.end());
-
-  // Mark this block as free and remove it from the allocated set.
-  const MemoryBlock& block = (*it).second;
-  AddFreeBlock(block);
-
-  SB_DCHECK(block.size() <= total_allocated_);
-  total_allocated_ -= block.size();
-
-  allocated_blocks_.erase(it);
+  bool result = TryFree(memory);
+  SB_DCHECK(result);
 }
 
 void ReuseAllocator::PrintAllocations() const {
@@ -300,6 +287,27 @@ void ReuseAllocator::PrintAllocations() const {
     SB_LOG(INFO) << iter->first << " : " << iter->second;
   }
   SB_LOG(INFO) << "Total allocations: " << allocated_blocks_.size();
+}
+
+bool ReuseAllocator::TryFree(void* memory) {
+  if (!memory) {
+    return true;
+  }
+
+  AllocatedBlockMap::iterator it = allocated_blocks_.find(memory);
+  if (it == allocated_blocks_.end()) {
+    return false;
+  }
+
+  // Mark this block as free and remove it from the allocated set.
+  const MemoryBlock& block = (*it).second;
+  AddFreeBlock(block);
+
+  SB_DCHECK(block.size() <= total_allocated_);
+  total_allocated_ -= block.size();
+
+  allocated_blocks_.erase(it);
+  return true;
 }
 
 }  // namespace nb

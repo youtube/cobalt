@@ -63,6 +63,9 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Typeface> GetLocalTypeface(
       const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
 
+  scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
+      const std::string& font_face_name) OVERRIDE;
+
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
       int32 character, render_tree::FontStyle font_style,
       const std::string& language) OVERRIDE;

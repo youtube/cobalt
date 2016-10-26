@@ -372,9 +372,14 @@ CodeGenerator::testObjectTruthy(Register objreg, Label *ifTruthy, Label *ifFalsy
     // Perform a fast-path check of the object's class flags if the object's
     // not a proxy.  Let out-of-line code handle the slow cases that require
     // saving registers, making a function call, and restoring registers.
+#if defined(JS_CPU_MIPS)
+    masm.branchTestObjectTruthy(false, objreg, scratch, ool->entry(), ifTruthy);
+    masm.jump(ifFalsy);
+#else
     Assembler::Condition cond = masm.branchTestObjectTruthy(true, objreg, scratch, ool->entry());
     masm.j(cond, ifTruthy);
     masm.jump(ifFalsy);
+#endif
 }
 
 void
@@ -385,7 +390,9 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
                                OutOfLineTestObject *ool)
 {
     Register tag = masm.splitTagForTest(value);
+#if !defined(JS_CPU_MIPS)
     Assembler::Condition cond;
+#endif
 
     // Eventually we will want some sort of type filter here. For now, just
     // emit all easy cases. For speed we use the cached tag for all comparison,
@@ -402,8 +409,12 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
 
     Label notInt32;
     masm.branchTestInt32(Assembler::NotEqual, tag, &notInt32);
+#if defined(JS_CPU_MIPS)
+    masm.branchTestInt32Truthy(false, value, ifFalsy);
+#else
     cond = masm.testInt32Truthy(false, value);
     masm.j(cond, ifFalsy);
+#endif
     masm.jump(ifTruthy);
     masm.bind(&notInt32);
 
@@ -423,15 +434,23 @@ CodeGenerator::testValueTruthy(const ValueOperand &value,
     // Test if a string is non-empty.
     Label notString;
     masm.branchTestString(Assembler::NotEqual, tag, &notString);
+#if defined(JS_CPU_MIPS)
+    masm.branchTestStringTruthy(false, value, ifFalsy);
+#else
     cond = masm.testStringTruthy(false, value);
     masm.j(cond, ifFalsy);
+#endif
     masm.jump(ifTruthy);
     masm.bind(&notString);
 
     // If we reach here the value is a double.
     masm.unboxDouble(value, fr);
+#if defined(JS_CPU_MIPS)
+    masm.branchTestDoubleTruthy(false, fr, ifFalsy);
+#else
     cond = masm.testDoubleTruthy(false, fr);
     masm.j(cond, ifFalsy);
+#endif
     masm.jump(ifTruthy);
 }
 
@@ -1560,12 +1579,25 @@ CodeGenerator::visitCallGeneric(LCallGeneric *call)
 
     // Guard that calleereg is actually a function object.
     masm.loadObjClass(calleereg, nargsreg);
+#if defined(JS_CPU_MIPS)
+    masm.branchPtr(Assembler::NotEqual, nargsreg, ImmWord(&JSFunction::class_), &uncompiled);
+#else
     masm.cmpPtr(nargsreg, ImmWord(&JSFunction::class_));
     if (!bailoutIf(Assembler::NotEqual, call->snapshot()))
         return false;
+#endif
 
+#if defined(JS_CPU_MIPS)
+    // Guard that calleereg is an interpreted function with a JSScript.
+    // If we are constructing, also ensure the callee is a constructor.
+    if (call->mir()->isConstructing())
+        masm.branchIfNotInterpretedConstructor(calleereg, nargsreg, &uncompiled);
+    else
+        masm.branchIfFunctionHasNoScript(calleereg, &uncompiled);
+#else
     // Guard that calleereg is an interpreted function with a JSScript:
     masm.branchIfFunctionHasNoScript(calleereg, &uncompiled);
+#endif
 
     // Knowing that calleereg is a non-native function, load the JSScript.
     masm.loadPtr(Address(calleereg, JSFunction::offsetOfNativeOrScript()), objreg);
@@ -1587,8 +1619,12 @@ CodeGenerator::visitCallGeneric(LCallGeneric *call)
 
     // Check whether the provided arguments satisfy target argc.
     masm.load16ZeroExtend(Address(calleereg, offsetof(JSFunction, nargs)), nargsreg);
+#if defined(JS_CPU_MIPS)
+    masm.branch32(Assembler::Above, nargsreg, Imm32(call->numStackArgs()), &thunk);
+#else
     masm.cmp32(nargsreg, Imm32(call->numStackArgs()));
     masm.j(Assembler::Above, &thunk);
+#endif
 
     masm.jump(&makeCall);
 
@@ -1883,9 +1919,16 @@ CodeGenerator::visitApplyArgsGeneric(LApplyArgsGeneric *apply)
     // Unless already known, guard that calleereg is actually a function object.
     if (!apply->hasSingleTarget()) {
         masm.loadObjClass(calleereg, objreg);
+#if defined(JS_CPU_MIPS)
+        ImmWord ptr = ImmWord(&JSFunction::class_);
+        if (!bailoutCmpPtr(Assembler::NotEqual, objreg, ptr, apply->snapshot())) {
+            return false;
+        }
+#else
         masm.cmpPtr(objreg, ImmWord(&JSFunction::class_));
         if (!bailoutIf(Assembler::NotEqual, apply->snapshot()))
             return false;
+#endif
     }
 
     // Copy the arguments of the current function.
@@ -1937,11 +1980,19 @@ CodeGenerator::visitApplyArgsGeneric(LApplyArgsGeneric *apply)
         // Check whether the provided arguments satisfy target argc.
         if (!apply->hasSingleTarget()) {
             masm.load16ZeroExtend(Address(calleereg, offsetof(JSFunction, nargs)), copyreg);
+#if defined(JS_CPU_MIPS)
+            masm.branch32(Assembler::Below, argcreg, copyreg, &underflow);
+#else
             masm.cmp32(argcreg, copyreg);
             masm.j(Assembler::Below, &underflow);
+#endif
         } else {
+#if defined(JS_CPU_MIPS)
+            masm.branch32(Assembler::Below, argcreg, Imm32(apply->getSingleTarget()->nargs), &underflow);
+#else
             masm.cmp32(argcreg, Imm32(apply->getSingleTarget()->nargs));
             masm.j(Assembler::Below, &underflow);
+#endif
         }
 
         // Skip the construction of the rectifier frame because we have no
@@ -2022,8 +2073,14 @@ CodeGenerator::visitGetDynamicName(LGetDynamicName *lir)
     masm.loadValue(Address(StackPointer, 0), out);
     masm.adjustStack(sizeof(Value));
 
+#if defined(JS_CPU_MIPS)
+    Label undefined;
+    masm.branchTestUndefined(Assembler::Equal, out, &undefined);
+    return bailoutFrom(&undefined, lir->snapshot());
+#else
     Assembler::Condition cond = masm.testUndefined(Assembler::Equal, out);
     return bailoutIf(cond, lir->snapshot());
+#endif
 }
 
 bool
@@ -2645,10 +2702,14 @@ CodeGenerator::visitNewSlots(LNewSlots *lir)
     masm.passABIArg(temp1);
     masm.passABIArg(temp2);
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, NewSlots));
-
+#if defined(JS_CPU_MIPS)
+    if (!bailoutTestPtr(Assembler::Zero, output, output, lir->snapshot()))
+        return false;
+#else
     masm.testPtr(output, output);
     if (!bailoutIf(Assembler::Zero, lir->snapshot()))
         return false;
+#endif
 
     return true;
 }
@@ -3307,6 +3368,20 @@ CodeGenerator::visitMinMaxI(LMinMaxI *ins)
 
     JS_ASSERT(first == output);
 
+#if defined(JS_CPU_MIPS)
+    Label done;
+    Assembler::Condition cond = ins->mir()->isMax()
+                                ? Assembler::GreaterThan
+                                : Assembler::LessThan;
+
+    if (ins->second()->isConstant()) {
+        masm.branch32(cond, first, Imm32(ToInt32(ins->second())), &done);
+        masm.move32(Imm32(ToInt32(ins->second())), output);
+    } else {
+        masm.branch32(cond, first, ToRegister(ins->second()), &done);
+        masm.move32(ToRegister(ins->second()), output);
+    }
+#else
     if (ins->second()->isConstant())
         masm.cmp32(first, Imm32(ToInt32(ins->second())));
     else
@@ -3323,6 +3398,7 @@ CodeGenerator::visitMinMaxI(LMinMaxI *ins)
     else
         masm.mov(ToRegister(ins->second()), output);
 
+#endif
 
     masm.bind(&done);
     return true;
@@ -3331,6 +3407,22 @@ CodeGenerator::visitMinMaxI(LMinMaxI *ins)
 bool
 CodeGenerator::visitAbsI(LAbsI *ins)
 {
+#if defined(JS_CPU_MIPS)
+    Register input = ToRegister(ins->input());
+    Label positive;
+
+    JS_ASSERT(input == ToRegister(ins->output()));
+    masm.branchTest32(Assembler::NotSigned, input, input, &positive);
+    masm.neg32(input);
+    LSnapshot *snapshot = ins->snapshot();
+    if (snapshot && !bailoutCmp32(Assembler::Equal, input, Imm32(INT32_MIN), snapshot))
+        return false;
+    masm.bind(&positive);
+
+    return true;
+
+#else  // defined(JS_CPU_MIPS)
+
     Register input = ToRegister(ins->input());
     Label positive;
 
@@ -3343,6 +3435,7 @@ CodeGenerator::visitAbsI(LAbsI *ins)
     masm.bind(&positive);
 
     return true;
+#endif  // defined(JS_CPU_MIPS)
 }
 
 bool
@@ -3755,6 +3848,13 @@ CodeGenerator::visitIsNullOrLikeUndefined(LIsNullOrLikeUndefined *lir)
 
     JS_ASSERT(op == JSOP_STRICTEQ || op == JSOP_STRICTNE);
 
+#if defined(JS_CPU_MIPS)
+    Assembler::Condition cond = JSOpToCondition(compareType, op);
+    if (compareType == MCompare::Compare_Null)
+        masm.testNullSet(cond, value, output);
+    else
+        masm.testUndefinedSet(cond, value, output);
+#else
     Assembler::Condition cond = JSOpToCondition(compareType, op);
     if (compareType == MCompare::Compare_Null)
         cond = masm.testNull(cond, value);
@@ -3762,6 +3862,7 @@ CodeGenerator::visitIsNullOrLikeUndefined(LIsNullOrLikeUndefined *lir)
         cond = masm.testUndefined(cond, value);
 
     masm.emitSet(cond, output);
+#endif
     return true;
 }
 
@@ -3821,6 +3922,13 @@ CodeGenerator::visitIsNullOrLikeUndefinedAndBranch(LIsNullOrLikeUndefinedAndBran
 
     JS_ASSERT(op == JSOP_STRICTEQ || op == JSOP_STRICTNE);
 
+#if defined(JS_CPU_MIPS)
+    Assembler::Condition cond = JSOpToCondition(compareType, op);
+    if (compareType == MCompare::Compare_Null)
+        testNullEmitBranch(cond, value, lir->ifTrue(), lir->ifFalse());
+    else
+        testUndefinedEmitBranch(cond, value, lir->ifTrue(), lir->ifFalse());
+#else
     Assembler::Condition cond = JSOpToCondition(compareType, op);
     if (compareType == MCompare::Compare_Null)
         cond = masm.testNull(cond, value);
@@ -3828,6 +3936,8 @@ CodeGenerator::visitIsNullOrLikeUndefinedAndBranch(LIsNullOrLikeUndefinedAndBran
         cond = masm.testUndefined(cond, value);
 
     emitBranch(cond, lir->ifTrue(), lir->ifFalse());
+#endif
+
     return true;
 }
 
@@ -3961,8 +4071,13 @@ CopyStringChars(MacroAssembler &masm, Register to, Register from, Register len, 
     masm.store16(scratch, Address(to, 0));
     masm.addPtr(Imm32(2), from);
     masm.addPtr(Imm32(2), to);
+
+#if defined(JS_CPU_MIPS)
+    masm.branchSub32(Assembler::NonZero, Imm32(1), len, &start);
+#else
     masm.sub32(Imm32(1), len);
     masm.j(Assembler::NonZero, &start);
+#endif
 }
 
 IonCode *
@@ -4221,17 +4336,92 @@ CodeGenerator::visitBoundsCheck(LBoundsCheck *lir)
                 return true;
             return bailout(lir->snapshot());
         }
+#if defined(JS_CPU_MIPS)
+        return bailoutCmp32(Assembler::BelowOrEqual, ToOperand(lir->length()), Imm32(index), lir->snapshot());
+#else
         masm.cmp32(ToOperand(lir->length()), Imm32(index));
         return bailoutIf(Assembler::BelowOrEqual, lir->snapshot());
+#endif
     }
     if (lir->length()->isConstant()) {
+#if defined(JS_CPU_MIPS)
+        return bailoutCmp32(Assembler::AboveOrEqual, ToRegister(lir->index()), Imm32(ToInt32(lir->length())), lir->snapshot());
+#else
         masm.cmp32(ToRegister(lir->index()), Imm32(ToInt32(lir->length())));
         return bailoutIf(Assembler::AboveOrEqual, lir->snapshot());
+#endif
     }
+#if defined(JS_CPU_MIPS)
+    return bailoutCmp32(Assembler::BelowOrEqual, ToOperand(lir->length()), ToRegister(lir->index()), lir->snapshot());
+#else
     masm.cmp32(ToOperand(lir->length()), ToRegister(lir->index()));
     return bailoutIf(Assembler::BelowOrEqual, lir->snapshot());
+#endif
 }
 
+#if defined(JS_CPU_MIPS)
+bool
+CodeGenerator::visitBoundsCheckRange(LBoundsCheckRange *lir)
+{
+    int32_t min = lir->mir()->minimum();
+    int32_t max = lir->mir()->maximum();
+    JS_ASSERT(max >= min);
+
+    Register temp = ToRegister(lir->getTemp(0));
+    if (lir->index()->isConstant()) {
+        int32_t nmin, nmax;
+        int32_t index = ToInt32(lir->index());
+        if (SafeAdd(index, min, &nmin) && SafeAdd(index, max, &nmax) && nmin >= 0) {
+            return bailoutCmp32(Assembler::BelowOrEqual, ToOperand(lir->length()), Imm32(nmax),
+                                lir->snapshot());
+        }
+        masm.mov(Imm32(index), temp);
+    } else {
+        masm.mov(ToRegister(lir->index()), temp);
+    }
+
+    // If the minimum and maximum differ then do an underflow check first.
+    // If the two are the same then doing an unsigned comparison on the
+    // length will also catch a negative index.
+    if (min != max) {
+        if (min != 0) {
+            Label bail;
+            masm.branchAdd32(Assembler::Overflow, Imm32(min), temp, &bail);
+            if (!bailoutFrom(&bail, lir->snapshot()))
+                return false;
+        }
+
+        if (!bailoutCmp32(Assembler::LessThan, temp, Imm32(0), lir->snapshot()))
+            return false;
+
+        if (min != 0) {
+            int32_t diff;
+            if (SafeSub(max, min, &diff))
+                max = diff;
+            else
+                masm.sub32(Imm32(min), temp);
+        }
+    }
+
+    // Compute the maximum possible index. No overflow check is needed when
+    // max > 0. We can only wraparound to a negative number, which will test as
+    // larger than all nonnegative numbers in the unsigned comparison, and the
+    // length is required to be nonnegative (else testing a negative length
+    // would succeed on any nonnegative index).
+    if (max != 0) {
+        if (max < 0) {
+            Label bail;
+            masm.branchAdd32(Assembler::Overflow, Imm32(max), temp, &bail);
+            if (!bailoutFrom(&bail, lir->snapshot()))
+                return false;
+        } else {
+            masm.add32(Imm32(max), temp);
+        }
+    }
+
+    return bailoutCmp32(Assembler::BelowOrEqual, ToOperand(lir->length()), temp, lir->snapshot());
+}
+#else
 bool
 CodeGenerator::visitBoundsCheckRange(LBoundsCheckRange *lir)
 {
@@ -4261,7 +4451,6 @@ CodeGenerator::visitBoundsCheckRange(LBoundsCheckRange *lir)
             if (!bailoutIf(Assembler::Overflow, lir->snapshot()))
                 return false;
         }
-
         masm.cmp32(temp, Imm32(0));
         if (!bailoutIf(Assembler::LessThan, lir->snapshot()))
             return false;
@@ -4290,13 +4479,19 @@ CodeGenerator::visitBoundsCheckRange(LBoundsCheckRange *lir)
     masm.cmp32(ToOperand(lir->length()), temp);
     return bailoutIf(Assembler::BelowOrEqual, lir->snapshot());
 }
+#endif
 
 bool
 CodeGenerator::visitBoundsCheckLower(LBoundsCheckLower *lir)
 {
     int32_t min = lir->mir()->minimum();
+#if defined(JS_CPU_MIPS)
+    return bailoutCmp32(Assembler::LessThan, ToRegister(lir->index()), Imm32(min),
+                        lir->snapshot());
+#else
     masm.cmp32(ToRegister(lir->index()), Imm32(min));
     return bailoutIf(Assembler::LessThan, lir->snapshot());
+#endif
 }
 
 class OutOfLineStoreElementHole : public OutOfLineCodeBase<CodeGenerator>
@@ -4325,12 +4520,24 @@ class OutOfLineStoreElementHole : public OutOfLineCodeBase<CodeGenerator>
 bool
 CodeGenerator::emitStoreHoleCheck(Register elements, const LAllocation *index, LSnapshot *snapshot)
 {
+#if defined(JS_CPU_MIPS)
+    Label bail;
+    if (index->isConstant()) {
+        masm.branchTestMagic(Assembler::Equal,
+                             Address(elements, ToInt32(index) * sizeof(js::Value)), &bail);
+    } else {
+        masm.branchTestMagic(Assembler::Equal,
+                             BaseIndex(elements, ToRegister(index), TimesEight), &bail);
+    }
+    return bailoutFrom(&bail, snapshot);
+#else
     Assembler::Condition cond;
     if (index->isConstant())
         cond = masm.testMagic(Assembler::Equal, Address(elements, ToInt32(index) * sizeof(js::Value)));
     else
         cond = masm.testMagic(Assembler::Equal, BaseIndex(elements, ToRegister(index), TimesEight));
     return bailoutIf(cond, snapshot);
+#endif
 }
 
 bool
@@ -4428,6 +4635,94 @@ typedef bool (*SetObjectElementFn)(JSContext *, HandleObject,
 static const VMFunction SetObjectElementInfo =
     FunctionInfo<SetObjectElementFn>(SetObjectElement);
 
+#if defined(JS_CPU_MIPS)
+bool
+CodeGenerator::visitOutOfLineStoreElementHole(OutOfLineStoreElementHole *ool)
+{
+    Register object, elements;
+    LInstruction *ins = ool->ins();
+    const LAllocation *index;
+    MIRType valueType;
+    ConstantOrRegister value;
+
+    if (ins->isStoreElementHoleV()) {
+        LStoreElementHoleV *store = ins->toStoreElementHoleV();
+        object = ToRegister(store->object());
+        elements = ToRegister(store->elements());
+        index = store->index();
+        valueType = store->mir()->value()->type();
+        value = TypedOrValueRegister(ToValue(store, LStoreElementHoleV::Value));
+    } else {
+        LStoreElementHoleT *store = ins->toStoreElementHoleT();
+        object = ToRegister(store->object());
+        elements = ToRegister(store->elements());
+        index = store->index();
+        valueType = store->mir()->value()->type();
+        if (store->value()->isConstant())
+            value = ConstantOrRegister(*store->value()->toConstant());
+        else
+            value = TypedOrValueRegister(valueType, ToAnyRegister(store->value()));
+    }
+
+    // If index == initializedLength, try to bump the initialized length inline.
+    // If index > initializedLength, call a stub. Note that this relies on the
+    // condition flags sticking from the incoming branch.
+    Label callStub;
+    // Had to reimplement for MIPS because there are no flags.
+    Address initLength(elements, ObjectElements::offsetOfInitializedLength());
+    masm.branchKey(Assembler::NotEqual, initLength, ToInt32Key(index), &callStub);
+
+    Int32Key key = ToInt32Key(index);
+
+    // Check array capacity.
+    masm.branchKey(Assembler::BelowOrEqual, Address(elements, ObjectElements::offsetOfCapacity()),
+                   key, &callStub);
+
+    // Update initialized length. The capacity guard above ensures this won't overflow,
+    // due to NELEMENTS_LIMIT.
+    masm.bumpKey(&key, 1);
+    masm.storeKey(key, Address(elements, ObjectElements::offsetOfInitializedLength()));
+
+    // Update length if length < initializedLength.
+    Label dontUpdate;
+    masm.branchKey(Assembler::AboveOrEqual, Address(elements, ObjectElements::offsetOfLength()),
+                   key, &dontUpdate);
+    masm.storeKey(key, Address(elements, ObjectElements::offsetOfLength()));
+    masm.bind(&dontUpdate);
+
+    masm.bumpKey(&key, -1);
+
+    if (ins->isStoreElementHoleT() && valueType != MIRType_Double) {
+        // The inline path for StoreElementHoleT does not always store the type tag,
+        // so we do the store on the OOL path. We use MIRType_None for the element type
+        // so that storeElementTyped will always store the type tag.
+        storeElementTyped(ins->toStoreElementHoleT()->value(), valueType, MIRType_None, elements,
+                          index);
+        masm.jump(ool->rejoin());
+    } else {
+        // Jump to the inline path where we will store the value.
+        masm.jump(ool->rejoinStore());
+    }
+
+    masm.bind(&callStub);
+    saveLive(ins);
+
+    pushArg(Imm32(current->mir()->strict()));
+    pushArg(value);
+    if (index->isConstant())
+        pushArg(Imm32(ToInt32(index)));
+    else
+        pushArg(ToRegister(index));
+    pushArg(object);
+    // if (!callVM(SetDenseElementInfo, ins))
+    if (!callVM(SetObjectElementInfo, ins))
+        return false;
+
+    restoreLive(ins);
+    masm.jump(ool->rejoin());
+    return true;
+}
+#else
 bool
 CodeGenerator::visitOutOfLineStoreElementHole(OutOfLineStoreElementHole *ool)
 {
@@ -4584,6 +4879,7 @@ CodeGenerator::visitOutOfLineStoreElementHole(OutOfLineStoreElementHole *ool)
     JS_ASSERT(false);
     return false;
 }
+#endif
 
 typedef bool (*ArrayPopShiftFn)(JSContext *, HandleObject, MutableHandleValue);
 static const VMFunction ArrayPopDenseInfo = FunctionInfo<ArrayPopShiftFn>(jit::ArrayPopDense);
@@ -4971,8 +5267,12 @@ CodeGenerator::visitIteratorMore(LIteratorMore *lir)
 
     // Set output to true if props_cursor < props_end.
     masm.loadPtr(Address(output, offsetof(NativeIterator, props_end)), temp);
+#if defined(JS_CPU_MIPS)
+    masm.cmpPtrSet(Assembler::LessThan, Address(output, offsetof(NativeIterator, props_cursor)), temp, output);
+#else
     masm.cmpPtr(Address(output, offsetof(NativeIterator, props_cursor)), temp);
     masm.emitSet(Assembler::LessThan, output);
+#endif
 
     masm.bind(ool->rejoin());
     return true;
@@ -5225,6 +5525,7 @@ CodeGenerator::link()
 
     Linker linker(masm);
     IonCode *code = linker.newCode(cx, JSC::ION_CODE);
+
     if (!code)
         return false;
 
@@ -5373,9 +5674,16 @@ CodeGenerator::visitOutOfLineUnboxDouble(OutOfLineUnboxDouble *ool)
     const ValueOperand value = ToValue(ins, LUnboxDouble::Input);
 
     if (ins->mir()->fallible()) {
+#if defined(JS_CPU_MIPS)
+        Label bail;
+        masm.branchTestInt32(Assembler::NotEqual, value, &bail);
+        if (!bailoutFrom(&bail, ins->snapshot()))
+            return false;
+#else
         Assembler::Condition cond = masm.testInt32(Assembler::NotEqual, value);
         if (!bailoutIf(cond, ins->snapshot()))
             return false;
+#endif
     }
     masm.int32ValueToDouble(value, ToFloatRegister(ins->output()));
     masm.jump(ool->rejoin());
@@ -6050,6 +6358,28 @@ CodeGenerator::visitToIdV(LToIdV *lir)
     return true;
 }
 
+#if defined(JS_CPU_MIPS)
+bool
+CodeGenerator::visitLoadElementV(LLoadElementV *load)
+{
+    Register elements = ToRegister(load->elements());
+    const ValueOperand out = ToOutValue(load);
+
+    if (load->index()->isConstant())
+        masm.loadValue(Address(elements, ToInt32(load->index()) * sizeof(Value)), out);
+    else
+        masm.loadValue(BaseIndex(elements, ToRegister(load->index()), TimesEight), out);
+
+    if (load->mir()->needsHoleCheck()) {
+        Label testMagic;
+        masm.branchTestMagic(Assembler::Equal, out, &testMagic);
+        if (!bailoutFrom(&testMagic, load->snapshot()))
+            return false;
+    }
+
+    return true;
+}
+#else
 bool
 CodeGenerator::visitLoadElementV(LLoadElementV *load)
 {
@@ -6069,6 +6399,7 @@ CodeGenerator::visitLoadElementV(LLoadElementV *load)
 
     return true;
 }
+#endif
 
 bool
 CodeGenerator::visitLoadElementHole(LLoadElementHole *lir)
@@ -6825,8 +7156,12 @@ CodeGenerator::visitIsCallable(LIsCallable *ins)
     masm.jump(&done);
 
     masm.bind(&notFunction);
+#if defined(JS_CPU_MIPS)
+    masm.cmpPtrSet(Assembler::NonZero, Address(output, offsetof(js::Class, call)), ImmWord((void*)NULL), output);
+#else
     masm.cmpPtr(Address(output, offsetof(js::Class, call)), ImmWord((void *)NULL));
     masm.emitSet(Assembler::NonZero, output);
+#endif
     masm.bind(&done);
 
     return true;
@@ -6880,8 +7215,12 @@ CodeGenerator::visitHaveSameClass(LHaveSameClass *ins)
 
     masm.loadObjClass(lhs, temp);
     masm.loadObjClass(rhs, output);
+#if defined(JS_CPU_MIPS)
+    masm.cmpPtrSet(Assembler::Equal, temp, output, output);
+#else
     masm.cmpPtr(temp, output);
     masm.emitSet(Assembler::Equal, output);
+#endif
 
     return true;
 }

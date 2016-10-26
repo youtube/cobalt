@@ -664,13 +664,13 @@ void HTMLElement::UpdateComputedStyleRecursively(
 
 void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
   layout_boxes_.reset();
-  cached_background_images_.clear();
+  ReleaseImagesAndInvalidateComputedStyleIfNecessary();
   Node::InvalidateLayoutBoxesFromNodeAndAncestors();
 }
 
 void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
   layout_boxes_.reset();
-  cached_background_images_.clear();
+  ReleaseImagesAndInvalidateComputedStyleIfNecessary();
   Node::InvalidateLayoutBoxesFromNodeAndDescendants();
 }
 
@@ -1081,6 +1081,13 @@ bool HTMLElement::IsRootElement() {
   // The html element represents the root of an HTML document.
   //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
   return AsHTMLHtmlElement() != NULL;
+}
+
+void HTMLElement::ReleaseImagesAndInvalidateComputedStyleIfNecessary() {
+  if (!cached_background_images_.empty()) {
+    cached_background_images_.clear();
+    computed_style_valid_ = false;
+  }
 }
 
 }  // namespace dom

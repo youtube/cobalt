@@ -8,7 +8,6 @@
 #define jit_mips_Bailouts_mips_h
 
 #include "jit/Bailouts.h"
-#include "jit/JitCompartment.h"
 
 namespace js {
 namespace jit {
@@ -26,8 +25,8 @@ class BailoutStack
     };
 
   protected:
-    mozilla::Array<double, FloatRegisters::Total> fpregs_;
-    mozilla::Array<uintptr_t, Registers::Total> regs_;
+    double    fpregs_[FloatRegisters::Total];
+    uintptr_t regs_[Registers::Total];
 
     uintptr_t snapshotOffset_;
     uintptr_t padding_;

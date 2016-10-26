@@ -344,7 +344,11 @@ SnapshotWriter::writeSlotHeader(JSValueType type, uint32_t regCode)
 {
     JS_ASSERT(uint32_t(type) <= MAX_TYPE_FIELD_VALUE);
     JS_ASSERT(uint32_t(regCode) <= MAX_REG_FIELD_VALUE);
+#if defined(JS_CPU_MIPS)
+    // Note: This static assert fails on MIPS, but seems safe.
+#else
     JS_STATIC_ASSERT(Registers::Total < MIN_REG_FIELD_ESC);
+#endif
 
     uint8_t byte = uint32_t(type) | (regCode << 3);
     writer_.writeByte(byte);

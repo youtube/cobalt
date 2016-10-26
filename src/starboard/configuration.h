@@ -186,6 +186,26 @@ struct CompileAssert {};
 #endif  // SB_IS(COMPILER_MSVC)
 #endif  // !defined(SB_UNLIKELY)
 
+// SB_DEPRECATED(int Foo(int bar));
+//   Annotates the function as deprecated, which will trigger a compiler
+//   warning when referenced.
+#if SB_IS(COMPILER_GCC)
+#define SB_DEPRECATED(FUNC) FUNC __attribute__((deprecated))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_DEPRECATED(FUNC) __declspec(deprecated) FUNC
+#else
+// Empty definition for other compilers.
+#define SB_DEPRECATED(FUNC) FUNC
+#endif
+
+// SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for
+// external clients, but not deprecated for starboard.
+#if defined(STARBOARD_IMPLEMENTATION)
+#define SB_DEPRECATED_EXTERNAL(FUNC) FUNC
+#else
+#define SB_DEPRECATED_EXTERNAL(FUNC) SB_DEPRECATED(FUNC)
+#endif
+
 // A macro to disallow the copy constructor and operator= functions
 // This should be used in the private: declarations for a class
 #define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
@@ -367,6 +387,20 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
 #endif
+
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
+
+#if !defined(SB_HAS_REAL_TIME_PRIORITY_SUPPORT)
+#error "Your platform must define SB_HAS_REAL_TIME_PRIORITY_SUPPORT."
+#endif
+
+#else  // SB_HAS(THREAD_PRIORITY_SUPPORT)
+
+#if defined(SB_HAS_REAL_TIME_PRIORITY_SUPPORT)
+#error "Don't define SB_HAS_REAL_TIME_PRIORITY_SUPPORT without priorities."
+#endif
+
+#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT)
 
 #if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
 // Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above

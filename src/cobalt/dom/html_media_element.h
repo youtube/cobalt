@@ -53,7 +53,7 @@ class HTMLMediaElement : public HTMLElement,
   // Web API: HTMLMediaElement
   //
   // Error state
-  scoped_refptr<MediaError> error() const { return error_; }
+  scoped_refptr<MediaError> error() const;
 
   // Network state
   std::string src() const;

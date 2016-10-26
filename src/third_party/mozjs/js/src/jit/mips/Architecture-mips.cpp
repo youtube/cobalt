@@ -47,30 +47,6 @@ bool hasFPU()
     return js::jit::GetMIPSFlags() & HWCAP_FPU;
 }
 
-Registers::Code
-Registers::FromName(const char *name)
-{
-    for (size_t i = 0; i < Total; i++) {
-        if (strcmp(GetName(i), name) == 0)
-            return Code(i);
-    }
-
-    return Invalid;
-}
-
-FloatRegisters::Code
-FloatRegisters::FromName(const char *name)
-{
-    for (size_t i = 0; i < Total; i++) {
-        if (strcmp(GetName(i), name) == 0)
-            return Code(i);
-    }
-
-    return Invalid;
-}
-
-
-
 } // namespace ion
 } // namespace js
 

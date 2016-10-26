@@ -50,6 +50,10 @@
 #endif  // defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#include "starboard/log.h"
+#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace browser {
@@ -61,7 +65,12 @@ const char kDefaultURL[] = "https://www.youtube.com/tv";
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
+#if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
+  const int kDefaultRemoteDebuggingPort =
+      SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT;
+#else
   const int kDefaultRemoteDebuggingPort = 9222;
+#endif  // defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
   int remote_debugging_port = kDefaultRemoteDebuggingPort;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -163,6 +172,31 @@ void EnableUsingStubImageDecoderIfRequired() {
   }
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+std::string GetMinLogLevelString() {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kMinLogLevel)) {
+    return command_line->GetSwitchValueASCII(switches::kMinLogLevel);
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+  return "info";
+}
+
+int StringToLogLevel(const std::string& log_level) {
+  if (log_level == "info") {
+    return logging::LOG_INFO;
+  } else if (log_level == "warning") {
+    return logging::LOG_WARNING;
+  } else if (log_level == "error") {
+    return logging::LOG_ERROR;
+  } else if (log_level == "fatal") {
+    return logging::LOG_FATAL;
+  } else {
+    NOTREACHED() << "Unrecognized logging level: " << log_level;
+    return logging::LOG_INFO;
+  }
+}
 
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
   if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
@@ -266,6 +300,9 @@ Application::Application(const base::Closure& quit_closure)
   application_event_thread_checker_.DetachFromThread();
 
   RegisterUserLogs();
+
+  // Set the minimum logging level, if specified on the command line.
+  logging::SetMinLogLevel(StringToLogLevel(GetMinLogLevelString()));
 
   stats_update_timer_.Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(kStatUpdatePeriodMs),

@@ -13,8 +13,12 @@
 # include "x86/BaselineRegisters-x86.h"
 #elif defined(JS_CPU_X64)
 # include "x64/BaselineRegisters-x64.h"
-#else
+#elif defined(JS_CPU_ARM)
 # include "arm/BaselineRegisters-arm.h"
+#elif defined(JS_CPU_MIPS)
+# include "mips/BaselineRegisters-mips.h"
+#else
+#error "Unknown CPU architecture."
 #endif
 
 namespace js {
