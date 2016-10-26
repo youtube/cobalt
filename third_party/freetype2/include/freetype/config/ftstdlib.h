@@ -182,7 +182,7 @@ static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
   SbMemorySet(memory, 0, size);
   return memory;
 }
-#define ft_sfree     SbMemoryFree
+#define ft_sfree     SbMemoryDeallocate
 #define ft_smalloc   SbMemoryAllocate
 #define ft_srealloc  SbMemoryReallocate
 #else
