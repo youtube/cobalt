@@ -87,6 +87,17 @@ EngineStats::EngineStats()
                     "Total JavaScript engine registered.") {
 }
 
+// Pretend we always preserve wrappers since we never call
+// SetPreserveWrapperCallback anywhere else. This is necessary for
+// TryPreserveReflector called by WeakMap to not crash. Disabling
+// bindings to WeakMap does not appear to be an easy option because
+// of its use in selfhosted.js. See bugzilla discussion linked where
+// they decided to include a similar dummy in the mozjs shell.
+// https://bugzilla.mozilla.org/show_bug.cgi?id=829798
+bool DummyPreserveWrapperCallback(JSContext *cx, JSObject *obj) {
+  return true;
+}
+
 }  // namespace
 
 MozjsEngine::MozjsEngine() {
@@ -123,6 +134,8 @@ MozjsEngine::MozjsEngine() {
 
   // Callback to be called during garbage collection during the sweep phase.
   JS_SetFinalizeCallback(runtime_, &MozjsEngine::FinalizeCallback);
+
+  js::SetPreserveWrapperCallback(runtime_, DummyPreserveWrapperCallback);
 
   EngineStats::GetInstance()->EngineCreated();
 }
