@@ -1,0 +1,107 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "810004b4_2186b462",
+        "filename": "src/starboard/shared/wayland/window_create.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-26T17:04:25Z",
+      "side": 1,
+      "message": "Note, this is exactly where the shared wayland code should live! Thanks!",
+      "revId": "1a7927abd7a0e873429c39821a5a8bbaf43b3220",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "810004b4_41892871",
+        "filename": "src/starboard/tizen/shared/application_tizen.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 31,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-26T17:04:25Z",
+      "side": 1,
+      "message": "The Google coding conventions ask that line length should be no more than 80 characters long...\nhttps://google.github.io/styleguide/cppguide.html#Line_Length",
+      "range": {
+        "startLine": 31,
+        "startChar": 0,
+        "endLine": 31,
+        "endChar": 131
+      },
+      "revId": "1a7927abd7a0e873429c39821a5a8bbaf43b3220",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "810004b4_a17004c1",
+        "filename": "src/starboard/tizen/shared/application_tizen.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 54,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-26T17:04:25Z",
+      "side": 1,
+      "message": "Would it be possible to move all these static global variables and functions to private fields and methods in the Application class itself? We try to avoid global fields whenever possible.",
+      "range": {
+        "startLine": 23,
+        "startChar": 0,
+        "endLine": 54,
+        "endChar": 140
+      },
+      "revId": "1a7927abd7a0e873429c39821a5a8bbaf43b3220",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "810004b4_0141f054",
+        "filename": "src/starboard/tizen/shared/application_tizen.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-26T17:04:25Z",
+      "side": 1,
+      "message": "I suggest having ApplicationWayland in src/starboard/shared/wayland/application_wayland.* and then having an ApplicationTizen that extends ApplicationWayland.\n\nThat keeps the Wayland-specific code (window + input) all in shared/wayland. Then, if there is another platform that uses wayland, it can use the same functionality...",
+      "revId": "1a7927abd7a0e873429c39821a5a8bbaf43b3220",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "810004b4_e1c83cb1",
+        "filename": "src/starboard/tizen/shared/main.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 15,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-10-26T17:04:25Z",
+      "side": 1,
+      "message": "I think this is probably also not necessary?",
+      "range": {
+        "startLine": 15,
+        "startChar": 0,
+        "endLine": 15,
+        "endChar": 17
+      },
+      "revId": "1a7927abd7a0e873429c39821a5a8bbaf43b3220",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    }
+  ]
+}
