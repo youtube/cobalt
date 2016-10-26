@@ -20,6 +20,7 @@
 #include <string>
 
 #include "cobalt/network/network_module.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/speech/mic.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
@@ -45,10 +46,18 @@ class SpeechRecognitionManager {
 
   // Start/Stop speech recognizer and microphone. Multiple calls would be
   // managed by their own class.
-  void Start(const SpeechRecognitionConfig& config);
+  void Start(const SpeechRecognitionConfig& config,
+             script::ExceptionState* exception_state);
   void Stop();
+  void Abort();
 
  private:
+  enum State {
+    kStarted,
+    kStopped,
+    kAborted,
+  };
+
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<AudioBus> audio_bus);
   void OnDataCompletion();
@@ -67,6 +76,7 @@ class SpeechRecognitionManager {
   EventCallback event_callback_;
   SpeechRecognizer recognizer_;
   scoped_ptr<Mic> mic_;
+  State state_;
 };
 
 }  // namespace speech

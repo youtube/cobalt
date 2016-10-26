@@ -36,7 +36,7 @@ class SpeechRecognition : public dom::EventTarget {
 
   // When the start method is called, it represents the moment in time the web
   // application wishes to begin recognition.
-  void Start();
+  void Start(script::ExceptionState* exception_state);
   // The stop method represents an instruction to the recognition service to
   // stop listening to more audio, and to try and return a result using just the
   // audio that it has already received for this recognition.
