@@ -5,6 +5,13 @@ Release:   1
 License:   MPL or BSD-3-clause
 Source0:   %{name}-%{version}.tar.gz
 
+
+%if 0%{?nodebug}
+%global __debug_install_post %{nil}
+%global debug_package %{nil}
+%endif
+
+
 Requires: /usr/bin/systemctl
 Requires(post): /sbin/ldconfig
 Requires(post): xkeyboard-config
@@ -16,6 +23,7 @@ BuildRequires: libasound-devel
 BuildRequires: pkgconfig(wayland-egl)
 BuildRequires: pkgconfig(wayland-client)
 BuildRequires: pkgconfig(dlog)
+BuildRequires: pkgconfig(icu-i18n)
 
 %if "%{?use_public_repo}" == "1"
 BuildRequires: pkgconfig(egl)
@@ -45,12 +53,14 @@ src/cobalt/build/ninja/ninja-linux32.armv7l \
 -C src/out/tizen-armv7l_devel cobalt
 
 %clean
-rm -rf src/out
+#Don't delete src/out
+#rm -rf src/out
 
 %install
 rm -rf %{buildroot}
 install -d %{buildroot}%{_bindir}
 install -m 0755 %{_outdir}/%{_name} %{buildroot}%{_bindir}
+cp -rd %{_outdir}/content %{buildroot}%{_bindir}
 
 %post
 
@@ -60,3 +70,4 @@ install -m 0755 %{_outdir}/%{_name} %{buildroot}%{_bindir}
 %manifest packaging/cobalt.manifest
 %defattr(-,root,root,-)
 %{_bindir}/%{_name}
+%{_bindir}/content
