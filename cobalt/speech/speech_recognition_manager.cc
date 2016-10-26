@@ -17,6 +17,7 @@
 #include "cobalt/speech/speech_recognition_manager.h"
 
 #include "base/bind.h"
+#include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
 namespace speech {
@@ -42,22 +43,54 @@ SpeechRecognitionManager::SpeechRecognitionManager(
           base::Bind(&SpeechRecognitionManager::OnDataCompletion,
                      base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnMicError,
-                     base::Unretained(this))))) {}
+                     base::Unretained(this))))),
+      state_(kStopped) {}
 
 SpeechRecognitionManager::~SpeechRecognitionManager() { Stop(); }
 
-void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config) {
+void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
+                                     script::ExceptionState* exception_state) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
+
+  // If the start method is called on an already started object, the user agent
+  // MUST throw an InvalidStateError exception and ignore the call.
+  if (state_ == kStarted) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
 
   recognizer_.Start(config, kSampleRate);
   mic_->Start();
+  state_ = kStarted;
 }
 
 void SpeechRecognitionManager::Stop() {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
+  // If the stop method is called on an object which is already stopped or being
+  // stopped, the user agent MUST ignore the call.
+  if (state_ != kStarted) {
+    return;
+  }
+
   mic_->Stop();
   recognizer_.Stop();
+  state_ = kStopped;
+}
+
+void SpeechRecognitionManager::Abort() {
+  DCHECK(main_message_loop_->BelongsToCurrentThread());
+
+  // If the abort method is called on an object which is already stopped or
+  // aborting, the user agent MUST ignore the call.
+  if (state_ != kStarted) {
+    return;
+  }
+
+  mic_->Stop();
+  recognizer_.Stop();
+  state_ = kAborted;
 }
 
 void SpeechRecognitionManager::OnDataReceived(scoped_ptr<AudioBus> audio_bus) {
@@ -69,7 +102,10 @@ void SpeechRecognitionManager::OnDataReceived(scoped_ptr<AudioBus> audio_bus) {
     return;
   }
 
-  recognizer_.RecognizeAudio(audio_bus.Pass(), false);
+  // Stop recognizing if in the abort state.
+  if (state_ != kAborted) {
+    recognizer_.RecognizeAudio(audio_bus.Pass(), false);
+  }
 }
 
 void SpeechRecognitionManager::OnDataCompletion() {
@@ -81,14 +117,17 @@ void SpeechRecognitionManager::OnDataCompletion() {
     return;
   }
 
-  // The encoder requires a non-empty final buffer, so encoding a packet of
-  // silence at the end in case encoder had no data already.
-  size_t dummy_frames =
-      static_cast<size_t>(kSampleRate * kAudioPacketDurationInSeconds);
-  scoped_ptr<AudioBus> dummy_audio_bus =
-      AudioBus::Create(1, static_cast<int>(dummy_frames));
-  memset(dummy_audio_bus->channel(0), 0, dummy_frames);
-  recognizer_.RecognizeAudio(dummy_audio_bus.Pass(), true);
+  // Stop recognizing if in the abort state.
+  if (state_ != kAborted) {
+    // The encoder requires a non-empty final buffer, so encoding a packet of
+    // silence at the end in case encoder had no data already.
+    size_t dummy_frames =
+        static_cast<size_t>(kSampleRate * kAudioPacketDurationInSeconds);
+    scoped_ptr<AudioBus> dummy_audio_bus =
+        AudioBus::Create(1, static_cast<int>(dummy_frames));
+    memset(dummy_audio_bus->channel(0), 0, dummy_frames);
+    recognizer_.RecognizeAudio(dummy_audio_bus.Pass(), true);
+  }
 }
 
 void SpeechRecognitionManager::OnRecognizerEvent(
@@ -101,7 +140,10 @@ void SpeechRecognitionManager::OnRecognizerEvent(
     return;
   }
 
-  event_callback_.Run(event);
+  // Do not return any information if in the abort state.
+  if (state_ != kAborted) {
+    event_callback_.Run(event);
+  }
 }
 
 void SpeechRecognitionManager::OnMicError() {
@@ -116,6 +158,10 @@ void SpeechRecognitionManager::OnMicError() {
   event_callback_.Run(
       scoped_refptr<SpeechRecognitionError>(new SpeechRecognitionError(
           SpeechRecognitionError::kAborted, "Mic Disconnected.")));
+
+  // An error is occured in Mic, so stopping the recognizer.
+  recognizer_.Stop();
+  state_ = kAborted;
 }
 
 }  // namespace speech
