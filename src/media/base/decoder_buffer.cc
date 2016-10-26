@@ -23,8 +23,8 @@ namespace media {
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer(
     base::TimeDelta timestamp) {
-  scoped_refptr<DecoderBuffer> eos = scoped_refptr<DecoderBuffer>(
-      new DecoderBuffer(NULL, 0));
+  scoped_refptr<DecoderBuffer> eos =
+      scoped_refptr<DecoderBuffer>(new DecoderBuffer(NULL, 0, true));
   eos->SetTimestamp(timestamp);
   return eos;
 }
@@ -34,12 +34,15 @@ void DecoderBuffer::ShrinkTo(int size) {
   size_ = size;
 }
 
-DecoderBuffer::DecoderBuffer(uint8* reusable_buffer, size_t size)
-    : Buffer(kNoTimestamp(), kInfiniteDuration())
-    , buffer_(reusable_buffer)
-    , size_(size)
-    , allocated_size_(size)
-    , is_decrypted_(false) {
+DecoderBuffer::DecoderBuffer(uint8* reusable_buffer,
+                             size_t size,
+                             bool is_keyframe)
+    : Buffer(kNoTimestamp(), kInfiniteDuration()),
+      buffer_(reusable_buffer),
+      size_(size),
+      allocated_size_(size),
+      is_decrypted_(false),
+      is_keyframe_(is_keyframe) {
   if (buffer_) {
     // Retain a reference to the buffer factory, to ensure that we do not
     // outlive it.

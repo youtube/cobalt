@@ -611,6 +611,8 @@ void BrowserModule::Suspend() {
   // render tree resources either.
   render_tree_combiner_.Reset();
 
+  media_module_->Suspend();
+
   // Place the renderer module into a suspended state where it releases all its
   // graphical resources.
   renderer_module_.Suspend();
@@ -623,6 +625,8 @@ void BrowserModule::Resume() {
   DCHECK(suspended_);
 
   renderer_module_.Resume();
+
+  media_module_->Resume();
 
   // Note that at this point, it is probable that this resource provider is
   // different than the one that was managed in the associated call to

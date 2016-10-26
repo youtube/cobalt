@@ -47,7 +47,8 @@ scoped_refptr<DecoderBuffer> DecoderBufferPool::Allocate(size_t size_in_bytes) {
 
 scoped_refptr<DecoderBuffer> DecoderBufferPool::AllocateFromShellBufferFactory(
     size_t size_in_bytes) {
-  return ShellBufferFactory::Instance()->AllocateBufferNow(size_in_bytes);
+  return ShellBufferFactory::Instance()->AllocateBufferNow(size_in_bytes,
+                                                           false);
 }
 
 }  // namespace media

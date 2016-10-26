@@ -116,6 +116,7 @@
         '../dom/MediaKeyNeededEvent.idl',
         '../dom/MediaQueryList.idl',
         '../dom/MediaSource.idl',
+        '../dom/MemoryInfo.idl',
         '../dom/MimeTypeArray.idl',
         '../dom/NamedNodeMap.idl',
         '../dom/Navigator.idl',

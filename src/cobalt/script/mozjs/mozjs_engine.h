@@ -34,6 +34,7 @@ class MozjsEngine : public JavaScriptEngine {
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
+  size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
 
  private:
   static JSBool ContextCallback(JSContext* context, unsigned context_op);

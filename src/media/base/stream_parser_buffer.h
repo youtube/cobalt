@@ -19,8 +19,6 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   static scoped_refptr<StreamParserBuffer> CopyFrom(
       const uint8* data, int data_size, bool is_keyframe);
 
-  bool IsKeyframe() const { return is_keyframe_; }
-
   // Decode timestamp. If not explicitly set, or set to kNoTimestamp(), the
   // value will be taken from the normal timestamp.
   base::TimeDelta GetDecodeTimestamp() const;
@@ -39,7 +37,6 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
 #endif
   virtual ~StreamParserBuffer();
 
-  bool is_keyframe_;
   base::TimeDelta decode_timestamp_;
   int config_id_;
   DISALLOW_COPY_AND_ASSIGN(StreamParserBuffer);

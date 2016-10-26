@@ -33,12 +33,14 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
       base::TimeDelta timestamp);
 
   // Buffer implementation.
-  virtual const uint8* GetData() const OVERRIDE { return buffer_; }
+  const uint8* GetData() const OVERRIDE { return buffer_; }
   // Data size can be less than allocated size after ShrinkTo is called.
-  virtual int GetDataSize() const OVERRIDE { return static_cast<int>(size_); }
+  int GetDataSize() const OVERRIDE { return static_cast<int>(size_); }
+
   int GetAllocatedSize() const { return static_cast<int>(allocated_size_); }
   // This is used by the data that we don't know the exact size before reading.
   void ShrinkTo(int size);
+  bool IsKeyframe() const { return is_keyframe_; }
 
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData() { return buffer_; }
@@ -55,7 +57,7 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   friend class ShellBufferFactory;
   // Should only be called by ShellBufferFactory, consumers should use
   // ShellBufferFactory::AllocateBuffer to make a DecoderBuffer.
-  DecoderBuffer(uint8* reusable_buffer, size_t size);
+  DecoderBuffer(uint8* reusable_buffer, size_t size, bool is_keyframe);
   // For deferred allocation create a shell buffer with buffer_ NULL but a
   // non-zero size. Then we use the SetBuffer() method below to actually
   // set the reusable buffer pointer when it becomes available
@@ -68,6 +70,7 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   scoped_refptr<ShellBufferFactory> buffer_factory_;
   scoped_ptr<DecryptConfig> decrypt_config_;
   bool is_decrypted_;
+  bool is_keyframe_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DecoderBuffer);
 };
