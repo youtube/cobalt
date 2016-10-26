@@ -169,7 +169,7 @@ void SpeechRecognizer::Stop() {
       base::Bind(&SpeechRecognizer::StopInternal, base::Unretained(this)));
 }
 
-void SpeechRecognizer::RecognizeAudio(scoped_ptr<AudioBus> audio_bus,
+void SpeechRecognizer::RecognizeAudio(scoped_ptr<ShellAudioBus> audio_bus,
                                       bool is_last_chunk) {
   // Called by the speech recognition manager thread.
   thread_.message_loop()->PostTask(
@@ -293,8 +293,8 @@ void SpeechRecognizer::StopInternal() {
   chunked_byte_buffer_.Clear();
 }
 
-void SpeechRecognizer::UploadAudioDataInternal(scoped_ptr<AudioBus> audio_bus,
-                                               bool is_last_chunk) {
+void SpeechRecognizer::UploadAudioDataInternal(
+    scoped_ptr<ShellAudioBus> audio_bus, bool is_last_chunk) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   DCHECK(audio_bus);
 
