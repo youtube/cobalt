@@ -50,6 +50,10 @@ StarboardPlayer::StarboardPlayer(
   video_config_.CopyFrom(video_config);
 
   CreatePlayer();
+
+  message_loop->PostTask(
+      FROM_HERE,
+      base::Bind(&StarboardPlayer::ClearDecoderBufferCache, weak_this_));
 }
 
 StarboardPlayer::~StarboardPlayer() {
@@ -177,17 +181,21 @@ void StarboardPlayer::SetPause(bool pause) {
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
                               uint32* video_frames_dropped,
                               base::TimeDelta* media_time) {
-  DCHECK(video_frames_decoded);
-  DCHECK(video_frames_dropped);
-  DCHECK(media_time);
+  DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
   if (state_ == kSuspended) {
     DCHECK(!SbPlayerIsValid(player_));
 
-    *video_frames_decoded = cached_video_frames_decoded_;
-    *video_frames_dropped = cached_video_frames_dropped_;
-    *media_time = preroll_timestamp_;
+    if (video_frames_decoded) {
+      *video_frames_decoded = cached_video_frames_decoded_;
+    }
+    if (video_frames_dropped) {
+      *video_frames_dropped = cached_video_frames_dropped_;
+    }
+    if (media_time) {
+      *media_time = preroll_timestamp_;
+    }
     return;
   }
 
@@ -195,9 +203,15 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
-  *video_frames_decoded = info.total_video_frames;
-  *video_frames_dropped = info.dropped_video_frames;
-  *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
+  if (video_frames_decoded) {
+    *video_frames_decoded = info.total_video_frames;
+  }
+  if (video_frames_dropped) {
+    *video_frames_dropped = info.dropped_video_frames;
+  }
+  if (media_time) {
+    *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
+  }
 }
 
 void StarboardPlayer::Suspend() {
@@ -273,6 +287,20 @@ void StarboardPlayer::CreatePlayer() {
                            &StarboardPlayer::DecoderStatusCB,
                            &StarboardPlayer::PlayerStatusCB, this);
   set_bounds_helper_->SetPlayer(this);
+}
+
+void StarboardPlayer::ClearDecoderBufferCache() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  base::TimeDelta media_time;
+  GetInfo(NULL, NULL, &media_time);
+  decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
+
+  message_loop_->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&StarboardPlayer::ClearDecoderBufferCache, weak_this_),
+      base::TimeDelta::FromMilliseconds(
+          kClearDecoderCacheIntervalInMilliseconds));
 }
 
 void StarboardPlayer::OnDecoderStatus(SbPlayer player,
