@@ -26,6 +26,7 @@
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace speech {
@@ -37,7 +38,7 @@ namespace speech {
 // class would encode the audio data, then send it to recogniton service.
 class SpeechRecognitionManager {
  public:
-  typedef ::media::AudioBus AudioBus;
+  typedef ::media::ShellAudioBus ShellAudioBus;
   typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;
 
   SpeechRecognitionManager(network::NetworkModule* network_module,
@@ -59,7 +60,7 @@ class SpeechRecognitionManager {
   };
 
   // Callbacks from mic.
-  void OnDataReceived(scoped_ptr<AudioBus> audio_bus);
+  void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
   void OnMicError();
 
