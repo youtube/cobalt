@@ -132,6 +132,10 @@
           '-Wall',
           '-Wextra',
           '-Wunreachable-code',
+          # Do not warn about deprecated function.
+          '-Wno-deprecated-declarations',
+          # Do not warn about narrowing conversion.
+          '-Wno-narrowing',
         ],
       },{
         'cflags': [
