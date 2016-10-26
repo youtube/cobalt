@@ -25,10 +25,9 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
-        '<(DEPTH)/starboard/tizen/armv7l/system_get_property.cc',
         '<(DEPTH)/starboard/tizen/shared/main.cc',
-        '<(DEPTH)/starboard/linux/shared/atomic_public.h',
-        '<(DEPTH)/starboard/linux/shared/configuration_public.h',
+        '<(DEPTH)/starboard/tizen/shared/application_tizen.cc',
+        '<(DEPTH)/starboard/tizen/shared/window_internal.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_device_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_path.cc',
@@ -277,12 +276,13 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
-        # Fixme(jaeyoung.myo) Temporarily we using stub,
-        # We will add tizen source for window status
-        '<(DEPTH)/starboard/shared/stub/window_create.cc',
-        '<(DEPTH)/starboard/shared/stub/window_destroy.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_platform_handle.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_size.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_create.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_destroy.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_get_platform_handle.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_get_size.cc',
+        'atomic_public.h',
+        'configuration_public.h',
+        'system_get_property.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
