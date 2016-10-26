@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <time.h>
+#include "starboard/window.h"
 
-#include "starboard/configuration.h"
 #include "starboard/tizen/shared/application_tizen.h"
-#include "starboard/shared/signal/crash_signals.h"
-#include "starboard/shared/signal/suspend_signals.h"
 
-int main(int argc, char** argv) {
-  starboard::shared::signal::InstallCrashSignalHandlers();
-  starboard::shared::signal::InstallSuspendSignalHandlers();
-  starboard::tizen::ApplicationTizen application;
-  int result = application.Run(argc, argv);
-  starboard::shared::signal::UninstallSuspendSignalHandlers();
-  starboard::shared::signal::UninstallCrashSignalHandlers();
-  return result;
+bool SbWindowDestroy(SbWindow window) {
+  return starboard::tizen::ApplicationTizen::Get()->DestroyWindow(window);
 }
