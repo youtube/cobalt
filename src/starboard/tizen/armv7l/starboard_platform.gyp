@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2015 Samsung Electronics. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,10 +25,9 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
-        '<(DEPTH)/starboard/tizen/armv7l/system_get_property.cc',
-        '<(DEPTH)/starboard/tizen/shared/main.cc',
-        '<(DEPTH)/starboard/linux/shared/atomic_public.h',
-        '<(DEPTH)/starboard/linux/shared/configuration_public.h',
+        # fixme(jaeyoung.myo) disable ffmpeg in tizen. Cuz build break
+        # we need to create dev_input file for tizen platform
+        # '<(DEPTH)/starboard/shared/linux/dev_input/dev_input.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_device_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_path.cc',
@@ -98,9 +97,6 @@
         '<(DEPTH)/starboard/shared/libevent/socket_waiter_wait_timed.cc',
         '<(DEPTH)/starboard/shared/libevent/socket_waiter_wake_up.cc',
         '<(DEPTH)/starboard/shared/linux/byte_swap.cc',
-        # fixme(jaeyoung.myo) disable ffmpeg in tizen. Cuz build break
-        # we need to create dev_input file for tizen platform
-        # '<(DEPTH)/starboard/shared/linux/dev_input/dev_input.cc',
         '<(DEPTH)/starboard/shared/linux/get_home_directory.cc',
         '<(DEPTH)/starboard/shared/linux/memory_get_stack_bounds.cc',
         '<(DEPTH)/starboard/shared/linux/page_internal.cc',
@@ -278,12 +274,16 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
-        # Fixme(jaeyoung.myo) Temporarily we using stub,
-        # We will add tizen source for window status
-        '<(DEPTH)/starboard/shared/stub/window_create.cc',
-        '<(DEPTH)/starboard/shared/stub/window_destroy.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_platform_handle.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_size.cc',
+        '<(DEPTH)/starboard/shared/wayland/application_wayland.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_create.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_destroy.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_get_platform_handle.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_get_size.cc',
+        '<(DEPTH)/starboard/shared/wayland/window_internal.cc',
+        '<(DEPTH)/starboard/tizen/shared/main.cc',
+        'atomic_public.h',
+        'configuration_public.h',
+        'system_get_property.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
