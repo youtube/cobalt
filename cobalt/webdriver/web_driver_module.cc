@@ -294,6 +294,11 @@ WebDriverModule::WebDriverModule(
           base::Bind(&WindowDriver::Execute)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
+      StringPrintf("/session/%s/execute_async", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::ExecuteAsync)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
       StringPrintf("/session/%s/element", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::FindElement)));
