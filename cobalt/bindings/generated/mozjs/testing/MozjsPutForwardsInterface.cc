@@ -200,10 +200,8 @@ JSBool get_forwardingAttribute(
         object, base::GetTypeId<PutForwardsInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
