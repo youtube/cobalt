@@ -197,10 +197,8 @@ JSBool get_error(
         object, base::GetTypeId<ExceptionObjectInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -230,10 +228,8 @@ JSBool get_message(
         object, base::GetTypeId<ExceptionObjectInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
