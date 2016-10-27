@@ -198,10 +198,8 @@ JSBool get_longArg(
         object, base::GetTypeId<ConstructorWithArgumentsInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -231,10 +229,8 @@ JSBool get_booleanArg(
         object, base::GetTypeId<ConstructorWithArgumentsInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -264,10 +260,8 @@ JSBool get_stringArg(
         object, base::GetTypeId<ConstructorWithArgumentsInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
