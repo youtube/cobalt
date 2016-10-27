@@ -15,6 +15,21 @@
  #}
 
 {#
+ # Checks if object implements interface.
+ #}
+{% macro check_if_object_implements_interface() %}
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<{{impl_class}}>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+{%- endmacro %}
+
+{#
  # Function body for operation bindings.
  # Parameters:
  #     operation: The operation context object
@@ -36,6 +51,7 @@
     NOTREACHED();
     return false;
   }
+{{ check_if_object_implements_interface() }}
 {{ nonstatic_function_prologue(impl_class) }}
 {% endif %}
 {% call(arguments_list) extract_arguments(operation) %}
