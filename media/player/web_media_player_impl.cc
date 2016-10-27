@@ -1172,8 +1172,8 @@ void WebMediaPlayerImpl::Destroy() {
   DLOG(INFO) << "Trying to stop media pipeline.";
   pipeline_->Stop(
       base::Bind(&base::WaitableEvent::Signal, base::Unretained(&waiter)));
-  DLOG(INFO) << "Media pipeline stopped.";
   waiter.Wait();
+  DLOG(INFO) << "Media pipeline stopped.";
 
   message_loop_factory_.reset();
 
