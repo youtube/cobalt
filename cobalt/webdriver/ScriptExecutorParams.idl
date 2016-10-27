@@ -18,11 +18,8 @@
   NoInterfaceObject,
   Conditional=ENABLE_WEBDRIVER
 ]
-interface ScriptExecutor {
-  attribute ExecuteFunctionCallback executeScriptHarness;
-  DOMString elementToId(Element element);
-  Element? idToElement(DOMString id);
+interface ScriptExecutorParams {
+  readonly attribute object functionObject;
+  readonly attribute DOMString jsonArgs;
+  readonly attribute long? asyncTimeout;
 };
-
-callback ExecuteFunctionCallback =
-    void(ScriptExecutorParams params, ScriptExecutorResult resultHandler);

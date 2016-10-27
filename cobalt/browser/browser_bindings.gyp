@@ -179,6 +179,8 @@
         '../web_animations/KeyframeEffectReadOnly.idl',
 
         '../webdriver/ScriptExecutor.idl',
+        '../webdriver/ScriptExecutorParams.idl',
+        '../webdriver/ScriptExecutorResult.idl',
 
         '../xhr/XMLHttpRequest.idl',
         '../xhr/XMLHttpRequestEventTarget.idl',
