@@ -27,6 +27,7 @@ ElementNotVisibleException = (
 
 BASE_URL = "https://www.youtube.com/tv"
 PAGE_LOAD_WAIT_SECONDS = 30
+LAYOUT_TIMEOUT_SECONDS = 5
 
 
 class TvTestCase(unittest.TestCase):
@@ -35,6 +36,9 @@ class TvTestCase(unittest.TestCase):
   Style note: snake_case is used for function names here so as to match
   with an internal class with the same name.
   """
+
+  class LayoutTimeoutException(BaseException):
+    """Exception thrown when layout did not complete in time."""
 
   def get_webdriver(self):
     return partial_layout_benchmark.GetWebDriver()
@@ -127,6 +131,10 @@ class TvTestCase(unittest.TestCase):
     could not be immediately found. If the retries do not succeed,
     the underlying exception is passed through.
 
+    Args:
+      css_selector: A CSS selector
+      keys: key events
+
     Raises:
       Underlying WebDriver exceptions
     """
@@ -143,6 +151,30 @@ class TvTestCase(unittest.TestCase):
         if time.time() - start_time >= PAGE_LOAD_WAIT_SECONDS:
           raise
         time.sleep(1)
+
+  def wait_for_layout_complete(self):
+    """Waits for Cobalt to complete pending layouts."""
+    start_time = time.time()
+    while int(self.get_webdriver().execute_script(
+        "return h5vcc.cVal.getValue('Event.MainWebModule.IsProcessing')")):
+
+      if time.time() - start_time > LAYOUT_TIMEOUT_SECONDS:
+        raise TvTestCase.LayoutTimeoutException()
+
+      time.sleep(0.1)
+
+  def record_results(self, name):
+    """Records results of benchmark.
+
+    The duration of KeyUp events will be recorded.
+
+    Args:
+      name: name of test case
+    """
+    print("tv_testcase RESULT: " + name + " "
+          + str(self.get_webdriver().execute_script(
+              "return h5vcc.cVal.getValue("
+              "'Event.Durations.MainWebModule.KeyUp')")))
 
 
 def main():

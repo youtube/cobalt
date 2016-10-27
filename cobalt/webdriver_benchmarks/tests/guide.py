@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-"""Simple shelf navigation test."""
+"""Simple guide navigation test."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -20,11 +20,10 @@ import partial_layout_benchmark
 # selenium imports
 keys = partial_layout_benchmark.ImportSeleniumModule("webdriver.common.keys")
 
-DEFAULT_SHELVES_COUNT = 10
-SHELF_ITEMS_COUNT = 10
+REPEAT_COUNT = 10
 
 
-class ShelfTest(tv_testcase.TvTestCase):
+class GuideTest(tv_testcase.TvTestCase):
 
   def test_simple(self):
     self.load_tv()
@@ -33,19 +32,16 @@ class ShelfTest(tv_testcase.TvTestCase):
     print(str(self.get_webdriver().execute_script(
         "h5vcc.system.recordStats = true")))
 
-    for _ in xrange(DEFAULT_SHELVES_COUNT):
-      self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_DOWN)
+    for _ in xrange(REPEAT_COUNT):
+      self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_LEFT)
+      self.assert_displayed(tv.FOCUSED_GUIDE)
+      self.wait_for_layout_complete()
+      self.send_keys(tv.FOCUSED_GUIDE, keys.Keys.ARROW_RIGHT)
       self.poll_until_found(tv.FOCUSED_SHELF)
       self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
       self.wait_for_layout_complete()
 
-    for _ in xrange(SHELF_ITEMS_COUNT):
-      self.send_keys(tv.FOCUSED_TILE, keys.Keys.ARROW_RIGHT)
-      self.poll_until_found(tv.FOCUSED_TILE)
-      self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
-      self.wait_for_layout_complete()
-
-    self.record_results("ShelfTest.test_simple")
+    self.record_results("GuideTest.test_simple")
 
 
 if __name__ == "__main__":
