@@ -81,6 +81,8 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
     kResuming,
   };
 
+  static const int64 kClearDecoderCacheIntervalInMilliseconds = 1000;
+
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
   // DecoderBuffer and a reference count.  The reference count indicates how
   // many instances of the DecoderBuffer is currently being decoded in the
@@ -89,6 +91,7 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
       DecodingBuffers;
 
   void CreatePlayer();
+  void ClearDecoderBufferCache();
 
   void OnDecoderStatus(SbPlayer player,
                        SbMediaType type,

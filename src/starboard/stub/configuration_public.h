@@ -329,6 +329,15 @@
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
 
+// After a seek is triggerred, the default behavior is to append video frames
+// from the last key frame before the seek time and append audio frames from the
+// seek time because usually all audio frames are key frames.  On platforms that
+// cannot decode video frames without displaying them, this will cause the video
+// being played without audio for several seconds after seeking.  When the
+// following macro is defined, the app will append audio frames start from the
+// timestamp that is before the timestamp of the video key frame being appended.
+#undef SB_HAS_QUIRK_SEEK_TO_KEYFRAME
+
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
 // being used by audio buffers but will also make JavaScript app less likely to
