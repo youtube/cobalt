@@ -28,6 +28,15 @@
 #include "config.h"
 #endif
 
+#ifdef STARBOARD
+#include "libevent-starboard.h"
+
+#include "compat/sys/queue.h"
+
+// Include Starboard poems after all system headers.
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#else
 #ifdef WIN32
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
@@ -53,11 +62,10 @@
 #include <sys/timeb.h>
 #endif
 #include <stdio.h>
-#ifndef STARBOARD
 #include <signal.h>
+#include <sys/queue.h>
 #endif
 
-#include <sys/queue.h>
 #include "event.h"
 #include "event-internal.h"
 #include "evutil.h"
@@ -172,14 +180,17 @@ evutil_make_socket_nonblocking(int fd)
 		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
 	}
 #else
+#ifdef HAVE_FCNTL
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
 		event_warn("fcntl(O_NONBLOCK)");
 		return -1;
-}	
+  }
+#endif
 #endif
 	return 0;
 }
 
+#ifndef STARBOARD
 ev_int64_t
 evutil_strtoll(const char *s, char **endptr, int base)
 {
@@ -207,6 +218,7 @@ evutil_strtoll(const char *s, char **endptr, int base)
 #error "I don't know how to parse 64-bit integers."
 #endif
 }
+#endif
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
 int

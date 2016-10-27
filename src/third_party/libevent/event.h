@@ -159,6 +159,9 @@
 extern "C" {
 #endif
 
+#ifdef STARBOARD
+#include "starboard/types.h"
+#else
 #include "event-config.h"
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -170,6 +173,7 @@ extern "C" {
 #include <stdint.h>
 #endif
 #include <stdarg.h>
+#endif  // STARBOARD
 
 /* For int types. */
 #include "evutil.h"
@@ -724,10 +728,10 @@ int	event_priority_set(struct event *, int);
 /* These functions deal with buffering input and output */
 
 struct evbuffer {
-	u_char *buffer;
-	u_char *orig_buffer;
+  uint8_t* buffer;
+  uint8_t* orig_buffer;
 
-	size_t misalign;
+        size_t misalign;
 	size_t totallen;
 	size_t off;
 
@@ -1111,7 +1115,7 @@ int evbuffer_read(struct evbuffer *, int, int);
   @param len the length of the search string
   @return a pointer to the beginning of the search string, or NULL if the search failed.
  */
-u_char *evbuffer_find(struct evbuffer *, const u_char *, size_t);
+uint8_t* evbuffer_find(struct evbuffer*, const uint8_t*, size_t);
 
 /**
   Set a callback to invoke when the evbuffer is modified.

@@ -290,7 +290,7 @@ void* portCalloc(size_t n_elements, size_t element_size) {
 
 void portFree(void* ptr) {
 #if OS(STARBOARD)
-    return SbMemoryFree(ptr);
+    return SbMemoryDeallocate(ptr);
 #else
     return free(ptr);
 #endif

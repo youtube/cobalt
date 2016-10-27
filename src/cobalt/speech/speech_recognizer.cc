@@ -289,6 +289,8 @@ void SpeechRecognizer::StopInternal() {
 
   // Clear the final results.
   final_results_.clear();
+  // Clear any remaining audio data.
+  chunked_byte_buffer_.Clear();
 }
 
 void SpeechRecognizer::UploadAudioDataInternal(scoped_ptr<AudioBus> audio_bus,
@@ -312,6 +314,8 @@ void SpeechRecognizer::UploadAudioDataInternal(scoped_ptr<AudioBus> audio_bus,
 
 void SpeechRecognizer::ProcessAndFireSuccessEvent(
     const SpeechRecognitionResults& new_results) {
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+
   SpeechRecognitionResults success_results;
   size_t total_size = final_results_.size() + new_results.size();
   success_results.reserve(total_size);

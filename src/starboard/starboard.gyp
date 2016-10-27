@@ -40,6 +40,7 @@
         'log.h',
         'media.h',
         'memory.h',
+        'microphone.h',
         'mutex.h',
         'once.h',
         'player.h',
