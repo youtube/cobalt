@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 """Webdriver-based benchmarks for partial layout.
 
 Benchmarks for partial layout changes in Cobalt.
@@ -108,11 +108,12 @@ class CobaltRunner(object):
     sys.path.append(script_path + "/../../tools/lbshell/")
     app_launcher = importlib.import_module("app_launcher")
     self.launcher = app_launcher.CreateLauncher(
-        platform, executable, devkit_name=devkit_name)
+        platform, executable, devkit_name=devkit_name, close_output_file=False)
 
     self.launcher.SetArgs(["--enable_webdriver"])
     self.launcher.SetOutputCallback(self._HandleLine)
     self.log_file_path = log_file_path
+    self.log_file = None
 
   def __enter__(self):
     self.thread = threading.Thread(target=self.Run)
@@ -166,13 +167,15 @@ class CobaltRunner(object):
     to_close = None
     try:
       if self.log_file_path:
-        log_file = open(self.log_file_path, "w")
-        to_close = log_file
+        self.log_file = open(self.log_file_path, "w")
+        to_close = self.log_file
       else:
-        log_file = sys.stdout
+        self.log_file = sys.stdout
 
-      self.launcher.SetOutputFile(log_file)
+      self.launcher.SetOutputFile(self.log_file)
       self.launcher.Run()
+      # This is watched for in webdriver_benchmark_test.py
+      sys.stdout.write("partial_layout_benchmark TEST COMPLETE\n")
     finally:
       if to_close:
         to_close.close()
@@ -195,6 +198,8 @@ def GetCobaltExecutablePath(platform, config):
 
 def main():
   args = arg_parser.parse_args()
+  # Keep unittest module from seeing these args
+  sys.argv = sys.argv[:1]
 
   platform = args.platform
   if platform is None:
