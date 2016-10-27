@@ -199,10 +199,8 @@ JSBool get_enabledAttribute(
         object, base::GetTypeId<ConditionalInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -256,10 +254,8 @@ JSBool get_disabledAttribute(
         object, base::GetTypeId<ConditionalInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -318,6 +314,15 @@ JSBool fcn_disabledOperation(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ConditionalInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -346,6 +351,15 @@ JSBool fcn_enabledOperation(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ConditionalInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
