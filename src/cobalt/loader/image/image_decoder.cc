@@ -71,6 +71,11 @@ LoadResponseType ImageDecoder::OnResponseStarted(
     Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
   UNREFERENCED_PARAMETER(fetcher);
 
+  if (state_ == kSuspended) {
+    DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
+    return kLoadResponseContinue;
+  }
+
   if (headers->response_code() == net::HTTP_OK &&
       headers->GetContentLength() == 0) {
     // The server successfully processed the request and expected some contents,
@@ -137,8 +142,8 @@ void ImageDecoder::Finish() {
     case kNoResourceProvider:
       failure_callback_.Run("No resource provider was passed to the decoder.");
       break;
-    case kAborted:
-      error_callback_.Run("ImageDecoder received an external signal to abort.");
+    case kSuspended:
+      DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
       break;
     case kNotApplicable:
       // no image is available.
@@ -147,13 +152,28 @@ void ImageDecoder::Finish() {
   }
 }
 
-void ImageDecoder::Abort() {
+bool ImageDecoder::Suspend() {
   if (state_ == kDecoding) {
     DCHECK(decoder_);
     decoder_.reset();
-    state_ = kAborted;
-  } else if (state_ == kWaitingForHeader) {
-    state_ = kAborted;
+  }
+  state_ = kSuspended;
+  signature_cache_.position = 0;
+  resource_provider_ = NULL;
+  return true;
+}
+
+void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
+  if (state_ != kSuspended) {
+    DCHECK_EQ(resource_provider_, resource_provider);
+    return;
+  }
+
+  state_ = kWaitingForHeader;
+  resource_provider_ = resource_provider;
+
+  if (!resource_provider_) {
+    state_ = kNoResourceProvider;
   }
 }
 
@@ -182,7 +202,7 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
     } break;
     case kNotApplicable:
     case kUnsupportedImageFormat:
-    case kAborted:
+    case kSuspended:
     case kNoResourceProvider:
     default: {
       // Do not attempt to continue processing data.

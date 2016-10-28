@@ -33,7 +33,7 @@ namespace loader {
 class TextDecoder : public Decoder {
  public:
   explicit TextDecoder(base::Callback<void(const std::string&)> done_callback)
-      : done_callback_(done_callback) {}
+      : done_callback_(done_callback), suspended_(false) {}
   ~TextDecoder() OVERRIDE {}
 
   // This function is used for binding callback for creating TextDecoder.
@@ -45,17 +45,32 @@ class TextDecoder : public Decoder {
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) OVERRIDE {
     DCHECK(thread_checker_.CalledOnValidThread());
+    if (suspended_) {
+      return;
+    }
     text_.append(data, size);
   }
   void Finish() OVERRIDE {
     DCHECK(thread_checker_.CalledOnValidThread());
+    if (suspended_) {
+      return;
+    }
     done_callback_.Run(text_);
+  }
+  bool Suspend() OVERRIDE {
+    suspended_ = true;
+    text_.clear();
+    return true;
+  }
+  void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
+    suspended_ = false;
   }
 
  private:
   base::ThreadChecker thread_checker_;
   std::string text_;
   base::Callback<void(const std::string&)> done_callback_;
+  bool suspended_;
 };
 
 }  // namespace loader
