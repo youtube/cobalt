@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "cobalt/audio/audio_file_reader.h"
+#include "cobalt/audio/audio_helpers.h"
 
 namespace cobalt {
 namespace audio {
@@ -34,11 +35,13 @@ void Decode(
       AudioFileReader::TryCreate(audio_data, size));
 
   if (reader) {
-    decode_finish_callback.Run(
-        reader->sample_rate(), reader->number_of_frames(),
-        reader->number_of_channels(), reader->sample_data());
+    decode_finish_callback.Run(reader->sample_rate(),
+                               reader->number_of_frames(),
+                               reader->number_of_channels(),
+                               reader->sample_data(), reader->sample_type());
   } else {
-    decode_finish_callback.Run(0.f, 0, 0, scoped_array<uint8>());
+    decode_finish_callback.Run(0.f, 0, 0, scoped_array<uint8>(),
+                               kSampleTypeFloat32);
   }
 }
 
