@@ -22,6 +22,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/audio/audio_buffer.h"
+#include "cobalt/audio/audio_helpers.h"
 #include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
@@ -44,7 +45,8 @@ class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
 
   void DisconnectAll();
 
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames);
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames,
+                                                   SampleType sample_type);
 
  private:
   AudioNode* const owner_node_;
