@@ -165,8 +165,8 @@ class AudioContext : public dom::EventTarget {
 
   void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate, int32 number_of_frames,
-                    int32 number_of_channels,
-                    scoped_array<uint8> channels_data);
+                    int32 number_of_channels, scoped_array<uint8> channels_data,
+                    SampleType sample_type);
 
   base::WeakPtrFactory<AudioContext> weak_ptr_factory_;
   // We construct a WeakPtr upon AudioContext's construction in order to
