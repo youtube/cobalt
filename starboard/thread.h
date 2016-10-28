@@ -172,8 +172,8 @@ SB_EXPORT void SbThreadDetach(SbThread thread);
 // Yields the currently executing thread, so another thread has a chance to run.
 SB_EXPORT void SbThreadYield();
 
-// Sleeps the currently executing thread for at least the given |duration|. A
-// negative duration does nothing.
+// Sleeps the currently executing thread for at least the given |duration| in
+// microseconds. A negative duration does nothing.
 SB_EXPORT void SbThreadSleep(SbTime duration);
 
 // Gets the handle of the currently executing thread.
@@ -198,7 +198,8 @@ SB_EXPORT void SbThreadSetName(const char* name);
 //
 // When does |destructor| get called? It can only be called in the owning
 // thread, and let's just say thread interruption isn't viable. The destructor,
-// if specified, is called on every thread's local values when the thread exits.
+// if specified, is called on every thread's local values when the thread exits,
+// if and only if the value in the key is non-NULL.
 SB_EXPORT SbThreadLocalKey
 SbThreadCreateLocalKey(SbThreadLocalDestructor destructor);
 
