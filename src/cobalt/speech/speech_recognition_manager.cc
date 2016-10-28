@@ -93,7 +93,8 @@ void SpeechRecognitionManager::Abort() {
   state_ = kAborted;
 }
 
-void SpeechRecognitionManager::OnDataReceived(scoped_ptr<AudioBus> audio_bus) {
+void SpeechRecognitionManager::OnDataReceived(
+    scoped_ptr<ShellAudioBus> audio_bus) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     // Called from mic thread.
     main_message_loop_->PostTask(
@@ -123,9 +124,9 @@ void SpeechRecognitionManager::OnDataCompletion() {
     // silence at the end in case encoder had no data already.
     size_t dummy_frames =
         static_cast<size_t>(kSampleRate * kAudioPacketDurationInSeconds);
-    scoped_ptr<AudioBus> dummy_audio_bus =
-        AudioBus::Create(1, static_cast<int>(dummy_frames));
-    memset(dummy_audio_bus->channel(0), 0, dummy_frames);
+    scoped_ptr<ShellAudioBus> dummy_audio_bus(new ShellAudioBus(
+        1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
+    dummy_audio_bus->ZeroAllFrames();
     recognizer_.RecognizeAudio(dummy_audio_bus.Pass(), true);
   }
 }

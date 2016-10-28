@@ -44,6 +44,16 @@ bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   *file_path = FilePath(path);
   return !file_path->empty();
 }
+
+std::string ClipUrl(const GURL& url, size_t length) {
+  const std::string& spec = url.possibly_invalid_spec();
+  if (spec.size() < length) {
+    return spec;
+  }
+
+  return spec.substr(0, length - 5) + "[...]";
+}
+
 }  // namespace
 
 FetcherFactory::FetcherFactory(network::NetworkModule* network_module)
@@ -72,6 +82,7 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     return scoped_ptr<Fetcher>(NULL);
   }
 
+  DLOG(INFO) << "Fetching: " << ClipUrl(url, 60);
   scoped_ptr<Fetcher> fetcher;
   if (url.SchemeIs(kEmbeddedScheme)) {
     EmbeddedFetcher::Options options;

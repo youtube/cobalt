@@ -22,7 +22,7 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/threading/thread_checker.h"
-#include "media/base/audio_bus.h"
+#include "media/base/shell_audio_bus.h"
 #include "third_party/flac/include/FLAC/stream_encoder.h"
 
 namespace cobalt {
@@ -31,13 +31,13 @@ namespace speech {
 // Encode raw audio to using FLAC codec.
 class AudioEncoderFlac {
  public:
-  typedef ::media::AudioBus AudioBus;
+  typedef ::media::ShellAudioBus ShellAudioBus;
 
   explicit AudioEncoderFlac(int sample_rate);
   ~AudioEncoderFlac();
 
   // Encode raw audio data.
-  void Encode(const AudioBus* audio_bus);
+  void Encode(const ShellAudioBus* audio_bus);
   // Finish encoding.
   void Finish();
 

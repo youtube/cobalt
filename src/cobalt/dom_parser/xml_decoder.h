@@ -52,6 +52,11 @@ class XMLDecoder : public loader::Decoder {
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
+  bool Suspend() OVERRIDE { return false; }
+
+  void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
+    NOTIMPLEMENTED();
+  };
 
  private:
   // This subclass is responsible for providing the handlers for the interface
