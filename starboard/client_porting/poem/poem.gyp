@@ -37,6 +37,7 @@
         'abs_tests.cc',
         'include_all.c',
         'main.cc',
+        'string_poem_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/testing/gtest.gyp:gtest',
