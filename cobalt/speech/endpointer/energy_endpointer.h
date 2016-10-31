@@ -34,19 +34,19 @@
 // accept. The false accepts can be ignored by setting
 // ep_contamination_rejection_period.
 
-#ifndef CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_H_
-#define CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_H_
+#ifndef COBALT_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_H_
+#define COBALT_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_H_
 
 #include <stdint.h>
 
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
-#include "content/browser/speech/endpointer/energy_endpointer_params.h"
-#include "content/common/content_export.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/speech/endpointer/energy_endpointer_params.h"
 
-namespace content {
+namespace cobalt {
+namespace speech {
 
 // Endpointer status codes
 enum EpStatus {
@@ -57,7 +57,7 @@ enum EpStatus {
   EP_POST_SPEECH,
 };
 
-class CONTENT_EXPORT EnergyEndpointer {
+class EnergyEndpointer {
  public:
   // The default construction MUST be followed by Init(), before any
   // other use can be made of the instance.
@@ -125,7 +125,7 @@ class CONTENT_EXPORT EnergyEndpointer {
   float sample_rate_;  // Sampling rate.
 
   // Ring buffers to hold the speech activity history.
-  std::unique_ptr<HistoryRing> history_;
+  scoped_ptr<HistoryRing> history_;
 
   // Configuration parameters.
   EnergyEndpointerParams params_;
@@ -156,6 +156,7 @@ class CONTENT_EXPORT EnergyEndpointer {
   DISALLOW_COPY_AND_ASSIGN(EnergyEndpointer);
 };
 
-}  // namespace content
+}  // namespace speech
+}  // namespace cobalt
 
-#endif  // CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_H_
+#endif  // COBALT_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_H_
