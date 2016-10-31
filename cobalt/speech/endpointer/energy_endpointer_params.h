@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
-#define CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
+#ifndef COBALT_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
+#define COBALT_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
 
-#include "content/common/content_export.h"
-
-namespace content {
+namespace cobalt {
+namespace speech {
 
 // Input parameters for the EnergyEndpointer class.
-class CONTENT_EXPORT EnergyEndpointerParams {
+class EnergyEndpointerParams {
  public:
   EnergyEndpointerParams();
 
@@ -132,6 +131,7 @@ class CONTENT_EXPORT EnergyEndpointerParams {
   float contamination_rejection_period_;
 };
 
-}  //  namespace content
+}  // namespace speech
+}  // namespace cobalt
 
-#endif  // CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
+#endif  // COBALT_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
