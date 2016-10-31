@@ -79,6 +79,7 @@
       'variables': {
         'executable_name': 'nb_test',
       },
+      'includes': [ '../starboard/build/deploy.gypi' ],
     },
 
     {
