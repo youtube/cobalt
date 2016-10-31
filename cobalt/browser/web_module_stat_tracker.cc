@@ -20,9 +20,6 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 
-// The maximum allowed string size of any recorded stat
-const std::string::size_type kMaxRecordedStatsBytes = 64 * 1024;
-
 namespace cobalt {
 namespace browser {
 
@@ -90,17 +87,6 @@ void WebModuleStatTracker::OnRenderTreeProduced() {
   layout_stat_tracker_->FlushPeriodicTracking();
 }
 
-void WebModuleStatTracker::OnSetRecordStats(bool set) {
-  record_stats_ = set;
-
-  // Every time this variable is set, we clear out our stats
-  for (ScopedVector<EventStats>::iterator it = event_stats_.begin();
-       it != event_stats_.end();
-       ++it) {
-    (*it)->event_durations = "[]";
-  }
-}
-
 WebModuleStatTracker::EventStats::EventStats(const std::string& name)
     : count_dom_html_elements_created(
           StringPrintf("Event.Count.%s.DOM.HtmlElement.Created", name.c_str()),
@@ -157,11 +143,7 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
           StringPrintf("Event.Duration.%s.Layout.RenderAndAnimate",
                        name.c_str()),
           base::TimeDelta(),
-          "RenderAndAnimate duration for event (in microseconds)."),
-      event_durations(StringPrintf("Event.Durations.%s", name.c_str()),
-                     "[]",
-                     "JSON array of all event durations (in microseconds) "
-                     "since reset.") {}
+          "RenderAndAnimate duration for event (in microseconds).") {}
 
 bool WebModuleStatTracker::IsStopWatchEnabled(int /*id*/) const { return true; }
 
@@ -209,25 +191,9 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   // misleading as it merely indicates how long the user waited to initiate the
   // next event. When this occurs, the injection duration provides a much more
   // accurate picture of how long the event takes.
-  base::TimeDelta duration_total = was_render_tree_produced
+  event_stats->duration_total = was_render_tree_produced
                                     ? stop_watch_durations_[kStopWatchTypeEvent]
                                     : event_injection_duration;
-  event_stats->duration_total = duration_total;
-
-  if (record_stats_) {
-    std::string prev_durations = event_stats->event_durations.value();
-    if (prev_durations.size() <= 2) {
-      event_stats->event_durations =
-          StringPrintf("[%ld]", duration_total.InMicroseconds());
-    } else if (prev_durations.size() < kMaxRecordedStatsBytes) {
-      event_stats->event_durations
-          = StringPrintf("%s,%ld]",
-                         prev_durations.substr(
-                             0, prev_durations.size() - 1).c_str(),
-                             duration_total.InMicroseconds());
-    }
-  }
-
   event_stats->duration_dom_inject_event = event_injection_duration;
   event_stats->duration_dom_update_computed_style =
       dom_stat_tracker_->GetStopWatchTypeDuration(

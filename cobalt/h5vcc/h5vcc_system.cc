@@ -24,9 +24,7 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSystem::H5vccSystem(const base::Callback<void(bool)>& on_set_record_stats)
-    : on_set_record_stats_(on_set_record_stats) {
-}
+H5vccSystem::H5vccSystem() {}
 
 bool H5vccSystem::are_keys_reversed() const {
   return deprecated::PlatformDelegate::Get()->AreKeysReversed();
