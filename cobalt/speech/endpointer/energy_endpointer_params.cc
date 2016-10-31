@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/speech/endpointer/energy_endpointer_params.h"
+#include "cobalt/speech/endpointer/energy_endpointer_params.h"
 
-namespace content {
+namespace cobalt {
+namespace speech {
 
 EnergyEndpointerParams::EnergyEndpointerParams() {
   SetDefaults();
@@ -50,4 +51,5 @@ void EnergyEndpointerParams::operator=(const EnergyEndpointerParams& source) {
   contamination_rejection_period_ = source.contamination_rejection_period();
 }
 
-}  //  namespace content
+}  // namespace speech
+}  // namespace cobalt
