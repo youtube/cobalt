@@ -144,10 +144,6 @@ class WebModule::Impl {
   void Suspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
-  void OnSetRecordStats(bool set) {
-    web_module_stat_tracker_->OnSetRecordStats(set);
-  }
-
  private:
   class DocumentLoadedObserver;
 
@@ -885,13 +881,6 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
-}
-
-void WebModule::OnSetRecordStats(bool set) {
-  DCHECK(message_loop());
-  DCHECK(impl_);
-  DCHECK_EQ(MessageLoop::current(), message_loop());
-  impl_->OnSetRecordStats(set);
 }
 
 }  // namespace browser
