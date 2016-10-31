@@ -10,6 +10,7 @@ from __future__ import print_function
 
 import argparse
 import importlib
+import inspect
 import os
 import re
 import socket
@@ -20,21 +21,25 @@ import unittest
 arg_parser = argparse.ArgumentParser(
     description="Runs Webdriver-based Cobalt benchmarks")
 arg_parser.add_argument(
-    "-p", "--platform",
+    "-p",
+    "--platform",
     help="Cobalt platform, eg 'linux-x64x11'."
     "Fetched from environment if absent.")
 arg_parser.add_argument(
-    "-e", "--executable",
+    "-e",
+    "--executable",
     help="Path to cobalt executable. "
     "Auto-derived if absent.")
 arg_parser.add_argument(
-    "-c", "--config",
+    "-c",
+    "--config",
     choices=["debug", "devel", "qa", "gold"],
     help="Build config (eg, 'qa' or 'devel'). Not used if "
     "--executable is specified. Fetched from environment "
     "if needed and absent.")
 arg_parser.add_argument(
-    "-d", "--devkit_name",
+    "-d",
+    "--devkit_name",
     help="Devkit or IP address for app_launcher."
     "Current hostname used if absent.")
 arg_parser.add_argument(
@@ -104,8 +109,11 @@ class CobaltRunner(object):
   def __init__(self, platform, executable, devkit_name, log_file_path):
     self.selenium_webdriver_module = ImportSeleniumModule("webdriver")
 
-    script_path = os.path.dirname(__file__)
-    sys.path.append(script_path + "/../../tools/lbshell/")
+    script_path = os.path.realpath(inspect.getsourcefile(lambda: 0))
+    app_launcher_path = os.path.realpath(
+        os.path.join(
+            os.path.dirname(script_path), "..", "..", "tools", "lbshell"))
+    sys.path.append(app_launcher_path)
     app_launcher = importlib.import_module("app_launcher")
     self.launcher = app_launcher.CreateLauncher(
         platform, executable, devkit_name=devkit_name, close_output_file=False)
@@ -190,7 +198,8 @@ def GetCobaltExecutablePath(platform, config):
     except KeyError:
       sys.stderr.write("Must specify --config or --executable\n")
       sys.exit(1)
-  script_dir = os.path.dirname(os.path.realpath(__file__))
+  script_path = os.path.realpath(inspect.getsourcefile(lambda: 0))
+  script_dir = os.path.dirname(script_path)
   out_dir = os.path.join(script_dir, "..", "..", "out")
   executable_directory = os.path.join(out_dir, "{}_{}".format(platform, config))
   return os.path.join(executable_directory, "cobalt")
