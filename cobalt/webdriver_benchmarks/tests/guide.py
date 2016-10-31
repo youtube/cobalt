@@ -26,11 +26,10 @@ REPEAT_COUNT = 10
 class GuideTest(tv_testcase.TvTestCase):
 
   def test_simple(self):
+    layout_times_us = []
+
     self.load_tv()
     self.assert_displayed(tv.FOCUSED_SHELF)
-
-    print(str(self.get_webdriver().execute_script(
-        "h5vcc.system.recordStats = true")))
 
     for _ in xrange(REPEAT_COUNT):
       self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_LEFT)
@@ -40,8 +39,9 @@ class GuideTest(tv_testcase.TvTestCase):
       self.poll_until_found(tv.FOCUSED_SHELF)
       self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
       self.wait_for_layout_complete()
+      layout_times_us.append(self.get_keyup_layout_duration_us())
 
-    self.record_results("GuideTest.test_simple")
+    self.record_results("GuideTest.test_simple", layout_times_us)
 
 
 if __name__ == "__main__":
