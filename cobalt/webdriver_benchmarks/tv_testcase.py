@@ -25,7 +25,7 @@ ElementNotVisibleException = (
     partial_layout_benchmark.ImportSeleniumModule(
         submodule="common.exceptions").ElementNotVisibleException)
 
-BASE_URL = "https://www.youtube.com/tv"
+BASE_URL = "https://www.youtube.com/tv?env_forcedOffAllExperiments=true"
 PAGE_LOAD_WAIT_SECONDS = 30
 LAYOUT_TIMEOUT_SECONDS = 5
 
