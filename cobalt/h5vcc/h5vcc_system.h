@@ -26,21 +26,13 @@ namespace h5vcc {
 
 class H5vccSystem : public script::Wrappable {
  public:
-  explicit H5vccSystem(const base::Callback<void(bool)>& on_set_record_stats);
+  H5vccSystem();
 
   bool are_keys_reversed() const;
   std::string build_id() const;
   std::string platform() const;
   std::string region() const;
   std::string version() const;
-  bool record_stats() const {
-    return record_stats_;
-  }
-  void set_record_stats(bool record_stats) {
-    record_stats_ = record_stats;
-
-    on_set_record_stats_.Run(record_stats);
-  }
 
   bool TriggerHelp() const;
   std::string GetVideoContainerSizeOverride() const;
@@ -48,8 +40,6 @@ class H5vccSystem : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccSystem);
 
  private:
-  base::Callback<void(bool)> on_set_record_stats_;
-  bool record_stats_;
   DISALLOW_COPY_AND_ASSIGN(H5vccSystem);
 };
 
