@@ -45,7 +45,6 @@ class H5vcc : public script::Wrappable {
     account::AccountManager* account_manager;
     base::EventDispatcher* event_dispatcher;
     std::string initial_deep_link;
-    base::Callback<void(bool)> on_set_record_stats;
   };
 
   explicit H5vcc(const Settings& config);
