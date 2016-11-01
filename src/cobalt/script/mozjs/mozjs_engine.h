@@ -51,6 +51,9 @@ class MozjsEngine : public JavaScriptEngine {
   // A list of all contexts created for this JSRuntime.
   typedef std::vector<JSContext*> ContextVector;
   ContextVector contexts_;
+
+  // The amount of externally allocated memory since last forced GC.
+  size_t accumulated_extra_memory_cost_;
 };
 }  // namespace mozjs
 }  // namespace script
