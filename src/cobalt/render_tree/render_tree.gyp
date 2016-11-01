@@ -47,6 +47,7 @@
         'map_to_mesh_filter.h',
         'matrix_transform_node.cc',
         'matrix_transform_node.h',
+        'mesh.h',
         'node.h',
         'node_visitor.h',
         'opacity_filter.h',

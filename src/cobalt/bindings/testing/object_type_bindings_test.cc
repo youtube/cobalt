@@ -273,6 +273,18 @@ TEST_F(UserObjectBindingsTest, SetWrongObjectType) {
   EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
 }
 
+TEST_F(UserObjectBindingsTest, CallWrongObjectType) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("var obj = new Object()", NULL));
+  EXPECT_TRUE(EvaluateScript("var arb = new ArbitraryInterface()", NULL));
+
+  // Calling a function with the wrong object type is a type error.
+  EXPECT_FALSE(
+      EvaluateScript("obj.arbitraryFunction = arb.arbitraryFunction;\n"
+                     "obj.arbitraryFunction();", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
