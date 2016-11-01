@@ -76,6 +76,7 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
     JS::RootedObject function(context_, weak_function_.Get());
