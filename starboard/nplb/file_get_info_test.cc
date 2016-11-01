@@ -40,6 +40,11 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
     // Assuming platforms have at least 1 second precision on filesystem
     // timestamps, we need to go back two seconds to avoid rounding issues.
     SbTime time = SbTimeGetNow() - (2 * kSbTimeSecond);
+#if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
+    // On platforms with coarse access time, we assume 1 day precision and go
+    // back 2 days to avoid rounding issues.
+    SbTime coarse_time = SbTimeGetNow() - (2 * kSbTimeDay);
+#endif
 
     const int kFileSize = 12;
     starboard::nplb::ScopedRandomFile random_file(kFileSize);
@@ -56,7 +61,11 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
       EXPECT_FALSE(info.is_directory);
       EXPECT_FALSE(info.is_symbolic_link);
       EXPECT_LE(time, info.last_modified);
+#if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
+      EXPECT_LE(coarse_time, info.last_accessed);
+#else
       EXPECT_LE(time, info.last_accessed);
+#endif
       EXPECT_LE(time, info.creation_time);
     }
 
