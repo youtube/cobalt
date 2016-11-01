@@ -60,26 +60,13 @@
         'window.h',
       ],
       'dependencies': [
+        '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
         'common/common.gyp:common',
       ],
+      'export_dependent_settings': [
+        '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
+      ],
       'conditions': [
-        ['starboard_path == ""', {
-          # TODO: Make starboard_path required. This legacy condition is only
-          # here to support semi-starboard platforms while they still exist.
-          'dependencies': [
-            '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
-          ],
-          'export_dependent_settings': [
-            '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
-          ],
-        }, {
-          'dependencies': [
-            '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
-          ],
-          'export_dependent_settings': [
-            '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
-          ],
-        }],
         ['final_executable_type=="shared_library"', {
           'all_dependent_settings': {
             'target_conditions': [

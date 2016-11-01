@@ -11,46 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 {
   'targets': [
     {
-      'target_name': 'eztime',
-      'type': 'static_library',
-      'sources': [
-        'eztime.cc',
-        'eztime.h',
-      ],
-      'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
-        '<(DEPTH)/starboard/client_porting/icu_init/icu_init.gyp:icu_init',
-        '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
-        '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
-      ],
-    },
-    {
-      'target_name': 'eztime_test',
+      'target_name': 'starboard_platform_tests',
       'type': '<(gtest_target_type)',
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
-        'test_constants.h',
-        'eztime_test.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/mime_type_test.cc',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        'eztime',
       ],
     },
     {
-      'target_name': 'eztime_test_deploy',
+      'target_name': 'starboard_platform_tests_deploy',
       'type': 'none',
       'dependencies': [
-        'eztime_test',
+        '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:starboard_platform_tests',
       ],
       'variables': {
-        'executable_name': 'eztime_test',
+        'executable_name': 'starboard_platform_tests',
       },
+      'includes': [ '../../build/deploy.gypi' ],
     },
   ],
 }
