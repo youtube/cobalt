@@ -3418,7 +3418,7 @@ box_shadow_list:
 validated_box_shadow_list:
     box_shadow_list {
     scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
-    if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kBoxShadow)) {
+    if (!shadow_property_info->IsShadowPropertyValid(kBoxShadow)) {
       parser_impl->LogWarning(@1, "invalid box shadow property.");
       $$ = NULL;
     } else {
@@ -4236,7 +4236,7 @@ text_shadow_list:
 validated_text_shadow_list:
     text_shadow_list {
     scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
-    if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kTextShadow)) {
+    if (!shadow_property_info->IsShadowPropertyValid(kTextShadow)) {
       parser_impl->LogWarning(@1, "invalid text shadow property.");
       $$ = NULL;
     } else {
