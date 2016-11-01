@@ -126,6 +126,7 @@ void GetReachableWrappables(const scoped_refptr<Wrappable>& wrappable,
 {% if named_property_getter %}
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
+  TRACE_EVENT0("cobalt::bindings", "IsSupportedNamedProperty");
 {{ get_impl_class_instance(impl_class) }}
   return impl->CanQueryNamedProperty(property_name);
 }
@@ -214,6 +215,7 @@ bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
 {% if indexed_property_getter %}
 bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
                               uint32_t index) {
+  TRACE_EVENT0("cobalt::bindings", "IsSupportedIndexProperty");
 {{ get_impl_class_instance(impl_class) }}
   return index < impl->length();
 }
@@ -230,6 +232,7 @@ void EnumerateSupportedIndexes(JSContext* context, JS::HandleObject object,
 JSBool GetIndexedProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  TRACE_EVENT0("cobalt::bindings", "GetIndexedProperty");
   JS::RootedValue id_value(context);
   if (!JS_IdToValue(context, id, id_value.address())) {
     NOTREACHED();
