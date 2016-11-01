@@ -25,6 +25,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/source_buffer.h"
 #include "cobalt/dom/source_buffer_list.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "media/player/web_media_player.h"
 
@@ -86,6 +87,9 @@ class MediaSource : public EventTarget {
   void EndOfStream(script::ExceptionState* exception_state);
   void EndOfStream(const std::string& error,
                    script::ExceptionState* exception_state);
+
+  static bool IsTypeSupported(script::EnvironmentSettings* settings,
+                              const std::string& type);
 
   // Custom, not in any spec.
   //
