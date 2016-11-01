@@ -88,7 +88,7 @@ EngineStats::EngineStats()
 
 }  // namespace
 
-MozjsEngine::MozjsEngine() {
+MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
   runtime_ =
@@ -136,7 +136,14 @@ void MozjsEngine::CollectGarbage() {
   JS_GC(runtime_);
 }
 
-void MozjsEngine::ReportExtraMemoryCost(size_t bytes) { NOTIMPLEMENTED(); }
+void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  accumulated_extra_memory_cost_ += bytes;
+  if (accumulated_extra_memory_cost_ > kGarbageCollectionThresholdBytes) {
+    accumulated_extra_memory_cost_ = 0;
+    CollectGarbage();
+  }
+}
 
 size_t MozjsEngine::UpdateMemoryStatsAndReturnReserved() {
   return EngineStats::GetInstance()->UpdateMemoryStatsAndReturnReserved();
@@ -162,6 +169,9 @@ JSBool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op) {
 void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
   MozjsEngine* engine =
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(runtime));
+  if (status == JSGC_END) {
+    engine->accumulated_extra_memory_cost_ = 0;
+  }
   for (int i = 0; i < engine->contexts_.size(); ++i) {
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
