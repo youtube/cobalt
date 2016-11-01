@@ -366,7 +366,22 @@ bool SourceCanRenderWithOpacity(render_tree::Node* source) {
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   if (filter_node->data().map_to_mesh_filter) {
-    // TODO: Implement support for MapToMeshFilter.
+    // TODO: Implement support for MapToMeshFilter instead of punching out
+    //       the area that it occupies.
+    SkPaint paint;
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+    paint.setARGB(0, 0, 0, 0);
+
+    math::RectF bounds = filter_node->GetBounds();
+    SkRect sk_rect = SkRect::MakeXYWH(bounds.x(), bounds.y(), bounds.width(),
+                                      bounds.height());
+
+    draw_state_.render_target->drawRect(sk_rect, paint);
+
+#if ENABLE_FLUSH_AFTER_EVERY_NODE
+    draw_state_.render_target->flush();
+#endif
+
     return;
   }
 
