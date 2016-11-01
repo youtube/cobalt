@@ -24,6 +24,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/optional.h"
@@ -365,6 +366,7 @@ void ParserImpl::LogError(const std::string& message) {
 bool ParserImpl::Parse() {
   // For more information on error codes
   // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
+  TRACE_EVENT0("cobalt::css_parser", "ParseImpl::Parse")
   last_syntax_error_location_ = base::nullopt;
   int error_code(yyparse(this));
   switch (error_code) {
