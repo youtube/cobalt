@@ -390,7 +390,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   environment_settings_.reset(new dom::DOMSettings(
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), javascript_engine_.get(),
+      media_source_registry_.get(), data.media_module, javascript_engine_.get(),
       global_environment_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
