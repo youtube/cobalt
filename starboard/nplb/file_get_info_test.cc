@@ -65,30 +65,6 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
   }
 }
 
-TEST(SbFileGetInfoTest, WorksOnADirectory) {
-  char path[SB_FILE_MAX_PATH] = {0};
-  bool result =
-      SbSystemGetPath(kSbSystemPathTempDirectory, path, SB_FILE_MAX_PATH);
-  EXPECT_TRUE(result);
-
-  SbFile file = SbFileOpen(path, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
-  ASSERT_TRUE(SbFileIsValid(file));
-
-  {
-    SbFileInfo info = {0};
-    bool result = SbFileGetInfo(file, &info);
-    EXPECT_LE(0, info.size);
-    EXPECT_TRUE(info.is_directory);
-    EXPECT_FALSE(info.is_symbolic_link);
-    EXPECT_LE(0, info.last_modified);
-    EXPECT_LE(0, info.last_accessed);
-    EXPECT_LE(0, info.creation_time);
-  }
-
-  result = SbFileClose(file);
-  EXPECT_TRUE(result);
-}
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
