@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/css_declared_style_declaration.h"
 
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_parser.h"
@@ -63,6 +64,7 @@ std::string CSSDeclaredStyleDeclaration::css_text(
 
 void CSSDeclaredStyleDeclaration::set_css_text(
     const std::string& css_text, script::ExceptionState* /*exception_state*/) {
+  TRACE_EVENT0("cobalt::cssom", "CSSDeclaredStyleDeclaration::set_css_text");
   DCHECK(css_parser_);
   scoped_refptr<CSSDeclaredStyleData> declaration =
       css_parser_->ParseStyleDeclarationList(
