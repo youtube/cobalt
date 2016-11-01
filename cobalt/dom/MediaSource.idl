@@ -28,4 +28,6 @@
   readonly attribute DOMString readyState;
 
   [RaisesException] void endOfStream(optional DOMString error);
+
+  [CallWith=EnvironmentSettings] static boolean isTypeSupported(DOMString type);
 };
