@@ -20,7 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "cobalt/audio/audio_helpers.h"
 #include "cobalt/audio/audio_node_input.h"
 #include "cobalt/audio/audio_node_output.h"
 #include "cobalt/dom/dom_exception.h"
@@ -113,7 +112,7 @@ class AudioNode : public dom::EventTarget {
 
   // TODO: Support wrapping ShellAudioBus into another ShellAudioBus.
   virtual scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
-      int32 number_of_frames, SampleType sample_type) = 0;
+      int32 number_of_frames) = 0;
 
   AudioLock* audio_lock() const { return audio_lock_.get(); }
 
