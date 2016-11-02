@@ -26,9 +26,14 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
 #include "cobalt/speech/mic.h"
+#include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "net/base/escape.h"
 #include "net/url_request/url_fetcher.h"
+
+#if defined(SB_USE_SB_MICROPHONE)
+#include "starboard/microphone.h"
+#endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
 namespace speech {
@@ -243,7 +248,14 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "client", kClient);
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
-  up_url = AppendQueryParameter(up_url, "key", GetSpeechAPIKey());
+
+  const char* speech_api_key = NULL;
+#if defined(SB_USE_SB_MICROPHONE)
+  speech_api_key = SbMicrophoneGetSpeechApiKey();
+#else
+  speech_api_key = GetSpeechAPIKey();
+#endif
+  up_url = AppendQueryParameter(up_url, "key", speech_api_key);
 
   // Language is required. If no language is specified, use the system language.
   if (!config.lang.empty()) {

@@ -62,7 +62,7 @@ class Mic {
   const ErrorCallback error_callback_;
 };
 
-std::string GetSpeechAPIKey();
+const char* GetSpeechAPIKey();
 
 }  // namespace speech
 }  // namespace cobalt
