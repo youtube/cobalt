@@ -60,6 +60,7 @@ namespace browser {
 
 namespace {
 const int kStatUpdatePeriodMs = 1000;
+const int kLiteStatUpdatePeriodMs = 16;
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
@@ -292,7 +293,8 @@ Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       start_time_(base::TimeTicks::Now()),
-      stats_update_timer_(true, true) {
+      stats_update_timer_(true, true),
+      lite_stats_update_timer_(true, true) {
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -307,6 +309,10 @@ Application::Application(const base::Closure& quit_closure)
   stats_update_timer_.Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(kStatUpdatePeriodMs),
       base::Bind(&Application::UpdatePeriodicStats, base::Unretained(this)));
+  lite_stats_update_timer_.Start(
+      FROM_HERE, base::TimeDelta::FromMilliseconds(kLiteStatUpdatePeriodMs),
+      base::Bind(&Application::UpdatePeriodicLiteStats,
+                 base::Unretained(this)));
 
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
@@ -692,6 +698,10 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
   }
 }
 
+void Application::UpdatePeriodicLiteStats() {
+  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
+}
+
 void Application::UpdatePeriodicStats() {
 #if defined(__LB_SHELL__)
   bool memory_stats_updated = false;
@@ -731,8 +741,6 @@ void Application::UpdatePeriodicStats() {
     *c_val_stats_.used_gpu_memory = used_gpu_memory;
   }
 #endif
-
-  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
 }
 
 }  // namespace browser
