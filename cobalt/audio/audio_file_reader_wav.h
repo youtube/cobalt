@@ -18,7 +18,6 @@
 #define COBALT_AUDIO_AUDIO_FILE_READER_WAV_H_
 
 #include "cobalt/audio/audio_file_reader.h"
-#include "cobalt/audio/audio_helpers.h"
 
 namespace cobalt {
 namespace audio {
@@ -33,7 +32,6 @@ class AudioFileReaderWAV : public AudioFileReader {
   float sample_rate() const OVERRIDE { return sample_rate_; }
   int32 number_of_frames() const OVERRIDE { return number_of_frames_; }
   int32 number_of_channels() const OVERRIDE { return number_of_channels_; }
-  SampleType sample_type() const OVERRIDE { return sample_type_; }
 
  private:
   AudioFileReaderWAV(const uint8* data, size_t size);
@@ -51,7 +49,6 @@ class AudioFileReaderWAV : public AudioFileReader {
   float sample_rate_;
   int32 number_of_frames_;
   int32 number_of_channels_;
-  SampleType sample_type_;
 };
 
 }  // namespace audio
