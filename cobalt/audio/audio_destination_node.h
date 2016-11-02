@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "cobalt/audio/audio_device.h"
-#include "cobalt/audio/audio_helpers.h"
 #include "cobalt/audio/audio_node.h"
 #include "media/base/shell_audio_bus.h"
 
@@ -48,8 +47,8 @@ class AudioDestinationNode : public AudioNode,
   uint32 max_channel_count() const { return max_channel_count_; }
 
   // From AudioNode.
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32, /*number_of_frames*/
-                                                   SampleType) OVERRIDE {
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32 /*number_of_frames*/) OVERRIDE {
     NOTREACHED();
     return scoped_ptr<ShellAudioBus>();
   }

@@ -94,7 +94,7 @@ void AudioBufferSourceNode::Stop(double when,
 }
 
 scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
-    int32 number_of_frames, SampleType sample_type) {
+    int32 number_of_frames) {
   // This is called by Audio thread.
   audio_lock()->AssertLocked();
 
@@ -108,42 +108,21 @@ scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
 
   size_t channels = static_cast<size_t>(buffer_->number_of_channels());
 
-  if (sample_type == kSampleTypeFloat32) {
-    std::vector<float*> audio_buffer(channels, NULL);
-    for (size_t i = 0; i < channels; ++i) {
-      scoped_refptr<dom::Float32Array> buffer_data =
-          buffer_->GetChannelData(static_cast<uint32>(i), NULL);
-      scoped_refptr<dom::Float32Array> sub_array = buffer_data->Subarray(
-          NULL, read_index_, read_index_ + number_of_frames);
-      audio_buffer[i] = sub_array->data();
-    }
-
-    read_index_ += number_of_frames;
-
-    scoped_ptr<ShellAudioBus> audio_bus(
-        new ShellAudioBus(static_cast<size_t>(number_of_frames), audio_buffer));
-
-    return audio_bus.Pass();
-  } else if (sample_type == kSampleTypeInt16) {
-    std::vector<int16*> audio_buffer(channels, NULL);
-    for (size_t i = 0; i < channels; ++i) {
-      scoped_refptr<dom::Int16Array> buffer_data =
-          buffer_->GetChannelDataInt16(static_cast<uint32>(i), NULL);
-      scoped_refptr<dom::Int16Array> sub_array = buffer_data->Subarray(
-          NULL, read_index_, read_index_ + number_of_frames);
-      audio_buffer[i] = sub_array->data();
-    }
-
-    read_index_ += number_of_frames;
-
-    scoped_ptr<ShellAudioBus> audio_bus(
-        new ShellAudioBus(static_cast<size_t>(number_of_frames), audio_buffer));
-
-    return audio_bus.Pass();
+  std::vector<float*> audio_buffer;
+  for (size_t i = 0; i < channels; ++i) {
+    scoped_refptr<dom::Float32Array> buffer_data =
+        buffer_->GetChannelData(static_cast<uint32>(i), NULL);
+    scoped_refptr<dom::Float32Array> sub_array = buffer_data->Subarray(
+        NULL, read_index_, read_index_ + number_of_frames);
+    audio_buffer.push_back(sub_array->data());
   }
 
-  NOTREACHED();
-  return scoped_ptr<ShellAudioBus>();
+  read_index_ += number_of_frames;
+
+  scoped_ptr<ShellAudioBus> audio_bus(
+      new ShellAudioBus(static_cast<size_t>(number_of_frames), audio_buffer));
+
+  return audio_bus.Pass();
 }
 
 }  // namespace audio
