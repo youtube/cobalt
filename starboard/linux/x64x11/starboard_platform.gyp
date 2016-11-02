@@ -32,6 +32,7 @@
         '<(DEPTH)/starboard/linux/shared/system_get_path.cc',
         '<(DEPTH)/starboard/linux/shared/system_has_capability.cc',
         '<(DEPTH)/starboard/linux/x64x11/main.cc',
+        '<(DEPTH)/starboard/linux/x64x11/sanitizer_options.cc',
         '<(DEPTH)/starboard/linux/x64x11/system_get_property.cc',
         '<(DEPTH)/starboard/shared/alsa/alsa_audio_sink_type.cc',
         '<(DEPTH)/starboard/shared/alsa/alsa_audio_sink_type.h',
