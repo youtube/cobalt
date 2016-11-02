@@ -38,7 +38,36 @@ TEST(SbMicrophoneReadTest, SunnyDay) {
     bool success = SbMicrophoneOpen(microphone);
     ASSERT_TRUE(success);
 
-    void* audio_data[1024];
+    int requested_bytes = info_array[0].min_read_size;
+    void* audio_data[requested_bytes];
+    int read_bytes =
+        SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
+    EXPECT_GE(read_bytes, 0);
+
+    success = SbMicrophoneClose(microphone);
+    EXPECT_TRUE(success);
+    SbMicrophoneDestroy(microphone);
+  }
+}
+
+TEST(SbMicrophoneReadTest, SunnyDayReadIsLargerThanMinReadSize) {
+  SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
+  int available_microphones =
+      SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
+  EXPECT_GE(available_microphones, 0);
+
+  if (available_microphones != 0) {
+    ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
+        info_array[0].id, info_array[0].max_sample_rate_hz));
+    SbMicrophone microphone = SbMicrophoneCreate(
+        info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
+    ASSERT_TRUE(SbMicrophoneIsValid(microphone));
+
+    bool success = SbMicrophoneOpen(microphone);
+    ASSERT_TRUE(success);
+
+    int requested_bytes = info_array[0].min_read_size;
+    void* audio_data[requested_bytes * 2];
     int read_bytes =
         SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
     EXPECT_GE(read_bytes, 0);
@@ -73,7 +102,8 @@ TEST(SbMicrophoneReadTest, SunnyDayOpenSleepCloseAndOpenRead) {
     success = SbMicrophoneOpen(microphone);
     EXPECT_TRUE(success);
 
-    void* audio_data[16 * 1024];
+    int requested_bytes = info_array[0].min_read_size;
+    void* audio_data[requested_bytes];
     int read_bytes =
         SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
     EXPECT_GE(read_bytes, 0);
@@ -133,6 +163,34 @@ TEST(SbMicrophoneReadTest, RainyDayAudioBufferSizeIsSmallerThanRequestedSize) {
   }
 }
 
+TEST(SbMicrophoneReadTest, RainyDayAudioBufferSizeIsSmallerThanMinReadSize) {
+  SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
+  int available_microphones =
+      SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
+  EXPECT_GE(available_microphones, 0);
+
+  if (available_microphones != 0) {
+    ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
+        info_array[0].id, info_array[0].max_sample_rate_hz));
+    SbMicrophone microphone = SbMicrophoneCreate(
+        info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
+    ASSERT_TRUE(SbMicrophoneIsValid(microphone));
+
+    bool success = SbMicrophoneOpen(microphone);
+    ASSERT_TRUE(success);
+
+    int requested_bytes = info_array[0].min_read_size;
+    void* audio_data[requested_bytes / 2];
+    int read_bytes =
+        SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
+    EXPECT_GE(read_bytes, 0);
+
+    success = SbMicrophoneClose(microphone);
+    EXPECT_TRUE(success);
+    SbMicrophoneDestroy(microphone);
+  }
+}
+
 TEST(SbMicrophoneReadTest, RainyDayOpenIsNotCalled) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
   int available_microphones =
@@ -146,10 +204,12 @@ TEST(SbMicrophoneReadTest, RainyDayOpenIsNotCalled) {
         info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     ASSERT_TRUE(SbMicrophoneIsValid(microphone));
 
-    void* audio_data[1024];
+    int requested_bytes = info_array[0].min_read_size;
+    void* audio_data[requested_bytes];
     int read_bytes =
         SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
-    EXPECT_EQ(read_bytes, 0);
+    // An error should have occurred because open was not called.
+    EXPECT_LT(read_bytes, 0);
 
     SbMicrophoneDestroy(microphone);
   }
@@ -174,11 +234,12 @@ TEST(SbMicrophoneReadTest, RainyDayOpenCloseAndRead) {
     success = SbMicrophoneClose(microphone);
     EXPECT_TRUE(success);
 
-    void* audio_data[1024];
+    int requested_bytes = info_array[0].min_read_size;
+    void* audio_data[requested_bytes];
     int read_bytes =
         SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
-    // No data can be read.
-    EXPECT_EQ(read_bytes, 0);
+    // An error should have occurred because the microphone was closed.
+    EXPECT_LT(read_bytes, 0);
 
     SbMicrophoneDestroy(microphone);
   }
