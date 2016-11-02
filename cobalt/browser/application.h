@@ -154,6 +154,7 @@ class Application {
   void UpdateAndMaybeRegisterUserAgent();
 
   void UpdatePeriodicStats();
+  void UpdatePeriodicLiteStats();
 
   static ssize_t available_memory_;
   static int64 lifetime_in_ms_;
@@ -171,6 +172,7 @@ class Application {
   CValStats c_val_stats_;
 
   base::Timer stats_update_timer_;
+  base::Timer lite_stats_update_timer_;
 };
 
 // Factory method for creating an application.  It should be implemented
