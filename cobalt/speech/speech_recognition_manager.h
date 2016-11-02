@@ -21,12 +21,18 @@
 
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_state.h"
-#include "cobalt/speech/mic.h"
+#include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
 #include "media/base/shell_audio_bus.h"
+
+#if defined(SB_USE_SB_MICROPHONE)
+#include "cobalt/speech/microphone_manager.h"
+#else
+#include "cobalt/speech/mic.h"
+#endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
 namespace speech {
@@ -76,7 +82,13 @@ class SpeechRecognitionManager {
   // Callback for sending dom events if available.
   EventCallback event_callback_;
   SpeechRecognizer recognizer_;
+
+#if defined(SB_USE_SB_MICROPHONE)
+  MicrophoneManager microphone_manager_;
+#else
   scoped_ptr<Mic> mic_;
+#endif  // defined(SB_USE_SB_MICROPHONE)
+
   State state_;
 };
 
