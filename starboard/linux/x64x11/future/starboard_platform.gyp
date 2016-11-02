@@ -11,30 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# The "common" target contains facilities provided by Starboard that are common
-# to all platforms.
-
 {
   'targets': [
     {
-      'target_name': 'common',
+      'target_name': 'starboard_platform',
+      'product_name': 'starboard_platform_future',
       'type': 'static_library',
-      'variables': {
-        'includes_starboard': 1,
-      },
       'sources': [
-        'common.cc',
-        'decode_target_provider.cc',
-        'memory.cc',
-        'move.h',
-        'reset_and_return.h',
-        'scoped_ptr.h',
+        '<(DEPTH)/starboard/shared/stub/decode_target_create_egl.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_destroy.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_get_format.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_get_plane_egl.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
+      ],
+      'dependencies': [
+        '<(DEPTH)/starboard/common/common.gyp:common',
+        '<(DEPTH)/starboard/linux/x64x11/starboard_platform.gyp:starboard_platform',
+        '<(DEPTH)/starboard/linux/x64x11/starboard_platform.gyp:starboard_base_symbolize',
+        '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
+        '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
       ],
     },
   ],
