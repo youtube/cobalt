@@ -24,6 +24,7 @@
         'allocator.h',
         'allocator_decorator.cc',
         'allocator_decorator.h',
+        'atomic.h',
         'fixed_no_free_allocator.cc',
         'fixed_no_free_allocator.h',
         'memory_pool.cc',
@@ -38,6 +39,7 @@
         'scoped_ptr.h',
         'thread_collision_warner.cc',
         'thread_collision_warner.h',
+        'thread_local_object.h',
       ],
 
       'dependencies': [
@@ -60,9 +62,11 @@
       'target_name': 'nb_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'atomic_test.cc',
         'fixed_no_free_allocator_test.cc',
         'reuse_allocator_test.cc',
         'run_all_unittests.cc',
+        'test_thread.h',
         'thread_local_object_test.cc',
       ],
       'dependencies': [

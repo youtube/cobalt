@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_THREADING_THREAD_LOCAL_OBJECT_H_
-#define BASE_THREADING_THREAD_LOCAL_OBJECT_H_
+#ifndef NB_THREAD_LOCAL_OBJECT_H_
+#define NB_THREAD_LOCAL_OBJECT_H_
 
 #include <set>
 
@@ -24,7 +24,7 @@
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 
-namespace base {
+namespace nb {
 
 // Like base::ThreadLocalPointer<T> but destroys objects. This is important
 // for using ThreadLocalObjects that aren't tied to a singleton, or for
@@ -75,12 +75,14 @@ class ThreadLocalObject {
   // Thread Local Objects are destroyed after this call.
   ~ThreadLocalObject() {
     CheckCurrentThreadAllowedToDestruct();
-    SB_DCHECK(entry_set_.size() < 2)
+    if (SB_DLOG_IS_ON(FATAL)) {
+      SB_DCHECK(entry_set_.size() < 2)
         << "Logic error: Some threads may still be accessing the objects that "
         << "are about to be destroyed. Only one object is expected and that "
         << "should be for the main thread. The caller should ensure that "
         << "other threads that access this object are externally "
         << "synchronized.";
+    }
     // No locking is done because the entries should not be accessed by
     // different threads while this object is shutting down. If access is
     // occuring then the caller has a race condition, external to this class.
@@ -209,6 +211,6 @@ class ThreadLocalObject {
   SB_DISALLOW_COPY_AND_ASSIGN(ThreadLocalObject<Type>);
 };
 
-}  // namespace base
+}  // namespace nb
 
-#endif  // BASE_THREADING_THREAD_LOCAL_H_
+#endif  // NB_THREAD_LOCAL_OBJECT_H_
