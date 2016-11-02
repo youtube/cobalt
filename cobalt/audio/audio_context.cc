@@ -85,14 +85,13 @@ void AudioContext::DecodeAudioDataInternal(
 void AudioContext::DecodeFinish(int callback_id, float sample_rate,
                                 int32 number_of_frames,
                                 int32 number_of_channels,
-                                scoped_array<uint8> channels_data,
-                                SampleType sample_type) {
+                                scoped_array<uint8> channels_data) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     main_message_loop_->PostTask(
         FROM_HERE,
         base::Bind(&AudioContext::DecodeFinish, weak_this_, callback_id,
                    sample_rate, number_of_frames, number_of_channels,
-                   base::Passed(&channels_data), sample_type));
+                   base::Passed(&channels_data)));
     return;
   }
 
@@ -106,7 +105,7 @@ void AudioContext::DecodeFinish(int callback_id, float sample_rate,
   if (channels_data) {
     const scoped_refptr<AudioBuffer>& audio_buffer =
         new AudioBuffer(info->env_settings, sample_rate, number_of_frames,
-                        number_of_channels, channels_data.Pass(), sample_type);
+                        number_of_channels, channels_data.Pass());
     info->success_callback.value().Run(audio_buffer);
   } else if (info->error_callback) {
     info->error_callback.value().value().Run();

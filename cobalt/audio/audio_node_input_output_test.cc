@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_context.h"
-#include "cobalt/audio/audio_helpers.h"
+
+#include "cobalt/audio/audio_buffer_source_node.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -37,8 +37,8 @@ class AudioDestinationNodeMock : public AudioNode,
   }
 
   // From AudioNode.
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32, /*number_of_frames*/
-                                                   SampleType) OVERRIDE {
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32 /*number_of_frames*/) OVERRIDE {
     NOTREACHED();
     return scoped_ptr<ShellAudioBus>();
   }
@@ -58,8 +58,7 @@ void FillAudioBusFromOneSource(
   scoped_refptr<AudioBufferSourceNode> source(new AudioBufferSourceNode(NULL));
   scoped_refptr<AudioBuffer> buffer(
       new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames),
-                      static_cast<int32>(num_of_src_channel), src_data.Pass(),
-                      GetPreferredOutputSampleType()));
+                      static_cast<int32>(num_of_src_channel), src_data.Pass()));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -626,10 +625,9 @@ TEST(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   memcpy(src_buffer_1, src_data_in_float_1, 200 * sizeof(uint8));
   scoped_refptr<AudioBufferSourceNode> source_1(
       new AudioBufferSourceNode(NULL));
-  scoped_refptr<AudioBuffer> buffer_1(
-      new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames_1),
-                      static_cast<int32>(num_of_src_channel), src_data_1.Pass(),
-                      GetPreferredOutputSampleType()));
+  scoped_refptr<AudioBuffer> buffer_1(new AudioBuffer(
+      NULL, 44100, static_cast<int32>(num_of_frames_1),
+      static_cast<int32>(num_of_src_channel), src_data_1.Pass()));
   source_1->set_buffer(buffer_1);
 
   size_t num_of_frames_2 = 50;
@@ -644,10 +642,9 @@ TEST(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   memcpy(src_buffer_2, src_data_in_float_2, 400 * sizeof(uint8));
   scoped_refptr<AudioBufferSourceNode> source_2(
       new AudioBufferSourceNode(NULL));
-  scoped_refptr<AudioBuffer> buffer_2(
-      new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames_2),
-                      static_cast<int32>(num_of_src_channel), src_data_2.Pass(),
-                      GetPreferredOutputSampleType()));
+  scoped_refptr<AudioBuffer> buffer_2(new AudioBuffer(
+      NULL, 44100, static_cast<int32>(num_of_frames_2),
+      static_cast<int32>(num_of_src_channel), src_data_2.Pass()));
   source_2->set_buffer(buffer_2);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
