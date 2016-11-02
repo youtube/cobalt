@@ -22,6 +22,9 @@
 #ifndef STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 
+// The API version implemented by this platform.
+#define SB_API_VERSION 2
+
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
@@ -105,6 +108,8 @@
 // Indicates whether or not the given platform supports rendering of NV12
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
+
+#define SB_HAS_MICROPHONE 0
 
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"

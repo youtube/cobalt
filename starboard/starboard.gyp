@@ -29,6 +29,7 @@
         'character.h',
         'condition_variable.h',
         'configuration.h',
+        'decode_target.h',
         'directory.h',
         'double.h',
         'drm.h',
