@@ -22,6 +22,9 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
+// The API version implemented by this platform.
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
@@ -92,9 +95,6 @@
 // threads between cores, as opposed to systems where threads will only ever run
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
-
-// The API version implemented by this platform.
-#define SB_API_VERSION 2
 
 // --- System Header Configuration -------------------------------------------
 
