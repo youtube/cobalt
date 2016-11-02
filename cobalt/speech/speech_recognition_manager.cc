@@ -37,6 +37,15 @@ SpeechRecognitionManager::SpeechRecognitionManager(
           recognizer_(network_module,
                       base::Bind(&SpeechRecognitionManager::OnRecognizerEvent,
                                  base::Unretained(this)))),
+#if defined(SB_USE_SB_MICROPHONE)
+      microphone_manager_(
+          kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
+                                  base::Unretained(this)),
+          base::Bind(&SpeechRecognitionManager::OnDataCompletion,
+                     base::Unretained(this)),
+          base::Bind(&SpeechRecognitionManager::OnMicError,
+                     base::Unretained(this))),
+#else
       ALLOW_THIS_IN_INITIALIZER_LIST(mic_(Mic::Create(
           kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
                                   base::Unretained(this)),
@@ -44,7 +53,9 @@ SpeechRecognitionManager::SpeechRecognitionManager(
                      base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnMicError,
                      base::Unretained(this))))),
-      state_(kStopped) {}
+#endif  // defined(SB_USE_SB_MICROPHONE)
+      state_(kStopped) {
+}
 
 SpeechRecognitionManager::~SpeechRecognitionManager() { Stop(); }
 
@@ -61,7 +72,11 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   }
 
   recognizer_.Start(config, kSampleRate);
+#if defined(SB_USE_SB_MICROPHONE)
+  microphone_manager_.Open();
+#else
   mic_->Start();
+#endif
   state_ = kStarted;
 }
 
@@ -74,7 +89,12 @@ void SpeechRecognitionManager::Stop() {
     return;
   }
 
+#if defined(SB_USE_SB_MICROPHONE)
+  microphone_manager_.Close();
+#else
   mic_->Stop();
+#endif
+
   recognizer_.Stop();
   state_ = kStopped;
 }
@@ -88,7 +108,12 @@ void SpeechRecognitionManager::Abort() {
     return;
   }
 
+#if defined(SB_USE_SB_MICROPHONE)
+  microphone_manager_.Close();
+#else
   mic_->Stop();
+#endif
+
   recognizer_.Stop();
   state_ = kAborted;
 }
@@ -125,7 +150,7 @@ void SpeechRecognitionManager::OnDataCompletion() {
     size_t dummy_frames =
         static_cast<size_t>(kSampleRate * kAudioPacketDurationInSeconds);
     scoped_ptr<ShellAudioBus> dummy_audio_bus(new ShellAudioBus(
-        1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
+        1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
     dummy_audio_bus->ZeroAllFrames();
     recognizer_.RecognizeAudio(dummy_audio_bus.Pass(), true);
   }
