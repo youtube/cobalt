@@ -20,11 +20,18 @@
 namespace cobalt {
 namespace render_tree {
 
+enum StereoMode { kMono, kTopBottom, kLeftRight };
+
 // A MapToMeshFilter can be used to map source content onto a 3D mesh, within a
 // specified well-defined viewport.
 class MapToMeshFilter {
  public:
-  MapToMeshFilter() {}
+  MapToMeshFilter() : stereo_mode_(kMono) {}
+
+  StereoMode GetStereoMode() const { return stereo_mode_; }
+
+ private:
+  StereoMode stereo_mode_;
 };
 
 }  // namespace render_tree
