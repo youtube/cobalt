@@ -42,6 +42,7 @@
         'google_streaming_api.pb.h',
         'google_streaming_api.pb.proto',
         'mic.h',
+        'speech_configuration.h',
         'speech_recognition.cc',
         'speech_recognition.h',
         'speech_recognition_alternative.cc',
@@ -74,6 +75,8 @@
         ['OS=="starboard"', {
           'sources': [
             'mic_starboard.cc',
+            'microphone_manager.cc',
+            'microphone_manager.h',
           ],
         }],
         ['OS!="starboard" and actual_target_arch in ["linux", "ps3", "win"]', {
