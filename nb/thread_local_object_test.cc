@@ -15,172 +15,31 @@
 #include <map>
 #include <string>
 
+#include "nb/test_thread.h"
+#include "nb/atomic.h"
 #include "nb/thread_local_object.h"
 #include "nb/scoped_ptr.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
+namespace nb {
 namespace {
-
-// Similar to C++11 std::atomic<T>.
-// Atomic<T> may be instantiated with any TriviallyCopyable type T.
-// Atomic<T> is neither copyable nor movable.
-// TODO: Lift this class out into the library.
-template <typename T>
-class Atomic {
- public:
-  // C++11 forbids a copy constructor for std::atomic<T>, it also forbids
-  // a move operation.
-  Atomic() : value_() {}
-  explicit Atomic(T v) : value_(v) {}
-
-  // Checks whether the atomic operations on all objects of this type
-  // are lock-free.
-  // Returns true if the atomic operations on the objects of this type
-  // are lock-free, false otherwise.
-  //
-  // All atomic types may be implemented using mutexes or other locking
-  // operations, rather than using the lock-free atomic CPU instructions.
-  // Atomic types are also allowed to be sometimes lock-free, e.g. if only
-  // aligned memory accesses are naturally atomic on a given architecture,
-  // misaligned objects of the same type have to use locks.
-  bool is_lock_free() const { return false; }
-  bool is_lock_free() const volatile { return false; }
-
-  // Atomically replaces the value of the atomic object
-  // and returns the value held previously.
-  T Swap(T new_val) {
-    int old_value = -1;
-    {
-      starboard::ScopedLock lock(mutex_);
-      old_value = value_;
-      value_ = new_val;
-    }
-    return old_value;
-  }
-
-  // Atomically obtains the value of the atomic object.
-  T Get() const {
-    starboard::ScopedLock lock(mutex_);
-    return value_;
-  }
-
-  // Returns the new updated value after the operation has been applied.
-  T Add(T val) {
-    starboard::ScopedLock lock(mutex_);
-    value_ += val;
-    return value_;
-  }
-
-  // TrySwap(...) sets the new value if and only if "expected_old_value"
-  // matches the actual value during the atomic assignment operation. If this
-  // succeeds then true is returned. If there is a mismatch then the value is
-  // left unchanged and false is returned.
-  // Inputs:
-  //  new_value: Attempt to set the value to this new value.
-  //  expected_old_value: A test condition for success. If the actual value
-  //    matches the expected_old_value then the swap will succeed.
-  //  optional_actual_value: If non-null, then the actual value at the time
-  //    of the attempted operation is set to this value.
-  bool TrySwap(T new_value, T expected_old_value,
-               T* optional_actual_value) {
-    starboard::ScopedLock lock(mutex_);
-    if (optional_actual_value) {
-      *optional_actual_value = value_;
-    }
-    if (expected_old_value == value_) {
-      value_ = new_value;
-      return true;
-    }
-    return false;
-  }
-
- private:
-  T value_;
-  starboard::Mutex mutex_;
-};
-
-// Simple atomic int class. This could be optimized for speed using
-// compiler intrinsics for concurrent integer modification.
-class AtomicInt : public Atomic<int> {
- public:
-  AtomicInt() : Atomic<int>(0) {}
-  explicit AtomicInt(int initial_val) : Atomic<int>(initial_val) {}
-  void Increment() { Add(1); }
-  void Decrement() { Add(-1); }
-};
-
-// Simple atomic bool class. This could be optimized for speed using
-// compiler intrinsics for concurrent integer modification.
-class AtomicBool : public Atomic<bool>  {
- public:
-  AtomicBool() : Atomic<bool>(false) {}
-  explicit AtomicBool(bool initial_val) : Atomic<bool>(initial_val) {}
-};
-
-// AbstractTestThread that is a bare bones class wrapper around Starboard
-// thread. Subclasses must override Run().
-// TODO: Move this to nplb/thread_helpers.h
-class AbstractTestThread {
- public:
-  explicit AbstractTestThread() : thread_(kSbThreadInvalid) {}
-  virtual ~AbstractTestThread() {}
-
-  // Subclasses should override the Run method.
-  virtual void Run() = 0;
-
-  // Calls SbThreadCreate() with default parameters.
-  void Start() {
-    SbThreadEntryPoint entry_point = ThreadEntryPoint;
-
-    thread_ = SbThreadCreate(
-        0,                     // default stack_size.
-        kSbThreadNoPriority,   // default priority.
-        kSbThreadNoAffinity,   // default affinity.
-        true,                  // joinable.
-        "AbstractTestThread",
-        entry_point,
-        this);
-
-    if (kSbThreadInvalid == thread_) {
-      ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
-    }
-    return;
-  }
-
-  void Join() {
-    if (!SbThreadJoin(thread_, NULL)) {
-      ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
-    }
-  }
-
- private:
-  static void* ThreadEntryPoint(void* ptr) {
-    AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
-    this_ptr->Run();
-    return NULL;
-  }
-
-  SbThread thread_;
-};
 
 // Simple class that counts the number of instances alive.
 struct CountsInstances {
-  CountsInstances() { s_instances_.Increment(); }
-  ~CountsInstances() { s_instances_.Decrement(); }
-  static AtomicInt s_instances_;
-  static int NumInstances() { return s_instances_.Get(); }
-  static void ResetNumInstances() { s_instances_.Swap(0); }
+  CountsInstances() { s_instances_.increment(); }
+  ~CountsInstances() { s_instances_.decrement(); }
+  static atomic_int32_t s_instances_;
+  static int NumInstances() { return s_instances_.load(); }
+  static void ResetNumInstances() { s_instances_.exchange(0); }
 };
-AtomicInt CountsInstances::s_instances_(0);
+nb::atomic_int32_t CountsInstances::s_instances_(0);
 
 // A simple thread that just creates the an object from the supplied
 // ThreadLocalObject<T> and then exits.
 template <typename TYPE>
-class CreateThreadLocalObjectThenExit : public AbstractTestThread {
+class CreateThreadLocalObjectThenExit : public TestThread {
  public:
   explicit CreateThreadLocalObjectThenExit(
       ThreadLocalObject<TYPE>* tlo) : tlo_(tlo) {}
@@ -196,7 +55,7 @@ class CreateThreadLocalObjectThenExit : public AbstractTestThread {
 // A simple thread that just deletes the object supplied on a thread and then
 // exists.
 template <typename TYPE>
-class DestroyTypeOnThread : public AbstractTestThread {
+class DestroyTypeOnThread : public TestThread {
  public:
   explicit DestroyTypeOnThread(TYPE* ptr)
       : ptr_(ptr) {}
@@ -285,7 +144,7 @@ TEST(ThreadLocalObject, ThreadJoinDestroysObject) {
 
   nb::scoped_ptr<TLO> tlo(new TLO);
   {
-    AbstractTestThread* thread =
+    TestThread* thread =
         new CreateThreadLocalObjectThenExit<CountsInstances>(tlo.get());
     thread->Start();
     thread->Join();
@@ -318,7 +177,7 @@ TEST(ThreadLocalObject, NoLeaksOnMainThread) {
 
   // Thread will simply create the thread local object (CountsInstances)
   // and then return.
-  nb::scoped_ptr<AbstractTestThread> thread_ptr(
+  nb::scoped_ptr<TestThread> thread_ptr(
         new CreateThreadLocalObjectThenExit<CountsInstances>(tlo));
   thread_ptr->Start();  // Object is now created.
   thread_ptr->Join();   // ...then destroyed.
@@ -342,5 +201,4 @@ TEST(ThreadLocalObject, NoLeaksOnMainThread) {
 }
 
 }  // anonymous namespace
-}  // namespace base
-
+}  // nb namespace
