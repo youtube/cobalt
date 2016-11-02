@@ -69,7 +69,9 @@ class Animation : public script::Wrappable {
     // Converts the animation's timeline's time into the animation's local
     // time, which takes into account this animation's start_time().
     base::optional<base::TimeDelta> ComputeLocalTimeFromTimelineTime(
-        const base::optional<double>& timeline_time_in_milliseconds) const;
+        const base::optional<base::TimeDelta>& timeline_time) const;
+    base::optional<base::TimeDelta> ComputeTimelineTimeFromLocalTime(
+        const base::optional<base::TimeDelta>& local_time) const;
 
    private:
     base::optional<base::TimeDelta> start_time_;
@@ -128,6 +130,8 @@ class Animation : public script::Wrappable {
   }
 
   base::optional<double> current_time() const;
+  base::optional<base::TimeDelta> current_time_as_time_delta() const;
+
   void set_current_time(const base::optional<double>& current_time);
 
   double playback_rate() const { return data_.playback_rate(); }

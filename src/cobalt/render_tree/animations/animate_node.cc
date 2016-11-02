@@ -16,6 +16,8 @@
 
 #include "cobalt/render_tree/animations/animate_node.h"
 
+#include <algorithm>
+
 #include "base/debug/trace_event.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -63,7 +65,9 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
  public:
   TraverseListBuilder(const AnimateNode::Builder::InternalMap& animation_map,
                       TraverseList* traverse_list)
-      : animation_map_(animation_map), traverse_list_(traverse_list) {}
+      : animation_map_(animation_map),
+        traverse_list_(traverse_list),
+        expiry_(-base::TimeDelta::Max()) {}
 
   void Visit(animations::AnimateNode* animate) OVERRIDE;
   void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
@@ -108,6 +112,9 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
   // this visitor's associated node with in its list of child nodes.
   scoped_refptr<Node> replace_with_;
 
+  // The time after which all animations will have completed and be constant.
+  base::TimeDelta expiry_;
+
   friend class AnimateNode;
 };
 
@@ -134,6 +141,9 @@ void AnimateNode::TraverseListBuilder::Visit(animations::AnimateNode* animate) {
   // maintain the invariant that an AnimateNode does not contain any
   // AnimateNode descendants.
   replace_with_ = animate->source_;
+
+  // Update our expiry in accordance with the sub-AnimateNode's expiry.
+  expiry_ = std::max(expiry_, animate->expiry());
 }
 
 template <typename T>
@@ -197,6 +207,7 @@ void AnimateNode::TraverseListBuilder::AddToTraverseList(
     Node* node, AnimateNode::Builder::InternalMap::const_iterator found) {
   if (found != animation_map_.end()) {
     traverse_list_->push_back(TraverseListEntry(node, found->second));
+    expiry_ = std::max(expiry_, found->second->GetExpiry());
   } else {
     traverse_list_->push_back(TraverseListEntry(node));
   }
@@ -394,6 +405,8 @@ void AnimateNode::CommonInit(const Builder::InternalMap& node_animation_map,
     std::reverse(traverse_list_.begin(), traverse_list_.end());
     DCHECK(source_.get() == traverse_list_.begin()->node);
   }
+
+  expiry_ = traverse_list_builder.expiry_;
 }
 
 }  // namespace animations

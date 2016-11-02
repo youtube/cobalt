@@ -39,9 +39,15 @@ class AnimationTimeline : public script::Wrappable {
 
   // Returns the current sample time of the timeline, in milliseconds.  If the
   // returned optional is not engaged, this timeline is 'unresolved'.
-  base::optional<double> current_time();
+  base::optional<double> current_time() const;
 
   // Custom, not in any spec.
+
+  // Helper class to return the current time as a base::TimeDelta instead of a
+  // double.
+  const base::optional<base::TimeDelta>& current_time_as_time_delta() const {
+    return sampled_clock_time_;
+  }
 
   // The owner of this timeline should call Sample() each time a new sample
   // time is ready.

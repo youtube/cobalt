@@ -93,11 +93,13 @@ void AddAnimations(
   populate_base_style_function.Run(css_computed_style_declaration.data(),
                                    base_style);
 
+  web_animations::BakedAnimationSet baked_animation_set(
+      *css_computed_style_declaration.animations());
+
   node_animation_map_builder->Add(
       target_node, base::Bind(&ApplyAnimation<T>, apply_style_function,
-                              web_animations::BakedAnimationSet(
-                                  *css_computed_style_declaration.animations()),
-                              base_style));
+                              baked_animation_set, base_style),
+      baked_animation_set.end_time());
 }
 
 }  // namespace layout

@@ -65,14 +65,18 @@ void Animation::Cancel() {
   UpdatePendingTasks();
 }
 
-// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
-base::optional<double> Animation::current_time() const {
+base::optional<base::TimeDelta> Animation::current_time_as_time_delta() const {
   if (!timeline_) {
     return base::nullopt;
   }
 
-  base::optional<base::TimeDelta> current_time =
-      data_.ComputeLocalTimeFromTimelineTime(timeline_->current_time());
+  return data_.ComputeLocalTimeFromTimelineTime(
+      timeline_->current_time_as_time_delta());
+}
+
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
+base::optional<double> Animation::current_time() const {
+  base::optional<base::TimeDelta> current_time = current_time_as_time_delta();
   return current_time ? base::optional<double>(current_time->InMillisecondsF())
                       : base::nullopt;
 }
@@ -86,16 +90,27 @@ base::TimeDelta ScaleTime(const base::TimeDelta& time, double scale) {
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
 base::optional<base::TimeDelta>
 Animation::Data::ComputeLocalTimeFromTimelineTime(
-    const base::optional<double>& timeline_time_in_milliseconds) const {
+    const base::optional<base::TimeDelta>& timeline_time) const {
   // TODO: Take into account the hold time.
-  if (!timeline_time_in_milliseconds || !start_time_) {
+  if (!timeline_time || !start_time_) {
     return base::nullopt;
   }
 
-  return ScaleTime(
-      base::TimeDelta::FromMillisecondsD(*timeline_time_in_milliseconds) -
-          *start_time_,
-      playback_rate_);
+  return ScaleTime(*timeline_time - *start_time_, playback_rate_);
+}
+
+base::optional<base::TimeDelta>
+Animation::Data::ComputeTimelineTimeFromLocalTime(
+    const base::optional<base::TimeDelta>& local_time) const {
+  if (!start_time_ || !local_time) {
+    return base::nullopt;
+  }
+
+  if (local_time == base::TimeDelta::Max()) {
+    return base::TimeDelta::Max();
+  }
+
+  return ScaleTime(*local_time, 1.0 / playback_rate_) + *start_time_;
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#setting-the-current-time-of-an-animation
@@ -116,35 +131,29 @@ Animation::~Animation() {
 }
 
 void Animation::UpdatePendingTasks() {
-  base::optional<double> local_time_in_ms = current_time();
+  if (!effect_) {
+    return;
+  }
 
-  if (!local_time_in_ms) {
-    // If the local time is unresolved, then we cannot know when we will enter
-    // the "after phase".
-    on_enter_after_phase_.reset();
+  base::TimeDelta end_time_local =
+      effect_->timing()->data().time_until_after_phase(base::TimeDelta());
+
+  base::optional<base::TimeDelta> end_time_timeline =
+      data_.ComputeTimelineTimeFromLocalTime(end_time_local);
+
+  // If the local time is unresolved, then we cannot know when we will enter
+  // the "after phase".
+  if (end_time_timeline &&
+      *end_time_timeline >= *timeline_->current_time_as_time_delta() &&
+      *end_time_timeline != base::TimeDelta::Max()) {
+    // Setup the "upon entering the after phase" event to fire at the
+    // specified timeline time.
+    on_enter_after_phase_ = timeline_->QueueTask(
+        *end_time_timeline,
+        base::Bind(&Animation::OnEnterAfterPhase, base::Unretained(this)));
   } else {
-    if (!effect_) {
-      return;
-    }
-
-    base::TimeDelta local_time =
-        base::TimeDelta::FromMillisecondsD(*local_time_in_ms);
-
-    base::TimeDelta time_to_after_phase =
-        effect_->timing()->data().time_until_after_phase(local_time);
-    if (time_to_after_phase >= base::TimeDelta() &&
-        time_to_after_phase != base::TimeDelta::Max()) {
-      // Setup the "upon entering the after phase" event to fire at the
-      // specified timeline time.
-      if (timeline_) {
-        on_enter_after_phase_ = timeline_->QueueTask(
-            *data_.start_time() + time_to_after_phase,
-            base::Bind(&Animation::OnEnterAfterPhase, base::Unretained(this)));
-      }
-    } else {
-      // We are already in the after phase, so clear this task.
-      on_enter_after_phase_.reset();
-    }
+    // We are already in the after phase, so clear this task.
+    on_enter_after_phase_.reset();
   }
 }
 

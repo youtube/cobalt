@@ -32,7 +32,8 @@ TEST(AnimationDataTests, LocalTimeIsUnresolvedIfTimelineTimeIsUnresolved) {
 TEST(AnimationDataTests, LocalTimeIsUnresolvedIfStartTimeIsUnresolved) {
   Animation::Data animation;
   base::optional<base::TimeDelta> local_time =
-      animation.ComputeLocalTimeFromTimelineTime(3000.0);
+      animation.ComputeLocalTimeFromTimelineTime(
+          base::TimeDelta::FromMilliseconds(3000));
 
   EXPECT_FALSE(local_time);
 }
@@ -41,7 +42,8 @@ TEST(AnimationDataTests, LocalTimeIsTimelineTimeMinusStartTime) {
   Animation::Data animation;
   animation.set_start_time(base::TimeDelta::FromSeconds(2));
   base::optional<base::TimeDelta> local_time =
-      animation.ComputeLocalTimeFromTimelineTime(3000.0);
+      animation.ComputeLocalTimeFromTimelineTime(
+          base::TimeDelta::FromMilliseconds(3000));
 
   ASSERT_TRUE(local_time);
   EXPECT_EQ(1.0, local_time->InSecondsF());
@@ -52,7 +54,8 @@ TEST(AnimationDataTests, LocalTimeIsMultipliedByPlaybackRate) {
   animation.set_start_time(base::TimeDelta::FromSeconds(2));
   animation.set_playback_rate(2.0);
   base::optional<base::TimeDelta> local_time =
-      animation.ComputeLocalTimeFromTimelineTime(3000.0);
+      animation.ComputeLocalTimeFromTimelineTime(
+          base::TimeDelta::FromMilliseconds(3000));
 
   ASSERT_TRUE(local_time);
   EXPECT_EQ(2.0, local_time->InSecondsF());
