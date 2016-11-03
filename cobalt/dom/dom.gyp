@@ -234,6 +234,7 @@
         'uint8_array.h',
         'url.cc',
         'url.h',
+        'url_registry.h',
         'url_utils.cc',
         'url_utils.h',
         'window.cc',
