@@ -38,7 +38,8 @@ ImageData::ImageData(SbBlitterDevice device, const math::Size& size,
           RenderTreePixelFormatToBlitter(pixel_format))),
       descriptor_(size, pixel_format, alpha_format,
                   SbBlitterGetPixelDataPitchInBytes(pixel_data_)) {
-  CHECK_EQ(render_tree::kAlphaFormatPremultiplied, alpha_format);
+  CHECK(alpha_format == render_tree::kAlphaFormatPremultiplied ||
+        alpha_format == render_tree::kAlphaFormatOpaque);
   CHECK(SbBlitterIsPixelDataValid(pixel_data_));
 }
 
@@ -63,6 +64,9 @@ SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
   surface_ = SbBlitterCreateSurfaceFromPixelData(image_data->device(),
                                                  image_data->TakePixelData());
   CHECK(SbBlitterIsSurfaceValid(surface_));
+
+  is_opaque_ = image_data->GetDescriptor().alpha_format ==
+               render_tree::kAlphaFormatOpaque;
 }
 
 bool SinglePlaneImage::EnsureInitialized() { return false; }
