@@ -23,7 +23,7 @@
 #if defined(NEED_STARBOARD_MEMORY)
 #include "starboard/memory.h"
 #define malloc SbMemoryAllocate
-#define free SbMemoryFree
+#define free SbMemoryDeallocate
 #elif !defined(HAVE_STDLIB_H)	/* <stdlib.h> should declare malloc(),free() */
 extern void * malloc JPP((size_t size));
 extern void free JPP((void *ptr));
