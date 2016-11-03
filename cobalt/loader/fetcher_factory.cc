@@ -23,6 +23,7 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/loader/about_fetcher.h"
+#include "cobalt/loader/blob_fetcher.h"
 #include "cobalt/loader/embedded_fetcher.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/net_fetcher.h"
@@ -69,6 +70,16 @@ FetcherFactory::FetcherFactory(network::NetworkModule* network_module,
   file_thread_.Start();
 }
 
+FetcherFactory::FetcherFactory(
+    network::NetworkModule* network_module, const FilePath& extra_search_dir,
+    const BlobFetcher::ResolverCallback& blob_resolver)
+    : file_thread_("File"),
+      network_module_(network_module),
+      extra_search_dir_(extra_search_dir),
+      blob_resolver_(blob_resolver) {
+  file_thread_.Start();
+}
+
 scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
                                                   Fetcher::Handler* handler) {
   return CreateSecureFetcher(url, csp::SecurityCallback(), handler).Pass();
@@ -104,7 +115,15 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     fetcher.reset(new AboutFetcher(handler));
   }
 #endif
-  else {  // NOLINT(readability/braces)
+  else if (url.SchemeIs("blob")) {  // NOLINT(readability/braces)
+    if (!blob_resolver_.is_null()) {
+      fetcher.reset(new BlobFetcher(url, handler, blob_resolver_));
+    } else {
+      LOG(ERROR) << "Fetcher factory not provided the blob registry, "
+                    "could not fetch the URL: "
+                 << url;
+    }
+  } else {  // NOLINT(readability/braces)
     DCHECK(network_module_) << "Network module required.";
     NetFetcher::Options options;
     fetcher.reset(new NetFetcher(url, url_security_callback, handler,

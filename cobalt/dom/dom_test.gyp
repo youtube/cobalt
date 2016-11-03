@@ -24,6 +24,7 @@
       'target_name': 'dom_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'blob_test.cc',
         'comment_test.cc',
         'crypto_test.cc',
         'csp_delegate_test.cc',

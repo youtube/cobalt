@@ -29,8 +29,10 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/debug/debug_server_module.h"
+#include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/storage.h"
+#include "cobalt/dom/url.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/storage/storage_manager.h"
 
@@ -111,9 +113,8 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Called to inject a keyboard event into the web module.
-  void InjectKeyboardEvent(
-      scoped_refptr<dom::Element> element,
-      const dom::KeyboardEvent::Data& event);
+  void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
+                           const dom::KeyboardEvent::Data& event);
 
   // Called to execute JavaScript in this WebModule. Sets the |result|
   // output parameter and signals |got_result|.
@@ -239,6 +240,9 @@ class WebModule::Impl {
   // Object to register and retrieve MediaSource object with a string key.
   scoped_ptr<dom::MediaSource::Registry> media_source_registry_;
 
+  // Object to register and retrieve Blob objects with a string key.
+  scoped_ptr<dom::Blob::Registry> blob_registry_;
+
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
 
@@ -311,8 +315,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnError, base::Unretained(this))));
   DCHECK(dom_parser_);
 
+  blob_registry_.reset(new dom::Blob::Registry);
+
   fetcher_factory_.reset(new loader::FetcherFactory(
-      data.network_module, data.options.extra_web_file_dir));
+      data.network_module, data.options.extra_web_file_dir,
+      dom::URL::MakeBlobResolverCallback(blob_registry_.get())));
   DCHECK(fetcher_factory_);
 
   loader_factory_.reset(
@@ -390,8 +397,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   environment_settings_.reset(new dom::DOMSettings(
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), data.media_module, javascript_engine_.get(),
-      global_environment_.get(), data.options.dom_settings_options));
+      media_source_registry_.get(), blob_registry_.get(), data.media_module,
+      javascript_engine_.get(), global_environment_.get(),
+      data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
@@ -458,6 +466,7 @@ WebModule::Impl::~Impl() {
   window_weak_.reset();
   window_ = NULL;
   media_source_registry_.reset();
+  blob_registry_.reset();
   script_runner_.reset();
   execution_state_.reset();
   global_environment_ = NULL;
@@ -757,20 +766,17 @@ void WebModule::Initialize(const ConstructionData& data) {
   impl_.reset(new Impl(data));
 }
 
-void WebModule::InjectKeyboardEvent(
-    const dom::KeyboardEvent::Data& event) {
+void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
   DCHECK(message_loop());
   DCHECK(impl_);
   message_loop()->PostTask(FROM_HERE,
                            base::Bind(&WebModule::Impl::InjectKeyboardEvent,
                                       base::Unretained(impl_.get()),
-                                      scoped_refptr<dom::Element>(),
-                                      event));
+                                      scoped_refptr<dom::Element>(), event));
 }
 
-void WebModule::InjectKeyboardEvent(
-    scoped_refptr<dom::Element> element,
-    const dom::KeyboardEvent::Data& event) {
+void WebModule::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
+                                    const dom::KeyboardEvent::Data& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
                event.type);
   DCHECK(message_loop());
