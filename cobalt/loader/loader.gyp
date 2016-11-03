@@ -21,6 +21,8 @@
       'target_name': 'loader',
       'type': 'static_library',
       'sources': [
+        'blob_fetcher.cc',
+        'blob_fetcher.h',
         'decoder.h',
         'embedded_fetcher.cc',
         'embedded_fetcher.h',
@@ -91,7 +93,9 @@
       'target_name': 'loader_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'blob_fetcher_test.cc',
         'fetcher_factory_test.cc',
+        'fetcher_test.h',
         'file_fetcher_test.cc',
         'font/typeface_decoder_test.cc',
         'image/image_decoder_test.cc',
