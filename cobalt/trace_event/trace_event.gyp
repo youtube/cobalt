@@ -27,6 +27,8 @@
         'scoped_event_parser_trace.h',
         'scoped_trace_to_file.cc',
         'scoped_trace_to_file.h',
+        'switches.cc',
+        'switches.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
