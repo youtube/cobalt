@@ -95,9 +95,11 @@
     'lbshell_root%': '<(DEPTH)/lbshell',
 
     # The relative path from src/ to the directory containing the
-    # starboard_platform.gyp file, or the empty string if not an autodiscovered
-    # platform.
-    'starboard_path%': '',
+    # starboard_platform.gyp file.  It is currently set to
+    # 'starboard/<(target_arch)' to make semi-starboard platforms work.
+    # TODO: Set the default value to '' once all semi-starboard platforms are
+    # moved to starboard.
+    'starboard_path%': 'starboard/<(target_arch)',
 
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
