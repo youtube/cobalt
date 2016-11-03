@@ -436,15 +436,21 @@ scoped_refptr<Image> CreateAdditiveColorGridImage(
   return resource_provider->CreateImage(image_data.Pass());
 }
 
-scoped_refptr<Image> CreateColoredCheckersImage(
-    ResourceProvider* resource_provider, const SizeF& dimensions) {
+scoped_refptr<Image> CreateColoredCheckersImageForAlphaFormat(
+    ResourceProvider* resource_provider, const SizeF& dimensions,
+    render_tree::AlphaFormat alpha_format) {
   std::vector<RGBAWord> row_colors;
   row_colors.push_back(RGBAWord(255, 0, 0, 255));
   row_colors.push_back(RGBAWord(0, 255, 0, 255));
   row_colors.push_back(RGBAWord(0, 0, 255, 255));
   return CreateAdditiveColorGridImage(resource_provider, dimensions, row_colors,
-                                      row_colors,
-                                      render_tree::kAlphaFormatPremultiplied);
+                                      row_colors, alpha_format);
+}
+
+scoped_refptr<Image> CreateColoredCheckersImage(
+    ResourceProvider* resource_provider, const SizeF& dimensions) {
+  return CreateColoredCheckersImageForAlphaFormat(
+      resource_provider, dimensions, render_tree::kAlphaFormatPremultiplied);
 }
 
 }  // namespace
@@ -455,6 +461,24 @@ TEST_F(PixelTest, SingleRGBAImageWithSameSizeAsRenderTarget) {
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
 
   TestTree(new ImageNode(image));
+}
+
+TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNone) {
+  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
+      GetResourceProvider(), output_surface_size(),
+      render_tree::kAlphaFormatOpaque);
+
+  TestTree(new ImageNode(image));
+}
+
+TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNoneAndRoundedCorners) {
+  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
+      GetResourceProvider(), output_surface_size(),
+      render_tree::kAlphaFormatOpaque);
+
+  TestTree(new FilterNode(
+      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
+      new ImageNode(image)));
 }
 
 TEST_F(PixelTest, SingleRGBAImageLargerThanRenderTarget) {

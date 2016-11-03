@@ -79,6 +79,9 @@ class MultiPlaneImage : public Image {
   base::TypeId GetTypeId() const OVERRIDE {
     return base::GetTypeId<MultiPlaneImage>();
   }
+
+  // All currently supported MultiPlaneImage formats do not feature alpha.
+  bool IsOpaque() const OVERRIDE { return true; }
 };
 
 }  // namespace skia

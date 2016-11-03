@@ -67,6 +67,12 @@ enum AlphaFormat {
   // This alpha format implies standard alpha, where each component is
   // independent of the alpha.
   kAlphaFormatUnpremultiplied,
+
+  // Indicates that all alpha values in the image data are opaque.  If
+  // non-opaque alpha data is used with this format, visual output will be
+  // undefined. This information may be used to enable optimizations, and can
+  // result in Image::IsOpaque() returning true.
+  kAlphaFormatOpaque,
 };
 
 // Describes the format of a contiguous block of memory that represents an
@@ -215,6 +221,12 @@ class Image : public base::RefCountedThreadSafe<Image> {
     return static_cast<uint32>(GetSize().width() * GetSize().height() *
                                BytesPerPixel(kPixelFormatRGBA8));
   }
+
+  // If an Image is able to know that it contains no alpha data (e.g. if it
+  // was constructed from ImageData whose alpha format is set to
+  // kAlphaFormatOpaque), then this method can return true, and code can
+  // be written to take advantage of this and perform optimizations.
+  virtual bool IsOpaque() const { return false; }
 
  protected:
   virtual ~Image() {}
