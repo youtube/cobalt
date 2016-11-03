@@ -129,6 +129,13 @@ const char kScratchSurfaceCacheSizeInBytes[] =
 // setting may affect GPU memory usage.
 const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
 
+// Only relevant if you are using the Blitter API.
+// Determines the capacity of the software surface cache, which is used to
+// cache all surfaces that are rendered via a software rasterizer to avoid
+// re-rendering them.
+const char kSoftwareSurfaceCacheSizeInBytes[] =
+    "software_surface_cache_size_in_bytes";
+
 // Determines the capacity of the surface cache.  The surface cache tracks which
 // render tree nodes are being re-used across frames and stores the nodes that
 // are most CPU-expensive to render into surfaces.  While it depends on the

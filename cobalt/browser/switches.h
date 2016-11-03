@@ -50,6 +50,7 @@ extern const char kInitialURL[];
 extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];
+extern const char kSoftwareSurfaceCacheSizeInBytes[];
 extern const char kSurfaceCacheSizeInBytes[];
 extern const char kViewport[];
 

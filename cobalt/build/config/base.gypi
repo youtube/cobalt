@@ -162,6 +162,12 @@
     # typefaces downloaded from a web page.
     'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
 
+    # Only relevant if you are using the Blitter API.
+    # Determines the capacity of the software surface cache, which is used to
+    # cache all surfaces that are rendered via a software rasterizer to avoid
+    # re-rendering them.
+    'software_surface_cache_size_in_bytes%': 10 * 1024 * 1024,
+
     # Modifying this value to be non-1.0f will result in the image cache
     # capacity being cleared and then temporarily reduced for the duration that
     # a video is playing.  This can be useful for some platforms if they are

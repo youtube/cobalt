@@ -28,9 +28,6 @@
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
 #include "starboard/blitter.h"
-#include "third_party/skia/include/core/SkBitmap.h"
-#include "third_party/skia/include/core/SkCanvas.h"
-#include "third_party/skia/include/core/SkImageInfo.h"
 
 #if SB_HAS(BLITTER)
 
@@ -52,18 +49,17 @@ using render_tree::ViewportFilter;
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SbBlitterDevice device, SbBlitterContext context,
-    const RenderState& render_state,
-    skia::SoftwareRasterizer* software_rasterizer,
-    ScratchSurfaceCache* scratch_surface_cache,
+    const RenderState& render_state, ScratchSurfaceCache* scratch_surface_cache,
     SurfaceCacheDelegate* surface_cache_delegate,
-    common::SurfaceCache* surface_cache)
-    : software_rasterizer_(software_rasterizer),
-      device_(device),
+    common::SurfaceCache* surface_cache,
+    CachedSoftwareRasterizer* software_surface_cache)
+    : device_(device),
       context_(context),
       render_state_(render_state),
       scratch_surface_cache_(scratch_surface_cache),
       surface_cache_delegate_(surface_cache_delegate),
-      surface_cache_(surface_cache) {
+      surface_cache_(surface_cache),
+      software_surface_cache_(software_surface_cache) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -77,9 +73,6 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
-  common::SurfaceCache::Block cache_block(surface_cache_, composition_node);
-  if (cache_block.Cached()) return;
-
   const render_tree::CompositionNode::Children& children =
       composition_node->data().children();
 
@@ -98,6 +91,27 @@ void RenderTreeNodeVisitor::Visit(
   }
   render_state_.transform.ApplyOffset(-composition_node->data().offset());
 }
+
+namespace {
+bool SourceCanRenderWithOpacity(render_tree::Node* source) {
+  if (source->GetTypeId() == base::GetTypeId<render_tree::ImageNode>() ||
+      source->GetTypeId() == base::GetTypeId<render_tree::RectNode>()) {
+    return true;
+  } else if (source->GetTypeId() ==
+             base::GetTypeId<render_tree::CompositionNode>()) {
+    // If we are a composition of valid sources, then we also allow
+    // rendering through a viewport here.
+    render_tree::CompositionNode* composition_node =
+        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
+    typedef render_tree::CompositionNode::Children Children;
+    const Children& children = composition_node->data().children();
+    if (children.size() == 1 && SourceCanRenderWithOpacity(children[0].get())) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   if (filter_node->data().blur_filter) {
@@ -134,6 +148,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     // trivially done.  However, if we made it into this branch, then
     // we know that opacity is in the range (0, 1), exclusive.
     float opacity = filter_node->data().opacity_filter->opacity();
+
+    if (SourceCanRenderWithOpacity(source)) {
+      float original_opacity = render_state_.opacity;
+      render_state_.opacity *= opacity;
+
+      source->Accept(this);
+
+      render_state_.opacity = original_opacity;
+      return;
+    }
 
     // Render our source subtree to an offscreen surface, and then we will
     // re-render it to our main render target with an alpha value applied to it.
@@ -203,7 +227,15 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   // Render the image.
   SbBlitterSetBlending(context_, true);
-  SbBlitterSetModulateBlitsWithColor(context_, false);
+  if (render_state_.opacity < 1.0f) {
+    SbBlitterSetModulateBlitsWithColor(context_, true);
+    SbBlitterSetColor(
+        context_,
+        SbBlitterColorFromRGBA(255, 255, 255,
+                               static_cast<int>(255 * render_state_.opacity)));
+  } else {
+    SbBlitterSetModulateBlitsWithColor(context_, false);
+  }
   SbBlitterBlitRectToRectTiled(
       context_, blitter_image->surface(),
       RectFToBlitterRect(local_transform.TransformRect(RectF(image_size))),
@@ -213,15 +245,12 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
-  common::SurfaceCache::Block cache_block(surface_cache_,
-                                          matrix_transform_node);
-  if (cache_block.Cached()) return;
-
   const Matrix3F& transform = matrix_transform_node->data().transform;
 
-  if (transform.Get(1, 0) != 0 || transform.Get(0, 1) != 0) {
-    // The Starboard Blitter API does not support rotations/shears, so we must
-    // fallback to software in order to render the entire subtree.
+  if (transform.Get(1, 0) != 0 || transform.Get(0, 1) != 0 ||
+      transform.Get(0, 0) < 0 || transform.Get(1, 1) < 0) {
+    // The Starboard Blitter API does not support rotations/shears/flips, so we
+    // must fallback to software in order to render the entire subtree.
     RenderWithSoftwareRenderer(matrix_transform_node);
     return;
   }
@@ -349,6 +378,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
             rect_node->data().background_brush.get());
     ColorRGBA color = solid_color_brush->color();
 
+    if (render_state_.opacity < 1.0f) {
+      color.set_a(color.a() * render_state_.opacity);
+    }
+
     SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
 
     SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));
@@ -370,8 +403,12 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
       float bottom_width =
           border.bottom.width * render_state_.transform.scale().y();
 
-      RenderRectNodeBorder(context_, border.left.color, left_width, right_width,
-                           top_width, bottom_width, transformed_rect);
+      ColorRGBA color = border.left.color;
+      if (render_state_.opacity < 1.0f) {
+        color.set_a(color.a() * render_state_.opacity);
+      }
+      RenderRectNodeBorder(context_, color, left_width, right_width, top_width,
+                           bottom_width, transformed_rect);
     }
   }
 }
@@ -387,82 +424,51 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
 
 void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
     render_tree::Node* node) {
-  common::SurfaceCache::Block cache_block(surface_cache_, node);
-  if (cache_block.Cached()) return;
-
-  common::OffscreenRenderCoordinateMapping coord_mapping =
-      common::GetOffscreenRenderCoordinateMapping(
-          node->GetBounds(), render_state_.transform.ToMatrix(),
-          render_state_.bounds_stack.Top());
-  if (coord_mapping.output_bounds.IsEmpty()) {
-    // There's nothing to render if the bounds are 0.
+  CachedSoftwareRasterizer::SurfaceReference software_surface_reference(
+      software_surface_cache_, node, render_state_.transform);
+  CachedSoftwareRasterizer::Surface software_surface =
+      software_surface_reference.surface();
+  if (!SbBlitterIsSurfaceValid(software_surface.surface)) {
     return;
   }
 
-  DCHECK_GE(0.001f, std::abs(1.0f -
-                             render_state_.transform.scale().x() *
-                                 coord_mapping.output_post_scale.x()));
-  DCHECK_GE(0.001f, std::abs(1.0f -
-                             render_state_.transform.scale().y() *
-                                 coord_mapping.output_post_scale.y()));
+  Transform apply_transform(render_state_.transform);
+  apply_transform.ApplyScale(software_surface.coord_mapping.output_post_scale);
+  math::RectF output_rectf = apply_transform.TransformRect(
+      software_surface.coord_mapping.output_bounds);
+  // We can simulate a "pre-multiply" by translation by offsetting the final
+  // output rectangle by the pre-translate, effectively resulting in the
+  // translation being applied last, as intended.
+  output_rectf.Offset(software_surface.coord_mapping.output_pre_translate);
+  SbBlitterRect output_blitter_rect = RectFToBlitterRect(output_rectf);
 
-  SkImageInfo output_image_info = SkImageInfo::MakeN32(
-      coord_mapping.output_bounds.width(), coord_mapping.output_bounds.height(),
-      kPremul_SkAlphaType);
-
-  // Allocate the pixels for the output image.
-  SbBlitterPixelDataFormat blitter_pixel_data_format =
-      SkiaToBlitterPixelFormat(output_image_info.colorType());
-  DCHECK(SbBlitterIsPixelFormatSupportedByPixelData(device_,
-                                                    blitter_pixel_data_format));
-  SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
-      device_, coord_mapping.output_bounds.width(),
-      coord_mapping.output_bounds.height(), blitter_pixel_data_format);
-  CHECK(SbBlitterIsPixelDataValid(pixel_data));
-
-  SkBitmap bitmap;
-  bitmap.installPixels(output_image_info,
-                       SbBlitterGetPixelDataPointer(pixel_data),
-                       SbBlitterGetPixelDataPitchInBytes(pixel_data));
-
-  // Setup our Skia canvas that we will be using as the target for all CPU Skia
-  // output.
-  SkCanvas canvas(bitmap);
-  canvas.clear(SkColorSetARGB(0, 0, 0, 0));
-
-  Transform sub_render_transform(coord_mapping.sub_render_transform);
-
-  // Now setup our canvas so that the render tree will be rendered to the top
-  // left corner instead of at node->GetBounds().origin().
-  canvas.translate(sub_render_transform.translate().x(),
-                   sub_render_transform.translate().y());
-  // And finally set the scale on our target canvas to match that of the current
-  // |render_state_.transform|.
-  canvas.scale(sub_render_transform.scale().x(),
-               sub_render_transform.scale().y());
-
-  // Use the Skia software rasterizer to render our subtree.
-  software_rasterizer_->Submit(node, &canvas);
-
-  // Create a surface out of the now populated pixel data.
-  SbBlitterSurface surface =
-      SbBlitterCreateSurfaceFromPixelData(device_, pixel_data);
-
-  math::RectF output_rect = coord_mapping.output_bounds;
-  output_rect.Offset(coord_mapping.output_pre_translate);
-  output_rect.Offset(render_state_.transform.translate());
-
-  // Finally blit the resulting surface to our actual render target.
   SbBlitterSetBlending(context_, true);
-  SbBlitterSetModulateBlitsWithColor(context_, false);
-  SbBlitterBlitRectToRect(
-      context_, surface,
-      SbBlitterMakeRect(0, 0, coord_mapping.output_bounds.width(),
-                        coord_mapping.output_bounds.height()),
-      RectFToBlitterRect(output_rect));
 
-  // Clean up our temporary surface.
-  SbBlitterDestroySurface(surface);
+  if (render_state_.opacity < 1.0f) {
+    SbBlitterSetModulateBlitsWithColor(context_, true);
+    SbBlitterSetColor(
+        context_,
+        SbBlitterColorFromRGBA(255, 255, 255,
+                               static_cast<int>(255 * render_state_.opacity)));
+  } else {
+    SbBlitterSetModulateBlitsWithColor(context_, false);
+  }
+
+// Blit the software rasterized surface to our actual render target.
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (render_state_.highlight_software_draws && software_surface.created) {
+    SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 255, 0, 255));
+    SbBlitterFillRect(context_, output_blitter_rect);
+  } else  // NOLINT(readability/braces)
+#endif    // defined(ENABLE_DEBUG_CONSOLE)
+  {
+    SbBlitterBlitRectToRect(
+        context_, software_surface.surface,
+        SbBlitterMakeRect(
+            0, 0, software_surface.coord_mapping.output_bounds.width(),
+            software_surface.coord_mapping.output_bounds.height()),
+        output_blitter_rect);
+  }
 }
 
 scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>
@@ -496,8 +502,8 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
       RenderState(
           render_target, Transform(coord_mapping.sub_render_transform),
           BoundsStack(context_, Rect(coord_mapping.output_bounds.size()))),
-      software_rasterizer_, scratch_surface_cache_, surface_cache_delegate_,
-      surface_cache_);
+      scratch_surface_cache_, surface_cache_delegate_, surface_cache_,
+      software_surface_cache_);
   node->Accept(&sub_visitor);
 
   // Restore our original render target.
