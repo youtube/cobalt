@@ -29,13 +29,16 @@ namespace cssom {
 MTMFunction::MTMFunction(
     const scoped_refptr<PropertyValue>& mesh_url,
     ResolutionMatchedMeshListBuilder resolution_matched_meshes,
-    float horizontal_fov, float vertical_fov, const glm::mat4& transform)
+    float horizontal_fov, float vertical_fov, const glm::mat4& transform,
+    const scoped_refptr<KeywordValue>& stereo_mode)
     : mesh_url_(mesh_url),
       resolution_matched_meshes_(resolution_matched_meshes.Pass()),
       horizontal_fov_(horizontal_fov),
       vertical_fov_(vertical_fov),
-      transform_(transform) {
+      transform_(transform),
+      stereo_mode_(stereo_mode) {
   DCHECK(mesh_url_);
+  DCHECK(stereo_mode_);
 }
 
 std::string MTMFunction::ToString() const {
@@ -65,7 +68,10 @@ std::string MTMFunction::ToString() const {
       result.append(base::StringPrintf("%.7g", transform()[col][row]));
     }
   }
-  result.append("))");
+
+  result.append("), ");
+  result.append(stereo_mode()->ToString());
+  result.append(")");
 
   return result;
 }
@@ -114,7 +120,8 @@ const MTMFunction* MTMFunction::ExtractFromFilterList(
 bool MTMFunction::operator==(const MTMFunction& rhs) const {
   if (!mesh_url()->Equals(*rhs.mesh_url()) ||
       horizontal_fov() != rhs.horizontal_fov() ||
-      horizontal_fov() != rhs.horizontal_fov()) {
+      horizontal_fov() != rhs.horizontal_fov() ||
+      !stereo_mode()->Equals(*rhs.stereo_mode())) {
     return false;
   }
   const ResolutionMatchedMeshListBuilder& lhs_meshes =

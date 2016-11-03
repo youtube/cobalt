@@ -25,6 +25,7 @@
 #include "base/memory/scoped_vector.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/filter_function.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/url_value.h"
 #include "third_party/glm/glm/mat4x4.hpp"
@@ -56,7 +57,8 @@ class MTMFunction : public FilterFunction {
   MTMFunction(const scoped_refptr<PropertyValue>& mesh_url,
               ResolutionMatchedMeshListBuilder resolution_matched_meshes,
               float horizontal_fov, float vertical_fov,
-              const glm::mat4& transform);
+              const glm::mat4& transform,
+              const scoped_refptr<KeywordValue>& stereo_mode);
 
   ~MTMFunction() OVERRIDE {}
 
@@ -68,6 +70,9 @@ class MTMFunction : public FilterFunction {
   float horizontal_fov() const { return horizontal_fov_; }
   float vertical_fov() const { return vertical_fov_; }
   const glm::mat4& transform() const { return transform_; }
+  const scoped_refptr<KeywordValue>& stereo_mode() const {
+    return stereo_mode_;
+  }
 
   std::string ToString() const OVERRIDE;
 
@@ -83,6 +88,7 @@ class MTMFunction : public FilterFunction {
   const float horizontal_fov_;
   const float vertical_fov_;
   const glm::mat4 transform_;
+  const scoped_refptr<KeywordValue> stereo_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(MTMFunction);
 };
