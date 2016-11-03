@@ -26,12 +26,9 @@
 #include "base/logging.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/media/can_play_type_handler.h"
 
 namespace cobalt {
 namespace dom {
@@ -253,19 +250,6 @@ void MediaSource::EndOfStream(const std::string& error,
 
   SetReadyState(kReadyStateEnded);
   player_->SourceEndOfStream(eos_status);
-}
-
-// static
-bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
-                                  const std::string& type) {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(settings);
-  DCHECK(dom_settings);
-  media::CanPlayTypeHandler* handler = dom_settings->can_play_type_handler();
-  DCHECK(handler);
-  std::string result = handler->CanPlayType(type, "");
-  DLOG(INFO) << "MediaSource::IsTypeSupported(" << type << ") -> " << result;
-  return result == "probably";
 }
 
 void MediaSource::SetPlayer(WebMediaPlayer* player) {

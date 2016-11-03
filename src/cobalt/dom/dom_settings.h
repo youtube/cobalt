@@ -22,7 +22,6 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
@@ -63,7 +62,6 @@ class DOMSettings : public script::EnvironmentSettings {
               network::NetworkModule* network_module,
               const scoped_refptr<Window>& window,
               MediaSource::Registry* media_source_registry,
-              media::CanPlayTypeHandler* can_play_type_handler,
               script::JavaScriptEngine* engine,
               script::GlobalEnvironment* global_environment_proxy,
               const Options& options = Options());
@@ -97,9 +95,6 @@ class DOMSettings : public script::EnvironmentSettings {
   MediaSource::Registry* media_source_registry() const {
     return media_source_registry_;
   }
-  media::CanPlayTypeHandler* can_play_type_handler() const {
-    return can_play_type_handler_;
-  }
 
   // An absolute URL used to resolve relative URLs.
   virtual GURL base_url() const;
@@ -112,7 +107,6 @@ class DOMSettings : public script::EnvironmentSettings {
   ArrayBuffer::Allocator* array_buffer_allocator_;
   ArrayBuffer::Cache* array_buffer_cache_;
   MediaSource::Registry* media_source_registry_;
-  media::CanPlayTypeHandler* can_play_type_handler_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalEnvironment* global_environment_;
 
