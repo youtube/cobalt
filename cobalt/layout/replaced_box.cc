@@ -60,6 +60,25 @@ const float kFallbackIntrinsicRatio = 2.0f;
 // means, as per https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
 const float kFallbackWidth = 300.0f;
 
+// Convert the parsed keyword value for a stereo mode into a stereo mode enum
+// value.
+render_tree::StereoMode ReadStereoMode(
+    const scoped_refptr<cssom::KeywordValue>& keyword_value) {
+  cssom::KeywordValue::Value value = keyword_value->value();
+
+  if (value == cssom::KeywordValue::kMonoscopic) {
+    return render_tree::kMono;
+  } else if (value == cssom::KeywordValue::kStereoscopicLeftRight) {
+    return render_tree::kLeftRight;
+  } else if (value == cssom::KeywordValue::kStereoscopicTopBottom) {
+    return render_tree::kTopBottom;
+  } else {
+    LOG(DFATAL) << "Stereo mode has an invalid non-NULL value, defaulting to "
+                << "monoscopic";
+    return render_tree::kMono;
+  }
+}
+
 }  // namespace
 
 ReplacedBox::ReplacedBox(
@@ -265,9 +284,17 @@ void ReplacedBox::RenderAndAnimateContent(
   const cssom::MTMFunction* mtm_filter_function =
       cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
 
-  border_node_builder->AddChild(
-      mtm_filter_function ? new FilterNode(MapToMeshFilter(), frame_node)
-                          : frame_node);
+  Node* content_node;
+  if (mtm_filter_function) {
+    const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =
+        mtm_filter_function->stereo_mode();
+    render_tree::StereoMode stereo_mode =
+        ReadStereoMode(stereo_mode_keyword_value);
+    content_node = new FilterNode(MapToMeshFilter(stereo_mode), frame_node);
+  } else {
+    content_node = frame_node;
+  }
+  border_node_builder->AddChild(content_node);
 }
 
 void ReplacedBox::UpdateContentSizeAndMargins(
