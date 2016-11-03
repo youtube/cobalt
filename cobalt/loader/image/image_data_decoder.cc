@@ -102,11 +102,15 @@ bool ImageDataDecoder::FinishWithSuccess() {
   return state_ == kDone;
 }
 
-void ImageDataDecoder::AllocateImageData(const math::Size& size) {
+void ImageDataDecoder::AllocateImageData(const math::Size& size,
+                                         bool has_alpha) {
+  DCHECK(resource_provider_->AlphaFormatSupported(
+      render_tree::kAlphaFormatOpaque));
   DCHECK(resource_provider_->AlphaFormatSupported(
       render_tree::kAlphaFormatPremultiplied));
   image_data_ = resource_provider_->AllocateImageData(
-      size, pixel_format(), render_tree::kAlphaFormatPremultiplied);
+      size, pixel_format(), has_alpha ? render_tree::kAlphaFormatPremultiplied
+                                      : render_tree::kAlphaFormatOpaque);
 }
 
 void ImageDataDecoder::CalculatePixelFormat() {

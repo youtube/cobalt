@@ -164,7 +164,9 @@ HardwareFrontendImage::HardwareFrontendImage(
     scoped_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
-    : size_(image_data->GetDescriptor().size),
+    : is_opaque_(image_data->GetDescriptor().alpha_format ==
+                 render_tree::kAlphaFormatOpaque),
+      size_(image_data->GetDescriptor().size),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
@@ -180,7 +182,8 @@ HardwareFrontendImage::HardwareFrontendImage(
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
-    : size_(descriptor.size),
+    : is_opaque_(descriptor.alpha_format == render_tree::kAlphaFormatOpaque),
+      size_(descriptor.size),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
