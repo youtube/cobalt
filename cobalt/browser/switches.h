@@ -31,7 +31,6 @@ extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
 extern const char kIgnoreCertificateErrors[];
 extern const char kInputFuzzer[];
-extern const char kLogTimedTrace[];
 extern const char kMinLogLevel[];
 extern const char kNullAudioStreamer[];
 extern const char kNullSavegame[];
@@ -53,10 +52,6 @@ extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];
 extern const char kSurfaceCacheSizeInBytes[];
 extern const char kViewport[];
-
-// Returns true if and only if log_timed_trace == "on", and
-// ENABLE_DEBUG_COMMAND_LINE_SWITCHES is set.
-bool ShouldLogTimedTrace();
 
 }  // namespace switches
 }  // namespace browser
