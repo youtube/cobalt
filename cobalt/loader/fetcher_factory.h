@@ -18,8 +18,10 @@
 #define COBALT_LOADER_FETCHER_FACTORY_H_
 
 #include "base/file_path.h"
+#include "base/optional.h"
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/loader/blob_fetcher.h"
 #include "cobalt/loader/fetcher.h"
 #include "googleurl/src/gurl.h"
 
@@ -35,6 +37,9 @@ class FetcherFactory {
   explicit FetcherFactory(network::NetworkModule* network_module);
   FetcherFactory(network::NetworkModule* network_module,
                  const FilePath& extra_search_dir);
+  FetcherFactory(network::NetworkModule* network_module,
+                 const FilePath& extra_search_dir,
+                 const BlobFetcher::ResolverCallback& blob_resolver);
 
   // Creates a fetcher. Returns NULL if the creation fails.
   scoped_ptr<Fetcher> CreateFetcher(const GURL& url, Fetcher::Handler* handler);
@@ -48,6 +53,7 @@ class FetcherFactory {
   base::Thread file_thread_;
   network::NetworkModule* network_module_;
   FilePath extra_search_dir_;
+  BlobFetcher::ResolverCallback blob_resolver_;
 };
 
 }  // namespace loader
