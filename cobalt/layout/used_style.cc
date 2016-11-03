@@ -267,6 +267,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
@@ -284,6 +285,8 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kStereoscopicLeftRight:
+    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -356,6 +359,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
@@ -370,6 +374,8 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kStereoscopicLeftRight:
+    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -1163,6 +1169,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
@@ -1180,6 +1187,8 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kStereoscopicLeftRight:
+    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -1341,6 +1350,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
+      case cssom::KeywordValue::kMonoscopic:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNoRepeat:
@@ -1358,6 +1368,8 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kStereoscopicLeftRight:
+      case cssom::KeywordValue::kStereoscopicTopBottom:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
@@ -1411,6 +1423,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
+      case cssom::KeywordValue::kMonoscopic:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNormal:
@@ -1427,6 +1440,8 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kStereoscopicLeftRight:
+      case cssom::KeywordValue::kStereoscopicTopBottom:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:

@@ -221,6 +221,7 @@
 // %token kLeftToken                    // left - also property name token
 %token kMaroonToken                     // maroon
 %token kMiddleToken                     // middle
+%token kMonoscopicToken                 // monoscopic
 %token kMonospaceToken                  // monospace
 %token kNavyToken                       // navy
 %token kNoneToken                       // none
@@ -248,6 +249,8 @@
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
+%token kStereoscopicLeftRightToken      // stereoscopic-left-right
+%token kStereoscopicTopBottomToken      // stereoscopic-top-bottom
 %token kTealToken                       // teal
 %token kToToken                         // to
 // %token kTopToken                     // top - also property name token
@@ -792,6 +795,11 @@
 %union { cssom::MTMFunction::ResolutionMatchedMesh* cobalt_mtm_resolution_matched_mesh; }
 %type <cobalt_mtm_resolution_matched_mesh> cobalt_mtm_resolution_matched_mesh
 %destructor { delete $$; } <cobalt_mtm_resolution_matched_mesh>
+
+%union { cssom::KeywordValue* stereo_mode; }
+%type <stereo_mode> maybe_cobalt_mtm_stereo_mode;
+%type <stereo_mode> cobalt_mtm_stereo_mode;
+%destructor { SafeRelease($$); } <stereo_mode>
 
 %union { cssom::TimeListValue::Builder* time_list; }
 %type <time_list> comma_separated_time_list
@@ -1752,6 +1760,9 @@ identifier_token:
   | kMiddleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMiddleKeywordName);
   }
+  | kMonoscopicToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMonoscopicKeywordName);
+  }
   | kMonospaceToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMonospaceKeywordName);
   }
@@ -1829,6 +1840,14 @@ identifier_token:
   }
   | kStepStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStepStartKeywordName);
+  }
+  | kStereoscopicLeftRightToken {
+    $$ = TrivialStringPiece::FromCString(
+             cssom::kStereoscopicLeftRightKeywordName);
+  }
+  | kStereoscopicTopBottomToken {
+    $$ = TrivialStringPiece::FromCString(
+             cssom::kStereoscopicTopBottomKeywordName);
   }
   | kTealToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTealKeywordName);
@@ -6482,7 +6501,8 @@ cobalt_mtm_filter_function:
   // Encodes an mtm filter. Currently the only type of filter function supported.
     kCobaltMtmFunctionToken maybe_whitespace url
         cobalt_mtm_resolution_matched_mesh_list comma angle angle comma
-        cobalt_mtm_transform_function ')' maybe_whitespace {
+        cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
+        ')' maybe_whitespace {
     scoped_ptr<cssom::MTMFunction::ResolutionMatchedMeshListBuilder>
         resolution_matched_mesh_urls($4);
     scoped_ptr<glm::mat4> transform($9);
@@ -6492,7 +6512,8 @@ cobalt_mtm_filter_function:
         resolution_matched_mesh_urls->Pass(),
         $6,
         $7,
-        *transform);
+        *transform,
+        MakeScopedRefPtrAndRelease($10));
   }
   ;
 
@@ -6542,5 +6563,26 @@ number_matrix:
   | number_matrix comma number {
     $$ = $1;
     $$->push_back($3);
+  }
+  ;
+
+maybe_cobalt_mtm_stereo_mode:
+    /* empty */ {
+    $$ = AddRef(cssom::KeywordValue::GetMonoscopic().get());
+  }
+  | comma cobalt_mtm_stereo_mode {
+    $$ = $2;
+  }
+  ;
+
+cobalt_mtm_stereo_mode:
+    kMonoscopicToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetMonoscopic().get());
+  }
+  | kStereoscopicLeftRightToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStereoscopicLeftRight().get());
+  }
+  | kStereoscopicTopBottomToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStereoscopicTopBottom().get());
   }
   ;

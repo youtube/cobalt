@@ -604,12 +604,14 @@ TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
       new URLValue("somemesh.msh"),
       MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
-                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f)));
+                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetMonoscopic()));
   filter_list_a.push_back(new MTMFunction(
       new URLValue("sphere.msh"),
       MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_a(
       new FilterFunctionListValue(filter_list_a.Pass()));
 
@@ -618,12 +620,14 @@ TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
       new URLValue("somemesh.msh"),
       MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
-                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f)));
+                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetMonoscopic()));
   filter_list_b.push_back(new MTMFunction(
       new URLValue("sphere.msh"),
       MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_b(
       new FilterFunctionListValue(filter_list_b.Pass()));
 
@@ -636,7 +640,8 @@ TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
       new URLValue("format.msh"),
       MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetMonoscopic()));
   scoped_refptr<FilterFunctionListValue> value_a(
       new FilterFunctionListValue(filter_list_a.Pass()));
 
@@ -645,7 +650,8 @@ TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
       new URLValue("format.msh"),
       MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)));
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetMonoscopic()));
   scoped_refptr<FilterFunctionListValue> value_b(
       new FilterFunctionListValue(filter_list_b.Pass()));
 
