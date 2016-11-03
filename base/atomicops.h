@@ -31,6 +31,10 @@
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/atomic.h"
+#endif  // defined(OS_STARBOARD)
+
 #if (defined(OS_WIN) && defined(ARCH_CPU_64_BITS)) || defined(__LB_XB360__) || defined(__LB_XB1__)
 // windows.h #defines this (only on x64). This causes problems because the
 // public API also uses MemoryBarrier at the public name for this fence. So, on
@@ -43,6 +47,12 @@
 namespace base {
 namespace subtle {
 
+#if defined(OS_STARBOARD)
+typedef SbAtomic32 Atomic32;
+#if defined(ARCH_CPU_64_BITS)
+typedef SbAtomic64 Atomic64;
+#endif  // defined(ARCH_CPU_64_BITS)
+#else
 typedef int32 Atomic32;
 #ifdef ARCH_CPU_64_BITS
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
@@ -55,6 +65,7 @@ typedef int64_t Atomic64;
 typedef intptr_t Atomic64;
 #endif
 #endif
+#endif  // defined(OS_STARBOARD)
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
