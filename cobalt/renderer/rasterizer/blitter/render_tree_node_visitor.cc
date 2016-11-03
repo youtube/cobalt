@@ -226,16 +226,18 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
                 -local_matrix.Get(1, 2) * image_size.height()));
 
   // Render the image.
-  SbBlitterSetBlending(context_, true);
   if (render_state_.opacity < 1.0f) {
+    SbBlitterSetBlending(context_, true);
     SbBlitterSetModulateBlitsWithColor(context_, true);
     SbBlitterSetColor(
         context_,
         SbBlitterColorFromRGBA(255, 255, 255,
                                static_cast<int>(255 * render_state_.opacity)));
   } else {
+    SbBlitterSetBlending(context_, !skia_image->IsOpaque());
     SbBlitterSetModulateBlitsWithColor(context_, false);
   }
+
   SbBlitterBlitRectToRectTiled(
       context_, blitter_image->surface(),
       RectFToBlitterRect(local_transform.TransformRect(RectF(image_size))),
@@ -306,8 +308,14 @@ SbBlitterColor RenderTreeToBlitterColor(const ColorRGBA& color) {
 void RenderRectNodeBorder(SbBlitterContext context, ColorRGBA color, float left,
                           float right, float top, float bottom,
                           const RectF& rect) {
-  SbBlitterSetColor(context, RenderTreeToBlitterColor(color));
-  SbBlitterSetBlending(context, true);
+  SbBlitterColor blitter_color = RenderTreeToBlitterColor(color);
+  SbBlitterSetColor(context, blitter_color);
+
+  if (SbBlitterAFromColor(blitter_color) < 255) {
+    SbBlitterSetBlending(context, true);
+  } else {
+    SbBlitterSetBlending(context, false);
+  }
 
   // We draw four rectangles, one for each border edge.  They have the following
   // layout:
@@ -371,8 +379,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   // Render the solid color fill, if a brush exists.
   if (rect_node->data().background_brush) {
-    SbBlitterSetBlending(context_, true);
-
     SolidColorBrush* solid_color_brush =
         base::polymorphic_downcast<SolidColorBrush*>(
             rect_node->data().background_brush.get());
@@ -382,6 +388,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
       color.set_a(color.a() * render_state_.opacity);
     }
 
+    SbBlitterSetBlending(context_, color.a() < 1.0f);
     SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
 
     SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));

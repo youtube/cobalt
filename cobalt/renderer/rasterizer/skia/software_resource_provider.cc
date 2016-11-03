@@ -47,7 +47,8 @@ bool SoftwareResourceProvider::PixelFormatSupported(
 
 bool SoftwareResourceProvider::AlphaFormatSupported(
     render_tree::AlphaFormat alpha_format) {
-  return alpha_format == render_tree::kAlphaFormatPremultiplied;
+  return alpha_format == render_tree::kAlphaFormatPremultiplied ||
+         alpha_format == render_tree::kAlphaFormatOpaque;
 }
 
 scoped_ptr<ImageData> SoftwareResourceProvider::AllocateImageData(
