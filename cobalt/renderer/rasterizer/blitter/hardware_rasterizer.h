@@ -39,7 +39,8 @@ class HardwareRasterizer : public Rasterizer {
  public:
   explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
                               int scratch_surface_size_in_bytes,
-                              int surface_cache_size_in_bytes);
+                              int surface_cache_size_in_bytes,
+                              int software_surface_cache_size_in_bytes);
   virtual ~HardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed

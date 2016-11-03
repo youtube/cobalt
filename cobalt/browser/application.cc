@@ -222,6 +222,8 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->scratch_surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
                           &options->skia_cache_size_in_bytes);
+  SetIntegerIfSwitchIsSet(browser::switches::kSoftwareSurfaceCacheSizeInBytes,
+                          &options->software_surface_cache_size_in_bytes);
 }
 
 void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
