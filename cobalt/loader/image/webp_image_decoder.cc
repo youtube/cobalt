@@ -92,7 +92,7 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
     int height = config_.input.height;
     *has_alpha = !!config_.input.has_alpha;
 
-    AllocateImageData(math::Size(width, height));
+    AllocateImageData(math::Size(width, height), *has_alpha);
     return true;
   } else if (status == VP8_STATUS_NOT_ENOUGH_DATA) {
     // Data is not enough for decoding the header.

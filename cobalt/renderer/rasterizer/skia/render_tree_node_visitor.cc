@@ -505,12 +505,14 @@ bool LocalCoordsStaysWithinUnitBox(const math::Matrix3F& mat) {
 }
 
 SkPaint CreateSkPaintForImageRendering(
-    const RenderTreeNodeVisitorDrawState& draw_state) {
+    const RenderTreeNodeVisitorDrawState& draw_state, bool is_opaque) {
   SkPaint paint;
   paint.setFilterLevel(SkPaint::kLow_FilterLevel);
 
   if (draw_state.opacity < 1.0f) {
     paint.setAlpha(draw_state.opacity * 255);
+  } else if (is_opaque) {
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
   }
 
   return paint;
@@ -520,7 +522,8 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
                             RenderTreeNodeVisitorDrawState* draw_state,
                             const math::RectF& destination_rect,
                             const math::Matrix3F* local_transform) {
-  SkPaint paint = CreateSkPaintForImageRendering(*draw_state);
+  SkPaint paint = CreateSkPaintForImageRendering(
+      *draw_state, single_plane_image->IsOpaque());
 
   // In the most frequent by far case where the normalized transformed image
   // texture coordinates lie within the unit square, then we must ensure NOT
@@ -608,7 +611,8 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
     }
   }
 
-  SkPaint paint = CreateSkPaintForImageRendering(*draw_state);
+  SkPaint paint = CreateSkPaintForImageRendering(*draw_state,
+                                                 multi_plane_image->IsOpaque());
   paint.setShader(yuv2rgb_shader);
   draw_state->render_target->drawRect(CobaltRectFToSkiaRect(destination_rect),
                                       paint);
