@@ -16,8 +16,6 @@
 
 #include "cobalt/browser/switches.h"
 
-#include "base/command_line.h"
-
 namespace cobalt {
 namespace browser {
 namespace switches {
@@ -54,12 +52,6 @@ const char kIgnoreCertificateErrors[] = "ignore_certificate_errors";
 // taken from an external input device (like a controller).
 const char kInputFuzzer[] = "input_fuzzer";
 
-// If this flag is set, then the contents of the timed_trace is sent to the log
-// such that it can be collected by examining console output.  This may be
-// useful on devices where it is difficult to gain access to files written by
-// Cobalt.  log_timed_trace: on | off.
-const char kLogTimedTrace[] = "log_timed_trace";
-
 // Set the minimum logging level: info|warning|error|fatal.
 const char kMinLogLevel[] = "min_log_level";
 
@@ -88,7 +80,7 @@ const char kShutdownAfter[] = "shutdown_after";
 // Decode all images using StubImageDecoder.
 const char kStubImageDecoder[] = "stub_image_decoder";
 
-// If this is set, then a trace (see base/debug/trace_event.h) is started on
+// If this is set, then a trace (see base/debug/trace_eventh.h) is started on
 // Cobalt startup.  A value must also be specified for this switch, which is
 // the duration in seconds of how long the trace will be done for before ending
 // and saving the results to disk.  Results will be saved to the file
@@ -145,25 +137,6 @@ const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
 
 // Specifies the viewport size: width ['x' height]
 const char kViewport[] = "viewport";
-
-// Returns true if and only if log_timed_trace == "on", and
-// ENABLE_DEBUG_COMMAND_LINE_SWITCHES is set.
-bool ShouldLogTimedTrace() {
-  bool isTimedTraceSet = false;
-
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kLogTimedTrace) &&
-      command_line->GetSwitchValueASCII(browser::switches::kLogTimedTrace) ==
-          "on") {
-    isTimedTraceSet = true;
-  }
-
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
-  return isTimedTraceSet;
-}
 
 }  // namespace switches
 }  // namespace browser
