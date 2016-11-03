@@ -20,6 +20,8 @@
 
 #include "base/logging.h"
 #include "base/platform_file.h"
+#include "base/string_piece.h"
+#include "cobalt/browser/switches.h"
 
 namespace cobalt {
 namespace trace_event {
@@ -70,6 +72,13 @@ void JSONFileOutputter::OutputTraceData(
 void JSONFileOutputter::Write(const char* buffer, size_t length) {
   if (GetError()) {
     return;
+  }
+
+  if (browser::switches::ShouldLogTimedTrace()) {
+    // These markers assist in locating the trace data in the log, and can be
+    // used by scripts to help extract the trace data.
+    LOG(INFO) << "BEGIN_TRACELOG_MARKER" << base::StringPiece(buffer, length)
+              << "END_TRACELOG_MARKER";
   }
 
   int count = base::WritePlatformFileAtCurrentPos(file_, buffer, length);
