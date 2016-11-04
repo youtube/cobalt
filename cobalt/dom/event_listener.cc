@@ -59,8 +59,9 @@ class ScriptEventLog {
       snprintf(event_log_stack_[current_stack_depth_], kLogEntryMaxLength,
                "%s@%s", event->type().c_str(),
                event->current_target()->GetDebugName().c_str());
-    } else {
-      NOTREACHED();
+    } else if (current_stack_depth_ == base::UserLog::kEventStackMaxDepth) {
+      DLOG(WARNING) << "Reached maximum depth of " << kLogEntryMaxLength
+                    << ". Subsequent events will not be logged.";
     }
     current_stack_depth_++;
   }
@@ -68,7 +69,9 @@ class ScriptEventLog {
   void PopEvent() {
     DCHECK(current_stack_depth_);
     current_stack_depth_--;
-    memset(event_log_stack_[current_stack_depth_], 0, kLogEntryMaxLength);
+    if (current_stack_depth_ < base::UserLog::kEventStackMaxDepth) {
+      memset(event_log_stack_[current_stack_depth_], 0, kLogEntryMaxLength);
+    }
   }
 
  private:
