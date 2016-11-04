@@ -179,7 +179,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 WebDriverServer::WebDriverServer(int port,
                                  const HandleRequestCallback& callback)
     : handle_request_callback_(callback) {
-  DLOG(INFO) << "Starting WebDriver server on port " << port;
+  LOG(INFO) << "Starting WebDriver server on port " << port;
   // Create http server
   factory_.reset(new net::TCPListenSocketFactory("0.0.0.0", port));
   server_ = new net::HttpServer(*factory_, this);
