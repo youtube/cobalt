@@ -59,13 +59,13 @@ namespace {
 
 template <typename T>
 void LogMediaElementActivity(const char* function_name, const T& t) {
-  LOG(INFO) << function_name << " " << t;
+  LOG(INFO) << function_name << ": " << t;
 }
 
 template <typename T1, typename T2>
 void LogMediaElementActivity(const char* function_name, const T1& t1,
                              const T2& t2) {
-  LOG(INFO) << function_name << " " << t1 << " " << t2;
+  LOG(INFO) << function_name << ": " << t1 << " " << t2;
 }
 
 #define MLOG() LOG(INFO) << __FUNCTION__
