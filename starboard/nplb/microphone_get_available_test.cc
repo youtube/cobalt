@@ -32,14 +32,16 @@ TEST(SbMicrophoneGetAvailableTest, RainyDay0NumberOfMicrophone) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
   if (SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone) > 0) {
     int available_microphones = SbMicrophoneGetAvailable(info_array, 0);
-    EXPECT_LE(available_microphones, 0);
+    EXPECT_GT(available_microphones, 0);
   }
 }
 
 TEST(SbMicrophoneGetAvailableTest, RainyDayNegativeNumberOfMicrophone) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
-  int available_microphones = SbMicrophoneGetAvailable(info_array, -10);
-  EXPECT_LT(available_microphones, 0);
+  if (SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone) > 0) {
+    int available_microphones = SbMicrophoneGetAvailable(info_array, -10);
+    EXPECT_GT(available_microphones, 0);
+  }
 }
 
 TEST(SbMicrophoneGetAvailableTest, RainyDayNULLInfoArray) {
@@ -47,7 +49,7 @@ TEST(SbMicrophoneGetAvailableTest, RainyDayNULLInfoArray) {
   if (SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone) > 0) {
     int available_microphones =
         SbMicrophoneGetAvailable(NULL, kMaxNumberOfMicrophone);
-    EXPECT_LT(available_microphones, 0);
+    EXPECT_GT(available_microphones, 0);
   }
 }
 
