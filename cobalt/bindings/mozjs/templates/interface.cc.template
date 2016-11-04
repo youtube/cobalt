@@ -485,6 +485,7 @@ JSBool staticset_{{attribute.idl_name}}(
 JSBool set_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
+{{ check_if_object_implements_interface() }}
 {{ nonstatic_function_prologue(impl_class)}}
 {% endif %} {#- attribute.is_static #}
 {{ set_attribute_implementation(attribute, impl_class) -}}
