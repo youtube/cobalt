@@ -138,18 +138,20 @@ void MicrophoneManager::CloseInternal() {
     return;
   }
 
-  poll_mic_events_timer_->Stop();
-
-  SB_DCHECK(SbMicrophoneIsValid(microphone_));
-  bool success = SbMicrophoneClose(microphone_);
-  if (!success) {
-    state_ = kError;
-    error_callback_.Run();
-    return;
+  if (poll_mic_events_timer_) {
+    poll_mic_events_timer_->Stop();
   }
 
-  completion_callback_.Run();
-  state_ = kStopped;
+  if (SbMicrophoneIsValid(microphone_)) {
+    if (!SbMicrophoneClose(microphone_)) {
+      state_ = kError;
+      error_callback_.Run();
+      return;
+    }
+
+    completion_callback_.Run();
+    state_ = kStopped;
+  }
 }
 
 void MicrophoneManager::Read() {
