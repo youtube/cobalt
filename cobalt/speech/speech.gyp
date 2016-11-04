@@ -30,6 +30,8 @@
         'audio_encoder_flac.h',
         'chunked_byte_buffer.cc',
         'chunked_byte_buffer.h',
+        'endpointer_delegate.cc',
+        'endpointer_delegate.h',
 
         'endpointer/endpointer.cc',
         'endpointer/endpointer.h',
