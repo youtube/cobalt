@@ -232,6 +232,15 @@ JSBool get_arbitraryObject(
 JSBool set_arbitraryObject(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ObjectTypeBindingsInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -316,6 +325,15 @@ JSBool get_derivedInterface(
 JSBool set_derivedInterface(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ObjectTypeBindingsInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -369,6 +387,15 @@ JSBool get_objectProperty(
 JSBool set_objectProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ObjectTypeBindingsInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
