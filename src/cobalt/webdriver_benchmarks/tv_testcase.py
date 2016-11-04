@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 import os
 import sys
 import time
@@ -25,7 +26,7 @@ ElementNotVisibleException = (
     partial_layout_benchmark.ImportSeleniumModule(
         submodule="common.exceptions").ElementNotVisibleException)
 
-BASE_URL = "https://www.youtube.com/tv"
+BASE_URL = "https://www.youtube.com/tv?env_forcedOffAllExperiments=true"
 PAGE_LOAD_WAIT_SECONDS = 30
 LAYOUT_TIMEOUT_SECONDS = 5
 
@@ -163,18 +164,21 @@ class TvTestCase(unittest.TestCase):
 
       time.sleep(0.1)
 
-  def record_results(self, name):
+  def get_keyup_layout_duration_us(self):
+    return int(self.get_webdriver().execute_script(
+        "return h5vcc.cVal.getValue('Event.Duration.MainWebModule.KeyUp')"))
+
+  def record_results(self, name, results):
     """Records results of benchmark.
 
     The duration of KeyUp events will be recorded.
 
     Args:
       name: name of test case
+      results: Test results. Must be JSON encodable
     """
     print("tv_testcase RESULT: " + name + " "
-          + str(self.get_webdriver().execute_script(
-              "return h5vcc.cVal.getValue("
-              "'Event.Durations.MainWebModule.KeyUp')")))
+          + json.JSONEncoder().encode(results))
 
 
 def main():

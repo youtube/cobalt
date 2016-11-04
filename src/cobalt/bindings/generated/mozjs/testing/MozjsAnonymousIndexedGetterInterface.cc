@@ -86,6 +86,7 @@ namespace {
 
 bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
                               uint32_t index) {
+  TRACE_EVENT0("cobalt::bindings", "IsSupportedIndexProperty");
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   AnonymousIndexedGetterInterface* impl =
@@ -108,6 +109,7 @@ void EnumerateSupportedIndexes(JSContext* context, JS::HandleObject object,
 JSBool GetIndexedProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  TRACE_EVENT0("cobalt::bindings", "GetIndexedProperty");
   JS::RootedValue id_value(context);
   if (!JS_IdToValue(context, id, id_value.address())) {
     NOTREACHED();

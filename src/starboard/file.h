@@ -117,6 +117,9 @@ static SB_C_INLINE bool SbFileIsValid(SbFile file) {
 // can happen with kSbFileCreateAlways), and false otherwise.  |out_error| can
 // be NULL. If creation failed, it will return kSbFileInvalid. The read/write
 // position is at the beginning of the file.
+//
+// It only guarantees the correct behavior when |path| points to a file. If
+// |path| points to directory, the behavior is undefined.
 SB_EXPORT SbFile SbFileOpen(const char* path,
                             int flags,
                             bool* out_created,

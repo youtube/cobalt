@@ -144,10 +144,6 @@ class WebModule::Impl {
   void Suspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
-  void OnSetRecordStats(bool set) {
-    web_module_stat_tracker_->OnSetRecordStats(set);
-  }
-
  private:
   class DocumentLoadedObserver;
 
@@ -394,7 +390,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   environment_settings_.reset(new dom::DOMSettings(
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), javascript_engine_.get(),
+      media_source_registry_.get(), data.media_module, javascript_engine_.get(),
       global_environment_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
@@ -885,13 +881,6 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
-}
-
-void WebModule::OnSetRecordStats(bool set) {
-  DCHECK(message_loop());
-  DCHECK(impl_);
-  DCHECK_EQ(MessageLoop::current(), message_loop());
-  impl_->OnSetRecordStats(set);
 }
 
 }  // namespace browser
