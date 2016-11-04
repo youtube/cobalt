@@ -21,6 +21,7 @@
 
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/speech/endpointer_delegate.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
@@ -88,6 +89,9 @@ class SpeechRecognitionManager {
 #else
   scoped_ptr<Mic> mic_;
 #endif  // defined(SB_USE_SB_MICROPHONE)
+
+  // Delegate of endpointer which is used for detecting sound energy.
+  EndPointerDelegate endpointer_delegate_;
 
   State state_;
 };

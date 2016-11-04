@@ -100,6 +100,8 @@ class Endpointer {
     return speech_input_complete_;
   }
 
+  int sample_rate() const { return sample_rate_; }
+
   // RMS background noise level in dB.
   float NoiseLevelDb() const { return energy_endpointer_.GetNoiseLevelDb(); }
 
@@ -147,7 +149,8 @@ class Endpointer {
   bool speech_input_complete_;
   EnergyEndpointer energy_endpointer_;
   int sample_rate_;
-  int32_t frame_size_;
+  // 1 frame = (1 / frame_rate_) second of audio.
+  int frame_rate_;
 };
 
 }  // namespace speech
