@@ -17,6 +17,7 @@
 #include "cobalt/speech/speech_recognition_manager.h"
 
 #include "base/bind.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
@@ -54,6 +55,7 @@ SpeechRecognitionManager::SpeechRecognitionManager(
           base::Bind(&SpeechRecognitionManager::OnMicError,
                      base::Unretained(this))))),
 #endif  // defined(SB_USE_SB_MICROPHONE)
+      endpointer_delegate_(kSampleRate),
       state_(kStopped) {
 }
 
@@ -72,11 +74,14 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   }
 
   recognizer_.Start(config, kSampleRate);
+
 #if defined(SB_USE_SB_MICROPHONE)
   microphone_manager_.Open();
 #else
   mic_->Start();
 #endif
+
+  endpointer_delegate_.Start();
   state_ = kStarted;
 }
 
@@ -89,6 +94,8 @@ void SpeechRecognitionManager::Stop() {
     return;
   }
 
+  endpointer_delegate_.Stop();
+
 #if defined(SB_USE_SB_MICROPHONE)
   microphone_manager_.Close();
 #else
@@ -97,6 +104,7 @@ void SpeechRecognitionManager::Stop() {
 
   recognizer_.Stop();
   state_ = kStopped;
+  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
 }
 
 void SpeechRecognitionManager::Abort() {
@@ -108,6 +116,8 @@ void SpeechRecognitionManager::Abort() {
     return;
   }
 
+  endpointer_delegate_.Stop();
+
 #if defined(SB_USE_SB_MICROPHONE)
   microphone_manager_.Close();
 #else
@@ -116,6 +126,7 @@ void SpeechRecognitionManager::Abort() {
 
   recognizer_.Stop();
   state_ = kAborted;
+  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
 }
 
 void SpeechRecognitionManager::OnDataReceived(
@@ -130,6 +141,9 @@ void SpeechRecognitionManager::OnDataReceived(
 
   // Stop recognizing if in the abort state.
   if (state_ != kAborted) {
+    if (endpointer_delegate_.IsFirstTimeSoundStarted(*audio_bus)) {
+      event_callback_.Run(new dom::Event(base::Tokens::soundstart()));
+    }
     recognizer_.RecognizeAudio(audio_bus.Pass(), false);
   }
 }
@@ -188,6 +202,7 @@ void SpeechRecognitionManager::OnMicError() {
   // An error is occured in Mic, so stopping the recognizer.
   recognizer_.Stop();
   state_ = kAborted;
+  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
 }
 
 }  // namespace speech
