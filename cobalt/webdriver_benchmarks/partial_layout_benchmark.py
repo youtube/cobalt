@@ -15,6 +15,7 @@ import os
 import re
 import socket
 import sys
+import thread
 import threading
 import unittest
 
@@ -48,6 +49,10 @@ arg_parser.add_argument(
 # Pattern to match Cobalt log line for when the WebDriver port has been
 # opened.
 RE_WEBDRIVER_LISTEN = re.compile(r"Starting WebDriver server on port (\d+)$")
+
+STARTUP_TIMEOUT_SECONDS = 2 * 60
+
+COBALT_EXIT_TIMEOUT_SECONDS = 5
 
 COBALT_WEBDRIVER_CAPABILITIES = {
     "browserName": "cobalt",
@@ -96,6 +101,10 @@ def ImportSeleniumModule(submodule=None):
   return module
 
 
+class TimeoutException(Exception):
+  pass
+
+
 class CobaltRunner(object):
   """Runs a Cobalt browser w/ a WebDriver client attached."""
   test_script_started = threading.Event()
@@ -105,6 +114,7 @@ class CobaltRunner(object):
   launcher = None
   log_file_path = None
   thread = None
+  failed = False
 
   def __init__(self, platform, executable, devkit_name, log_file_path):
     self.selenium_webdriver_module = ImportSeleniumModule("webdriver")
@@ -126,11 +136,16 @@ class CobaltRunner(object):
   def __enter__(self):
     self.thread = threading.Thread(target=self.Run)
     self.thread.start()
-    self.WaitForStart()
+    try:
+      self.WaitForStart()
+    except KeyboardInterrupt:
+      # potentially from thread.interrupt_main(). We will treat as
+      # a timeout regardless
+      raise TimeoutException
 
   def __exit__(self, exc_type, exc_value, traceback):
-    self.SetShouldExit()
-    self.thread.join()
+    self.SetShouldExit(failed=(exc_type is not None))
+    self.thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
 
   def _HandleLine(self, line):
     """Internal log line callback."""
@@ -148,8 +163,9 @@ class CobaltRunner(object):
     self._StartWebdriver(port)
     return done
 
-  def SetShouldExit(self):
+  def SetShouldExit(self, failed=False):
     """Indicates cobalt process should exit. Done at next log line output."""
+    self.failed = failed
     self.should_exit.set()
 
   def _GetIPAddress(self):
@@ -165,7 +181,9 @@ class CobaltRunner(object):
 
   def WaitForStart(self):
     """Waits for the webdriver client to attach to cobalt."""
-    self.test_script_started.wait()
+    if not self.test_script_started.wait(STARTUP_TIMEOUT_SECONDS):
+      self.SetShouldExit(failed=True)
+      raise TimeoutException
 
   def Run(self):
     """Thread run routine."""
@@ -183,7 +201,11 @@ class CobaltRunner(object):
       self.launcher.SetOutputFile(self.log_file)
       self.launcher.Run()
       # This is watched for in webdriver_benchmark_test.py
-      sys.stdout.write("partial_layout_benchmark TEST COMPLETE\n")
+      if not self.failed:
+        sys.stdout.write("partial_layout_benchmark TEST COMPLETE\n")
+    except Exception as ex:
+      print("Exception running Cobalt " + str(ex), file=sys.stderr)
+      thread.interrupt_main()
     finally:
       if to_close:
         to_close.close()
@@ -226,9 +248,13 @@ def main():
   if devkit_name is None:
     devkit_name = socket.gethostname()
 
-  with CobaltRunner(platform, executable, devkit_name, args.log_file):
-    unittest.main()
-  return 0
+  try:
+    with CobaltRunner(platform, executable, devkit_name, args.log_file):
+      unittest.main()
+    return 0
+  except TimeoutException:
+    print("Timeout waiting for Cobalt to start", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":
