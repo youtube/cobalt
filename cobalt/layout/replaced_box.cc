@@ -172,9 +172,9 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
   return GetMarginBoxHeight();
 }
 
-namespace {
-
 #if !PUNCH_THROUGH_VIDEO_RENDERING
+
+namespace {
 
 void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
                            CompositionNode::Builder* composition_node_builder) {
@@ -200,10 +200,7 @@ void AddLetterboxedImageToRenderTree(
   AddLetterboxFillRects(dimensions, composition_node_builder);
 }
 
-#endif  // !PUNCH_THROUGH_VIDEO_RENDERING
-
 void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
-               const ReplacedBox::SetBoundsCB& set_bounds_cb,
                math::SizeF destination_size,
                CompositionNode::Builder* composition_node_builder,
                base::TimeDelta time) {
@@ -212,14 +209,6 @@ void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
   DCHECK(!replace_image_cb.is_null());
   DCHECK(composition_node_builder);
 
-#if PUNCH_THROUGH_VIDEO_RENDERING
-  // For systems that have their own path to blitting video to the display, we
-  // simply punch a hole through our scene so that the video can appear there.
-  PunchThroughVideoNode::Builder builder(math::RectF(destination_size),
-                                         set_bounds_cb);
-  composition_node_builder->AddChild(new PunchThroughVideoNode(builder));
-#else   // PUNCH_THROUGH_VIDEO_RENDERING
-  UNREFERENCED_PARAMETER(set_bounds_cb);
   scoped_refptr<render_tree::Image> image = replace_image_cb.Run();
 
   // TODO: Detect better when the intrinsic video size is used for the
@@ -234,10 +223,11 @@ void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
         GetLetterboxDimensions(image->GetSize(), destination_size), image,
         composition_node_builder);
   }
-#endif  // PUNCH_THROUGH_VIDEO_RENDERING
 }
 
 }  // namespace
+
+#endif  // !PUNCH_THROUGH_VIDEO_RENDERING
 
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder) const {
@@ -257,19 +247,27 @@ void ReplacedBox::RenderAndAnimateContent(
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
+#if PUNCH_THROUGH_VIDEO_RENDERING
+  // For systems that have their own path to blitting video to the display, we
+  // simply punch a hole through our scene so that the video can appear there.
+  PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
+                                         set_bounds_cb_);
+  Node* frame_node = new PunchThroughVideoNode(builder);
+#else
   AnimateNode::Builder animate_node_builder;
   animate_node_builder.Add(
-      composition_node, base::Bind(AnimateCB, replace_image_cb_, set_bounds_cb_,
+      composition_node, base::Bind(AnimateCB, replace_image_cb_,
                                    content_box_size()));
 
-  Node* animate_node = new AnimateNode(animate_node_builder, composition_node);
+  Node* frame_node = new AnimateNode(animate_node_builder, composition_node);
+#endif  // PUNCH_THROUGH_VIDEO_RENDERING
 
   const cssom::MTMFunction* mtm_filter_function =
       cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
 
   border_node_builder->AddChild(
-      mtm_filter_function ? new FilterNode(MapToMeshFilter(), animate_node)
-                          : animate_node);
+      mtm_filter_function ? new FilterNode(MapToMeshFilter(), frame_node)
+                          : frame_node);
 }
 
 void ReplacedBox::UpdateContentSizeAndMargins(
