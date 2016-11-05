@@ -58,12 +58,13 @@ void AudioNodeOutput::DisconnectAll() {
 }
 
 scoped_ptr<ShellAudioBus> AudioNodeOutput::PassAudioBusFromSource(
-    int32 number_of_frames) {
+    int32 number_of_frames, SampleType sample_type) {
   // This is called by Audio thread.
   owner_node_->audio_lock()->AssertLocked();
 
   // Pull audio buffer from its owner node.
-  return owner_node_->PassAudioBusFromSource(number_of_frames).Pass();
+  return owner_node_->PassAudioBusFromSource(number_of_frames, sample_type)
+      .Pass();
 }
 
 }  // namespace audio

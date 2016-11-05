@@ -243,7 +243,8 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
   for (std::set<AudioNodeOutput*>::iterator iter = outputs_.begin();
        iter != outputs_.end(); ++iter) {
     scoped_ptr<ShellAudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
-        static_cast<int32>(output_audio_bus->frames()));
+        static_cast<int32>(output_audio_bus->frames()),
+        output_audio_bus->sample_type());
 
     if (audio_bus) {
       MixAudioBuffer(owner_node_->channel_interpretation(), audio_bus.get(),
