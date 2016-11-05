@@ -56,10 +56,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
                       const scoped_refptr<Wrappable>& owning_object,
                       base::optional<OpaqueHandleHolder::Reference>*
-                          out_opaque_handle) OVERRIDE {
-    NOTIMPLEMENTED();
-    return false;
-  }
+                          out_opaque_handle) OVERRIDE;
 
   std::vector<StackFrame> GetStackTrace(int max_frames = 0) OVERRIDE;
 
@@ -133,7 +130,10 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   // with an error that eval() is disabled.
   static JSBool CheckEval(JSContext* context);
 
- protected:
+ private:
+  bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
+                              JS::MutableHandleValue out_result);
+
   static void ReportErrorHandler(JSContext* context, const char* message,
                                  JSErrorReport* report);
 
