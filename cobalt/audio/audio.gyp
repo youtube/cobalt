@@ -37,6 +37,7 @@
         'audio_file_reader.h',
         'audio_file_reader_wav.cc',
         'audio_file_reader_wav.h',
+        'audio_helpers.h',
         'audio_node.cc',
         'audio_node.h',
         'audio_node_input.cc',
