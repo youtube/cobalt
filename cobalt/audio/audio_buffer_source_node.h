@@ -72,7 +72,7 @@ class AudioBufferSourceNode : public AudioNode {
   }
 
   scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
-      int32 number_of_frames) OVERRIDE;
+      int32 number_of_frames, SampleType sample_type) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(AudioBufferSourceNode);
 
