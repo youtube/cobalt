@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Allows a thread to wait on many sockets at once. The standard usage pattern
-// would be for a single I/O thread to:
-//   1. Create its own SbSocketWaiter.
-//   2. Wait on the SbSocketWaiter, indefinitely if no scheduled tasks, or timed
-//      if there are scheduled future tasks.
-//   3. While waiting, the SbSocketWaiter will call back to service ready
-//      SbSockets.
-//   4. Wake up, if signaled to do so.
-//   5. If ready to exit, go to 7.
-//   6. Add and remove SbSockets to and from the SbSocketWaiter, and go to 2.
-//   7. Destroy its SbSocketWaiter and exit.
+// Module Overview: Starboard Socket Waiter module
+//
+// Allows a thread to wait on many sockets at once. The standard
+// usage pattern would be for a single I/O thread to:
+// 1. Create its own SbSocketWaiter.
+// 2. Wait on the SbSocketWaiter, indefinitely if no scheduled tasks, or timed
+//    if there are scheduled future tasks.
+// 3. While waiting, the SbSocketWaiter will call back to service ready
+//    SbSockets.
+// 4. Wake up, if signaled to do so.
+// 5. If ready to exit, go to 7.
+// 6. Add and remove SbSockets to and from the SbSocketWaiter, and go to 2.
+// 7. Destroy its SbSocketWaiter and exit.
 //
 // If another thread wants to queue immediate or schedule future work on the I/O
 // thread, it needs to call SbSocketWaiterWakeUp() on the SbSocketWaiter after
@@ -41,7 +43,7 @@
 extern "C" {
 #endif
 
-// Private structure representing a waiter which can wait for many sockets at
+// Private structure representing a waiter that can wait for many sockets at
 // once on a single thread.
 typedef struct SbSocketWaiterPrivate SbSocketWaiterPrivate;
 
@@ -86,39 +88,50 @@ static SB_C_INLINE bool SbSocketWaiterIsValid(SbSocketWaiter watcher) {
   return watcher != kSbSocketWaiterInvalid;
 }
 
-// Creates a new socket waiter for the current thread. A socket waiter should
-// have a 1-1 relationship to a thread that wants to wait for socket
-// activity. There is no reason to create multiple waiters for a single thread,
-// because the thread can only block on one waiter at a time. The results of two
-// threads waiting on the same waiter is undefined (and definitely won't work,
-// so don't do it). SbSocketWaiters are not thread-safe, except for the
-// SbSocketWaiterWakeUp() function, and don't expect to be modified
-// concurrently.
+// Creates and returns a new SbSocketWaiter for the current thread. A socket
+// waiter should have a 1:1 relationship to a thread that wants to wait for
+// socket activity. There is no reason to create multiple waiters for a single
+// thread because the thread can only block on one waiter at a time.
+
+// The results of two threads waiting on the same waiter is undefined and will
+// not work. Except for the SbSocketWaiterWakeUp() function, SbSocketWaiters
+// are not thread-safe and don't expect to be modified concurrently.
 SB_EXPORT SbSocketWaiter SbSocketWaiterCreate();
 
-// Destroys a socket waiter. This will also remove all sockets still registered
-// by way of SbSocketWaiterAdd. This function may be called on any thread, but
-// only if there is no worry of concurrent access to the waiter.
+// Destroys |waiter| and removes all sockets still registered by way of
+// SbSocketWaiterAdd. This function may be called on any thread as long as
+// there is no risk of concurrent access to the waiter.
+//
+// |waiter|: The SbSocketWaiter to be destroyed.
 SB_EXPORT bool SbSocketWaiterDestroy(SbSocketWaiter waiter);
 
 // Adds a new socket to be waited on by the |waiter| with a bitfield of
-// |interests|. When the event fires, |callback| will be called with |waiter|,
-// |socket|, and |context|, as well as a bitfield of which interests the socket
-// is actually ready for. This should only be called on the thread that
+// |interests|. This function should only be called on the thread that
 // waits on this waiter.
 //
 // If |socket| is already registered with this or another waiter, the function
-// will do nothing and return false. The client must remove the socket and then
+// does nothing and returns |false|. The client must remove the socket and then
 // add it back with the new |interests|.
 //
-// If |socket| is already ready for one or more operations set in the
+// If |socket| is already ready for one or more of the operations set in the
 // |interests| mask, then the callback will be called on the next call to
-// SbSocketWaiterWait() or SbSocketWaiterWaitTimed().
+// either SbSocketWaiterWait() or SbSocketWaiterWaitTimed().
 //
-// If |persistent| is true, then |socket| will stay registered with |waiter|
-// until SbSocketWaiterRemove() is called with |waiter| and |socket|. Otherwise,
-// |socket| will be removed after the next call to |callback|, even if not all
-// registered |interests| became ready.
+// |waiter|: An SbSocketWaiter that waits on the socket for the specified set
+//   of operations (|interests|).
+// |socket|: The SbSocket on which the waiter waits.
+// |context|:
+// |callback|: The function that is called when the event fires. The |waiter|,
+//   |socket|, |context| are all passed to the callback, along with a bitfield
+//   of |interests| that the socket is actually ready for.
+// |interests|: A bitfield that identifies operations for which the socket is
+//   waiting.
+// |persistent|: Identifies the procedure that will be followed for removing
+//   the socket:
+// - If |persistent| is |true|, then |socket| stays registered with |waiter|
+//   until SbSocketWaiterRemove() is called with |waiter| and |socket|.
+// - If |persistent| is |false|, then |socket| is removed after the next call
+//   to |callback|, even if not all registered |interests| became ready.
 SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                                  SbSocket socket,
                                  void* context,
@@ -126,38 +139,52 @@ SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                                  int interests,
                                  bool persistent);
 
-// Removes |socket| from |waiter|, previously added with SbSocketWaiterAdd. If
-// |socket| wasn't registered with |waiter|, then this does nothing. This should
-// only be called on the thread that waits on this waiter.
+// Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter.
+// This function should only be called on the thread that waits on this waiter.
+//
+// The return value indicates whether the waiter still waits on the socket.
+// If |socket| wasn't registered with |waiter|, then the function is a no-op
+// and returns |true|.
+//
+// |waiter|: The waiter from which the socket is removed.
+// |socket|: The socket to remove from the waiter.
 SB_EXPORT bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket);
 
 // Waits on all registered sockets, calling the registered callbacks if and when
 // the corresponding sockets become ready for an interested operation. This
-// version exits only after SbSocketWaiterWakeUp() is called. This should only
-// be called on the thread that waits on this waiter.
+// version exits only after SbSocketWaiterWakeUp() is called. This function
+// should only be called on the thread that waits on this waiter.
 SB_EXPORT void SbSocketWaiterWait(SbSocketWaiter waiter);
 
-// Behaves the same as SbSocketWaiterWait(), waking up when
-// SbSocketWaiterWakeUp(), but also exits on its own after at least |duration|
-// has passed, whichever comes first, returning an indicator of which one
-// happened. Note that, as with SbThreadSleep(), it may wait longer than
-// |duration|. For example if the timeout expires while a callback is being
-// fired. This should only be called on the thread that waits on this waiter.
+// Behaves similarly to SbSocketWaiterWait(), but this function also causes
+// |waiter| to exit on its own after at least |duration| has passed if
+// SbSocketWaiterWakeUp() it not called by that time.
+//
+// The return value indicates the reason that the socket waiter exited.
+// This function should only be called on the thread that waits on this waiter.
+//
+// |duration|: The minimum amount of time after which the socket waiter should
+//   exit if it is not woken up before then. As with SbThreadSleep() (see
+//   thread.h), this function may wait longer than |duration|, such as if the
+//   timeout expires while a callback is being fired.
 SB_EXPORT SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter,
                                                        SbTime duration);
 
-// Wakes up |waiter| once. Can be called from a SbSocketWaiterCallback to wake
-// up its own waiter. Can also be called from another thread at any time, it's
-// the only thread-safe waiter function. In either case, the waiter will exit
-// the next wait gracefully, first completing any in-progress callback.
+// Wakes up |waiter| once. This is the only thread-safe waiter function.
+// It can can be called from a SbSocketWaiterCallback to wake up its own waiter,
+// and it can also be called from another thread at any time. In either case,
+// the waiter will exit the next wait gracefully, first completing any
+// in-progress callback.
 //
-// For every time this function is called, it will cause the waiter to wake up
-// one time. This is true whether the waiter is currently waiting or not. If not
-// waiting, it will just take affect immediately the next time the waiter
-// waits. The number of wake-ups accumulate and are only consumed by waiting and
-// getting woken up. e.g. If you call this function 7 times, then
-// SbSocketWaiterWait() and WaitTimed() will not block the next 7 times they are
-// called.
+// Each time this function is called, it causes the waiter to wake up once,
+// regardless of whether the waiter is currently waiting. If the waiter is not
+// waiting, the function takes effect immediately the next time the waiter
+// waits. The number of wake-ups accumulates, and the queue is only consumed
+// as the waiter waits and then is subsequently woken up again. For example,
+// if you call this function 7 times, then SbSocketWaiterWait() and WaitTimed()
+// will not block the next 7 times they are called.
+//
+// |waiter|: The socket waiter to be woken up.
 SB_EXPORT void SbSocketWaiterWakeUp(SbSocketWaiter waiter);
 
 #ifdef __cplusplus

@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Starboard socket I/O. Starboard supports IPv4 and IPv6, TCP and UDP, server
-// and client sockets. Some platforms may not support IPv6, some may not support
-// listening sockets, and some may not support any kind of sockets at all (or
-// only allow them in debug builds). Starboard ONLY supports non-blocking socket
-// I/O, so all sockets are non-blocking at creation time.
-// Note that, on some platforms, API calls on one end of a socket connection may
-// not be instantaneously aware of manipulations on the socket at the other end
-// of the connection, thus requiring use of either an SbSocketWaiter or
+// Module Overview: Starboard Socket module
+//
+// Defines Starboard socket I/O functions. Starboard supports IPv4 and IPv6,
+// TCP and UDP, server and client sockets. Some platforms may not support IPv6,
+// some may not support listening sockets, and some may not support any kind
+// of sockets at all (or only allow them in debug builds).
+//
+// Starboard ONLY supports non-blocking socket I/O, so all sockets are
+// non-blocking at creation time.
+//
+// Note that, on some platforms, API calls on one end of a socket connection
+// may not be instantaneously aware of manipulations on the socket at the other
+// end of the connection, thus requiring use of either an SbSocketWaiter or
 // spin-polling.
 //
 // TODO: For platforms that do not support sockets at all, they must
@@ -48,9 +53,11 @@ typedef struct SbSocketPrivate SbSocketPrivate;
 // A handle to a socket.
 typedef SbSocketPrivate* SbSocket;
 
-// Enumeration of all Starboard socket operation results.
+// Enumeration of all Starboard socket operation results. Despite the enum
+// name, note that the value actually describes the outcome of an operation,
+// which is not always an error.
 typedef enum SbSocketError {
-  // The operation succeeded. Yep.
+  // The operation succeeded.
   kSbSocketOk = 0,
 
   // The operation is blocked on I/O. Either try again "later," or be very
@@ -128,161 +135,249 @@ static SB_C_INLINE bool SbSocketIsValid(SbSocket socket) {
 }
 
 // Creates a new non-blocking socket for protocol |protocol| using address
-// family |address_type|. Returns the newly created handle, if successful, or
-// kSbSocketInvalid, if not. If unsuccessful, sets the last system error
-// appropriately.
+// family |address_type|.
+//
+// - If successful, this function returns the newly created handle.
+// - If unsuccessful, this function returns |kSbSocketInvalid| and also sets
+//   the last system error appropriately.
+//
+// |address_type|: The type of IP address to use for the socket.
+// |protocol|: The protocol to use for the socket.
 SB_EXPORT SbSocket SbSocketCreate(SbSocketAddressType address_type,
                                   SbSocketProtocol protocol);
 
-// Destroys |socket|. Flushes the socket, closes any connection that may be
-// active on |socket|, and reclaims any resources associated with |socket|,
-// including any registration with an SbSocketWaiter. Returns whether the
-// destruction was successful. Even if this function returns false, you
-// shouldn't be able to use the socket anymore.
+// Destroys the |socket| by flushing it, closing any connection that may be
+// active on it, and reclaiming any resources associated with it, including
+// any registration with an |SbSocketWaiter|.
+//
+// The return value indicates whether the destruction was successful. However,
+// even if this function returns |false|, you should not be able to use the
+// socket any more.
+//
+// |socket|: The SbSocket to be destroyed.
 SB_EXPORT bool SbSocketDestroy(SbSocket socket);
 
 // Opens a connection of |socket|'s type to the host and port specified by
-// |address|. Sets and returns the socket error if unable to bind to
-// |local_address|.
+// |address|. This function sets and returns the socket error if it is unable
+// to connect to |address|. (It returns |kSbSocketOk| if it creates the
+// connection successfully.)
+//
+// |socket|: The type of connection that should be opened.
+// |address|: The host and port to which the socket should connect.
 SB_EXPORT SbSocketError SbSocketConnect(SbSocket socket,
                                         const SbSocketAddress* address);
 
 // Binds |socket| to a specific local interface and port specified by
-// |local_address|, which must not be NULL. Port 0 means choose a port for me
-// and IP address 0.0.0.0 means bind to all interfaces. Sets and returns the
-// socket error if unable to bind to |local_address|.
+// |local_address|. This function sets and returns the socket error if it
+// is unable to bind to |local_address|.
+//
+// |socket|: The SbSocket to be bound to the local interface.
+// |local_address|: The local address to which the socket is to be bound.
+//   This value must not be |NULL|.
+// - Setting the local address to port |0| (or not specifying a port) indicates
+//   that the function should choose a port for you.
+// - Setting the IP address to |0.0.0.0| means that the socket should be bound
+//   to all interfaces.
 SB_EXPORT SbSocketError SbSocketBind(SbSocket socket,
                                      const SbSocketAddress* local_address);
 
-// Causes |socket| to listen on |local_address|. Sets and returns the socket
-// error if unable to listen for some reason.
+// Causes |socket| to listen on the local address that |socket| was previously
+// bound to by SbSocketBind. This function sets and returns the socket error if
+// it is unable to listen for some reason. (It returns |kSbSocketOk| if it
+// creates the connection successfully.)
+//
+// |socket|: The SbSocket on which the function operates.
 SB_EXPORT SbSocketError SbSocketListen(SbSocket socket);
 
-// Accepts a pending connection on |socket|, returning a new SbSocket
-// representing that connection. Sets the error on |socket| and returns
-// kSbSocketInvalid if unable to accept a new connection.
+// Accepts a pending connection on |socket| and returns a new SbSocket
+// representing that connection. This function sets the error on |socket|
+// and returns |kSbSocketInvalid| if it is unable to accept a new connection.
+//
+// |socket|: The SbSocket that is accepting a pending connection.
 SB_EXPORT SbSocket SbSocketAccept(SbSocket socket);
 
-// Returns whether |socket| is connected to anything. Invalid sockets are not
+// Indicates whether |socket| is connected to anything. Invalid sockets are not
 // connected.
+//
+// |socket|: The SbSocket to be checked.
 SB_EXPORT bool SbSocketIsConnected(SbSocket socket);
 
-// Returns whether |socket| is connected to anything, and whether it is
+// Returns whether |socket| is connected to anything, and, if so, whether it is
 // receiving any data.
+//
+// |socket|: The SbSocket to be checked.
 SB_EXPORT bool SbSocketIsConnectedAndIdle(SbSocket socket);
 
-// Returns the last error set on |socket|. If |socket| is not valid, always
-// returns kSbSocketErrorFailed.
+// Returns the last error set on |socket|. If |socket| is not valid, this
+// function returns |kSbSocketErrorFailed|.
+//
+// |socket|: The SbSocket that the last error is returned for.
 SB_EXPORT SbSocketError SbSocketGetLastError(SbSocket socket);
 
-// Clears the last error set on |socket|. Returns whether the socket error was
-// cleared.
+// Clears the last error set on |socket|. The return value indicates whether
+// the socket error was cleared.
 SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
 
 // Gets the address that this socket is bound to locally, if the socket is
-// connected. Returns whether getting the address was successful.
+// connected. The return value indicates whether the address was retrieved
+// successfully.
+//
+// |socket|: The SbSocket for which the local address is retrieved.
+// |out_address|: The SbSocket's local address.
 SB_EXPORT bool SbSocketGetLocalAddress(SbSocket socket,
                                        SbSocketAddress* out_address);
 
-// Reads up to |data_size| bytes from |socket| into |out_data|. Also places the
-// source address of the packet in |out_source|, if out_source is not NULL.
-// Returns the number of bytes read, or a negative number on error.
-// SbSocketGetLastError can provide the precise error encountered.
+// Reads up to |data_size| bytes from |socket| into |out_data| and places the
+// source address of the packet in |out_source| if out_source is not NULL.
+// Returns the number of bytes read, or a negative number if there is an error,
+// in which case SbSocketGetLastError can provide the precise error encountered.
 //
-// Note that this function is NOT specified to (but MAY) make a best effort to
-// read all data on all platforms, it just reads however many bytes are
-// available conveniently. Can be run in a loop until pending to make it a
-// best-effort read (but still only up to not blocking, unless you want to
-// spin).
+// Note that this function is NOT specified to make a best effort to read all
+// data on all platforms, but it MAY still do so. It is specified to read
+// however many bytes are available conveniently, meaning that it should avoid
+// blocking until there is data. It can be run in a loop until
+// SbSocketGetLastError returns |kSbSocketPending| to make it a best-effort
+// read (but still only up to not blocking, unless you want to spin).
 //
-// The primary use of |out_source| is for receiving datagram packets from
+// The primary use of |out_source| is to receive datagram packets from
 // multiple sources on a UDP server socket. TCP has two endpoints connected
 // persistently, so the address is unnecessary, but allowed.
+//
+// |socket|: The SbSocket from which data is read.
+// |out_data|: The data read from the socket.
+// |data_size|: The number of bytes to read.
+// |out_source|: The source address of the packet.
 SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
                                   char* out_data,
                                   int data_size,
                                   SbSocketAddress* out_source);
 
 // Writes up to |data_size| bytes of |data| to |destination| via
-// |socket|. Returns the number of bytes written, or a negative number on
-// error. SbSocketGetLastError can provide the precise error encountered.
-// |destination| must be NULL for TCP connections, which can only have a single
-// endpoint.
+// |socket|. Returns the number of bytes written, or a negative number if
+// there is an error, in which case |SbSocketGetLastError| can provide the
+// precise error encountered.
 //
-// Note that this function is NOT specified to (but MAY) make a best effort to
-// write all data on all platforms, it just writes however many bytes that are
-// conveniently. Can be run in a loop until pending to make it a best-effort
-// write (but still only up to not blocking, unless you want to spin).
+// Note that this function is NOT specified to make a best effort to write all
+// data on all platforms, but it MAY still do so. It is specified to write
+// however many bytes are available conveniently. It can be run in a loop
+// until SbSocketGetLastError returns |kSbSocketPending| to make it a
+// best-effort write (but still only up to not blocking, unless you want to
+// spin).
 //
-// The primary use of |destination| is to send datagram packets, which can go
-// out to multiple sources from a single UDP server socket. TCP has two
-// endpoints connected persistently, so |destination| cannot be set when sending
-// to a TCP socket -- it will cause an error.
+// |socket|: The SbSocket to use to write data.
+// |data|: The data read from the socket.
+// |data_size|: The number of bytes of |data| to write.
+// |destination|: The location to which data is written. This value must be
+//   |NULL| for TCP connections, which can only have a single endpoint.
+//
+//   The primary use of |destination| is to send datagram packets, which can
+//   go out to multiple sources from a single UDP server socket. TCP has two
+//   endpoints connected persistently, so setting |destination| when sending
+//   to a TCP socket will cause an error.
 SB_EXPORT int SbSocketSendTo(SbSocket socket,
                              const char* data,
                              int data_size,
                              const SbSocketAddress* destination);
 
-// Sets the SO_BROADCAST, or equivalent, option to |value| on |socket|. Returns
-// whether the option was actually set.
+// Sets the |SO_BROADCAST|, or equivalent, option to |value| on |socket|. The
+// return value indicates whether the option was actually set.
 //
-// This option is only meaningful for UDP sockets, and will allow the socket to
+// This option is only meaningful for UDP sockets and allows the socket to
 // send to the broadcast address.
+//
+// |socket|: The SbSocket for which the option is set.
+// |value|: The new value for the option.
 SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
 
-// Sets the SO_REUSEADDR, or equivalent, option to |value| on |socket|. Returns
-// whether the option was actually set.
+// Sets the |SO_REUSEADDR|, or equivalent, option to |value| on |socket|.
+// The return value indicates whether the option was actually set.
 //
 // This option allows a bound address to be reused if a socket isn't actively
 // bound to it.
+//
+// |socket|: The SbSocket for which the option is set.
+// |value|: The new value for the option.
 SB_EXPORT bool SbSocketSetReuseAddress(SbSocket socket, bool value);
 
-// Sets SO_RCVBUF, or equivalent, option to |size| on |socket|.
+// Sets the |SO_RCVBUF|, or equivalent, option to |size| on |socket|. The
+// return value indicates whether the option was actually set.
+//
+// |socket|: The SbSocket for which the option is set.
+// |size|: The value for the option.
 SB_EXPORT bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size);
 
-// Sets SO_SNDBUF, or equivalent, option to |size| on |socket|.
+// Sets the |SO_SNDBUF|, or equivalent, option to |size| on |socket|. The
+// return value indicates whether the option was actually set.
+//
+// |socket|: The SbSocket for which the option is set.
+// |size|: The value for the option.
 SB_EXPORT bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size);
 
-// Sets the SO_KEEPALIVE, or equivalent, option to |value| on |socket|. If
-// |value| is true, then |period| specifies the minimum time (SbTime is always
-// in microseconds) between keep-alive packets, otherwise |period| is
-// ignored. Returns whether the option was actually set.
+// Sets the |SO_KEEPALIVE|, or equivalent, option to |value| on |socket|. The
+// return value indicates whether the option was actually set.
+//
+// |socket|: The SbSocket for which the option is set.
+// |value|: If set to |true|, then |period| specifies the minimum time
+//   (SbTime) is always in microseconds) between keep-alive packets. If
+//   set to |false|, |period| is ignored.
+// |period|: The time between keep-alive packets. This value is only relevant
+//   if |value| is |true|.
 SB_EXPORT bool SbSocketSetTcpKeepAlive(SbSocket socket,
                                        bool value,
                                        SbTime period);
 
-// Sets the TCP_NODELAY, or equivalent, option to |value| on |socket|.  Returns
-// whether the option was actually set.
+// Sets the |TCP_NODELAY|, or equivalent, option to |value| on |socket|. The
+// return value indicates whether the option was actually set.
 //
-// This disables the Nagle algorithm for reducing the number of packets sent
-// when converting from a stream to packets. Disabling Nagle will generally put
-// the data for each Send call into its own packet, but does not guarantee that
-// behavior.
+// This function disables the Nagle algorithm for reducing the number of
+// packets sent when converting from a stream to packets. Disabling Nagle
+// generally puts the data for each Send call into its own packet, but does
+// not guarantee that behavior.
+//
+// |socket|: The SbSocket for which the option is set.
+// |value|: Indicates whether the Nagle algorithm should be disabled
+//   (|value|=|true|).
 SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
 
-// Sets SO_WINSCALE, or equivalent, option to |value| on |socket|.
+// Sets the |SO_WINSCALE|, or equivalent, option to |value| on |socket|. The
+// return value indicates whether the option was actually set.
+//
+// |socket|: The SbSocket for which the option is set.
+// |value|: The value for the option.
 SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
 
 // Joins |socket| to an IP multicast group identified by |address|. The
-// equivalent of IP_ADD_MEMBERSHIP.
+// equivalent of IP_ADD_MEMBERSHIP. The return value indicates whether the
+// socket was joined to the group successfully.
+//
+// |socket|: The SbSocket to be joined to the IP multicast group.
+// |address|: The location of the IP multicast group.
 SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
                                           const SbSocketAddress* address);
 
-// Gets the address of the local IPv4 network interface. Does not include
-// loopback (or IPv6) addresses.
+// Gets the address of the local IPv4 network interface. The return value
+// indicates whether the address was retrieved successfully.
+//
+// |out_address|: The retrieved address. The address does not include loopback
+//   (or IPv6) addresses.
 SB_EXPORT bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address);
 
-// Synchronously resolves |hostname| into an SbSocketResolution, filtered by
-// |filters|, which is a mask of SbSocketResolveFilter values. If no IP address
-// family filter is specified in |filters|, all address families will be
-// included, but if one is specified, only that address familiy will be
-// included. Unrecognized filter bits are ignored. Returns NULL if unable to
-// resolve |hostname|. The returned SbSocketResolution must be freed with
-// SbSocketFreeResolution.
+// Synchronously resolves |hostname| into the returned SbSocketResolution,
+// which must be freed with SbSocketFreeResolution. The function returns
+// |NULL| if it is unable to resolve |hostname|.
+//
+// |hostname|: The hostname to be resolved.
+// |filters|: A mask of SbSocketResolveFilter values used to filter the
+//   resolution. If |filters| does not specify an IP address family filter,
+//   all address families are included. However, if one IP address family filter
+//   is specified, only that address family is included. The function ignores
+//   unrecognized filter bits.
 SB_EXPORT SbSocketResolution* SbSocketResolve(const char* hostname,
                                               int filters);
 
 // Frees a resolution allocated by SbSocketResolve.
+//
+// |resolution|: The resolution to be freed.
 SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
 
 #ifdef __cplusplus

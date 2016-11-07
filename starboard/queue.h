@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A C++-only synchronized queue implementation, built entirely on top of
-// Starboard synchronization primitives. Can be safely used by both clients and
-// implementations.
+// Module Overview: Starboard Queue module
+//
+// Defines a C++-only synchronized queue implementation, built entirely on top
+// of Starboard synchronization primitives. It can be safely used by both
+// clients and implementations.
 
 #ifndef STARBOARD_QUEUE_H_
 #define STARBOARD_QUEUE_H_
