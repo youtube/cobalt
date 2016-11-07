@@ -80,16 +80,22 @@ ProcessProtoSuccessResults(const proto::SpeechRecognitionEvent& event) {
   SpeechRecognitionResultList::SpeechRecognitionResults results;
   for (int i = 0; i < event.result_size(); ++i) {
     SpeechRecognitionResult::SpeechRecognitionAlternatives alternatives;
-    const proto::SpeechRecognitionResult& kProtoResult = event.result(i);
-    for (int j = 0; j < kProtoResult.alternative_size(); ++j) {
-      const proto::SpeechRecognitionAlternative& kAlternative =
-          kProtoResult.alternative(j);
+    const proto::SpeechRecognitionResult& proto_result = event.result(i);
+    for (int j = 0; j < proto_result.alternative_size(); ++j) {
+      const proto::SpeechRecognitionAlternative& proto_alternative =
+          proto_result.alternative(j);
+      float confidence = 0.0f;
+      if (proto_alternative.has_confidence()) {
+        confidence = proto_alternative.confidence();
+      } else if (proto_result.has_stability()) {
+        confidence = proto_result.stability();
+      }
       scoped_refptr<SpeechRecognitionAlternative> alternative(
-          new SpeechRecognitionAlternative(kAlternative.transcript(),
-                                           kAlternative.confidence()));
+          new SpeechRecognitionAlternative(proto_alternative.transcript(),
+                                           confidence));
       alternatives.push_back(alternative);
     }
-    bool final = kProtoResult.has_final() && kProtoResult.final();
+    bool final = proto_result.has_final() && proto_result.final();
     scoped_refptr<SpeechRecognitionResult> recognition_result(
         new SpeechRecognitionResult(alternatives, final));
     results.push_back(recognition_result);
