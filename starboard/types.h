@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A suite of standard types that should be universally available on all
-// platforms, specifically focused on explicitly-sized integer types and
+// Module Overview: Starboard Types module
+//
+// Provides a suite of standard types that should be universally available on
+// all platforms, specifically focused on explicitly-sized integer types and
 // booleans. This module also includes some related ubiquitous definitions like
 // limits of the explicitly-sized integer types, and standard pointer and int32
 // sentinel values.
