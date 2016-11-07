@@ -25,6 +25,27 @@ base::Callback<Sig> ResetAndReturn(base::Callback<Sig>* cb) {
   return ret;
 }
 
+inline bool ResetAndRunIfNotNull(base::Closure* cb) {
+  if (cb->is_null()) {
+    return false;
+  }
+  base::Closure ret(*cb);
+  cb->Reset();
+  ret.Run();
+  return true;
+}
+
+template <typename Sig, typename ParamType>
+bool ResetAndRunIfNotNull(base::Callback<Sig>* cb, const ParamType& param) {
+  if (cb->is_null()) {
+    return false;
+  }
+  base::Callback<Sig> ret(*cb);
+  cb->Reset();
+  ret.Run(param);
+  return true;
+}
+
 }  // namespace base
 
 #endif  // BASE_CALLBACK_HELPERS_H_
