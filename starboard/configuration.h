@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A description of the current platform in lurid detail such that common code
-// never needs to actually know what the current operating system and
-// architecture are. It is both very pragmatic and canonical in that if any
-// application code finds itself needing to make a platform decision, it should
-// always define a Starboard Configuration feature instead. This implies the
-// continued existence of very narrowly-defined configuration features, but it
-// retains porting control in Starboard.
+// Module Overview: Starboard Configuration module
+//
+// Provides a description of the current platform in lurid detail so that
+// common code never needs to actually know what the current operating system
+// and architecture are.
+//
+// It is both very pragmatic and canonical in that if any application code
+// finds itself needing to make a platform decision, it should always define
+// a Starboard Configuration feature instead. This implies the continued
+// existence of very narrowly-defined configuration features, but it retains
+// porting control in Starboard.
 
 #ifndef STARBOARD_CONFIGURATION_H_
 #define STARBOARD_CONFIGURATION_H_
