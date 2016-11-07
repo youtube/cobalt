@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Double-precision floating point helper functions.
+// Module Overview: Starboard Double module
+//
+// Provides double-precision floating point helper functions.
 
 #ifndef STARBOARD_DOUBLE_H_
 #define STARBOARD_DOUBLE_H_
@@ -25,21 +27,32 @@ extern "C" {
 #endif
 
 // Floors double-precision floating-point number |d| to the nearest integer.
+//
+// |d|: The number to be floored.
 SB_EXPORT double SbDoubleFloor(const double d);
 
 // Returns the absolute value of the given double-precision floating-point
-// number |d|, preserving NaN and Infinity.
+// number |d|, preserving |NaN| and infinity.
+//
+// |d|: The number to be adjusted.
 SB_EXPORT double SbDoubleAbsolute(const double d);
 
 // Returns |base| taken to the power of |exponent|.
+//
+// |base|: The number to be adjusted.
+// |exponent|: The power to which the |base| number should be raised.
 SB_EXPORT double SbDoubleExponent(const double base, const double exponent);
 
 // Determines whether double-precision floating-point number |d| represents a
-// fininte number.
+// finite number.
+//
+// |d|: The number to be evaluated.
 SB_EXPORT bool SbDoubleIsFinite(const double d);
 
-// Determines whether double-precision floating-point number |d| represents "Not
-// a Number."
+// Determines whether double-precision floating-point number |d| represents
+// "Not a Number."
+//
+// |d|: The number to be evaluated.
 SB_EXPORT bool SbDoubleIsNan(const double d);
 
 #ifdef __cplusplus
