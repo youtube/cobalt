@@ -462,6 +462,7 @@
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
         'enable_webdriver%': 1,
+        'sb_allows_memory_tracking': 1,
       },
     },
     {
@@ -474,6 +475,7 @@
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
         'enable_webdriver': 0,
+        'sb_allows_memory_tracking': 0,
       },
     }],
   ],
