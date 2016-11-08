@@ -59,7 +59,9 @@ defined(_MIPS_ARCH_MIPS32R2)
 #undef DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS
 #endif  // _WIN32
 #else
-#error Target architecture was not detected as supported by Double-Conversion.
+/* HACK: Assume 1, ARMEL is not set for arm64?
+#error Target architecture was not detected as supported by Double-Conversion. */
+#define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
 #endif
 
 

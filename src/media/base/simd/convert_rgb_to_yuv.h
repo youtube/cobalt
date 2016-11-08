@@ -60,7 +60,7 @@ void ConvertRGB32ToYUV_SSE2_Reference(const uint8* rgbframe,
                                       int uvstride);
 
 // C version of converting RGBA to YV12.
-void ConvertRGB32ToYUV_C(const uint8* rgbframe,
+inline void ConvertRGB32ToYUV_C(const uint8* rgbframe,
                          uint8* yplane,
                          uint8* uplane,
                          uint8* vplane,
@@ -68,10 +68,10 @@ void ConvertRGB32ToYUV_C(const uint8* rgbframe,
                          int height,
                          int rgbstride,
                          int ystride,
-                         int uvstride);
+                         int uvstride) {}
 
 // C version of converting RGB24 to YV12.
-void ConvertRGB24ToYUV_C(const uint8* rgbframe,
+inline void ConvertRGB24ToYUV_C(const uint8* rgbframe,
                          uint8* yplane,
                          uint8* uplane,
                          uint8* vplane,
@@ -79,7 +79,7 @@ void ConvertRGB24ToYUV_C(const uint8* rgbframe,
                          int height,
                          int rgbstride,
                          int ystride,
-                         int uvstride);
+                         int uvstride) {}
 
 }  // namespace media
 

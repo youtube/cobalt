@@ -104,7 +104,8 @@
 
 // Makes a pointer-typed parameter restricted so that the compiler can make
 // certain optimizations because it knows the pointers are unique.
-#if defined(__cplusplus)
+
+/*#if defined(__cplusplus)
 #if SB_IS(COMPILER_MSVC)
 #define SB_RESTRICT __restrict
 #elif SB_IS(COMPILER_GCC)
@@ -115,6 +116,10 @@
 #else   // __cplusplus
 #define SB_RESTRICT restrict
 #endif  // __cplusplus
+*/
+
+/* HACK: arm64 toolchain doesn't seem to recognize restrict */
+#define SB_RESTRICT
 
 // Will cause a compiler error with |msg| if |expr| is false. |msg| must be a
 // valid identifier, and must be a unique type in the scope of the declaration.

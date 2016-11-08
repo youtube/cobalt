@@ -74,8 +74,8 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
                                    8,
                                    EGL_SURFACE_TYPE,
                                    EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                   EGL_BIND_TO_TEXTURE_RGBA,
-                                   EGL_TRUE,
+                                   //EGL_BIND_TO_TEXTURE_RGBA,
+                                   //EGL_TRUE,
                                    EGL_NONE};
 
   EGLint num_configs;

@@ -182,8 +182,10 @@ GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #elif defined(__GNUC__)
 #if defined(GOOGLE_PROTOBUF_ARCH_IA32) || defined(GOOGLE_PROTOBUF_ARCH_X64)
 #include <google/protobuf/stubs/atomicops_internals_x86_gcc.h>
-#elif defined(GOOGLE_PROTOBUF_ARCH_ARM)
+#elif defined(GOOGLE_PROTOBUF_ARCH_ARM) && defined(GOOGLE_PROTOBUF_ARCH_32_BIT)
 #include <google/protobuf/stubs/atomicops_internals_arm_gcc.h>
+#elif defined(GOOGLE_PROTOBUF_ARCH_ARM) && defined(GOOGLE_PROTOBUF_ARCH_64_BIT)
+#include <google/protobuf/stubs/atomicops_internals_arm64_gcc.h>
 #elif defined(GOOGLE_PROTOBUF_ARCH_MIPS)
 #include <google/protobuf/stubs/atomicops_internals_mips_gcc.h>
 #else

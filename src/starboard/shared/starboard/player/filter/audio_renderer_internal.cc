@@ -37,6 +37,9 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       seeking_(false),
       seeking_to_pts_(0),
       frame_buffer_(kMaxCachedFrames * audio_header.number_of_channels),
+#ifdef OS_ANDROID
+      frame_buffer_int16_(kMaxCachedFrames * audio_header.number_of_channels),
+#endif
       frames_in_buffer_(0),
       offset_in_frames_(0),
       frames_consumed_(0),
@@ -44,7 +47,11 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       decoder_(decoder.Pass()),
       audio_sink_(kSbAudioSinkInvalid) {
   SB_DCHECK(decoder_ != NULL);
+#ifdef OS_ANDROID
+  frame_buffers_[0] = &frame_buffer_int16_[0];
+#else
   frame_buffers_[0] = &frame_buffer_[0];
+#endif
 }
 
 AudioRenderer::~AudioRenderer() {
@@ -61,7 +68,11 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
   }
 
   SbMediaTime input_pts = input_buffer.pts();
+#ifdef OS_ANDROID
+  std::vector<uint8_t> decoded_audio;
+#else
   std::vector<float> decoded_audio;
+#endif
   decoder_->Decode(input_buffer, &decoded_audio);
   if (decoded_audio.empty()) {
     SB_DLOG(ERROR) << "decoded_audio contains no frames.";
@@ -75,8 +86,13 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
         return;
       }
     }
-
+#ifdef OS_ANDROID
+    int frames_to_append = decoded_audio.size() / 2 / channels_;
+    AppendFrames(&decoded_audio[0], frames_to_append);
+#else
     AppendFrames(&decoded_audio[0], decoded_audio.size() / channels_);
+#endif
+
 
     if (seeking_ && frame_buffer_.size() > kPrerollFrames * channels_) {
       seeking_ = false;
@@ -91,7 +107,11 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
               SbAudioSinkGetNearestSupportedSampleFrequency(sample_rate));
     // TODO: Handle sink creation failure.
     audio_sink_ = SbAudioSinkCreate(
+#ifdef OS_ANDROID
+        channels_, sample_rate, kSbMediaAudioSampleTypeInt16,
+#else
         channels_, sample_rate, kSbMediaAudioSampleTypeFloat32,
+#endif
         kSbMediaAudioFrameStorageTypeInterleaved,
         reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
         kMaxCachedFrames, &AudioRenderer::UpdateSourceStatusFunc,
@@ -220,23 +240,39 @@ void AudioRenderer::ConsumeFrames(int frames_consumed) {
   frames_consumed_ += frames_consumed;
 }
 
+#ifdef OS_ANDROID
+void AudioRenderer::AppendFrames(const uint8_t* source_buffer,
+                                   int frames_to_append) {
+#else
 void AudioRenderer::AppendFrames(const float* source_buffer,
                                  int frames_to_append) {
+#endif
   SB_DCHECK(frames_in_buffer_ + frames_to_append <= kMaxCachedFrames);
 
   int offset_to_append =
       (offset_in_frames_ + frames_in_buffer_) % kMaxCachedFrames;
   if (frames_to_append > kMaxCachedFrames - offset_to_append) {
+#ifdef OS_ANDROID
+    SbMemoryCopy(
+        &frame_buffer_[offset_to_append * channels_], source_buffer,
+        (kMaxCachedFrames - offset_to_append) * sizeof(int16_t) * channels_);
+#else
     SbMemoryCopy(
         &frame_buffer_[offset_to_append * channels_], source_buffer,
         (kMaxCachedFrames - offset_to_append) * sizeof(float) * channels_);
+#endif
     source_buffer += (kMaxCachedFrames - offset_to_append) * channels_;
     frames_to_append -= kMaxCachedFrames - offset_to_append;
     frames_in_buffer_ += kMaxCachedFrames - offset_to_append;
     offset_to_append = 0;
   }
+#ifdef OS_ANDROID
+  SbMemoryCopy(&frame_buffer_int16_[offset_to_append * channels_], source_buffer,
+               frames_to_append * sizeof(int16_t) * channels_);
+#else
   SbMemoryCopy(&frame_buffer_[offset_to_append * channels_], source_buffer,
                frames_to_append * sizeof(float) * channels_);
+#endif
   frames_in_buffer_ += frames_to_append;
 }
 

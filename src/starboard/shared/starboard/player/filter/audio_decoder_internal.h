@@ -34,8 +34,14 @@ class AudioDecoder {
 
   // Decode the encoded audio data stored in |input_buffer| and store the
   // result in |output|.
+#ifdef OS_ANDROID
+  virtual void Decode(const InputBuffer& input_buffer,
+                      std::vector<uint8_t>* output) = 0;
+#else
   virtual void Decode(const InputBuffer& input_buffer,
                       std::vector<float>* output) = 0;
+#endif
+
   // Note that there won't be more input data unless Reset() is called.
   virtual void WriteEndOfStream() = 0;
   // Clear any cached buffer of the codec and reset the state of the codec.

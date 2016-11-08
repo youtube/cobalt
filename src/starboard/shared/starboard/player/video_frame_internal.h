@@ -74,6 +74,7 @@ class VideoFrame {
                                     const uint8_t* y,
                                     const uint8_t* u,
                                     const uint8_t* v);
+  static VideoFrame CreateEmptyFrame(SbMediaTime pts);
 
  private:
   Format format_;

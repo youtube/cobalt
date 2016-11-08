@@ -162,6 +162,14 @@ VideoFrame VideoFrame::CreateEOSFrame() {
   return VideoFrame();
 }
 
+//static
+VideoFrame VideoFrame::CreateEmptyFrame(SbMediaTime pts) {
+  VideoFrame frame;
+  frame.format_ = kYV12;
+  frame.pts_ = pts;
+  return frame;
+}
+
 // static
 VideoFrame VideoFrame::CreateYV12Frame(int width,
                                        int height,

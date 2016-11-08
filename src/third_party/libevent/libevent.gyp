@@ -76,6 +76,10 @@
                   'include_dirs': [ 'starboard/ps3' ],
                   },
                 ],
+                [ 'target_os == "android"', {
+                  'include_dirs': [ 'starboard/android' ],
+                  }
+                ],
               ],
             }],
             # libevent has platform-specific implementation files.  Since its

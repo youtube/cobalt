@@ -55,7 +55,9 @@
 #elif defined(__pnacl__)
 #define GOOGLE_PROTOBUF_ARCH_32_BIT 1
 #else
-#error Host architecture was not detected as supported by protobuf
+#define GOOGLE_PROTOBUF_ARCH_ARM 1
+#define GOOGLE_PROTOBUF_ARCH_64_BIT 1
+//#error Host architecture was not detected as supported by protobuf
 #endif
 
 #if defined(__APPLE__)

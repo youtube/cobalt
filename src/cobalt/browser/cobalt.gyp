@@ -19,7 +19,8 @@
   'targets': [
     {
       'target_name': 'cobalt',
-      'type': '<(final_executable_type)',
+      #'type': '<(final_executable_type)',
+      'type': 'shared_library',
       'sources': [
         'main.cc',
       ],

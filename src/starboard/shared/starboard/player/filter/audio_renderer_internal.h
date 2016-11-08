@@ -76,7 +76,11 @@ class AudioRenderer {
                           bool* is_eos_reached);
   void ConsumeFrames(int frames_consumed);
 
+#ifdef OS_ANDROID
+  void AppendFrames(const uint8_t* source_buffer, int frames_to_append);
+#else
   void AppendFrames(const float* source_buffer, int frames_to_append);
+#endif
 
   const int channels_;
 
@@ -86,7 +90,12 @@ class AudioRenderer {
   SbMediaTime seeking_to_pts_;
 
   std::vector<float> frame_buffer_;
+#ifdef OS_ANDROID
+  std::vector<int16_t> frame_buffer_int16_;
+  void* frame_buffers_[1];
+#else
   float* frame_buffers_[1];
+#endif
   int frames_in_buffer_;
   int offset_in_frames_;
 
