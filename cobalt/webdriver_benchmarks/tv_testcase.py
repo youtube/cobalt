@@ -44,7 +44,7 @@ LAYOUT_TIMEOUT_SECONDS = 5
 def _median(l):
   """Returns median value of items in a list.
 
-  Note: This function is setup for convieniance, and might not be performant
+  Note: This function is setup for convenience, and might not be performant
   for large datasets.  Also, no care has been taken to deal with nans, or
   infinities, so please expand the functionality and tests if that is desired.
   The other option is to use median.
@@ -71,6 +71,33 @@ def _median(l):
 
   # If there are even number of items, take the average of two middle values.
   return 0.5 * (l_sorted[middle_index] + l_sorted[middle_index - 1])
+
+
+def _percentile(percentile, results):
+  """Returns the percentile of an array.
+
+  This method always rounds down, except for the median case where
+  an even array is interpolated (see _median).
+
+  Args:
+      percentile: A number ranging from 0-1.
+      results: Sortable results array.
+  Returns:
+      Appropriate value.
+  Raises:
+    RuntimeError: Raised on invalid args.
+  """
+  if percentile > 1 or percentile < 0:
+    raise RuntimeError("percentile must be 0-1")
+  if 0.4999 < percentile < 0.5001:
+    return _median(results)
+  sorted_results = sorted(results)
+  if percentile == 1:
+    return sorted_results[-1]
+  index = int(len(sorted_results) * percentile)
+  if index != 0:
+    index -= 1
+  return sorted_results[index]
 
 
 class TvTestCase(unittest.TestCase):
@@ -257,20 +284,41 @@ class TvTestCase(unittest.TestCase):
     self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
     self.wait_for_layout_complete()
 
-  def record_results(self, name, results):
-    """Records results of benchmark.
-
-    The duration of KeyUp events will be recorded.
+  def record_result(self, name, result):
+    """Records an individual scalar result of a benchmark.
 
     Args:
       name: name of test case
-      results: Test results. Must be JSON encodable
+      result: Test result. Must be JSON encodable scalar.
     """
-    if isinstance(results, list):
-      value_to_record = _median(results)
-    else:
-      value_to_record = results
+    value_to_record = result
 
+    string_value_to_record = json.JSONEncoder().encode(value_to_record)
+    print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
+
+  def record_result_median(self, name, results):
+    """Records the median of an array of results.
+
+    Args:
+      name: name of test case
+      results: Test results array. Must be array of JSON encodable scalar.
+    """
+    value_to_record = _median(results)
+
+    string_value_to_record = json.JSONEncoder().encode(value_to_record)
+    print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
+
+  def record_result_percentile(self, name, percentile, results):
+    """Records the percentile of an array of results.
+
+    Args:
+      name: The (string) name of test case.
+      percentile: A number ranging from 0-1.
+      results: Test results array. Must be array of JSON encodable scalars.
+    Raises:
+      RuntimeError: Raised on invalid args.
+    """
+    value_to_record = _percentile(percentile, results)
     string_value_to_record = json.JSONEncoder().encode(value_to_record)
     print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
 
