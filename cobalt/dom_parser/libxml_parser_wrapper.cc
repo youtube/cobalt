@@ -19,6 +19,8 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/third_party/icu/icu_utf.h"
+#include "base/utf_string_conversion_utils.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
@@ -314,34 +316,32 @@ void LibxmlParserWrapper::OnCDATABlock(const std::string& value) {
   node_stack_.top()->AppendChild(new dom::CDATASection(document_, value));
 }
 
-LibxmlParserWrapper::IssueSeverity
-LibxmlParserWrapper::CheckInputAndUpdateSeverity(const char* data,
-                                                 size_t size) {
-  if (max_severity_ == kFatal) {
-    return max_severity_;
-  }
-
+void LibxmlParserWrapper::PreprocessChunk(const char* data, size_t size,
+                                          std::string* current_chunk) {
+  DCHECK(current_chunk);
   // Check the total input size.
   total_input_size_ += size;
   if (total_input_size_ > kMaxTotalInputSize) {
     static const char kMessageInputTooLong[] = "Parser input is too long.";
     OnParsingIssue(kFatal, kMessageInputTooLong);
-    return max_severity_;
+    return;
   }
 
   // Check the encoding of the input.
-  if (!IsStringUTF8(std::string(data, size))) {
+  std::string input = next_chunk_start_ + std::string(data, size);
+  TruncateUTF8ToByteSize(input, input.size(), current_chunk);
+  next_chunk_start_ = input.substr(current_chunk->size());
+  if (!IsStringUTF8(*current_chunk)) {
+    current_chunk->clear();
     static const char kMessageInputNotUTF8[] =
         "Parser input contains non-UTF8 characters.";
     OnParsingIssue(kFatal, kMessageInputNotUTF8);
-    return max_severity_;
+    return;
   }
 
 #if defined(HANDLE_CORE_DUMP)
   libxml_parser_wrapper_log.Get().IncrementParsedBytes(static_cast<int>(size));
 #endif
-
-  return max_severity_;
 }
 
 }  // namespace dom_parser
