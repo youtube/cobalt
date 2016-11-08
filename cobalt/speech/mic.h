@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "cobalt/dom/event.h"
 #include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
@@ -31,7 +32,7 @@ class Mic {
   typedef ::media::ShellAudioBus ShellAudioBus;
   typedef base::Callback<void(scoped_ptr<ShellAudioBus>)> DataReceivedCallback;
   typedef base::Callback<void(void)> CompletionCallback;
-  typedef base::Callback<void(void)> ErrorCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> ErrorCallback;
 
   virtual ~Mic() {}
 
