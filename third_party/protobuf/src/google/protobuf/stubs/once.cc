@@ -39,11 +39,13 @@
 
 #ifndef GOOGLE_PROTOBUF_NO_THREAD_SAFETY
 
-#ifdef _WIN32
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#elif defined(_WIN32)
 #include <windows.h>
 #else
 #include <sched.h>
-#endif
+#endif  // defined(STARBOARD)
 
 #include <google/protobuf/stubs/atomicops.h>
 
@@ -53,7 +55,9 @@ namespace protobuf {
 namespace {
 
 void SchedYield() {
-#ifdef _WIN32
+#if defined(STARBOARD)
+  SbThreadYield();
+#elif defined(_WIN32)
   Sleep(0);
 #else  // POSIX
   sched_yield();
