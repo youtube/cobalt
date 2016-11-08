@@ -195,7 +195,7 @@ TEST(CSSComputedStyleDeclarationTest, ItemGetterNotEmpty) {
   style->SetData(initial_style);
 
   int property_count = 0;
-  for (int key = 0; key <= kMaxLonghandPropertyKey; ++key) {
+  for (unsigned int key = 0; key <= kMaxLonghandPropertyKey; ++key) {
     // The order is not important, as long as all properties are represented.
     EXPECT_TRUE(style->Item(key));
     if (style->Item(key).value() == GetPropertyName(kDisplayProperty)) {
