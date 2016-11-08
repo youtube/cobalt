@@ -37,6 +37,14 @@
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
 //   http://www.agner.org/optimize/calling_conventions.pdf
 //   or with gcc, run: "echo | gcc -E -dM -"
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#if SB_IS(32_BIT)
+#define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+#elif SB_IS(64_BIT)
+#define GOOGLE_PROTOBUF_ARCH_64_BIT 1
+#endif  // SB_IS(32_BIT)
+#else   // defined(STARBOARD)
 #if defined(_M_X64) || defined(__x86_64__)
 #define GOOGLE_PROTOBUF_ARCH_X64 1
 #define GOOGLE_PROTOBUF_ARCH_64_BIT 1
@@ -57,6 +65,7 @@
 #else
 #error Host architecture was not detected as supported by protobuf
 #endif
+#endif  // defined(STARBOARD)
 
 #if defined(__APPLE__)
 #define GOOGLE_PROTOBUF_OS_APPLE
