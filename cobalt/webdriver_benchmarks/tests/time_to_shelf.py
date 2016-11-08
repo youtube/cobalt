@@ -51,9 +51,10 @@ class TimeToShelf(tv_testcase.TvTestCase):
       startup_time_microseconds = t1 - t0
       metrics_array.append(startup_time_microseconds)
 
-    self.record_results('TimeToShelf.test_time_shelf_display', metrics_array)
-    self.record_results('TimeToShelf.blank_startup_time',
-                        blank_startup_time_microseconds)
+    self.record_result_median('timeToShelfTestTimeShelfDisplayMedianUs',
+                              metrics_array)
+    self.record_result('timeToShelfBlankStartupTimeUs',
+                       blank_startup_time_microseconds)
 
 
 if __name__ == '__main__':

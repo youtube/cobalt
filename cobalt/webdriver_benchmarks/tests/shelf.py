@@ -40,7 +40,8 @@ class ShelfTest(tv_testcase.TvTestCase):
       self.wait_for_layout_complete_after_focused_shelf()
       layout_times_us.append(self.get_keyup_layout_duration_us())
 
-    self.record_results("ShelfTest.test_simple", layout_times_us)
+    self.record_result_percentile(
+        "webdriverBenchmarkShelfLayout95thUsec", 0.95, layout_times_us)
 
 
 if __name__ == "__main__":
