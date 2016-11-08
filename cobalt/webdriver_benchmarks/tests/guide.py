@@ -9,8 +9,7 @@ import os
 import sys
 
 # The parent directory is a module
-sys.path.insert(0, os.path.dirname(os.path.dirname(
-    os.path.realpath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # pylint: disable=C6204,C6203
 import tv
@@ -36,9 +35,7 @@ class GuideTest(tv_testcase.TvTestCase):
       self.assert_displayed(tv.FOCUSED_GUIDE)
       self.wait_for_layout_complete()
       self.send_keys(tv.FOCUSED_GUIDE, keys.Keys.ARROW_RIGHT)
-      self.poll_until_found(tv.FOCUSED_SHELF)
-      self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
-      self.wait_for_layout_complete()
+      self.wait_for_layout_complete_after_focused_shelf()
       layout_times_us.append(self.get_keyup_layout_duration_us())
 
     self.record_results("GuideTest.test_simple", layout_times_us)
