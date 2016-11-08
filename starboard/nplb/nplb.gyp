@@ -122,6 +122,7 @@
         'memory_map_test.cc',
         'memory_move_test.cc',
         'memory_reallocate_test.cc',
+        'memory_reporting_test.cc',
         'memory_set_test.cc',
         'microphone_close_test.cc',
         'microphone_create_test.cc',
