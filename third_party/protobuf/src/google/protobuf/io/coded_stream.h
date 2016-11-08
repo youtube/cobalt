@@ -110,6 +110,13 @@
 #define GOOGLE_PROTOBUF_IO_CODED_STREAM_H__
 
 #include <string>
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#if SB_IS(LITTLE_ENDIAN) && \
+    !defined(PROTOBUF_DISABLE_LITTLE_ENDIAN_OPT_FOR_TEST)
+#define PROTOBUF_LITTLE_ENDIAN 1
+#endif
+#else
 #ifdef _MSC_VER
   #if defined(_M_IX86) && \
       !defined(PROTOBUF_DISABLE_LITTLE_ENDIAN_OPT_FOR_TEST)
@@ -127,6 +134,7 @@
     #define PROTOBUF_LITTLE_ENDIAN 1
   #endif
 #endif
+#endif  // defined(STARBOARD)
 #include <google/protobuf/stubs/common.h>
 
 #include "starboard/client_porting/poem/string_poem.h"
