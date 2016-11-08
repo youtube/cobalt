@@ -382,6 +382,34 @@ TEST_F(HTMLDecoderTest, CanParseUTF8EncodedSupplementaryCharacters) {
   EXPECT_EQ("💩", text->data());
 }
 
+TEST_F(HTMLDecoderTest, CanParseUTF8SplitInChunks) {
+  const std::string input = "<p>💩</p>";
+
+  for (size_t first_chunk_size = 0; first_chunk_size < input.length();
+       first_chunk_size++) {
+    root_ = new dom::Element(document_, base::Token("element"));
+    html_decoder_.reset(new HTMLDecoder(
+        document_, root_, NULL, kDOMMaxElementDepth, source_location_,
+        base::Closure(), base::Bind(&MockErrorCallback::Run,
+                                    base::Unretained(&mock_error_callback_)),
+        true));
+
+    // This could cut the input in the middle of a UTF8 character.
+    html_decoder_->DecodeChunk(input.c_str(), first_chunk_size);
+    html_decoder_->DecodeChunk(input.c_str() + first_chunk_size,
+                               input.length() - first_chunk_size);
+    html_decoder_->Finish();
+
+    dom::Element* element = root_->first_element_child();
+    ASSERT_TRUE(element);
+    EXPECT_EQ("p", element->tag_name());
+
+    dom::Text* text = element->first_child()->AsText();
+    ASSERT_TRUE(text);
+    EXPECT_EQ("💩", text->data());
+  }
+}
+
 // Misnested tags: <b><i></b></i>
 //   https://www.w3.org/TR/html5/syntax.html#misnested-tags:-b-i-/b-/i
 //
