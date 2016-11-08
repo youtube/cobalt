@@ -69,7 +69,7 @@ class SpeechRecognitionManager {
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
-  void OnMicError();
+  void OnMicError(const scoped_refptr<dom::Event>& event);
 
   // Callbacks from recognizer.
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);

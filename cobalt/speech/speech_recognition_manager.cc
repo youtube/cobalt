@@ -186,20 +186,20 @@ void SpeechRecognitionManager::OnRecognizerEvent(
   }
 }
 
-void SpeechRecognitionManager::OnMicError() {
+void SpeechRecognitionManager::OnMicError(
+    const scoped_refptr<dom::Event>& event) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     // Called from mic thread.
     main_message_loop_->PostTask(
         FROM_HERE,
-        base::Bind(&SpeechRecognitionManager::OnMicError, weak_this_));
+        base::Bind(&SpeechRecognitionManager::OnMicError, weak_this_, event));
     return;
   }
 
-  event_callback_.Run(
-      scoped_refptr<SpeechRecognitionError>(new SpeechRecognitionError(
-          SpeechRecognitionError::kAborted, "Mic Disconnected.")));
+  event_callback_.Run(event);
 
-  // An error is occured in Mic, so stopping the recognizer.
+  // An error is occured in Mic, so stop the energy endpointer and recognizer.
+  endpointer_delegate_.Stop();
   recognizer_.Stop();
   state_ = kAborted;
   event_callback_.Run(new dom::Event(base::Tokens::soundend()));
