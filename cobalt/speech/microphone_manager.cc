@@ -16,6 +16,7 @@
 
 #include "cobalt/speech/microphone_manager.h"
 
+#include "cobalt/speech/speech_recognition_error.h"
 #include "starboard/log.h"
 
 #if defined(SB_USE_SB_MICROPHONE)
@@ -93,7 +94,14 @@ void MicrophoneManager::CreateInternal() {
 
   SB_DLOG(WARNING) << "Microphone creation failed.";
   state_ = kError;
-  error_callback_.Run();
+
+  if (microphone_num == 0) {
+    error_callback_.Run(new SpeechRecognitionError(
+        SpeechRecognitionError::kAudioCapture, "No microphone available."));
+  } else {
+    error_callback_.Run(new SpeechRecognitionError(
+        SpeechRecognitionError::kAborted, "Microphone creation failed."));
+  }
 }
 
 void MicrophoneManager::OpenInternal() {
@@ -118,7 +126,8 @@ void MicrophoneManager::OpenInternal() {
   bool success = SbMicrophoneOpen(microphone_);
   if (!success) {
     state_ = kError;
-    error_callback_.Run();
+    error_callback_.Run(new SpeechRecognitionError(
+        SpeechRecognitionError::kAborted, "Microphone open failed."));
     return;
   }
 
@@ -145,7 +154,8 @@ void MicrophoneManager::CloseInternal() {
   if (SbMicrophoneIsValid(microphone_)) {
     if (!SbMicrophoneClose(microphone_)) {
       state_ = kError;
-      error_callback_.Run();
+      error_callback_.Run(new SpeechRecognitionError(
+          SpeechRecognitionError::kAborted, "Microphone close failed."));
       return;
     }
 
@@ -170,7 +180,8 @@ void MicrophoneManager::Read() {
     data_received_callback_.Run(output_audio_bus.Pass());
   } else if (read_bytes < 0) {
     state_ = kError;
-    error_callback_.Run();
+    error_callback_.Run(new SpeechRecognitionError(
+        SpeechRecognitionError::kAborted, "Microphone read failed."));
     poll_mic_events_timer_->Stop();
   }
 }
