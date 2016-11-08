@@ -25,6 +25,7 @@
 #include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/timer.h"
+#include "cobalt/dom/event.h"
 #include "media/base/shell_audio_bus.h"
 #include "starboard/microphone.h"
 
@@ -38,7 +39,7 @@ class MicrophoneManager {
   typedef ::media::ShellAudioBus ShellAudioBus;
   typedef base::Callback<void(scoped_ptr<ShellAudioBus>)> DataReceivedCallback;
   typedef base::Callback<void(void)> CompletionCallback;
-  typedef base::Callback<void(void)> ErrorCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> ErrorCallback;
 
   MicrophoneManager(int sample_rate, const DataReceivedCallback& data_received,
                     const CompletionCallback& completion,
