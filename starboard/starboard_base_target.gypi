@@ -36,6 +36,11 @@
         'SB_ABORT_ON_ALLOCATION_FAILURE',
       ],
     }],
+    ['sb_allows_memory_tracking==1', {
+      'defines': [
+        'STARBOARD_ALLOWS_MEMORY_TRACKING',
+      ],
+    }],
     ['starboard_path == ""', {
       'defines': [
         # There doesn't appear to be any way to use the C preprocessor to do
