@@ -54,9 +54,9 @@ namespace cobalt {
 namespace cssom {
 
 TEST(PropertyValueToStringTest, AbsoluteURLValue) {
-  GURL url("https://www.youtube.com");
+  GURL url("https://www.test.com");
   scoped_refptr<AbsoluteURLValue> property(new AbsoluteURLValue(url));
-  EXPECT_EQ(property->ToString(), "url(https://www.youtube.com/)");
+  EXPECT_EQ(property->ToString(), "url(https://www.test.com/)");
 }
 
 TEST(PropertyValueToStringTest, FontStyleValue) {
