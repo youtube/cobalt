@@ -180,7 +180,7 @@ TEST(StringPrintfTest, Invalid) {
 // lbshell platforms do not support positional parameters,
 // and lbshell does not use the few parts of chromium that
 // leverage positional parameter support in the OS.
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 // Test that the positional parameters work.
 TEST(StringPrintfTest, PositionalParameters) {
   std::string out;
