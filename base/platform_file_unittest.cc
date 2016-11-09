@@ -197,16 +197,8 @@ TEST(PlatformFile, ReadWritePlatformFile) {
 
   // Make sure the file was extended.
   int64 file_size = 0;
-#if defined(__LB_SHELL__)
-  // At this point, the file buffer may not have been flushed to disk,
-  // so reading the new file size from disk is flaky.  Instead, read the file
-  // size from the file descriptor using GetPlatformFileInfo.
-  base::PlatformFileInfo file_info;
-  EXPECT_TRUE(base::GetPlatformFileInfo(file, &file_info));
-  file_size = file_info.size;
-#else
+  base::FlushPlatformFile(file);
   EXPECT_TRUE(file_util::GetFileSize(file_path, &file_size));
-#endif
   EXPECT_EQ(kOffsetBeyondEndOfFile + kPartialWriteLength, file_size);
 
   // Make sure the file was zero-padded.
@@ -246,6 +238,7 @@ TEST(PlatformFile, TruncatePlatformFile) {
   const int kExtendedFileLength = 10;
   int64 file_size = 0;
   EXPECT_TRUE(base::TruncatePlatformFile(file, kExtendedFileLength));
+  base::FlushPlatformFile(file);
   EXPECT_TRUE(file_util::GetFileSize(file_path, &file_size));
   EXPECT_EQ(kExtendedFileLength, file_size);
 
@@ -261,6 +254,7 @@ TEST(PlatformFile, TruncatePlatformFile) {
   // Truncate the file.
   const int kTruncatedFileLength = 2;
   EXPECT_TRUE(base::TruncatePlatformFile(file, kTruncatedFileLength));
+  base::FlushPlatformFile(file);
   EXPECT_TRUE(file_util::GetFileSize(file_path, &file_size));
   EXPECT_EQ(kTruncatedFileLength, file_size);
 
