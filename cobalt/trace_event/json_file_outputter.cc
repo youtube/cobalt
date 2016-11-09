@@ -103,6 +103,7 @@ void JSONFileOutputter::Write(const char* buffer, size_t length) {
     // used by scripts to help extract the trace data.
     LOG(INFO) << "BEGIN_TRACELOG_MARKER" << base::StringPiece(buffer, length)
               << "END_TRACELOG_MARKER";
+    return;
   }
 
   int count = base::WritePlatformFileAtCurrentPos(file_, buffer, length);
