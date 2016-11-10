@@ -198,15 +198,6 @@ class WebModule {
   // can only be called if we have previously suspended the WebModule.
   void Resume(render_tree::ResourceProvider* resource_provider);
 
-#if defined(COBALT_BUILD_TYPE_DEBUG)
-  // Non-optimized builds require a bigger stack size.
-  static const size_t kBaseStackSize = 2 * 1024 * 1024;
-#else
-  static const size_t kBaseStackSize = 256 * 1024;
-#endif
-  static const size_t kWebModuleStackSize =
-      kBaseStackSize + base::kAsanAdditionalStackSize;
-
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

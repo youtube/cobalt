@@ -208,7 +208,7 @@ class _GypRunner(object):
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
         'cobalt_version': gyp_utils.GetBuildNumber(),
         'host_os': _GetHostOS(),
-        'CC': os.environ.get('CC', ''),
+        'CC_HOST': os.environ.get('CC_HOST', os.environ.get('CC','')),
     }
     if self.platform_config.IsStarboard():
       variables['OS'] = 'starboard'
