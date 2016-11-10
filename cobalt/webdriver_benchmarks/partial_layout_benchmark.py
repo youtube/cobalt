@@ -143,7 +143,11 @@ class CobaltRunner(object):
       raise TimeoutException
 
   def __exit__(self, exc_type, exc_value, traceback):
-    self.SetShouldExit(failed=(exc_type is not None))
+    # The unittest module terminates with a SystemExit
+    # If this is a successful exit, then this is a successful run
+    success = exc_type is None or (exc_type is SystemExit
+                                   and not exc_value.code)
+    self.SetShouldExit(failed=not success)
     self.thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
 
   def _HandleLine(self, line):
@@ -158,6 +162,7 @@ class CobaltRunner(object):
       return
 
     port = match.group(1)
+    sys.stderr.write("WebDriver port opened:" + port + "\n")
     self._StartWebdriver(port)
 
   def SetShouldExit(self, failed=False):
@@ -173,6 +178,7 @@ class CobaltRunner(object):
     url = "http://{}:{}/".format(self._GetIPAddress(), port)
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
+    sys.stderr.write("Selenium Connected\n")
     _webdriver = self.webdriver
     self.test_script_started.set()
 
@@ -181,6 +187,7 @@ class CobaltRunner(object):
     if not self.test_script_started.wait(STARTUP_TIMEOUT_SECONDS):
       self.SetShouldExit(failed=True)
       raise TimeoutException
+    sys.stderr.write("Cobalt started\n")
 
   def Run(self):
     """Thread run routine."""
@@ -196,7 +203,9 @@ class CobaltRunner(object):
         self.log_file = sys.stdout
 
       self.launcher.SetOutputFile(self.log_file)
+      sys.stderr.write("Running launcher \n")
       self.launcher.Run()
+      sys.stderr.write("Cobalt terminated. failed: " + str(self.failed) + "\n")
       # This is watched for in webdriver_benchmark_test.py
       if not self.failed:
         sys.stdout.write("partial_layout_benchmark TEST COMPLETE\n")
