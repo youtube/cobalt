@@ -108,7 +108,6 @@ class TimeoutException(Exception):
 class CobaltRunner(object):
   """Runs a Cobalt browser w/ a WebDriver client attached."""
   test_script_started = threading.Event()
-  should_exit = threading.Event()
   selenium_webdriver_module = None
   webdriver = None
   launcher = None
@@ -150,23 +149,21 @@ class CobaltRunner(object):
   def _HandleLine(self, line):
     """Internal log line callback."""
 
-    done = self.should_exit.is_set()
     # Wait for WebDriver port here then connect
     if self.test_script_started.is_set():
-      return done
+      return
 
     match = RE_WEBDRIVER_LISTEN.search(line)
     if not match:
-      return done
+      return
 
     port = match.group(1)
     self._StartWebdriver(port)
-    return done
 
   def SetShouldExit(self, failed=False):
-    """Indicates cobalt process should exit. Done at next log line output."""
+    """Indicates cobalt process should exit."""
     self.failed = failed
-    self.should_exit.set()
+    self.launcher.SendKill()
 
   def _GetIPAddress(self):
     return self.launcher.GetIPAddress()
