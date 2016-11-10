@@ -44,6 +44,8 @@ JSExnType ConvertToMozjsExceptionType(SimpleExceptionType type) {
     case kURIError:
       return JSEXN_URIERR;
   }
+  NOTREACHED();
+  return JSEXN_ERR;
 }
 
 // JSErrorCallback.

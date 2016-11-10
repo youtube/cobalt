@@ -26,14 +26,19 @@
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
+#include "cobalt/css_parser/parser.h"
 #include "cobalt/debug/debug_server_module.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/url.h"
+#include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
@@ -695,7 +700,8 @@ WebModule::WebModule(
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
   thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_DEFAULT, kWebModuleStackSize));
+      base::Thread::Options(MessageLoop::TYPE_DEFAULT,
+        cobalt::browser::kWebModuleStackSize));
   DCHECK(message_loop());
 
   message_loop()->PostTask(
