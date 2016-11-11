@@ -114,6 +114,7 @@ class CobaltRunner(object):
   log_file_path = None
   thread = None
   failed = False
+  should_exit = threading.Event()
 
   def __init__(self, platform, executable, devkit_name, log_file_path):
     self.selenium_webdriver_module = ImportSeleniumModule("webdriver")
@@ -168,6 +169,7 @@ class CobaltRunner(object):
   def SetShouldExit(self, failed=False):
     """Indicates cobalt process should exit."""
     self.failed = failed
+    self.should_exit.set()
     self.launcher.SendKill()
 
   def _GetIPAddress(self):
@@ -211,10 +213,13 @@ class CobaltRunner(object):
         sys.stdout.write("partial_layout_benchmark TEST COMPLETE\n")
     except Exception as ex:
       print("Exception running Cobalt " + str(ex), file=sys.stderr)
-      thread.interrupt_main()
     finally:
       if to_close:
         to_close.close()
+      if not self.should_exit.is_set():
+        # If the main thread is not expecting us to exit,
+        # we must interrupt it.
+        thread.interrupt_main()
     return 0
 
 
