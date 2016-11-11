@@ -20,6 +20,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/types.h"
 
 namespace starboard {
 namespace shared {
@@ -35,7 +36,7 @@ class AudioDecoder {
   // Decode the encoded audio data stored in |input_buffer| and store the
   // result in |output|.
   virtual void Decode(const InputBuffer& input_buffer,
-                      std::vector<float>* output) = 0;
+                      std::vector<uint8_t>* output) = 0;
   // Note that there won't be more input data unless Reset() is called.
   virtual void WriteEndOfStream() = 0;
   // Clear any cached buffer of the codec and reset the state of the codec.
@@ -43,10 +44,13 @@ class AudioDecoder {
   // data from previous buffers are cleared.
   virtual void Reset() = 0;
 
+  // Return the sample type of the decoded pcm data.
+  virtual SbMediaAudioSampleType GetSampleType() const = 0;
+
   // Return the sample rate of the incoming audio.  This should be used by the
   // audio renderer as the sample rate of the underlying audio stream can be
   // different than the sample rate stored in the meta data.
-  virtual int GetSamplesPerSecond() = 0;
+  virtual int GetSamplesPerSecond() const = 0;
 
   // Individual implementation has to implement this function to create an
   // audio decoder.

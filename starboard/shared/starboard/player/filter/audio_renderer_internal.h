@@ -25,6 +25,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/types.h"
 
 namespace starboard {
 namespace shared {
@@ -76,17 +77,18 @@ class AudioRenderer {
                           bool* is_eos_reached);
   void ConsumeFrames(int frames_consumed);
 
-  void AppendFrames(const float* source_buffer, int frames_to_append);
+  void AppendFrames(const uint8_t* source_buffer, int frames_to_append);
 
   const int channels_;
+  const int bytes_per_frame_;
 
   Mutex mutex_;
   bool paused_;
   bool seeking_;
   SbMediaTime seeking_to_pts_;
 
-  std::vector<float> frame_buffer_;
-  float* frame_buffers_[1];
+  std::vector<uint8_t> frame_buffer_;
+  uint8_t* frame_buffers_[1];
   int frames_in_buffer_;
   int offset_in_frames_;
 
