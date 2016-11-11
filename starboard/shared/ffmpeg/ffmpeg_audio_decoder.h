@@ -35,10 +35,11 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   ~AudioDecoder() SB_OVERRIDE;
 
   void Decode(const InputBuffer& input_buffer,
-              std::vector<float>* output) SB_OVERRIDE;
+              std::vector<uint8_t>* output) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
-  int GetSamplesPerSecond() SB_OVERRIDE;
+  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
+  int GetSamplesPerSecond() const SB_OVERRIDE;
 
   bool is_valid() const { return codec_context_ != NULL; }
 
@@ -46,6 +47,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   void InitializeCodec();
   void TeardownCodec();
 
+  SbMediaAudioSampleType sample_type_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
 
