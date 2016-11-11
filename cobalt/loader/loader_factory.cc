@@ -16,13 +16,28 @@
 
 #include "cobalt/loader/loader_factory.h"
 
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/platform_thread.h"
+#include "cobalt/loader/image/threaded_image_decoder_proxy.h"
+
 namespace cobalt {
 namespace loader {
+
+namespace {
+// The ResourceLoader thread uses the default stack size, which is requested
+// by passing in 0 for its stack size.
+const size_t kLoadThreadStackSize = 0;
+}  // namespace
 
 LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
                              render_tree::ResourceProvider* resource_provider)
     : fetcher_factory_(fetcher_factory),
-      resource_provider_(resource_provider) {}
+      resource_provider_(resource_provider),
+      load_thread_("ResourceLoader") {
+  base::Thread::Options options(MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize,
+                                base::kThreadPriority_Low);
+  load_thread_.StartWithOptions(options);
+}
 
 scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
@@ -33,9 +48,9 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
 
   scoped_ptr<Loader> loader(new Loader(
       MakeFetcherCreator(url, url_security_callback),
-      scoped_ptr<Decoder>(
-          new image::ImageDecoder(resource_provider_, success_callback,
-                                  failure_callback, error_callback)),
+      scoped_ptr<Decoder>(new image::ThreadedImageDecoderProxy(
+          resource_provider_, success_callback, failure_callback,
+          error_callback, load_thread_.message_loop())),
       error_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
   OnLoaderCreated(loader.get());
@@ -78,6 +93,13 @@ void LoaderFactory::Suspend() {
        iter != active_loaders_.end(); ++iter) {
     (*iter)->Suspend();
   }
+
+  // Wait for all loader thread messages to be flushed before returning.
+  base::WaitableEvent messages_flushed(true, false);
+  load_thread_.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
+                            base::Unretained(&messages_flushed)));
+  messages_flushed.Wait();
 }
 
 void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
