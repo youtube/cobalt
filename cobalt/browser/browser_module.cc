@@ -273,6 +273,13 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       array_buffer_allocator_.get();
   options.dom_settings_options.array_buffer_cache = array_buffer_cache_.get();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+#if defined(ENABLE_FAKE_MICROPHONE)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kFakeMicrophone) ||
+      CommandLine::ForCurrentProcess()->HasSwitch(switches::kInputFuzzer)) {
+    options.dom_settings_options.enable_fake_microphone = true;
+  }
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
+
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
   web_module_.reset(new WebModule(
