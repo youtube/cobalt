@@ -156,7 +156,7 @@ void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
     net_fetcher_log.Get().IncrementFetchedBytes(
         static_cast<int>(download_data->length()));
 #endif
-    handler()->OnReceived(this, download_data->data(), download_data->length());
+    handler()->OnReceivedPassed(this, download_data.Pass());
   }
 }
 
