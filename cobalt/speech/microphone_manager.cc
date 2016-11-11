@@ -16,18 +16,18 @@
 
 #include "cobalt/speech/microphone_manager.h"
 
-#include "cobalt/speech/speech_recognition_error.h"
-#include "starboard/log.h"
-
+#if defined(ENABLE_FAKE_MICROPHONE)
+#include "cobalt/speech/microphone_fake.h"
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
 #if defined(SB_USE_SB_MICROPHONE)
+#include "cobalt/speech/microphone_starboard.h"
+#endif  // defined(SB_USE_SB_MICROPHONE)
+#include "cobalt/speech/speech_recognition_error.h"
 
 namespace cobalt {
 namespace speech {
 
 namespace {
-// The maximum of microphones which can be supported. Currently only supports
-// one microphone.
-const int kNumberOfMicrophones = 1;
 // Size of an audio buffer.
 const int kBufferSizeInBytes = 8 * 1024;
 // The frequency which we read the data from devices.
@@ -37,15 +37,19 @@ const float kMicReadRateInHertz = 60.0f;
 MicrophoneManager::MicrophoneManager(int sample_rate,
                                      const DataReceivedCallback& data_received,
                                      const CompletionCallback& completion,
-                                     const ErrorCallback& error)
+                                     const ErrorCallback& error,
+                                     bool enable_fake_microphone)
     : sample_rate_(sample_rate),
       data_received_callback_(data_received),
       completion_callback_(completion),
       error_callback_(error),
-      microphone_(kSbMicrophoneInvalid),
-      min_microphone_read_in_bytes_(-1),
+#if defined(ENABLE_FAKE_MICROPHONE)
+      enable_fake_microphone_(enable_fake_microphone),
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
       state_(kStopped),
       thread_("microphone_thread") {
+  UNREFERENCED_PARAMETER(sample_rate_);
+  UNREFERENCED_PARAMETER(enable_fake_microphone);
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
@@ -67,64 +71,49 @@ void MicrophoneManager::Close() {
       base::Bind(&MicrophoneManager::CloseInternal, base::Unretained(this)));
 }
 
-void MicrophoneManager::CreateInternal() {
-  SB_DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+bool MicrophoneManager::CreateIfNecessary() {
+  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
 
-  SbMicrophoneInfo info[kNumberOfMicrophones];
-  int microphone_num = SbMicrophoneGetAvailable(info, kNumberOfMicrophones);
-
-  SB_DCHECK(!SbMicrophoneIsValid(microphone_));
-  // Loop all the available microphones and create a valid one.
-  for (int index = 0; index < microphone_num; ++index) {
-    if (!SbMicrophoneIsSampleRateSupported(info[index].id, sample_rate_)) {
-      continue;
-    }
-
-    microphone_ =
-        SbMicrophoneCreate(info[index].id, sample_rate_, kBufferSizeInBytes);
-    if (!SbMicrophoneIsValid(microphone_)) {
-      continue;
-    }
-
-    // Created a microphone successfully.
-    min_microphone_read_in_bytes_ = info[index].min_read_size;
-    state_ = kStopped;
-    return;
+  if (microphone_) {
+    return true;
   }
 
-  SB_DLOG(WARNING) << "Microphone creation failed.";
-  state_ = kError;
+#if defined(SB_USE_SB_MICROPHONE)
+#if defined(ENABLE_FAKE_MICROPHONE)
+  if (enable_fake_microphone_) {
+    microphone_.reset(new MicrophoneFake());
+  } else {
+    microphone_.reset(
+        new MicrophoneStarboard(sample_rate_, kBufferSizeInBytes));
+  }
+#else
+  microphone_.reset(new MicrophoneStarboard(sample_rate_, kBufferSizeInBytes));
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
+#endif  // defined(SB_USE_SB_MICROPHONE)
 
-  if (microphone_num == 0) {
+  if (microphone_ && microphone_->IsValid()) {
+    state_ = kStopped;
+    return true;
+  } else {
+    DLOG(WARNING) << "Microphone creation failed.";
+    microphone_.reset();
+    state_ = kError;
     error_callback_.Run(new SpeechRecognitionError(
         SpeechRecognitionError::kAudioCapture, "No microphone available."));
-  } else {
-    error_callback_.Run(new SpeechRecognitionError(
-        SpeechRecognitionError::kAborted, "Microphone creation failed."));
+    return false;
   }
 }
 
 void MicrophoneManager::OpenInternal() {
-  SB_DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
 
-  if (state_ == kStarted) {
+  // Try to create a valid microphone if necessary.
+  if (state_ == kStarted || !CreateIfNecessary()) {
     return;
   }
 
-  // Try to create a valid microphone.
-  if (!SbMicrophoneIsValid(microphone_)) {
-    // If |microphone_| is invalid, try to create a microphone before doing
-    // anything.
-    CreateInternal();
-    // If |microphone_| is still invalid, there is no need to go further.
-    if (!SbMicrophoneIsValid(microphone_)) {
-      return;
-    }
-  }
-
-  SB_DCHECK(SbMicrophoneIsValid(microphone_));
-  bool success = SbMicrophoneOpen(microphone_);
-  if (!success) {
+  DCHECK(microphone_);
+  if (!microphone_->Open()) {
     state_ = kError;
     error_callback_.Run(new SpeechRecognitionError(
         SpeechRecognitionError::kAborted, "Microphone open failed."));
@@ -141,7 +130,7 @@ void MicrophoneManager::OpenInternal() {
 }
 
 void MicrophoneManager::CloseInternal() {
-  SB_DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
 
   if (state_ == kStopped) {
     return;
@@ -151,14 +140,13 @@ void MicrophoneManager::CloseInternal() {
     poll_mic_events_timer_->Stop();
   }
 
-  if (SbMicrophoneIsValid(microphone_)) {
-    if (!SbMicrophoneClose(microphone_)) {
+  if (microphone_) {
+    if (!microphone_->Close()) {
       state_ = kError;
       error_callback_.Run(new SpeechRecognitionError(
           SpeechRecognitionError::kAborted, "Microphone close failed."));
       return;
     }
-
     completion_callback_.Run();
     state_ = kStopped;
   }
@@ -167,13 +155,15 @@ void MicrophoneManager::CloseInternal() {
 void MicrophoneManager::Read() {
   DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
 
-  SB_DCHECK(state_ == kStarted);
-  SB_DCHECK(min_microphone_read_in_bytes_ <= kBufferSizeInBytes);
+  DCHECK(state_ == kStarted);
+  DCHECK(microphone_);
+  DCHECK(microphone_->MinMicrophoneReadInBytes() <= kBufferSizeInBytes);
 
   static int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
-  int read_bytes = SbMicrophoneRead(microphone_, samples, kBufferSizeInBytes);
+  int read_bytes =
+      microphone_->Read(reinterpret_cast<char*>(samples), kBufferSizeInBytes);
   if (read_bytes > 0) {
-    int frames = read_bytes / sizeof(int16_t);
+    size_t frames = read_bytes / sizeof(int16_t);
     scoped_ptr<ShellAudioBus> output_audio_bus(new ShellAudioBus(
         1, frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
     output_audio_bus->Assign(ShellAudioBus(1, frames, samples));
@@ -187,13 +177,11 @@ void MicrophoneManager::Read() {
 }
 
 void MicrophoneManager::DestroyInternal() {
-  SB_DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
 
-  SbMicrophoneDestroy(microphone_);
+  microphone_.reset();
   state_ = kStopped;
 }
 
 }  // namespace speech
 }  // namespace cobalt
-
-#endif  // defined(SB_USE_SB_MICROPHONE)

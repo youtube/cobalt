@@ -22,18 +22,13 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/speech/endpointer_delegate.h"
+#include "cobalt/speech/microphone_manager.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
 #include "media/base/shell_audio_bus.h"
-
-#if defined(SB_USE_SB_MICROPHONE)
-#include "cobalt/speech/microphone_manager.h"
-#else
-#include "cobalt/speech/mic.h"
-#endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
 namespace speech {
@@ -49,7 +44,8 @@ class SpeechRecognitionManager {
   typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;
 
   SpeechRecognitionManager(network::NetworkModule* network_module,
-                           const EventCallback& event_callback);
+                           const EventCallback& event_callback,
+                           bool enable_fake_microphone);
   ~SpeechRecognitionManager();
 
   // Start/Stop speech recognizer and microphone. Multiple calls would be
@@ -84,11 +80,7 @@ class SpeechRecognitionManager {
   EventCallback event_callback_;
   SpeechRecognizer recognizer_;
 
-#if defined(SB_USE_SB_MICROPHONE)
   MicrophoneManager microphone_manager_;
-#else
-  scoped_ptr<Mic> mic_;
-#endif  // defined(SB_USE_SB_MICROPHONE)
 
   // Delegate of endpointer which is used for detecting sound energy.
   EndPointerDelegate endpointer_delegate_;
