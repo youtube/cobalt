@@ -19,15 +19,13 @@
 
 #include "cobalt/speech/speech_configuration.h"
 
-#if defined(SB_USE_SB_MICROPHONE)
-
 #include "base/callback.h"
 #include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/timer.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/speech/microphone.h"
 #include "media/base/shell_audio_bus.h"
-#include "starboard/microphone.h"
 
 namespace cobalt {
 namespace speech {
@@ -43,7 +41,7 @@ class MicrophoneManager {
 
   MicrophoneManager(int sample_rate, const DataReceivedCallback& data_received,
                     const CompletionCallback& completion,
-                    const ErrorCallback& error);
+                    const ErrorCallback& error, bool enable_fake_microphone);
 
   ~MicrophoneManager();
 
@@ -56,7 +54,9 @@ class MicrophoneManager {
  private:
   enum State { kStarted, kStopped, kError };
 
-  void CreateInternal();
+  // Returns true if the creation succeeded or the microphone is already a valid
+  // one.
+  bool CreateIfNecessary();
   void OpenInternal();
   void CloseInternal();
   void DestroyInternal();
@@ -69,9 +69,11 @@ class MicrophoneManager {
   const CompletionCallback completion_callback_;
   const ErrorCallback error_callback_;
 
-  SbMicrophone microphone_;
-  // Minimum requested bytes per microphone read.
-  int min_microphone_read_in_bytes_;
+  scoped_ptr<Microphone> microphone_;
+#if defined(ENABLE_FAKE_MICROPHONE)
+  bool enable_fake_microphone_;
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
+
   // Microphone state.
   State state_;
   // Repeat timer to poll mic events.
@@ -83,7 +85,5 @@ class MicrophoneManager {
 
 }  // namespace speech
 }  // namespace cobalt
-
-#endif  // defined(SB_USE_SB_MICROPHONE)
 
 #endif  //  COBALT_SPEECH_MICROPHONE_MANAGER_H_
