@@ -78,6 +78,8 @@ int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame) {
   frame->height = codec_context->height;
   frame->format = codec_context->pix_fmt;
 
+  frame->reordered_opaque = codec_context->reordered_opaque;
+
   return 0;
 }
 
@@ -180,6 +182,7 @@ void VideoDecoder::DecoderThreadFunc() {
       packet.data = const_cast<uint8_t*>(event.input_buffer.data());
       packet.size = event.input_buffer.size();
       packet.pts = event.input_buffer.pts();
+      codec_context_->reordered_opaque = packet.pts;
 
       DecodePacket(&packet);
       host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
@@ -221,8 +224,9 @@ bool VideoDecoder::DecodePacket(AVPacket* packet) {
   int pitch = AlignUp(av_frame_->width, kAlignment * 2);
 
   VideoFrame frame = VideoFrame::CreateYV12Frame(
-      av_frame_->width, av_frame_->height, pitch, av_frame_->pkt_pts,
-      av_frame_->data[0], av_frame_->data[1], av_frame_->data[2]);
+      av_frame_->width, av_frame_->height, pitch,
+      codec_context_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
+      av_frame_->data[2]);
   host_->OnDecoderStatusUpdate(kBufferFull, &frame);
   return true;
 }
