@@ -33,10 +33,13 @@ const int kMaxFramesPerAccessUnit = 1024 * 2;
 AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                              const SbMediaAudioHeader& audio_header)
     : channels_(audio_header.number_of_channels),
+      bytes_per_frame_(
+          (decoder->GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4) *
+          channels_),
       paused_(true),
       seeking_(false),
       seeking_to_pts_(0),
-      frame_buffer_(kMaxCachedFrames * audio_header.number_of_channels),
+      frame_buffer_(kMaxCachedFrames * bytes_per_frame_),
       frames_in_buffer_(0),
       offset_in_frames_(0),
       frames_consumed_(0),
@@ -61,7 +64,7 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
   }
 
   SbMediaTime input_pts = input_buffer.pts();
-  std::vector<float> decoded_audio;
+  std::vector<uint8_t> decoded_audio;
   decoder_->Decode(input_buffer, &decoded_audio);
   if (decoded_audio.empty()) {
     SB_DLOG(ERROR) << "decoded_audio contains no frames.";
@@ -76,9 +79,9 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
       }
     }
 
-    AppendFrames(&decoded_audio[0], decoded_audio.size() / channels_);
+    AppendFrames(&decoded_audio[0], decoded_audio.size() / bytes_per_frame_);
 
-    if (seeking_ && frame_buffer_.size() > kPrerollFrames * channels_) {
+    if (seeking_ && frame_buffer_.size() > kPrerollFrames * bytes_per_frame_) {
       seeking_ = false;
     }
   }
@@ -91,7 +94,7 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
               SbAudioSinkGetNearestSupportedSampleFrequency(sample_rate));
     // TODO: Handle sink creation failure.
     audio_sink_ = SbAudioSinkCreate(
-        channels_, sample_rate, kSbMediaAudioSampleTypeFloat32,
+        channels_, sample_rate, decoder_->GetSampleType(),
         kSbMediaAudioFrameStorageTypeInterleaved,
         reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
         kMaxCachedFrames, &AudioRenderer::UpdateSourceStatusFunc,
@@ -220,23 +223,23 @@ void AudioRenderer::ConsumeFrames(int frames_consumed) {
   frames_consumed_ += frames_consumed;
 }
 
-void AudioRenderer::AppendFrames(const float* source_buffer,
+void AudioRenderer::AppendFrames(const uint8_t* source_buffer,
                                  int frames_to_append) {
   SB_DCHECK(frames_in_buffer_ + frames_to_append <= kMaxCachedFrames);
 
   int offset_to_append =
       (offset_in_frames_ + frames_in_buffer_) % kMaxCachedFrames;
   if (frames_to_append > kMaxCachedFrames - offset_to_append) {
-    SbMemoryCopy(
-        &frame_buffer_[offset_to_append * channels_], source_buffer,
-        (kMaxCachedFrames - offset_to_append) * sizeof(float) * channels_);
-    source_buffer += (kMaxCachedFrames - offset_to_append) * channels_;
+    SbMemoryCopy(&frame_buffer_[offset_to_append * bytes_per_frame_],
+                 source_buffer,
+                 (kMaxCachedFrames - offset_to_append) * bytes_per_frame_);
+    source_buffer += (kMaxCachedFrames - offset_to_append) * bytes_per_frame_;
     frames_to_append -= kMaxCachedFrames - offset_to_append;
     frames_in_buffer_ += kMaxCachedFrames - offset_to_append;
     offset_to_append = 0;
   }
-  SbMemoryCopy(&frame_buffer_[offset_to_append * channels_], source_buffer,
-               frames_to_append * sizeof(float) * channels_);
+  SbMemoryCopy(&frame_buffer_[offset_to_append * bytes_per_frame_],
+               source_buffer, frames_to_append * bytes_per_frame_);
   frames_in_buffer_ += frames_to_append;
 }
 
