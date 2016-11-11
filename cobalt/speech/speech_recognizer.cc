@@ -32,7 +32,7 @@
 #include "net/url_request/url_fetcher.h"
 
 #if defined(SB_USE_SB_MICROPHONE)
-#include "starboard/microphone.h"
+#include "starboard/system.h"
 #endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
@@ -276,7 +276,12 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
 
   const char* speech_api_key = NULL;
 #if defined(SB_USE_SB_MICROPHONE)
-  speech_api_key = SbMicrophoneGetSpeechApiKey();
+  const int kSpeechApiKeyLength = 100;
+  char buffer[kSpeechApiKeyLength] = {0};
+  bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
+                                    SB_ARRAY_SIZE_INT(buffer));
+  SB_DCHECK(result);
+  speech_api_key = result ? buffer : "";
 #else
   speech_api_key = "";
 #endif
