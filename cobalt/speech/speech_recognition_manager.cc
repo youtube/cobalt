@@ -29,7 +29,8 @@ const float kAudioPacketDurationInSeconds = 0.1f;
 }  // namespace
 
 SpeechRecognitionManager::SpeechRecognitionManager(
-    network::NetworkModule* network_module, const EventCallback& event_callback)
+    network::NetworkModule* network_module, const EventCallback& event_callback,
+    bool enable_fake_microphone)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
       main_message_loop_(base::MessageLoopProxy::current()),
@@ -38,26 +39,16 @@ SpeechRecognitionManager::SpeechRecognitionManager(
           recognizer_(network_module,
                       base::Bind(&SpeechRecognitionManager::OnRecognizerEvent,
                                  base::Unretained(this)))),
-#if defined(SB_USE_SB_MICROPHONE)
-      microphone_manager_(
+      ALLOW_THIS_IN_INITIALIZER_LIST(microphone_manager_(
           kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
                                   base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnDataCompletion,
                      base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnMicError,
-                     base::Unretained(this))),
-#else
-      ALLOW_THIS_IN_INITIALIZER_LIST(mic_(Mic::Create(
-          kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
-                                  base::Unretained(this)),
-          base::Bind(&SpeechRecognitionManager::OnDataCompletion,
                      base::Unretained(this)),
-          base::Bind(&SpeechRecognitionManager::OnMicError,
-                     base::Unretained(this))))),
-#endif  // defined(SB_USE_SB_MICROPHONE)
+          enable_fake_microphone)),
       endpointer_delegate_(kSampleRate),
-      state_(kStopped) {
-}
+      state_(kStopped) {}
 
 SpeechRecognitionManager::~SpeechRecognitionManager() { Stop(); }
 
@@ -74,13 +65,7 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   }
 
   recognizer_.Start(config, kSampleRate);
-
-#if defined(SB_USE_SB_MICROPHONE)
   microphone_manager_.Open();
-#else
-  mic_->Start();
-#endif
-
   endpointer_delegate_.Start();
   state_ = kStarted;
 }
@@ -95,13 +80,7 @@ void SpeechRecognitionManager::Stop() {
   }
 
   endpointer_delegate_.Stop();
-
-#if defined(SB_USE_SB_MICROPHONE)
   microphone_manager_.Close();
-#else
-  mic_->Stop();
-#endif
-
   recognizer_.Stop();
   state_ = kStopped;
   event_callback_.Run(new dom::Event(base::Tokens::soundend()));
@@ -117,13 +96,7 @@ void SpeechRecognitionManager::Abort() {
   }
 
   endpointer_delegate_.Stop();
-
-#if defined(SB_USE_SB_MICROPHONE)
   microphone_manager_.Close();
-#else
-  mic_->Stop();
-#endif
-
   recognizer_.Stop();
   state_ = kAborted;
   event_callback_.Run(new dom::Event(base::Tokens::soundend()));
