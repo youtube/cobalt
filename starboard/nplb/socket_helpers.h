@@ -23,7 +23,7 @@
 namespace starboard {
 namespace nplb {
 
-const SbTime kSocketTimeout = kSbTimeSecond / 8;
+const SbTime kSocketTimeout = kSbTimeSecond / 5;
 
 // Creates a plain TCP/IPv4 socket.
 static inline SbSocket CreateTcpIpv4Socket() {
