@@ -26,7 +26,7 @@ TEST(SbSocketWaiterCreateTest, SunnyDay) {
 }
 
 TEST(SbSocketWaiterCreateTest, ATon) {
-  const int kATon = 4096;
+  const int kATon = 256;
   for (int i = 0; i < kATon; ++i) {
     SbSocketWaiter waiter = SbSocketWaiterCreate();
     EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
