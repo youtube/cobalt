@@ -29,6 +29,11 @@
         'reset_and_return.h',
         'scoped_ptr.h',
       ],
+      'defines': [
+        # This must be defined when building Starboard, and must not when
+        # building Starboard client code.
+        'STARBOARD_IMPLEMENTATION',
+      ],
     },
   ],
 }
