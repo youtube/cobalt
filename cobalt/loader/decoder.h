@@ -17,6 +17,9 @@
 #ifndef COBALT_LOADER_DECODER_H_
 #define COBALT_LOADER_DECODER_H_
 
+#include <string>
+
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/loader/loader_types.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "net/http/http_response_headers.h"
@@ -42,6 +45,16 @@ class Decoder {
 
   // This is the interface that chunks of bytes can be sent in to be decoded.
   virtual void DecodeChunk(const char* data, size_t size) = 0;
+
+  // A decoder can choose to implement |DecodeChunkPassed| in order to take
+  // ownership of the chunk data.  Taking ownership over the chunk data can
+  // allow data copies to be avoided, such as when passing the data off to be
+  // decoded asynchronously.  Not all fetchers are guaranteed to support this
+  // though, in which case they simply forward the scoped pointer data to
+  // DecodeChunk.
+  virtual void DecodeChunkPassed(scoped_ptr<std::string> data) {
+    DecodeChunk(data->data(), data->size());
+  }
 
   // This is called when all data are sent in and decoding should be finalized.
   virtual void Finish() = 0;
