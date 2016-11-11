@@ -43,7 +43,9 @@
         'google_streaming_api.pb.cc',
         'google_streaming_api.pb.h',
         'google_streaming_api.pb.proto',
-        'mic.h',
+        'microphone.h',
+        'microphone_manager.cc',
+        'microphone_manager.h',
         'speech_configuration.h',
         'speech_recognition.cc',
         'speech_recognition.h',
@@ -76,16 +78,38 @@
       'conditions': [
         ['OS=="starboard"', {
           'sources': [
-            'mic_starboard.cc',
-            'microphone_manager.cc',
-            'microphone_manager.h',
+            'microphone_starboard.cc',
+            'microphone_starboard.h',
           ],
         }],
-        ['OS!="starboard" and actual_target_arch in ["linux", "ps3", "win"]', {
+        ['OS=="starboard" and enable_fake_microphone == 1', {
           'sources': [
-            'mic_<(actual_target_arch).cc',
+            'microphone_fake.cc',
+            'microphone_fake.h',
           ],
+          'defines': [
+            'ENABLE_FAKE_MICROPHONE',
+          ],
+          'direct_dependent_settings': {
+            'defines': [ 'ENABLE_FAKE_MICROPHONE', ],
+          },
         }],
+        ['cobalt_copy_test_data == 1', {
+          'actions': [
+            {
+              'action_name': 'speech_copy_test_data',
+              'variables': {
+                'input_files': [
+                  '<(DEPTH)/cobalt/speech/testdata/',
+                ],
+                'output_dir': 'cobalt/speech/testdata/',
+              },
+              'includes': [ '../build/copy_test_data.gypi' ],
+            },
+          ],
+        }
+
+        ],
       ],
     },
     {
