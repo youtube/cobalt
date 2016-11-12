@@ -23,7 +23,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/layout/box.h"
-#include "third_party/icu/public/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
 
 namespace cobalt {
 
