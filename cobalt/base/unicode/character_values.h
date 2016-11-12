@@ -17,7 +17,7 @@
 #ifndef COBALT_BASE_UNICODE_CHARACTER_VALUES_H_
 #define COBALT_BASE_UNICODE_CHARACTER_VALUES_H_
 
-#include "third_party/icu/public/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
 
 namespace base {
 namespace unicode {

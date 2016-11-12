@@ -27,9 +27,9 @@
 #include "cobalt/layout/line_wrapping.h"
 #include "cobalt/render_tree/font.h"
 
-#include "third_party/icu/public/common/unicode/brkiter.h"
-#include "third_party/icu/public/common/unicode/locid.h"
-#include "third_party/icu/public/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
 namespace cobalt {
 namespace layout {
