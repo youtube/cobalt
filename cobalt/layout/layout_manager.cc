@@ -29,8 +29,8 @@
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
-#include "third_party/icu/public/common/unicode/brkiter.h"
-#include "third_party/icu/public/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/locid.h"
 
 namespace cobalt {
 namespace layout {
