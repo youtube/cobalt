@@ -49,7 +49,9 @@ MicrophoneManager::MicrophoneManager(int sample_rate,
       state_(kStopped),
       thread_("microphone_thread") {
   UNREFERENCED_PARAMETER(sample_rate_);
-  UNREFERENCED_PARAMETER(enable_fake_microphone);
+#if defined(ENABLE_FAKE_MICROPHONE)
+  UNREFERENCED_PARAMETER(enable_fake_microphone_);
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
