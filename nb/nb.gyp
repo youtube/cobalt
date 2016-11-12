@@ -29,6 +29,8 @@
         'fixed_no_free_allocator.h',
         'memory_pool.cc',
         'memory_pool.h',
+        'memory_scope.cc',
+        'memory_scope.h',
         'move.h',
         'pointer_arithmetic.h',
         'rect.h',
@@ -64,6 +66,7 @@
       'sources': [
         'atomic_test.cc',
         'fixed_no_free_allocator_test.cc',
+        'memory_scope_test.cc',
         'reuse_allocator_test.cc',
         'run_all_unittests.cc',
         'test_thread.h',
