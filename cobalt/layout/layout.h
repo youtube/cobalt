@@ -24,8 +24,8 @@
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "third_party/icu/public/common/unicode/brkiter.h"
-#include "third_party/icu/public/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/locid.h"
 
 namespace cobalt {
 namespace layout {

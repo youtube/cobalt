@@ -29,7 +29,7 @@
 #include "cobalt/cssom/media_type_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
-#include "third_party/icu/public/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
 namespace cobalt {
 namespace css_parser {

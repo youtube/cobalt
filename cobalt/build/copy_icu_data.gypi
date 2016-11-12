@@ -25,8 +25,8 @@
           # Target machine uses little endian convention
           'little_endian%': 1,
 
-          # A single .dat file should be used instead of a directory with loose
-          # data files.
+          # A directory with loose data files.should be used instead of a
+	  # single .dat file
           'use_icu_dat_file%': 0,
         },
 
@@ -34,37 +34,20 @@
           ['target_arch in ["ps3", "wiiu", "x360"]', {
             'little_endian%': 0,
           }],
-          ['target_arch in ["android"]', {
-            'use_icu_dat_file%': 1,
-          }]
         ],
 
         'little_endian%': '<(little_endian)',
         'use_icu_dat_file%': '<(use_icu_dat_file)',
       },
-
-      'conditions': [
-        ['little_endian==1 and use_icu_dat_file==1', {
-          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46l.dat',
-        }],
-        ['little_endian==1 and use_icu_dat_file==0', {
-          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46l/',
-        }],
-        ['little_endian==0 and use_icu_dat_file==1', {
-          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46b.dat',
-        }],
-        ['little_endian==0 and use_icu_dat_file==0', {
-          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46b/',
-        }],
-      ],
     },
 
-    'inputs_icu%': [ '<(inputs_icu)' ],
+    #'inputs_icu%': [ '<(inputs_icu)' ],
+    'inputs_icu%': [ '<(static_contents_source_dir)/icu/' ],
   },
 
   'copies': [
     {
-      'destination': '<(static_contents_output_data_dir)/icu',
+      'destination': '<(static_contents_output_data_dir)/',
       'files': [ '<(inputs_icu)' ],
     },
   ],
