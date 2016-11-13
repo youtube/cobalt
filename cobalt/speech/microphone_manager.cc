@@ -51,6 +51,8 @@ MicrophoneManager::MicrophoneManager(int sample_rate,
   UNREFERENCED_PARAMETER(sample_rate_);
 #if defined(ENABLE_FAKE_MICROPHONE)
   UNREFERENCED_PARAMETER(enable_fake_microphone_);
+#else
+  UNREFERENCED_PARAMETER(enable_fake_microphone);
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
