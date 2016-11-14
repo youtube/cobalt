@@ -97,11 +97,18 @@ bool URL::BlobResolver(dom::Blob::Registry* registry, const GURL& url,
                        const char** data, size_t* size) {
   DCHECK(data);
   DCHECK(size);
+
+  *size = 0;
+  *data = NULL;
+
   dom::Blob* blob = registry->Retrieve(url.spec()).get();
 
   if (blob) {
     *size = static_cast<size_t>(blob->size());
-    *data = reinterpret_cast<const char*>(blob->data());
+
+    if (*size > 0) {
+      *data = reinterpret_cast<const char*>(blob->data());
+    }
 
     return true;
   } else {

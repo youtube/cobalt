@@ -43,11 +43,18 @@ bool TestResolver(const TestRegistry& registry, const GURL& url,
   DCHECK(data);
   DCHECK(size);
 
+  *size = 0;
+  *data = NULL;
+
   TestRegistry::const_iterator match = registry.find(url.spec());
   if (match != registry.end()) {
     const std::vector<char>& buffer = match->second;
     *size = buffer.size();
-    *data = &buffer[0];
+
+    if (!buffer.empty()) {
+      *data = &buffer[0];
+    }
+
     return true;
   } else {
     return false;
