@@ -1,0 +1,469 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "6bb12ff1_b67f011a",
+        "filename": "src/cobalt/browser/cobalt.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "For this, can you not make final_executable_type: \u0027shared_library\u0027 in your gyp_configuration.gypi ?",
+      "range": {
+        "startLine": 22,
+        "startChar": 0,
+        "endLine": 23,
+        "endChar": 31
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_f689790a",
+        "filename": "src/cobalt/css_parser/grammar.y",
+        "patchSetId": 1
+      },
+      "lineNbr": 3421,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "I think this change was made in our local repository recently as well.",
+      "range": {
+        "startLine": 3421,
+        "startChar": 53,
+        "endLine": 3421,
+        "endChar": 63
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_b604617e",
+        "filename": "src/cobalt/renderer/backend/egl/graphics_system.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 78,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "Before we merge to master, we\u0027ll have to convert this to something like\n\n    #if SB_HAS_QUIRK(GRAPHICS_NO_BIND_TO_TEXTURE)\n\nAnd define this quirk in configuration_public.h.",
+      "range": {
+        "startLine": 77,
+        "startChar": 0,
+        "endLine": 78,
+        "endChar": 46
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_f6fed943",
+        "filename": "src/media/base/simd/convert_rgb_to_yuv.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 71,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "And this is done because there is no implementation of this function?",
+      "range": {
+        "startLine": 63,
+        "startChar": 0,
+        "endLine": 71,
+        "endChar": 41
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_16fc2d4a",
+        "filename": "src/media/base/simd/filter_yuv.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 19,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "We would need to reformat this before we merge to master (and add a comment as to what is going on here).",
+      "range": {
+        "startLine": 18,
+        "startChar": 0,
+        "endLine": 19,
+        "endChar": 63
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_b64d41e2",
+        "filename": "src/starboard/configuration.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 122,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "I have a task to make configuration.h allow configuration_public.h to override any of these definitions.",
+      "range": {
+        "startLine": 107,
+        "startChar": 0,
+        "endLine": 122,
+        "endChar": 19
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_d6c8f5b0",
+        "filename": "src/starboard/shared/opensles/opensles_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 19,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "Note that our todo format is:\n\n    // TODO: Do something later.\n\nOther formatting notes here:\n\n* We use fully capitalized sentences with punctuation in comments.\n* We wrap all lines to 80 columns.\n* We use 2-space indentation units.",
+      "range": {
+        "startLine": 19,
+        "startChar": 20,
+        "endLine": 19,
+        "endChar": 26
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_16826d4e",
+        "filename": "src/starboard/shared/opensles/opensles_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 30,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "Why does this not just use SB_DLOG(INFO)? Shouldn\u0027t it go to the same place?",
+      "range": {
+        "startLine": 30,
+        "startChar": 0,
+        "endLine": 30,
+        "endChar": 95
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6bb12ff1_3643f1b2",
+        "filename": "src/starboard/shared/opensles/opensles_audio_sink_type.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 19,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "This include makes this file Android-specific, not just OpenSLES. What is it needed for?",
+      "range": {
+        "startLine": 19,
+        "startChar": 15,
+        "endLine": 19,
+        "endChar": 31
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_85532129",
+        "filename": "src/starboard/shared/starboard/player/filter/audio_decoder_internal.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 43,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "I think we are going to move to uint8_t in all cases here in the near future, if it hasn\u0027t happened already.\n\nAlso, this is strange, because OS_ANDROID shouldn\u0027t be defined here. We should always be OS_STARBOARD.",
+      "range": {
+        "startLine": 37,
+        "startChar": 0,
+        "endLine": 43,
+        "endChar": 6
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_e5721dc6",
+        "filename": "src/third_party/WebKit/Source/WTF/wtf/dtoa/utils.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 64,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "If you switch to spidermonkey, this shouldn\u0027t be necessary any longer...",
+      "range": {
+        "startLine": 62,
+        "startChar": 0,
+        "endLine": 64,
+        "endChar": 53
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_0578f1a2",
+        "filename": "src/third_party/protobuf/src/google/protobuf/stubs/atomicops.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 188,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "We have another change that should forward to Starboard\u0027s atomic functions.",
+      "range": {
+        "startLine": 185,
+        "startChar": 0,
+        "endLine": 188,
+        "endChar": 64
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_257df592",
+        "filename": "src/third_party/starboard/android/shared/apk/app/src/main/AndroidManifest.xml",
+        "patchSetId": 1
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "As you can see from the way it\u0027s highlighted in Gerrit that Google hates trailing whitespace...",
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_4562e9f6",
+        "filename": "src/third_party/starboard/android/shared/apk/app/src/main/java/com/example/native_activity/CobaltNativeActivity.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "I have to research exactly what is supposed to happen here. We might need to add nvidia to the AUTHORS file and have this be Copyright The Cobalt Authors or something.",
+      "range": {
+        "startLine": 1,
+        "startChar": 0,
+        "endLine": 1,
+        "endChar": 64
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_655fed25",
+        "filename": "src/third_party/starboard/android/shared/apk/app/src/main/java/com/example/native_activity/CobaltNativeActivity.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 15,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "We have the cobalt.foo domain now, if you want to use that.",
+      "range": {
+        "startLine": 15,
+        "startChar": 8,
+        "endLine": 15,
+        "endChar": 19
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_856c01e7",
+        "filename": "src/third_party/starboard/android/shared/apk/app/src/main/java/com/example/native_activity/CobaltNativeActivity.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 29,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "We use 2-space indents for pretty much everything at Google\nhttps://google.github.io/styleguide/javaguide.html#s4.2-block-indentation",
+      "range": {
+        "startLine": 29,
+        "startChar": 0,
+        "endLine": 29,
+        "endChar": 4
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_c596f996",
+        "filename": "src/third_party/starboard/android/shared/apk/app/src/main/jni/main.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "For files that get pulled in from other projects, we have to put them in src/third_party/. Perhaps src/third_party/aosp/ or src/third_party/android ?",
+      "range": {
+        "startLine": 2,
+        "startChar": 0,
+        "endLine": 2,
+        "endChar": 53
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_6588cd6f",
+        "filename": "src/third_party/starboard/android/shared/application_android.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "For source files that would be shared between, say, android mobile and android tv, we probably want to put them in\n\n    src/starboard/shared/android\n\nWe try to distinguish between files that are likely to be shareable between android-like platforms vs. files that are specific to a particular product, like android TV or nvidia shield.",
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_8585e158",
+        "filename": "src/third_party/starboard/android/shared/drm_close_session.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "You can just use the stubs directly until  you have an implementation",
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_a582e54c",
+        "filename": "src/third_party/starboard/android/shared/main.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 38,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "Google uses CapitalCamelCaps for function names. And Starboard in general uses Sb as a prefix, so:\n\n    SbQueueInputEvent\n    SbInitialize",
+      "range": {
+        "startLine": 38,
+        "startChar": 5,
+        "endLine": 38,
+        "endChar": 32
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_c5b7d92d",
+        "filename": "src/third_party/starboard/android/shared/system_binary_search.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2016-11-14T06:54:43Z",
+      "side": 1,
+      "message": "I\u0027m pretty sure this will break something if it isn\u0027t implemented...",
+      "range": {
+        "startLine": 22,
+        "startChar": 2,
+        "endLine": 22,
+        "endChar": 14
+      },
+      "revId": "458e29a22d0e1d55a6b5f891ea7ed6de5f8a22f9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    }
+  ]
+}
