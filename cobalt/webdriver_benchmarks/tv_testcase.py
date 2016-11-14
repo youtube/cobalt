@@ -110,6 +110,14 @@ class TvTestCase(unittest.TestCase):
   class LayoutTimeoutException(BaseException):
     """Exception thrown when layout did not complete in time."""
 
+  @classmethod
+  def setUpClass(cls):
+    print("Running " + cls.__name__)
+
+  @classmethod
+  def tearDownClass(cls):
+    print("Done " + cls.__name__)
+
   def get_webdriver(self):
     return partial_layout_benchmark.GetWebDriver()
 

@@ -142,6 +142,7 @@ class CobaltRunner(object):
       # potentially from thread.interrupt_main(). We will treat as
       # a timeout regardless
       raise TimeoutException
+    return self
 
   def __exit__(self, exc_type, exc_value, traceback):
     # The unittest module terminates with a SystemExit
@@ -163,7 +164,7 @@ class CobaltRunner(object):
       return
 
     port = match.group(1)
-    sys.stderr.write("WebDriver port opened:" + port + "\n")
+    print("WebDriver port opened:" + port + "\n", file=self.log_file)
     self._StartWebdriver(port)
 
   def SetShouldExit(self, failed=False):
@@ -180,7 +181,7 @@ class CobaltRunner(object):
     url = "http://{}:{}/".format(self._GetIPAddress(), port)
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
-    sys.stderr.write("Selenium Connected\n")
+    print("Selenium Connected\n", file=self.log_file)
     _webdriver = self.webdriver
     self.test_script_started.set()
 
@@ -189,7 +190,7 @@ class CobaltRunner(object):
     if not self.test_script_started.wait(STARTUP_TIMEOUT_SECONDS):
       self.SetShouldExit(failed=True)
       raise TimeoutException
-    sys.stderr.write("Cobalt started\n")
+    print("Cobalt started", file=self.log_file)
 
   def Run(self):
     """Thread run routine."""
@@ -205,9 +206,10 @@ class CobaltRunner(object):
         self.log_file = sys.stdout
 
       self.launcher.SetOutputFile(self.log_file)
-      sys.stderr.write("Running launcher \n")
+      print("Running launcher", file=self.log_file)
       self.launcher.Run()
-      sys.stderr.write("Cobalt terminated. failed: " + str(self.failed) + "\n")
+      print("Cobalt terminated. failed: " + str(self.failed),
+            file=self.log_file)
       # This is watched for in webdriver_benchmark_test.py
       if not self.failed:
         sys.stdout.write("partial_layout_benchmark TEST COMPLETE\n")
@@ -260,8 +262,10 @@ def main():
     devkit_name = socket.gethostname()
 
   try:
-    with CobaltRunner(platform, executable, devkit_name, args.log_file):
-      unittest.main()
+    with CobaltRunner(platform, executable,
+                      devkit_name, args.log_file) as runner:
+      unittest.main(testRunner=unittest.TextTestRunner(
+          verbosity=0, stream=runner.log_file))
     return 0
   except TimeoutException:
     print("Timeout waiting for Cobalt to start", file=sys.stderr)
