@@ -77,6 +77,9 @@ struct SbMemoryReporter {
 // Sets the MemoryReporter. Any previous memory reporter is unset. No lifetime
 // management is done internally on input pointer.
 //
+// Returns true if the memory reporter was set with no errors. If an error
+// was reported then check the log for why it failed.
+//
 // Note that other than a thread-barrier-write of the input pointer, there is
 // no thread safety guarantees with this function due to performance
 // considerations. It's recommended that this be called once during the
