@@ -467,6 +467,16 @@ void Node::InvalidateComputedStylesRecursively() {
   }
 }
 
+void Node::PurgeCachedResourceReferencesRecursively() {
+  ReleaseImagesAndInvalidateComputedStyleIfNecessary();
+
+  Node* child = first_child_;
+  while (child) {
+    child->PurgeCachedResourceReferencesRecursively();
+    child = child->next_sibling_;
+  }
+}
+
 void Node::InvalidateLayoutBoxesFromNodeAndAncestors() {
   if (parent_) {
     parent_->InvalidateLayoutBoxesFromNodeAndAncestors();

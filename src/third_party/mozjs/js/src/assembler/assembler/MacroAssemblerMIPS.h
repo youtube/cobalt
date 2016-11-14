@@ -2335,20 +2335,21 @@ public:
             m_assembler.lwc1(dest, addrTempRegister, address.offset);
             m_assembler.lwc1(FPRegisterID(dest + 1), addrTempRegister, address.offset + 4);
         } else {
-                sll     addrTemp, address.index, address.scale
-                addu    addrTemp, addrTemp, address.base
-                li      immTemp, address.offset
-                addu    addrTemp, addrTemp, immTemp
-                lwc1    dest, 0(addrTemp)
-                lwc1    dest+1, 4(addrTemp)
-            */
-            m_assembler.sll(addrTempRegister, address.index, address.scale);
-            m_assembler.addu(addrTempRegister, addrTempRegister, address.base);
-            m_assembler.li(immTempRegister, address.offset);
-            m_assembler.addu(addrTempRegister, addrTempRegister,
-                             immTempRegister);
-            m_assembler.lwc1(dest, addrTempRegister, 0);
-            m_assembler.lwc1(FPRegisterID(dest + 1), addrTempRegister, 4);
+          /*
+              sll     addrTemp, address.index, address.scale
+              addu    addrTemp, addrTemp, address.base
+              li      immTemp, address.offset
+              addu    addrTemp, addrTemp, immTemp
+              lwc1    dest, 0(addrTemp)
+              lwc1    dest+1, 4(addrTemp)
+          */
+          m_assembler.sll(addrTempRegister, address.index, address.scale);
+          m_assembler.addu(addrTempRegister, addrTempRegister, address.base);
+          m_assembler.li(immTempRegister, address.offset);
+          m_assembler.addu(addrTempRegister, addrTempRegister, immTempRegister);
+          m_assembler.lwc1(dest, addrTempRegister, 0);
+          m_assembler.lwc1(FPRegisterID(dest + 1), addrTempRegister, 4);
+        }
 #else
         if (address.offset >= -32768 && address.offset <= 32767
             && !m_fixedWidth) {
@@ -2781,6 +2782,13 @@ private:
         MIPSAssembler::relinkCall(call.dataLocation(), destination.executableAddress());
     }
 
+   public:
+    void load16Unaligned(BaseIndex address, RegisterID dest) {
+      JS_NOT_REACHED("NYI_COBALT");
+    }
+    void load8(BaseIndex address, RegisterID dest) {
+      JS_NOT_REACHED("NYI_COBALT");
+    }
 };
 
 }

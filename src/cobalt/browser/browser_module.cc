@@ -219,6 +219,8 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url) {
+  web_module_loaded_.Reset();
+
   // Always post this as a task in case this is being called from the WebModule.
   self_message_loop_->PostTask(
       FROM_HERE, base::Bind(&BrowserModule::NavigateInternal, weak_this_, url));
@@ -234,8 +236,6 @@ void BrowserModule::Reload() {
 
 void BrowserModule::NavigateInternal(const GURL& url) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-
-  web_module_loaded_.Reset();
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
   // handles the URL, we don't use the web module.
@@ -430,6 +430,11 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+
+  if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
+    render_tree_combiner_.UpdateDebugConsoleRenderTree(base::nullopt);
+    return;
+  }
 
   render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
@@ -653,6 +658,8 @@ void BrowserModule::Suspend() {
   // render tree resources either.
   render_tree_combiner_.Reset();
 
+  media_module_->Suspend();
+
   // Place the renderer module into a suspended state where it releases all its
   // graphical resources.
   renderer_module_.Suspend();
@@ -665,6 +672,8 @@ void BrowserModule::Resume() {
   DCHECK(suspended_);
 
   renderer_module_.Resume();
+
+  media_module_->Resume();
 
   // Note that at this point, it is probable that this resource provider is
   // different than the one that was managed in the associated call to

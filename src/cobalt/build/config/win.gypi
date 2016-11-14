@@ -34,6 +34,9 @@
     # there for acceptable values for this variable.
     'javascript_engine': 'javascriptcore',
 
+    # Webdriver won't compile on MSVC because of UTF8 string constant issues
+    'enable_webdriver': 0,
+
     # Compile with "PREfast" on by default.
     'static_analysis%': 'true',
 

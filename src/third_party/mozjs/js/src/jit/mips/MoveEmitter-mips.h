@@ -17,43 +17,51 @@ class CodeGenerator;
 
 class MoveEmitterMIPS
 {
-    bool inCycle_;
-    MacroAssemblerMIPSCompat &masm;
+  typedef MoveResolver::Move Move;
+  typedef MoveResolver::MoveOperand MoveOperand;
 
-    // Original stack push value.
-    uint32_t pushedAtStart_;
+  bool inCycle_;
+  MacroAssemblerMIPSCompat& masm;
 
-    // These store stack offsets to spill locations, snapshotting
-    // codegen->framePushed_ at the time they were allocated. They are -1 if no
-    // stack space has been allocated for that particular spill.
-    int32_t pushedAtCycle_;
-    int32_t pushedAtSpill_;
+  // Original stack push value.
+  uint32_t pushedAtStart_;
 
-    // These are registers that are available for temporary use. They may be
-    // assigned InvalidReg. If no corresponding spill space has been assigned,
-    // then these registers do not need to be spilled.
-    Register spilledReg_;
-    FloatRegister spilledFloatReg_;
+  // These store stack offsets to spill locations, snapshotting
+  // codegen->framePushed_ at the time they were allocated. They are -1 if no
+  // stack space has been allocated for that particular spill.
+  int32_t pushedAtCycle_;
+  int32_t pushedAtSpill_;
+  int32_t pushedAtDoubleSpill_;
 
-    void assertDone();
-    Register tempReg();
-    FloatRegister tempFloatReg();
-    Address cycleSlot() const;
-    int32_t getAdjustedOffset(const MoveOperand &operand);
-    Address getAdjustedAddress(const MoveOperand &operand);
+  // These are registers that are available for temporary use. They may be
+  // assigned InvalidReg. If no corresponding spill space has been assigned,
+  // then these registers do not need to be spilled.
+  Register spilledReg_;
+  FloatRegister spilledFloatReg_;
 
-    void emitMove(const MoveOperand &from, const MoveOperand &to);
-    void emitFloat32Move(const MoveOperand &from, const MoveOperand &to);
-    void emitDoubleMove(const MoveOperand &from, const MoveOperand &to);
-    void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
-    void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
-    void emit(const MoveOp &move);
+  void assertDone();
+  Register tempReg();
+  FloatRegister tempFloatReg();
+  Address cycleSlot() const;
+  Operand doubleSpillSlot() const;
+  int32_t getAdjustedOffset(const MoveOperand& operand);
+  Address getAdjustedAddress(const MoveOperand& operand);
 
-  public:
-    MoveEmitterMIPS(MacroAssemblerMIPSCompat &masm);
-    ~MoveEmitterMIPS();
-    void emit(const MoveResolver &moves);
-    void finish();
+  void emitMove(const MoveOperand& from, const MoveOperand& to);
+  void emitDoubleMove(const MoveOperand& from, const MoveOperand& to);
+  void breakCycle(const MoveOperand& from,
+                  const MoveOperand& to,
+                  Move::Kind kind);
+  void completeCycle(const MoveOperand& from,
+                     const MoveOperand& to,
+                     Move::Kind kind);
+  void emit(const Move& move);
+
+ public:
+  MoveEmitterMIPS(MacroAssemblerMIPSCompat& masm);
+  ~MoveEmitterMIPS();
+  void emit(const MoveResolver& moves);
+  void finish();
 };
 
 typedef MoveEmitterMIPS MoveEmitter;

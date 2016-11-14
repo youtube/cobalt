@@ -115,6 +115,10 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // Stop watch-related
   std::vector<base::StopWatch> stop_watches_;
   std::vector<base::TimeDelta> stop_watch_durations_;
+
+  std::string name_;
+
+  base::CVal<int, base::CValPublic> event_is_processing_;
 };
 
 }  // namespace browser

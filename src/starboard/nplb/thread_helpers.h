@@ -16,9 +16,13 @@
 #define STARBOARD_NPLB_THREAD_HELPERS_H_
 
 #include "starboard/condition_variable.h"
+#include "starboard/configuration.h"
 #include "starboard/mutex.h"
+#include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
+
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -91,6 +95,50 @@ struct TakeThenSignalContext {
   SbMutex mutex;
   SbConditionVariable condition;
   SbTime delay_after_signal;
+};
+
+// AbstractTestThread that is a bare bones class wrapper around Starboard
+// thread. Subclasses must override Run().
+class AbstractTestThread {
+ public:
+  AbstractTestThread() : thread_(kSbThreadInvalid) {}
+  virtual ~AbstractTestThread() {}
+
+  // Subclasses should override the Run method.
+  virtual void Run() = 0;
+
+  // Calls SbThreadCreate() with default parameters.
+  void Start() {
+    SbThreadEntryPoint entry_point = ThreadEntryPoint;
+
+    thread_ = SbThreadCreate(0,                    // default stack_size.
+                             kSbThreadNoPriority,  // default priority.
+                             kSbThreadNoAffinity,  // default affinity.
+                             true,                 // joinable.
+                             "AbstractTestThread", entry_point, this);
+
+    if (kSbThreadInvalid == thread_) {
+      ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
+    }
+    return;
+  }
+
+  void Join() {
+    if (!SbThreadJoin(thread_, NULL)) {
+      ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
+    }
+  }
+
+ private:
+  static void* ThreadEntryPoint(void* ptr) {
+    AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
+    this_ptr->Run();
+    return NULL;
+  }
+
+  SbThread thread_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(AbstractTestThread);
 };
 
 }  // namespace nplb

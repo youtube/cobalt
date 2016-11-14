@@ -50,18 +50,28 @@
 #endif  // defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#include "starboard/log.h"
+#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace browser {
 
 namespace {
 const int kStatUpdatePeriodMs = 1000;
+const int kLiteStatUpdatePeriodMs = 16;
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
+#if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
+  const int kDefaultRemoteDebuggingPort =
+      SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT;
+#else
   const int kDefaultRemoteDebuggingPort = 9222;
+#endif  // defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
   int remote_debugging_port = kDefaultRemoteDebuggingPort;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -164,6 +174,31 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+std::string GetMinLogLevelString() {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kMinLogLevel)) {
+    return command_line->GetSwitchValueASCII(switches::kMinLogLevel);
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+  return "info";
+}
+
+int StringToLogLevel(const std::string& log_level) {
+  if (log_level == "info") {
+    return logging::LOG_INFO;
+  } else if (log_level == "warning") {
+    return logging::LOG_WARNING;
+  } else if (log_level == "error") {
+    return logging::LOG_ERROR;
+  } else if (log_level == "fatal") {
+    return logging::LOG_FATAL;
+  } else {
+    NOTREACHED() << "Unrecognized logging level: " << log_level;
+    return logging::LOG_INFO;
+  }
+}
+
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
   if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
     int32 out;
@@ -258,7 +293,8 @@ Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       start_time_(base::TimeTicks::Now()),
-      stats_update_timer_(true, true) {
+      stats_update_timer_(true, true),
+      lite_stats_update_timer_(true, true) {
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -267,9 +303,16 @@ Application::Application(const base::Closure& quit_closure)
 
   RegisterUserLogs();
 
+  // Set the minimum logging level, if specified on the command line.
+  logging::SetMinLogLevel(StringToLogLevel(GetMinLogLevelString()));
+
   stats_update_timer_.Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(kStatUpdatePeriodMs),
       base::Bind(&Application::UpdatePeriodicStats, base::Unretained(this)));
+  lite_stats_update_timer_.Start(
+      FROM_HERE, base::TimeDelta::FromMilliseconds(kLiteStatUpdatePeriodMs),
+      base::Bind(&Application::UpdatePeriodicLiteStats,
+                 base::Unretained(this)));
 
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
@@ -655,6 +698,10 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
   }
 }
 
+void Application::UpdatePeriodicLiteStats() {
+  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
+}
+
 void Application::UpdatePeriodicStats() {
 #if defined(__LB_SHELL__)
   bool memory_stats_updated = false;
@@ -694,8 +741,6 @@ void Application::UpdatePeriodicStats() {
     *c_val_stats_.used_gpu_memory = used_gpu_memory;
   }
 #endif
-
-  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
 }
 
 }  // namespace browser

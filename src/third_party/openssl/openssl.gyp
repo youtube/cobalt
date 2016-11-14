@@ -642,8 +642,8 @@
             'openssl/crypto/aes/asm/aes-mips.S',
             'openssl/crypto/bn/asm/bn-mips.S',
             'openssl/crypto/bn/asm/mips-mont.S',
-            'openssl/crypto/sha/sha1-mips.S',
-            'openssl/crypto/sha/sha256-mips.S',
+            'openssl/crypto/sha/asm/sha1-mips.S',
+            'openssl/crypto/sha/asm/sha256-mips.S',
           ],
         }],
         ['clang==1', {

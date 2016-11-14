@@ -29,7 +29,7 @@ TEST(SbMemoryAllocateAlignedTest, AllocatesAligned) {
     void* memory = SbMemoryAllocateAligned(align, kSize);
     ASSERT_NE(static_cast<void*>(NULL), memory);
     EXPECT_TRUE(SbMemoryIsAligned(memory, align));
-    SbMemoryFreeAligned(memory);
+    SbMemoryDeallocateAligned(memory);
   }
 }
 
@@ -43,7 +43,7 @@ TEST(SbMemoryAllocateAlignedTest, AllocatesAlignedZero) {
     if (memory) {
       EXPECT_TRUE(SbMemoryIsAligned(memory, align));
     }
-    SbMemoryFreeAligned(memory);
+    SbMemoryDeallocateAligned(memory);
   }
 }
 
@@ -60,7 +60,7 @@ TEST(SbMemoryAllocateAlignedTest, CanReadWriteToResult) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 
-  SbMemoryFreeAligned(memory);
+  SbMemoryDeallocateAligned(memory);
 }
 
 }  // namespace

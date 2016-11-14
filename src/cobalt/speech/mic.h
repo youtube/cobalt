@@ -17,8 +17,10 @@
 #ifndef COBALT_SPEECH_MIC_H_
 #define COBALT_SPEECH_MIC_H_
 
+#include <string>
+
 #include "base/callback.h"
-#include "media/base/audio_bus.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace speech {
@@ -26,8 +28,8 @@ namespace speech {
 // An abstract class is used for interacting platform specific microphone.
 class Mic {
  public:
-  typedef ::media::AudioBus AudioBus;
-  typedef base::Callback<void(scoped_ptr<AudioBus>)> DataReceivedCallback;
+  typedef ::media::ShellAudioBus ShellAudioBus;
+  typedef base::Callback<void(scoped_ptr<ShellAudioBus>)> DataReceivedCallback;
   typedef base::Callback<void(void)> CompletionCallback;
   typedef base::Callback<void(void)> ErrorCallback;
 
@@ -59,6 +61,8 @@ class Mic {
   const CompletionCallback completion_callback_;
   const ErrorCallback error_callback_;
 };
+
+std::string GetSpeechAPIKey();
 
 }  // namespace speech
 }  // namespace cobalt

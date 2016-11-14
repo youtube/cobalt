@@ -34,6 +34,7 @@ class MozjsEngine : public JavaScriptEngine {
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
+  size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
 
  private:
   static JSBool ContextCallback(JSContext* context, unsigned context_op);
@@ -50,6 +51,9 @@ class MozjsEngine : public JavaScriptEngine {
   // A list of all contexts created for this JSRuntime.
   typedef std::vector<JSContext*> ContextVector;
   ContextVector contexts_;
+
+  // The amount of externally allocated memory since last forced GC.
+  size_t accumulated_extra_memory_cost_;
 };
 }  // namespace mozjs
 }  // namespace script

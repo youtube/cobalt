@@ -21,7 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/time.h"
-#include "media/base/buffers.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
 
 namespace cobalt {
@@ -32,6 +32,7 @@ namespace sandbox {
 class MediaSourceDemuxer {
  public:
   struct AUDescriptor {
+    bool is_keyframe;
     size_t offset;
     size_t size;
     base::TimeDelta timestamp;
@@ -48,7 +49,7 @@ class MediaSourceDemuxer {
   const ::media::VideoDecoderConfig& config() const { return config_; }
 
  private:
-  void AppendBuffer(::media::Buffer* buffer);
+  void AppendBuffer(::media::DecoderBuffer* buffer);
 
   bool valid_;
   std::vector<uint8> au_data_;

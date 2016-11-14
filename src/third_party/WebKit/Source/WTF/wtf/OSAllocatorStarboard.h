@@ -133,8 +133,8 @@ class StarboardPageAllocatorMmap : public StarboardPageAllocator {
 class StarboardPageAllocatorFixed : public StarboardPageAllocator {
  public:
   ~StarboardPageAllocatorFixed() {
-    SbMemoryFree(buffer_orig_);
-    SbMemoryFree(free_bitmap_);
+    SbMemoryDeallocate(buffer_orig_);
+    SbMemoryDeallocate(free_bitmap_);
   }
 
   static StarboardPageAllocatorFixed* Create() {
@@ -155,7 +155,7 @@ class StarboardPageAllocatorFixed : public StarboardPageAllocator {
   // Free a block that was allocated with allocateBlock()
   void freeBlock(void* ptr) {
     void* orig_ptr = *(void**)((uintptr_t)ptr - sizeof(void*));
-    SbMemoryFree(orig_ptr);
+    SbMemoryDeallocate(orig_ptr);
   }
 
   void* buffer_;

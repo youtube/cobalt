@@ -254,18 +254,21 @@ class FontCache {
   // the constructor and an |OnRemoteFontLoadEvent| callback provided by the
   // font are registered with the remote typeface cache to be called when the
   // load finishes.
-  // If the font is loading but not currently available, |maybe_is_font_loading|
-  // will be set to true.
   scoped_refptr<render_tree::Font> TryGetRemoteFont(const GURL& url, float size,
                                                     FontListFont::State* state);
 
   // Returns NULL if the requested family is not empty and is not available in
   // the resource provider. Otherwise, returns the best matching local font.
-  // |maybe_is_font_loading| is always set to false.
   scoped_refptr<render_tree::Font> TryGetLocalFont(const std::string& family,
                                                    render_tree::FontStyle style,
                                                    float size,
                                                    FontListFont::State* state);
+
+  // Lookup by a typeface (aka font_face), typeface is defined as font family +
+  // style (weight, width, and style).
+  // Returns NULL if the requested font face is not found.
+  scoped_refptr<render_tree::Font> TryGetLocalFontByFaceName(
+      const std::string& font_face, float size, FontListFont::State* state);
 
   // Called when a remote typeface either successfully loads or fails to load.
   // In either case, the event can impact the fonts contained within the font

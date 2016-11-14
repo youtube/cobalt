@@ -20,7 +20,6 @@
 
 #include "base/logging.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/base/poller.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "third_party/mozjs/cobalt_config/include/jscustomallocator.h"
@@ -43,12 +42,6 @@ JSSecurityCallbacks security_callbacks = {
   MozjsGlobalEnvironment::CheckEval
 };
 
-#if defined(__LB_SHELL__FOR_RELEASE__)
-const int kPollerPeriodMs = 2000;
-#else  // #if defined(__LB_SHELL__FOR_RELEASE__)
-const int kPollerPeriodMs = 20;
-#endif  // #if defined(__LB_SHELL__FOR_RELEASE__)
-
 class EngineStats {
  public:
   EngineStats();
@@ -68,41 +61,43 @@ class EngineStats {
     --engine_count_;
   }
 
-  void Update() {
+  size_t UpdateMemoryStatsAndReturnReserved() {
     base::AutoLock auto_lock(lock_);
+    if (engine_count_.value() == 0) {
+      return 0;
+    }
     allocated_memory_ =
         MemoryAllocatorReporter::Get()->GetCurrentBytesAllocated();
     mapped_memory_ = MemoryAllocatorReporter::Get()->GetCurrentBytesMapped();
-    memory_sum_ = allocated_memory_ + mapped_memory_;
+    return allocated_memory_ + mapped_memory_;
   }
 
  private:
   base::Lock lock_;
   base::CVal<size_t, base::CValPublic> allocated_memory_;
   base::CVal<size_t, base::CValPublic> mapped_memory_;
-  base::CVal<size_t, base::CValPublic> memory_sum_;
   base::CVal<size_t> engine_count_;
-
-  // Repeating timer to query the used bytes.
-  scoped_ptr<base::PollerWithThread> poller_;
 };
 
 EngineStats::EngineStats()
     : allocated_memory_("Memory.JS.AllocatedMemory", 0,
                         "JS memory occupied by the Mozjs allocator."),
       mapped_memory_("Memory.JS.MappedMemory", 0, "JS mapped memory."),
-      memory_sum_("Memory.JS", 0,
-                  "Total memory occupied by the Mozjs allocator and heap."),
       engine_count_("Count.JS.Engine", 0,
-                    "Total JavaScript engine registered.") {
-  poller_.reset(new base::PollerWithThread(
-      base::Bind(&EngineStats::Update, base::Unretained(this)),
-      base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
-}
+                    "Total JavaScript engine registered.") {}
+
+// Pretend we always preserve wrappers since we never call
+// SetPreserveWrapperCallback anywhere else. This is necessary for
+// TryPreserveReflector called by WeakMap to not crash. Disabling
+// bindings to WeakMap does not appear to be an easy option because
+// of its use in selfhosted.js. See bugzilla discussion linked where
+// they decided to include a similar dummy in the mozjs shell.
+// https://bugzilla.mozilla.org/show_bug.cgi?id=829798
+bool DummyPreserveWrapperCallback(JSContext* cx, JSObject* obj) { return true; }
 
 }  // namespace
 
-MozjsEngine::MozjsEngine() {
+MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
   runtime_ =
@@ -137,6 +132,8 @@ MozjsEngine::MozjsEngine() {
   // Callback to be called during garbage collection during the sweep phase.
   JS_SetFinalizeCallback(runtime_, &MozjsEngine::FinalizeCallback);
 
+  js::SetPreserveWrapperCallback(runtime_, DummyPreserveWrapperCallback);
+
   EngineStats::GetInstance()->EngineCreated();
 }
 
@@ -156,7 +153,18 @@ void MozjsEngine::CollectGarbage() {
   JS_GC(runtime_);
 }
 
-void MozjsEngine::ReportExtraMemoryCost(size_t bytes) { NOTIMPLEMENTED(); }
+void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  accumulated_extra_memory_cost_ += bytes;
+  if (accumulated_extra_memory_cost_ > kGarbageCollectionThresholdBytes) {
+    accumulated_extra_memory_cost_ = 0;
+    CollectGarbage();
+  }
+}
+
+size_t MozjsEngine::UpdateMemoryStatsAndReturnReserved() {
+  return EngineStats::GetInstance()->UpdateMemoryStatsAndReturnReserved();
+}
 
 JSBool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op) {
   JSRuntime* runtime = JS_GetRuntime(context);
@@ -178,6 +186,9 @@ JSBool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op) {
 void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
   MozjsEngine* engine =
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(runtime));
+  if (status == JSGC_END) {
+    engine->accumulated_extra_memory_cost_ = 0;
+  }
   for (int i = 0; i < engine->contexts_.size(); ++i) {
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);

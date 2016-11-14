@@ -30,9 +30,12 @@ class JSCEngine : public JavaScriptEngine {
  public:
   JSCEngine();
   ~JSCEngine() OVERRIDE;
+
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
+  size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
+
   JSC::JSGlobalData* global_data() { return global_data_.get(); }
   ScriptObjectRegistry* script_object_registry() {
     return &script_object_registry_;

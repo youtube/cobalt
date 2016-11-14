@@ -656,8 +656,8 @@ ICStubCompiler::emitPostWriteBarrierSlot(MacroAssembler &masm, Register obj, Reg
     masm.bind(&isTenured);
 
     // void PostWriteBarrier(JSRuntime *rt, JSObject *obj);
-#ifdef JS_CPU_ARM
-    saveRegs.add(BaselineTailCallReg);
+#if defined(JS_CPU_ARM) || defined(JS_CPU_MIPS)
+  saveRegs.add(BaselineTailCallReg);
 #endif
     saveRegs = GeneralRegisterSet::Intersect(saveRegs, GeneralRegisterSet::Volatile());
     masm.PushRegsInMask(saveRegs);
@@ -1918,8 +1918,12 @@ ICCompare_Boolean::Compiler::generateStubCode(MacroAssembler &masm)
 
     // Compare payload regs of R0 and R1.
     Assembler::Condition cond = JSOpToCondition(op, /* signed = */true);
+#if defined(JS_CPU_MIPS)
+    masm.cmp32Set(cond, left, right, left);
+#else
     masm.cmp32(left, right);
     masm.emitSet(cond, left);
+#endif
 
     // Box the result and return
     masm.tagValue(JSVAL_TYPE_BOOLEAN, left, R0);
@@ -2090,9 +2094,14 @@ ICCompare_Int32WithBoolean::Compiler::generateStubCode(MacroAssembler &masm)
 
         // Compare payload regs of R0 and R1.
         Assembler::Condition cond = JSOpToCondition(op_, /* signed = */true);
+#if defined(JS_CPU_MIPS)
+        masm.cmp32Set(cond, lhsIsInt32_ ? int32Reg : boolReg,
+                      lhsIsInt32_ ? boolReg : int32Reg, R0.scratchReg());
+#else
         masm.cmp32(lhsIsInt32_ ? int32Reg : boolReg,
                    lhsIsInt32_ ? boolReg : int32Reg);
         masm.emitSet(cond, R0.scratchReg());
+#endif
 
         // Box the result and return
         masm.tagValue(JSVAL_TYPE_BOOLEAN, R0.scratchReg(), R0);
@@ -2218,8 +2227,12 @@ ICToBool_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     masm.branchTestInt32(Assembler::NotEqual, R0, &failure);
 
     Label ifFalse;
+#if defined(JS_CPU_MIPS)
+    masm.branchTestInt32Truthy(false, R0, &ifFalse);
+#else
     Assembler::Condition cond = masm.testInt32Truthy(false, R0);
     masm.j(cond, &ifFalse);
+#endif
 
     masm.moveValue(BooleanValue(true), R0);
     EmitReturnFromIC(masm);
@@ -2245,8 +2258,12 @@ ICToBool_String::Compiler::generateStubCode(MacroAssembler &masm)
     masm.branchTestString(Assembler::NotEqual, R0, &failure);
 
     Label ifFalse;
+#if defined(JS_CPU_MIPS)
+    masm.branchTestStringTruthy(false, R0, &ifFalse);
+#else
     Assembler::Condition cond = masm.testStringTruthy(false, R0);
     masm.j(cond, &ifFalse);
+#endif
 
     masm.moveValue(BooleanValue(true), R0);
     EmitReturnFromIC(masm);
@@ -2292,8 +2309,12 @@ ICToBool_Double::Compiler::generateStubCode(MacroAssembler &masm)
     Label failure, ifTrue;
     masm.branchTestDouble(Assembler::NotEqual, R0, &failure);
     masm.unboxDouble(R0, FloatReg0);
+#if defined(JS_CPU_MIPS)
+    masm.branchTestDoubleTruthy(true, FloatReg0, &ifTrue);
+#else
     Assembler::Condition cond = masm.testDoubleTruthy(true, FloatReg0);
     masm.j(cond, &ifTrue);
+#endif
 
     masm.moveValue(BooleanValue(false), R0);
     EmitReturnFromIC(masm);
@@ -2320,8 +2341,12 @@ ICToBool_Object::Compiler::generateStubCode(MacroAssembler &masm)
 
     Register objReg = masm.extractObject(R0, ExtractTemp0);
     Register scratch = R1.scratchReg();
+#if defined(JS_CPU_MIPS)
+    masm.branchTestObjectTruthy(false, objReg, scratch, &slowPath, &ifFalse);
+#else
     Assembler::Condition cond = masm.branchTestObjectTruthy(false, objReg, scratch, &slowPath);
     masm.j(cond, &ifFalse);
+#endif
 
     // If object doesn't emulate undefined, it evaulates to true.
     masm.moveValue(BooleanValue(true), R0);
@@ -2335,6 +2360,9 @@ ICToBool_Object::Compiler::generateStubCode(MacroAssembler &masm)
     masm.setupUnalignedABICall(1, scratch);
     masm.passABIArg(objReg);
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, ObjectEmulatesUndefined));
+#if defined(JS_CPU_MIPS)
+    masm.convertBoolToInt32(ReturnReg, ReturnReg);
+#endif
     masm.xor32(Imm32(1), ReturnReg);
     masm.tagValue(JSVAL_TYPE_BOOLEAN, ReturnReg, R0);
     EmitReturnFromIC(masm);
@@ -2825,6 +2853,15 @@ ICBinaryArith_BooleanWithInt32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_ADD: {
         Label fixOverflow;
 
+#if defined(JS_CPU_MIPS)
+        masm.branchAdd32(Assembler::Overflow, rhsReg, lhsReg, &fixOverflow);
+        masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
+        EmitReturnFromIC(masm);
+
+        masm.bind(&fixOverflow);
+        masm.sub32(rhsReg, lhsReg);
+// Proceed to failure below.
+#else
         masm.add32(rhsReg, lhsReg);
         masm.j(Assembler::Overflow, &fixOverflow);
         masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
@@ -2833,48 +2870,59 @@ ICBinaryArith_BooleanWithInt32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.bind(&fixOverflow);
         masm.sub32(rhsReg, lhsReg);
         masm.jump(&failure);
-        break;
-      }
-      case JSOP_SUB: {
-        Label fixOverflow;
-
-        masm.sub32(rhsReg, lhsReg);
-        masm.j(Assembler::Overflow, &fixOverflow);
-        masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
-        EmitReturnFromIC(masm);
-
-        masm.bind(&fixOverflow);
-        masm.add32(rhsReg, lhsReg);
-        masm.jump(&failure);
-        break;
-      }
-      case JSOP_BITOR: {
-        masm.orPtr(rhsReg, lhsReg);
-        masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
-        EmitReturnFromIC(masm);
-        break;
-      }
-      case JSOP_BITXOR: {
-        masm.xorPtr(rhsReg, lhsReg);
-        masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
-        EmitReturnFromIC(masm);
-        break;
-      }
-      case JSOP_BITAND: {
-        masm.andPtr(rhsReg, lhsReg);
-        masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
-        EmitReturnFromIC(masm);
-        break;
-      }
-      default:
-       JS_NOT_REACHED("Unhandled op for BinaryArith_BooleanWithInt32.");
-       return false;
+#endif
+      break;
     }
+    case JSOP_SUB: {
+      Label fixOverflow;
 
-    // Failure case - jump to next stub
-    masm.bind(&failure);
-    EmitStubGuardFailure(masm);
-    return true;
+#if defined(JS_CPU_MIPS)
+      masm.branchSub32(Assembler::Overflow, rhsReg, lhsReg, &fixOverflow);
+      masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
+      EmitReturnFromIC(masm);
+
+      masm.bind(&fixOverflow);
+      masm.add32(rhsReg, lhsReg);
+// Proceed to failure below.
+#else
+        masm.sub32(rhsReg, lhsReg);
+        masm.j(Assembler::Overflow, &fixOverflow);
+        masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
+        EmitReturnFromIC(masm);
+
+        masm.bind(&fixOverflow);
+        masm.add32(rhsReg, lhsReg);
+        masm.jump(&failure);
+#endif
+      break;
+    }
+    case JSOP_BITOR: {
+      masm.orPtr(rhsReg, lhsReg);
+      masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
+      EmitReturnFromIC(masm);
+      break;
+    }
+    case JSOP_BITXOR: {
+      masm.xorPtr(rhsReg, lhsReg);
+      masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
+      EmitReturnFromIC(masm);
+      break;
+    }
+    case JSOP_BITAND: {
+      masm.andPtr(rhsReg, lhsReg);
+      masm.tagValue(JSVAL_TYPE_INT32, lhsReg, R0);
+      EmitReturnFromIC(masm);
+      break;
+    }
+    default:
+      JS_NOT_REACHED("Unhandled op for BinaryArith_BooleanWithInt32.");
+      return false;
+  }
+
+  // Failure case - jump to next stub
+  masm.bind(&failure);
+  EmitStubGuardFailure(masm);
+  return true;
 }
 
 bool
@@ -7268,8 +7316,19 @@ ICCallScriptedCompiler::generateStubCode(MacroAssembler &masm)
         Address expectedScript(BaselineStubReg, ICCall_Scripted::offsetOfCalleeScript());
         masm.branchPtr(Assembler::NotEqual, expectedScript, callee, &failure);
     } else {
+#if defined(JS_CPU_MIPS)
+      if (isConstructing_) {
+        masm.branchIfNotInterpretedConstructor(callee, regs.getAny(), &failure);
+      } else {
         masm.branchIfFunctionHasNoScript(callee, &failure);
-        masm.loadPtr(Address(callee, JSFunction::offsetOfNativeOrScript()), callee);
+      }
+      masm.loadPtr(Address(callee, JSFunction::offsetOfNativeOrScript()),
+                   callee);
+#else
+      masm.branchIfFunctionHasNoScript(callee, &failure);
+      masm.loadPtr(Address(callee, JSFunction::offsetOfNativeOrScript()),
+                   callee);
+#endif
     }
 
     // Load the start of the target IonCode.
@@ -7901,8 +7960,14 @@ ICIteratorMore_Native::Compiler::generateStubCode(MacroAssembler &masm)
 
     // Set output to true if props_cursor < props_end.
     masm.loadPtr(Address(nativeIterator, offsetof(NativeIterator, props_end)), scratch);
+#if defined(JS_CPU_MIPS)
+    Address cursorAddr =
+        Address(nativeIterator, offsetof(NativeIterator, props_cursor));
+    masm.cmpPtrSet(Assembler::LessThan, cursorAddr, scratch, scratch);
+#else
     masm.cmpPtr(Address(nativeIterator, offsetof(NativeIterator, props_cursor)), scratch);
     masm.emitSet(Assembler::LessThan, scratch);
+#endif
 
     masm.tagValue(JSVAL_TYPE_BOOLEAN, scratch, R0);
     EmitReturnFromIC(masm);

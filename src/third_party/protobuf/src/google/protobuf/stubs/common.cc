@@ -32,14 +32,23 @@
 
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/stubs/once.h>
-#include <stdio.h>
-#include <errno.h>
-#include <vector>
 
 #include "config.h"
 
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/log.h"
+#include "starboard/mutex.h"
+#include "starboard/system.h"
+#define abort SbSystemBreakIntoDebugger
+#define fflush(stderr) SbLogFlush()
+#else  // STARBOARD
+#include <errno.h>
+#include <stdio.h>
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN  // We only need minimal includes
+#endif                       // WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #define snprintf _snprintf    // see comment in strutil.cc
 #elif defined(HAVE_PTHREAD)
@@ -47,6 +56,9 @@
 #else
 #error "No suitable threading library available."
 #endif
+#endif  // STARBOARD
+
+#include <vector>
 
 namespace google {
 namespace protobuf {
@@ -110,8 +122,14 @@ void DefaultLogHandler(LogLevel level, const char* filename, int line,
 
   // We use fprintf() instead of cerr because we want this to work at static
   // initialization time.
+#ifndef STARBOARD
   fprintf(stderr, "libprotobuf %s %s:%d] %s\n",
           level_names[level], filename, line, message.c_str());
+#else
+  SbLogRawFormatF("libprotobuf %s %s:%d] %s\n", level_names[level], filename,
+                  line, message.c_str());
+#endif  // STARBOARD
+
   fflush(stderr);  // Needed on MSVC.
 }
 
@@ -280,6 +298,37 @@ void Mutex::AssertHeld() {
 #ifndef NDEBUG
   GOOGLE_DCHECK_EQ(mInternal->thread_id, GetCurrentThreadId());
 #endif
+}
+
+#elif defined(STARBOARD)
+
+struct Mutex::Internal {
+  SbMutex mutex;
+};
+
+Mutex::Mutex() : mInternal(new Internal) {
+  SbMutexCreate(&mInternal->mutex);
+}
+
+Mutex::~Mutex() {
+  SbMutexDestroy(&mInternal->mutex);
+  delete mInternal;
+}
+
+void Mutex::Lock() {
+  if (!SbMutexIsSuccess(SbMutexAcquire(&mInternal->mutex))) {
+    GOOGLE_LOG(FATAL) << "SbMutexAcquire failed.";
+  }
+}
+
+void Mutex::Unlock() {
+  if (!SbMutexRelease(&mInternal->mutex)) {
+    GOOGLE_LOG(FATAL) << "SbMutexRelease failed.";
+  }
+}
+
+void Mutex::AssertHeld() {
+  // Starboard doesn't provide a way to check which thread holds the mutex.
 }
 
 #elif defined(HAVE_PTHREAD)

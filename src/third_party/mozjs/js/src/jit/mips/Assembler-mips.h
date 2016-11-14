@@ -7,9 +7,11 @@
 #ifndef jit_mips_Assembler_mips_h
 #define jit_mips_Assembler_mips_h
 
-#include "mozilla/ArrayUtils.h"
 #include "mozilla/Attributes.h"
 #include "mozilla/MathAlgorithms.h"
+#include "mozilla/Util.h"
+
+#include "jit/shared/Assembler-shared.h"
 
 #include "jit/CompactBuffer.h"
 #include "jit/IonCode.h"
@@ -21,59 +23,60 @@
 namespace js {
 namespace jit {
 
-static MOZ_CONSTEXPR_VAR Register zero = { Registers::zero };
-static MOZ_CONSTEXPR_VAR Register at = { Registers::at };
-static MOZ_CONSTEXPR_VAR Register v0 = { Registers::v0 };
-static MOZ_CONSTEXPR_VAR Register v1 = { Registers::v1 };
-static MOZ_CONSTEXPR_VAR Register a0 = { Registers::a0 };
-static MOZ_CONSTEXPR_VAR Register a1 = { Registers::a1 };
-static MOZ_CONSTEXPR_VAR Register a2 = { Registers::a2 };
-static MOZ_CONSTEXPR_VAR Register a3 = { Registers::a3 };
-static MOZ_CONSTEXPR_VAR Register t0 = { Registers::t0 };
-static MOZ_CONSTEXPR_VAR Register t1 = { Registers::t1 };
-static MOZ_CONSTEXPR_VAR Register t2 = { Registers::t2 };
-static MOZ_CONSTEXPR_VAR Register t3 = { Registers::t3 };
-static MOZ_CONSTEXPR_VAR Register t4 = { Registers::t4 };
-static MOZ_CONSTEXPR_VAR Register t5 = { Registers::t5 };
-static MOZ_CONSTEXPR_VAR Register t6 = { Registers::t6 };
-static MOZ_CONSTEXPR_VAR Register t7 = { Registers::t7 };
-static MOZ_CONSTEXPR_VAR Register s0 = { Registers::s0 };
-static MOZ_CONSTEXPR_VAR Register s1 = { Registers::s1 };
-static MOZ_CONSTEXPR_VAR Register s2 = { Registers::s2 };
-static MOZ_CONSTEXPR_VAR Register s3 = { Registers::s3 };
-static MOZ_CONSTEXPR_VAR Register s4 = { Registers::s4 };
-static MOZ_CONSTEXPR_VAR Register s5 = { Registers::s5 };
-static MOZ_CONSTEXPR_VAR Register s6 = { Registers::s6 };
-static MOZ_CONSTEXPR_VAR Register s7 = { Registers::s7 };
-static MOZ_CONSTEXPR_VAR Register t8 = { Registers::t8 };
-static MOZ_CONSTEXPR_VAR Register t9 = { Registers::t9 };
-static MOZ_CONSTEXPR_VAR Register k0 = { Registers::k0 };
-static MOZ_CONSTEXPR_VAR Register k1 = { Registers::k1 };
-static MOZ_CONSTEXPR_VAR Register gp = { Registers::gp };
-static MOZ_CONSTEXPR_VAR Register sp = { Registers::sp };
-static MOZ_CONSTEXPR_VAR Register fp = { Registers::fp };
-static MOZ_CONSTEXPR_VAR Register ra = { Registers::ra };
+static const MOZ_CONSTEXPR Register zero = {Registers::zero};
+static const MOZ_CONSTEXPR Register at = {Registers::at};
+static const MOZ_CONSTEXPR Register v0 = {Registers::v0};
+static const MOZ_CONSTEXPR Register v1 = {Registers::v1};
+static const MOZ_CONSTEXPR Register a0 = {Registers::a0};
+static const MOZ_CONSTEXPR Register a1 = {Registers::a1};
+static const MOZ_CONSTEXPR Register a2 = {Registers::a2};
+static const MOZ_CONSTEXPR Register a3 = {Registers::a3};
+static const MOZ_CONSTEXPR Register t0 = {Registers::t0};
+static const MOZ_CONSTEXPR Register t1 = {Registers::t1};
+static const MOZ_CONSTEXPR Register t2 = {Registers::t2};
+static const MOZ_CONSTEXPR Register t3 = {Registers::t3};
+static const MOZ_CONSTEXPR Register t4 = {Registers::t4};
+static const MOZ_CONSTEXPR Register t5 = {Registers::t5};
+static const MOZ_CONSTEXPR Register t6 = {Registers::t6};
+static const MOZ_CONSTEXPR Register t7 = {Registers::t7};
+static const MOZ_CONSTEXPR Register s0 = {Registers::s0};
+static const MOZ_CONSTEXPR Register s1 = {Registers::s1};
+static const MOZ_CONSTEXPR Register s2 = {Registers::s2};
+static const MOZ_CONSTEXPR Register s3 = {Registers::s3};
+static const MOZ_CONSTEXPR Register s4 = {Registers::s4};
+static const MOZ_CONSTEXPR Register s5 = {Registers::s5};
+static const MOZ_CONSTEXPR Register s6 = {Registers::s6};
+static const MOZ_CONSTEXPR Register s7 = {Registers::s7};
+static const MOZ_CONSTEXPR Register t8 = {Registers::t8};
+static const MOZ_CONSTEXPR Register t9 = {Registers::t9};
+static const MOZ_CONSTEXPR Register k0 = {Registers::k0};
+static const MOZ_CONSTEXPR Register k1 = {Registers::k1};
+static const MOZ_CONSTEXPR Register gp = {Registers::gp};
+static const MOZ_CONSTEXPR Register sp = {Registers::sp};
+static const MOZ_CONSTEXPR Register fp = {Registers::fp};
+static const MOZ_CONSTEXPR Register ra = {Registers::ra};
 
-static MOZ_CONSTEXPR_VAR Register ScratchRegister = at;
-static MOZ_CONSTEXPR_VAR Register SecondScratchReg = t8;
+static const MOZ_CONSTEXPR Register ScratchRegister = at;
+static const MOZ_CONSTEXPR Register SecondScratchReg = t8;
 
 // Use arg reg from EnterJIT function as OsrFrameReg.
-static MOZ_CONSTEXPR_VAR Register OsrFrameReg = a3;
-static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = s3;
-static MOZ_CONSTEXPR_VAR Register CallTempReg0 = t0;
-static MOZ_CONSTEXPR_VAR Register CallTempReg1 = t1;
-static MOZ_CONSTEXPR_VAR Register CallTempReg2 = t2;
-static MOZ_CONSTEXPR_VAR Register CallTempReg3 = t3;
-static MOZ_CONSTEXPR_VAR Register CallTempReg4 = t4;
-static MOZ_CONSTEXPR_VAR Register CallTempReg5 = t5;
+static const MOZ_CONSTEXPR Register OsrFrameReg = a3;
+static const MOZ_CONSTEXPR Register ArgumentsRectifierReg = s3;
+static const MOZ_CONSTEXPR Register CallTempReg0 = t0;
+static const MOZ_CONSTEXPR Register CallTempReg1 = t1;
+static const MOZ_CONSTEXPR Register CallTempReg2 = t2;
+static const MOZ_CONSTEXPR Register CallTempReg3 = t3;
+static const MOZ_CONSTEXPR Register CallTempReg4 = t4;
+static const MOZ_CONSTEXPR Register CallTempReg5 = t5;
+static const MOZ_CONSTEXPR Register CallTempReg6 = t6;
 
-static MOZ_CONSTEXPR_VAR Register IntArgReg0 = a0;
-static MOZ_CONSTEXPR_VAR Register IntArgReg1 = a1;
-static MOZ_CONSTEXPR_VAR Register IntArgReg2 = a2;
-static MOZ_CONSTEXPR_VAR Register IntArgReg3 = a3;
-static MOZ_CONSTEXPR_VAR Register GlobalReg = s6; // used by Odin
-static MOZ_CONSTEXPR_VAR Register HeapReg = s7; // used by Odin
-static MOZ_CONSTEXPR_VAR Register CallTempNonArgRegs[] = { t0, t1, t2, t3, t4 };
+static const MOZ_CONSTEXPR Register IntArgReg0 = a0;
+static const MOZ_CONSTEXPR Register IntArgReg1 = a1;
+static const MOZ_CONSTEXPR Register IntArgReg2 = a2;
+static const MOZ_CONSTEXPR Register IntArgReg3 = a3;
+static const MOZ_CONSTEXPR Register GlobalReg = s6;  // used by Odin
+static const MOZ_CONSTEXPR Register HeapReg = s7;    // used by Odin
+static const MOZ_CONSTEXPR Register CallTempNonArgRegs[] = {t0, t1, t2, t3, t4};
 static const uint32_t NumCallTempNonArgRegs = mozilla::ArrayLength(CallTempNonArgRegs);
 
 class ABIArgGenerator
@@ -98,38 +101,41 @@ class ABIArgGenerator
     static const Register NonArgReturnVolatileReg1;
 };
 
-static MOZ_CONSTEXPR_VAR Register PreBarrierReg = a1;
+static const MOZ_CONSTEXPR Register PreBarrierReg = a1;
 
-static MOZ_CONSTEXPR_VAR Register InvalidReg = { Registers::invalid_reg };
-static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { FloatRegisters::invalid_freg };
+static const MOZ_CONSTEXPR Register InvalidReg = {Registers::invalid_reg};
+static const MOZ_CONSTEXPR FloatRegister InvalidFloatReg = {
+    FloatRegisters::invalid_freg};
 
-static MOZ_CONSTEXPR_VAR Register JSReturnReg_Type = v1;
-static MOZ_CONSTEXPR_VAR Register JSReturnReg_Data = v0;
-static MOZ_CONSTEXPR_VAR Register StackPointer = sp;
-static MOZ_CONSTEXPR_VAR Register FramePointer = fp;
-static MOZ_CONSTEXPR_VAR Register ReturnReg = v0;
-static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloatReg = { FloatRegisters::f0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloatReg = { FloatRegisters::f18 };
-static MOZ_CONSTEXPR_VAR FloatRegister SecondScratchFloatReg = { FloatRegisters::f16 };
+static const MOZ_CONSTEXPR Register JSReturnReg_Type = v1;
+static const MOZ_CONSTEXPR Register JSReturnReg_Data = v0;
+static const MOZ_CONSTEXPR Register StackPointer = sp;
+static const MOZ_CONSTEXPR Register FramePointer = fp;
+static const MOZ_CONSTEXPR Register ReturnReg = v0;
+static const MOZ_CONSTEXPR FloatRegister ReturnFloatReg = {FloatRegisters::f0};
+static const MOZ_CONSTEXPR FloatRegister ScratchFloatReg = {
+    FloatRegisters::f18};
+static const MOZ_CONSTEXPR FloatRegister SecondScratchFloatReg = {
+    FloatRegisters::f16};
 
-static MOZ_CONSTEXPR_VAR FloatRegister NANReg = { FloatRegisters::f30 };
+static const MOZ_CONSTEXPR FloatRegister NANReg = {FloatRegisters::f30};
 
-static MOZ_CONSTEXPR_VAR FloatRegister f0  = {FloatRegisters::f0};
-static MOZ_CONSTEXPR_VAR FloatRegister f2  = {FloatRegisters::f2};
-static MOZ_CONSTEXPR_VAR FloatRegister f4  = {FloatRegisters::f4};
-static MOZ_CONSTEXPR_VAR FloatRegister f6  = {FloatRegisters::f6};
-static MOZ_CONSTEXPR_VAR FloatRegister f8  = {FloatRegisters::f8};
-static MOZ_CONSTEXPR_VAR FloatRegister f10 = {FloatRegisters::f10};
-static MOZ_CONSTEXPR_VAR FloatRegister f12 = {FloatRegisters::f12};
-static MOZ_CONSTEXPR_VAR FloatRegister f14 = {FloatRegisters::f14};
-static MOZ_CONSTEXPR_VAR FloatRegister f16 = {FloatRegisters::f16};
-static MOZ_CONSTEXPR_VAR FloatRegister f18 = {FloatRegisters::f18};
-static MOZ_CONSTEXPR_VAR FloatRegister f20 = {FloatRegisters::f20};
-static MOZ_CONSTEXPR_VAR FloatRegister f22 = {FloatRegisters::f22};
-static MOZ_CONSTEXPR_VAR FloatRegister f24 = {FloatRegisters::f24};
-static MOZ_CONSTEXPR_VAR FloatRegister f26 = {FloatRegisters::f26};
-static MOZ_CONSTEXPR_VAR FloatRegister f28 = {FloatRegisters::f28};
-static MOZ_CONSTEXPR_VAR FloatRegister f30 = {FloatRegisters::f30};
+static const MOZ_CONSTEXPR FloatRegister f0 = {FloatRegisters::f0};
+static const MOZ_CONSTEXPR FloatRegister f2 = {FloatRegisters::f2};
+static const MOZ_CONSTEXPR FloatRegister f4 = {FloatRegisters::f4};
+static const MOZ_CONSTEXPR FloatRegister f6 = {FloatRegisters::f6};
+static const MOZ_CONSTEXPR FloatRegister f8 = {FloatRegisters::f8};
+static const MOZ_CONSTEXPR FloatRegister f10 = {FloatRegisters::f10};
+static const MOZ_CONSTEXPR FloatRegister f12 = {FloatRegisters::f12};
+static const MOZ_CONSTEXPR FloatRegister f14 = {FloatRegisters::f14};
+static const MOZ_CONSTEXPR FloatRegister f16 = {FloatRegisters::f16};
+static const MOZ_CONSTEXPR FloatRegister f18 = {FloatRegisters::f18};
+static const MOZ_CONSTEXPR FloatRegister f20 = {FloatRegisters::f20};
+static const MOZ_CONSTEXPR FloatRegister f22 = {FloatRegisters::f22};
+static const MOZ_CONSTEXPR FloatRegister f24 = {FloatRegisters::f24};
+static const MOZ_CONSTEXPR FloatRegister f26 = {FloatRegisters::f26};
+static const MOZ_CONSTEXPR FloatRegister f28 = {FloatRegisters::f28};
+static const MOZ_CONSTEXPR FloatRegister f30 = {FloatRegisters::f30};
 
 // MIPS CPUs can only load multibyte data that is "naturally"
 // four-byte-aligned, sp register should be eight-byte-aligned.
@@ -371,9 +377,6 @@ enum FunctionField {
     ff_c_ule_fmt   = 55,
 };
 
-class MacroAssemblerMIPS;
-class Operand;
-
 // A BOffImm16 is a 16 bit immediate that is used for branches.
 class BOffImm16
 {
@@ -565,441 +568,422 @@ PatchJump(CodeLocationJump &jump_, CodeLocationLabel label);
 class Assembler;
 typedef js::jit::AssemblerBuffer<1024, Instruction> MIPSBuffer;
 
-class Assembler : public AssemblerShared
-{
-  public:
+class Assembler {
+ public:
+  enum Condition {
+    Equal,
+    NotEqual,
+    Above,
+    AboveOrEqual,
+    Below,
+    BelowOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+    Overflow,
+    Signed,
+    Unsigned,
+    NotSigned,
+    Zero,
+    NonZero,
+    Always,
+  };
 
-    enum Condition {
-        Equal,
-        NotEqual,
-        Above,
-        AboveOrEqual,
-        Below,
-        BelowOrEqual,
-        GreaterThan,
-        GreaterThanOrEqual,
-        LessThan,
-        LessThanOrEqual,
-        Overflow,
-        Signed,
-        NotSigned,
-        Zero,
-        NonZero,
-        Always,
-    };
+  enum DoubleCondition {
+    // These conditions will only evaluate to true if the comparison is ordered
+    // - i.e. neither operand is NaN.
+    DoubleOrdered,
+    DoubleEqual,
+    DoubleNotEqual,
+    DoubleGreaterThan,
+    DoubleGreaterThanOrEqual,
+    DoubleLessThan,
+    DoubleLessThanOrEqual,
+    // If either operand is NaN, these conditions always evaluate to true.
+    DoubleUnordered,
+    DoubleEqualOrUnordered,
+    DoubleNotEqualOrUnordered,
+    DoubleGreaterThanOrUnordered,
+    DoubleGreaterThanOrEqualOrUnordered,
+    DoubleLessThanOrUnordered,
+    DoubleLessThanOrEqualOrUnordered
+  };
 
-    enum DoubleCondition {
-        // These conditions will only evaluate to true if the comparison is ordered - i.e. neither operand is NaN.
-        DoubleOrdered,
-        DoubleEqual,
-        DoubleNotEqual,
-        DoubleGreaterThan,
-        DoubleGreaterThanOrEqual,
-        DoubleLessThan,
-        DoubleLessThanOrEqual,
-        // If either operand is NaN, these conditions always evaluate to true.
-        DoubleUnordered,
-        DoubleEqualOrUnordered,
-        DoubleNotEqualOrUnordered,
-        DoubleGreaterThanOrUnordered,
-        DoubleGreaterThanOrEqualOrUnordered,
-        DoubleLessThanOrUnordered,
-        DoubleLessThanOrEqualOrUnordered
-    };
+  enum FPConditionBit { FCC0 = 0, FCC1, FCC2, FCC3, FCC4, FCC5, FCC6, FCC7 };
 
-    enum FPConditionBit {
-        FCC0 = 0,
-        FCC1,
-        FCC2,
-        FCC3,
-        FCC4,
-        FCC5,
-        FCC6,
-        FCC7
-    };
+  enum FloatFormat { SingleFloat, DoubleFloat };
 
-    enum FloatFormat {
-        SingleFloat,
-        DoubleFloat
-    };
+  enum JumpOrCall { BranchIsJump, BranchIsCall };
 
-    enum JumpOrCall {
-        BranchIsJump,
-        BranchIsCall
-    };
+  enum FloatTestKind { TestForTrue, TestForFalse };
 
-    enum FloatTestKind {
-        TestForTrue,
-        TestForFalse
-    };
+  // :( this should be protected, but since CodeGenerator
+  // wants to use it, It needs to go out here :(
 
-    // :( this should be protected, but since CodeGenerator
-    // wants to use it, It needs to go out here :(
+  BufferOffset nextOffset() { return m_buffer.nextOffset(); }
 
-    BufferOffset nextOffset() {
-        return m_buffer.nextOffset();
-    }
+ protected:
+  Instruction* editSrc(BufferOffset bo) { return m_buffer.getInst(bo); }
 
-  protected:
-    Instruction * editSrc (BufferOffset bo) {
-        return m_buffer.getInst(bo);
-    }
-  public:
-    uint32_t actualOffset(uint32_t) const;
-    uint32_t actualIndex(uint32_t) const;
-    static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index);
-  protected:
+ public:
+  uint32_t actualOffset(uint32_t) const;
+  uint32_t actualIndex(uint32_t) const;
+  static uint8_t* PatchableJumpAddress(IonCode* code, uint32_t index);
 
-    // structure for fixing up pc-relative loads/jumps when a the machine code
-    // gets moved (executable copy, gc, etc.)
-    struct RelativePatch
-    {
-        // the offset within the code buffer where the value is loaded that
-        // we want to fix-up
-        BufferOffset offset;
-        void *target;
-        Relocation::Kind kind;
+ protected:
+  // structure for fixing up pc-relative loads/jumps when a the machine code
+  // gets moved (executable copy, gc, etc.)
+  struct RelativePatch {
+    // the offset within the code buffer where the value is loaded that
+    // we want to fix-up
+    BufferOffset offset;
+    void* target;
+    Relocation::Kind kind;
 
-        RelativePatch(BufferOffset offset, void *target, Relocation::Kind kind)
-          : offset(offset),
-            target(target),
-            kind(kind)
-        { }
-    };
+    RelativePatch(BufferOffset offset, void* target, Relocation::Kind kind)
+        : offset(offset), target(target), kind(kind) {}
+  };
 
-    js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
-    js::Vector<RelativePatch, 8, SystemAllocPolicy> jumps_;
-    js::Vector<uint32_t, 8, SystemAllocPolicy> longJumps_;
+  js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
+  js::Vector<RelativePatch, 8, SystemAllocPolicy> jumps_;
+  js::Vector<uint32_t, 8, SystemAllocPolicy> longJumps_;
 
-    CompactBufferWriter jumpRelocations_;
-    CompactBufferWriter dataRelocations_;
-    CompactBufferWriter relocations_;
-    CompactBufferWriter preBarriers_;
+  CompactBufferWriter jumpRelocations_;
+  CompactBufferWriter dataRelocations_;
+  CompactBufferWriter relocations_;
+  CompactBufferWriter preBarriers_;
 
-    bool enoughMemory_;
+  bool enoughMemory_;
 
-    MIPSBuffer m_buffer;
+  MIPSBuffer m_buffer;
 
-  public:
-    Assembler()
-      : enoughMemory_(true),
-        m_buffer(),
-        isFinished(false)
-    { }
+ public:
+  Assembler() : enoughMemory_(true), m_buffer(), isFinished(false) {}
 
-    static Condition InvertCondition(Condition cond);
-    static DoubleCondition InvertCondition(DoubleCondition cond);
+  static Condition InvertCondition(Condition cond);
+  static DoubleCondition InvertCondition(DoubleCondition cond);
 
-    // MacroAssemblers hold onto gcthings, so they are traced by the GC.
-    void trace(JSTracer *trc);
-    void writeRelocation(BufferOffset src) {
-        jumpRelocations_.writeUnsigned(src.getOffset());
-    }
+  // MacroAssemblers hold onto gcthings, so they are traced by the GC.
+  void trace(JSTracer* trc);
+  void writeRelocation(BufferOffset src) {
+    jumpRelocations_.writeUnsigned(src.getOffset());
+  }
 
-    // As opposed to x86/x64 version, the data relocation has to be executed
-    // before to recover the pointer, and not after.
-    void writeDataRelocation(const ImmGCPtr &ptr) {
-        if (ptr.value)
-            dataRelocations_.writeUnsigned(nextOffset().getOffset());
-    }
-    void writePrebarrierOffset(CodeOffsetLabel label) {
-        preBarriers_.writeUnsigned(label.offset());
-    }
+  // As opposed to x86/x64 version, the data relocation has to be executed
+  // before to recover the pointer, and not after.
+  void writeDataRelocation(const ImmGCPtr& ptr) {
+    if (ptr.value)
+      dataRelocations_.writeUnsigned(nextOffset().getOffset());
+  }
+  void writePrebarrierOffset(CodeOffsetLabel label) {
+    preBarriers_.writeUnsigned(label.offset());
+  }
 
-  public:
-    static uintptr_t getPointer(uint8_t *);
+ public:
+  static uintptr_t getPointer(uint8_t*);
 
-    bool oom() const;
+  bool oom() const;
 
-    void setPrinter(Sprinter *sp) {
-    }
+  void setPrinter(Sprinter* sp) {}
 
-  private:
-    bool isFinished;
-  public:
-    void finish();
-    void executableCopy(void *buffer);
-    void copyJumpRelocationTable(uint8_t *dest);
-    void copyDataRelocationTable(uint8_t *dest);
-    void copyPreBarrierTable(uint8_t *dest);
+ private:
+  bool isFinished;
 
-    bool addCodeLabel(CodeLabel label);
-    size_t numCodeLabels() const {
-        return codeLabels_.length();
-    }
-    CodeLabel codeLabel(size_t i) {
-        return codeLabels_[i];
-    }
+ public:
+  void finish();
+  void executableCopy(void* buffer);
+  void copyJumpRelocationTable(uint8_t* dest);
+  void copyDataRelocationTable(uint8_t* dest);
+  void copyPreBarrierTable(uint8_t* dest);
 
-    // Size of the instruction stream, in bytes.
-    size_t size() const;
-    // Size of the jump relocation table, in bytes.
-    size_t jumpRelocationTableBytes() const;
-    size_t dataRelocationTableBytes() const;
-    size_t preBarrierTableBytes() const;
+  bool addCodeLabel(CodeLabel label);
 
-    // Size of the data table, in bytes.
-    size_t bytesNeeded() const;
+  // Size of the instruction stream, in bytes.
+  size_t size() const;
+  // Size of the jump relocation table, in bytes.
+  size_t jumpRelocationTableBytes() const;
+  size_t dataRelocationTableBytes() const;
+  size_t preBarrierTableBytes() const;
 
-    // Write a blob of binary into the instruction stream *OR*
-    // into a destination address. If dest is nullptr (the default), then the
-    // instruction gets written into the instruction stream. If dest is not null
-    // it is interpreted as a pointer to the location that we want the
-    // instruction to be written.
-    BufferOffset writeInst(uint32_t x, uint32_t *dest = nullptr);
-    // A static variant for the cases where we don't want to have an assembler
-    // object at all. Normally, you would use the dummy (nullptr) object.
-    static void writeInstStatic(uint32_t x, uint32_t *dest);
+  // Size of the data table, in bytes.
+  size_t bytesNeeded() const;
 
-  public:
-    BufferOffset align(int alignment);
-    BufferOffset as_nop();
+  // Write a blob of binary into the instruction stream *OR*
+  // into a destination address. If dest is NULL (the default), then the
+  // instruction gets written into the instruction stream. If dest is not null
+  // it is interpreted as a pointer to the location that we want the
+  // instruction to be written.
+  BufferOffset writeInst(uint32_t x, uint32_t* dest = NULL);
+  // A static variant for the cases where we don't want to have an assembler
+  // object at all. Normally, you would use the dummy (NULL) object.
+  static void writeInstStatic(uint32_t x, uint32_t* dest);
 
-    // Branch and jump instructions
-    BufferOffset as_bal(BOffImm16 off);
+ public:
+  BufferOffset align(int alignment);
+  BufferOffset as_nop();
 
-    InstImm getBranchCode(JumpOrCall jumpOrCall);
-    InstImm getBranchCode(Register s, Register t, Condition c);
-    InstImm getBranchCode(Register s, Condition c);
-    InstImm getBranchCode(FloatTestKind testKind, FPConditionBit fcc);
+  // Branch and jump instructions
+  BufferOffset as_bal(BOffImm16 off);
 
-    BufferOffset as_j(JOffImm26 off);
-    BufferOffset as_jal(JOffImm26 off);
+  InstImm getBranchCode(JumpOrCall jumpOrCall);
+  InstImm getBranchCode(Register s, Register t, Condition c);
+  InstImm getBranchCode(Register s, Condition c);
+  InstImm getBranchCode(FloatTestKind testKind, FPConditionBit fcc);
 
-    BufferOffset as_jr(Register rs);
-    BufferOffset as_jalr(Register rs);
+  BufferOffset as_j(JOffImm26 off);
+  BufferOffset as_jal(JOffImm26 off);
 
-    // Arithmetic instructions
-    BufferOffset as_addu(Register rd, Register rs, Register rt);
-    BufferOffset as_addiu(Register rd, Register rs, int32_t j);
-    BufferOffset as_subu(Register rd, Register rs, Register rt);
-    BufferOffset as_mult(Register rs, Register rt);
-    BufferOffset as_multu(Register rs, Register rt);
-    BufferOffset as_div(Register rs, Register rt);
-    BufferOffset as_divu(Register rs, Register rt);
-    BufferOffset as_mul(Register rd, Register rs, Register rt);
+  BufferOffset as_jr(Register rs);
+  BufferOffset as_jalr(Register rs);
 
-    // Logical instructions
-    BufferOffset as_and(Register rd, Register rs, Register rt);
-    BufferOffset as_or(Register rd, Register rs, Register rt);
-    BufferOffset as_xor(Register rd, Register rs, Register rt);
-    BufferOffset as_nor(Register rd, Register rs, Register rt);
+  // Arithmetic instructions
+  BufferOffset as_addu(Register rd, Register rs, Register rt);
+  BufferOffset as_addiu(Register rd, Register rs, int32_t j);
+  BufferOffset as_subu(Register rd, Register rs, Register rt);
+  BufferOffset as_mult(Register rs, Register rt);
+  BufferOffset as_multu(Register rs, Register rt);
+  BufferOffset as_div(Register rs, Register rt);
+  BufferOffset as_divu(Register rs, Register rt);
+  BufferOffset as_mul(Register rd, Register rs, Register rt);
 
-    BufferOffset as_andi(Register rd, Register rs, int32_t j);
-    BufferOffset as_ori(Register rd, Register rs, int32_t j);
-    BufferOffset as_xori(Register rd, Register rs, int32_t j);
-    BufferOffset as_lui(Register rd, int32_t j);
+  // Logical instructions
+  BufferOffset as_and(Register rd, Register rs, Register rt);
+  BufferOffset as_or(Register rd, Register rs, Register rt);
+  BufferOffset as_xor(Register rd, Register rs, Register rt);
+  BufferOffset as_nor(Register rd, Register rs, Register rt);
 
-    // Shift instructions
-    // as_sll(zero, zero, x) instructions are reserved as nop
-    BufferOffset as_sll(Register rd, Register rt, uint16_t sa);
-    BufferOffset as_sllv(Register rd, Register rt, Register rs);
-    BufferOffset as_srl(Register rd, Register rt, uint16_t sa);
-    BufferOffset as_srlv(Register rd, Register rt, Register rs);
-    BufferOffset as_sra(Register rd, Register rt, uint16_t sa);
-    BufferOffset as_srav(Register rd, Register rt, Register rs);
-    BufferOffset as_rotr(Register rd, Register rt, uint16_t sa);
-    BufferOffset as_rotrv(Register rd, Register rt, Register rs);
+  BufferOffset as_andi(Register rd, Register rs, int32_t j);
+  BufferOffset as_ori(Register rd, Register rs, int32_t j);
+  BufferOffset as_xori(Register rd, Register rs, int32_t j);
+  BufferOffset as_lui(Register rd, int32_t j);
 
-    // Load and store instructions
-    BufferOffset as_lb(Register rd, Register rs, int16_t off);
-    BufferOffset as_lbu(Register rd, Register rs, int16_t off);
-    BufferOffset as_lh(Register rd, Register rs, int16_t off);
-    BufferOffset as_lhu(Register rd, Register rs, int16_t off);
-    BufferOffset as_lw(Register rd, Register rs, int16_t off);
-    BufferOffset as_lwl(Register rd, Register rs, int16_t off);
-    BufferOffset as_lwr(Register rd, Register rs, int16_t off);
-    BufferOffset as_sb(Register rd, Register rs, int16_t off);
-    BufferOffset as_sh(Register rd, Register rs, int16_t off);
-    BufferOffset as_sw(Register rd, Register rs, int16_t off);
-    BufferOffset as_swl(Register rd, Register rs, int16_t off);
-    BufferOffset as_swr(Register rd, Register rs, int16_t off);
+  // Shift instructions
+  // as_sll(zero, zero, x) instructions are reserved as nop
+  BufferOffset as_sll(Register rd, Register rt, uint16_t sa);
+  BufferOffset as_sllv(Register rd, Register rt, Register rs);
+  BufferOffset as_srl(Register rd, Register rt, uint16_t sa);
+  BufferOffset as_srlv(Register rd, Register rt, Register rs);
+  BufferOffset as_sra(Register rd, Register rt, uint16_t sa);
+  BufferOffset as_srav(Register rd, Register rt, Register rs);
+  BufferOffset as_rotr(Register rd, Register rt, uint16_t sa);
+  BufferOffset as_rotrv(Register rd, Register rt, Register rs);
 
-    // Move from HI/LO register.
-    BufferOffset as_mfhi(Register rd);
-    BufferOffset as_mflo(Register rd);
+  // Load and store instructions
+  BufferOffset as_lb(Register rd, Register rs, int16_t off);
+  BufferOffset as_lbu(Register rd, Register rs, int16_t off);
+  BufferOffset as_lh(Register rd, Register rs, int16_t off);
+  BufferOffset as_lhu(Register rd, Register rs, int16_t off);
+  BufferOffset as_lw(Register rd, Register rs, int16_t off);
+  BufferOffset as_lwl(Register rd, Register rs, int16_t off);
+  BufferOffset as_lwr(Register rd, Register rs, int16_t off);
+  BufferOffset as_sb(Register rd, Register rs, int16_t off);
+  BufferOffset as_sh(Register rd, Register rs, int16_t off);
+  BufferOffset as_sw(Register rd, Register rs, int16_t off);
+  BufferOffset as_swl(Register rd, Register rs, int16_t off);
+  BufferOffset as_swr(Register rd, Register rs, int16_t off);
 
-    // Set on less than.
-    BufferOffset as_slt(Register rd, Register rs, Register rt);
-    BufferOffset as_sltu(Register rd, Register rs, Register rt);
-    BufferOffset as_slti(Register rd, Register rs, int32_t j);
-    BufferOffset as_sltiu(Register rd, Register rs, uint32_t j);
+  // Move from HI/LO register.
+  BufferOffset as_mfhi(Register rd);
+  BufferOffset as_mflo(Register rd);
 
-    // Conditional move.
-    BufferOffset as_movz(Register rd, Register rs, Register rt);
-    BufferOffset as_movn(Register rd, Register rs, Register rt);
-    BufferOffset as_movt(Register rd, Register rs, uint16_t cc = 0);
-    BufferOffset as_movf(Register rd, Register rs, uint16_t cc = 0);
+  // Set on less than.
+  BufferOffset as_slt(Register rd, Register rs, Register rt);
+  BufferOffset as_sltu(Register rd, Register rs, Register rt);
+  BufferOffset as_slti(Register rd, Register rs, int32_t j);
+  BufferOffset as_sltiu(Register rd, Register rs, uint32_t j);
 
-    // Bit twiddling.
-    BufferOffset as_clz(Register rd, Register rs, Register rt = Register::FromCode(0));
-    BufferOffset as_ins(Register rt, Register rs, uint16_t pos, uint16_t size);
-    BufferOffset as_ext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  // Conditional move.
+  BufferOffset as_movz(Register rd, Register rs, Register rt);
+  BufferOffset as_movn(Register rd, Register rs, Register rt);
+  BufferOffset as_movt(Register rd, Register rs, uint16_t cc = 0);
+  BufferOffset as_movf(Register rd, Register rs, uint16_t cc = 0);
 
-    // FP instructions
+  // Bit twiddling.
+  BufferOffset as_clz(Register rd,
+                      Register rs,
+                      Register rt = Register::FromCode(0));
+  BufferOffset as_ins(Register rt, Register rs, uint16_t pos, uint16_t size);
+  BufferOffset as_ext(Register rt, Register rs, uint16_t pos, uint16_t size);
 
-    // Use these two functions only when you are sure address is aligned.
-    // Otherwise, use ma_ld and ma_sd.
-    BufferOffset as_ld(FloatRegister fd, Register base, int32_t off);
-    BufferOffset as_sd(FloatRegister fd, Register base, int32_t off);
+  // FP instructions
 
-    BufferOffset as_ls(FloatRegister fd, Register base, int32_t off);
-    BufferOffset as_ss(FloatRegister fd, Register base, int32_t off);
+  // Use these two functions only when you are sure address is aligned.
+  // Otherwise, use ma_ld and ma_sd.
+  BufferOffset as_ld(FloatRegister fd, Register base, int32_t off);
+  BufferOffset as_sd(FloatRegister fd, Register base, int32_t off);
 
-    BufferOffset as_movs(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_movd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_ls(FloatRegister fd, Register base, int32_t off);
+  BufferOffset as_ss(FloatRegister fd, Register base, int32_t off);
 
-    BufferOffset as_mtc1(Register rt, FloatRegister fs);
-    BufferOffset as_mfc1(Register rt, FloatRegister fs);
+  BufferOffset as_movs(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_movd(FloatRegister fd, FloatRegister fs);
 
-  protected:
-    // This is used to access the odd regiter form the pair of single
-    // precision registers that make one double register.
-    FloatRegister getOddPair(FloatRegister reg) {
-        JS_ASSERT(reg.code() % 2 == 0);
-        return FloatRegister::FromCode(reg.code() + 1);
-    }
+  BufferOffset as_mtc1(Register rt, FloatRegister fs);
+  BufferOffset as_mfc1(Register rt, FloatRegister fs);
 
-  public:
-    // FP convert instructions
-    BufferOffset as_ceilws(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_floorws(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_roundws(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_truncws(FloatRegister fd, FloatRegister fs);
+ protected:
+  // This is used to access the odd regiter form the pair of single
+  // precision registers that make one double register.
+  FloatRegister getOddPair(FloatRegister reg) {
+    JS_ASSERT(reg.code() % 2 == 0);
+    return FloatRegister::FromCode(reg.code() + 1);
+  }
 
-    BufferOffset as_ceilwd(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_floorwd(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_roundwd(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_truncwd(FloatRegister fd, FloatRegister fs);
+ public:
+  // FP convert instructions
+  BufferOffset as_ceilws(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_floorws(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_roundws(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_truncws(FloatRegister fd, FloatRegister fs);
 
-    BufferOffset as_cvtdl(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtds(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtdw(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtld(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtls(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtsd(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtsl(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtsw(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtwd(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_cvtws(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_ceilwd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_floorwd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_roundwd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_truncwd(FloatRegister fd, FloatRegister fs);
 
-    // FP arithmetic instructions
-    BufferOffset as_adds(FloatRegister fd, FloatRegister fs, FloatRegister ft);
-    BufferOffset as_addd(FloatRegister fd, FloatRegister fs, FloatRegister ft);
-    BufferOffset as_subs(FloatRegister fd, FloatRegister fs, FloatRegister ft);
-    BufferOffset as_subd(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_cvtdl(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtds(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtdw(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtld(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtls(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtsd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtsl(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtsw(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtwd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_cvtws(FloatRegister fd, FloatRegister fs);
 
-    BufferOffset as_abss(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_absd(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_negd(FloatRegister fd, FloatRegister fs);
+  // FP arithmetic instructions
+  BufferOffset as_adds(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_addd(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_subs(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_subd(FloatRegister fd, FloatRegister fs, FloatRegister ft);
 
-    BufferOffset as_muls(FloatRegister fd, FloatRegister fs, FloatRegister ft);
-    BufferOffset as_muld(FloatRegister fd, FloatRegister fs, FloatRegister ft);
-    BufferOffset as_divs(FloatRegister fd, FloatRegister fs, FloatRegister ft);
-    BufferOffset as_divd(FloatRegister fd, FloatRegister fs, FloatRegister ft);
-    BufferOffset as_sqrts(FloatRegister fd, FloatRegister fs);
-    BufferOffset as_sqrtd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_abss(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_absd(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_negd(FloatRegister fd, FloatRegister fs);
 
-    // FP compare instructions
-    BufferOffset as_cf(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
+  BufferOffset as_muls(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_muld(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_divs(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_divd(FloatRegister fd, FloatRegister fs, FloatRegister ft);
+  BufferOffset as_sqrts(FloatRegister fd, FloatRegister fs);
+  BufferOffset as_sqrtd(FloatRegister fd, FloatRegister fs);
+
+  // FP compare instructions
+  BufferOffset as_cf(FloatFormat fmt,
+                     FloatRegister fs,
+                     FloatRegister ft,
+                     FPConditionBit fcc = FCC0);
+  BufferOffset as_cun(FloatFormat fmt,
+                      FloatRegister fs,
+                      FloatRegister ft,
+                      FPConditionBit fcc = FCC0);
+  BufferOffset as_ceq(FloatFormat fmt,
+                      FloatRegister fs,
+                      FloatRegister ft,
+                      FPConditionBit fcc = FCC0);
+  BufferOffset as_cueq(FloatFormat fmt,
+                       FloatRegister fs,
+                       FloatRegister ft,
                        FPConditionBit fcc = FCC0);
-    BufferOffset as_cun(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
-                        FPConditionBit fcc = FCC0);
-    BufferOffset as_ceq(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
-                        FPConditionBit fcc = FCC0);
-    BufferOffset as_cueq(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
-                         FPConditionBit fcc = FCC0);
-    BufferOffset as_colt(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
-                         FPConditionBit fcc = FCC0);
-    BufferOffset as_cult(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
-                         FPConditionBit fcc = FCC0);
-    BufferOffset as_cole(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
-                         FPConditionBit fcc = FCC0);
-    BufferOffset as_cule(FloatFormat fmt, FloatRegister fs, FloatRegister ft,
-                         FPConditionBit fcc = FCC0);
+  BufferOffset as_colt(FloatFormat fmt,
+                       FloatRegister fs,
+                       FloatRegister ft,
+                       FPConditionBit fcc = FCC0);
+  BufferOffset as_cult(FloatFormat fmt,
+                       FloatRegister fs,
+                       FloatRegister ft,
+                       FPConditionBit fcc = FCC0);
+  BufferOffset as_cole(FloatFormat fmt,
+                       FloatRegister fs,
+                       FloatRegister ft,
+                       FPConditionBit fcc = FCC0);
+  BufferOffset as_cule(FloatFormat fmt,
+                       FloatRegister fs,
+                       FloatRegister ft,
+                       FPConditionBit fcc = FCC0);
 
-    // label operations
-    void bind(Label *label, BufferOffset boff = BufferOffset());
-    void bind(RepatchLabel *label);
-    uint32_t currentOffset() {
-        return nextOffset().getOffset();
-    }
-    void retarget(Label *label, Label *target);
-    void Bind(uint8_t *rawCode, AbsoluteLabel *label, const void *address);
+  // label operations
+  void bind(Label* label, BufferOffset boff = BufferOffset());
+  void bind(RepatchLabel* label);
+  uint32_t currentOffset() { return nextOffset().getOffset(); }
+  void retarget(Label* label, Label* target);
+  void Bind(uint8_t* rawCode, AbsoluteLabel* label, const void* address);
 
-    // See Bind
-    size_t labelOffsetToPatchOffset(size_t offset) {
-        return actualOffset(offset);
-    }
+  // See Bind
+  size_t labelOffsetToPatchOffset(size_t offset) {
+    return actualOffset(offset);
+  }
 
-    void call(Label *label);
-    void call(void *target);
+  void call(Label* label);
+  void call(void* target);
 
-    void as_break(uint32_t code);
+  void as_break(uint32_t code);
 
-  public:
-    static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
-    static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
+ public:
+  static void TraceJumpRelocations(JSTracer* trc,
+                                   IonCode* code,
+                                   CompactBufferReader& reader);
+  static void TraceDataRelocations(JSTracer* trc,
+                                   IonCode* code,
+                                   CompactBufferReader& reader);
 
-  protected:
-    InstImm invertBranch(InstImm branch, BOffImm16 skipOffset);
-    void bind(InstImm *inst, uint32_t branch, uint32_t target);
-    void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind) {
-        enoughMemory_ &= jumps_.append(RelativePatch(src, target.value, kind));
-        if (kind == Relocation::JITCODE)
-            writeRelocation(src);
-    }
+ protected:
+  InstImm invertBranch(InstImm branch, BOffImm16 skipOffset);
+  void bind(InstImm* inst, uint32_t branch, uint32_t target);
+  void addPendingJump(BufferOffset src, void* target, Relocation::Kind kind) {
+    enoughMemory_ &= jumps_.append(RelativePatch(src, target, kind));
+    if (kind == Relocation::IONCODE)
+      writeRelocation(src);
+  }
 
-    void addLongJump(BufferOffset src) {
-        enoughMemory_ &= longJumps_.append(src.getOffset());
-    }
+  void addLongJump(BufferOffset src) {
+    enoughMemory_ &= longJumps_.append(src.getOffset());
+  }
 
-  public:
-    size_t numLongJumps() const {
-        return longJumps_.length();
-    }
-    uint32_t longJump(size_t i) {
-        return longJumps_[i];
-    }
+ public:
+  size_t numLongJumps() const { return longJumps_.length(); }
+  uint32_t longJump(size_t i) { return longJumps_[i]; }
 
-    // Copy the assembly code to the given buffer, and perform any pending
-    // relocations relying on the target address.
-    void executableCopy(uint8_t *buffer);
+  // Copy the assembly code to the given buffer, and perform any pending
+  // relocations relying on the target address.
+  void executableCopy(uint8_t* buffer);
 
-    void flushBuffer() {
-    }
+  void flushBuffer() {}
 
-    static uint32_t patchWrite_NearCallSize();
-    static uint32_t nopSize() { return 4; }
+  static uint32_t patchWrite_NearCallSize();
+  static uint32_t nopSize() { return 4; }
 
-    static uint32_t extractLuiOriValue(Instruction *inst0, Instruction *inst1);
-    static void updateLuiOriValue(Instruction *inst0, Instruction *inst1, uint32_t value);
-    static void writeLuiOriInstructions(Instruction *inst, Instruction *inst1,
-                                        Register reg, uint32_t value);
+  static uint32_t extractLuiOriValue(Instruction* inst0, Instruction* inst1);
+  static void updateLuiOriValue(Instruction* inst0,
+                                Instruction* inst1,
+                                uint32_t value);
+  static void writeLuiOriInstructions(Instruction* inst,
+                                      Instruction* inst1,
+                                      Register reg,
+                                      uint32_t value);
 
-    static void patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall);
-    static void patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
-                                        PatchedImmPtr expectedValue);
-    static void patchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
-                                        ImmPtr expectedValue);
-    static void patchWrite_Imm32(CodeLocationLabel label, Imm32 imm);
-    static uint32_t alignDoubleArg(uint32_t offset) {
-        return (offset + 1U) &~ 1U;
-    }
+  static void patchWrite_NearCall(CodeLocationLabel start,
+                                  CodeLocationLabel toCall);
+  static void patchDataWithValueCheck(CodeLocationLabel label,
+                                      ImmWord newValue,
+                                      ImmWord expectedValue);
+  static void patchWrite_Imm32(CodeLocationLabel label, Imm32 imm);
+  static uint32_t alignDoubleArg(uint32_t offset) {
+    return (offset + 1U) & ~1U;
+  }
 
-    static uint8_t *nextInstruction(uint8_t *instruction, uint32_t *count = nullptr);
+  static uint8_t* nextInstruction(uint8_t* instruction, uint32_t* count = NULL);
 
-    static void ToggleToJmp(CodeLocationLabel inst_);
-    static void ToggleToCmp(CodeLocationLabel inst_);
+  static void ToggleToJmp(CodeLocationLabel inst_);
+  static void ToggleToCmp(CodeLocationLabel inst_);
 
-    static void ToggleCall(CodeLocationLabel inst_, bool enabled);
+  static void ToggleCall(CodeLocationLabel inst_, bool enabled);
 
-    static void updateBoundsCheck(uint32_t logHeapSize, Instruction *inst);
-    void processCodeLabels(uint8_t *rawCode);
+  static void updateBoundsCheck(uint32_t logHeapSize, Instruction* inst);
+  void processCodeLabels(uint8_t* rawCode);
 
-    bool bailed() {
-        return m_buffer.bail();
-    }
 }; // Assembler
 
 // An Instruction is a structure for both encoding and decoding any and all
@@ -1246,7 +1230,7 @@ GetArgStackDisp(uint32_t usedArgSlots)
 {
     JS_ASSERT(usedArgSlots >= NumIntArgRegs);
     // Even register arguments have place reserved on stack.
-    return usedArgSlots * sizeof(intptr_t);
+    return usedArgSlots * STACK_SLOT_SIZE;
 }
 
 } // namespace jit

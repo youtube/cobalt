@@ -23,6 +23,8 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/c_val.h"
+#include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
@@ -36,6 +38,12 @@ namespace cobalt {
 namespace browser {
 
 namespace {
+
+#if defined(COBALT_RELEASE)
+const int kPollerPeriodMs = 2000;
+#else   // #if defined(COBALT_RELEASE)
+const int kPollerPeriodMs = 20;
+#endif  // #if defined(COBALT_RELEASE)
 
 // The maximum number of element depth in the DOM tree. Elements at a level
 // deeper than this could be discarded, and will not be rendered.
@@ -62,6 +70,29 @@ const char kPartialLayoutCommandLongHelp[] =
     "To wipe the box tree and turn partial layout off.";
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
+class JSEngineStats {
+ public:
+  JSEngineStats()
+      : js_reserved_memory_("Memory.JS", 0,
+                            "The total memory that is reserved by the engine, "
+                            "including the part that is actually occupied by "
+                            "JS objects, and the part that is not yet.") {}
+
+  static JSEngineStats* GetInstance() {
+    return Singleton<JSEngineStats,
+                     StaticMemorySingletonTraits<JSEngineStats> >::get();
+  }
+
+  void SetReservedMemory(size_t js_reserved_memory) {
+    js_reserved_memory_ = static_cast<uint64>(js_reserved_memory);
+  }
+
+ private:
+  // The total memory that is reserved by the engine, including the part that is
+  // actually occupied by JS objects, and the part that is not yet.
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory_;
+};
+
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -80,7 +111,8 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Called to inject a keyboard event into the web module.
-  void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
+  void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
+                           const dom::KeyboardEvent::Data& event);
 
   // Called to execute JavaScript in this WebModule. Sets the |result|
   // output parameter and signals |got_result|.
@@ -135,6 +167,13 @@ class WebModule::Impl {
     error_callback_.Run(window_->location()->url(), error);
   }
 
+  void UpdateJavaScriptEngineStats() {
+    if (javascript_engine_) {
+      JSEngineStats::GetInstance()->SetReservedMemory(
+          javascript_engine_->UpdateMemoryStatsAndReturnReserved());
+    }
+  }
+
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
@@ -182,6 +221,9 @@ class WebModule::Impl {
 
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
+
+  // Poller that updates javascript engine stats.
+  scoped_ptr<base::PollerWithThread> javascript_engine_poller_;
 
   // JavaScript Global Object for the browser. There should be one per window,
   // but since there is only one window, we can have one per browser.
@@ -305,6 +347,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
   javascript_engine_ = script::JavaScriptEngine::CreateEngine();
   DCHECK(javascript_engine_);
 
+  javascript_engine_poller_.reset(new base::PollerWithThread(
+      base::Bind(&WebModule::Impl::UpdateJavaScriptEngineStats,
+                 base::Unretained(this)),
+      base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
+
   global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
@@ -342,7 +389,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   environment_settings_.reset(new dom::DOMSettings(
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), javascript_engine_.get(),
+      media_source_registry_.get(), data.media_module, javascript_engine_.get(),
       global_environment_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
@@ -413,6 +460,7 @@ WebModule::Impl::~Impl() {
   script_runner_.reset();
   execution_state_.reset();
   global_environment_ = NULL;
+  javascript_engine_poller_.reset();
   javascript_engine_.reset();
   web_module_stat_tracker_.reset();
   local_storage_database_.reset();
@@ -424,6 +472,7 @@ WebModule::Impl::~Impl() {
 }
 
 void WebModule::Impl::InjectKeyboardEvent(
+    scoped_refptr<dom::Element> element,
     const dom::KeyboardEvent::Data& event) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
@@ -438,7 +487,11 @@ void WebModule::Impl::InjectKeyboardEvent(
   // injected.
   web_module_stat_tracker_->OnInjectEvent(keyboard_event);
 
-  window_->InjectEvent(keyboard_event);
+  if (element) {
+    element->DispatchEvent(keyboard_event);
+  } else {
+    window_->InjectEvent(keyboard_event);
+  }
 }
 
 void WebModule::Impl::ExecuteJavascript(
@@ -515,6 +568,7 @@ void WebModule::Impl::CreateWindowDriver(
   window_driver_out->reset(new webdriver::WindowDriver(
       window_id, window_weak_,
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
       base::MessageLoopProxy::current()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
@@ -556,9 +610,6 @@ void WebModule::Impl::Suspend() {
   // Stop the generation of render trees.
   layout_manager_->Suspend();
 
-  // Clear out all image resources from the image cache.
-  image_cache_->Purge();
-
 #if defined(ENABLE_DEBUG_CONSOLE)
   // The debug overlay may be holding onto a render tree, clear that out.
   debug_overlay_->ClearInput();
@@ -567,6 +618,17 @@ void WebModule::Impl::Suspend() {
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+
+  // Ensure the document is not holding onto any more image cached resources so
+  // that they are eligible to be purged.
+  window_->document()->PurgeCachedResourceReferencesRecursively();
+
+  // Clear out all image resources from the image cache. We need to do this
+  // after we abort all in-progress loads, and after we clear all document
+  // references, or they will still be referenced and won't be cleared from the
+  // cache.
+  image_cache_->Purge();
+  remote_typeface_cache_->Purge();
 
   // Finally mark that we have no resource provider.
   resource_provider_ = NULL;
@@ -695,14 +757,23 @@ void WebModule::Initialize(const ConstructionData& data) {
 }
 
 void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::InjectKeyboardEvent,
+                                      base::Unretained(impl_.get()),
+                                      scoped_refptr<dom::Element>(), event));
+}
+
+void WebModule::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
+                                    const dom::KeyboardEvent::Data& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
                event.type);
   DCHECK(message_loop());
   DCHECK(impl_);
+  DCHECK_EQ(MessageLoop::current(), message_loop());
 
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::InjectKeyboardEvent,
-                                      base::Unretained(impl_.get()), event));
+  impl_->InjectKeyboardEvent(element, event);
 }
 
 std::string WebModule::ExecuteJavascript(

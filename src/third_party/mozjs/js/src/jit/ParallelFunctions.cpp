@@ -81,7 +81,7 @@ jit::TraceLIR(uint32_t bblock, uint32_t lir, uint32_t execModeInt,
 
     if (traceMode == NotSet) {
         // Racy, but that's ok.
-        const char *env = getenv("IONFLAGS");
+        const char* env = "";
         if (strstr(env, "trace-all"))
             traceMode = All;
         else

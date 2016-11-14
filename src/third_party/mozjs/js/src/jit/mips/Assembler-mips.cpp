@@ -14,7 +14,7 @@
 
 #include "assembler/jit/ExecutableAllocator.h"
 #include "gc/Marking.h"
-#include "jit/JitCompartment.h"
+#include "jit/IonCompartment.h"
 
 using mozilla::DebugOnly;
 
@@ -30,8 +30,8 @@ ABIArgGenerator::ABIArgGenerator()
 ABIArg
 ABIArgGenerator::next(MIRType type)
 {
-    MOZ_ASSUME_UNREACHABLE("NYI");
-    return ABIArg();
+  JS_NOT_REACHED("NYI");
+  return ABIArg();
 }
 const Register ABIArgGenerator::NonArgReturnVolatileReg0 = t0;
 const Register ABIArgGenerator::NonArgReturnVolatileReg1 = t1;
@@ -126,7 +126,7 @@ jit::PatchJump(CodeLocationJump &jump_, CodeLocationLabel label)
 
     Assembler::updateLuiOriValue(inst1, inst2, (uint32_t)label.raw());
 
-    AutoFlushICache::flush(uintptr_t(inst1), 8);
+    AutoFlushCache::updateTop(uintptr_t(inst1), 8);
 }
 
 void
@@ -150,7 +150,7 @@ Assembler::executableCopy(uint8_t *buffer)
         updateLuiOriValue(inst1, inst1->next(), (uint32_t)buffer + value);
     }
 
-    AutoFlushICache::setRange(uintptr_t(buffer), m_buffer.size());
+    AutoFlushCache::updateTop((uintptr_t)buffer, m_buffer.size());
 }
 
 uint32_t
@@ -165,10 +165,8 @@ Assembler::actualIndex(uint32_t idx_) const
     return idx_;
 }
 
-uint8_t *
-Assembler::PatchableJumpAddress(JitCode *code, uint32_t pe_)
-{
-    return code->raw() + pe_;
+uint8_t* Assembler::PatchableJumpAddress(IonCode* code, uint32_t pe_) {
+  return code->raw() + pe_;
 }
 
 class RelocationIterator
@@ -201,21 +199,19 @@ Assembler::getPointer(uint8_t *instPtr)
     return Assembler::extractLuiOriValue(inst, inst->next());
 }
 
-static JitCode *
-CodeFromJump(Instruction *jump)
-{
-    uint8_t *target = (uint8_t *)Assembler::extractLuiOriValue(jump, jump->next());
-    return JitCode::FromExecutable(target);
+static IonCode* CodeFromJump(Instruction* jump) {
+  uint8_t* target = (uint8_t*)Assembler::extractLuiOriValue(jump, jump->next());
+  return IonCode::FromExecutable(target);
 }
 
-void
-Assembler::TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
-{
-    RelocationIterator iter(reader);
-    while (iter.read()) {
-        JitCode *child = CodeFromJump((Instruction *)(code->raw() + iter.offset()));
-        MarkJitCodeUnbarriered(trc, &child, "rel32");
-    }
+void Assembler::TraceJumpRelocations(JSTracer* trc,
+                                     IonCode* code,
+                                     CompactBufferReader& reader) {
+  RelocationIterator iter(reader);
+  while (iter.read()) {
+    IonCode* child = CodeFromJump((Instruction*)(code->raw() + iter.offset()));
+    MarkIonCodeUnbarriered(trc, &child, "rel32");
+  }
 }
 
 static void
@@ -245,10 +241,10 @@ TraceDataRelocations(JSTracer *trc, MIPSBuffer *buffer, CompactBufferReader &rea
     }
 }
 
-void
-Assembler::TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
-{
-    ::TraceDataRelocations(trc, code->raw(), reader);
+void Assembler::TraceDataRelocations(JSTracer* trc,
+                                     IonCode* code,
+                                     CompactBufferReader& reader) {
+  ::TraceDataRelocations(trc, code->raw(), reader);
 }
 
 void
@@ -277,10 +273,10 @@ Assembler::trace(JSTracer *trc)
 {
     for (size_t i = 0; i < jumps_.length(); i++) {
         RelativePatch &rp = jumps_[i];
-        if (rp.kind == Relocation::JITCODE) {
-            JitCode *code = JitCode::FromExecutable((uint8_t *)rp.target);
-            MarkJitCodeUnbarriered(trc, &code, "masmrel32");
-            JS_ASSERT(code == JitCode::FromExecutable((uint8_t *)rp.target));
+        if (rp.kind == Relocation::IONCODE) {
+          IonCode* code = IonCode::FromExecutable((uint8_t*)rp.target);
+          MarkIonCodeUnbarriered(trc, &code, "masmrel32");
+          JS_ASSERT(code == IonCode::FromExecutable((uint8_t*)rp.target));
         }
     }
     if (dataRelocations_.length()) {
@@ -346,7 +342,7 @@ Assembler::InvertCondition(Condition cond)
       case NotSigned:
         return Signed;
       default:
-        MOZ_ASSUME_UNREACHABLE("unexpected condition");
+        JS_NOT_REACHED("unexpected condition");
         return Equal;
     }
 }
@@ -384,7 +380,7 @@ Assembler::InvertCondition(DoubleCondition cond)
       case DoubleLessThanOrEqualOrUnordered:
         return DoubleGreaterThan;
       default:
-        MOZ_ASSUME_UNREACHABLE("unexpected condition");
+        JS_NOT_REACHED("unexpected condition");
         return DoubleEqual;
     }
 }
@@ -450,18 +446,18 @@ Assembler::bytesNeeded() const
 BufferOffset
 Assembler::writeInst(uint32_t x, uint32_t *dest)
 {
-    if (dest == nullptr)
-        return m_buffer.putInt(x);
+  if (dest == NULL)
+    return m_buffer.putInt(x);
 
-    writeInstStatic(x, dest);
-    return BufferOffset();
+  writeInstStatic(x, dest);
+  return BufferOffset();
 }
 
 void
 Assembler::writeInstStatic(uint32_t x, uint32_t *dest)
 {
-    JS_ASSERT(dest != nullptr);
-    *dest = x;
+  JS_ASSERT(dest != NULL);
+  *dest = x;
 }
 
 BufferOffset
@@ -585,7 +581,7 @@ Assembler::getBranchCode(Register s, Condition c)
       case Assembler::LessThanOrEqual:
         return InstImm(op_blez, s, zero, BOffImm16(0));
       default:
-        MOZ_ASSUME_UNREACHABLE("Condition not supported.");
+        JS_NOT_REACHED("Condition not supported.");
     }
 }
 
@@ -1336,7 +1332,7 @@ Assembler::patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall
     inst[3] = InstNOP();
 
     // Ensure everyone sees the code that was just written into memory.
-    AutoFlushICache::flush(uintptr_t(inst), patchWrite_NearCallSize());
+    AutoFlushCache::updateTop(uintptr_t(inst), patchWrite_NearCallSize());
 }
 
 uint32_t
@@ -1370,27 +1366,19 @@ Assembler::writeLuiOriInstructions(Instruction *inst0, Instruction *inst1,
     *inst1 = InstImm(op_ori, reg, reg, Imm16::lower(Imm32(value)));
 }
 
-void
-Assembler::patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
-                                   PatchedImmPtr expectedValue)
-{
-    Instruction *inst = (Instruction *) label.raw();
+void Assembler::patchDataWithValueCheck(CodeLocationLabel label,
+                                        ImmWord newValue,
+                                        ImmWord expectedValue) {
+  Instruction* inst = (Instruction*)label.raw();
 
-    // Extract old Value
-    DebugOnly<uint32_t> value = Assembler::extractLuiOriValue(&inst[0], &inst[1]);
-    JS_ASSERT(value == uint32_t(expectedValue.value));
+  // Extract old Value
+  DebugOnly<uint32_t> value = Assembler::extractLuiOriValue(&inst[0], &inst[1]);
+  JS_ASSERT(value == uint32_t(expectedValue.value));
 
-    // Replace with new value
-    Assembler::updateLuiOriValue(inst, inst->next(), uint32_t(newValue.value));
+  // Replace with new value
+  Assembler::updateLuiOriValue(inst, inst->next(), uint32_t(newValue.value));
 
-    AutoFlushICache::flush(uintptr_t(inst), 8);
-}
-
-void
-Assembler::patchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, ImmPtr expectedValue)
-{
-    patchDataWithValueCheck(label, PatchedImmPtr(newValue.value),
-                            PatchedImmPtr(expectedValue.value));
+  AutoFlushCache::updateTop(uintptr_t(inst), 8);
 }
 
 // This just stomps over memory with 32 bits of raw data. Its purpose is to
@@ -1412,8 +1400,8 @@ uint8_t *
 Assembler::nextInstruction(uint8_t *inst_, uint32_t *count)
 {
     Instruction *inst = reinterpret_cast<Instruction*>(inst_);
-    if (count != nullptr)
-        *count += sizeof(Instruction);
+    if (count != NULL)
+      *count += sizeof(Instruction);
     return reinterpret_cast<uint8_t*>(inst->next());
 }
 
@@ -1457,7 +1445,7 @@ InstImm Assembler::invertBranch(InstImm branch, BOffImm16 skipOffset)
             return branch;
         }
 
-        MOZ_ASSUME_UNREACHABLE("Error creating long branch.");
+        JS_NOT_REACHED("Error creating long branch.");
         return branch;
 
       case op_cop1:
@@ -1472,7 +1460,7 @@ InstImm Assembler::invertBranch(InstImm branch, BOffImm16 skipOffset)
         return branch;
     }
 
-    MOZ_ASSUME_UNREACHABLE("Error creating long branch.");
+    JS_NOT_REACHED("Error creating long branch.");
     return branch;
 }
 
@@ -1485,7 +1473,7 @@ Assembler::ToggleToJmp(CodeLocationLabel inst_)
     // We converted beq to andi, so now we restore it.
     inst->setOpcode(op_beq);
 
-    AutoFlushICache::flush(uintptr_t(inst), 4);
+    AutoFlushCache::updateTop(uintptr_t(inst), 4);
 }
 
 void
@@ -1498,7 +1486,7 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
     // Replace "beq $zero, $zero, offset" with "andi $zero, $zero, offset"
     inst->setOpcode(op_andi);
 
-    AutoFlushICache::flush(uintptr_t(inst), 4);
+    AutoFlushCache::updateTop(uintptr_t(inst), 4);
 }
 
 void
@@ -1520,10 +1508,10 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
         *i2 = nop;
     }
 
-    AutoFlushICache::flush(uintptr_t(i2), 4);
+    AutoFlushCache::updateTop(uintptr_t(i2), 4);
 }
 
 void Assembler::updateBoundsCheck(uint32_t heapSize, Instruction *inst)
 {
-    MOZ_ASSUME_UNREACHABLE("NYI");
+  JS_NOT_REACHED("NYI");
 }

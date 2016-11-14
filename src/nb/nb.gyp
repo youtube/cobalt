@@ -63,6 +63,7 @@
         'fixed_no_free_allocator_test.cc',
         'reuse_allocator_test.cc',
         'run_all_unittests.cc',
+        'thread_local_object_test.cc',
       ],
       'dependencies': [
         'nb',
@@ -79,6 +80,7 @@
       'variables': {
         'executable_name': 'nb_test',
       },
+      'includes': [ '../starboard/build/deploy.gypi' ],
     },
 
     {

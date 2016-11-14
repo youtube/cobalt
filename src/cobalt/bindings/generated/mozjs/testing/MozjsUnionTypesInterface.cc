@@ -204,10 +204,8 @@ JSBool get_unionProperty(
         object, base::GetTypeId<UnionTypesInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -259,10 +257,8 @@ JSBool get_unionWithNullableMemberProperty(
         object, base::GetTypeId<UnionTypesInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -314,10 +310,8 @@ JSBool get_nullableUnionProperty(
         object, base::GetTypeId<UnionTypesInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -369,10 +363,8 @@ JSBool get_unionBaseProperty(
         object, base::GetTypeId<UnionTypesInterface>())) {
     MozjsExceptionState exception(context);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
-    vp.set(JS::UndefinedValue());
     return false;
   }
-
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 

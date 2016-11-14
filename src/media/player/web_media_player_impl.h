@@ -137,6 +137,10 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   const Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE;
   float GetMaxTimeSeekable() const OVERRIDE;
 
+  // Suspend/Resume
+  void Suspend() OVERRIDE;
+  void Resume() OVERRIDE;
+
   // True if the loaded media has a playable video/audio track.
   bool HasVideo() const OVERRIDE;
   bool HasAudio() const OVERRIDE;

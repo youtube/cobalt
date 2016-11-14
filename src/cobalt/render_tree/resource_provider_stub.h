@@ -213,6 +213,12 @@ class ResourceProviderStub : public ResourceProvider {
     return make_scoped_refptr(new TypefaceStub(NULL));
   }
 
+  scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
+      const std::string& font_face_name) OVERRIDE {
+    UNREFERENCED_PARAMETER(font_face_name);
+    return make_scoped_refptr(new TypefaceStub(NULL));
+  }
+
   scoped_refptr<Typeface> GetCharacterFallbackTypeface(
       int32 utf32_character, FontStyle font_style,
       const std::string& language) OVERRIDE {

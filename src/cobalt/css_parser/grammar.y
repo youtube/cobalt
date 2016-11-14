@@ -3431,15 +3431,17 @@ validated_box_shadow_list:
 
 comma_separated_box_shadow_list:
     validated_box_shadow_list {
-    if ($1) {
+    scoped_refptr<cssom::PropertyValue> shadow = MakeScopedRefPtrAndRelease($1);
+    if (shadow) {
       $$ = new cssom::PropertyListValue::Builder();
-      $$->push_back(MakeScopedRefPtrAndRelease($1));
+      $$->push_back(shadow);
     }
   }
   | comma_separated_box_shadow_list comma validated_box_shadow_list {
     $$ = $1;
-    if ($$ && $3) {
-      $$->push_back(MakeScopedRefPtrAndRelease($3));
+    scoped_refptr<cssom::PropertyValue> shadow = MakeScopedRefPtrAndRelease($3);
+    if ($$ && shadow) {
+      $$->push_back(shadow);
     }
   }
   ;

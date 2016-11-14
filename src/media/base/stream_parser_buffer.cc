@@ -54,21 +54,19 @@ void StreamParserBuffer::SetDecodeTimestamp(const base::TimeDelta& timestamp) {
 }
 
 #if defined(__LB_SHELL__) || defined(COBALT)
-StreamParserBuffer::StreamParserBuffer(
-    uint8* data,
-    int data_size,
-    bool is_keyframe)
-    : DecoderBuffer(data, data_size),
-      is_keyframe_(is_keyframe),
+StreamParserBuffer::StreamParserBuffer(uint8* data,
+                                       int data_size,
+                                       bool is_keyframe)
+    : DecoderBuffer(data, data_size, is_keyframe),
       decode_timestamp_(kNoTimestamp()),
       config_id_(kInvalidConfigId) {
   SetDuration(kNoTimestamp());
 }
 #else
-StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
+StreamParserBuffer::StreamParserBuffer(const uint8* data,
+                                       int data_size,
                                        bool is_keyframe)
-    : DecoderBuffer(data, data_size),
-      is_keyframe_(is_keyframe),
+    : DecoderBuffer(data, data_size, is_keyframe),
       decode_timestamp_(kNoTimestamp()),
       config_id_(kInvalidConfigId) {
   SetDuration(kNoTimestamp());

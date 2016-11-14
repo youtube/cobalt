@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<familyset version="1">
 <!--
     NOTE: Families with a "fallback" value of "true" are added to the fallback
     list, regardless of whether or not they are named. Fallback fonts are chosen
@@ -13,10 +14,9 @@
     indexed, and each page contains 256 characters, so character 1000 would be
     contained within page 3.
 -->
-<familyset version="1">
     <!-- first font is default -->
     <family name="sans-serif">
-        <font weight="400" style="normal">Roboto-Regular.ttf</font>
+        <font font_name="Roboto Regular" postscript_name="Roboto-Regular" style="normal" weight="400">Roboto-Regular.ttf</font>
     </family>
     <!-- Note that aliases must come after the fonts they reference. -->
     <alias name="arial" to="sans-serif" />
@@ -27,187 +27,187 @@
     <alias name="courier" to="serif-monospace" />
     <alias name="courier new" to="serif-monospace" />
     <family name="sans-serif-smallcaps">
-        <font weight="400" style="normal">CarroisGothicSC-Regular.ttf</font>
+        <font font_name="Carrois Gothic SC" postscript_name="CarroisGothicSC-Regular" style="normal" weight="400">CarroisGothicSC-Regular.ttf</font>
     </family>
     <!-- fallback fonts -->
-    <family name="Noto Naskh Arabic UI" fallback="true" pages="0,6-8,32,37,46,251-254">
-        <font weight="400" style="normal">NotoNaskhArabicUI-Regular.ttf</font>
+    <family fallback="true" name="Noto Naskh Arabic UI" pages="0,6-8,32,37,46,251-254">
+        <font font_name="Noto Naskh Arabic UI" postscript_name="NotoNaskhArabicUI" style="normal" weight="400">NotoNaskhArabicUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,18-19,45,171,254">
-        <font weight="400" style="normal">NotoSansEthiopic-Regular.ttf</font>
+        <font font_name="Noto Sans Ethiopic" postscript_name="NotoSansEthiopic" style="normal" weight="400">NotoSansEthiopic-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,5,32,37,251,254">
-        <font weight="400" style="normal">NotoSansHebrew-Regular.ttf</font>
+        <font font_name="Noto Sans Hebrew" postscript_name="NotoSansHebrew" style="normal" weight="400">NotoSansHebrew-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,2-3,14,32,37,254">
-        <font weight="400" style="normal">NotoSansThaiUI-Regular.ttf</font>
+        <font font_name="Noto Sans Thai UI" postscript_name="NotoSansThaiUI" style="normal" weight="400">NotoSansThaiUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,5,251,254">
-        <font weight="400" style="normal">NotoSansArmenian-Regular.ttf</font>
+        <font font_name="Noto Sans Armenian" postscript_name="NotoSansArmenian" style="normal" weight="400">NotoSansArmenian-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,5,16,45,254">
-        <font weight="400" style="normal">NotoSansGeorgian-Regular.ttf</font>
+        <font font_name="Noto Sans Georgian" postscript_name="NotoSansGeorgian" style="normal" weight="400">NotoSansGeorgian-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,2,9,28,32,34,37,168,254">
-        <font weight="400" style="normal">NotoSansDevanagariUI-Regular.ttf</font>
+        <font font_name="Noto Sans Devanagari UI" postscript_name="NotoSansDevanagariUI" style="normal" weight="400">NotoSansDevanagariUI-Regular.ttf</font>
     </family>
     <!-- Gujarati should come after Devanagari -->
     <family fallback="true" pages="0,9-10,32,34,37,168,254">
-        <font weight="400" style="normal">NotoSansGujaratiUI-Regular.ttf</font>
+        <font font_name="Noto Sans Gujarati UI" postscript_name="NotoSansGujaratiUI" style="normal" weight="400">NotoSansGujaratiUI-Regular.ttf</font>
     </family>
     <!-- Gurmukhi should come after Devanagari -->
     <family fallback="true" pages="0,9-10,32,34,37-38,168,254">
-        <font weight="400" style="normal">NotoSansGurmukhiUI-Regular.ttf</font>
+        <font font_name="Noto Sans Gurmukhi UI" postscript_name="NotoSansGurmukhiUI" style="normal" weight="400">NotoSansGurmukhiUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,11,32,34,37,254">
-        <font weight="400" style="normal">NotoSansTamilUI-Regular.ttf</font>
+        <font font_name="Noto Sans Tamil UI" postscript_name="NotoSansTamilUI" style="normal" weight="400">NotoSansTamilUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,3,9,13,32,34,37,254">
-        <font weight="400" style="normal">NotoSansMalayalamUI-Regular.ttf</font>
+        <font font_name="Noto Sans Malayalam UI" postscript_name="NotoSansMalayalamUI" style="normal" weight="400">NotoSansMalayalamUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,32,34,37,254">
-        <font weight="400" style="normal">NotoSansBengaliUI-Regular.ttf</font>
+        <font font_name="Noto Sans Bengali UI" postscript_name="NotoSansBengaliUI" style="normal" weight="400">NotoSansBengaliUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,12,32,34,37,254">
-        <font weight="400" style="normal">NotoSansTeluguUI-Regular.ttf</font>
+        <font font_name="Noto Sans Telugu UI" postscript_name="NotoSansTeluguUI" style="normal" weight="400">NotoSansTeluguUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,12,32,34,37,254">
-        <font weight="400" style="normal">NotoSansKannadaUI-Regular.ttf</font>
+        <font font_name="Noto Sans Kannada UI" postscript_name="NotoSansKannadaUI" style="normal" weight="400">NotoSansKannadaUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,11,32,34,37,254">
-        <font weight="400" style="normal">NotoSansOriyaUI-Regular.ttf</font>
+        <font font_name="Noto Sans Oriya UI" postscript_name="NotoSansOriyaUI" style="normal" weight="400">NotoSansOriyaUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,13,32,34,37,254">
-        <font weight="400" style="normal">NotoSansSinhala-Regular.ttf</font>
+        <font font_name="Noto Sans Sinhala" postscript_name="NotoSansSinhala" style="normal" weight="400">NotoSansSinhala-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,23,25,32,37">
-        <font weight="400" style="normal">NotoSansKhmerUI-Regular.ttf</font>
+        <font font_name="Noto Sans Khmer UI" postscript_name="NotoSansKhmerUI" style="normal" weight="400">NotoSansKhmerUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,3,14,32,37">
-        <font weight="400" style="normal">NotoSansLaoUI-Regular.ttf</font>
+        <font font_name="Noto Sans Lao UI" postscript_name="NotoSansLaoUI" style="normal" weight="400">NotoSansLaoUI-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,6-7,32,37,253-254">
-        <font weight="400" style="normal">NotoSansThaana-Regular.ttf</font>
+        <font font_name="Noto Sans Thaana" postscript_name="NotoSansThaana" style="normal" weight="400">NotoSansThaana-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,3,170">
-        <font weight="400" style="normal">NotoSansCham-Regular.ttf</font>
+        <font font_name="Noto Sans Cham" postscript_name="NotoSansCham" style="normal" weight="400">NotoSansCham-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,27,32,37,254">
-        <font weight="400" style="normal">NotoSansBalinese-Regular.ttf</font>
+        <font font_name="Noto Sans Balinese" postscript_name="NotoSansBalinese" style="normal" weight="400">NotoSansBalinese-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,166,254,360-362">
-        <font weight="400" style="normal">NotoSansBamum-Regular.ttf</font>
+        <font font_name="Noto Sans Bamum" postscript_name="NotoSansBamum" style="normal" weight="400">NotoSansBamum-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,27,254">
-        <font weight="400" style="normal">NotoSansBatak-Regular.ttf</font>
+        <font font_name="Noto Sans Batak" postscript_name="NotoSansBatak" style="normal" weight="400">NotoSansBatak-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,26,32,169,254">
-        <font weight="400" style="normal">NotoSansBuginese-Regular.ttf</font>
+        <font font_name="Noto Sans Buginese" postscript_name="NotoSansBuginese" style="normal" weight="400">NotoSansBuginese-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,23,254">
-        <font weight="400" style="normal">NotoSansBuhid-Regular.ttf</font>
+        <font font_name="Noto Sans Buhid" postscript_name="NotoSansBuhid" style="normal" weight="400">NotoSansBuhid-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0-3,20-22,24,254">
-        <font weight="400" style="normal">NotoSansCanadianAboriginal-Regular.ttf</font>
+        <font font_name="Noto Sans Canadian Aboriginal" postscript_name="NotoSansCanadianAboriginal" style="normal" weight="400">NotoSansCanadianAboriginal-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,19,254">
-        <font weight="400" style="normal">NotoSansCherokee-Regular.ttf</font>
+        <font font_name="Noto Sans Cherokee" postscript_name="NotoSansCherokee" style="normal" weight="400">NotoSansCherokee-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0-3,29,44,254">
-        <font weight="400" style="normal">NotoSansCoptic-Regular.ttf</font>
+        <font font_name="Noto Sans Coptic" postscript_name="NotoSansCoptic" style="normal" weight="400">NotoSansCoptic-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,44,254">
-        <font weight="400" style="normal">NotoSansGlagolitic-Regular.ttf</font>
+        <font font_name="Noto Sans Glagolitic" postscript_name="NotoSansGlagolitic" style="normal" weight="400">NotoSansGlagolitic-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,23,254">
-        <font weight="400" style="normal">NotoSansHanunoo-Regular.ttf</font>
+        <font font_name="Noto Sans Hanunoo" postscript_name="NotoSansHanunoo" style="normal" weight="400">NotoSansHanunoo-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,32,37,169,254">
-        <font weight="400" style="normal">NotoSansJavanese-Regular.ttf</font>
+        <font font_name="Noto Sans Javanese" postscript_name="NotoSansJavanese" style="normal" weight="400">NotoSansJavanese-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,169,254">
-        <font weight="400" style="normal">NotoSansKayahLi-Regular.ttf</font>
+        <font font_name="Noto Sans Kayah Li" postscript_name="NotoSansKayahLi" style="normal" weight="400">NotoSansKayahLi-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,28,37,254">
-        <font weight="400" style="normal">NotoSansLepcha-Regular.ttf</font>
+        <font font_name="Noto Sans Lepcha" postscript_name="NotoSansLepcha" style="normal" weight="400">NotoSansLepcha-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,25,254">
-        <font weight="400" style="normal">NotoSansLimbu-Regular.ttf</font>
+        <font font_name="Noto Sans Limbu" postscript_name="NotoSansLimbu" style="normal" weight="400">NotoSansLimbu-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,2,164,254">
-        <font weight="400" style="normal">NotoSansLisu-Regular.ttf</font>
+        <font font_name="Noto Sans Lisu" postscript_name="NotoSansLisu" style="normal" weight="400">NotoSansLisu-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,6,8,254">
-        <font weight="400" style="normal">NotoSansMandaic-Regular.ttf</font>
+        <font font_name="Noto Sans Mandaic" postscript_name="NotoSansMandaic" style="normal" weight="400">NotoSansMandaic-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,170-171,254">
-        <font weight="400" style="normal">NotoSansMeeteiMayek-Regular.ttf</font>
+        <font font_name="Noto Sans Meetei Mayek" postscript_name="NotoSansMeeteiMayek" style="normal" weight="400">NotoSansMeeteiMayek-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,25,254">
-        <font weight="400" style="normal">NotoSansNewTaiLue-Regular.ttf</font>
+        <font font_name="Noto Sans New Tai Lue" postscript_name="NotoSansNewTaiLue" style="normal" weight="400">NotoSansNewTaiLue-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,6-7,32,46,253-254">
-        <font weight="400" style="normal">NotoSansNKo-Regular.ttf</font>
+        <font font_name="Noto Sans NKo" postscript_name="NotoSansNKo" style="normal" weight="400">NotoSansNKo-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,28,254">
-        <font weight="400" style="normal">NotoSansOlChiki-Regular.ttf</font>
+        <font font_name="Noto Sans Ol Chiki" postscript_name="NotoSansOlChiki" style="normal" weight="400">NotoSansOlChiki-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,169,254">
-        <font weight="400" style="normal">NotoSansRejang-Regular.ttf</font>
+        <font font_name="Noto Sans Rejang" postscript_name="NotoSansRejang" style="normal" weight="400">NotoSansRejang-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,32,37,168,254">
-        <font weight="400" style="normal">NotoSansSaurashtra-Regular.ttf</font>
+        <font font_name="Noto Sans Saurashtra" postscript_name="NotoSansSaurashtra" style="normal" weight="400">NotoSansSaurashtra-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,27-28,254">
-        <font weight="400" style="normal">NotoSansSundanese-Regular.ttf</font>
+        <font font_name="Noto Sans Sundanese" postscript_name="NotoSansSundanese" style="normal" weight="400">NotoSansSundanese-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,9,32,37,168,254">
-        <font weight="400" style="normal">NotoSansSylotiNagri-Regular.ttf</font>
+        <font font_name="Noto Sans Syloti Nagri" postscript_name="NotoSansSylotiNagri" style="normal" weight="400">NotoSansSylotiNagri-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,3,6-7,32,34,37-38,254">
-        <font weight="400" style="normal">NotoSansSyriacEstrangela-Regular.ttf</font>
+        <font font_name="Noto Sans Syriac Estrangela" postscript_name="NotoSansSyriacEstrangela" style="normal" weight="400">NotoSansSyriacEstrangela-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,23,254">
-        <font weight="400" style="normal">NotoSansTagbanwa-Regular.ttf</font>
+        <font font_name="Noto Sans Tagbanwa" postscript_name="NotoSansTagbanwa" style="normal" weight="400">NotoSansTagbanwa-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,26,32,34,37,254">
-        <font weight="400" style="normal">NotoSansTaiTham-Regular.ttf</font>
+        <font font_name="Noto Sans Tai Tham" postscript_name="NotoSansTaiTham" style="normal" weight="400">NotoSansTaiTham-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,32,37,167,170,254">
-        <font weight="400" style="normal">NotoSansTaiViet-Regular.ttf</font>
+        <font font_name="Noto Sans Tai Viet" postscript_name="NotoSansTaiViet" style="normal" weight="400">NotoSansTaiViet-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,15,32,37,254">
-        <font weight="400" style="normal">NotoSansTibetan-Regular.ttf</font>
+        <font font_name="Noto Sans Tibetan" postscript_name="NotoSansTibetan" style="normal" weight="400">NotoSansTibetan-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,3,32,45,254">
-        <font weight="400" style="normal">NotoSansTifinagh-Regular.ttf</font>
+        <font font_name="Noto Sans Tifinagh" postscript_name="NotoSansTifinagh" style="normal" weight="400">NotoSansTifinagh-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,165-166,254">
-        <font weight="400" style="normal">NotoSansVai-Regular.ttf</font>
+        <font font_name="Noto Sans Vai" postscript_name="NotoSansVai" style="normal" weight="400">NotoSansVai-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,160-164,254">
-        <font weight="400" style="normal">NotoSansYi-Regular.ttf</font>
+        <font font_name="Noto Sans Yi" postscript_name="NotoSansYi" style="normal" weight="400">NotoSansYi-Regular.ttf</font>
     </family>
     <family fallback="true" pages="32-43">
-        <font weight="400" style="normal">NotoSansSymbols-Regular-Subsetted.ttf</font>
+        <font font_name="Noto Sans Symbols" postscript_name="NotoSansSymbols" style="normal" weight="400">NotoSansSymbols-Regular-Subsetted.ttf</font>
     </family>
     <family fallback="true" lang="ja" pages="0,32,34-35,46-159,249-250,254-255,498,512-523,525-527,530-538,540-543,545-547,550,552,554-559,561,563-568,570,572-573,575-579,582-584,586-594,596-608,610-612,614-618,620,622-625,627-628,630-631,633-638,640,642-646,649-655,658,660-664,666,669-678,681,695-696,760-761">
-        <font weight="400" style="normal">NotoSansJP-Regular.otf</font>
+        <font font_name="Noto Sans JP Regular" postscript_name="NotoSansJP-Regular" style="normal" weight="400">NotoSansJP-Regular.otf</font>
     </family>
     <family fallback="true" pages="0,32-33,35-39,41,43,48,50,224,254-255,496-502,4068">
-        <font weight="400" style="normal">NotoEmoji-Regular.ttf</font>
+        <font font_name="Noto Emoji" postscript_name="NotoEmoji" style="normal" weight="400">NotoEmoji-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,14,17,32,48-51,77-159,172-215,249-250,254-255,260">
-        <font weight="400" style="normal">DroidSansFallback.ttf</font>
+        <font font_name="Droid Sans Fallback" postscript_name="DroidSansFallback" style="normal" weight="400">DroidSansFallback.ttf</font>
     </family>
     <!--
         Tai Le and Mongolian are intentionally kept last, to make sure they don't override
         the East Asian punctuation for Chinese.
     -->
     <family fallback="true" pages="0,16,25,48,254">
-        <font weight="400" style="normal">NotoSansTaiLe-Regular.ttf</font>
+        <font font_name="Noto Sans Tai Le" postscript_name="NotoSansTaiLe" style="normal" weight="400">NotoSansTaiLe-Regular.ttf</font>
     </family>
     <family fallback="true" pages="0,24,32,36-37,48,254">
-        <font weight="400" style="normal">NotoSansMongolian-Regular.ttf</font>
+        <font font_name="Noto Sans Mongolian" postscript_name="NotoSansMongolian" style="normal" weight="400">NotoSansMongolian-Regular.ttf</font>
     </family>
 </familyset>

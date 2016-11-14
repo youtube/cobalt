@@ -86,6 +86,7 @@ namespace {
 
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
+  TRACE_EVENT0("cobalt::bindings", "IsSupportedNamedProperty");
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   NamedGetterInterface* impl =
@@ -307,6 +308,15 @@ JSBool fcn_namedDeleter(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NamedGetterInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -351,6 +361,15 @@ JSBool fcn_namedGetter(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NamedGetterInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -403,6 +422,15 @@ JSBool fcn_namedSetter(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NamedGetterInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);

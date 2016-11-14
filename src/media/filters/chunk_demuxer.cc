@@ -32,6 +32,9 @@
 
 #if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
+#if SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+#define CHUNK_DEMUXER_SEEK_TO_KEYFRAME
+#endif  // SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
 #endif  // defined(OS_STARBOARD)
 
 using base::TimeDelta;
@@ -232,6 +235,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   void Seek(TimeDelta time);
   void CancelPendingSeek();
   bool IsSeekPending() const;
+  base::TimeDelta GetSeekKeyframeTimestamp() const;
 
   // Add buffers to this stream.  Buffers are stored in SourceBufferStreams,
   // which handle ordering and overlap resolution.
@@ -373,6 +377,11 @@ void ChunkDemuxerStream::CancelPendingSeek() {
 bool ChunkDemuxerStream::IsSeekPending() const {
   base::AutoLock auto_lock(lock_);
   return stream_->IsSeekPending();
+}
+
+base::TimeDelta ChunkDemuxerStream::GetSeekKeyframeTimestamp() const {
+  base::AutoLock auto_lock(lock_);
+  return stream_->GetSeekKeyframeTimestamp();
 }
 
 void ChunkDemuxerStream::OnNewMediaSegment(TimeDelta start_timestamp) {
@@ -646,6 +655,7 @@ ChunkDemuxer::ChunkDemuxer(const base::Closure& open_cb,
                            const NeedKeyCB& need_key_cb,
                            const LogCB& log_cb)
     : state_(WAITING_FOR_INIT),
+      delayed_audio_seek_(false),
       host_(NULL),
       open_cb_(open_cb),
       need_key_cb_(need_key_cb),
@@ -695,11 +705,19 @@ void ChunkDemuxer::Seek(TimeDelta time, const PipelineStatusCB& cb) {
     base::AutoLock auto_lock(lock_);
 
     if (state_ == INITIALIZED || state_ == ENDED) {
-      if (audio_)
-        audio_->Seek(time);
-
       if (video_)
         video_->Seek(time);
+#if defined(CHUNK_DEMUXER_SEEK_TO_KEYFRAME)
+      // We only need to do a delayed audio seek when there are both audio and
+      // video streams and the seek on the video stream is pending.
+      delayed_audio_seek_ = audio_ && video_ && video_->IsSeekPending();
+      if (audio_ && !delayed_audio_seek_) {
+        audio_->Seek(video_->GetSeekKeyframeTimestamp());
+      }
+#else   // defined(CHUNK_DEMUXER_SEEK_TO_KEYFRAME)
+      if (audio_)
+        audio_->Seek(time);
+#endif  // defined(CHUNK_DEMUXER_SEEK_TO_KEYFRAME)
 
       if (IsSeekPending_Locked()) {
         DVLOG(1) << "Seek() : waiting for more data to arrive.";
@@ -959,6 +977,12 @@ bool ChunkDemuxer::AppendData(const std::string& id,
       case SHUTDOWN:
         DVLOG(1) << "AppendData(): called in unexpected state " << state_;
         return false;
+    }
+
+    if (delayed_audio_seek_ && !video_->IsSeekPending()) {
+      DCHECK(audio_);
+      audio_->Seek(video_->GetSeekKeyframeTimestamp());
+      delayed_audio_seek_ = false;
     }
 
     // Check to see if data was appended at the pending seek point. This

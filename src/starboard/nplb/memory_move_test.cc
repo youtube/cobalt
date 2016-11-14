@@ -41,8 +41,8 @@ TEST(SbMemoryMoveTest, MovesSomeData) {
     EXPECT_EQ(data2[i], static_cast<char>(i));
   }
 
-  SbMemoryFree(memory1);
-  SbMemoryFree(memory2);
+  SbMemoryDeallocate(memory1);
+  SbMemoryDeallocate(memory2);
 }
 
 TEST(SbMemoryMoveTest, MovesZeroData) {
@@ -65,8 +65,8 @@ TEST(SbMemoryMoveTest, MovesZeroData) {
     EXPECT_EQ(data2[i], static_cast<char>(i + 1));
   }
 
-  SbMemoryFree(memory1);
-  SbMemoryFree(memory2);
+  SbMemoryDeallocate(memory1);
+  SbMemoryDeallocate(memory2);
 }
 
 TEST(SbMemoryMoveTest, MovesOverlappingDataForward) {
@@ -84,7 +84,7 @@ TEST(SbMemoryMoveTest, MovesOverlappingDataForward) {
     EXPECT_EQ(data[i + 3], static_cast<char>(i));
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryMoveTest, MovesOverlappingDataBackwards) {
@@ -102,7 +102,7 @@ TEST(SbMemoryMoveTest, MovesOverlappingDataBackwards) {
     EXPECT_EQ(data[i], static_cast<char>(i + 3));
   }
 
-  SbMemoryFree(memory);
+  SbMemoryDeallocate(memory);
 }
 
 }  // namespace

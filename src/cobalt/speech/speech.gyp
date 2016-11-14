@@ -30,6 +30,14 @@
         'audio_encoder_flac.h',
         'chunked_byte_buffer.cc',
         'chunked_byte_buffer.h',
+
+        'endpointer/endpointer.cc',
+        'endpointer/endpointer.h',
+        'endpointer/energy_endpointer.cc',
+        'endpointer/energy_endpointer.h',
+        'endpointer/energy_endpointer_params.cc',
+        'endpointer/energy_endpointer_params.h',
+
         'google_streaming_api.pb.cc',
         'google_streaming_api.pb.h',
         'google_streaming_api.pb.proto',
@@ -56,6 +64,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'include_dirs': [
         # Get protobuf headers from the chromium tree.
@@ -79,6 +88,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'chunked_byte_buffer_unittest.cc',
+        'endpointer/endpointer_unittest.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',

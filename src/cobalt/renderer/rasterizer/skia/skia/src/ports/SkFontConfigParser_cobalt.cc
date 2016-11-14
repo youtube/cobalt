@@ -250,6 +250,7 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
     const char* name = attributes[i];
     const char* value = attributes[i + 1];
     size_t name_len = strlen(name);
+
     if (name_len == 4 && strncmp(name, "name", name_len) == 0) {
       SkAutoAsciiToLC to_lowercase(value);
       family->names.push_back().set(to_lowercase.lc());
@@ -268,25 +269,79 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
 }
 
 void FontElementHandler(FontFileInfo* file, const char** attributes) {
-  // A <font> should have weight (integer) and style (normal, italic)attributes.
+  DCHECK(file != NULL);
+
+  // A <font> should have following attributes:
+  // weight (integer), style (normal, italic), font_name (string), and
+  // postscript_name (string).
   // The element should contain a filename.
+
+  enum SeenAttributeFlags {
+    kSeenNone = 0,
+    kSeenFontFullName = 1,
+    kSeenFontPostscriptName = 1 << 1,
+    kSeenWeight = 1 << 2,
+    kSeenStyle = 1 << 3
+  };
+
+  uint32_t seen_attributes_flag = kSeenNone;
   for (size_t i = 0; attributes[i] != NULL && attributes[i + 1] != NULL;
        i += 2) {
     const char* name = attributes[i];
     const char* value = attributes[i + 1];
-    size_t name_len = strlen(name);
-    if (name_len == 6 && strncmp("weight", name, name_len) == 0) {
-      if (!ParseNonNegativeInteger(value, &file->weight)) {
-        SkDebugf("---- Font weight %s (INVALID)", value);
-        file->weight = 0;
-      }
-    } else if (name_len == 5 && strncmp("style", name, name_len) == 0) {
-      size_t value_len = strlen(value);
-      if (value_len == 6 && strncmp("italic", value, value_len) == 0) {
-        file->style = FontFileInfo::kItalic_FontStyle;
-      }
+
+    switch (strlen(name)) {
+      case 9:
+        if (strncmp("font_name", name, 9) == 0) {
+          file->full_font_name = value;
+          seen_attributes_flag |= kSeenFontFullName;
+          continue;
+        }
+        break;
+      case 15:
+        if (strncmp("postscript_name", name, 15) == 0) {
+          file->postcript_name = value;
+          seen_attributes_flag |= kSeenFontPostscriptName;
+          continue;
+        }
+        break;
+      case 6:
+        if (strncmp("weight", name, 6) == 0) {
+          if (!ParseNonNegativeInteger(value, &file->weight)) {
+            DLOG(WARNING) << "Invalid font weight [" << value << "]";
+            file->weight = 0;
+          } else {
+            seen_attributes_flag |= kSeenWeight;
+          }
+          continue;
+        }
+        break;
+      case 5:
+        if (strncmp("style", name, 5) == 0) {
+          if (strncmp("italic", value, 6) == 0) {
+            file->style = FontFileInfo::kItalic_FontStyle;
+            seen_attributes_flag |= kSeenStyle;
+            continue;
+          } else if (strncmp("normal", value, 6) == 0) {
+            file->style = FontFileInfo::kNormal_FontStyle;
+            seen_attributes_flag |= kSeenStyle;
+            continue;
+          } else {
+            NOTREACHED() << "Unsupported style [" << value << "]";
+          }
+        }
+        break;
+      default:
+        break;
     }
+
+    NOTREACHED() << "Unsupported attribute [" << name << "]";
   }
+
+  DCHECK_EQ(seen_attributes_flag, kSeenFontFullName | kSeenFontPostscriptName |
+                                      kSeenWeight | kSeenStyle);
+  DCHECK(!file->full_font_name.isEmpty());
+  DCHECK(!file->postcript_name.isEmpty());
 }
 
 FontFamily* FindFamily(FamilyData* family_data, const char* family_name) {

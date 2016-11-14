@@ -20,11 +20,13 @@
 #include <string>
 
 #include "cobalt/network/network_module.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/speech/mic.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace speech {
@@ -36,7 +38,7 @@ namespace speech {
 // class would encode the audio data, then send it to recogniton service.
 class SpeechRecognitionManager {
  public:
-  typedef ::media::AudioBus AudioBus;
+  typedef ::media::ShellAudioBus ShellAudioBus;
   typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;
 
   SpeechRecognitionManager(network::NetworkModule* network_module,
@@ -45,18 +47,25 @@ class SpeechRecognitionManager {
 
   // Start/Stop speech recognizer and microphone. Multiple calls would be
   // managed by their own class.
-  void Start(const SpeechRecognitionConfig& config);
+  void Start(const SpeechRecognitionConfig& config,
+             script::ExceptionState* exception_state);
   void Stop();
+  void Abort();
 
  private:
+  enum State {
+    kStarted,
+    kStopped,
+    kAborted,
+  };
+
   // Callbacks from mic.
-  void OnDataReceived(scoped_ptr<AudioBus> audio_bus);
+  void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
   void OnMicError();
 
   // Callbacks from recognizer.
-  void OnRecognizerResult(const scoped_refptr<SpeechRecognitionEvent>& event);
-  void OnRecognizerError();
+  void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
 
   base::WeakPtrFactory<SpeechRecognitionManager> weak_ptr_factory_;
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in
@@ -68,6 +77,7 @@ class SpeechRecognitionManager {
   EventCallback event_callback_;
   SpeechRecognizer recognizer_;
   scoped_ptr<Mic> mic_;
+  State state_;
 };
 
 }  // namespace speech

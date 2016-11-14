@@ -64,8 +64,8 @@ CodeGeneratorShared::CodeGeneratorShared(MIRGenerator *gen, LIRGraph *graph, Mac
         // An MAsmJSCall does not align the stack pointer at calls sites but instead
         // relies on the a priori stack adjustment (in the prologue) on platforms
         // (like x64) which require the stack to be aligned.
-#ifdef JS_CPU_ARM
-        bool forceAlign = true;
+#if defined(JS_CPU_ARM) || defined(JS_CPU_MIPS)
+    bool forceAlign = true;
 #else
         bool forceAlign = false;
 #endif

@@ -536,6 +536,14 @@ float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
   return static_cast<float>(pipeline_->GetMediaDuration().InSecondsF());
 }
 
+void WebMediaPlayerImpl::Suspend() {
+  pipeline_->Suspend();
+}
+
+void WebMediaPlayerImpl::Resume() {
+  pipeline_->Resume();
+}
+
 bool WebMediaPlayerImpl::DidLoadingProgress() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   return pipeline_->DidLoadingProgress();
@@ -1164,8 +1172,8 @@ void WebMediaPlayerImpl::Destroy() {
   DLOG(INFO) << "Trying to stop media pipeline.";
   pipeline_->Stop(
       base::Bind(&base::WaitableEvent::Signal, base::Unretained(&waiter)));
-  DLOG(INFO) << "Media pipeline stopped.";
   waiter.Wait();
+  DLOG(INFO) << "Media pipeline stopped.";
 
   message_loop_factory_.reset();
 

@@ -7,6 +7,11 @@
 #ifndef jit_AsmJS_h
 #define jit_AsmJS_h
 
+#if defined(JS_CPU_MIPS)
+#include <stddef.h>
+#include "vm/ObjectImpl.h"
+#endif  // defined(JS_CPU_MIPS)
+
 #ifdef XP_MACOSX
 # include <pthread.h>
 # include <mach/mach.h>

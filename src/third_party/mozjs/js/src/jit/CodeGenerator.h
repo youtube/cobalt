@@ -13,6 +13,8 @@
 # include "x64/CodeGenerator-x64.h"
 #elif defined(JS_CPU_ARM)
 # include "arm/CodeGenerator-arm.h"
+#elif defined(JS_CPU_MIPS)
+#include "mips/CodeGenerator-mips.h"
 #else
 #error "CPU Not Supported"
 #endif

@@ -219,7 +219,7 @@ jit::CheckLogging()
     if (LoggingChecked)
         return;
     LoggingChecked = true;
-    const char *env = getenv("IONFLAGS");
+    const char* env = NULL;
     if (!env)
         return;
     if (strstr(env, "help")) {
@@ -261,6 +261,7 @@ jit::CheckLogging()
         exit(0);
         /*NOTREACHED*/
     }
+
     if (ContainsFlag(env, "aborts"))
         EnableChannel(IonSpew_Abort);
     if (ContainsFlag(env, "alias"))
