@@ -124,7 +124,10 @@ static SB_C_FORCE_INLINE EzTimeValue EzTimeValueFromSbTime(SbTime in_time) {
   SbTime diff = in_time - EzTimeTToSbTime(sec);
   SB_DCHECK(diff >= INT_MIN);
   SB_DCHECK(diff <= INT_MAX);
-  return {sec, (int)diff};
+  EzTimeValue value = {sec, (int)diff};  // Some compilers do not support
+                                         // returning the initializer list
+                                         // directly.
+  return value;
 }
 
 // Converts EzTimeValue to SbTime.
