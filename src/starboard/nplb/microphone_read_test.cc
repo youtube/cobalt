@@ -35,16 +35,41 @@ TEST(SbMicrophoneReadTest, SunnyDay) {
         info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     ASSERT_TRUE(SbMicrophoneIsValid(microphone));
 
-    bool success = SbMicrophoneOpen(microphone);
-    ASSERT_TRUE(success);
+    ASSERT_TRUE(SbMicrophoneOpen(microphone));
 
-    void* audio_data[1024];
+    int requested_bytes = info_array[0].min_read_size;
+    std::vector<uint8_t> audio_data(requested_bytes, 0);
     int read_bytes =
-        SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
+        SbMicrophoneRead(microphone, &audio_data[0], audio_data.size());
     EXPECT_GE(read_bytes, 0);
 
-    success = SbMicrophoneClose(microphone);
-    EXPECT_TRUE(success);
+    EXPECT_TRUE(SbMicrophoneClose(microphone));
+    SbMicrophoneDestroy(microphone);
+  }
+}
+
+TEST(SbMicrophoneReadTest, SunnyDayReadIsLargerThanMinReadSize) {
+  SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
+  int available_microphones =
+      SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
+  EXPECT_GE(available_microphones, 0);
+
+  if (available_microphones != 0) {
+    ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
+        info_array[0].id, info_array[0].max_sample_rate_hz));
+    SbMicrophone microphone = SbMicrophoneCreate(
+        info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
+    ASSERT_TRUE(SbMicrophoneIsValid(microphone));
+
+    ASSERT_TRUE(SbMicrophoneOpen(microphone));
+
+    int requested_bytes = info_array[0].min_read_size;
+    std::vector<uint8_t> audio_data(requested_bytes * 2, 0);
+    int read_bytes =
+        SbMicrophoneRead(microphone, &audio_data[0], audio_data.size());
+    EXPECT_GE(read_bytes, 0);
+
+    EXPECT_TRUE(SbMicrophoneClose(microphone));
     SbMicrophoneDestroy(microphone);
   }
 }
@@ -62,22 +87,19 @@ TEST(SbMicrophoneReadTest, SunnyDayOpenSleepCloseAndOpenRead) {
         info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     ASSERT_TRUE(SbMicrophoneIsValid(microphone));
 
-    bool success = SbMicrophoneOpen(microphone);
-    EXPECT_TRUE(success);
+    EXPECT_TRUE(SbMicrophoneOpen(microphone));
 
     SbThreadSleep(50 * kSbTimeMillisecond);
 
-    success = SbMicrophoneClose(microphone);
-    EXPECT_TRUE(success);
+    EXPECT_TRUE(SbMicrophoneClose(microphone));
+    EXPECT_TRUE(SbMicrophoneOpen(microphone));
 
-    success = SbMicrophoneOpen(microphone);
-    EXPECT_TRUE(success);
-
-    void* audio_data[16 * 1024];
+    int requested_bytes = info_array[0].min_read_size;
+    std::vector<uint8_t> audio_data(requested_bytes, 0);
     int read_bytes =
-        SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
+        SbMicrophoneRead(microphone, &audio_data[0], audio_data.size());
     EXPECT_GE(read_bytes, 0);
-    EXPECT_LT(read_bytes, sizeof(audio_data));
+    EXPECT_LT(read_bytes, audio_data.size());
 
     SbMicrophoneDestroy(microphone);
   }
@@ -96,14 +118,12 @@ TEST(SbMicrophoneReadTest, RainyDayAudioBufferIsNULL) {
         info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     ASSERT_TRUE(SbMicrophoneIsValid(microphone));
 
-    bool success = SbMicrophoneOpen(microphone);
-    ASSERT_TRUE(success);
+    ASSERT_TRUE(SbMicrophoneOpen(microphone));
 
     int read_bytes = SbMicrophoneRead(microphone, NULL, 0);
     EXPECT_EQ(read_bytes, 0);
 
-    success = SbMicrophoneClose(microphone);
-    EXPECT_TRUE(success);
+    EXPECT_TRUE(SbMicrophoneClose(microphone));
     SbMicrophoneDestroy(microphone);
   }
 }
@@ -121,14 +141,38 @@ TEST(SbMicrophoneReadTest, RainyDayAudioBufferSizeIsSmallerThanRequestedSize) {
         info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     ASSERT_TRUE(SbMicrophoneIsValid(microphone));
 
-    bool success = SbMicrophoneOpen(microphone);
-    ASSERT_TRUE(success);
+    ASSERT_TRUE(SbMicrophoneOpen(microphone));
 
     int read_bytes = SbMicrophoneRead(microphone, NULL, 1024);
     EXPECT_LE(read_bytes, 0);
 
-    success = SbMicrophoneClose(microphone);
-    EXPECT_TRUE(success);
+    EXPECT_TRUE(SbMicrophoneClose(microphone));
+    SbMicrophoneDestroy(microphone);
+  }
+}
+
+TEST(SbMicrophoneReadTest, RainyDayAudioBufferSizeIsSmallerThanMinReadSize) {
+  SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
+  int available_microphones =
+      SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
+  EXPECT_GE(available_microphones, 0);
+
+  if (available_microphones != 0) {
+    ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
+        info_array[0].id, info_array[0].max_sample_rate_hz));
+    SbMicrophone microphone = SbMicrophoneCreate(
+        info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
+    ASSERT_TRUE(SbMicrophoneIsValid(microphone));
+
+    ASSERT_TRUE(SbMicrophoneOpen(microphone));
+
+    int requested_bytes = info_array[0].min_read_size;
+    std::vector<uint8_t> audio_data(requested_bytes / 2, 0);
+    int read_bytes =
+        SbMicrophoneRead(microphone, &audio_data[0], audio_data.size());
+    EXPECT_GE(read_bytes, 0);
+
+    EXPECT_TRUE(SbMicrophoneClose(microphone));
     SbMicrophoneDestroy(microphone);
   }
 }
@@ -146,10 +190,12 @@ TEST(SbMicrophoneReadTest, RainyDayOpenIsNotCalled) {
         info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     ASSERT_TRUE(SbMicrophoneIsValid(microphone));
 
-    void* audio_data[1024];
+    int requested_bytes = info_array[0].min_read_size;
+    std::vector<uint8_t> audio_data(requested_bytes, 0);
     int read_bytes =
-        SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
-    EXPECT_EQ(read_bytes, 0);
+        SbMicrophoneRead(microphone, &audio_data[0], audio_data.size());
+    // An error should have occurred because open was not called.
+    EXPECT_LT(read_bytes, 0);
 
     SbMicrophoneDestroy(microphone);
   }
@@ -168,26 +214,24 @@ TEST(SbMicrophoneReadTest, RainyDayOpenCloseAndRead) {
         info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     ASSERT_TRUE(SbMicrophoneIsValid(microphone));
 
-    bool success = SbMicrophoneOpen(microphone);
-    EXPECT_TRUE(success);
+    EXPECT_TRUE(SbMicrophoneOpen(microphone));
+    EXPECT_TRUE(SbMicrophoneClose(microphone));
 
-    success = SbMicrophoneClose(microphone);
-    EXPECT_TRUE(success);
-
-    void* audio_data[1024];
+    int requested_bytes = info_array[0].min_read_size;
+    std::vector<uint8_t> audio_data(requested_bytes, 0);
     int read_bytes =
-        SbMicrophoneRead(microphone, audio_data, sizeof(audio_data));
-    // No data can be read.
-    EXPECT_EQ(read_bytes, 0);
+        SbMicrophoneRead(microphone, &audio_data[0], audio_data.size());
+    // An error should have occurred because the microphone was closed.
+    EXPECT_LT(read_bytes, 0);
 
     SbMicrophoneDestroy(microphone);
   }
 }
 
 TEST(SbMicrophoneReadTest, RainyDayMicrophoneIsInvalid) {
-  void* audio_data[1024];
+  std::vector<uint8_t> audio_data(1024, 0);
   int read_bytes =
-      SbMicrophoneRead(kSbMicrophoneInvalid, audio_data, sizeof(audio_data));
+      SbMicrophoneRead(kSbMicrophoneInvalid, &audio_data[0], audio_data.size());
   EXPECT_LT(read_bytes, 0);
 }
 

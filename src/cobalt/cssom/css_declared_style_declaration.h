@@ -39,6 +39,8 @@ class CSSParser;
 // for declared styles, such as css style rules and inline styles.
 class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
  public:
+  using CSSStyleDeclaration::SetProperty;
+
   explicit CSSDeclaredStyleDeclaration(CSSParser* css_parser);
 
   CSSDeclaredStyleDeclaration(const scoped_refptr<CSSDeclaredStyleData>& data,
@@ -57,6 +59,11 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value,
                         script::ExceptionState* exception_state) OVERRIDE;
+
+  void SetProperty(const std::string& property_name,
+                   const std::string& property_value,
+                   const std::string& priority,
+                   script::ExceptionState* exception_state) OVERRIDE;
 
   // Custom.
 

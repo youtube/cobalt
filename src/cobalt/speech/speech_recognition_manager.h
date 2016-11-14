@@ -21,7 +21,9 @@
 
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_state.h"
-#include "cobalt/speech/mic.h"
+#include "cobalt/speech/endpointer_delegate.h"
+#include "cobalt/speech/microphone_manager.h"
+#include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
@@ -42,7 +44,8 @@ class SpeechRecognitionManager {
   typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;
 
   SpeechRecognitionManager(network::NetworkModule* network_module,
-                           const EventCallback& event_callback);
+                           const EventCallback& event_callback,
+                           bool enable_fake_microphone);
   ~SpeechRecognitionManager();
 
   // Start/Stop speech recognizer and microphone. Multiple calls would be
@@ -62,7 +65,7 @@ class SpeechRecognitionManager {
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
-  void OnMicError();
+  void OnMicError(const scoped_refptr<dom::Event>& event);
 
   // Callbacks from recognizer.
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
@@ -76,7 +79,12 @@ class SpeechRecognitionManager {
   // Callback for sending dom events if available.
   EventCallback event_callback_;
   SpeechRecognizer recognizer_;
-  scoped_ptr<Mic> mic_;
+
+  MicrophoneManager microphone_manager_;
+
+  // Delegate of endpointer which is used for detecting sound energy.
+  EndPointerDelegate endpointer_delegate_;
+
   State state_;
 };
 

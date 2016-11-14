@@ -17,6 +17,7 @@
 #include "cobalt/speech/speech_recognition_manager.h"
 
 #include "base/bind.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
@@ -28,7 +29,8 @@ const float kAudioPacketDurationInSeconds = 0.1f;
 }  // namespace
 
 SpeechRecognitionManager::SpeechRecognitionManager(
-    network::NetworkModule* network_module, const EventCallback& event_callback)
+    network::NetworkModule* network_module, const EventCallback& event_callback,
+    bool enable_fake_microphone)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
       main_message_loop_(base::MessageLoopProxy::current()),
@@ -37,13 +39,15 @@ SpeechRecognitionManager::SpeechRecognitionManager(
           recognizer_(network_module,
                       base::Bind(&SpeechRecognitionManager::OnRecognizerEvent,
                                  base::Unretained(this)))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(mic_(Mic::Create(
+      ALLOW_THIS_IN_INITIALIZER_LIST(microphone_manager_(
           kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
                                   base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnDataCompletion,
                      base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnMicError,
-                     base::Unretained(this))))),
+                     base::Unretained(this)),
+          enable_fake_microphone)),
+      endpointer_delegate_(kSampleRate),
       state_(kStopped) {}
 
 SpeechRecognitionManager::~SpeechRecognitionManager() { Stop(); }
@@ -61,7 +65,8 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   }
 
   recognizer_.Start(config, kSampleRate);
-  mic_->Start();
+  microphone_manager_.Open();
+  endpointer_delegate_.Start();
   state_ = kStarted;
 }
 
@@ -74,9 +79,11 @@ void SpeechRecognitionManager::Stop() {
     return;
   }
 
-  mic_->Stop();
+  endpointer_delegate_.Stop();
+  microphone_manager_.Close();
   recognizer_.Stop();
   state_ = kStopped;
+  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
 }
 
 void SpeechRecognitionManager::Abort() {
@@ -88,9 +95,11 @@ void SpeechRecognitionManager::Abort() {
     return;
   }
 
-  mic_->Stop();
+  endpointer_delegate_.Stop();
+  microphone_manager_.Close();
   recognizer_.Stop();
   state_ = kAborted;
+  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
 }
 
 void SpeechRecognitionManager::OnDataReceived(
@@ -105,6 +114,9 @@ void SpeechRecognitionManager::OnDataReceived(
 
   // Stop recognizing if in the abort state.
   if (state_ != kAborted) {
+    if (endpointer_delegate_.IsFirstTimeSoundStarted(*audio_bus)) {
+      event_callback_.Run(new dom::Event(base::Tokens::soundstart()));
+    }
     recognizer_.RecognizeAudio(audio_bus.Pass(), false);
   }
 }
@@ -125,7 +137,7 @@ void SpeechRecognitionManager::OnDataCompletion() {
     size_t dummy_frames =
         static_cast<size_t>(kSampleRate * kAudioPacketDurationInSeconds);
     scoped_ptr<ShellAudioBus> dummy_audio_bus(new ShellAudioBus(
-        1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
+        1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
     dummy_audio_bus->ZeroAllFrames();
     recognizer_.RecognizeAudio(dummy_audio_bus.Pass(), true);
   }
@@ -147,22 +159,23 @@ void SpeechRecognitionManager::OnRecognizerEvent(
   }
 }
 
-void SpeechRecognitionManager::OnMicError() {
+void SpeechRecognitionManager::OnMicError(
+    const scoped_refptr<dom::Event>& event) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     // Called from mic thread.
     main_message_loop_->PostTask(
         FROM_HERE,
-        base::Bind(&SpeechRecognitionManager::OnMicError, weak_this_));
+        base::Bind(&SpeechRecognitionManager::OnMicError, weak_this_, event));
     return;
   }
 
-  event_callback_.Run(
-      scoped_refptr<SpeechRecognitionError>(new SpeechRecognitionError(
-          SpeechRecognitionError::kAborted, "Mic Disconnected.")));
+  event_callback_.Run(event);
 
-  // An error is occured in Mic, so stopping the recognizer.
+  // An error is occured in Mic, so stop the energy endpointer and recognizer.
+  endpointer_delegate_.Stop();
   recognizer_.Stop();
   state_ = kAborted;
+  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
 }
 
 }  // namespace speech

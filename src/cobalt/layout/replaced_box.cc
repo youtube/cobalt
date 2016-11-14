@@ -60,6 +60,25 @@ const float kFallbackIntrinsicRatio = 2.0f;
 // means, as per https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
 const float kFallbackWidth = 300.0f;
 
+// Convert the parsed keyword value for a stereo mode into a stereo mode enum
+// value.
+render_tree::StereoMode ReadStereoMode(
+    const scoped_refptr<cssom::KeywordValue>& keyword_value) {
+  cssom::KeywordValue::Value value = keyword_value->value();
+
+  if (value == cssom::KeywordValue::kMonoscopic) {
+    return render_tree::kMono;
+  } else if (value == cssom::KeywordValue::kStereoscopicLeftRight) {
+    return render_tree::kLeftRight;
+  } else if (value == cssom::KeywordValue::kStereoscopicTopBottom) {
+    return render_tree::kTopBottom;
+  } else {
+    LOG(DFATAL) << "Stereo mode has an invalid non-NULL value, defaulting to "
+                << "monoscopic";
+    return render_tree::kMono;
+  }
+}
+
 }  // namespace
 
 ReplacedBox::ReplacedBox(
@@ -172,9 +191,9 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
   return GetMarginBoxHeight();
 }
 
-namespace {
-
 #if !PUNCH_THROUGH_VIDEO_RENDERING
+
+namespace {
 
 void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
                            CompositionNode::Builder* composition_node_builder) {
@@ -200,10 +219,7 @@ void AddLetterboxedImageToRenderTree(
   AddLetterboxFillRects(dimensions, composition_node_builder);
 }
 
-#endif  // !PUNCH_THROUGH_VIDEO_RENDERING
-
 void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
-               const ReplacedBox::SetBoundsCB& set_bounds_cb,
                math::SizeF destination_size,
                CompositionNode::Builder* composition_node_builder,
                base::TimeDelta time) {
@@ -212,14 +228,6 @@ void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
   DCHECK(!replace_image_cb.is_null());
   DCHECK(composition_node_builder);
 
-#if PUNCH_THROUGH_VIDEO_RENDERING
-  // For systems that have their own path to blitting video to the display, we
-  // simply punch a hole through our scene so that the video can appear there.
-  PunchThroughVideoNode::Builder builder(math::RectF(destination_size),
-                                         set_bounds_cb);
-  composition_node_builder->AddChild(new PunchThroughVideoNode(builder));
-#else   // PUNCH_THROUGH_VIDEO_RENDERING
-  UNREFERENCED_PARAMETER(set_bounds_cb);
   scoped_refptr<render_tree::Image> image = replace_image_cb.Run();
 
   // TODO: Detect better when the intrinsic video size is used for the
@@ -234,10 +242,11 @@ void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
         GetLetterboxDimensions(image->GetSize(), destination_size), image,
         composition_node_builder);
   }
-#endif  // PUNCH_THROUGH_VIDEO_RENDERING
 }
 
 }  // namespace
+
+#endif  // !PUNCH_THROUGH_VIDEO_RENDERING
 
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder) const {
@@ -257,19 +266,35 @@ void ReplacedBox::RenderAndAnimateContent(
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
+#if PUNCH_THROUGH_VIDEO_RENDERING
+  // For systems that have their own path to blitting video to the display, we
+  // simply punch a hole through our scene so that the video can appear there.
+  PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
+                                         set_bounds_cb_);
+  Node* frame_node = new PunchThroughVideoNode(builder);
+#else
   AnimateNode::Builder animate_node_builder;
   animate_node_builder.Add(
-      composition_node, base::Bind(AnimateCB, replace_image_cb_, set_bounds_cb_,
+      composition_node, base::Bind(AnimateCB, replace_image_cb_,
                                    content_box_size()));
 
-  Node* animate_node = new AnimateNode(animate_node_builder, composition_node);
+  Node* frame_node = new AnimateNode(animate_node_builder, composition_node);
+#endif  // PUNCH_THROUGH_VIDEO_RENDERING
 
   const cssom::MTMFunction* mtm_filter_function =
       cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
 
-  border_node_builder->AddChild(
-      mtm_filter_function ? new FilterNode(MapToMeshFilter(), animate_node)
-                          : animate_node);
+  Node* content_node;
+  if (mtm_filter_function) {
+    const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =
+        mtm_filter_function->stereo_mode();
+    render_tree::StereoMode stereo_mode =
+        ReadStereoMode(stereo_mode_keyword_value);
+    content_node = new FilterNode(MapToMeshFilter(stereo_mode), frame_node);
+  } else {
+    content_node = frame_node;
+  }
+  border_node_builder->AddChild(content_node);
 }
 
 void ReplacedBox::UpdateContentSizeAndMargins(

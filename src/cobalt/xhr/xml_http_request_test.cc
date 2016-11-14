@@ -93,7 +93,7 @@ ScopedLogInterceptor* ScopedLogInterceptor::log_interceptor_;
 class FakeSettings : public dom::DOMSettings {
  public:
   FakeSettings()
-      : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
+      : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
   GURL base_url() const OVERRIDE { return GURL("http://example.com"); }
 };
 

@@ -121,7 +121,8 @@ TEST(PropertyValueVisitorTest, VisitsFilterListValue) {
 
   FilterFunctionListValue::Builder builder;
   builder.push_back(new MTMFunction(new URLValue("p.msh"), resMs.Pass(), 120,
-                                    60, glm::mat4(1.0f)));
+                                    60, glm::mat4(1.0f),
+                                    KeywordValue::GetMonoscopic()));
 
   scoped_refptr<FilterFunctionListValue> filter_list_value =
       new FilterFunctionListValue(builder.Pass());

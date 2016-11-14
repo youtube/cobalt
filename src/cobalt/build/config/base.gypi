@@ -95,9 +95,11 @@
     'lbshell_root%': '<(DEPTH)/lbshell',
 
     # The relative path from src/ to the directory containing the
-    # starboard_platform.gyp file, or the empty string if not an autodiscovered
-    # platform.
-    'starboard_path%': '',
+    # starboard_platform.gyp file.  It is currently set to
+    # 'starboard/<(target_arch)' to make semi-starboard platforms work.
+    # TODO: Set the default value to '' once all semi-starboard platforms are
+    # moved to starboard.
+    'starboard_path%': 'starboard/<(target_arch)',
 
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
@@ -159,6 +161,12 @@
     # Determines the capacity of the remote typefaces cache which manages all
     # typefaces downloaded from a web page.
     'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
+
+    # Only relevant if you are using the Blitter API.
+    # Determines the capacity of the software surface cache, which is used to
+    # cache all surfaces that are rendered via a software rasterizer to avoid
+    # re-rendering them.
+    'software_surface_cache_size_in_bytes%': 10 * 1024 * 1024,
 
     # Modifying this value to be non-1.0f will result in the image cache
     # capacity being cleared and then temporarily reduced for the duration that
@@ -449,11 +457,13 @@
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
         'enable_about_scheme': 1,
+        'enable_fake_microphone': 1,
         'enable_file_scheme': 1,
         'enable_network_logging': 1,
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
         'enable_webdriver%': 1,
+        'sb_allows_memory_tracking': 1,
       },
     },
     {
@@ -461,11 +471,13 @@
         'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
         'enable_about_scheme': 0,
+        'enable_fake_microphone': 0,
         'enable_file_scheme': 0,
         'enable_network_logging': 0,
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
         'enable_webdriver': 0,
+        'sb_allows_memory_tracking': 0,
       },
     }],
   ],

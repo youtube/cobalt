@@ -25,4 +25,4 @@ interface ScriptExecutor {
 };
 
 callback ExecuteFunctionCallback =
-    DOMString(DOMString functionBody, DOMString json_args);
+    void(ScriptExecutorParams params, ScriptExecutorResult resultHandler);

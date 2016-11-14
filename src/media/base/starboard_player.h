@@ -131,6 +131,7 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   int ticket_;
   float volume_;
   bool paused_;
+  bool seek_pending_;
   DecoderBufferCache decoder_buffer_cache_;
 
   // The following variables can be accessed from GetInfo(), which can be called

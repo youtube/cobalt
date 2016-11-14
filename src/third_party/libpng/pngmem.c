@@ -24,7 +24,7 @@
 #if defined(STARBOARD)
 #  include "starboard/memory.h"
 #  define malloc SbMemoryAllocate
-#  define free SbMemoryFree
+#  define free SbMemoryDeallocate
 #endif
 #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
 

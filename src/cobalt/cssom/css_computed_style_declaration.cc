@@ -42,7 +42,8 @@ void CSSComputedStyleDeclaration::set_css_text(
 // declarations.
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-length
 unsigned int CSSComputedStyleDeclaration::length() const {
-  return data_ ? data_->length() : 0;
+  // Computed style declarations have all known longhand properties.
+  return kMaxLonghandPropertyKey + 1;
 }
 
 // The item(index) method must return the property name of the CSS declaration
@@ -50,8 +51,9 @@ unsigned int CSSComputedStyleDeclaration::length() const {
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
 base::optional<std::string> CSSComputedStyleDeclaration::Item(
     unsigned int index) const {
-  const char* item = data_ ? data_->Item(index) : NULL;
-  return item ? base::optional<std::string>(item) : base::nullopt;
+  if (index >= length()) return base::nullopt;
+  return base::optional<std::string>(
+      GetPropertyName(GetLexicographicalLonghandPropertyKey(index)));
 }
 
 std::string CSSComputedStyleDeclaration::GetDeclaredPropertyValueStringByKey(
@@ -68,6 +70,13 @@ std::string CSSComputedStyleDeclaration::GetDeclaredPropertyValueStringByKey(
 void CSSComputedStyleDeclaration::SetPropertyValue(
     const std::string& /*property_name*/, const std::string& /*property_value*/,
     script::ExceptionState* exception_state) {
+  dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
+                           exception_state);
+}
+
+void CSSComputedStyleDeclaration::SetProperty(
+    const std::string& /*property_name*/, const std::string& /*property_value*/,
+    const std::string& /*priority*/, script::ExceptionState* exception_state) {
   dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
                            exception_state);
 }

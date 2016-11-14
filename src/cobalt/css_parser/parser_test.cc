@@ -8311,6 +8311,9 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
 
   EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
   EXPECT_EQ(1.5f, mtm_function->vertical_fov());
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::Value::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
@@ -8345,6 +8348,9 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
   EXPECT_EQ(
       "yeehaw.msh",
       dynamic_cast<cssom::URLValue*>(meshes[1]->mesh_url().get())->value());
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::Value::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
@@ -8375,6 +8381,122 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
   EXPECT_EQ(2.0f, actual[1][1]);
   EXPECT_EQ(0.0f, actual[2][3]);
   EXPECT_EQ(4.0f, actual[3][3]);
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::Value::kMonoscopic);
+}
+
+TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(p.msh),"
+          "                    100deg 60deg,"
+          "                    matrix3d(1, 0, 0, 5,"
+          "                             0, 2, 0, 0,"
+          "                             6, 0, 3, 0,"
+          "                             0, 7, 0, 4),"
+          "                    monoscopic);",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  ASSERT_EQ(1, filter_list->value().size());
+
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::Value::kMonoscopic);
+}
+
+TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(p.msh),"
+          "                    100deg 60deg,"
+          "                    matrix3d(1, 0, 0, 5,"
+          "                             0, 2, 0, 0,"
+          "                             6, 0, 3, 0,"
+          "                             0, 7, 0, 4),"
+          "                    stereoscopic-left-right);",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  ASSERT_EQ(1, filter_list->value().size());
+
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::Value::kStereoscopicLeftRight);
+}
+
+TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(p.msh),"
+          "                    100deg 60deg,"
+          "                    matrix3d(1, 0, 0, 5,"
+          "                             0, 2, 0, 0,"
+          "                             6, 0, 3, 0,"
+          "                             0, 7, 0, 4),"
+          "                    stereoscopic-top-bottom);",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  ASSERT_EQ(1, filter_list->value().size());
+
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::Value::kStereoscopicTopBottom);
+}
+
+TEST_F(ParserTest, HandlesInvalidMtmStereoMode) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:9: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(p.msh),"
+          "                    100deg 60deg,"
+          "                    matrix3d(1, 0, 0, 5,"
+          "                             0, 2, 0, 0,"
+          "                             6, 0, 3, 0,"
+          "                             0, 7, 0, 4),"
+          "                    invalid-stereo-mode);",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_FALSE(filter_list);
+}
+
+TEST_F(ParserTest, EmptyPropertyValueRemovesProperty) {
+  // Test that parsing an empty property value removes the previously declared
+  // property value.
+  scoped_refptr<cssom::CSSDeclaredStyleData> style_data =
+      parser_.ParseStyleDeclarationList("display: inline;", source_location_);
+
+  scoped_refptr<cssom::CSSDeclaredStyleDeclaration> style =
+      new cssom::CSSDeclaredStyleDeclaration(style_data, &parser_);
+
+  style->SetPropertyValue(std::string("display"), std::string(), NULL);
+  EXPECT_EQ(style->GetPropertyValue("display"), "");
+  EXPECT_FALSE(style_data->GetPropertyValue(cssom::kDisplayProperty));
 }
 
 }  // namespace css_parser

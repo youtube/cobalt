@@ -236,7 +236,8 @@ void PNGImageDecoder::HeaderAvailableCallback() {
   }
 
   AllocateImageData(
-      math::Size(static_cast<int>(width), static_cast<int>(height)));
+      math::Size(static_cast<int>(width), static_cast<int>(height)),
+      has_alpha_);
 
   set_state(kReadLines);
 }

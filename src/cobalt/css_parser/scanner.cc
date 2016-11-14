@@ -2204,6 +2204,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kStepStartToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMonoscopicKeywordName)) {
+        *property_value_token = kMonoscopicToken;
+        return true;
+      }
       return false;
 
     case 11:
@@ -2259,6 +2263,19 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       if (IsEqualToCssIdentifier(name.begin,
                                  cssom::kAlternateReverseKeywordName)) {
         *property_value_token = kAlternateReverseToken;
+        return true;
+      }
+      return false;
+
+    case 23:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kStereoscopicLeftRightKeywordName)) {
+        *property_value_token = kStereoscopicLeftRightToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kStereoscopicTopBottomKeywordName)) {
+        *property_value_token = kStereoscopicTopBottomToken;
         return true;
       }
       return false;

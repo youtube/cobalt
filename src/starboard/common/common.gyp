@@ -24,10 +24,17 @@
         'includes_starboard': 1,
       },
       'sources': [
+        'common.cc',
+        'decode_target_provider.cc',
         'memory.cc',
         'move.h',
         'reset_and_return.h',
         'scoped_ptr.h',
+      ],
+      'defines': [
+        # This must be defined when building Starboard, and must not when
+        # building Starboard client code.
+        'STARBOARD_IMPLEMENTATION',
       ],
     },
   ],

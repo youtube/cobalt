@@ -201,8 +201,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
 
-  bool flushing_;
-
   // The following member variables can be accessed from WMPI thread but all
   // modifications to them happens on the pipeline thread.  So any access of
   // them from the WMPI thread and any modification to them on the pipeline
@@ -232,7 +230,6 @@ SbPlayerPipeline::SbPlayerPipeline(
       has_video_(false),
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
-      flushing_(false),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       suspended_(false) {}
 
@@ -327,18 +324,16 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
     seek_cb.Run(PIPELINE_ERROR_INVALID_STATE);
   }
 
+  player_->PrepareForSeek();
+
   DCHECK(seek_cb_.is_null());
   DCHECK(!seek_cb.is_null());
-
-  flushing_ = true;
 
   if (audio_read_in_progress_ || video_read_in_progress_) {
     message_loop_->PostTask(
         FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb));
     return;
   }
-
-  player_->PrepareForSeek();
 
   {
     base::AutoLock auto_lock(lock_);
@@ -526,8 +521,8 @@ void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
     return;
   }
 
-  if (error != PIPELINE_OK && !error_cb_.is_null()) {
-    base::ResetAndReturn(&error_cb_).Run(error);
+  if (error != PIPELINE_OK) {
+    ResetAndRunIfNotNull(&error_cb_, error);
   }
 }
 
@@ -600,9 +595,13 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (status != PIPELINE_OK) {
-    if (!error_cb_.is_null()) {
-      base::ResetAndReturn(&error_cb_).Run(status);
-    }
+    ResetAndRunIfNotNull(&error_cb_, status);
+    return;
+  }
+
+  if (demuxer_->GetStream(DemuxerStream::AUDIO) == NULL ||
+      demuxer_->GetStream(DemuxerStream::VIDEO) == NULL) {
+    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
 
@@ -637,7 +636,6 @@ void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (status == PIPELINE_OK) {
-    flushing_ = false;
     player_->Seek(seek_time_);
   }
 }
@@ -682,7 +680,6 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
       video_read_in_progress_ = false;
     }
     if (!seek_cb_.is_null()) {
-      buffering_state_cb_.Run(kPrerollCompleted);
       PipelineStatusCB seek_cb;
       {
         base::AutoLock auto_lock(lock_);
@@ -715,10 +712,6 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
 
   // In case if Stop() has been called.
   if (!player_) {
-    return;
-  }
-
-  if (flushing_) {
     return;
   }
 
@@ -768,9 +761,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStateDestroyed:
       break;
     case kSbPlayerStateError:
-      if (!error_cb_.is_null()) {
-        base::ResetAndReturn(&error_cb_).Run(PIPELINE_ERROR_DECODE);
-      }
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE);
       break;
   }
 }

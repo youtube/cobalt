@@ -82,6 +82,8 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<std::string> GetSource();
   util::CommandResult<protocol::ScriptResult> Execute(
       const protocol::Script& script);
+  util::CommandResult<protocol::ScriptResult> ExecuteAsync(
+      const protocol::Script& script);
   util::CommandResult<void> SendKeys(const protocol::Keys& keys);
   util::CommandResult<protocol::ElementId> GetActiveElement();
   util::CommandResult<void> SwitchFrame(const protocol::FrameId& frame_id);
@@ -117,7 +119,9 @@ class WindowDriver : private ElementMapping {
       const protocol::SearchStrategy& strategy);
 
   util::CommandResult<protocol::ScriptResult> ExecuteScriptInternal(
-      const protocol::Script& script);
+      const protocol::Script& script,
+      base::optional<base::TimeDelta> async_timeout,
+      ScriptExecutorResult::ResultHandler* result_handler);
 
   util::CommandResult<void> SendKeysInternal(
       scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);

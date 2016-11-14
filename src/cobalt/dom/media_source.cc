@@ -73,35 +73,6 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
 
 }  // namespace
 
-void MediaSource::Registry::Register(
-    const std::string& blob_url,
-    const scoped_refptr<MediaSource>& media_source) {
-  DCHECK(media_source);
-  DCHECK(media_source_registry_.find(blob_url) == media_source_registry_.end());
-  media_source_registry_.insert(std::make_pair(blob_url, media_source));
-}
-
-scoped_refptr<MediaSource> MediaSource::Registry::Retrieve(
-    const std::string& blob_url) {
-  MediaSourceRegistry::iterator iter = media_source_registry_.find(blob_url);
-  if (iter == media_source_registry_.end()) {
-    DLOG(WARNING) << "Cannot find MediaSource object for blob url " << blob_url;
-    return NULL;
-  }
-
-  return iter->second;
-}
-
-void MediaSource::Registry::Unregister(const std::string& blob_url) {
-  MediaSourceRegistry::iterator iter = media_source_registry_.find(blob_url);
-  if (iter == media_source_registry_.end()) {
-    DLOG(WARNING) << "Cannot find MediaSource object for blob url " << blob_url;
-    return;
-  }
-
-  media_source_registry_.erase(iter);
-}
-
 MediaSource::MediaSource()
     : ready_state_(kReadyStateClosed),
       player_(NULL),

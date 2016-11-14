@@ -301,7 +301,7 @@ voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, uInt items, uInt size)
 void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
 {
     SB_UNREFERENCED_PARAMETER(opaque);
-    SbMemoryFree(ptr);
+    SbMemoryDeallocate(ptr);
 }
 
 #endif /* STARBOARD */

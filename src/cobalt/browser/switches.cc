@@ -45,6 +45,10 @@ const char kEnableWebDriver[] = "enable_webdriver";
 // Additional base directory for accessing web files via file://.
 const char kExtraWebFileDir[] = "web_file_path";
 
+// If this flag is set, fake microphone will be used to mock the user voice
+// input.
+const char kFakeMicrophone[] = "fake_microphone";
+
 // Setting this switch causes all certificate errors to be ignored.
 const char kIgnoreCertificateErrors[] = "ignore_certificate_errors";
 
@@ -128,6 +132,13 @@ const char kScratchSurfaceCacheSizeInBytes[] =
 // hardware-accelerated Skia rasterizer.  While it depends on the platform, this
 // setting may affect GPU memory usage.
 const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
+
+// Only relevant if you are using the Blitter API.
+// Determines the capacity of the software surface cache, which is used to
+// cache all surfaces that are rendered via a software rasterizer to avoid
+// re-rendering them.
+const char kSoftwareSurfaceCacheSizeInBytes[] =
+    "software_surface_cache_size_in_bytes";
 
 // Determines the capacity of the surface cache.  The surface cache tracks which
 // render tree nodes are being re-used across frames and stores the nodes that

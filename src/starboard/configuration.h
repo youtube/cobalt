@@ -35,7 +35,12 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 2
+#define SB_MAXIMUM_API_VERSION 3
+
+// The API version that is currently open for changes, and therefore is not
+// stable or frozen. Production-oriented ports should avoid declaring that they
+// implement the experimental Starboard API version.
+#define SB_EXPERIMENTAL_API_VERSION 3
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -456,6 +461,15 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 // is available.
 #if !defined(SB_HAS_GLES2)
 #define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
+#endif
+
+// Specifies whether this platform has any kind of supported graphics system.
+#if !defined(SB_HAS_GRAPHICS)
+#if SB_HAS(GLES2) || SB_HAS(BLITTER)
+#define SB_HAS_GRAPHICS 1
+#else
+#define SB_HAS_GRAPHICS 0
+#endif
 #endif
 
 // Specifies whether the starboard media pipeline components (SbPlayerPipeline
