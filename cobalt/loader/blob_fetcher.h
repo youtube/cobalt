@@ -26,10 +26,17 @@ namespace loader {
 // For fetching the 'blob:' scheme.
 class BlobFetcher : public Fetcher {
  public:
-  // Returns true if the blob is succesfully fetched, and only then writes
-  // the address of the buffer and its size to |data| and |size|. |data| can
-  // be NULL when size is 0. This callback avoids a dependency from the
-  // fetcher to the actual blob implementation.
+  // This callback avoids a dependency from the fetcher to the actual blob
+  // implementation.
+  // If the blob is succesfully fetched:
+  //   1. Writes the size of its buffer to |size|.
+  //   2. If |size| > 0, then it also writes the address of the non-empty buffer
+  //      to |data|, otherwise writes NULL to |data|.
+  //   3. Returns true.
+  // If the fetch fails:
+  //   1. Writes 0 to |size|
+  //   2. Writes NULL to |data|
+  //   3. Returns false.
   typedef base::Callback<bool(const GURL& url, const char** data, size_t* size)>
       ResolverCallback;
 
