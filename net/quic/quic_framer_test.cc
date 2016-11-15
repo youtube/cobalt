@@ -16,6 +16,7 @@
 #include "net/quic/quic_protocol.h"
 #include "net/quic/quic_utils.h"
 #include "net/quic/test_tools/quic_test_utils.h"
+#include "net/test/disabled_if_big_endian.h"
 
 using base::hash_set;
 using base::StringPiece;
@@ -249,7 +250,7 @@ TEST_F(QuicFramerTest, EmptyPacket) {
   EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
 }
 
-TEST_F(QuicFramerTest, LargePacket) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(LargePacket)) {
   unsigned char packet[kMaxPacketSize + 1] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -271,13 +272,14 @@ TEST_F(QuicFramerTest, LargePacket) {
   EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_, encrypted));
 
   ASSERT_TRUE(visitor_.header_.get());
+
   // Make sure we've parsed the packet header, so we can send an error.
   EXPECT_EQ(GG_UINT64_C(0xFEDCBA9876543210), visitor_.header_->guid);
   // Make sure the correct error is propogated.
   EXPECT_EQ(QUIC_PACKET_TOO_LARGE, framer_.error());
 }
 
-TEST_F(QuicFramerTest, PacketHeader) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(PacketHeader)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -318,7 +320,7 @@ TEST_F(QuicFramerTest, PacketHeader) {
   }
 }
 
-TEST_F(QuicFramerTest, StreamFrame) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(StreamFrame)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -435,7 +437,7 @@ TEST_F(QuicFramerTest, RejectPacket) {
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
 }
 
-TEST_F(QuicFramerTest, RevivedStreamFrame) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(RevivedStreamFrame)) {
   unsigned char payload[] = {
     // frame count
     0x01,
@@ -486,7 +488,7 @@ TEST_F(QuicFramerTest, RevivedStreamFrame) {
   EXPECT_EQ("hello world!", visitor_.stream_frames_[0]->data);
 }
 
-TEST_F(QuicFramerTest, StreamFrameInFecGroup) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(StreamFrameInFecGroup)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -539,7 +541,7 @@ TEST_F(QuicFramerTest, StreamFrameInFecGroup) {
   EXPECT_EQ("hello world!", visitor_.stream_frames_[0]->data);
 }
 
-TEST_F(QuicFramerTest, AckFrame) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(AckFrame)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -606,7 +608,7 @@ TEST_F(QuicFramerTest, AckFrame) {
   }
 }
 
-TEST_F(QuicFramerTest, CongestionFeedbackFrameTCP) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(CongestionFeedbackFrameTCP)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -666,7 +668,8 @@ TEST_F(QuicFramerTest, CongestionFeedbackFrameTCP) {
   }
 }
 
-TEST_F(QuicFramerTest, CongestionFeedbackFrameInterArrival) {
+TEST_F(QuicFramerTest,
+       DISABLED_IF_BIG_ENDIAN(CongestionFeedbackFrameInterArrival)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -775,7 +778,7 @@ TEST_F(QuicFramerTest, CongestionFeedbackFrameInterArrival) {
   }
 }
 
-TEST_F(QuicFramerTest, CongestionFeedbackFrameFixRate) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(CongestionFeedbackFrameFixRate)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -858,7 +861,7 @@ TEST_F(QuicFramerTest, CongestionFeedbackFrameInvalidFeedback) {
   EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
 }
 
-TEST_F(QuicFramerTest, RstStreamFrame) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(RstStreamFrame)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -923,7 +926,7 @@ TEST_F(QuicFramerTest, RstStreamFrame) {
   }
 }
 
-TEST_F(QuicFramerTest, ConnectionCloseFrame) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(ConnectionCloseFrame)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -1008,7 +1011,7 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
   }
 }
 
-TEST_F(QuicFramerTest, FecPacket) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(FecPacket)) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -1047,7 +1050,7 @@ TEST_F(QuicFramerTest, FecPacket) {
   EXPECT_EQ("abcdefghijklmnop", fec_data.redundancy);
 }
 
-TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(ConstructStreamFramePacket)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
@@ -1102,7 +1105,7 @@ TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
                                       AsChars(packet), arraysize(packet));
 }
 
-TEST_F(QuicFramerTest, ConstructAckFramePacket) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(ConstructAckFramePacket)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
@@ -1154,7 +1157,8 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
                                       AsChars(packet), arraysize(packet));
 }
 
-TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketTCP) {
+TEST_F(QuicFramerTest,
+       DISABLED_IF_BIG_ENDIAN(ConstructCongestionFeedbackFramePacketTCP)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
@@ -1201,7 +1205,9 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketTCP) {
                                       AsChars(packet), arraysize(packet));
 }
 
-TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInterArrival) {
+TEST_F(QuicFramerTest,
+       DISABLED_IF_BIG_ENDIAN(
+           ConstructCongestionFeedbackFramePacketInterArrival)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
@@ -1274,7 +1280,8 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInterArrival) {
                                       AsChars(packet), arraysize(packet));
 }
 
-TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketFixRate) {
+TEST_F(QuicFramerTest,
+       DISABLED_IF_BIG_ENDIAN(ConstructCongestionFeedbackFramePacketFixRate)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
@@ -1337,7 +1344,7 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInvalidFeedback) {
   ASSERT_TRUE(data == NULL);
 }
 
-TEST_F(QuicFramerTest, ConstructRstFramePacket) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(ConstructRstFramePacket)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
@@ -1393,7 +1400,7 @@ TEST_F(QuicFramerTest, ConstructRstFramePacket) {
                                       AsChars(packet), arraysize(packet));
 }
 
-TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(ConstructCloseFramePacket)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
@@ -1460,7 +1467,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
                                       AsChars(packet), arraysize(packet));
 }
 
-TEST_F(QuicFramerTest, ConstructFecPacket) {
+TEST_F(QuicFramerTest, DISABLED_IF_BIG_ENDIAN(ConstructFecPacket)) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = (GG_UINT64_C(0x123456789ABC));
