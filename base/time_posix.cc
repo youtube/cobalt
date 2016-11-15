@@ -283,6 +283,11 @@ TimeTicks TimeTicks::ThreadNow() {
   return TimeTicks(absolute_micro);
 }
 
+// static
+bool TimeTicks::HasThreadNow() {
+  return true;
+}
+
 #if defined(OS_CHROMEOS)
 // Force definition of the system trace clock; it is a chromeos-only api
 // at the moment and surfacing it in the right place requires mucking

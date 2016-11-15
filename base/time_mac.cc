@@ -197,6 +197,11 @@ TimeTicks TimeTicks::ThreadNow() {
 }
 
 // static
+bool TimeTicks::HasThreadNow() {
+  return false;
+}
+
+// static
 TimeTicks TimeTicks::NowFromSystemTraceTime() {
   return HighResNow();
 }
