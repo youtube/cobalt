@@ -365,6 +365,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
 #endif
 
+#if SB_VERSION(3) && !defined(SB_HAS_TIME_THREAD_NOW)
+#error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
+#endif
+
 #if SB_HAS(PLAYER)
 #if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
     !SB_IS(PLAYER_PRODUCING_TEXTURE)
