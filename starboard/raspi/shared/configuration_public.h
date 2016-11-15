@@ -371,6 +371,12 @@
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
 
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
+
 // --- Platform Specific Audits ----------------------------------------------
 
 #if !defined(__GNUC__)
