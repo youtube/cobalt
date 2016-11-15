@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import json
+import logging
 import os
 import sys
 import time
@@ -332,4 +333,5 @@ class TvTestCase(unittest.TestCase):
 
 
 def main():
+  logging.basicConfig(level=logging.DEBUG)
   partial_layout_benchmark.main()
