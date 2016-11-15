@@ -13,7 +13,6 @@ import importlib
 import inspect
 import os
 import re
-import socket
 import sys
 import thread
 import threading
@@ -147,8 +146,8 @@ class CobaltRunner(object):
   def __exit__(self, exc_type, exc_value, traceback):
     # The unittest module terminates with a SystemExit
     # If this is a successful exit, then this is a successful run
-    success = exc_type is None or (exc_type is SystemExit
-                                   and not exc_value.code)
+    success = exc_type is None or (exc_type is SystemExit and
+                                   not exc_value.code)
     self.SetShouldExit(failed=not success)
     self.thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
 
@@ -208,11 +207,12 @@ class CobaltRunner(object):
       self.launcher.SetOutputFile(self.log_file)
       print("Running launcher", file=self.log_file)
       self.launcher.Run()
-      print("Cobalt terminated. failed: " + str(self.failed),
-            file=self.log_file)
+      print(
+          "Cobalt terminated. failed: " + str(self.failed), file=self.log_file)
       # This is watched for in webdriver_benchmark_test.py
       if not self.failed:
         sys.stdout.write("partial_layout_benchmark TEST COMPLETE\n")
+    # pylint: disable=broad-except
     except Exception as ex:
       print("Exception running Cobalt " + str(ex), file=sys.stderr)
     finally:
@@ -257,13 +257,9 @@ def main():
   if executable is None:
     executable = GetCobaltExecutablePath(platform, args.config)
 
-  devkit_name = args.devkit_name
-  if devkit_name is None:
-    devkit_name = socket.gethostname()
-
   try:
-    with CobaltRunner(platform, executable,
-                      devkit_name, args.log_file) as runner:
+    with CobaltRunner(platform, executable, args.devkit_name,
+                      args.log_file) as runner:
       unittest.main(testRunner=unittest.TextTestRunner(
           verbosity=0, stream=runner.log_file))
     return 0
