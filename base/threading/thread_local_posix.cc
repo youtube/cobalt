@@ -25,7 +25,7 @@ void ThreadLocalPlatform::FreeSlot(SlotType& slot) {
 }
 
 // static
-void* ThreadLocalPlatform::GetValueFromSlot(SlotType& slot) {
+void* ThreadLocalPlatform::GetValueFromSlot(const SlotType& slot) {
   return pthread_getspecific(slot);
 }
 
