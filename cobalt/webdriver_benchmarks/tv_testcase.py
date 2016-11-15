@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import json
 import logging
+import math
 import os
 import sys
 import time
@@ -42,63 +43,69 @@ PAGE_LOAD_WAIT_SECONDS = 30
 LAYOUT_TIMEOUT_SECONDS = 5
 
 
-def _median(l):
-  """Returns median value of items in a list.
-
-  Note: This function is setup for convenience, and might not be performant
-  for large datasets.  Also, no care has been taken to deal with nans, or
-  infinities, so please expand the functionality and tests if that is desired.
-  The other option is to use median.
-
-  Running time: O(n^2)
-  Space complexity: O(n)
-
-  Args:
-    l: List containing sortable items.
-
-  Returns:
-    Median of the items in a list.  None if |l| is empty.
-  """
-  if not l:
-    return None
-  l_length = len(l)
-  if l_length == 0:
-    return l[0]
-
-  l_sorted = sorted(l)
-  middle_index = l_length // 2
-  if len(l) % 2 == 1:
-    return l_sorted[middle_index]
-
-  # If there are even number of items, take the average of two middle values.
-  return 0.5 * (l_sorted[middle_index] + l_sorted[middle_index - 1])
-
-
-def _percentile(percentile, results):
+def _percentile(results, percentile):
   """Returns the percentile of an array.
 
-  This method always rounds down, except for the median case where
-  an even array is interpolated (see _median).
+  This method interpolates between two numbers if the percentile lands between
+  two data points.
 
   Args:
-      percentile: A number ranging from 0-1.
       results: Sortable results array.
+      percentile: A number ranging from 0-100.
   Returns:
       Appropriate value.
   Raises:
     RuntimeError: Raised on invalid args.
   """
-  if percentile > 1 or percentile < 0:
-    raise RuntimeError("percentile must be 0-1")
-  if 0.4999 < percentile < 0.5001:
-    return _median(results)
+  if not results:
+    return None
+  if percentile > 100 or percentile < 0:
+    raise RuntimeError("percentile must be 0-100")
   sorted_results = sorted(results)
-  if percentile == 1:
+
+  if percentile == 100:
     return sorted_results[-1]
-  index = int(len(sorted_results) * percentile)
-  if index != 0:
-    index -= 1
-  return sorted_results[index]
+  fractional, index = math.modf((len(sorted_results) - 1) * (percentile * 0.01))
+  index = int(index)
+
+  if len(sorted_results) == index + 1:
+    return sorted_results[index]
+
+  return sorted_results[index] * (1 - fractional
+                                 ) + sorted_results[index + 1] * fractional
+
+
+def _merge_dict(merge_into, merge_from):
+  """Merges the second dict into the first dict.
+
+  Merge into differs from update in that it will not override values.  If the
+  values already exist, the resulting value will be a list with a union of
+  existing and new items.
+
+  Args:
+    merge_into: An output dict to merge values into.
+    merge_from: An input dict to iterate over and insert values from.
+
+  Returns:
+    None
+  """
+  if not merge_from:
+    return
+  for k, v in merge_from.items():
+    try:
+      existing_value = merge_into[k]
+    except KeyError:
+      merge_into[k] = v
+      continue
+
+    if not isinstance(v, list):
+      v = [v]
+    if isinstance(existing_value, list):
+      existing_value.extend(v)
+    else:
+      new_value = [existing_value]
+      new_value.extend(v)
+      merge_into[k] = new_value
 
 
 class TvTestCase(unittest.TestCase):
@@ -165,22 +172,25 @@ class TvTestCase(unittest.TestCase):
     query_dict = BASE_PARAMS.copy()
     if query_params:
       query_dict.update(urlparse.parse_qsl(parsed_url[4]))
-      query_dict.update(query_params)
-    parsed_url[4] = urlencode(query_dict)
+      _merge_dict(query_dict, query_params)
+    parsed_url[4] = urlencode(query_dict, doseq=True)
     final_url = urlparse.urlunparse(parsed_url)
     self.get_webdriver().get(final_url)
 
-  def load_tv(self, label=None):
+  def load_tv(self, label=None, additional_query_params=None):
     """Loads the main TV page and waits for it to display.
 
     Args:
       label: A value for the label query parameter.
+      additional_query_params: A dict containing additional query parameters.
     Raises:
       Underlying WebDriver exceptions
     """
-    query_params = None
+    query_params = {}
     if label is not None:
       query_params = {"label": label}
+    if additional_query_params is not None:
+      query_params.update(additional_query_params)
     self.goto(TV_APP_PATH, query_params)
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
@@ -312,22 +322,22 @@ class TvTestCase(unittest.TestCase):
       name: name of test case
       results: Test results array. Must be array of JSON encodable scalar.
     """
-    value_to_record = _median(results)
+    value_to_record = _percentile(results, 50)
 
     string_value_to_record = json.JSONEncoder().encode(value_to_record)
     print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
 
-  def record_result_percentile(self, name, percentile, results):
+  def record_result_percentile(self, name, results, percentile):
     """Records the percentile of an array of results.
 
     Args:
       name: The (string) name of test case.
-      percentile: A number ranging from 0-1.
       results: Test results array. Must be array of JSON encodable scalars.
+      percentile: A number ranging from 0-100.
     Raises:
       RuntimeError: Raised on invalid args.
     """
-    value_to_record = _percentile(percentile, results)
+    value_to_record = _percentile(results, percentile)
     string_value_to_record = json.JSONEncoder().encode(value_to_record)
     print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
 

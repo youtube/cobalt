@@ -25,45 +25,92 @@ import unittest
 # This directory is a package
 sys.path.insert(0, os.path.abspath('.'))
 # pylint: disable=C6203,C6203
+# pylint: disable=g-import-not-at-top
 import tv_testcase
 
 
-class MedianTest(unittest.TestCase):
+class MedianPercentileTest(unittest.TestCase):
 
   def test_empty_case(self):
-    self.assertEqual(tv_testcase._median([]), None)
+    self.assertEqual(tv_testcase._percentile([], 50), None)
 
   def test_one_item(self):
-    self.assertEqual(tv_testcase._median([1]), 1)
+    self.assertEqual(tv_testcase._percentile([1], 50), 1)
 
   def test_two_items(self):
-    self.assertAlmostEqual(tv_testcase._median([4, 1]), 2.5)
+    self.assertAlmostEqual(tv_testcase._percentile([4, 1], 50), 2.5)
 
   def test_three_items(self):
-    self.assertAlmostEqual(tv_testcase._median([4, -4, -2]), -2)
+    self.assertAlmostEqual(tv_testcase._percentile([4, -4, -2], 50), -2)
 
   def test_four_items(self):
-    self.assertAlmostEqual(tv_testcase._median([4, 0, 1, -2]), 0.5)
+    self.assertAlmostEqual(tv_testcase._percentile([4, 0, 1, -2], 50), 0.5)
 
 
 class PercentileTest(unittest.TestCase):
 
   def test_one_item(self):
-    self.assertEqual(tv_testcase._percentile(0.1, [1]), 1)
-    self.assertEqual(tv_testcase._percentile(0.5, [2]), 2)
-    self.assertEqual(tv_testcase._percentile(0.9, [3]), 3)
+    self.assertEqual(tv_testcase._percentile([1], 10), 1)
+    self.assertEqual(tv_testcase._percentile([2], 50), 2)
+    self.assertEqual(tv_testcase._percentile([3], 90), 3)
 
   def test_two_items(self):
-    self.assertEqual(tv_testcase._percentile(0.1, [2, 1]), 1)
-    self.assertEqual(tv_testcase._percentile(0.5, [2, 3]), 2.5)
-    self.assertEqual(tv_testcase._percentile(0.9, [3, 4]), 3)
-    self.assertEqual(tv_testcase._percentile(1, [3, 4]), 4)
+    self.assertEqual(tv_testcase._percentile([2, 1], 10), 1.1)
+    self.assertEqual(tv_testcase._percentile([2, 3], 50), 2.5)
+    self.assertEqual(tv_testcase._percentile([3, 4], 90), 3.9)
+    self.assertEqual(tv_testcase._percentile([3, 4], 100), 4)
 
   def test_five_items(self):
-    self.assertEqual(tv_testcase._percentile(0.1, [2, 1, 3, 4, 5]), 1)
-    self.assertEqual(tv_testcase._percentile(0.5, [2, 1, 3, 4, 5]), 3)
-    self.assertEqual(tv_testcase._percentile(0.9, [2, 1, 3, 4, 5]), 4)
-    self.assertEqual(tv_testcase._percentile(1, [2, 1, 3, 4, 5]), 5)
+    self.assertEqual(tv_testcase._percentile([2, 1, 3, 4, 5], 10), 1.4)
+    self.assertEqual(tv_testcase._percentile([2, 1, 3, 4, 5], 50), 3)
+    self.assertEqual(tv_testcase._percentile([2, 1, 3, 4, 5], 90), 4.6)
+    self.assertEqual(tv_testcase._percentile([2, 1, 3, 4, 5], 100), 5)
+
+
+class MergeDictTest(unittest.TestCase):
+
+  def test_empty_merge(self):
+    a = {'x': 4}
+    b = {}
+    tv_testcase._merge_dict(a, b)
+    self.assertEqual(a, {'x': 4})
+
+  def test_merge_into_empty(self):
+    a = {}
+    b = {'x': 4}
+    tv_testcase._merge_dict(a, b)
+    self.assertEqual(a, {'x': 4})
+
+  def test_merge_non_overlapping_item(self):
+    a = {'x': 4}
+    b = {'y': 5}
+    tv_testcase._merge_dict(a, b)
+    self.assertEqual(a, {'x': 4, 'y': 5})
+
+  def test_overlapping_item_with_item(self):
+    a = {'x': 4}
+    b = {'x': 5}
+    tv_testcase._merge_dict(a, b)
+    self.assertEqual(a, {'x': [4, 5]})
+
+  def test_overlapping_list_with_item(self):
+    a = {'x': [4]}
+    b = {'x': 5}
+    tv_testcase._merge_dict(a, b)
+    self.assertEqual(a, {'x': [4, 5]})
+
+  def test_overlapping_list_with_list(self):
+    a = {'x': [4]}
+    b = {'x': [5]}
+    tv_testcase._merge_dict(a, b)
+    self.assertEqual(a, {'x': [4, 5]})
+
+  def test_overlapping_item_with_list(self):
+    a = {'x': 4}
+    b = {'x': [5]}
+    tv_testcase._merge_dict(a, b)
+    self.assertEqual(a, {'x': [4, 5]})
+
 
 if __name__ == '__main__':
   sys.exit(unittest.main())
