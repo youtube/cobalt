@@ -460,6 +460,11 @@ TimeTicks TimeTicks::HighResNow() {
 }
 
 // static
+TimeTicks TimeTicks::ThreadNow() {
+  return HighResNow();
+}
+
+// static
 TimeTicks TimeTicks::NowFromSystemTraceTime() {
   return HighResNow();
 }
