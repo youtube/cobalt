@@ -173,6 +173,7 @@
         '<(DEPTH)/starboard/shared/posix/system_get_number_of_processors.cc',
         '<(DEPTH)/starboard/shared/posix/thread_sleep.cc',
         '<(DEPTH)/starboard/shared/posix/time_get_monotonic_now.cc',
+        '<(DEPTH)/starboard/shared/posix/time_get_monotonic_thread_now.cc',
         '<(DEPTH)/starboard/shared/posix/time_get_now.cc',
         '<(DEPTH)/starboard/shared/posix/time_zone_get_current.cc',
         '<(DEPTH)/starboard/shared/posix/time_zone_get_dst_name.cc',

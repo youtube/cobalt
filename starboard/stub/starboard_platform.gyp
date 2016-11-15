@@ -222,6 +222,7 @@
         '<(DEPTH)/starboard/shared/stub/thread_types_public.h',
         '<(DEPTH)/starboard/shared/stub/thread_yield.cc',
         '<(DEPTH)/starboard/shared/stub/time_get_monotonic_now.cc',
+        '<(DEPTH)/starboard/shared/stub/time_get_monotonic_thread_now.cc',
         '<(DEPTH)/starboard/shared/stub/time_get_now.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_current.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_dst_name.cc',
