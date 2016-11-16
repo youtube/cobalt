@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,21 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
-  'includes': [
-    'starboard_platform.gypi'
-  ],
   'targets': [
     {
-      'target_name': 'starboard_platform',
+      'target_name': 'starboard_base_symbolize',
       'type': 'static_library',
-      'sources': ['<@(starboard_platform_sources)'],
-      'defines': [
-        # This must be defined when building Starboard, and must not when
-        # building Starboard client code.
-        'STARBOARD_IMPLEMENTATION',
-      ],
-      'dependencies': [
-        '<@(starboard_platform_dependencies)',
+      'sources': [
+        '<(DEPTH)/base/third_party/symbolize/demangle.cc',
+        '<(DEPTH)/base/third_party/symbolize/symbolize.cc',
       ],
     },
   ],
