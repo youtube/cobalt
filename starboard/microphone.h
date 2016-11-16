@@ -170,12 +170,6 @@ SB_EXPORT int SbMicrophoneRead(SbMicrophone microphone,
 // read will be thrown away.
 SB_EXPORT void SbMicrophoneDestroy(SbMicrophone microphone);
 
-// Returns the Google Speech API key. The platform manufacturer is responsible
-// for registering a Google Speech API key for their products. In the API
-// Console (http://developers.google.com/console), you are able to enable the
-// Speech APIs and generate a Speech API key.
-SB_EXPORT const char* SbMicrophoneGetSpeechApiKey();
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

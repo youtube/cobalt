@@ -88,7 +88,7 @@
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
 // The API version implemented by this platform.
-#define SB_API_VERSION 1
+#define SB_API_VERSION 2
 
 // --- System Header Configuration -------------------------------------------
 
@@ -118,6 +118,9 @@
 
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
