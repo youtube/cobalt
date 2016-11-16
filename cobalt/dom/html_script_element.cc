@@ -505,7 +505,9 @@ void HTMLScriptElement::Execute(const std::string& content,
     return;
   }
 
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Execute()");
+  TRACE_EVENT2("cobalt::dom", "HTMLScriptElement::Execute()", "file_path",
+               script_location.file_path, "line_number",
+               script_location.line_number);
   // Since error is already handled, it is guaranteed the load is successful.
 
   // 1. 2. 3. Not needed by Cobalt.
