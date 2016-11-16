@@ -93,7 +93,6 @@ EpStatus Endpointer::Status(int64_t* time) {
 EpStatus Endpointer::ProcessAudio(
     const ShellAudioBus& audio_bus, float* rms_out) {
   DCHECK_EQ(audio_bus.channels(), 1);
-  DCHECK_LE(kFrameSize, static_cast<int>(audio_bus.frames()));
 
   const size_t num_samples = audio_bus.frames();
   const int16_t* audio_data = NULL;
