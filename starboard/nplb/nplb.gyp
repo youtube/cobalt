@@ -163,6 +163,7 @@
         'socket_waiter_wait_test.cc',
         'socket_waiter_wait_timed_test.cc',
         'socket_waiter_wake_up_test.cc',
+        'speech_synthesis_basic_test.cc',
         'storage_close_record_test.cc',
         'storage_delete_record_test.cc',
         'storage_get_record_size_test.cc',
