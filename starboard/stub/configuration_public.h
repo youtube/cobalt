@@ -128,6 +128,9 @@
 // Whether the current platform has microphone supported.
 #define SB_HAS_MICROPHONE 1
 
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 1
+
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
