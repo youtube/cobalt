@@ -134,6 +134,8 @@ class UsedBackgroundNodeProvider
     return background_node_;
   }
 
+  bool is_opaque() const { return is_opaque_; }
+
  private:
   const math::RectF frame_;
   const scoped_refptr<cssom::PropertyValue> background_size_;
@@ -142,6 +144,8 @@ class UsedBackgroundNodeProvider
   UsedStyleProvider* const used_style_provider_;
 
   scoped_refptr<render_tree::Node> background_node_;
+
+  bool is_opaque_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedBackgroundNodeProvider);
 };
