@@ -189,7 +189,7 @@ SkPath RoundedRectToSkiaPath(
 }
 
 void ApplyViewportMask(
-    SkCanvas* canvas,
+    RenderTreeNodeVisitorDrawState* draw_state,
     const base::optional<render_tree::ViewportFilter>& filter) {
   if (!filter) {
     return;
@@ -197,11 +197,12 @@ void ApplyViewportMask(
 
   if (!filter->has_rounded_corners()) {
     SkRect filter_viewport(CobaltRectFToSkiaRect(filter->viewport()));
-    canvas->clipRect(filter_viewport);
+    draw_state->render_target->clipRect(filter_viewport);
   } else {
-    canvas->clipPath(
+    draw_state->render_target->clipPath(
         RoundedRectToSkiaPath(filter->viewport(), filter->rounded_corners()),
         SkRegion::kIntersect_Op, true /* doAntiAlias */);
+    draw_state->clip_is_rect = false;
   }
 }
 
@@ -287,7 +288,7 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   // the offscreen surface, so reset the scale for now.
   draw_state_.render_target->save();
   ApplyBlurFilterToPaint(&paint, filter_node.blur_filter);
-  ApplyViewportMask(draw_state_.render_target, filter_node.viewport_filter);
+  ApplyViewportMask(&draw_state_, filter_node.viewport_filter);
 
   draw_state_.render_target->setMatrix(CobaltMatrixToSkia(
       math::TranslateMatrix(coord_mapping.output_pre_translate) * total_matrix *
@@ -452,13 +453,17 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     RenderTreeNodeVisitorDrawState original_draw_state(draw_state_);
 
     draw_state_.render_target->save();
-    ApplyViewportMask(draw_state_.render_target,
-                      filter_node->data().viewport_filter);
+    // Remember the value of |clip_is_rect| because ApplyViewportMask may
+    // modify it.
+    bool clip_was_rect = draw_state_.clip_is_rect;
+    ApplyViewportMask(&draw_state_, filter_node->data().viewport_filter);
 
     if (filter_node->data().opacity_filter) {
       draw_state_.opacity *= filter_node->data().opacity_filter->opacity();
     }
     filter_node->data().source->Accept(this);
+
+    draw_state_.clip_is_rect = clip_was_rect;
     draw_state_.render_target->restore();
     draw_state_ = original_draw_state;
   } else {
@@ -511,7 +516,7 @@ SkPaint CreateSkPaintForImageRendering(
 
   if (draw_state.opacity < 1.0f) {
     paint.setAlpha(draw_state.opacity * 255);
-  } else if (is_opaque) {
+  } else if (is_opaque && draw_state.clip_is_rect) {
     paint.setXfermodeMode(SkXfermode::kSrc_Mode);
   }
 
