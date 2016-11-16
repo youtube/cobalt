@@ -39,6 +39,7 @@
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
+#include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
