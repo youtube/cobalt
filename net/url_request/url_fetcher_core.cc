@@ -5,6 +5,7 @@
 #include "net/url_request/url_fetcher_core.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/file_util_proxy.h"
 #include "base/logging.h"
 #include "base/single_thread_task_runner.h"
@@ -611,6 +612,10 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
     if (!request_->status().is_success() || bytes_read <= 0)
       break;
 
+    if (current_response_bytes_ == 0) {
+      TRACE_EVENT_ASYNC_STEP0("net::url_request", "URLFetcher", this,
+                              "Fetch Content");
+    }
     current_response_bytes_ += bytes_read;
     InformDelegateDownloadDataIfNecessary(bytes_read);
 
@@ -710,6 +715,8 @@ void URLFetcherCore::StartOnIOThread() {
 
 void URLFetcherCore::StartURLRequest() {
   DCHECK(network_task_runner_->BelongsToCurrentThread());
+  TRACE_EVENT_ASYNC_STEP0("net::url_request", "URLFetcher", this,
+                          "Waiting For Data");
 
   if (was_cancelled_) {
     // Since StartURLRequest() is posted as a *delayed* task, it may
@@ -801,6 +808,8 @@ void URLFetcherCore::StartURLRequest() {
 }
 
 void URLFetcherCore::StartURLRequestWhenAppropriate() {
+  TRACE_EVENT_ASYNC_BEGIN1("net::url_request", "URLFetcher", this, "url",
+                           original_url_.path());
   DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (was_cancelled_)
@@ -837,6 +846,7 @@ void URLFetcherCore::CancelURLRequest() {
   if (request_.get()) {
     request_->Cancel();
     ReleaseRequest();
+    TRACE_EVENT_ASYNC_END0("net::url_request", "URLFetcher", this);
   }
   // Release the reference to the request context. There could be multiple
   // references to URLFetcher::Core at this point so it may take a while to
@@ -852,6 +862,8 @@ void URLFetcherCore::CancelURLRequest() {
 
 void URLFetcherCore::OnCompletedURLRequest(
     base::TimeDelta backoff_delay) {
+  TRACE_EVENT_ASYNC_END1("cobalt::network", "URLFetch", this, "url",
+                         original_url_.path());
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   // Save the status and backoff_delay so that delegates can read it.
