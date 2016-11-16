@@ -106,7 +106,7 @@
 #include "starboard/blitter.h"
 #else
 #include <EGL/egl.h>
-#include <GL/gl.h>
+#include <GLES2/gl2.h>
 #endif
 
 #ifdef __cplusplus
