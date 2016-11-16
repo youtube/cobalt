@@ -24,7 +24,7 @@
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 
 #ifndef SB_API_VERSION
-#define SB_API_VERSION 1
+#define SB_API_VERSION 2
 #endif
 
 // --- System Header Configuration -------------------------------------------
@@ -55,6 +55,9 @@
 
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \

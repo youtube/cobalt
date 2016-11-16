@@ -128,7 +128,6 @@
         'microphone_create_test.cc',
         'microphone_destroy_test.cc',
         'microphone_get_available_test.cc',
-        'microphone_get_speech_api_key_test.cc',
         'microphone_is_sample_rate_supported_test.cc',
         'microphone_open_test.cc',
         'microphone_read_test.cc',
