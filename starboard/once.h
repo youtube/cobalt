@@ -37,6 +37,32 @@ SB_EXPORT bool SbOnce(SbOnceControl* once_control,
                       SbOnceInitRoutine init_routine);
 
 #ifdef __cplusplus
+// Defines a function that will initialize the indicated type once and return
+// it. This initialization is thread safe if the type being created is side
+// effect free.
+// This macros CAN ONLY BE USED IN A CC file, never in a header file.
+//
+// Example (in cc file):
+//   SB_ONCE_INITIALIZE_FUNCTION(MyClass, GetOrCreateMyClass);
+//   ...
+//   MyClass* instance = GetOrCreateMyClass();
+//   MyClass* instance2 = GetOrCreateMyClass();
+//   DCHECK_EQ(instance, instance2);
+#define SB_ONCE_INITIALIZE_FUNCTION(Type, FunctionName)    \
+Type* FunctionName() {                                     \
+  static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;  \
+  static Type* s_singleton = NULL;                         \
+  struct Local {                                           \
+    static void Init() {                                   \
+      s_singleton = new Type();                            \
+    }                                                      \
+  };                                                       \
+  SbOnce(&s_once_flag, Local::Init);                       \
+  return s_singleton;                                      \
+}
+#endif  // __cplusplus
+
+#ifdef __cplusplus
 }
 #endif
 
