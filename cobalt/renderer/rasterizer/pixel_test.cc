@@ -463,7 +463,7 @@ TEST_F(PixelTest, SingleRGBAImageWithSameSizeAsRenderTarget) {
   TestTree(new ImageNode(image));
 }
 
-TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNone) {
+TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaque) {
   scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
       GetResourceProvider(), output_surface_size(),
       render_tree::kAlphaFormatOpaque);
@@ -471,7 +471,7 @@ TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNone) {
   TestTree(new ImageNode(image));
 }
 
-TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNoneAndRoundedCorners) {
+TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaqueAndRoundedCorners) {
   scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
       GetResourceProvider(), output_surface_size(),
       render_tree::kAlphaFormatOpaque);
@@ -479,6 +479,35 @@ TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNoneAndRoundedCorners) {
   TestTree(new FilterNode(
       ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
       new ImageNode(image)));
+}
+
+TEST_F(PixelTest,
+       SingleRGBAImageWithAlphaFormatOpaqueAndRoundedCornersOnSolidColor) {
+  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
+      GetResourceProvider(), output_surface_size(),
+      render_tree::kAlphaFormatOpaque);
+
+  CompositionNode::Builder builder;
+  builder.AddChild(new RectNode(
+      RectF(output_surface_size()),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  builder.AddChild(new FilterNode(
+      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
+      new ImageNode(image)));
+  TestTree(new CompositionNode(builder.Pass()));
+}
+
+TEST_F(PixelTest, RectWithRoundedCornersOnSolidColor) {
+  CompositionNode::Builder builder;
+  builder.AddChild(new RectNode(
+      RectF(output_surface_size()),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  builder.AddChild(new FilterNode(
+      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
+      new RectNode(RectF(output_surface_size()),
+                   scoped_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1))))));
+  TestTree(new CompositionNode(builder.Pass()));
 }
 
 TEST_F(PixelTest, SingleRGBAImageLargerThanRenderTarget) {
