@@ -160,7 +160,7 @@ TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
   glGenTextures(1, &texture_handle);
   glBindTexture(GL_TEXTURE_2D, texture_handle);
   glTexImage2D(GL_TEXTURE_2D, 0 /*level*/, GL_RGBA, 256, 256, 0 /*border*/,
-               GL_RGBA8, GL_UNSIGNED_BYTE, NULL /*data*/);
+               GL_RGBA, GL_UNSIGNED_BYTE, NULL /*data*/);
   glBindTexture(GL_TEXTURE_2D, 0);
 
   SbDecodeTarget target = SbDecodeTargetCreate(
