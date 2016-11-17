@@ -41,7 +41,8 @@ class MicrophoneManager {
 
   MicrophoneManager(int sample_rate, const DataReceivedCallback& data_received,
                     const CompletionCallback& completion,
-                    const ErrorCallback& error, bool enable_fake_microphone);
+                    const ErrorCallback& error,
+                    const Microphone::Options& options);
 
   ~MicrophoneManager();
 
@@ -71,7 +72,7 @@ class MicrophoneManager {
 
   scoped_ptr<Microphone> microphone_;
 #if defined(ENABLE_FAKE_MICROPHONE)
-  bool enable_fake_microphone_;
+  Microphone::Options microphone_options_;
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   // Microphone state.

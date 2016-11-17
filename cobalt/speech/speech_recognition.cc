@@ -33,7 +33,7 @@ SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
                    base::Bind(&SpeechRecognition::OnEventAvailable,
                               base::Unretained(this)),
                    base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                       ->enable_fake_microphone())),
+                       ->microphone_options())),
       config_("" /*lang*/, false /*continuous*/, false /*interim_results*/,
               1 /*max alternatives*/) {}
 

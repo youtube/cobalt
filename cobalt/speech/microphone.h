@@ -27,6 +27,23 @@ namespace speech {
 // An abstract class is used for interacting platform specific microphone.
 class Microphone {
  public:
+  struct Options {
+    Options()
+        : enable_fake_microphone(false),
+          external_audio_data(NULL),
+          audio_data_size(0) {}
+
+    // Use fake microphone if this flag is set to true.
+    bool enable_fake_microphone;
+    // |external_audio_data| and |audio_data_size| are only applicable to the
+    // fake microphone.
+    //
+    // External audio input data for microphone input.
+    uint8* external_audio_data;
+    // Audio data size.
+    int audio_data_size;
+  };
+
   virtual ~Microphone() {}
 
   // Opens microphone port and starts recording audio.
