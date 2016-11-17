@@ -130,7 +130,7 @@ void Application::Cancel(SbEventId id) {
 
 #if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 void Application::HandleFrame(SbPlayer player,
-                              const player::VideoFrame& frame,
+                              const VideoFrame& frame,
                               int x,
                               int y,
                               int width,

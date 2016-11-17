@@ -36,7 +36,11 @@ class ApplicationDispmanx
     : public ::starboard::shared::starboard::QueueApplication {
  public:
   ApplicationDispmanx()
-      : display_(DISPMANX_NO_HANDLE), window_(kSbWindowInvalid), input_(NULL) {}
+      : display_(DISPMANX_NO_HANDLE),
+        video_frame_resource_(DISPMANX_NO_HANDLE),
+        video_frame_element_(DISPMANX_NO_HANDLE),
+        window_(kSbWindowInvalid),
+        input_(NULL) {}
   ~ApplicationDispmanx() SB_OVERRIDE {}
 
   static ApplicationDispmanx* Get() {
@@ -51,6 +55,12 @@ class ApplicationDispmanx
   // --- Application overrides ---
   void Initialize() SB_OVERRIDE;
   void Teardown() SB_OVERRIDE;
+  void AcceptFrame(SbPlayer player,
+                   const VideoFrame& frame,
+                   int x,
+                   int y,
+                   int width,
+                   int height) SB_OVERRIDE;
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() SB_OVERRIDE;
@@ -70,6 +80,10 @@ class ApplicationDispmanx
 
   // The DISPMANX display.
   DISPMANX_DISPLAY_HANDLE_T display_;
+
+  // DISPMANX resource to display video frames.
+  DISPMANX_RESOURCE_HANDLE_T video_frame_resource_;
+  DISPMANX_ELEMENT_HANDLE_T video_frame_element_;
 
   // The single open window, if any.
   SbWindow window_;
