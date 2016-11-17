@@ -24,8 +24,10 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/speech/microphone.h"
 
 namespace cobalt {
@@ -35,7 +37,7 @@ namespace speech {
 // audio.
 class MicrophoneFake : public Microphone {
  public:
-  MicrophoneFake();
+  explicit MicrophoneFake(const Options& options);
   ~MicrophoneFake() SB_OVERRIDE {}
 
   bool Open() SB_OVERRIDE;
@@ -45,8 +47,11 @@ class MicrophoneFake : public Microphone {
   bool IsValid() SB_OVERRIDE { return is_valid_; }
 
  private:
+  base::ThreadChecker thread_checker_;
+
+  bool read_data_from_file_;
   std::vector<FilePath> file_paths_;
-  scoped_array<char> file_buffer_;
+  scoped_array<uint8> file_buffer_;
   int file_length_;
   int read_index_;
   bool is_valid_;
