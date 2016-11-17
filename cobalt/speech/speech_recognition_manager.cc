@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/speech/microphone_manager.h"
 
 namespace cobalt {
 namespace speech {
@@ -30,7 +31,7 @@ const float kAudioPacketDurationInSeconds = 0.1f;
 
 SpeechRecognitionManager::SpeechRecognitionManager(
     network::NetworkModule* network_module, const EventCallback& event_callback,
-    bool enable_fake_microphone)
+    const Microphone::Options& microphone_options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
       main_message_loop_(base::MessageLoopProxy::current()),
@@ -39,14 +40,14 @@ SpeechRecognitionManager::SpeechRecognitionManager(
           recognizer_(network_module,
                       base::Bind(&SpeechRecognitionManager::OnRecognizerEvent,
                                  base::Unretained(this)))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(microphone_manager_(
+      ALLOW_THIS_IN_INITIALIZER_LIST(microphone_manager_(new MicrophoneManager(
           kSampleRate, base::Bind(&SpeechRecognitionManager::OnDataReceived,
                                   base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnDataCompletion,
                      base::Unretained(this)),
           base::Bind(&SpeechRecognitionManager::OnMicError,
                      base::Unretained(this)),
-          enable_fake_microphone)),
+          microphone_options))),
       endpointer_delegate_(kSampleRate),
       state_(kStopped) {}
 
@@ -65,7 +66,7 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   }
 
   recognizer_.Start(config, kSampleRate);
-  microphone_manager_.Open();
+  microphone_manager_->Open();
   endpointer_delegate_.Start();
   state_ = kStarted;
 }
@@ -80,7 +81,7 @@ void SpeechRecognitionManager::Stop() {
   }
 
   endpointer_delegate_.Stop();
-  microphone_manager_.Close();
+  microphone_manager_->Close();
   recognizer_.Stop();
   state_ = kStopped;
   event_callback_.Run(new dom::Event(base::Tokens::soundend()));
@@ -96,7 +97,7 @@ void SpeechRecognitionManager::Abort() {
   }
 
   endpointer_delegate_.Stop();
-  microphone_manager_.Close();
+  microphone_manager_->Close();
   recognizer_.Stop();
   state_ = kAborted;
   event_callback_.Run(new dom::Event(base::Tokens::soundend()));

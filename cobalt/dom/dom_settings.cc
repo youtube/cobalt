@@ -29,7 +29,7 @@ DOMSettings::DOMSettings(
     script::JavaScriptEngine* engine,
     script::GlobalEnvironment* global_environment, const Options& options)
     : max_dom_element_depth_(max_dom_element_depth),
-      enable_fake_microphone_(options.enable_fake_microphone),
+      microphone_options_(options.microphone_options),
       fetcher_factory_(fetcher_factory),
       network_module_(network_module),
       window_(window),
