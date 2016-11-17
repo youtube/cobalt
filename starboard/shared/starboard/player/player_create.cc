@@ -15,6 +15,7 @@
 #include "starboard/player.h"
 
 #include "starboard/configuration.h"
+#include "starboard/decode_target.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
@@ -33,8 +34,16 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
-                        void* context) {
+                        void* context
+#if SB_VERSION(3)
+                        ,
+                        SbDecodeTargetProvider* provider
+#endif
+                        ) {
   SB_UNREFERENCED_PARAMETER(window);
+#if SB_VERSION(3)
+  SB_UNREFERENCED_PARAMETER(provider);
+#endif
 
   if (audio_codec != kSbMediaAudioCodecAac) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;

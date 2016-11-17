@@ -53,7 +53,7 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
   SbDecodeTargetDestroy(target);
   EXPECT_TRUE(SbBlitterDestroySurface(surface));
 }
-#else  // SB_HAS(BLITTER)
+#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
 // clang-format off
 EGLint const kAttributeList[] = {
   EGL_RED_SIZE, 8,
@@ -66,7 +66,7 @@ EGLint const kAttributeList[] = {
   EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
   EGL_CONFORMANT, EGL_OPENGL_ES2_BIT,
   EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-  EGL_NONE
+  EGL_NONE,
 };
 // clang-format on
 
@@ -165,10 +165,24 @@ TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
 
   SbDecodeTarget target = SbDecodeTargetCreate(
       display_, context_, kSbDecodeTargetFormat1PlaneRGBA, &texture_handle);
-  GLuint plane = SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
-  EXPECT_EQ(texture_handle, plane);
-  SbDecodeTargetDestroy(target);
+  if (SbDecodeTargetIsValid(target)) {
+    GLuint plane = SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
+    EXPECT_EQ(texture_handle, plane);
+    SbDecodeTargetDestroy(target);
+  }
   glDeleteTextures(1, &texture_handle);
+}
+
+#else  // SB_HAS(BLITTER)
+
+TEST(SbDecodeTargetTest, SunnyDayCreate) {
+  // When graphics are not enabled, we expect to always create a
+  // kSbDecodeTargetInvalid, and get NULL back for planes.
+  EXPECT_EQ(SbDecodeTargetCreate(kSbDecodeTargetFormat1PlaneRGBA),
+            kSbDecodeTargetInvalid);
+  EXPECT_EQ(
+      SbDecodeTargetGetPlane(kSbDecodeTargetInvalid, kSbDecodeTargetPlaneRGBA),
+      NULL);
 }
 
 #endif  // SB_HAS(BLITTER)
