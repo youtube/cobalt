@@ -160,7 +160,7 @@ relative to the directory the `.gyp` or `.gypi` file is in.
 
 In order to use a new platform configuration in a build, you need to ensure that
 you have a `gyp_configuration.py`, `gyp_configuration.gypi`, and
-`starboard_platform.gypi` in their own directory for each binary variant, plus
+`starboard_platform.gyp` in their own directory for each binary variant, plus
 the header files `configuration_public.h`, `atomic_public.h`, and
 `thread_types_public.h`. `gyp_cobalt` will scan your directories for these
 files, and then calculate a port name based on the directories between
