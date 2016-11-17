@@ -27,7 +27,8 @@ namespace audio {
 //   http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 class AudioFileReaderWAV : public AudioFileReader {
  public:
-  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size);
+  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size,
+                                               SampleType sample_type);
 
   scoped_array<uint8> sample_data() OVERRIDE { return sample_data_.Pass(); }
   float sample_rate() const OVERRIDE { return sample_rate_; }
@@ -36,7 +37,7 @@ class AudioFileReaderWAV : public AudioFileReader {
   SampleType sample_type() const OVERRIDE { return sample_type_; }
 
  private:
-  AudioFileReaderWAV(const uint8* data, size_t size);
+  AudioFileReaderWAV(const uint8* data, size_t size, SampleType sample_type);
 
   bool ParseRIFFHeader(const uint8* data, size_t size);
   void ParseChunks(const uint8* data, size_t size);

@@ -38,21 +38,21 @@ MicrophoneManager::MicrophoneManager(int sample_rate,
                                      const DataReceivedCallback& data_received,
                                      const CompletionCallback& completion,
                                      const ErrorCallback& error,
-                                     bool enable_fake_microphone)
+                                     const Microphone::Options& options)
     : sample_rate_(sample_rate),
       data_received_callback_(data_received),
       completion_callback_(completion),
       error_callback_(error),
 #if defined(ENABLE_FAKE_MICROPHONE)
-      enable_fake_microphone_(enable_fake_microphone),
+      microphone_options_(options),
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
       state_(kStopped),
       thread_("microphone_thread") {
   UNREFERENCED_PARAMETER(sample_rate_);
 #if defined(ENABLE_FAKE_MICROPHONE)
-  UNREFERENCED_PARAMETER(enable_fake_microphone_);
+  UNREFERENCED_PARAMETER(microphone_options_);
 #else
-  UNREFERENCED_PARAMETER(enable_fake_microphone);
+  UNREFERENCED_PARAMETER(options);
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
@@ -84,8 +84,8 @@ bool MicrophoneManager::CreateIfNecessary() {
 
 #if defined(SB_USE_SB_MICROPHONE)
 #if defined(ENABLE_FAKE_MICROPHONE)
-  if (enable_fake_microphone_) {
-    microphone_.reset(new MicrophoneFake());
+  if (microphone_options_.enable_fake_microphone) {
+    microphone_.reset(new MicrophoneFake(microphone_options_));
   } else {
     microphone_.reset(
         new MicrophoneStarboard(sample_rate_, kBufferSizeInBytes));
@@ -185,6 +185,7 @@ void MicrophoneManager::DestroyInternal() {
 
   microphone_.reset();
   state_ = kStopped;
+  poll_mic_events_timer_ = base::nullopt;
 }
 
 }  // namespace speech

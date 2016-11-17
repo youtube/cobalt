@@ -28,7 +28,8 @@ class AudioFileReader {
  public:
   virtual ~AudioFileReader() {}
 
-  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size);
+  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size,
+                                               SampleType sample_type);
 
   // Returns the sample data stored as float sample in planar form.  Note that
   // this function transfers the ownership of the data to the caller so it can

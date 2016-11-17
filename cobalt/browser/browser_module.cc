@@ -276,7 +276,8 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kFakeMicrophone) ||
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kInputFuzzer)) {
-    options.dom_settings_options.enable_fake_microphone = true;
+    options.dom_settings_options.microphone_options.enable_fake_microphone =
+        true;
   }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 

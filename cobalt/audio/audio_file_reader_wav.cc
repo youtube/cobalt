@@ -46,15 +46,15 @@ uint32 kWAVfmtChunkHeaderSize = 16;
 }  // namespace
 
 // static
-scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(const uint8* data,
-                                                          size_t size) {
+scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(
+    const uint8* data, size_t size, SampleType sample_type) {
   // Need at least the |kWAVChunkSize| bytes for this to be a WAV.
   if (size < kWAVChunkSize) {
     return scoped_ptr<AudioFileReader>();
   }
 
   scoped_ptr<AudioFileReaderWAV> audio_file_reader_wav(
-      new AudioFileReaderWAV(data, size));
+      new AudioFileReaderWAV(data, size, sample_type));
 
   if (!audio_file_reader_wav->is_valid()) {
     return scoped_ptr<AudioFileReader>();
@@ -63,8 +63,12 @@ scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(const uint8* data,
   return make_scoped_ptr<AudioFileReader>(audio_file_reader_wav.release());
 }
 
-AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size)
-    : sample_rate_(0.f), number_of_frames_(0), number_of_channels_(0) {
+AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size,
+                                       SampleType sample_type)
+    : sample_rate_(0.f),
+      number_of_frames_(0),
+      number_of_channels_(0),
+      sample_type_(sample_type) {
   DCHECK_GE(size, kWAVRIFFChunkHeaderSize);
 
   if (ParseRIFFHeader(data, size)) {
@@ -179,7 +183,6 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
       static_cast<int32>(is_sample_in_float ? sizeof(float) : sizeof(int16));
   number_of_frames_ =
       static_cast<int32>(size / (bytes_per_src_sample * number_of_channels_));
-  sample_type_ = GetPreferredOutputSampleType();
   const int32 bytes_per_dest_sample =
       static_cast<int32>(GetSampleTypeSize(sample_type_));
   const bool is_dest_float = sample_type_ == kSampleTypeFloat32;
