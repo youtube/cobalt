@@ -51,6 +51,27 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> CreateImage(
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE {
+    NOTREACHED()
+        << "CreateImageFromSbDecodeTarget is not supported on EGL yet.";
+    SbDecodeTargetDestroy(decode_target);
+    return NULL;
+  }
+
+  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
+  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+
+  // Whether SbDecodeTargetIsSupported or not.
+  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
+
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
+
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) OVERRIDE;
 

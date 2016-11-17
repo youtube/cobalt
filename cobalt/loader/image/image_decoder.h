@@ -89,6 +89,7 @@ class ImageDecoder : public Decoder {
   SignatureCache signature_cache_;
   State state_;
   std::string failure_message_;
+  std::string mime_type_;
 };
 
 }  // namespace image

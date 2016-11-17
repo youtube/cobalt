@@ -71,6 +71,7 @@ class ImageData : public render_tree::ImageData {
 class SinglePlaneImage : public skia::SinglePlaneImage {
  public:
   explicit SinglePlaneImage(scoped_ptr<ImageData> image_data);
+  SinglePlaneImage(SbBlitterSurface surface, bool is_opaque);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
