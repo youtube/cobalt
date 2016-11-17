@@ -34,7 +34,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
   typedef starboard::player::InputBuffer InputBuffer;
   typedef starboard::player::VideoFrame VideoFrame;
 
-  explicit VideoDecoder(SbMediaVideoCodec);
+  explicit VideoDecoder(SbMediaVideoCodec video_codec);
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
