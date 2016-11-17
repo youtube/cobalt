@@ -45,9 +45,7 @@ class TestMemoryScopeReporter {
     return &memory_scope_reporter_;
   }
 
-  MemoryScopeVector* stack_thread_local() {
-    return stack_tlo_.GetOrCreate();
-  }
+  MemoryScopeVector* stack_thread_local() { return stack_tlo_.GetOrCreate(); }
 
   void OnPushMemoryScope(NbMemoryScopeInfo* memory_scope) {
     stack_thread_local()->push_back(memory_scope);
@@ -64,21 +62,20 @@ class TestMemoryScopeReporter {
   }
 
  private:
-  static void OnPushMemoryScopeCallback(void* context, NbMemoryScopeInfo* info) {
-    TestMemoryScopeReporter* t =
-        static_cast<TestMemoryScopeReporter*>(context);
+  static void OnPushMemoryScopeCallback(void* context,
+                                        NbMemoryScopeInfo* info) {
+    TestMemoryScopeReporter* t = static_cast<TestMemoryScopeReporter*>(context);
     t->OnPushMemoryScope(info);
   }
 
   static void OnPopMemoryScopeCallback(void* context) {
-    TestMemoryScopeReporter* t =
-        static_cast<TestMemoryScopeReporter*>(context);
+    TestMemoryScopeReporter* t = static_cast<TestMemoryScopeReporter*>(context);
     t->OnPopMemoryScope();
   }
 
   NbMemoryScopeReporter CreateMemoryScopeReporter() {
-    NbMemoryScopeReporter reporter =
-        { OnPushMemoryScopeCallback, OnPopMemoryScopeCallback, this };
+    NbMemoryScopeReporter reporter = {OnPushMemoryScopeCallback,
+                                      OnPopMemoryScopeCallback, this};
     return reporter;
   }
 
@@ -91,13 +88,10 @@ class TestMemoryScopeReporter {
 // instance and torn down after the last test has run.
 class MemoryScopeReportingTest : public ::testing::Test {
  public:
-   TestMemoryScopeReporter* test_memory_reporter() {
-     return s_reporter_;
-   }
+  TestMemoryScopeReporter* test_memory_reporter() { return s_reporter_; }
 
-   bool reporting_enabled() const {
-     return s_reporter_enabled_;
-   }
+  bool reporting_enabled() const { return s_reporter_enabled_; }
+
  protected:
   static void SetUpTestCase() {
     if (!s_reporter_) {
@@ -107,8 +101,8 @@ class MemoryScopeReportingTest : public ::testing::Test {
         NbSetMemoryScopeReporter(s_reporter_->memory_scope_reporter());
 
     EXPECT_EQ(StarboardAllowsMemoryTracking(), s_reporter_enabled_)
-      << "Expected the memory scope reporter to be enabled whenever "
-         "starboard memory tracking is allowed.";
+        << "Expected the memory scope reporter to be enabled whenever "
+           "starboard memory tracking is allowed.";
   }
 
   static void TearDownTestCase() {
@@ -121,7 +115,7 @@ class MemoryScopeReportingTest : public ::testing::Test {
     NbSetMemoryScopeReporter(NULL);
   }
 
-    // Per test setup.
+  // Per test setup.
   virtual void SetUp() {
     test_memory_reporter()->stack_thread_local()->clear();
   }
@@ -160,12 +154,12 @@ TEST_F(MemoryScopeReportingTest, PushPop) {
   const int line_number = __LINE__;
   const char* file_name = __FILE__;
   const char* function_name = __FUNCTION__;
-  NbMemoryScopeInfo info = { 0,              // Cached value (null).
-                             "Javascript",   // Name of the memory scope.
-                             file_name,      // Filename that invoked this.
-                             line_number,    // Line number.
-                             function_name,  // Function name.
-                             true };         // true allows caching.
+  NbMemoryScopeInfo info = {0,              // Cached value (null).
+                            "Javascript",   // Name of the memory scope.
+                            file_name,      // Filename that invoked this.
+                            line_number,    // Line number.
+                            function_name,  // Function name.
+                            true};          // true allows caching.
 
   NbPushMemoryScope(&info);
 
@@ -225,12 +219,12 @@ TEST_F(MemoryScopeReportingTest, NoPushPop) {
   const int line_number = __LINE__;
   const char* file_name = __FILE__;
   const char* function_name = __FUNCTION__;
-  NbMemoryScopeInfo info = { 0,              // Cached value (null).
-                             "Javascript",   // Name of the memory scope.
-                             file_name,      // Filename that invoked this.
-                             line_number,    // Line number.
-                             function_name,  // Function name.
-                             true };         // true allows caching.
+  NbMemoryScopeInfo info = {0,              // Cached value (null).
+                            "Javascript",   // Name of the memory scope.
+                            file_name,      // Filename that invoked this.
+                            line_number,    // Line number.
+                            function_name,  // Function name.
+                            true};          // true allows caching.
 
   NbPushMemoryScope(&info);
 
@@ -255,7 +249,7 @@ TEST_F(MemoryScopeReportingTest, NoMacros) {
   // disabled.
   TRACK_MEMORY_SCOPE("InternalMemoryRegion");
   ASSERT_TRUE(test_memory_reporter()->stack_thread_local()->empty())
-    << "Memory reporting received notifications when it should be disabled.";
+      << "Memory reporting received notifications when it should be disabled.";
 }
 #endif
 
