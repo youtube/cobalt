@@ -83,6 +83,20 @@ class MockResourceProvider : public ResourceProvider {
   scoped_refptr<Image> CreateImage(scoped_ptr<ImageData> pixel_data) {
     return scoped_refptr<Image>(CreateImageMock(pixel_data.get()));
   }
+
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+  scoped_refptr<Image> CreateImageFromSbDecodeTarget(SbDecodeTarget target) {
+    UNREFERENCED_PARAMETER(target);
+    return NULL;
+  }
+
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
+
+  bool SupportsSbDecodeTarget() { return false; }
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
+
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) {
     return scoped_ptr<RawImageMemory>(

@@ -42,6 +42,8 @@
         'image/image_data_decoder.h',
         'image/image_decoder.cc',
         'image/image_decoder.h',
+        'image/image_decoder_starboard.cc',
+        'image/image_decoder_starboard.h',
         'image/jpeg_image_decoder.cc',
         'image/jpeg_image_decoder.h',
         'image/png_image_decoder.cc',
