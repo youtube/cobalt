@@ -44,7 +44,12 @@ TEST(SbPlayerTest, SunnyDay) {
   SbPlayer player =
       SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
                      SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, &audio_header,
-                     NULL, NULL, NULL, NULL);
+                     NULL, NULL, NULL, NULL
+#if SB_VERSION(3)
+                     ,
+                     NULL
+#endif
+                     );  // NOLINT
   EXPECT_TRUE(SbPlayerIsValid(player));
   SbPlayerDestroy(player);
   SbWindowDestroy(window);
