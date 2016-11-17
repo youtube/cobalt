@@ -33,19 +33,24 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder)
 }
 
 void VideoRenderer::WriteSample(const InputBuffer& input_buffer) {
-  ScopedLock lock(mutex_);
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   if (end_of_stream_written_) {
     SB_LOG(ERROR) << "Appending video sample at " << input_buffer.pts()
                   << " after EOS reached.";
     return;
   }
-  need_more_input_ = false;
+
+  {
+    ScopedLock lock(mutex_);
+    need_more_input_ = false;
+  }
+
   decoder_->WriteInputBuffer(input_buffer);
 }
 
 void VideoRenderer::WriteEndOfStream() {
-  ScopedLock lock(mutex_);
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   SB_LOG_IF(WARNING, end_of_stream_written_)
       << "Try to write EOS after EOS is reached";
@@ -57,6 +62,7 @@ void VideoRenderer::WriteEndOfStream() {
 }
 
 void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(seek_to_pts >= 0);
 
   decoder_->Reset();
@@ -74,7 +80,7 @@ void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
 }
 
 const VideoFrame& VideoRenderer::GetCurrentFrame(SbMediaTime media_time) {
-  ScopedLock lock(mutex_);
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   if (frames_.empty()) {
     return seeking_frame_;
@@ -89,18 +95,18 @@ const VideoFrame& VideoRenderer::GetCurrentFrame(SbMediaTime media_time) {
 }
 
 bool VideoRenderer::IsEndOfStreamPlayed() const {
-  ScopedLock lock(mutex_);
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
   return end_of_stream_written_ && frames_.size() <= 1;
 }
 
 bool VideoRenderer::CanAcceptMoreData() const {
-  ScopedLock lock(mutex_);
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
   return frames_.size() < kMaxCachedFrames && !end_of_stream_written_ &&
          need_more_input_;
 }
 
 bool VideoRenderer::IsSeekingInProgress() const {
-  ScopedLock lock(mutex_);
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
   return seeking_;
 }
 
