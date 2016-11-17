@@ -32,21 +32,28 @@
 //     TRACK_MEMORY_SCOPE("FooMemoryScope");
 //     // pops the memory scope at the end.
 //   }
-//
 
-#define TRACK_MEMORY_SCOPE(STR) \
-  TRACK_MEMORY_STATIC_CACHED(STR)
+#if !defined(__cplusplus)
+// Disallow macro use for non-C++ builds.
+#define TRACK_MEMORY_SCOPE(STR) error_forbidden_in_non_c_plus_plus_code
+#define TRACK_MEMORY_SCOPE_DYNAMIC(STR) error_forbidden_in_non_c_plus_plus_code
+#elif defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+#define TRACK_MEMORY_SCOPE(STR) TRACK_MEMORY_STATIC_CACHED(STR)
+#define TRACK_MEMORY_SCOPE_DYNAMIC(STR) TRACK_MEMORY_STATIC_NOT_CACHED(STR)
+#else
+// No-op when starboard does not allow memory tracking.
+#define TRACK_MEMORY_SCOPE(STR)
+#define TRACK_MEMORY_SCOPE_DYNAMIC(STR)
+#endif
 
 // Preprocessor needs double expansion in order to __FILE__, __LINE__ and
 // __FUNCTION__ properly.
 #define TRACK_MEMORY_STATIC_CACHED(STR) \
   TRACK_MEMORY_STATIC_CACHED_IMPL_2(STR, __FILE__, __LINE__, __FUNCTION__)
 
-// Disallow macro use for non-C++ builds.
-#if !defined(__cplusplus)
-#define TRACK_MEMORY_STATIC_CACHED_IMPL_2(Str, FileStr, LineNum, FuncStr) \
-  error_forbidden_in_non_c_plus_plus_code
-#elif defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+#define TRACK_MEMORY_STATIC_NOT_CACHED(STR) \
+  TRACK_MEMORY_STATIC_NOT_CACHED_IMPL_2(STR, __FILE__, __LINE__, __FUNCTION__)
+
 // Only enable TRACK_MEMORY_STATIC_CACHED_IMPL_2 if starboard allows memory
 // tracking.
 #define TRACK_MEMORY_STATIC_CACHED_IMPL_2(Str, FileStr, LineNum, FuncStr) \
@@ -54,10 +61,12 @@
       { 0, Str, FileStr, LineNum, FuncStr, true };                        \
   NbPushMemoryScope(&memory_scope_handle_##LineNum);                      \
   NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;
-#else
-// Otherwise, disable completely.
-#define TRACK_MEMORY_STATIC_CACHED_IMPL_2(Str, FileStr, LineNum, FuncStr)
-#endif
+
+#define TRACK_MEMORY_STATIC_NOT_CACHED_IMPL_2(Str, FileStr, LineNum, FuncStr) \
+  NbMemoryScopeInfo memory_scope_handle_##LineNum = {                         \
+      0, Str, FileStr, LineNum, FuncStr, false};                              \
+  NbPushMemoryScope(&memory_scope_handle_##LineNum);                          \
+  NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;
 
 #ifdef __cplusplus
 extern "C" {
