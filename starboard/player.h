@@ -23,6 +23,7 @@
 
 #if SB_HAS(PLAYER)
 
+#include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/export.h"
 #include "starboard/media.h"
@@ -234,17 +235,28 @@ SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //
 // |context|: This is passed to all callbacks and is generally used to point
 //   at a class or struct that contains state associated with the player.
-SB_EXPORT SbPlayer
-SbPlayerCreate(SbWindow window,
-               SbMediaVideoCodec video_codec,
-               SbMediaAudioCodec audio_codec,
-               SbMediaTime duration_pts,
-               SbDrmSystem drm_system,
-               const SbMediaAudioHeader* audio_header,
-               SbPlayerDeallocateSampleFunc sample_deallocate_func,
-               SbPlayerDecoderStatusFunc decoder_status_func,
-               SbPlayerStatusFunc player_status_func,
-               void* context);
+//
+// |provider|: Only present in Starboard version 3 and up.  If not |NULL|,
+//   then when SB_HAS(PLAYER_PRODUCING_TEXTURE) is true, the player MAY use the
+//   provider to create SbDecodeTargets. A provider could also potentially be
+//   required by the player, in which case, if the provider is not given, the
+//   player will fail by returning kSbPlayerInvalid.
+SB_EXPORT SbPlayer SbPlayerCreate(
+    SbWindow window,
+    SbMediaVideoCodec video_codec,
+    SbMediaAudioCodec audio_codec,
+    SbMediaTime duration_pts,
+    SbDrmSystem drm_system,
+    const SbMediaAudioHeader* audio_header,
+    SbPlayerDeallocateSampleFunc sample_deallocate_func,
+    SbPlayerDecoderStatusFunc decoder_status_func,
+    SbPlayerStatusFunc player_status_func,
+    void* context
+#if SB_VERSION(3)
+    ,
+    SbDecodeTargetProvider* provider
+#endif  // SB_VERSION(3)
+    );  // NOLINT
 
 // Destroys |player|, freeing all associated resources. Each callback must
 // receive one more callback to say that the player was destroyed. Callbacks
