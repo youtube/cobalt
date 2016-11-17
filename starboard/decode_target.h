@@ -49,7 +49,8 @@
 // Let's say there's an image decoder for .foo files:
 //
 //     bool SbImageDecodeFooSupportsFormat(SbDecodeTargetFormat format);
-//     bool SbImageDecodeFoo(void *data, int data_size, SbDecodeTarget target);
+//     SbDecodeTarget SbImageDecodeFoo(void* data, int data_size,
+//                                     SbDecodeTargetFormat format);
 //
 // First, the client should enumerate which SbDecodeTargetFormats are supported
 // by that decoder.
@@ -68,25 +69,13 @@
 //       }
 //     }
 //
-// Now that the client has a format, it can create a decode target that it will
-// use to decode the .foo file into. Let's assume format is
-// kSbDecodeTargetFormat1PlaneRGBA, and that we are on an EGL/GLES2 platform.
+// Now that the client has a format, it can create a decode target that it
+// will use to decode the .foo file into. Let's assume format is
+// kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform.
 // Also, we won't do any error checking, to keep things even simpler.
 //
-//     // Allocate a sized texture of the right format.
-//     GLuint texture_handle;
-//     glGenTextures(1, &texture_handle);
-//     glBindTexture(GL_TEXTURE_2D, texture_handle);
-//     glTexImage2D(GL_TEXTURE_2D, 0 /*level*/, GL_RGBA, width, height,
-//                  0 /*border*/, GL_RGBA8, GL_UNSIGNED_BYTE, NULL /*data*/);
-//     glBindTexture(GL_TEXTURE_2D, 0);
-//
-//     // Create an SbDecodeTarget wrapping the new texture handle.
-//     SbDecodeTarget target =
-//         SbDecodeTargetCreate(display, context, format, &texture_handle);
-//
-//     // Now pass the SbDecodeTarget into the decoder.
-//     SbImageDecodeFoo(encoded_foo_data, encoded_foo_data_size, target);
+//     SbDecodeTarget target = SbImageDecodeFoo(encoded_foo_data,
+//                                              encoded_foo_data_size, format);
 //
 //     // If the decode works, you can get the texture out and render it.
 //     GLuint texture =
@@ -100,14 +89,14 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_VERSION(3)
 
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
-#else
+#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
-#endif
+#endif  // SB_HAS(BLITTER)
 
 #ifdef __cplusplus
 extern "C" {
@@ -189,6 +178,9 @@ typedef struct SbDecodeTargetProvider {
 
   // The function to release an acquired SbDecodeTarget back to the provider.
   SbDecodeTargetReleaseFunction release;
+
+  // |context| will be passed into every call to |acquire| and |release|.
+  void* context;
 } SbDecodeTargetProvider;
 
 // --- Constants -------------------------------------------------------------
@@ -201,6 +193,12 @@ typedef struct SbDecodeTargetProvider {
 // Returns whether the given file handle is valid.
 static SB_C_INLINE bool SbDecodeTargetIsValid(SbDecodeTarget handle) {
   return handle != kSbDecodeTargetInvalid;
+}
+
+// Returns whether a given format is valid.
+static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
+    SbDecodeTargetFormat format) {
+  return format != kSbDecodeTargetFormatInvalid;
 }
 
 #if SB_HAS(BLITTER)
@@ -218,7 +216,7 @@ SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(SbDecodeTargetFormat format,
 // Gets the surface that represents the given plane.
 SB_EXPORT SbBlitterSurface SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                                                   SbDecodeTargetPlane plane);
-#else   // SB_HAS(BLITTER)
+#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
 // Creates a new EGL/GLES2-compatible SbDecodeTarget from one or more |planes|
 // owned by |context|, created from |display|. Must be called from a thread
 // where |context| is current.
@@ -239,48 +237,71 @@ SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(EGLDisplay display,
 // Gets the texture that represents the given plane.
 SB_EXPORT GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                                         SbDecodeTargetPlane plane);
+
+#else  // SB_HAS(BLITTER)
+
+// Stub function for when graphics aren't enabled.  Always creates
+// kSbDecodeTargetInvalid.
+static SB_C_INLINE SbDecodeTarget
+SbDecodeTargetCreate(SbDecodeTargetFormat format) {
+  SB_UNREFERENCED_PARAMETER(format);
+  return kSbDecodeTargetInvalid;
+}
+
+// Stub function for when graphics aren't enabled.  There is no concept of a
+// plane, and |NULL| is always returned.
+static SB_C_INLINE void* SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
+                                                SbDecodeTargetPlane plane) {
+  SB_UNREFERENCED_PARAMETER(decode_target);
+  SB_UNREFERENCED_PARAMETER(plane);
+  return NULL;
+}
+
 #endif  // SB_HAS(BLITTER)
 
-// Destroys the given SbDecodeTarget and all associated surfaces.
+// Destroys the given SbDecodeTarget. Note that calling this function does NOT
+// destroy the associated surfaces with it, in order to accommodate the case
+// in which it is desirable for the lifetime of the surface to outlive the
+// SbDecodeTarget that contains it. If the surfaces should be destroyed along
+// with the SbDecodeTarget, then they should be extracted with
+// |SbDecodeTargetGetPlane| and destroyed manually by the client.
 SB_EXPORT void SbDecodeTargetDestroy(SbDecodeTarget decode_target);
 
 // Gets the format that |decode_target| was created with.
 SB_EXPORT SbDecodeTargetFormat
 SbDecodeTargetGetFormat(SbDecodeTarget decode_target);
 
-// Registers |provider| as the SbDecodeTargetProvider with the given |context|,
-// displacing any previous registered provider. The provider is expected to be
-// kept alive by the caller until unregistered, so this function is NOT passing
-// ownership in any way. |context| will be passed into every call to
-// SbDecodeTargetProvider::acquire or SbDecodeTargetProvider::release. May be
-// called from any thread.
-SB_EXPORT bool SbDecodeTargetRegisterProvider(SbDecodeTargetProvider* provider,
-                                              void* context);
+// Gets whether |decode_target| is opaque or not.  The underlying source of
+// this value is expected to be properly maintained by the Starboard
+// implementation.  So, for example, if an opaque only image type were decoded
+// into an SbDecodeTarget, then the implementation would configure things in
+// such a way that this function would return true.  By opaque, it is meant
+// that all alpha values are guaranteed to be 255, if |decode_target| is of a
+// format that has alpha values.  If |decode_target| is of a format that does
+// not have alpha values, then this function should return |true|.
+SB_EXPORT bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target);
 
-// Unregisters |provider| as the SbDecodeTargetProvider, with |context|, if it
-// is the current registered provider-context. This is checked by comparing the
-// pointer values of both |provider| and |context| to the currently registered
-// provider. May be called from any thread.
-SB_EXPORT void SbDecodeTargetUnregisterProvider(
-    SbDecodeTargetProvider* provider,
-    void* context);
-
-// Acquires a decode target from the registered SbDecodeTargetProvider,
-// returning NULL if none is registered. May be called from any thread.
-SB_EXPORT SbDecodeTarget
-SbDecodeTargetAcquireFromProvider(SbDecodeTargetFormat format,
+// Inline convenience function to acquire an SbDecodeTarget of type |format|,
+// |width|, and |height| from |provider|.
+static SB_C_INLINE SbDecodeTarget
+SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider* provider,
+                                  SbDecodeTargetFormat format,
                                   int width,
-                                  int height);
+                                  int height) {
+  return provider->acquire(provider->context, format, width, height);
+}
 
-// Releases |decode_target| back to the registered SbDecodeTargetProvider. If no
-// provider is registered, just calls SbDecodeTargetDestroy on |decode_target|.
-// May be called from any thread.
-SB_EXPORT void SbDecodeTargetReleaseToProvider(SbDecodeTarget decode_target);
+// Inline convenience function to release |decode_target| back to |provider|.
+static SB_C_INLINE void SbDecodeTargetReleaseToProvider(
+    SbDecodeTargetProvider* provider,
+    SbDecodeTarget decode_target) {
+  provider->release(provider->context, decode_target);
+}
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_VERSION(3)
 
 #endif  // STARBOARD_DECODE_TARGET_H_
