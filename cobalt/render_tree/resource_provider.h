@@ -27,6 +27,9 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/typeface.h"
+#if defined(STARBOARD)
+#include "starboard/decode_target.h"
+#endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace render_tree {
@@ -71,6 +74,23 @@ class ResourceProvider {
   // used in a render tree, and return it to the caller.
   virtual scoped_refptr<Image> CreateImage(
       scoped_ptr<ImageData> pixel_data) = 0;
+
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+  // This function will consume an SbDecodeTarget object produced by
+  // SbDecodeTargetCreate(), wrap it in a render_tree::Image that can be used
+  // in a render tree, and return it to the caller.
+  virtual scoped_refptr<Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget target) = 0;
+
+  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
+  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
+  virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() = 0;
+
+  // Whether SbDecodeTargetIsSupported or not.
+  virtual bool SupportsSbDecodeTarget() = 0;
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
 
   // Returns a raw chunk of memory that can later be passed into a function like
   // CreateMultiPlaneImageFromRawMemory() in order to create a texture.

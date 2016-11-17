@@ -20,6 +20,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
+#include "cobalt/loader/image/image_decoder_starboard.h"
 #if defined(__LB_PS3__)
 #include "cobalt/loader/image/jpeg_image_decoder_ps3.h"
 #else  // defined(__LB_PS3__)
@@ -30,6 +31,9 @@
 #include "cobalt/loader/image/webp_image_decoder.h"
 #include "net/base/mime_util.h"
 #include "net/http/http_status_code.h"
+#if defined(STARBOARD)
+#include "starboard/image.h"
+#endif
 
 namespace cobalt {
 namespace loader {
@@ -48,6 +52,41 @@ void CacheMessage(std::string* result, const std::string& message) {
 
   result->append(message);
 }
+
+// The various types of images we support decoding.
+enum ImageType {
+  kImageTypeInvalid,
+  kImageTypeGIF,
+  kImageTypeJPEG,
+  kImageTypePNG,
+  kImageTypeWebP,
+};
+
+// Determine the ImageType of an image from its signature.
+ImageType DetermineImageType(const uint8* header) {
+  if (!memcmp(header, "\xFF\xD8\xFF", 3)) {
+    return kImageTypeJPEG;
+  } else if (!memcmp(header, "GIF87a", 6) || !memcmp(header, "GIF89a", 6)) {
+    return kImageTypeGIF;
+  } else if (!memcmp(header, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8)) {
+    return kImageTypePNG;
+  } else if (!memcmp(header, "RIFF", 4) && !memcmp(header + 8, "WEBPVP", 6)) {
+    return kImageTypeWebP;
+  } else {
+    return kImageTypeInvalid;
+  }
+}
+
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+// clang-format off
+SbDecodeTargetFormat kPreferredFormats[] = {
+    kSbDecodeTargetFormat1PlaneRGBA,
+    kSbDecodeTargetFormat1PlaneBGRA,
+};
+// clang-format on
+#endif
+#endif
 
 }  // namespace
 
@@ -91,9 +130,8 @@ LoadResponseType ImageDecoder::OnResponseStarted(
     CacheMessage(&failure_message_, "No content returned.");
   }
 
-  std::string mime_style;
-  bool success = headers->GetMimeType(&mime_style);
-  if (!success || !net::IsSupportedImageMimeType(mime_style)) {
+  bool success = headers->GetMimeType(&mime_type_);
+  if (!success || !net::IsSupportedImageMimeType(mime_type_)) {
     state_ = kNotApplicable;
     CacheMessage(&failure_message_, "Not an image mime type.");
   }
@@ -118,11 +156,22 @@ void ImageDecoder::Finish() {
     case kDecoding:
       DCHECK(decoder_);
       if (decoder_->FinishWithSuccess()) {
-        scoped_ptr<render_tree::ImageData> image_data =
-            decoder_->RetrieveImageData();
-        success_callback_.Run(
-            image_data ? resource_provider_->CreateImage(image_data.Pass())
-                       : NULL);
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+        SbDecodeTarget target = decoder_->RetrieveSbDecodeTarget();
+        if (SbDecodeTargetIsValid(target)) {
+          success_callback_.Run(
+              resource_provider_->CreateImageFromSbDecodeTarget(target));
+        } else  // NOLINT
+#endif
+#endif
+        {
+          scoped_ptr<render_tree::ImageData> image_data =
+              decoder_->RetrieveImageData();
+          success_callback_.Run(
+              image_data ? resource_provider_->CreateImage(image_data.Pass())
+                         : NULL);
+        }
       } else {
         error_callback_.Run(decoder_->GetTypeString() +
                             " failed to decode image.");
@@ -224,26 +273,50 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
     return false;
   }
 
+  const ImageType image_type = DetermineImageType(signature_cache_.data);
+
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+  const char* mime_type_c_string = mime_type_.c_str();
+
+  // Find out if any of our preferred formats are supported for this mime
+  // type.
+  SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
+  for (size_t i = 0; i < SB_ARRAY_SIZE(kPreferredFormats); ++i) {
+    if (SbImageIsDecodeSupported(mime_type_c_string, kPreferredFormats[i])) {
+      format = kPreferredFormats[i];
+      break;
+    }
+  }
+
+  if (SbDecodeTargetIsFormatValid(format) &&
+      resource_provider_->SupportsSbDecodeTarget()) {
+    decoder_ = make_scoped_ptr<ImageDataDecoder>(new ImageDecoderStarboard(
+        resource_provider_, mime_type_c_string, format));
+    return true;
+  }
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
+
   // Call different types of decoders by matching the image signature.
   if (s_use_stub_image_decoder) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider_));
+  } else if (image_type == kImageTypeJPEG) {
 #if defined(__LB_PS3__)
-  } else if (JPEGImageDecoderPS3::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoderPS3(resource_provider_));
 #else   // defined(__LB_PS3__)
-  } else if (JPEGImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoder(resource_provider_));
 #endif  // defined(__LB_PS3__)
-  } else if (PNGImageDecoder::IsValidSignature(signature_cache_.data)) {
+  } else if (image_type == kImageTypePNG) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider_));
-  } else if (WEBPImageDecoder::IsValidSignature(signature_cache_.data)) {
+  } else if (image_type == kImageTypeWebP) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new WEBPImageDecoder(resource_provider_));
-  } else if (DummyGIFImageDecoder::IsValidSignature(signature_cache_.data)) {
+  } else if (image_type == kImageTypeGIF) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new DummyGIFImageDecoder(resource_provider_));
   } else {
