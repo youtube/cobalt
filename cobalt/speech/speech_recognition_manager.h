@@ -22,7 +22,7 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/speech/endpointer_delegate.h"
-#include "cobalt/speech/microphone_manager.h"
+#include "cobalt/speech/microphone.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
@@ -32,6 +32,8 @@
 
 namespace cobalt {
 namespace speech {
+
+class MicrophoneManager;
 
 // Owned by SpeechRecognition to manage major speech recognition logic.
 // This class interacts with microphone, speech recognition service and audio
@@ -45,7 +47,7 @@ class SpeechRecognitionManager {
 
   SpeechRecognitionManager(network::NetworkModule* network_module,
                            const EventCallback& event_callback,
-                           bool enable_fake_microphone);
+                           const Microphone::Options& microphone_options);
   ~SpeechRecognitionManager();
 
   // Start/Stop speech recognizer and microphone. Multiple calls would be
@@ -80,7 +82,7 @@ class SpeechRecognitionManager {
   EventCallback event_callback_;
   SpeechRecognizer recognizer_;
 
-  MicrophoneManager microphone_manager_;
+  scoped_ptr<MicrophoneManager> microphone_manager_;
 
   // Delegate of endpointer which is used for detecting sound energy.
   EndPointerDelegate endpointer_delegate_;

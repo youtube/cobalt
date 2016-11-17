@@ -31,8 +31,8 @@ namespace {
 void Decode(
     const uint8* audio_data, size_t size,
     const AsyncAudioDecoder::DecodeFinishCallback& decode_finish_callback) {
-  scoped_ptr<AudioFileReader> reader(
-      AudioFileReader::TryCreate(audio_data, size));
+  scoped_ptr<AudioFileReader> reader(AudioFileReader::TryCreate(
+      audio_data, size, GetPreferredOutputSampleType()));
 
   if (reader) {
     decode_finish_callback.Run(reader->sample_rate(),

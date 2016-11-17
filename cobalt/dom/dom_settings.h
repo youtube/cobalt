@@ -25,6 +25,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/speech/microphone.h"
 
 namespace cobalt {
 
@@ -46,10 +47,7 @@ class DOMSettings : public script::EnvironmentSettings {
  public:
   // Hold optional settings for DOMSettings.
   struct Options {
-    Options()
-        : array_buffer_allocator(NULL),
-          array_buffer_cache(NULL),
-          enable_fake_microphone(false) {}
+    Options() : array_buffer_allocator(NULL), array_buffer_cache(NULL) {}
 
     // ArrayBuffer allocates its memory on the heap by default and ArrayBuffers
     // may occupy a lot of memory.  It is possible to provide an allocator via
@@ -60,8 +58,8 @@ class DOMSettings : public script::EnvironmentSettings {
     // amount of ArrayBuffer inside main memory.  So we have provide the
     // following cache to manage ArrayBuffer in main memory.
     ArrayBuffer::Cache* array_buffer_cache;
-    // Use fake microphone if this flag is set to true.
-    bool enable_fake_microphone;
+    // Microphone options.
+    speech::Microphone::Options microphone_options;
   };
 
   DOMSettings(const int max_dom_element_depth,
@@ -77,7 +75,9 @@ class DOMSettings : public script::EnvironmentSettings {
   ~DOMSettings() OVERRIDE;
 
   int max_dom_element_depth() { return max_dom_element_depth_; }
-  bool enable_fake_microphone() const { return enable_fake_microphone_; }
+  const speech::Microphone::Options& microphone_options() const {
+    return microphone_options_;
+  }
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
   scoped_refptr<Window> window() const { return window_; }
@@ -115,7 +115,7 @@ class DOMSettings : public script::EnvironmentSettings {
 
  private:
   const int max_dom_element_depth_;
-  const bool enable_fake_microphone_;
+  const speech::Microphone::Options microphone_options_;
   loader::FetcherFactory* fetcher_factory_;
   network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
