@@ -57,6 +57,8 @@ class SoftwareImage : public SinglePlaneImage {
 
   bool EnsureInitialized() OVERRIDE { return false; }
 
+  bool IsOpaque() const OVERRIDE { return is_opaque_; }
+
  private:
   void Initialize(uint8_t* source_data,
                   const render_tree::ImageDataDescriptor& descriptor);
@@ -64,6 +66,7 @@ class SoftwareImage : public SinglePlaneImage {
   scoped_array<uint8_t> owned_pixel_data_;
   SkBitmap bitmap_;
   math::Size size_;
+  bool is_opaque_;
 };
 
 class SoftwareRawImageMemory : public render_tree::RawImageMemory {
@@ -96,6 +99,10 @@ class SoftwareMultiPlaneImage : public MultiPlaneImage {
   }
 
   bool EnsureInitialized() OVERRIDE { return false; }
+
+  // Currently, all supported multiplane images (e.g. mostly YUV) do not
+  // support alpha, so multiplane images will always be opaque.
+  bool IsOpaque() const OVERRIDE { return true; }
 
  private:
   math::Size size_;

@@ -67,16 +67,6 @@ CSSComputedStyleData::CSSComputedStyleData()
 
 CSSComputedStyleData::~CSSComputedStyleData() {}
 
-unsigned int CSSComputedStyleData::length() const {
-  // Computed style declarations have all known longhand properties.
-  return kMaxLonghandPropertyKey + 1;
-}
-
-const char* CSSComputedStyleData::Item(unsigned int index) const {
-  if (index >= length()) return NULL;
-  return GetPropertyName(GetLexicographicalLonghandPropertyKey(index));
-}
-
 const scoped_refptr<PropertyValue>&
 CSSComputedStyleData::GetPropertyValueReference(PropertyKey key) const {
   DCHECK_GT(key, kNoneProperty);

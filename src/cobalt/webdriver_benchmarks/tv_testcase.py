@@ -9,7 +9,16 @@ import os
 import sys
 import time
 import unittest
-import urlparse
+
+# pylint: disable=C6204
+try:
+  # This code works for Python 2.
+  import urlparse
+  from urllib import urlencode
+except ImportError:
+  # This code works for Python 3.
+  import urllib.parse as urlparse
+  from urllib.parse import urlencode
 
 # This directory is a package
 sys.path.insert(0, os.path.abspath("."))
@@ -22,13 +31,46 @@ import tv
 WebDriverWait = partial_layout_benchmark.ImportSeleniumModule(
     submodule="webdriver.support.ui").WebDriverWait
 
-ElementNotVisibleException = (
-    partial_layout_benchmark.ImportSeleniumModule(
-        submodule="common.exceptions").ElementNotVisibleException)
+ElementNotVisibleException = (partial_layout_benchmark.ImportSeleniumModule(
+    submodule="common.exceptions").ElementNotVisibleException)
 
-BASE_URL = "https://www.youtube.com/tv?env_forcedOffAllExperiments=true"
+BASE_URL = "https://www.youtube.com/"
+TV_APP_PATH = "/tv"
+BASE_PARAMS = {"env_forcedOffAllExperiments": True}
 PAGE_LOAD_WAIT_SECONDS = 30
 LAYOUT_TIMEOUT_SECONDS = 5
+
+
+def _median(l):
+  """Returns median value of items in a list.
+
+  Note: This function is setup for convieniance, and might not be performant
+  for large datasets.  Also, no care has been taken to deal with nans, or
+  infinities, so please expand the functionality and tests if that is desired.
+  The other option is to use median.
+
+  Running time: O(n^2)
+  Space complexity: O(n)
+
+  Args:
+    l: List containing sortable items.
+
+  Returns:
+    Median of the items in a list.  None if |l| is empty.
+  """
+  if not l:
+    return None
+  l_length = len(l)
+  if l_length == 0:
+    return l[0]
+
+  l_sorted = sorted(l)
+  middle_index = l_length // 2
+  if len(l) % 2 == 1:
+    return l_sorted[middle_index]
+
+  # If there are even number of items, take the average of two middle values.
+  return 0.5 * (l_sorted[middle_index] + l_sorted[middle_index - 1])
 
 
 class TvTestCase(unittest.TestCase):
@@ -44,23 +86,66 @@ class TvTestCase(unittest.TestCase):
   def get_webdriver(self):
     return partial_layout_benchmark.GetWebDriver()
 
-  def goto(self, path):
+  def get_cval(self, cval_name):
+    """Returns value of a cval.
+
+    Args:
+      cval_name: Name of the cval.
+    Returns:
+      Value of the cval.
+    """
+    javascript_code = "return h5vcc.cVal.getValue('{}')".format(cval_name)
+    return self.get_webdriver().execute_script(javascript_code)
+
+  def get_int_cval(self, cval_name):
+    """Returns int value of a cval.
+
+    The cval value must be an integer, if it is a float, then this function will
+    throw a ValueError.
+
+    Args:
+      cval_name: Name of the cval.
+    Returns:
+      Value of the cval.
+    Raises:
+      ValueError if the cval is cannot be converted to int.
+    """
+    answer = self.get_cval(cval_name)
+    if answer is None:
+      return answer
+    return int(answer)
+
+  def goto(self, path, query_params=None):
     """Goes to a path off of BASE_URL.
 
     Args:
-      path: URL path
+      path: URL path without the hostname.
+      query_params: Dictionary of parameter names and values.
     Raises:
       Underlying WebDriver exceptions
     """
-    self.get_webdriver().get(urlparse.urljoin(BASE_URL, path))
+    parsed_url = list(urlparse.urlparse(BASE_URL))
+    parsed_url[2] = path
+    query_dict = BASE_PARAMS.copy()
+    if query_params:
+      query_dict.update(urlparse.parse_qsl(parsed_url[4]))
+      query_dict.update(query_params)
+    parsed_url[4] = urlencode(query_dict)
+    final_url = urlparse.urlunparse(parsed_url)
+    self.get_webdriver().get(final_url)
 
-  def load_tv(self):
+  def load_tv(self, label=None):
     """Loads the main TV page and waits for it to display.
 
+    Args:
+      label: A value for the label query parameter.
     Raises:
       Underlying WebDriver exceptions
     """
-    self.goto("")
+    query_params = None
+    if label is not None:
+      query_params = {"label": label}
+    self.goto(TV_APP_PATH, query_params)
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
     # decorator-driven success retry loop for subsequent webdriver requests.
@@ -156,8 +241,7 @@ class TvTestCase(unittest.TestCase):
   def wait_for_layout_complete(self):
     """Waits for Cobalt to complete pending layouts."""
     start_time = time.time()
-    while int(self.get_webdriver().execute_script(
-        "return h5vcc.cVal.getValue('Event.MainWebModule.IsProcessing')")):
+    while self.get_int_cval("Event.MainWebModule.IsProcessing"):
 
       if time.time() - start_time > LAYOUT_TIMEOUT_SECONDS:
         raise TvTestCase.LayoutTimeoutException()
@@ -165,8 +249,13 @@ class TvTestCase(unittest.TestCase):
       time.sleep(0.1)
 
   def get_keyup_layout_duration_us(self):
-    return int(self.get_webdriver().execute_script(
-        "return h5vcc.cVal.getValue('Event.Duration.MainWebModule.KeyUp')"))
+    return self.get_int_cval("Event.Duration.MainWebModule.KeyUp")
+
+  def wait_for_layout_complete_after_focused_shelf(self):
+    """Waits for Cobalt to focus on a shelf and complete pending layouts."""
+    self.poll_until_found(tv.FOCUSED_SHELF)
+    self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
+    self.wait_for_layout_complete()
 
   def record_results(self, name, results):
     """Records results of benchmark.
@@ -177,8 +266,13 @@ class TvTestCase(unittest.TestCase):
       name: name of test case
       results: Test results. Must be JSON encodable
     """
-    print("tv_testcase RESULT: " + name + " "
-          + json.JSONEncoder().encode(results))
+    if isinstance(results, list):
+      value_to_record = _median(results)
+    else:
+      value_to_record = results
+
+    string_value_to_record = json.JSONEncoder().encode(value_to_record)
+    print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
 
 
 def main():

@@ -199,13 +199,17 @@ class IonRuntime
 #if defined(JS_CPU_MIPS)
     // Shared post-bailout-handler tail.
     IonCode* bailoutTail_;
-    IonCode* getBailoutTail() const { return bailoutTail_; }
+    IonCode* getBailoutTail() const {
+        return bailoutTail_;
+    }
 
     IonCode* exceptionTail_;
-    IonCode* getExceptionTail() const { return exceptionTail_; }
+    IonCode* getExceptionTail() const {
+        return exceptionTail_;
+    }
 
-    IonCode* generateExceptionTailStub(JSContext* cx);
-    IonCode* generateBailoutTailStub(JSContext* cx);
+    IonCode *generateExceptionTailStub(JSContext *cx);
+    IonCode *generateBailoutTailStub(JSContext *cx);
 #endif
 };
 

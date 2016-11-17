@@ -76,7 +76,7 @@ class MoveResolver
         }
 #if defined(JS_CPU_MIPS)
         bool isMemoryOrEffectiveAddress() const {
-          return isMemory() || isEffectiveAddress();
+            return isMemory() || isEffectiveAddress();
         }
 #endif
         Register reg() const {

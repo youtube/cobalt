@@ -33,31 +33,31 @@ namespace {
 
 int32 GetKeyCode(const dom::KeyboardEvent::Data& event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-      new dom::KeyboardEvent(event));
+            new dom::KeyboardEvent(event));
   return keyboard_event->key_code();
 }
 
 int32 GetCharCode(const dom::KeyboardEvent::Data& event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-      new dom::KeyboardEvent(event));
+            new dom::KeyboardEvent(event));
   return keyboard_event->char_code();
 }
 
 uint32 GetModifierBitfield(const dom::KeyboardEvent::Data& event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-      new dom::KeyboardEvent(event));
+            new dom::KeyboardEvent(event));
   return keyboard_event->modifiers();
 }
 
 std::string GetType(const dom::KeyboardEvent::Data& event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-      new dom::KeyboardEvent(event));
+            new dom::KeyboardEvent(event));
   return keyboard_event->type().c_str();
 }
 
 int GetLocation(const dom::KeyboardEvent::Data& event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-      new dom::KeyboardEvent(event));
+            new dom::KeyboardEvent(event));
   return keyboard_event->location();
 }
 

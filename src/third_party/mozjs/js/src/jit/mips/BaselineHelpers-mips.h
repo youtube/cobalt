@@ -78,36 +78,33 @@ EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
     masm.movePtr(reg, ra);
 }
 
-inline void EmitTailCallVM(IonCode* target,
-                           MacroAssembler& masm,
-                           uint32_t argSize) {
-  // We assume during this that R0 and R1 have been pushed, and that R2 is
-  // unused.
-  MOZ_ASSERT(R2 == ValueOperand(t7, t6));
+inline void
+EmitTailCallVM(IonCode *target, MacroAssembler &masm, uint32_t argSize)
+{
+    // We assume during this that R0 and R1 have been pushed, and that R2 is
+    // unused.
+    MOZ_ASSERT(R2 == ValueOperand(t7, t6));
 
-  // Compute frame size.
-  masm.movePtr(BaselineFrameReg, t6);
-  masm.addPtr(Imm32(BaselineFrame::FramePointerOffset), t6);
-  masm.subPtr(BaselineStackReg, t6);
+    // Compute frame size.
+    masm.movePtr(BaselineFrameReg, t6);
+    masm.addPtr(Imm32(BaselineFrame::FramePointerOffset), t6);
+    masm.subPtr(BaselineStackReg, t6);
 
-  // Store frame size without VMFunction arguments for GC marking.
-  masm.ma_subu(t7, t6, Imm32(argSize));
-  masm.storePtr(
-      t7, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
+    // Store frame size without VMFunction arguments for GC marking.
+    masm.ma_subu(t7, t6, Imm32(argSize));
+    masm.storePtr(t7, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
 
-  // Push frame descriptor and perform the tail call.
-  // BaselineTailCallReg (ra) already contains the return address (as we
-  // keep it there through the stub calls), but the VMWrapper code being
-  // called expects the return address to also be pushed on the stack.
-  MOZ_ASSERT(BaselineTailCallReg == ra);
-  masm.makeFrameDescriptor(t6, IonFrame_BaselineJS);
-  masm.subPtr(Imm32(sizeof(IonCommonFrameLayout)), StackPointer);
-  masm.storePtr(
-      t6, Address(StackPointer, IonCommonFrameLayout::offsetOfDescriptor()));
-  masm.storePtr(
-      ra, Address(StackPointer, IonCommonFrameLayout::offsetOfReturnAddress()));
+    // Push frame descriptor and perform the tail call.
+    // BaselineTailCallReg (ra) already contains the return address (as we
+    // keep it there through the stub calls), but the VMWrapper code being
+    // called expects the return address to also be pushed on the stack.
+    MOZ_ASSERT(BaselineTailCallReg == ra);
+    masm.makeFrameDescriptor(t6, IonFrame_BaselineJS);
+    masm.subPtr(Imm32(sizeof(IonCommonFrameLayout)), StackPointer);
+    masm.storePtr(t6, Address(StackPointer, IonCommonFrameLayout::offsetOfDescriptor()));
+    masm.storePtr(ra, Address(StackPointer, IonCommonFrameLayout::offsetOfReturnAddress()));
 
-  masm.branch(target);
+    masm.branch(target);
 }
 
 inline void
@@ -122,10 +119,12 @@ EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
     masm.makeFrameDescriptor(reg, IonFrame_BaselineStub);
 }
 
-inline void EmitCallVM(IonCode* target, MacroAssembler& masm) {
-  EmitCreateStubFrameDescriptor(masm, t6);
-  masm.push(t6);
-  masm.call(target);
+inline void
+EmitCallVM(IonCode *target, MacroAssembler &masm)
+{
+    EmitCreateStubFrameDescriptor(masm, t6);
+    masm.push(t6);
+    masm.call(target);
 }
 
 struct BaselineStubFrame {
@@ -241,60 +240,58 @@ EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
     }
 }
 
-inline void EmitCallTypeUpdateIC(MacroAssembler& masm,
-                                 IonCode* code,
-                                 uint32_t objectOffset) {
-  // R0 contains the value that needs to be typechecked.
-  // The object we're updating is a boxed Value on the stack, at offset
-  // objectOffset from $sp, excluding the return address.
+inline void
+EmitCallTypeUpdateIC(MacroAssembler &masm, IonCode *code, uint32_t objectOffset)
+{
+    // R0 contains the value that needs to be typechecked.
+    // The object we're updating is a boxed Value on the stack, at offset
+    // objectOffset from $sp, excluding the return address.
 
-  // Save the current BaselineStubReg to stack, as well as the TailCallReg,
-  // since on mips, the $ra is live.
-  masm.subPtr(Imm32(2 * sizeof(intptr_t)), StackPointer);
-  masm.storePtr(BaselineStubReg, Address(StackPointer, sizeof(intptr_t)));
-  masm.storePtr(BaselineTailCallReg, Address(StackPointer, 0));
+    // Save the current BaselineStubReg to stack, as well as the TailCallReg,
+    // since on mips, the $ra is live.
+    masm.subPtr(Imm32(2 * sizeof(intptr_t)), StackPointer);
+    masm.storePtr(BaselineStubReg, Address(StackPointer, sizeof(intptr_t)));
+    masm.storePtr(BaselineTailCallReg, Address(StackPointer, 0));
 
-  // This is expected to be called from within an IC, when BaselineStubReg
-  // is properly initialized to point to the stub.
-  masm.loadPtr(
-      Address(BaselineStubReg, ICUpdatedStub::offsetOfFirstUpdateStub()),
-      BaselineStubReg);
+    // This is expected to be called from within an IC, when BaselineStubReg
+    // is properly initialized to point to the stub.
+    masm.loadPtr(Address(BaselineStubReg, ICUpdatedStub::offsetOfFirstUpdateStub()),
+                 BaselineStubReg);
 
-  // Load stubcode pointer from BaselineStubReg into BaselineTailCallReg.
-  masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()),
-               R2.scratchReg());
+    // Load stubcode pointer from BaselineStubReg into BaselineTailCallReg.
+    masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), R2.scratchReg());
 
-  // Call the stubcode.
-  masm.call(R2.scratchReg());
+    // Call the stubcode.
+    masm.call(R2.scratchReg());
 
-  // Restore the old stub reg and tailcall reg.
-  masm.loadPtr(Address(StackPointer, 0), BaselineTailCallReg);
-  masm.loadPtr(Address(StackPointer, sizeof(intptr_t)), BaselineStubReg);
-  masm.addPtr(Imm32(2 * sizeof(intptr_t)), StackPointer);
+    // Restore the old stub reg and tailcall reg.
+    masm.loadPtr(Address(StackPointer, 0), BaselineTailCallReg);
+    masm.loadPtr(Address(StackPointer, sizeof(intptr_t)), BaselineStubReg);
+    masm.addPtr(Imm32(2 * sizeof(intptr_t)), StackPointer);
 
-  // The update IC will store 0 or 1 in R1.scratchReg() reflecting if the
-  // value in R0 type-checked properly or not.
-  Label success;
-  masm.ma_b(R1.scratchReg(), Imm32(1), &success, Assembler::Equal, ShortJump);
+    // The update IC will store 0 or 1 in R1.scratchReg() reflecting if the
+    // value in R0 type-checked properly or not.
+    Label success;
+    masm.ma_b(R1.scratchReg(), Imm32(1), &success, Assembler::Equal, ShortJump);
 
-  // If the IC failed, then call the update fallback function.
-  EmitEnterStubFrame(masm, R1.scratchReg());
+    // If the IC failed, then call the update fallback function.
+    EmitEnterStubFrame(masm, R1.scratchReg());
 
-  masm.loadValue(Address(BaselineStackReg, STUB_FRAME_SIZE + objectOffset), R1);
+    masm.loadValue(Address(BaselineStackReg, STUB_FRAME_SIZE + objectOffset), R1);
 
-  masm.pushValue(R0);
-  masm.pushValue(R1);
-  masm.push(BaselineStubReg);
+    masm.pushValue(R0);
+    masm.pushValue(R1);
+    masm.push(BaselineStubReg);
 
-  // Load previous frame pointer, push BaselineFrame *.
-  masm.loadPtr(Address(BaselineFrameReg, 0), R0.scratchReg());
-  masm.pushBaselineFramePtr(R0.scratchReg(), R0.scratchReg());
+    // Load previous frame pointer, push BaselineFrame *.
+    masm.loadPtr(Address(BaselineFrameReg, 0), R0.scratchReg());
+    masm.pushBaselineFramePtr(R0.scratchReg(), R0.scratchReg());
 
-  EmitCallVM(code, masm);
-  EmitLeaveStubFrame(masm);
+    EmitCallVM(code, masm);
+    EmitLeaveStubFrame(masm);
 
-  // Success at end.
-  masm.bind(&success);
+    // Success at end.
+    masm.bind(&success);
 }
 
 template <typename AddrType>

@@ -65,7 +65,7 @@ CodeGeneratorShared::CodeGeneratorShared(MIRGenerator *gen, LIRGraph *graph, Mac
         // relies on the a priori stack adjustment (in the prologue) on platforms
         // (like x64) which require the stack to be aligned.
 #if defined(JS_CPU_ARM) || defined(JS_CPU_MIPS)
-    bool forceAlign = true;
+        bool forceAlign = true;
 #else
         bool forceAlign = false;
 #endif

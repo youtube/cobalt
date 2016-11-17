@@ -7,20 +7,21 @@
 #ifndef jit_mips_LOpcodes_mips_h__
 #define jit_mips_LOpcodes_mips_h__
 
-#define LIR_CPU_OPCODE_LIST(_) \
-  _(Unbox)                     \
-  _(UnboxDouble)               \
-  _(Box)                       \
-  _(BoxDouble)                 \
-  _(DivI)                      \
-  _(DivPowTwoI)                \
-  _(ModI)                      \
-  _(ModPowTwoI)                \
-  _(ModMaskI)                  \
-  _(PowHalfD)                  \
-  _(UInt32ToDouble)            \
-  _(UDiv)                      \
-  _(UMod)                      \
-  _(AsmJSLoadFuncPtr)
+#define LIR_CPU_OPCODE_LIST(_)  \
+    _(Unbox)                    \
+    _(UnboxDouble)              \
+    _(Box)                      \
+    _(BoxDouble)                \
+    _(DivI)                     \
+    _(DivPowTwoI)               \
+    _(ModI)                     \
+    _(ModPowTwoI)               \
+    _(ModMaskI)                 \
+    _(PowHalfD)                 \
+    _(UInt32ToDouble)           \
+    _(UDiv)                     \
+    _(UMod)                     \
+    _(AsmJSLoadFuncPtr)
+
 
 #endif // jit_mips_LOpcodes_mips_h__

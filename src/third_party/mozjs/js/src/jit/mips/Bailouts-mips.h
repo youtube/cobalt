@@ -25,11 +25,11 @@ class BailoutStack
     };
 
   protected:
-   double fpregs_[FloatRegisters::Total];
-   uintptr_t regs_[Registers::Total];
+    double    fpregs_[FloatRegisters::Total];
+    uintptr_t regs_[Registers::Total];
 
-   uintptr_t snapshotOffset_;
-   uintptr_t padding_;
+    uintptr_t snapshotOffset_;
+    uintptr_t padding_;
 
   public:
     FrameSizeClass frameClass() const {

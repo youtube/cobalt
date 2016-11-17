@@ -26,20 +26,20 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
 
   protected:
     // Label for the common return path.
-   HeapLabel* returnLabel_;
-   HeapLabel* deoptLabel_;
+    HeapLabel *returnLabel_;
+    HeapLabel *deoptLabel_;
 
-   inline Address ToAddress(const LAllocation& a) {
-     MOZ_ASSERT(a.isMemory());
-     int32_t offset = ToStackOffset(&a);
+    inline Address ToAddress(const LAllocation &a) {
+        MOZ_ASSERT(a.isMemory());
+        int32_t offset = ToStackOffset(&a);
 
-     // The way the stack slots work, we assume that everything from
-     // depth == 0 downwards is writable however, since our frame is
-     // included in this, ensure that the frame gets skipped.
-     if (gen->compilingAsmJS())
-       offset -= AlignmentMidPrologue;
+        // The way the stack slots work, we assume that everything from
+        // depth == 0 downwards is writable however, since our frame is
+        // included in this, ensure that the frame gets skipped.
+        if (gen->compilingAsmJS())
+            offset -= AlignmentMidPrologue;
 
-     return Address(StackPointer, offset);
+        return Address(StackPointer, offset);
     }
 
     inline Address ToAddress(const LAllocation *a) {
@@ -114,23 +114,20 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     bool generateEpilogue();
     bool generateOutOfLineCode();
 
-    void branchToBlock(Assembler::FloatFormat fmt,
-                       FloatRegister lhs,
-                       FloatRegister rhs,
-                       MBasicBlock* mir,
-                       Assembler::DoubleCondition cond);
+    void branchToBlock(Assembler::FloatFormat fmt, FloatRegister lhs, FloatRegister rhs,
+                       MBasicBlock *mir, Assembler::DoubleCondition cond);
 
     // Generate a jump to the start of the specified block, adding information
     // if this is a loop backedge. Use this in place of jumping directly to
     // mir->lir()->label(), or use getJumpLabelForBranch() if a label to use
     // directly is needed.
-    void jumpToBlock(MBasicBlock* mir) {
-      // No jump necessary if we can fall through to the next block.
-      if (isNextBlock(mir->lir())) {
-        return;
-      }
+    void jumpToBlock(MBasicBlock *mir) {
+        // No jump necessary if we can fall through to the next block.
+        if (isNextBlock(mir->lir())) {
+            return;
+        }
 
-      masm.jump(mir->lir()->label());
+        masm.jump(mir->lir()->label());
     }
 
     template <typename T>
@@ -198,7 +195,7 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     virtual bool visitCompareBAndBranch(LCompareBAndBranch *lir);
     virtual bool visitCompareV(LCompareV *lir);
     virtual bool visitCompareVAndBranch(LCompareVAndBranch *lir);
-    virtual bool visitUInt32ToDouble(LUInt32ToDouble* lir);
+    virtual bool visitUInt32ToDouble(LUInt32ToDouble *lir);
     virtual bool visitNotI(LNotI *ins);
     virtual bool visitNotD(LNotD *ins);
 
@@ -227,10 +224,10 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
 
   public:
     bool visitBox(LBox *box);
-    bool visitBoxDouble(LBoxDouble* box);
+    bool visitBoxDouble(LBoxDouble *box);
     bool visitUnbox(LUnbox *unbox);
     bool visitValue(LValue *value);
-    bool visitOsrValue(LOsrValue* value);
+    bool visitOsrValue(LOsrValue *value);
     bool visitDouble(LDouble *ins);
 
     bool visitLoadSlotV(LLoadSlotV *load);
@@ -267,9 +264,9 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     bool visitUDiv(LUDiv *ins);
     bool visitUMod(LUMod *ins);
 
-   public:
-    bool bailoutIf(Assembler::Condition condition, LSnapshot* snapshot);
-    bool visitMoveGroup(LMoveGroup* group);
+  public:
+    bool bailoutIf(Assembler::Condition condition, LSnapshot *snapshot);
+    bool visitMoveGroup(LMoveGroup *group);
 };
 
 typedef CodeGeneratorMIPS CodeGeneratorSpecific;

@@ -52,6 +52,6 @@ typedef pthread_once_t SbOnceControl;
 typedef pthread_t SbThread;
 
 // Well-defined constant value to mean "no thread handle."
-#define kSbThreadInvalid (SbThread) - 1
+#define kSbThreadInvalid (SbThread)-1
 
 #endif  // STARBOARD_SHARED_PTHREAD_TYPES_PUBLIC_H_

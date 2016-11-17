@@ -118,11 +118,26 @@ struct RenderState {
               const BoundsStack& bounds_stack)
       : render_target(render_target),
         transform(transform),
-        bounds_stack(bounds_stack) {}
+        bounds_stack(bounds_stack),
+        opacity(1.0f)
+#if defined(ENABLE_DEBUG_CONSOLE)
+        ,
+        highlight_software_draws(false)
+#endif
+  {
+  }
 
   SbBlitterRenderTarget render_target;
   Transform transform;
   BoundsStack bounds_stack;
+  float opacity;
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // If true, all software rasterization results are replaced with a green
+  // fill rectangle.  Thus, if the software cache is used, one will see a flash
+  // of green every time something is registered with the cache.
+  bool highlight_software_draws;
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 };
 
 }  // namespace blitter

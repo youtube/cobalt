@@ -293,7 +293,7 @@ MakeFrameDescriptor(uint32_t frameSize, FrameType type)
 #elif defined (JS_CPU_ARM)
 # include "jit/arm/IonFrames-arm.h"
 #elif defined(JS_CPU_MIPS)
-#include "jit/mips/IonFrames-mips.h"
+# include "jit/mips/IonFrames-mips.h"
 #else
 # error "unsupported architecture"
 #endif

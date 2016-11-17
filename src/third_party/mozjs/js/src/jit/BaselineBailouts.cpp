@@ -1177,8 +1177,8 @@ jit::BailoutIonToBaseline(JSContext *cx, JitActivation *activation, IonBailoutIt
     RootedFunction callee(cx, iter.maybeCallee());
     RootedScript scr(cx, iter.script());
     if (callee) {
-      IonSpew(IonSpew_BaselineBailouts, "  Callee function (%s:%u)",
-              scr->filename(), scr->lineno);
+        IonSpew(IonSpew_BaselineBailouts, "  Callee function (%s:%u)",
+                scr->filename(), scr->lineno);
     } else {
         IonSpew(IonSpew_BaselineBailouts, "  No callee!");
     }

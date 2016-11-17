@@ -62,16 +62,6 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
   CSSComputedStyleData();
   ~CSSComputedStyleData();
 
-  // The length attribute must return the number of CSS declarations in the
-  // declarations.
-  //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-length
-  unsigned int length() const;
-
-  // The item(index) method must return the property name of the CSS declaration
-  // at position index.
-  //  https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
-  const char* Item(unsigned int index) const;
-
   void SetPropertyValue(const PropertyKey key,
                         const scoped_refptr<PropertyValue>& value);
 

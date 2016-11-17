@@ -12,7 +12,7 @@
 #elif defined(JS_CPU_ARM)
 # include "jit/arm/MoveEmitter-arm.h"
 #elif defined(JS_CPU_MIPS)
-#include "jit/mips/MoveEmitter-mips.h"
+# include "jit/mips/MoveEmitter-mips.h"
 #else
 # error "CPU Not Supported"
 #endif

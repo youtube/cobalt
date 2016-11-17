@@ -68,7 +68,8 @@ bool HardwareResourceProvider::PixelFormatSupported(
 
 bool HardwareResourceProvider::AlphaFormatSupported(
     render_tree::AlphaFormat alpha_format) {
-  return alpha_format == render_tree::kAlphaFormatPremultiplied;
+  return alpha_format == render_tree::kAlphaFormatPremultiplied ||
+         alpha_format == render_tree::kAlphaFormatOpaque;
 }
 
 scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
@@ -96,7 +97,8 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
   const render_tree::ImageDataDescriptor& descriptor =
       skia_hardware_source_data->GetDescriptor();
 
-  DCHECK_EQ(render_tree::kAlphaFormatPremultiplied, descriptor.alpha_format);
+  DCHECK(descriptor.alpha_format == render_tree::kAlphaFormatPremultiplied ||
+         descriptor.alpha_format == render_tree::kAlphaFormatOpaque);
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   Image::DCheckForPremultipliedAlpha(descriptor.size, descriptor.pitch_in_bytes,
                                      descriptor.pixel_format,

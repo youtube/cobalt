@@ -84,11 +84,15 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   // surface into a SkBitmap.
   const SkBitmap& GetBitmap() const OVERRIDE;
 
+  bool IsOpaque() const OVERRIDE { return is_opaque_; }
+
  private:
   ~SinglePlaneImage() OVERRIDE;
 
   math::Size size_;
   SbBlitterSurface surface_;
+
+  bool is_opaque_;
 
   // This field is populated when GetBitmap() is called for the first time, and
   // after that is never modified.

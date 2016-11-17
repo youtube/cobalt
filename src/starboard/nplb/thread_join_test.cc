@@ -38,7 +38,7 @@ TEST(SbThreadLocalValueTest, ThreadJoinWaitsForFunctionRun) {
   struct LocalStatic {
     static void* ThreadEntryPoint(void* input) {
       int* value = static_cast<int*>(input);
-      static const SbTime kSleepTime = 10 * kSbTimeMillisecond;  // 10 ms.
+      static const SbTime kSleepTime = 10*kSbTimeMillisecond;  // 10 ms.
       // Wait to write the value to increase likelyhood of catching
       // a race condition.
       SbThreadSleep(kSleepTime);
@@ -50,13 +50,14 @@ TEST(SbThreadLocalValueTest, ThreadJoinWaitsForFunctionRun) {
   // Try to increase likelyhood of a race condition by running multiple times.
   for (int i = 0; i < 10; ++i) {
     int num_times_thread_entry_point_run = 0;
-    SbThread thread =
-        SbThreadCreate(0,  // Signals automatic thread stack size.
-                       kSbThreadNoPriority,  // Signals default priority.
-                       kSbThreadNoAffinity,  // Signals default affinity.
-                       true,                 // joinable thread.
-                       "TestThread", LocalStatic::ThreadEntryPoint,
-                       &num_times_thread_entry_point_run);
+    SbThread thread = SbThreadCreate(
+        0,                    // Signals automatic thread stack size.
+        kSbThreadNoPriority,  // Signals default priority.
+        kSbThreadNoAffinity,  // Signals default affinity.
+        true,                 // joinable thread.
+        "TestThread",
+        LocalStatic::ThreadEntryPoint,
+        &num_times_thread_entry_point_run);
 
     ASSERT_NE(kSbThreadInvalid, thread) << "Thread creation not successful";
     ASSERT_TRUE(SbThreadJoin(thread, NULL));

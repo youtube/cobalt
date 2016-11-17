@@ -63,7 +63,7 @@ class ImageDataDecoder {
   // Subclass can override this function to get a last chance to do some work.
   virtual void FinishInternal() {}
 
-  void AllocateImageData(const math::Size& size);
+  void AllocateImageData(const math::Size& size, bool has_alpha);
 
   render_tree::ImageData* image_data() const { return image_data_.get(); }
 

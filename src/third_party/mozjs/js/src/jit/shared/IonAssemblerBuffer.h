@@ -201,13 +201,13 @@ struct AssemblerBuffer
 
 #if defined(JS_CPU_MIPS)
     void executableCopy(uint8_t* dest_) {
-      if (this->oom())
-        return;
+        if (this->oom())
+            return;
 
-      for (Slice* cur = head; cur != nullptr; cur = cur->getNext()) {
-        memcpy(dest_, &cur->instructions, cur->size());
-        dest_ += cur->size();
-      }
+        for (Slice* cur = head; cur != nullptr; cur = cur->getNext()) {
+            memcpy(dest_, &cur->instructions, cur->size());
+            dest_ += cur->size();
+        }
     }
 #endif  // defined(JS_CPU_MIPS)
 

@@ -180,9 +180,11 @@ public:
         {
         }
 
-        bool isSet() const { return m_offset != -1; };
+        bool isSet() const {
+            return m_offset != -1;
+        };
 
-       private:
+    private:
         JmpSrc(int offset)
             : m_offset(offset)
         {

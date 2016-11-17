@@ -47,81 +47,81 @@ static const uint32_t BAILOUT_TABLE_ENTRY_SIZE = 2 * sizeof(void *);
 class Registers
 {
   public:
-   typedef enum RegisterID {
-     r0 = 0,
-     r1,
-     r2,
-     r3,
-     r4,
-     r5,
-     r6,
-     r7,
-     r8,
-     r9,
-     r10,
-     r11,
-     r12,
-     r13,
-     r14,
-     r15,
-     r16,
-     r17,
-     r18,
-     r19,
-     r20,
-     r21,
-     r22,
-     r23,
-     r24,
-     r25,
-     r26,
-     r27,
-     r28,
-     r29,
-     r30,
-     r31,
-     zero = r0,
-     at = r1,
-     v0 = r2,
-     v1 = r3,
-     a0 = r4,
-     a1 = r5,
-     a2 = r6,
-     a3 = r7,
-     t0 = r8,
-     t1 = r9,
-     t2 = r10,
-     t3 = r11,
-     t4 = r12,
-     t5 = r13,
-     t6 = r14,
-     t7 = r15,
-     s0 = r16,
-     s1 = r17,
-     s2 = r18,
-     s3 = r19,
-     s4 = r20,
-     s5 = r21,
-     s6 = r22,
-     s7 = r23,
-     t8 = r24,
-     t9 = r25,
-     k0 = r26,
-     k1 = r27,
-     gp = r28,
-     sp = r29,
-     fp = r30,
-     ra = r31,
-     invalid_reg
-   } RegisterID;
-   typedef RegisterID Code;
+    typedef enum RegisterID {
+        r0 = 0,
+        r1,
+        r2,
+        r3,
+        r4,
+        r5,
+        r6,
+        r7,
+        r8,
+        r9,
+        r10,
+        r11,
+        r12,
+        r13,
+        r14,
+        r15,
+        r16,
+        r17,
+        r18,
+        r19,
+        r20,
+        r21,
+        r22,
+        r23,
+        r24,
+        r25,
+        r26,
+        r27,
+        r28,
+        r29,
+        r30,
+        r31,
+        zero = r0,
+        at = r1,
+        v0 = r2,
+        v1 = r3,
+        a0 = r4,
+        a1 = r5,
+        a2 = r6,
+        a3 = r7,
+        t0 = r8,
+        t1 = r9,
+        t2 = r10,
+        t3 = r11,
+        t4 = r12,
+        t5 = r13,
+        t6 = r14,
+        t7 = r15,
+        s0 = r16,
+        s1 = r17,
+        s2 = r18,
+        s3 = r19,
+        s4 = r20,
+        s5 = r21,
+        s6 = r22,
+        s7 = r23,
+        t8 = r24,
+        t9 = r25,
+        k0 = r26,
+        k1 = r27,
+        gp = r28,
+        sp = r29,
+        fp = r30,
+        ra = r31,
+        invalid_reg
+    } RegisterID;
+    typedef RegisterID Code;
 
-   static const char* GetName(Code code) {
-     static const char* const Names[] = {
-         "zero", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2",
-         "t3",   "t4", "t5", "t6", "t7", "s0", "s1", "s2", "s3", "s4", "s5",
-         "s6",   "s7", "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
-     return Names[code];
+    static const char *GetName(Code code) {
+        static const char * const Names[] = { "zero", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+                                              "t0",   "t1", "t2", "t3", "t4", "t5", "t6", "t7",
+                                              "s0",   "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+                                              "t8",   "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
+        return Names[code];
     }
     static const char *GetName(uint32_t i) {
         JS_ASSERT(i < Total);
@@ -156,9 +156,15 @@ class Registers
     // We use this constant to save registers when entering functions. This
     // is why $ra is added here even though it is not "Non Volatile".
     static const uint32_t NonVolatileMask =
-        (1 << Registers::s0) | (1 << Registers::s1) | (1 << Registers::s2) |
-        (1 << Registers::s3) | (1 << Registers::s4) | (1 << Registers::s5) |
-        (1 << Registers::s6) | (1 << Registers::s7) | (1 << Registers::ra);
+        (1 << Registers::s0) |
+        (1 << Registers::s1) |
+        (1 << Registers::s2) |
+        (1 << Registers::s3) |
+        (1 << Registers::s4) |
+        (1 << Registers::s5) |
+        (1 << Registers::s6) |
+        (1 << Registers::s7) |
+        (1 << Registers::ra);
 
     static const uint32_t WrapperMask =
         VolatileMask |         // = arguments
@@ -182,7 +188,8 @@ class Registers
 
     // Registers returned from a JS -> JS call.
     static const uint32_t JSCallMask =
-        (1 << Registers::a2) | (1 << Registers::a3);
+        (1 << Registers::a2) |
+        (1 << Registers::a3);
 
     // Registers returned from a JS -> C call.
     static const uint32_t CallMask =

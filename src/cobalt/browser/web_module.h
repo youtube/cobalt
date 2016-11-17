@@ -35,6 +35,7 @@
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/render_overlay.h"
 #endif  // ENABLE_DEBUG_CONSOLE
+#include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/keyboard_event.h"

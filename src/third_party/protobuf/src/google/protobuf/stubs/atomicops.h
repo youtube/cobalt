@@ -56,12 +56,22 @@
 // Don't include this file for people not concerned about thread safety.
 #ifndef GOOGLE_PROTOBUF_NO_THREADSAFETY
 
+#if defined(STARBOARD)
+#include "starboard/atomic.h"
+#endif  // defined(STARBOARD)
+
 #include <google/protobuf/stubs/platform_macros.h>
 
 namespace google {
 namespace protobuf {
 namespace internal {
 
+#if defined(STARBOARD)
+typedef SbAtomic32 Atomic32;
+#if defined(GOOGLE_PROTOBUF_ARCH_64_BIT)
+typedef SbAtomic64 Atomic64;
+#endif  // defined(GOOGLE_PROTOBUF_ARCH_64_BIT)
+#else   // defined(STARBOARD)
 typedef int32 Atomic32;
 #ifdef GOOGLE_PROTOBUF_ARCH_64_BIT
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
@@ -74,6 +84,7 @@ typedef int64 Atomic64;
 typedef intptr_t Atomic64;
 #endif
 #endif
+#endif  // defined(STARBOARD)
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
@@ -160,6 +171,11 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #define GOOGLE_PROTOBUF_ATOMICOPS_ERROR \
 #error "Atomic operations are not supported on your platform"
 
+// Starboard.
+#if defined(STARBOARD)
+#include "third_party/protobuf/src/google/protobuf/stubs/atomicops_internals_starboard.h"
+#else
+
 // MSVC.
 #if defined(_MSC_VER)
 #if defined(GOOGLE_PROTOBUF_ARCH_IA32) || defined(GOOGLE_PROTOBUF_ARCH_X64)
@@ -194,6 +210,8 @@ GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #else
 GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #endif
+
+#endif  // defined(STARBOARD)
 
 // On some platforms we need additional declarations to make AtomicWord
 // compatible with our other Atomic* types.

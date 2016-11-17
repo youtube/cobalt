@@ -658,8 +658,7 @@ LIRGenerator::visitTest(MTest *test)
             LAllocation lhs = useRegister(left);
             LAllocation rhs = useRegister(right);
 #if defined(JS_CPU_MIPS)
-            LCompareDAndBranch* lir =
-                new LCompareDAndBranch(comp, lhs, rhs, ifTrue, ifFalse);
+            LCompareDAndBranch *lir = new LCompareDAndBranch(comp, lhs, rhs, ifTrue, ifFalse);
 #else
             LCompareDAndBranch *lir = new LCompareDAndBranch(lhs, rhs, ifTrue, ifFalse);
 #endif
@@ -2266,8 +2265,8 @@ LIRGenerator::visitGetPropertyCache(MGetPropertyCache *ins)
     }
 
 #if defined(JS_CPU_MIPS)
-    LGetPropertyCacheT* lir = new LGetPropertyCacheT(
-        useRegister(ins->object()), tempForDispatchCache(ins->type()));
+    LGetPropertyCacheT *lir = new LGetPropertyCacheT(useRegister(ins->object()),
+                                                              tempForDispatchCache(ins->type()));
 #else
     LGetPropertyCacheT *lir = newLGetPropertyCacheT(ins);
 #endif

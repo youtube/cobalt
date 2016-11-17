@@ -3479,14 +3479,20 @@ class MDiv : public MBinaryArithInstruction
 
 #if defined(JS_CPU_MIPS)
     // isTruncatedDirectly_ defaults to false in SpiderMonkey 31.
-    bool isTruncatedIndirectly() const { return false; }
-    bool canTruncateInfinities() const { return isTruncated(); }
-    bool canTruncateRemainder() const { return isTruncated(); }
+    bool isTruncatedIndirectly() const {
+        return false;
+    }
+    bool canTruncateInfinities() const {
+        return isTruncated();
+    }
+    bool canTruncateRemainder() const {
+        return isTruncated();
+    }
     bool canTruncateOverflow() const {
-      return isTruncated() || isTruncatedIndirectly();
+        return isTruncated() || isTruncatedIndirectly();
     }
     bool canTruncateNegativeZero() const {
-      return isTruncated() || isTruncatedIndirectly();
+        return isTruncated() || isTruncatedIndirectly();
     }
 #endif
 };
@@ -3531,19 +3537,21 @@ class MMod : public MBinaryArithInstruction
     // more restrictive, we return that here.  This seems to be ok so far,
     // however we should be careful when this code is run.
     bool canBeNegativeDividend() const {
-      JS_ASSERT(specialization_ == MIRType_Int32);
-      SB_LOG(WARNING) << "canBeNegativeDividend() returning false";
-      return false;
+        JS_ASSERT(specialization_ == MIRType_Int32);
+        SB_LOG(WARNING) << "canBeNegativeDividend() returning false";
+        return false;
     }
 
-    bool canBeDivideByZero() const {
-      JS_ASSERT(specialization_ == MIRType_Int32);
-      return !rhs()->isConstant() ||
-             rhs()->toConstant()->value().toInt32() == 0;
+    bool
+    canBeDivideByZero() const {
+        JS_ASSERT(specialization_ == MIRType_Int32);
+        return !rhs()->isConstant() || rhs()->toConstant()->value().toInt32() == 0;
     }
 
     // unsigned_ defaults to false in SpiderMonkey31.
-    bool isUnsigned() const { return false; }
+    bool isUnsigned() const {
+        return false;
+    }
 #endif
 };
 

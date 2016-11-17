@@ -32,7 +32,8 @@ class Keyboard {
     kReleaseModifiers,
     kKeepModifiers,
   };
-  typedef std::vector<dom::KeyboardEvent::Data> KeyboardEventVector;
+  typedef std::vector<dom::KeyboardEvent::Data>
+      KeyboardEventVector;
   static void TranslateToKeyEvents(const std::string& utf8_keys,
                                    TerminationBehaviour termination_behaviour,
                                    KeyboardEventVector* out_events);

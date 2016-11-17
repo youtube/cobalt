@@ -25,10 +25,15 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
-#include "cobalt/speech/mic.h"
+#include "cobalt/speech/microphone.h"
+#include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "net/base/escape.h"
 #include "net/url_request/url_fetcher.h"
+
+#if defined(SB_USE_SB_MICROPHONE)
+#include "starboard/microphone.h"
+#endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
 namespace speech {
@@ -75,16 +80,23 @@ ProcessProtoSuccessResults(const proto::SpeechRecognitionEvent& event) {
   SpeechRecognitionResultList::SpeechRecognitionResults results;
   for (int i = 0; i < event.result_size(); ++i) {
     SpeechRecognitionResult::SpeechRecognitionAlternatives alternatives;
-    const proto::SpeechRecognitionResult& kProtoResult = event.result(i);
-    for (int j = 0; j < kProtoResult.alternative_size(); ++j) {
-      const proto::SpeechRecognitionAlternative& kAlternative =
-          kProtoResult.alternative(j);
+    const proto::SpeechRecognitionResult& proto_result = event.result(i);
+    for (int j = 0; j < proto_result.alternative_size(); ++j) {
+      const proto::SpeechRecognitionAlternative& proto_alternative =
+          proto_result.alternative(j);
+      float confidence = 0.0f;
+      if (proto_alternative.has_confidence()) {
+        confidence = proto_alternative.confidence();
+      } else if (proto_result.has_stability()) {
+        confidence = proto_result.stability();
+      }
       scoped_refptr<SpeechRecognitionAlternative> alternative(
-          new SpeechRecognitionAlternative(kAlternative.transcript(),
-                                           kAlternative.confidence()));
+          new SpeechRecognitionAlternative(proto_alternative.transcript(),
+                                           confidence));
       alternatives.push_back(alternative);
     }
-    bool final = kProtoResult.has_final() && kProtoResult.final();
+
+    bool final = proto_result.has_final() && proto_result.final();
     scoped_refptr<SpeechRecognitionResult> recognition_result(
         new SpeechRecognitionResult(alternatives, final));
     results.push_back(recognition_result);
@@ -139,6 +151,16 @@ void ProcessAndFireErrorEvent(
   event_callback.Run(error_event);
 }
 
+bool IsResponseCodeSuccess(int response_code) {
+  // NetFetcher only considers success to be if the network request
+  // was successful *and* we get a 2xx response back.
+  // TODO: 304s are unexpected since we don't enable the HTTP cache,
+  // meaning we don't add the If-Modified-Since header to our request.
+  // However, it's unclear what would happen if we did, so DCHECK.
+  DCHECK_NE(response_code, 304) << "Unsupported status code";
+  return response_code / 100 == 2;
+}
+
 }  // namespace
 
 SpeechRecognizer::SpeechRecognizer(network::NetworkModule* network_module,
@@ -182,23 +204,31 @@ void SpeechRecognizer::OnURLFetchDownloadData(
     const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
 
+  const net::URLRequestStatus& status = source->GetStatus();
+  const int response_code = source->GetResponseCode();
+
   if (source == downstream_fetcher_.get()) {
-    chunked_byte_buffer_.Append(*download_data);
-    while (chunked_byte_buffer_.HasChunks()) {
-      scoped_ptr<std::vector<uint8_t> > chunk =
-          chunked_byte_buffer_.PopChunk().Pass();
+    if (status.is_success() && IsResponseCodeSuccess(response_code)) {
+      chunked_byte_buffer_.Append(*download_data);
+      while (chunked_byte_buffer_.HasChunks()) {
+        scoped_ptr<std::vector<uint8_t> > chunk =
+            chunked_byte_buffer_.PopChunk().Pass();
 
-      proto::SpeechRecognitionEvent event;
-      if (!event.ParseFromString(std::string(chunk->begin(), chunk->end()))) {
-        DLOG(WARNING) << "Parse proto string error.";
-        return;
-      }
+        proto::SpeechRecognitionEvent event;
+        if (!event.ParseFromString(std::string(chunk->begin(), chunk->end()))) {
+          DLOG(WARNING) << "Parse proto string error.";
+          return;
+        }
 
-      if (event.status() == proto::SpeechRecognitionEvent::STATUS_SUCCESS) {
-        ProcessAndFireSuccessEvent(ProcessProtoSuccessResults(event));
-      } else {
-        ProcessAndFireErrorEvent(event, event_callback_);
+        if (event.status() == proto::SpeechRecognitionEvent::STATUS_SUCCESS) {
+          ProcessAndFireSuccessEvent(ProcessProtoSuccessResults(event));
+        } else {
+          ProcessAndFireErrorEvent(event, event_callback_);
+        }
       }
+    } else {
+      event_callback_.Run(new SpeechRecognitionError(
+          SpeechRecognitionError::kNetwork, "Network response failure."));
     }
   }
 }
@@ -243,7 +273,14 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "client", kClient);
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
-  up_url = AppendQueryParameter(up_url, "key", GetSpeechAPIKey());
+
+  const char* speech_api_key = NULL;
+#if defined(SB_USE_SB_MICROPHONE)
+  speech_api_key = SbMicrophoneGetSpeechApiKey();
+#else
+  speech_api_key = "";
+#endif
+  up_url = AppendQueryParameter(up_url, "key", speech_api_key);
 
   // Language is required. If no language is specified, use the system language.
   if (!config.lang.empty()) {

@@ -29,9 +29,9 @@
 #elif defined(JS_CPU_ARM)
 # include "arm/BaselineCompiler-arm.h"
 #elif defined(JS_CPU_MIPS)
-#include "mips/BaselineCompiler-mips.h"
+# include "mips/BaselineCompiler-mips.h"
 #else
-#error "Unknown CPU architecture."
+# error "Unknown CPU architecture."
 #endif
 
 namespace js {

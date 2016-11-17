@@ -30,8 +30,8 @@ ABIArgGenerator::ABIArgGenerator()
 ABIArg
 ABIArgGenerator::next(MIRType type)
 {
-  JS_NOT_REACHED("NYI");
-  return ABIArg();
+    JS_NOT_REACHED("NYI");
+    return ABIArg();
 }
 const Register ABIArgGenerator::NonArgReturnVolatileReg0 = t0;
 const Register ABIArgGenerator::NonArgReturnVolatileReg1 = t1;
@@ -165,8 +165,10 @@ Assembler::actualIndex(uint32_t idx_) const
     return idx_;
 }
 
-uint8_t* Assembler::PatchableJumpAddress(IonCode* code, uint32_t pe_) {
-  return code->raw() + pe_;
+uint8_t *
+Assembler::PatchableJumpAddress(IonCode *code, uint32_t pe_)
+{
+    return code->raw() + pe_;
 }
 
 class RelocationIterator
@@ -199,19 +201,21 @@ Assembler::getPointer(uint8_t *instPtr)
     return Assembler::extractLuiOriValue(inst, inst->next());
 }
 
-static IonCode* CodeFromJump(Instruction* jump) {
-  uint8_t* target = (uint8_t*)Assembler::extractLuiOriValue(jump, jump->next());
-  return IonCode::FromExecutable(target);
+static IonCode *
+CodeFromJump(Instruction *jump)
+{
+    uint8_t *target = (uint8_t *)Assembler::extractLuiOriValue(jump, jump->next());
+    return IonCode::FromExecutable(target);
 }
 
-void Assembler::TraceJumpRelocations(JSTracer* trc,
-                                     IonCode* code,
-                                     CompactBufferReader& reader) {
-  RelocationIterator iter(reader);
-  while (iter.read()) {
-    IonCode* child = CodeFromJump((Instruction*)(code->raw() + iter.offset()));
-    MarkIonCodeUnbarriered(trc, &child, "rel32");
-  }
+void
+Assembler::TraceJumpRelocations(JSTracer *trc, IonCode *code, CompactBufferReader &reader)
+{
+    RelocationIterator iter(reader);
+    while (iter.read()) {
+        IonCode *child = CodeFromJump((Instruction *)(code->raw() + iter.offset()));
+        MarkIonCodeUnbarriered(trc, &child, "rel32");
+    }
 }
 
 static void
@@ -241,10 +245,10 @@ TraceDataRelocations(JSTracer *trc, MIPSBuffer *buffer, CompactBufferReader &rea
     }
 }
 
-void Assembler::TraceDataRelocations(JSTracer* trc,
-                                     IonCode* code,
-                                     CompactBufferReader& reader) {
-  ::TraceDataRelocations(trc, code->raw(), reader);
+void
+Assembler::TraceDataRelocations(JSTracer *trc, IonCode *code, CompactBufferReader &reader)
+{
+    ::TraceDataRelocations(trc, code->raw(), reader);
 }
 
 void
@@ -274,9 +278,9 @@ Assembler::trace(JSTracer *trc)
     for (size_t i = 0; i < jumps_.length(); i++) {
         RelativePatch &rp = jumps_[i];
         if (rp.kind == Relocation::IONCODE) {
-          IonCode* code = IonCode::FromExecutable((uint8_t*)rp.target);
-          MarkIonCodeUnbarriered(trc, &code, "masmrel32");
-          JS_ASSERT(code == IonCode::FromExecutable((uint8_t*)rp.target));
+            IonCode *code = IonCode::FromExecutable((uint8_t *)rp.target);
+            MarkIonCodeUnbarriered(trc, &code, "masmrel32");
+            JS_ASSERT(code == IonCode::FromExecutable((uint8_t *)rp.target));
         }
     }
     if (dataRelocations_.length()) {
@@ -446,18 +450,18 @@ Assembler::bytesNeeded() const
 BufferOffset
 Assembler::writeInst(uint32_t x, uint32_t *dest)
 {
-  if (dest == NULL)
-    return m_buffer.putInt(x);
+    if (dest == NULL)
+        return m_buffer.putInt(x);
 
-  writeInstStatic(x, dest);
-  return BufferOffset();
+    writeInstStatic(x, dest);
+    return BufferOffset();
 }
 
 void
 Assembler::writeInstStatic(uint32_t x, uint32_t *dest)
 {
-  JS_ASSERT(dest != NULL);
-  *dest = x;
+    JS_ASSERT(dest != NULL);
+    *dest = x;
 }
 
 BufferOffset
@@ -1366,19 +1370,20 @@ Assembler::writeLuiOriInstructions(Instruction *inst0, Instruction *inst1,
     *inst1 = InstImm(op_ori, reg, reg, Imm16::lower(Imm32(value)));
 }
 
-void Assembler::patchDataWithValueCheck(CodeLocationLabel label,
-                                        ImmWord newValue,
-                                        ImmWord expectedValue) {
-  Instruction* inst = (Instruction*)label.raw();
+void
+Assembler::patchDataWithValueCheck(CodeLocationLabel label, ImmWord newValue,
+                                   ImmWord expectedValue)
+{
+    Instruction *inst = (Instruction *) label.raw();
 
-  // Extract old Value
-  DebugOnly<uint32_t> value = Assembler::extractLuiOriValue(&inst[0], &inst[1]);
-  JS_ASSERT(value == uint32_t(expectedValue.value));
+    // Extract old Value
+    DebugOnly<uint32_t> value = Assembler::extractLuiOriValue(&inst[0], &inst[1]);
+    JS_ASSERT(value == uint32_t(expectedValue.value));
 
-  // Replace with new value
-  Assembler::updateLuiOriValue(inst, inst->next(), uint32_t(newValue.value));
+    // Replace with new value
+    Assembler::updateLuiOriValue(inst, inst->next(), uint32_t(newValue.value));
 
-  AutoFlushCache::updateTop(uintptr_t(inst), 8);
+    AutoFlushCache::updateTop(uintptr_t(inst), 8);
 }
 
 // This just stomps over memory with 32 bits of raw data. Its purpose is to
@@ -1401,7 +1406,7 @@ Assembler::nextInstruction(uint8_t *inst_, uint32_t *count)
 {
     Instruction *inst = reinterpret_cast<Instruction*>(inst_);
     if (count != NULL)
-      *count += sizeof(Instruction);
+        *count += sizeof(Instruction);
     return reinterpret_cast<uint8_t*>(inst->next());
 }
 
@@ -1513,5 +1518,7 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
 
 void Assembler::updateBoundsCheck(uint32_t heapSize, Instruction *inst)
 {
-  JS_NOT_REACHED("NYI");
+    JS_NOT_REACHED("NYI");
 }
+
+

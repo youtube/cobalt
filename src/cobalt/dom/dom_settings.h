@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/array_buffer.h"
+#include "cobalt/dom/blob.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/media/can_play_type_handler.h"
@@ -45,7 +46,10 @@ class DOMSettings : public script::EnvironmentSettings {
  public:
   // Hold optional settings for DOMSettings.
   struct Options {
-    Options() : array_buffer_allocator(NULL), array_buffer_cache(NULL) {}
+    Options()
+        : array_buffer_allocator(NULL),
+          array_buffer_cache(NULL),
+          enable_fake_microphone(false) {}
 
     // ArrayBuffer allocates its memory on the heap by default and ArrayBuffers
     // may occupy a lot of memory.  It is possible to provide an allocator via
@@ -56,6 +60,8 @@ class DOMSettings : public script::EnvironmentSettings {
     // amount of ArrayBuffer inside main memory.  So we have provide the
     // following cache to manage ArrayBuffer in main memory.
     ArrayBuffer::Cache* array_buffer_cache;
+    // Use fake microphone if this flag is set to true.
+    bool enable_fake_microphone;
   };
 
   DOMSettings(const int max_dom_element_depth,
@@ -63,6 +69,7 @@ class DOMSettings : public script::EnvironmentSettings {
               network::NetworkModule* network_module,
               const scoped_refptr<Window>& window,
               MediaSource::Registry* media_source_registry,
+              Blob::Registry* blob_registry,
               media::CanPlayTypeHandler* can_play_type_handler,
               script::JavaScriptEngine* engine,
               script::GlobalEnvironment* global_environment_proxy,
@@ -70,6 +77,7 @@ class DOMSettings : public script::EnvironmentSettings {
   ~DOMSettings() OVERRIDE;
 
   int max_dom_element_depth() { return max_dom_element_depth_; }
+  bool enable_fake_microphone() const { return enable_fake_microphone_; }
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
   scoped_refptr<Window> window() const { return window_; }
@@ -100,18 +108,21 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
+  Blob::Registry* blob_registry() const { return blob_registry_; }
 
   // An absolute URL used to resolve relative URLs.
   virtual GURL base_url() const;
 
  private:
   const int max_dom_element_depth_;
+  const bool enable_fake_microphone_;
   loader::FetcherFactory* fetcher_factory_;
   network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
   ArrayBuffer::Allocator* array_buffer_allocator_;
   ArrayBuffer::Cache* array_buffer_cache_;
   MediaSource::Registry* media_source_registry_;
+  Blob::Registry* blob_registry_;
   media::CanPlayTypeHandler* can_play_type_handler_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalEnvironment* global_environment_;

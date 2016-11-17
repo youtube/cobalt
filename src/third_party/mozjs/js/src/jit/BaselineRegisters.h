@@ -16,7 +16,7 @@
 #elif defined(JS_CPU_ARM)
 # include "arm/BaselineRegisters-arm.h"
 #elif defined(JS_CPU_MIPS)
-#include "mips/BaselineRegisters-mips.h"
+# include "mips/BaselineRegisters-mips.h"
 #else
 #error "Unknown CPU architecture."
 #endif

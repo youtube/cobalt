@@ -40,6 +40,7 @@ StarboardPlayer::StarboardPlayer(
       ticket_(SB_PLAYER_INITIAL_TICKET),
       volume_(1.0),
       paused_(true),
+      seek_pending_(false),
       state_(kPlaying) {
   DCHECK(audio_config.IsValidConfig());
   DCHECK(video_config.IsValidConfig());
@@ -131,6 +132,8 @@ void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
 void StarboardPlayer::PrepareForSeek() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   ++ticket_;
+  SbPlayerSetPause(player_, true);
+  seek_pending_ = true;
 }
 
 void StarboardPlayer::Seek(base::TimeDelta time) {
@@ -154,6 +157,10 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
 
   ++ticket_;
   SbPlayerSeek(player_, TimeDeltaToSbMediaTime(time), ticket_);
+  seek_pending_ = false;
+  if (!paused_) {
+    SbPlayerSetPause(player_, false);
+  }
 }
 
 void StarboardPlayer::SetVolume(float volume) {
@@ -174,8 +181,10 @@ void StarboardPlayer::SetPause(bool pause) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(SbPlayerIsValid(player_));
 
-  SbPlayerSetPause(player_, pause);
   paused_ = pause;
+  if (!seek_pending_) {
+    SbPlayerSetPause(player_, pause);
+  }
 }
 
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,

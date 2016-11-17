@@ -87,7 +87,7 @@ class LIRGeneratorMIPS : public LIRGeneratorShared
     bool visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStatic *ins);
     bool visitAsmJSUDiv(MAsmJSUDiv* ins);
     bool visitAsmJSUMod(MAsmJSUDiv* ins);
-    bool visitInterruptCheck(MInterruptCheck* ins);
+    bool visitInterruptCheck(MInterruptCheck *ins);
 
     static bool allowFloat32Optimizations() {
         return true;

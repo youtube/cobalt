@@ -84,7 +84,8 @@ EngineStats::EngineStats()
                         "JS memory occupied by the Mozjs allocator."),
       mapped_memory_("Memory.JS.MappedMemory", 0, "JS mapped memory."),
       engine_count_("Count.JS.Engine", 0,
-                    "Total JavaScript engine registered.") {}
+                    "Total JavaScript engine registered.") {
+}
 
 // Pretend we always preserve wrappers since we never call
 // SetPreserveWrapperCallback anywhere else. This is necessary for
@@ -93,7 +94,9 @@ EngineStats::EngineStats()
 // of its use in selfhosted.js. See bugzilla discussion linked where
 // they decided to include a similar dummy in the mozjs shell.
 // https://bugzilla.mozilla.org/show_bug.cgi?id=829798
-bool DummyPreserveWrapperCallback(JSContext* cx, JSObject* obj) { return true; }
+bool DummyPreserveWrapperCallback(JSContext *cx, JSObject *obj) {
+  return true;
+}
 
 }  // namespace
 

@@ -110,7 +110,10 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (CheckInputAndUpdateSeverity(data, size) == kFatal) {
+  std::string current_chunk;
+  PreprocessChunk(data, size, &current_chunk);
+
+  if (max_severity() == kFatal) {
     return;
   }
 
@@ -120,9 +123,10 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     // when used for setting an element's innerHTML.
     htmlEmitImpliedRootLevelParagraph(0);
 
-    html_parser_context_ = htmlCreatePushParserCtxt(
-        &html_sax_handler, this, data, static_cast<int>(size),
-        NULL /*filename*/, XML_CHAR_ENCODING_UTF8);
+    html_parser_context_ =
+        htmlCreatePushParserCtxt(&html_sax_handler, this, current_chunk.c_str(),
+                                 static_cast<int>(current_chunk.size()),
+                                 NULL /*filename*/, XML_CHAR_ENCODING_UTF8);
 
     if (!html_parser_context_) {
       static const char kErrorUnableCreateParser[] =
@@ -135,7 +139,8 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     }
   } else {
     DCHECK(html_parser_context_);
-    htmlParseChunk(html_parser_context_, data, static_cast<int>(size),
+    htmlParseChunk(html_parser_context_, current_chunk.c_str(),
+                   static_cast<int>(current_chunk.size()),
                    0 /*do not terminate*/);
   }
 }

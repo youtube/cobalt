@@ -111,11 +111,14 @@ class AbstractTestThread {
   void Start() {
     SbThreadEntryPoint entry_point = ThreadEntryPoint;
 
-    thread_ = SbThreadCreate(0,                    // default stack_size.
-                             kSbThreadNoPriority,  // default priority.
-                             kSbThreadNoAffinity,  // default affinity.
-                             true,                 // joinable.
-                             "AbstractTestThread", entry_point, this);
+    thread_ = SbThreadCreate(
+        0,                     // default stack_size.
+        kSbThreadNoPriority,   // default priority.
+        kSbThreadNoAffinity,   // default affinity.
+        true,                  // joinable.
+        "AbstractTestThread",
+        entry_point,
+        this);
 
     if (kSbThreadInvalid == thread_) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";

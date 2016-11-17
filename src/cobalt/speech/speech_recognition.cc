@@ -31,7 +31,9 @@ SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
                        ->fetcher_factory()
                        ->network_module(),
                    base::Bind(&SpeechRecognition::OnEventAvailable,
-                              base::Unretained(this)))),
+                              base::Unretained(this)),
+                   base::polymorphic_downcast<dom::DOMSettings*>(settings)
+                       ->enable_fake_microphone())),
       config_("" /*lang*/, false /*continuous*/, false /*interim_results*/,
               1 /*max alternatives*/) {}
 

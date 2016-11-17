@@ -1441,9 +1441,9 @@ LAllocation::toRegister() const
 #elif defined(JS_CPU_ARM)
 # include "arm/LIR-arm.h"
 #elif defined(JS_CPU_MIPS)
-#include "mips/LIR-mips.h"
+# include "mips/LIR-mips.h"
 #else
-#error "Unknown CPU architecture."
+# error "Unknown CPU architecture."
 #endif
 
 #undef LIR_HEADER

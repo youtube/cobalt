@@ -31,7 +31,7 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
       current_event_type_(kEventTypeInvalid),
       name_(name),
       event_is_processing_(StringPrintf("Event.%s.IsProcessing", name.c_str()),
-                           0, "Nonzero when an event is being processed.") {
+          0, "Nonzero when an event is being processed.") {
   if (should_track_event_stats_) {
     event_stats_.reserve(kNumEventTypes);
     for (int i = 0; i < kNumEventTypes; ++i) {

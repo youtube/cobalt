@@ -343,8 +343,8 @@ class RepatchIonCache : public IonCache
 #ifdef JS_CPU_ARM
     static const size_t REJOIN_LABEL_OFFSET = 4;
 #elif defined(JS_CPU_MIPS)
-  // The size of jump created by MacroAssemblerMIPSCompat::jumpWithPatch.
-  static const size_t REJOIN_LABEL_OFFSET = 4 * sizeof(void*);
+    // The size of jump created by MacroAssemblerMIPSCompat::jumpWithPatch.
+    static const size_t REJOIN_LABEL_OFFSET = 4 * sizeof(void *);
 #else
     static const size_t REJOIN_LABEL_OFFSET = 0;
 #endif
