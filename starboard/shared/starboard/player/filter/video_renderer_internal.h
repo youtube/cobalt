@@ -25,6 +25,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 namespace shared {
@@ -66,6 +67,7 @@ class VideoRenderer : private VideoDecoder::Host {
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
                              VideoFrame* frame) SB_OVERRIDE;
 
+  ThreadChecker thread_checker_;
   ::starboard::Mutex mutex_;
 
   bool seeking_;
