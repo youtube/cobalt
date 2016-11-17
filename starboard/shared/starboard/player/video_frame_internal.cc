@@ -183,6 +183,8 @@ VideoFrame VideoFrame::CreateYV12Frame(int width,
 
   int y_plane_size_in_bytes = height * pitch_in_bytes;
   int uv_plane_size_in_bytes = uv_height * uv_pitch_in_bytes;
+  frame.pixel_buffer_.reserve(y_plane_size_in_bytes +
+                              uv_plane_size_in_bytes * 2);
   frame.pixel_buffer_.assign(y, y + y_plane_size_in_bytes);
   frame.pixel_buffer_.insert(frame.pixel_buffer_.end(), u,
                              u + uv_plane_size_in_bytes);
