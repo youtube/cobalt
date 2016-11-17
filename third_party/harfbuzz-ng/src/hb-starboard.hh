@@ -23,7 +23,7 @@
 #define hb_malloc_impl SbMemoryAllocate
 #define hb_realloc_impl SbMemoryReallocate
 #define hb_calloc_impl SbMemoryCalloc
-#define hb_free_impl SbMemoryFree
+#define hb_free_impl SbMemoryDeallocate
 
 // Micro Posix Emulation
 #define assert SB_DCHECK
