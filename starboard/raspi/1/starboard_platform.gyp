@@ -34,6 +34,8 @@
         '<(DEPTH)/starboard/raspi/1/system_get_property.cc',
         '<(DEPTH)/starboard/raspi/shared/application_dispmanx.cc',
         '<(DEPTH)/starboard/raspi/shared/audio_sink_is_audio_sample_type_supported.cc',
+        '<(DEPTH)/starboard/raspi/shared/dispmanx_util.cc',
+        '<(DEPTH)/starboard/raspi/shared/dispmanx_util.h',
         '<(DEPTH)/starboard/raspi/shared/main.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component.h',
