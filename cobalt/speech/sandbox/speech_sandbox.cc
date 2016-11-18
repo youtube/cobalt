@@ -16,6 +16,7 @@
 
 #include "cobalt/speech/sandbox/speech_sandbox.h"
 
+#include "base/path_service.h"
 #include "cobalt/speech/sandbox/wav_decoder.h"
 
 namespace cobalt {
@@ -35,7 +36,14 @@ SpeechSandbox::SpeechSandbox(const GURL& url, const FilePath& trace_log_path)
   network_options.require_https = false;
 
   network_module_.reset(new network::NetworkModule(network_options));
-  fetcher_factory_.reset(new loader::FetcherFactory(network_module_.get()));
+
+  FilePath exe_path;
+  PathService::Get(base::FILE_EXE, &exe_path);
+  DCHECK(exe_path.IsAbsolute());
+
+  // Pass the executable directory for the extra search directory.
+  fetcher_factory_.reset(
+      new loader::FetcherFactory(network_module_.get(), exe_path.DirName()));
 
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateSecureFetcher,
