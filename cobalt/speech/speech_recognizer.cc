@@ -275,7 +275,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "output", "pb");
 
   const char* speech_api_key = NULL;
-#if defined(SB_USE_SB_MICROPHONE)
+#if SB_VERSION(2)
   const int kSpeechApiKeyLength = 100;
   char buffer[kSpeechApiKeyLength] = {0};
   bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
