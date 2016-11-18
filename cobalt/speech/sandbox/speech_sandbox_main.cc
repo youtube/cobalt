@@ -26,21 +26,14 @@ namespace speech {
 namespace sandbox {
 
 GURL ResolveUrl(const char* arg) {
-  GURL video_url(arg);
-  if (!video_url.is_valid()) {
+  GURL audio_url(arg);
+  if (!audio_url.is_valid()) {
     // Assume the input is a path.
     // Try to figure out the path to this file and convert it to a URL.
     FilePath result(arg);
-    if (!result.IsAbsolute()) {
-      FilePath content_path;
-      PathService::Get(base::DIR_EXE, &content_path);
-      DCHECK(content_path.IsAbsolute());
-      // TODO: Get the "real" exe path.
-      result = content_path.DirName().DirName().Append(result);
-    }
-    video_url = net::FilePathToFileURL(result);
+    audio_url = net::FilePathToFileURL(result);
   }
-  return video_url;
+  return audio_url;
 }
 
 SpeechSandbox* g_speech_sandbox = NULL;
