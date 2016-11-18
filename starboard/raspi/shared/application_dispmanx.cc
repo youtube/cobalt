@@ -37,30 +37,7 @@ namespace shared {
 using ::starboard::shared::dev_input::DevInput;
 
 namespace {
-
-// TODO: Support arbitrary frame size.
-const int kMaxVideoFrameWidth = 1920;
-const int kMaxVideoFrameHeight = 1080;
-const int kMaxVideoFrameHeightAligned = 1088;
-
-// Fill the resource into black pixels.
-void ClearYUV420Resource(DISPMANX_RESOURCE_HANDLE_T resource,
-                         int width,
-                         int height) {
-  SB_DCHECK(width > 0 && height > 0);
-
-  std::vector<uint8_t> pixels;
-  pixels.reserve(width * height * 3 / 2);
-  pixels.assign(width * height, 0);
-  pixels.insert(pixels.end(), width * height / 2, 0x80);
-
-  VC_RECT_T dst_rect;
-  vc_dispmanx_rect_set(&dst_rect, 0, 0, width, height * 3 / 2);
-  int32_t result = vc_dispmanx_resource_write_data(
-      resource, VC_IMAGE_YUV420, width, &pixels[0], &dst_rect);
-  SB_DCHECK(result == 0);
-}
-
+const int kVideoLayer = -1;
 }  // namespace
 
 SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
@@ -71,36 +48,12 @@ SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
   InitializeDispmanx();
 
   SB_DCHECK(IsDispmanxInitialized());
-  window_ = new SbWindowPrivate(display_, options);
+  window_ = new SbWindowPrivate(*display_, options);
   input_ = DevInput::Create(window_);
 
   // Create the dispmanx element to display video frames.
   int result = 0;
   uint32_t vc_image_ptr;
-
-  video_frame_resource_ =
-      vc_dispmanx_resource_create(VC_IMAGE_YUV420, kMaxVideoFrameWidth,
-                                  kMaxVideoFrameHeightAligned, &vc_image_ptr);
-  SB_DCHECK(video_frame_resource_ != DISPMANX_NO_HANDLE);
-
-  VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FROM_SOURCE, 255, 0};
-
-  VC_RECT_T src_rect;
-  VC_RECT_T dst_rect;
-  vc_dispmanx_rect_set(&src_rect, 0, 0, kMaxVideoFrameWidth << 16,
-                       kMaxVideoFrameHeight << 16);
-  vc_dispmanx_rect_set(&dst_rect, 0, 0, 0, 0);
-
-  ClearYUV420Resource(video_frame_resource_, kMaxVideoFrameWidth,
-                      kMaxVideoFrameHeightAligned);
-
-  DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0 /*screen*/);
-  video_frame_element_ = vc_dispmanx_element_add(
-      update, display_, -1, &dst_rect, video_frame_resource_, &src_rect,
-      DISPMANX_PROTECTION_NONE, &alpha, NULL, DISPMANX_NO_ROTATE);
-  SB_DCHECK(video_frame_element_ != DISPMANX_NO_HANDLE);
-  result = vc_dispmanx_update_submit_sync(update);
-  SB_DCHECK(result == 0) << " result=" << result;
 
   return window_;
 }
@@ -115,16 +68,6 @@ bool ApplicationDispmanx::DestroyWindow(SbWindow window) {
   SB_DCHECK(input_);
   delete input_;
   input_ = NULL;
-
-  DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0 /*screen*/);
-  int32_t result = vc_dispmanx_element_remove(update, video_frame_element_);
-  SB_DCHECK(result == 0) << " result=" << result;
-  vc_dispmanx_update_submit_sync(update);
-  video_frame_element_ = DISPMANX_NO_HANDLE;
-
-  result = vc_dispmanx_resource_delete(video_frame_resource_);
-  SB_DCHECK(result == 0) << " result=" << result;
-  video_frame_resource_ = DISPMANX_NO_HANDLE;
 
   SB_DCHECK(window_ == window);
   delete window;
@@ -148,19 +91,10 @@ void ApplicationDispmanx::AcceptFrame(SbPlayer player,
                                       int y,
                                       int width,
                                       int height) {
-  VC_RECT_T dst_rect;
-  vc_dispmanx_rect_set(&dst_rect, 0, 0, frame.width(), frame.height() * 3 / 2);
-  int32_t result = 0;
-  if (frame.IsEndOfStream()) {
-    ClearYUV420Resource(video_frame_resource_, kMaxVideoFrameWidth,
-                        kMaxVideoFrameHeightAligned);
-  } else {
-    result = vc_dispmanx_resource_write_data(
-        video_frame_resource_, VC_IMAGE_YUV420,
-        frame.GetPlane(0).pitch_in_bytes,
-        const_cast<uint8_t*>(frame.GetPlane(0).data), &dst_rect);
+  if (!video_renderer_) {
+    video_renderer_.reset(new DispmanxVideoRenderer(*display_, kVideoLayer));
   }
-  SB_DCHECK(result == 0);
+  video_renderer_->Update(frame);
 }
 
 bool ApplicationDispmanx::MayHaveSystemEvents() {
@@ -189,8 +123,7 @@ void ApplicationDispmanx::InitializeDispmanx() {
     return;
   }
 
-  bcm_host_init();
-  display_ = vc_dispmanx_display_open(0);
+  display_.reset(new DispmanxDisplay);
   SB_DCHECK(IsDispmanxInitialized());
 }
 
@@ -200,10 +133,8 @@ void ApplicationDispmanx::ShutdownDispmanx() {
   }
 
   SB_DCHECK(!SbWindowIsValid(window_));
-  int result = vc_dispmanx_display_close(display_);
-  SB_DCHECK(result == 0);
-  display_ = DISPMANX_NO_HANDLE;
-  bcm_host_deinit();
+
+  display_.reset();
 }
 
 }  // namespace shared
