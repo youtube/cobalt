@@ -274,7 +274,8 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
 
-  const char* speech_api_key = NULL;
+  const char* speech_api_key = "";
+#if defined(OS_STARBOARD)
 #if SB_VERSION(2)
   const int kSpeechApiKeyLength = 100;
   char buffer[kSpeechApiKeyLength] = {0};
@@ -282,9 +283,9 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
                                     SB_ARRAY_SIZE_INT(buffer));
   SB_DCHECK(result);
   speech_api_key = result ? buffer : "";
-#else
-  speech_api_key = "";
-#endif
+#endif  // SB_VERSION(2)
+#endif  // defined(OS_STARBOARD)
+
   up_url = AppendQueryParameter(up_url, "key", speech_api_key);
 
   // Language is required. If no language is specified, use the system language.
