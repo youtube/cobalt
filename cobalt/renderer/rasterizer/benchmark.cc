@@ -116,8 +116,10 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   for (int i = 0; i < kRenderIterationCount; ++i) {
     AnimateNode* animate_node =
         base::polymorphic_downcast<AnimateNode*>(scene.get());
-    scoped_refptr<Node> animated = animate_node->Apply(
-        base::TimeDelta::FromSecondsD(i * kFixedTimeStepInSecondsPerFrame));
+    scoped_refptr<Node> animated =
+        animate_node->Apply(base::TimeDelta::FromSecondsD(
+                                i * kFixedTimeStepInSecondsPerFrame))
+            .animated;
 
     // Submit the render tree to be rendered.
     rasterizer->Submit(animated, test_surface);
