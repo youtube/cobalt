@@ -61,19 +61,19 @@ int SbThreadPriorityToPthread(SbThreadPriority priority) {
 int SbThreadPriorityToNice(SbThreadPriority priority) {
   switch (priority) {
     case kSbThreadPriorityLowest:
-      return 10;
+      return 19;
     case kSbThreadPriorityLow:
-      return 5;
+      return 18;
     case kSbThreadNoPriority:
     // Fall through on purpose to default to kThreadPriority_Normal.
     case kSbThreadPriorityNormal:
-      return -5;
+      return 10;
     case kSbThreadPriorityHigh:
-      return -15;
+      return 2;
     case kSbThreadPriorityHighest:
-      return -18;
+      return 1;
     case kSbThreadPriorityRealTime:
-      return -19;
+      return 0;
     default:
       SB_NOTREACHED();
       return 0;
