@@ -45,7 +45,11 @@ CachedSoftwareRasterizer::CachedSoftwareRasterizer(SbBlitterDevice device,
       software_rasterizer_(0),
       cache_memory_usage_(
           "Memory.CachedSoftwareRasterizer.CacheUsage", 0,
-          "Total memory occupied by cached software-rasterized surfaces.") {}
+          "Total memory occupied by cached software-rasterized surfaces."),
+      cache_frame_usage_(
+          "Memory.CachedSoftwareRasterizer.FrameCacheUsage", 0,
+          "Total memory occupied by cache software-rasterizer surfaces that "
+          "were referenced this frame.") {}
 
 CachedSoftwareRasterizer::~CachedSoftwareRasterizer() {
   // Clean up any leftover surfaces.
@@ -62,18 +66,34 @@ void CachedSoftwareRasterizer::OnStartNewFrame() {
     CacheMap::iterator current = iter;
     ++iter;
 
-    // If the surface wasn't referenced, destroy it.  If it was, mark it as
-    // being unreferenced.
-    if (!current->second.referenced) {
-      cache_memory_usage_ -= current->second.GetEstimatedMemoryUsage();
-      SbBlitterDestroySurface(current->second.surface);
-      surface_map_.erase(current);
-    } else {
+    // If the surface was referenced mark it as being unreferenced for the next
+    // frame.
+    if (current->second.referenced) {
 #if defined(ENABLE_DEBUG_CONSOLE)
       current->second.created = false;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
       current->second.referenced = false;
     }
+  }
+
+  // Reset our current frame cache usage to 0 since this is the start of a new
+  // frame.
+  cache_frame_usage_ = 0;
+}
+
+void CachedSoftwareRasterizer::PurgeUntilSpaceAvailable(int space_needed) {
+  while (space_needed + cache_memory_usage_.value() > cache_capacity_) {
+    CacheMap::iterator next_item = surface_map_.begin();
+
+    // We shouldn't call this function if it means we would have to purge
+    // elements that were referenced this frame.  This is to avoid thrashing
+    // the cache, we would prefer to cache as much as we can in a frame, and
+    // then just not cache whatever we can't without cycling what's in the cache
+    // already.
+    DCHECK(!next_item->second.referenced);
+    cache_memory_usage_ -= next_item->second.GetEstimatedMemoryUsage();
+    SbBlitterDestroySurface(next_item->second.surface);
+    surface_map_.erase(next_item);
   }
 }
 
@@ -88,8 +108,18 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
     if (found->second.scale.x() == transform.scale().x() &&
         found->second.scale.y() == transform.scale().y()) {
 #endif
-      found->second.referenced = true;
-      return found->second;
+      std::pair<render_tree::Node*, Surface> to_insert =
+          std::make_pair(node, found->second);
+
+      // Move this surface's position in the queue to the front, since it was
+      // referenced.
+      to_insert.second.referenced = true;
+      surface_map_.erase(found);
+      surface_map_.insert(to_insert);
+
+      cache_frame_usage_ += found->second.GetEstimatedMemoryUsage();
+
+      return to_insert.second;
     }
   }
 
@@ -191,17 +221,22 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
   software_surface.surface =
       SbBlitterCreateSurfaceFromPixelData(device_, pixel_data);
 
-  if (software_surface.GetEstimatedMemoryUsage() +
-          cache_memory_usage_.value() <=
+  if (software_surface.GetEstimatedMemoryUsage() + cache_frame_usage_.value() <=
       cache_capacity_) {
     software_surface.cached = true;
+    cache_frame_usage_ += software_surface.GetEstimatedMemoryUsage();
+
     if (found != surface_map_.end()) {
+      // This surface may have already been in the cache if it was in there
+      // with a different scale.  In that case, replace the old one.
       cache_memory_usage_ -= found->second.GetEstimatedMemoryUsage();
-      found->second = software_surface;
-    } else {
-      std::pair<CacheMap::iterator, bool> inserted =
-          surface_map_.insert(std::make_pair(node, software_surface));
+      surface_map_.erase(found);
     }
+
+    PurgeUntilSpaceAvailable(software_surface.GetEstimatedMemoryUsage());
+
+    std::pair<CacheMap::iterator, bool> inserted =
+        surface_map_.insert(std::make_pair(node, software_surface));
     cache_memory_usage_ += software_surface.GetEstimatedMemoryUsage();
   }
 

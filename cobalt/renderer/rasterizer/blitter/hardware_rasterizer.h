@@ -47,7 +47,7 @@ class HardwareRasterizer : public Rasterizer {
   // into the constructor.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              int options) OVERRIDE;
+              const Options& options) OVERRIDE;
 
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
 
