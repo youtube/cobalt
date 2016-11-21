@@ -47,7 +47,7 @@ class HardwareRasterizer::Impl {
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              int options);
+              const Options& options);
 
   render_tree::ResourceProvider* GetResourceProvider();
 
@@ -191,7 +191,8 @@ HardwareRasterizer::Impl::~Impl() {
 
 void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    const Options& options) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   backend::RenderTargetEGL* render_target_egl =
@@ -226,8 +227,9 @@ void HardwareRasterizer::Impl::Submit(
 
   // Get a SkCanvas that outputs to our hardware render target.
   SkCanvas* canvas = sk_output_surface_->getCanvas();
+  canvas->save();
 
-  if (options & Rasterizer::kSubmitOptions_Clear) {
+  if (options.flags & Rasterizer::kSubmitFlags_Clear) {
     canvas->clear(SkColorSetARGB(0, 0, 0, 0));
   }
 
@@ -253,6 +255,7 @@ void HardwareRasterizer::Impl::Submit(
   }
 
   graphics_context_->SwapBuffers(render_target_egl);
+  canvas->restore();
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
@@ -321,7 +324,8 @@ HardwareRasterizer::~HardwareRasterizer() {}
 
 void HardwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    const Options& options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Submit()");
   impl_->Submit(render_tree, render_target, options);
