@@ -311,8 +311,9 @@ bool TestActualAgainstExpectedBitmap(float gaussian_blur_sigma,
 scoped_array<uint8_t> RenderTreePixelTester::RasterizeRenderTree(
     const scoped_refptr<cobalt::render_tree::Node>& tree) const {
   // Rasterize the test render tree to the rasterizer's offscreen render target.
-  rasterizer_->Submit(tree, test_surface_,
-                      rasterizer::Rasterizer::kSubmitOptions_Clear);
+  rasterizer::Rasterizer::Options rasterizer_options;
+  rasterizer_options.flags = rasterizer::Rasterizer::kSubmitFlags_Clear;
+  rasterizer_->Submit(tree, test_surface_, rasterizer_options);
 
   // Load the texture's pixel data into a CPU memory buffer and return it.
   return graphics_context_->DownloadPixelDataAsRGBA(test_surface_);
