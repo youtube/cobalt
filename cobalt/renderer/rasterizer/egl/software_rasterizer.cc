@@ -40,7 +40,8 @@ SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context,
 
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    const Options& options) {
   int width = render_target->GetSize().width();
   int height = render_target->GetSize().height();
 
