@@ -17,6 +17,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_CACHED_SOFTWARE_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_CACHED_SOFTWARE_RASTERIZER_H_
 
+#include "base/containers/linked_hash_map.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/c_val.h"
@@ -116,8 +117,15 @@ class CachedSoftwareRasterizer {
   }
 
  private:
+  typedef base::linked_hash_map<render_tree::Node*, Surface> CacheMap;
+
+  // Release surfaces until we have |space_needed| free bytes in the cache.
+  // This function will never release surfaces that were referenced this frame.
+  // It is an error to call this function if it is impossible to purge
+  // unreferenced surfaces until the desired amount of free space is available.
+  void PurgeUntilSpaceAvailable(int space_needed);
+
   // The cache, mapping input render_tree::Node references to cached surfaces.
-  typedef base::hash_map<render_tree::Node*, Surface> CacheMap;
   CacheMap surface_map_;
 
   const int cache_capacity_;
@@ -133,6 +141,9 @@ class CachedSoftwareRasterizer {
   // The amount of memory currently consumed by the surfaces populating the
   // cache.
   base::CVal<base::cval::SizeInBytes> cache_memory_usage_;
+
+  // Cache memory used this frame only.
+  base::CVal<base::cval::SizeInBytes> cache_frame_usage_;
 };
 
 }  // namespace blitter
