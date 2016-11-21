@@ -148,7 +148,7 @@
 #define SB_IS_WCHAR_T_SIGNED 1
 #endif
 
-// --- Attribute Configuration -----------------------------------------------
+// --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
@@ -168,6 +168,11 @@
 // The platform's annotation for marking a symbol as imported from outside of
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
+
+// On some platforms the __GNUC__ is defined even though parts of the
+// functionality are missing. Setting this to non-zero allows disabling missing
+// functionality encountered.
+#undef SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT
 
 // --- Extensions Configuration ----------------------------------------------
 

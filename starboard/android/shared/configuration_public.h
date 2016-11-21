@@ -82,7 +82,7 @@
 // scheduling on threads.
 #define SB_HAS_THREAD_PRIORITY_SUPPORT 0
 
-// --- Attribute Configuration -----------------------------------------------
+// --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
