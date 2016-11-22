@@ -17,7 +17,7 @@
 #include "cobalt/speech/sandbox/speech_sandbox.h"
 
 #include "base/path_service.h"
-#include "cobalt/speech/sandbox/wav_decoder.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace speech {
@@ -29,29 +29,41 @@ namespace {
 const int kDOMMaxElementDepth = 32;
 }  // namespace
 
-SpeechSandbox::SpeechSandbox(const GURL& url, const FilePath& trace_log_path)
-    : audio_data_size_(0) {
+SpeechSandbox::SpeechSandbox(const std::string& file_path_string,
+                             const FilePath& trace_log_path) {
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
+
   network::NetworkModule::Options network_options;
   network_options.require_https = false;
-
   network_module_.reset(new network::NetworkModule(network_options));
 
-  FilePath exe_path;
-  PathService::Get(base::FILE_EXE, &exe_path);
-  DCHECK(exe_path.IsAbsolute());
+  GURL url(file_path_string);
+  if (url.is_valid()) {
+    audio_loader_.reset(new AudioLoader(
+        url, network_module_.get(),
+        base::Bind(&SpeechSandbox::OnLoadingDone, base::Unretained(this))));
+  } else {
+    FilePath file_path(file_path_string);
+    if (!file_path.IsAbsolute()) {
+      FilePath exe_path;
+      PathService::Get(base::FILE_EXE, &exe_path);
+      DCHECK(exe_path.IsAbsolute());
+      std::string exe_path_string(exe_path.value());
+      std::size_t found = exe_path_string.find_last_of("/\\");
+      DCHECK_NE(found, std::string::npos);
+      // Find the executable directory. Using exe_path.DirName() doesn't work
+      // on Windows based platforms due to the path is mixed with "/" and "\".
+      exe_path_string = exe_path_string.substr(0, found);
+      file_path = FilePath(exe_path_string).Append(file_path_string);
+      DCHECK(file_path.IsAbsolute());
+    }
 
-  // Pass the executable directory for the extra search directory.
-  fetcher_factory_.reset(
-      new loader::FetcherFactory(network_module_.get(), exe_path.DirName()));
+    dom::DOMSettings::Options dom_settings_options;
+    dom_settings_options.microphone_options.enable_fake_microphone = true;
+    dom_settings_options.microphone_options.file_path = file_path;
 
-  loader_ = make_scoped_ptr(new loader::Loader(
-      base::Bind(&loader::FetcherFactory::CreateSecureFetcher,
-                 base::Unretained(fetcher_factory_.get()), url,
-                 csp::SecurityCallback()),
-      scoped_ptr<loader::Decoder>(new WAVDecoder(
-          base::Bind(&SpeechSandbox::OnLoadingDone, base::Unretained(this)))),
-      base::Bind(&SpeechSandbox::OnLoadingError, base::Unretained(this))));
+    StartRecognition(dom_settings_options);
+  }
 }
 
 SpeechSandbox::~SpeechSandbox() {
@@ -60,29 +72,27 @@ SpeechSandbox::~SpeechSandbox() {
   }
 }
 
-void SpeechSandbox::OnLoadingDone(scoped_array<uint8> data, int size) {
-  audio_data_ = data.Pass();
-  audio_data_size_ = size;
+void SpeechSandbox::StartRecognition(
+    const dom::DOMSettings::Options& dom_settings_options) {
+  scoped_ptr<script::EnvironmentSettings> environment_settings(
+      new dom::DOMSettings(kDOMMaxElementDepth, NULL, network_module_.get(),
+                           NULL, NULL, NULL, NULL, NULL, NULL,
+                           dom_settings_options));
+  DCHECK(environment_settings);
 
-  dom::DOMSettings::Options dom_settings_options;
-  dom_settings_options.microphone_options.enable_fake_microphone = true;
-  dom_settings_options.microphone_options.external_audio_data =
-      audio_data_.get();
-  dom_settings_options.microphone_options.audio_data_size = audio_data_size_;
-
-  environment_settings_.reset(new dom::DOMSettings(
-      kDOMMaxElementDepth, fetcher_factory_.get(), network_module_.get(), NULL,
-      NULL, NULL, NULL, NULL, NULL, dom_settings_options));
-  DCHECK(environment_settings_);
-
-  speech_recognition_ = new SpeechRecognition(environment_settings_.get());
+  speech_recognition_ = new SpeechRecognition(environment_settings.get());
   speech_recognition_->set_continuous(true);
   speech_recognition_->set_interim_results(true);
   speech_recognition_->Start(NULL);
 }
 
-void SpeechSandbox::OnLoadingError(const std::string& error) {
-  DLOG(WARNING) << "OnLoadingError with error message: " << error;
+void SpeechSandbox::OnLoadingDone(const uint8* data, int size) {
+  dom::DOMSettings::Options dom_settings_options;
+  dom_settings_options.microphone_options.enable_fake_microphone = true;
+  dom_settings_options.microphone_options.external_audio_data = data;
+  dom_settings_options.microphone_options.audio_data_size = size;
+
+  StartRecognition(dom_settings_options);
 }
 
 }  // namespace sandbox
