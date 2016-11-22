@@ -276,36 +276,5 @@ const AtomicAllocationMap& ConcurrentAllocationMap::GetMapForPointer(
   return pointer_map_array_[ToIndex(ptr)];
 }
 
-SimpleThread::SimpleThread(const std::string& name)
-    : thread_(kSbThreadInvalid), name_(name) {}
-
-SimpleThread::~SimpleThread() {}
-
-void SimpleThread::Start() {
-  SbThreadEntryPoint entry_point = ThreadEntryPoint;
-
-  thread_ = SbThreadCreate(0,                    // default stack_size.
-                           kSbThreadNoPriority,  // default priority.
-                           kSbThreadNoAffinity,  // default affinity.
-                           true,                 // joinable.
-                           name_.c_str(), entry_point, this);
-
-  // SbThreadCreate() above produced an invalid thread handle.
-  SB_DCHECK(thread_ != kSbThreadInvalid);
-  return;
-}
-
-void* SimpleThread::ThreadEntryPoint(void* context) {
-  SimpleThread* this_ptr = static_cast<SimpleThread*>(context);
-  this_ptr->Run();
-  return NULL;
-}
-
-void SimpleThread::DoJoin() {
-  if (!SbThreadJoin(thread_, NULL)) {
-    SB_DCHECK(false) << "Could not join thread.";
-  }
-}
-
 }  // namespace analytics
 }  // namespace nb
