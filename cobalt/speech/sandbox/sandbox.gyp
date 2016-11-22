@@ -21,10 +21,11 @@
       'target_name': 'speech_sandbox',
       'type': '<(final_executable_type)',
       'sources': [
+        'audio_loader.cc',
+        'audio_loader.h',
         'speech_sandbox.cc',
         'speech_sandbox.h',
         'speech_sandbox_main.cc',
-        'wav_decoder.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',

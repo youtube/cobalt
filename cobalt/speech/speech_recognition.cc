@@ -28,7 +28,6 @@ namespace speech {
 SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           manager_(base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                       ->fetcher_factory()
                        ->network_module(),
                    base::Bind(&SpeechRecognition::OnEventAvailable,
                               base::Unretained(this)),

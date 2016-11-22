@@ -25,17 +25,6 @@ namespace cobalt {
 namespace speech {
 namespace sandbox {
 
-GURL ResolveUrl(const char* arg) {
-  GURL audio_url(arg);
-  if (!audio_url.is_valid()) {
-    // Assume the input is a path.
-    // Try to figure out the path to this file and convert it to a URL.
-    FilePath result(arg);
-    audio_url = net::FilePathToFileURL(result);
-  }
-  return audio_url;
-}
-
 SpeechSandbox* g_speech_sandbox = NULL;
 
 // The application takes an audio url or path, and a timeout in second.
@@ -49,12 +38,6 @@ void StartApplication(int argc, char** argv, const char* /*link*/,
     return;
   }
 
-  GURL audio_url = ResolveUrl(argv[1]);
-  if (!audio_url.is_valid()) {
-    LOG(ERROR) << "Invalid URL: " << audio_url;
-    return;
-  }
-
   int timeout = 0;
   if (argc == 3) {
     base::StringToInt(argv[2], &timeout);
@@ -62,7 +45,8 @@ void StartApplication(int argc, char** argv, const char* /*link*/,
 
   DCHECK(!g_speech_sandbox);
   g_speech_sandbox = new SpeechSandbox(
-      audio_url, FilePath(FILE_PATH_LITERAL("speech_sandbox_trace.json")));
+      std::string(argv[1]),
+      FilePath(FILE_PATH_LITERAL("speech_sandbox_trace.json")));
 
   if (timeout != 0) {
     MessageLoop::current()->PostDelayedTask(
