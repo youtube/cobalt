@@ -297,6 +297,14 @@ Application::Application(const base::Closure& quit_closure)
       start_time_(base::TimeTicks::Now()),
       stats_update_timer_(true, true),
       lite_stats_update_timer_(true, true) {
+  // Check to see if a timed_trace has been set, indicating that we should
+  // begin a timed trace upon startup.
+  base::TimeDelta trace_duration = GetTimedTraceDuration();
+  if (trace_duration != base::TimeDelta()) {
+    trace_event::TraceToFileForDuration(
+        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
+  }
+
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -315,14 +323,6 @@ Application::Application(const base::Closure& quit_closure)
       FROM_HERE, base::TimeDelta::FromMilliseconds(kLiteStatUpdatePeriodMs),
       base::Bind(&Application::UpdatePeriodicLiteStats,
                  base::Unretained(this)));
-
-  // Check to see if a timed_trace has been set, indicating that we should
-  // begin a timed trace upon startup.
-  base::TimeDelta trace_duration = GetTimedTraceDuration();
-  if (trace_duration != base::TimeDelta()) {
-    trace_event::TraceToFileForDuration(
-        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
-  }
 
   // Get the initial URL.
   GURL initial_url = GetInitialURL();
