@@ -22,10 +22,7 @@
 #include "base/file_path.h"
 #include "base/threading/thread.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/loader.h"
-#include "cobalt/network/network_module.h"
-#include "cobalt/script/environment_settings.h"
+#include "cobalt/speech/sandbox/audio_loader.h"
 #include "cobalt/speech/speech_recognition.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
@@ -38,24 +35,20 @@ namespace sandbox {
 // speech recognition.
 class SpeechSandbox {
  public:
-  // The constructor takes a url for an audio input and a log path for tracing.
-  SpeechSandbox(const GURL& url, const FilePath& trace_log_path);
+  // The constructor takes a file path string for an audio input and a log path
+  // for tracing.
+  SpeechSandbox(const std::string& file_path_string,
+                const FilePath& trace_log_path);
   ~SpeechSandbox();
 
  private:
-  void OnMicrophoneCreated(speech::Microphone* microphone);
-  void OnLoadingDone(scoped_array<uint8> data, int size);
-  void OnLoadingError(const std::string& error);
+  void StartRecognition(const dom::DOMSettings::Options& dom_settings_options);
+  void OnLoadingDone(const uint8* data, int size);
 
   scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
   scoped_ptr<network::NetworkModule> network_module_;
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-  scoped_ptr<loader::Loader> loader_;
-  scoped_ptr<script::EnvironmentSettings> environment_settings_;
+  scoped_ptr<AudioLoader> audio_loader_;
   scoped_refptr<SpeechRecognition> speech_recognition_;
-
-  scoped_array<uint8> audio_data_;
-  int audio_data_size_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SpeechSandbox);
 };

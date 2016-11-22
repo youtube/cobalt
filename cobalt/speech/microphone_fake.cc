@@ -23,6 +23,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
+#include "cobalt/audio/audio_file_reader.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/time.h"
@@ -61,18 +62,24 @@ MicrophoneFake::MicrophoneFake(const Options& options)
   }
 
   if (read_data_from_file_) {
-    FilePath audio_files_path;
-    SB_CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &audio_files_path));
-    audio_files_path = audio_files_path.Append(FILE_PATH_LITERAL("cobalt"))
-                           .Append(FILE_PATH_LITERAL("speech"))
-                           .Append(FILE_PATH_LITERAL("testdata"));
+    if (options.file_path) {
+      SB_DCHECK(!options.file_path->empty());
+      // External input file.
+      file_paths_.push_back(options.file_path.value());
+    } else {
+      FilePath audio_files_path;
+      SB_CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &audio_files_path));
+      audio_files_path = audio_files_path.Append(FILE_PATH_LITERAL("cobalt"))
+                             .Append(FILE_PATH_LITERAL("speech"))
+                             .Append(FILE_PATH_LITERAL("testdata"));
 
-    file_util::FileEnumerator file_enumerator(audio_files_path,
-                                              false /* Not recursive */,
-                                              file_util::FileEnumerator::FILES);
-    for (FilePath next = file_enumerator.Next(); !next.empty();
-         next = file_enumerator.Next()) {
-      file_paths_.push_back(next);
+      file_util::FileEnumerator file_enumerator(
+          audio_files_path, false /* Not recursive */,
+          file_util::FileEnumerator::FILES);
+      for (FilePath next = file_enumerator.Next(); !next.empty();
+           next = file_enumerator.Next()) {
+        file_paths_.push_back(next);
+      }
     }
   } else {
     file_length_ = std::min(options.audio_data_size, kMaxBufferSize);
@@ -100,14 +107,38 @@ bool MicrophoneFake::Open() {
     int file_buffer_size =
         std::min(static_cast<int>(file.GetSize()), kMaxBufferSize);
     SB_DCHECK(file_buffer_size > 0);
-    file_buffer_.reset(new uint8[file_buffer_size]);
-    int read_bytes = file.ReadAll(reinterpret_cast<char*>(file_buffer_.get()),
-                                  file_buffer_size);
+
+    scoped_array<char> audio_input(new char[file_buffer_size]);
+    int read_bytes = file.ReadAll(audio_input.get(), file_buffer_size);
     if (read_bytes < 0) {
       return false;
     }
 
-    file_length_ = read_bytes;
+    scoped_ptr<audio::AudioFileReader> reader(audio::AudioFileReader::TryCreate(
+        reinterpret_cast<const uint8*>(audio_input.get()), file_buffer_size,
+        audio::kSampleTypeInt16));
+    const float kSupportedSampleRate = 16000.0f;
+    const int kSupportedMonoChannel = 1;
+    if (!reader) {
+      // If it is not a WAV file, read audio data as raw audio.
+      file_buffer_.reset(new uint8[file_buffer_size]);
+      SbMemoryCopy(file_buffer_.get(), audio_input.get(), file_buffer_size);
+      file_length_ = file_buffer_size;
+    } else if (reader->sample_type() != ::media::ShellAudioBus::kInt16 ||
+               reader->sample_rate() != kSupportedSampleRate ||
+               reader->number_of_channels() != kSupportedMonoChannel) {
+      // If it is a WAV file but it doesn't meet the audio input criteria, treat
+      // it as an error.
+      return false;
+    } else {
+      // Read WAV PCM16 audio data.
+      int size =
+          static_cast<int>(reader->number_of_frames() *
+                           audio::GetSampleTypeSize(reader->sample_type()));
+      file_buffer_.reset(new uint8[size]);
+      SbMemoryCopy(file_buffer_.get(), reader->sample_data().get(), size);
+      file_length_ = size;
+    }
   }
   return true;
 }
