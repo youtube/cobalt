@@ -370,7 +370,7 @@ class ScopedFile {
 
   int64_t GetSize() const {
     SbFileInfo file_info;
-    static bool success = GetInfo(&file_info);
+    bool success = GetInfo(&file_info);
     return (success ? file_info.size : -1);
   }
 
