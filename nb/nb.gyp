@@ -47,6 +47,8 @@
         'reuse_allocator.cc',
         'reuse_allocator.h',
         'scoped_ptr.h',
+        'simple_thread.cc',
+        'simple_thread.h',
         'thread_collision_warner.cc',
         'thread_collision_warner.h',
         'thread_local_object.h',
