@@ -87,6 +87,8 @@ class HTMLAnchorElement : public HTMLElement {
                       const std::string& value) OVERRIDE;
   void OnRemoveAttribute(const std::string& name) OVERRIDE;
 
+  bool ResolveAndSetURL(const std::string& value);
+
   void UpdateSteps(const std::string& value);
 
   URLUtils url_utils_;
