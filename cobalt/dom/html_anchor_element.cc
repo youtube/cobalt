@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/html_anchor_element.h"
 
 namespace cobalt {
@@ -25,7 +26,14 @@ const char HTMLAnchorElement::kTagName[] = "a";
 void HTMLAnchorElement::OnSetAttribute(const std::string& name,
                                        const std::string& value) {
   if (name == "href") {
-    url_utils_.set_url(GURL(value));
+    // Custom, not in any spec.
+    // The setter should simply forward the call to URLUtils. However, there
+    // isn't any mentioning of resolving the relative URL in the URLUtils
+    // descriptions while major browsers do resolve URL here. We are diverging
+    // from the spec here so the behavior matches that of major browsers.
+    if (!ResolveAndSetURL(value)) {
+      url_utils_.set_url(GURL(value));
+    }
   }
 }
 
@@ -33,6 +41,28 @@ void HTMLAnchorElement::OnRemoveAttribute(const std::string& name) {
   if (name == "href") {
     url_utils_.set_url(GURL());
   }
+}
+
+bool HTMLAnchorElement::ResolveAndSetURL(const std::string& value) {
+  Document* document = node_document();
+
+  // If the document has no browsing context, do not resolve
+  if (!document->html_element_context()) {
+    return false;
+  }
+
+  // Resolve the URL given by the href attribute, relative to the element.
+  const GURL& base_url = document->url_as_gurl();
+  GURL absolute_url = base_url.Resolve(value);
+
+  // If the previous step fails, then abort these steps.
+  if (!absolute_url.is_valid()) {
+    LOG(WARNING) << value << " cannot be resolved based on " << base_url << ".";
+    return false;
+  }
+
+  url_utils_.set_url(absolute_url);
+  return true;
 }
 
 void HTMLAnchorElement::UpdateSteps(const std::string& value) {
