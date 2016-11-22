@@ -269,7 +269,6 @@ MemoryTrackerImpl::DisableDeletionInScope::~DisableDeletionInScope() {
   owner_->SetMemoryDeletionEnabled(prev_state_);
 }
 
-// TODO: Get rid of the nb::SimpleThread
 class MemoryTrackerPrintThread : public SimpleThread {
  public:
   MemoryTrackerPrintThread(MemoryTracker* owner)
@@ -400,6 +399,7 @@ MemoryTrackerImpl::~MemoryTrackerImpl() {
     SbThreadSleep(250 * kSbTimeMillisecond);  // 250 millisecond wait.
   }
   if (debug_output_thread_) {
+    debug_output_thread_->Cancel();
     debug_output_thread_->Join();
     debug_output_thread_.reset();
   }

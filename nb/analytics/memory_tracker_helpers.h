@@ -22,6 +22,7 @@
 
 #include "nb/analytics/memory_tracker.h"
 #include "nb/atomic.h"
+#include "nb/simple_thread.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
@@ -31,7 +32,7 @@ namespace nb {
 namespace analytics {
 
 class AllocationGroup;
-struct AllocationRecord;
+class AllocationRecord;
 
 template <typename Type>
 class ThreadLocalPointer {
@@ -220,42 +221,6 @@ class ConcurrentAllocationMap {
 
   int ToIndex(const void* ptr) const;
   AtomicAllocationMap pointer_map_array_[kNumElements];
-};
-
-class SimpleThread {
- public:
-  explicit SimpleThread(const std::string& name);
-  virtual ~SimpleThread() = 0;
-
-  // Subclasses should override the Run method.
-  virtual void Run() = 0;
-
-  void Join() {
-    Cancel();
-    DoJoin();
-  }
-
-  // If Join() is intended to interrupt the Run() function then override
-  // Cancel() to send a signal.
-  // Example:
-  //   virtual void Cancel() { finished_ = true; }
-  //   virtual void Run() {
-  //     while (!finished_) { /* do work */ }
-  //   }
-  virtual void Cancel() {}
-
-  // Calls SbThreadCreate() and starts running code.
-  void Start();
-
- private:
-  static void* ThreadEntryPoint(void* context);
-  void DoJoin();
-  void DoStart();
-
-  const std::string name_;
-  SbThread thread_;
-
-  SB_DISALLOW_COPY_AND_ASSIGN(SimpleThread);
 };
 
 }  // namespace analytics
