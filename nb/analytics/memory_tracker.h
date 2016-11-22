@@ -120,7 +120,8 @@ class AllocationVisitor {
 
 // Contains an allocation record for a pointer including it's size and what
 // AllocationGroup it was constructed under.
-struct AllocationRecord {
+class AllocationRecord {
+ public:
   AllocationRecord() : size(0), allocation_group(NULL) {}
   AllocationRecord(size_t sz, AllocationGroup* group)
       : size(sz), allocation_group(group) {}
