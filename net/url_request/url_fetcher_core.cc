@@ -862,7 +862,7 @@ void URLFetcherCore::CancelURLRequest() {
 
 void URLFetcherCore::OnCompletedURLRequest(
     base::TimeDelta backoff_delay) {
-  TRACE_EVENT_ASYNC_END1("cobalt::network", "URLFetch", this, "url",
+  TRACE_EVENT_ASYNC_END1("net::url_request", "URLFetcher", this, "url",
                          original_url_.path());
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
