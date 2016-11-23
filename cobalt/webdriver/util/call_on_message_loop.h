@@ -37,14 +37,22 @@ class CallOnMessageLoopHelper {
       const CallbackType& callback)
       : completed_event_(false, false) {
     DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy);
-    message_loop_proxy->PostTask(
+    success_ = message_loop_proxy->PostTask(
         FROM_HERE, base::Bind(&CallOnMessageLoopHelper::CallAndSignal,
                               base::Unretained(this), callback));
+    if (!success_) {
+      completed_event_.Signal();
+    }
   }
 
-  ReturnValue WaitForResult() {
+  // Waits for result, filling |out| with the return value if successful.
+  // Returns true on success or false if the event loop PostTask returned false.
+  bool WaitForResult(ReturnValue* out) {
     completed_event_.Wait();
-    return result_;
+    if (success_) {
+      *out = result_;
+    }
+    return success_;
   }
 
  private:
@@ -55,6 +63,7 @@ class CallOnMessageLoopHelper {
 
   base::WaitableEvent completed_event_;
   ReturnValue result_;
+  bool success_;
 };
 
 // Used with CallWeakOnMessageLoop.
@@ -71,14 +80,36 @@ base::optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
 }  // namespace internal
 
 // Call the base::Callback on the specified message loop and wait for it to
-// complete, then return the result of the callback.
+// complete. Returns true if successful, or false if the underlying
+// PostTask failed. This can happen if a WebModule shuts down due to a page
+// navigation.
+//
+// On success, |out| is set to the result.
 template <class ReturnValue>
-ReturnValue CallOnMessageLoop(
+bool TryCallOnMessageLoop(
     const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
-    const base::Callback<ReturnValue(void)>& callback) {
+    const base::Callback<ReturnValue(void)>& callback, ReturnValue* out) {
   internal::CallOnMessageLoopHelper<ReturnValue> call_helper(message_loop_proxy,
                                                              callback);
-  return call_helper.WaitForResult();
+  return call_helper.WaitForResult(out);
+}
+
+// Tries to call |callback| on messageloop |message_loop_proxy|,
+// but returns a CommandResult of |window_disappeared_code| if the
+// message loop has shut down. This can happen if a WebModule shuts
+// down due to a page navigation.
+template <typename ReturnValue>
+util::CommandResult<ReturnValue> CallOnMessageLoop(
+    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
+    const base::Callback<util::CommandResult<ReturnValue>(void)>& callback,
+    protocol::Response::StatusCode window_disappeared_code) {
+  util::CommandResult<ReturnValue> result;
+  bool success = TryCallOnMessageLoop(message_loop_proxy, callback, &result);
+
+  if (!success) {
+    result = util::CommandResult<ReturnValue>(window_disappeared_code);
+  }
+  return result;
 }
 
 // Supports a common pattern in the various XXXDriver classes.
@@ -97,10 +128,11 @@ util::CommandResult<ReturnValue> CallWeakOnMessageLoopAndReturnResult(
     protocol::Response::StatusCode no_such_object_code) {
   typedef util::CommandResult<ReturnValue> CommandResult;
   typedef base::optional<ReturnValue> InternalResult;
-  InternalResult result = util::CallOnMessageLoop(
+  InternalResult result;
+  bool success = util::TryCallOnMessageLoop(
       message_loop,
-      base::Bind(&internal::RunWeak<T, ReturnValue>, get_weak, cb));
-  if (result) {
+      base::Bind(&internal::RunWeak<T, ReturnValue>, get_weak, cb), &result);
+  if (success && result) {
     return CommandResult(result.value());
   } else {
     return CommandResult(no_such_object_code);
