@@ -28,8 +28,12 @@
         'decode_target_provider.cc',
         'memory.cc',
         'move.h',
+        'ref_counted.cc',
+        'ref_counted.h',
         'reset_and_return.h',
         'scoped_ptr.h',
+        'thread_collision_warner.cc',
+        'thread_collision_warner.h',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

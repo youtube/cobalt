@@ -68,6 +68,16 @@
                     ],
                   },
                 }],
+                # TODO: Make this android specific, not a linux copy.
+                [ 'target_os == "android"', {
+                  'sources': [ 'epoll_sub.c' ],
+                  'include_dirs': [ 'starboard/linux' ],
+                  'link_settings': {
+                    'libraries': [
+                      '-lrt',
+                    ],
+                  },
+                }],
                 [ 'target_os == "orbis"', {
                   'include_dirs': [ 'starboard/ps4' ],
                   }

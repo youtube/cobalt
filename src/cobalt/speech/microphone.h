@@ -19,7 +19,9 @@
 
 #include <string>
 
+#include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 
 namespace cobalt {
 namespace speech {
@@ -27,6 +29,24 @@ namespace speech {
 // An abstract class is used for interacting platform specific microphone.
 class Microphone {
  public:
+  struct Options {
+    Options()
+        : enable_fake_microphone(false),
+          external_audio_data(NULL),
+          audio_data_size(0) {}
+
+    // Use fake microphone if this flag is set to true.
+    bool enable_fake_microphone;
+    // The following members are only applicable to the fake microphone.
+    //
+    // External audio input data for microphone input.
+    const uint8* external_audio_data;
+    // Audio data size.
+    int audio_data_size;
+    // Input file path.
+    base::optional<FilePath> file_path;
+  };
+
   virtual ~Microphone() {}
 
   // Opens microphone port and starts recording audio.

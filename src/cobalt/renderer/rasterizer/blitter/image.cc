@@ -69,6 +69,16 @@ SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
                render_tree::kAlphaFormatOpaque;
 }
 
+SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque)
+    : surface_(surface), is_opaque_(is_opaque) {
+  CHECK(SbBlitterIsSurfaceValid(surface_));
+  SbBlitterSurfaceInfo info;
+  if (!SbBlitterGetSurfaceInfo(surface_, &info)) {
+    NOTREACHED();
+  }
+  size_ = math::Size(info.width, info.height);
+}
+
 bool SinglePlaneImage::EnsureInitialized() { return false; }
 
 const SkBitmap& SinglePlaneImage::GetBitmap() const {

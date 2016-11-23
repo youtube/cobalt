@@ -38,7 +38,7 @@ class GuideTest(tv_testcase.TvTestCase):
       self.wait_for_layout_complete_after_focused_shelf()
       layout_times_us.append(self.get_keyup_layout_duration_us())
 
-    self.record_results("GuideTest.test_simple", layout_times_us)
+    self.record_result_percentile("guideTestLayout95thUs", layout_times_us, 95)
 
 
 if __name__ == "__main__":

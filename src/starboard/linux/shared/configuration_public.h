@@ -24,7 +24,7 @@
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 
 #ifndef SB_API_VERSION
-#define SB_API_VERSION 1
+#define SB_API_VERSION 2
 #endif
 
 // --- System Header Configuration -------------------------------------------
@@ -55,6 +55,12 @@
 
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
@@ -374,6 +380,12 @@
 
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
 
 // --- Platform Specific Audits ----------------------------------------------
 

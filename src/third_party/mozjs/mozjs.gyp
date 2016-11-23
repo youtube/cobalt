@@ -88,6 +88,11 @@
           'JS_DEBUG',
         ],
       }],
+      [ 'cobalt_config != "gold"', {
+        'defines': [
+          'JS_TRACE_LOGGING=1',
+        ],
+      }],
     ],
   },
   'targets': [

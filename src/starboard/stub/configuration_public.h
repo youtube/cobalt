@@ -128,6 +128,9 @@
 // Whether the current platform has microphone supported.
 #define SB_HAS_MICROPHONE 1
 
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 1
+
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
@@ -455,6 +458,12 @@
 
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
 
 // --- Platform Specific Audits ----------------------------------------------
 
