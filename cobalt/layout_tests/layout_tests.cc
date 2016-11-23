@@ -109,10 +109,6 @@ TEST_P(LayoutTest, LayoutTest) {
 // Cobalt-specific test cases.
 INSTANTIATE_TEST_CASE_P(CobaltSpecificLayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("cobalt")));
-// Cobalt-specific benchmark output correctness validation.
-INSTANTIATE_TEST_CASE_P(
-    CobaltBenchmarkLayoutTests, LayoutTest,
-    ::testing::ValuesIn(EnumerateLayoutTests("benchmarks")));
 // Custom CSS 2.1 (https://www.w3.org/TR/CSS21/) test cases.
 INSTANTIATE_TEST_CASE_P(CSS21LayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("css-2-1")));
