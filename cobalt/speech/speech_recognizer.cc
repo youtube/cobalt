@@ -239,7 +239,7 @@ void SpeechRecognizer::OnURLFetchDownloadData(
 void SpeechRecognizer::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   UNREFERENCED_PARAMETER(source);
-  started_ = false;
+  // no-op.
 }
 
 void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
