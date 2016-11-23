@@ -48,7 +48,10 @@ class WebDriverModule {
   typedef base::Callback<void(const ScreenshotCompleteCallback&)>
       GetScreenshotFunction;
   typedef base::Callback<void(const std::string&)> SetProxyFunction;
-  WebDriverModule(int server_port,
+  // Use this as the default listen_ip. It means "any interface on the local
+  // machine" eg INADDR_ANY.
+  static const char kDefaultListenIp[];
+  WebDriverModule(int server_port, const std::string& listen_ip,
                   const CreateSessionDriverCB& create_session_driver_cb,
                   const GetScreenshotFunction& get_screenshot_function,
                   const SetProxyFunction& set_proxy_function,
@@ -65,7 +68,7 @@ class WebDriverModule {
   void OnWindowRecreated();
 
  private:
-  void StartServer(int server_port);
+  void StartServer(int server_port, const std::string& listen_ip);
   void StopServer();
   void GetServerStatus(
       const base::Value* parameters,
