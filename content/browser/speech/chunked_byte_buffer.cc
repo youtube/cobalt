@@ -7,15 +7,15 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/lazy_instance.h"
+#include "base/basictypes.h"
 #include "base/logging.h"
 
 namespace {
 
 static const size_t kHeaderLength = sizeof(uint32_t);
 
-static_assert(sizeof(size_t) >= kHeaderLength,
-              "chunked byte buffer not supported on this architecture");
+COMPILE_ASSERT(sizeof(size_t) >= kHeaderLength,
+               chunked_byte_buffer_not_supported_on_this_architecture);
 
 uint32_t ReadBigEndian32(const uint8_t* buffer) {
   return (static_cast<uint32_t>(buffer[3])) |
@@ -103,16 +103,16 @@ bool ChunkedByteBuffer::HasChunks() const {
   return !chunks_.empty();
 }
 
-std::unique_ptr<std::vector<uint8_t>> ChunkedByteBuffer::PopChunk() {
+scoped_ptr<std::vector<uint8_t> > ChunkedByteBuffer::PopChunk() {
   if (chunks_.empty())
-    return std::unique_ptr<std::vector<uint8_t>>();
-  std::unique_ptr<Chunk> chunk(*chunks_.begin());
+    return scoped_ptr<std::vector<uint8_t> >().Pass();
+  scoped_ptr<Chunk> chunk(*chunks_.begin());
   chunks_.weak_erase(chunks_.begin());
   DCHECK_EQ(chunk->header.size(), kHeaderLength);
   DCHECK_EQ(chunk->content->size(), chunk->ExpectedContentLength());
   total_bytes_stored_ -= chunk->content->size();
   total_bytes_stored_ -= kHeaderLength;
-  return std::move(chunk->content);
+  return chunk->content.Pass();
 }
 
 void ChunkedByteBuffer::Clear() {
