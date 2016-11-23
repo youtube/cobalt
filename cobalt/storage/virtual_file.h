@@ -41,7 +41,7 @@ class VirtualFile {
   int Read(void* dest, int bytes, int offset) const;
   int Write(const void* source, int bytes, int offset);
   int Truncate(int size);
-  int Size() const { return size_; }
+  int Size() const { return static_cast<int>(size_); }
 
  private:
   explicit VirtualFile(const std::string& name);
@@ -49,10 +49,13 @@ class VirtualFile {
 
   // Returns the number of bytes written
   int Serialize(uint8* dest, const bool dry_run);
-  int Deserialize(const uint8* source);
+  // Deserializes a file, returning the size of the file or
+  // < 0 on error.
+  // |buffer_remaining| is the maximum size of |source|
+  int Deserialize(const uint8* source, size_t buffer_remaining);
 
   std::vector<uint8> buffer_;
-  int size_;
+  size_t size_;
 
   std::string name_;
 
