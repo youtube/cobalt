@@ -23,9 +23,9 @@
 #include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/audio_encoder_flac.h"
-#include "cobalt/speech/chunked_byte_buffer.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_event.h"
+#include "content/browser/speech/chunked_byte_buffer.h"
 #include "media/base/audio_bus.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
@@ -88,7 +88,7 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   scoped_ptr<net::URLFetcher> downstream_fetcher_;
   EventCallback event_callback_;
   // Used for processing proto buffer data.
-  ChunkedByteBuffer chunked_byte_buffer_;
+  content::ChunkedByteBuffer chunked_byte_buffer_;
   // Used for accumulating final results.
   SpeechRecognitionResults final_results_;
   // Speech recognizer is operating in its own thread.
