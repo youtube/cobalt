@@ -77,8 +77,6 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
 
   // This is used for creating fetchers.
   network::NetworkModule* network_module_;
-  // Speech recognizer is operating in its own thread.
-  base::Thread thread_;
   // Track the start/stop state of speech recognizer.
   bool started_;
 
@@ -93,6 +91,8 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   ChunkedByteBuffer chunked_byte_buffer_;
   // Used for accumulating final results.
   SpeechRecognitionResults final_results_;
+  // Speech recognizer is operating in its own thread.
+  base::Thread thread_;
 };
 
 }  // namespace speech
