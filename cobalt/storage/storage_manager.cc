@@ -275,11 +275,9 @@ void StorageManager::FinishInit() {
                sizeof(VirtualFileSystem::SerializedHeader));
       }
 
-      if (VirtualFileSystem::GetHeaderVersion(header) == -1) {
+      if (!vfs_->Deserialize(&raw_bytes[0], buffer_size)) {
         VirtualFile* vf = vfs_->Open(kDefaultSaveFile);
         vf->Write(&raw_bytes[0], buffer_size, 0 /* offset */);
-      } else {
-        vfs_->Deserialize(&raw_bytes[0], buffer_size);
       }
     }
   }
