@@ -17,7 +17,7 @@
 #ifndef COBALT_SPEECH_ENDPOINTER_DELEGATE_H_
 #define COBALT_SPEECH_ENDPOINTER_DELEGATE_H_
 
-#include "cobalt/speech/endpointer/endpointer.h"
+#include "content/browser/speech/endpointer/endpointer.h"
 #include "media/base/audio_bus.h"
 
 namespace cobalt {
@@ -42,7 +42,7 @@ class EndPointerDelegate {
 
  private:
   // Used for detecting sound start event.
-  Endpointer endpointer_;
+  content::Endpointer endpointer_;
   // Used for recording the number of samples before notifying that it is the
   // first time the sound started. The |endpointer_| should be started and run
   // in the EnvironmentEstimation mode if used in noisy conditions for at least
