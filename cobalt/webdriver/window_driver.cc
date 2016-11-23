@@ -136,9 +136,12 @@ ElementDriver* WindowDriver::GetElementDriver(
     // It's expected that the WebDriver thread is the only other thread to call
     // this function.
     DCHECK(thread_checker_.CalledOnValidThread());
-    return util::CallOnMessageLoop(window_message_loop_,
-        base::Bind(&WindowDriver::GetElementDriver, base::Unretained(this),
-                   element_id));
+    ElementDriver* result;
+    bool success = util::TryCallOnMessageLoop(
+        window_message_loop_, base::Bind(&WindowDriver::GetElementDriver,
+                                         base::Unretained(this), element_id),
+        &result);
+    return success ? result : NULL;
   }
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
   ElementDriverMap::iterator it = element_drivers_.find(element_id.id());
@@ -161,7 +164,8 @@ util::CommandResult<void> WindowDriver::Navigate(const GURL& url) {
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::CallOnMessageLoop(
       window_message_loop_,
-      base::Bind(&WindowDriver::NavigateInternal, base::Unretained(this), url));
+      base::Bind(&WindowDriver::NavigateInternal, base::Unretained(this), url),
+      protocol::Response::kNoSuchWindow);
 }
 
 util::CommandResult<std::string> WindowDriver::GetCurrentUrl() {
@@ -186,17 +190,21 @@ util::CommandResult<protocol::ElementId> WindowDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  return util::CallOnMessageLoop(window_message_loop_,
+  return util::CallOnMessageLoop(
+      window_message_loop_,
       base::Bind(&WindowDriver::FindElementsInternal<protocol::ElementId>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kNoSuchElement);
 }
 
 util::CommandResult<std::vector<protocol::ElementId> >
 WindowDriver::FindElements(const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return util::CallOnMessageLoop(window_message_loop_,
+  return util::CallOnMessageLoop(
+      window_message_loop_,
       base::Bind(&WindowDriver::FindElementsInternal<ElementIdVector>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kNoSuchElement);
 }
 
 util::CommandResult<std::string> WindowDriver::GetSource() {
@@ -221,7 +229,8 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
   CommandResult result = util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::ExecuteScriptInternal, base::Unretained(this),
-                 script, base::nullopt, &result_handler));
+                 script, base::nullopt, &result_handler),
+      protocol::Response::kNoSuchWindow);
   if (result.is_success()) {
     return CommandResult(protocol::ScriptResult(result_handler.result()));
   } else {
@@ -243,7 +252,8 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteAsync(
   CommandResult result = util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::ExecuteScriptInternal, base::Unretained(this),
-                 script, kDefaultAsyncTimeout, &result_handler));
+                 script, kDefaultAsyncTimeout, &result_handler),
+      protocol::Response::kNoSuchWindow);
 
   if (!result.is_success()) {
     return result;
@@ -267,13 +277,15 @@ util::CommandResult<void> WindowDriver::SendKeys(const protocol::Keys& keys) {
   return util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::SendKeysInternal, base::Unretained(this),
-                 base::Passed(&events)));
+                 base::Passed(&events)),
+      protocol::Response::kNoSuchWindow);
 }
 
 util::CommandResult<protocol::ElementId> WindowDriver::GetActiveElement() {
   return util::CallOnMessageLoop(
       window_message_loop_, base::Bind(&WindowDriver::GetActiveElementInternal,
-                                       base::Unretained(this)));
+                                       base::Unretained(this)),
+      protocol::Response::kNoSuchWindow);
 }
 
 util::CommandResult<void> WindowDriver::SwitchFrame(
@@ -320,7 +332,8 @@ util::CommandResult<void> WindowDriver::AddCookie(
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::CallOnMessageLoop(window_message_loop_,
                                  base::Bind(&WindowDriver::AddCookieInternal,
-                                            base::Unretained(this), cookie));
+                                            base::Unretained(this), cookie),
+                                 protocol::Response::kNoSuchWindow);
 }
 
 protocol::ElementId WindowDriver::ElementToId(

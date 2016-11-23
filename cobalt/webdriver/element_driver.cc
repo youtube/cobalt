@@ -108,7 +108,8 @@ util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::SendKeysInternal, base::Unretained(this),
-                 base::Passed(&events)));
+                 base::Passed(&events)),
+      protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
@@ -116,7 +117,8 @@ util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::FindElementsInternal<protocol::ElementId>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<std::vector<protocol::ElementId> >
@@ -124,7 +126,8 @@ ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::FindElementsInternal<ElementIdVector>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kNoSuchElement);
 }
 
 util::CommandResult<bool> ElementDriver::Equals(
@@ -132,7 +135,8 @@ util::CommandResult<bool> ElementDriver::Equals(
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::EqualsInternal, base::Unretained(this),
-                 other_element_driver));
+                 other_element_driver),
+      protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<base::optional<std::string> > ElementDriver::GetAttribute(
