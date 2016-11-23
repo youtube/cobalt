@@ -110,6 +110,19 @@ int GetWebDriverPort() {
   }
   return webdriver_port;
 }
+
+std::string GetWebDriverListenIp() {
+  // The default port on which the webdriver server should listen for incoming
+  // connections.
+  std::string webdriver_listen_ip =
+      webdriver::WebDriverModule::kDefaultListenIp;
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
+    webdriver_listen_ip =
+        command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
+  }
+  return webdriver_listen_ip;
+}
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
 
@@ -483,10 +496,10 @@ Application::Application(const base::Closure& quit_closure)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
-    int webdriver_port = GetWebDriverPort();
     web_driver_module_.reset(new webdriver::WebDriverModule(
-        webdriver_port, base::Bind(&BrowserModule::CreateSessionDriver,
-                                   base::Unretained(browser_module_.get())),
+        GetWebDriverPort(), GetWebDriverListenIp(),
+        base::Bind(&BrowserModule::CreateSessionDriver,
+                   base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::RequestScreenshotToBuffer,
                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::SetProxy,
