@@ -107,6 +107,12 @@ class LinearGradientBrush : public Brush {
   // and destination points.
   const ColorStopList& color_stops() const { return color_stops_; }
 
+  // Returns true if, and only if the brush is horizontal.
+  bool IsHorizontal() const { return (source_.y() == dest_.y()); }
+
+  // Returns true if, and only if the brush is vertical.
+  bool IsVertical() const { return (source_.x() == dest_.x()); }
+
  private:
   math::PointF source_;
   math::PointF dest_;
