@@ -1092,7 +1092,7 @@ void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
     DCHECK(recv_buffer_);
     int ret = BIO_write(transport_bio_, recv_buffer_->data(), result);
     // A write into a memory BIO should always succeed.
-    CHECK_EQ(result, ret);
+    DCHECK_EQ(result, ret);
   }
   recv_buffer_ = NULL;
   transport_recv_busy_ = false;
