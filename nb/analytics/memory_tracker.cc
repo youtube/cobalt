@@ -17,6 +17,7 @@
 #include "nb/analytics/memory_tracker.h"
 
 #include "nb/analytics/memory_tracker_impl.h"
+#include "nb/scoped_ptr.h"
 #include "starboard/once.h"
 
 namespace nb {
@@ -26,7 +27,14 @@ SB_ONCE_INITIALIZE_FUNCTION(MemoryTrackerImpl, GetMemoryTrackerImplSingleton);
 }  // namespace
 
 MemoryTracker* MemoryTracker::Get() {
-  return GetMemoryTrackerImplSingleton();
+  MemoryTracker* t = GetMemoryTrackerImplSingleton();
+  return t;
+}
+
+nb::scoped_ptr<MemoryTrackerPrintThread>
+CreateDebugPrintThread(MemoryTracker* memory_tracker) {
+  return nb::scoped_ptr<MemoryTrackerPrintThread>(
+     new MemoryTrackerPrintThread(memory_tracker));
 }
 
 }  // namespace analytics

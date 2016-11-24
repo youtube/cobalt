@@ -20,11 +20,14 @@
 #include <vector>
 #include "starboard/configuration.h"
 #include "starboard/types.h"
+#include "nb/scoped_ptr.h"
 
 namespace nb {
+
 namespace analytics {
 
 class MemoryTracker;
+class MemoryTrackerPrintThread;
 class AllocationVisitor;
 class AllocationGroup;
 class AllocationRecord;
@@ -131,6 +134,13 @@ class AllocationRecord {
   size_t size;
   AllocationGroup* allocation_group;
 };
+
+// Creates a SimpleThread that will output the state of the memory
+// periodically. Start()/Cancel()/Join() are called AUTOMATICALLY with
+// this object. Start() is on the returned thread before it is returned.
+// Join() is automatically called on destruction.
+scoped_ptr<MemoryTrackerPrintThread>
+    CreateDebugPrintThread(MemoryTracker* memory_tracker);
 
 }  // namespace analytics
 }  // namespace nb
