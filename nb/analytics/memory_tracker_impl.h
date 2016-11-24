@@ -60,6 +60,8 @@ class MemoryTrackerImpl : public MemoryTracker {
   // generated for the supplied allocation which can be queried immediately
   // with GetMemoryTracking(...).
   bool InstallGlobalTrackingHooks() SB_OVERRIDE {
+    if (global_hooks_installed_)
+      return true;
     global_hooks_installed_ = true;
     bool ok = SbMemorySetReporter(GetMemoryReporter());
     ok |= NbSetMemoryScopeReporter(GetMemoryScopeReporter());
@@ -123,10 +125,6 @@ class MemoryTrackerImpl : public MemoryTracker {
   // allocations.
   void SetThreadFilter(SbThreadId tid);
   bool IsCurrentThreadAllowedToReport() const;
-  // Spawns a thread who's lifetime is coupled to that of this owning
-  // MemoryTrackerImpl. This thread will output the state of the memory
-  // periodically.
-  void Debug_EnablePrintOutThread();
 
  private:
   struct DisableMemoryTrackingInScope {
@@ -169,13 +167,28 @@ class MemoryTrackerImpl : public MemoryTracker {
   AtomicStringAllocationGroupMap alloc_group_map_;
 
   atomic_int64_t total_bytes_allocated_;
-  scoped_ptr<SimpleThread> debug_output_thread_;
 
   // THREAD LOCAL SECTION.
   ThreadLocalBoolean memory_deletion_enabled_tls_;
   ThreadLocalBoolean memory_tracking_disabled_tls_;
   ThreadLocalObject<AllocationGroupStack> allocation_group_stack_tls_;
   bool global_hooks_installed_;
+};
+
+// Start() is called when this object is created, and Cancel() & Join() are
+// called during destruction.
+class MemoryTrackerPrintThread : private SimpleThread {
+ public:
+  MemoryTrackerPrintThread(MemoryTracker* memory_tracker);
+  virtual ~MemoryTrackerPrintThread() SB_OVERRIDE;
+
+  // Overridden so that the thread can exit gracefully.
+  virtual void Cancel() SB_OVERRIDE;
+  virtual void Run() SB_OVERRIDE;
+
+ private:
+  atomic_bool finished_;
+  MemoryTracker* memory_tracker_;
 };
 
 }  // namespace analytics
