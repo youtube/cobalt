@@ -17,8 +17,6 @@
 #ifndef NB_MEMORY_SCOPE_H_
 #define NB_MEMORY_SCOPE_H_
 
-#include "starboard/types.h"
-
 ///////////////////////////////////////////////////////////////////////////////
 // Macros to define the memory scope objects. These are objects that are used
 // to annotate sections of the code base as belonging to a particular memory
@@ -58,13 +56,13 @@
 // tracking.
 #define TRACK_MEMORY_STATIC_CACHED_IMPL_2(Str, FileStr, LineNum, FuncStr) \
   static NbMemoryScopeInfo memory_scope_handle_##LineNum =                \
-      { 0, Str, FileStr, LineNum, FuncStr, true };                        \
+      { NULL, Str, FileStr, LineNum, FuncStr, true };                     \
   NbPushMemoryScope(&memory_scope_handle_##LineNum);                      \
   NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;
 
 #define TRACK_MEMORY_STATIC_NOT_CACHED_IMPL_2(Str, FileStr, LineNum, FuncStr) \
   NbMemoryScopeInfo memory_scope_handle_##LineNum = {                         \
-      0, Str, FileStr, LineNum, FuncStr, false};                              \
+      NULL, Str, FileStr, LineNum, FuncStr, false};                           \
   NbPushMemoryScope(&memory_scope_handle_##LineNum);                          \
   NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;
 
@@ -109,7 +107,7 @@ struct NbMemoryScopeInfo {
   // cached_handle_ allows a cached result of the the fields represented in
   // this struct to be generated and the handle be placed into this field.
   // See also allows_caching_.
-  uintptr_t cached_handle_;
+  void* cached_handle_;
 
   // Represents the name of the memory scope. I.E. "Javascript" or "Gfx".
   const char* memory_scope_name_;
