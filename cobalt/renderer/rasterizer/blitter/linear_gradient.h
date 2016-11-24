@@ -14,8 +14,17 @@
  * limitations under the License.
  */
 
-#include "cobalt/renderer/rasterizer/blitter/cobalt_blitter_conversions.h"
+#ifndef COBALT_RENDERER_RASTERIZER_BLITTER_LINEAR_GRADIENT_H_
+#define COBALT_RENDERER_RASTERIZER_BLITTER_LINEAR_GRADIENT_H_
 
+#include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/rect_node.h"
+#include "cobalt/renderer/rasterizer/blitter/render_state.h"
+#include "starboard/blitter.h"
+
+#ifndef SB_HAS_BLITTER
+#define SB_HAS_BLITTER
+#endif
 #if SB_HAS(BLITTER)
 
 namespace cobalt {
@@ -23,20 +32,9 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
-int RoundToInt(float value) {
-  return static_cast<int>(std::floor(value + 0.5f));
-}
-
-math::Rect RectFToRect(const math::RectF& rectf) {
-  // We convert from floating point to integer in such a way that two boxes
-  // joined at the seams in float-space continue to be joined at the seams in
-  // integer-space.
-  int x = RoundToInt(rectf.x());
-  int y = RoundToInt(rectf.y());
-
-  return math::Rect(x, y, RoundToInt(rectf.right()) - x,
-                    RoundToInt(rectf.bottom()) - y);
-}
+bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
+                          const RenderState& render_state,
+                          const render_tree::RectNode& rect_node);
 
 }  // namespace blitter
 }  // namespace rasterizer
@@ -44,3 +42,5 @@ math::Rect RectFToRect(const math::RectF& rectf) {
 }  // namespace cobalt
 
 #endif  // #if SB_HAS(BLITTER)
+
+#endif  // COBALT_RENDERER_RASTERIZER_BLITTER_LINEAR_GRADIENT_H_

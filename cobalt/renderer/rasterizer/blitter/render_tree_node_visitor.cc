@@ -17,6 +17,7 @@
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 
 #include "base/bind.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
@@ -25,6 +26,7 @@
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/renderer/rasterizer/blitter/cobalt_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/blitter/image.h"
+#include "cobalt/renderer/rasterizer/blitter/linear_gradient.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
 #include "starboard/blitter.h"
@@ -44,6 +46,9 @@ using math::Vector2dF;
 using render_tree::Border;
 using render_tree::Brush;
 using render_tree::ColorRGBA;
+using render_tree::ColorStop;
+using render_tree::ColorStopList;
+using render_tree::LinearGradientBrush;
 using render_tree::SolidColorBrush;
 using render_tree::ViewportFilter;
 
@@ -364,34 +369,43 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
       return;
     }
   }
-  if (rect_node->data().background_brush) {
-    if (rect_node->data().background_brush->GetTypeId() !=
-        base::GetTypeId<SolidColorBrush>()) {
-      // We can only render solid color rectangles, if we have a more
-      // complicated brush (like gradients), fallback to software.
-      RenderWithSoftwareRenderer(rect_node);
-      return;
-    }
-  }
 
   const RectF& transformed_rect =
       render_state_.transform.TransformRect(rect_node->data().rect);
 
-  // Render the solid color fill, if a brush exists.
   if (rect_node->data().background_brush) {
-    SolidColorBrush* solid_color_brush =
-        base::polymorphic_downcast<SolidColorBrush*>(
-            rect_node->data().background_brush.get());
-    ColorRGBA color = solid_color_brush->color();
+    base::TypeId background_brush_typeid(
+        rect_node->data().background_brush->GetTypeId());
 
-    if (render_state_.opacity < 1.0f) {
-      color.set_a(color.a() * render_state_.opacity);
+    if (background_brush_typeid == base::GetTypeId<SolidColorBrush>()) {
+      // Render the solid color fill, if a brush exists.
+      SolidColorBrush* solid_color_brush =
+          base::polymorphic_downcast<SolidColorBrush*>(
+              rect_node->data().background_brush.get());
+      ColorRGBA color = solid_color_brush->color();
+
+      if (render_state_.opacity < 1.0f) {
+        color.set_a(color.a() * render_state_.opacity);
+      }
+
+      SbBlitterSetBlending(context_, color.a() < 1.0f);
+      SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
+
+      SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));
+    } else if (background_brush_typeid ==
+               base::GetTypeId<LinearGradientBrush>()) {
+      DCHECK(rect_node != NULL);
+      bool rendered_gradient =
+          RenderLinearGradient(device_, context_, render_state_, *rect_node);
+      if (!rendered_gradient) {
+        RenderWithSoftwareRenderer(rect_node);
+        return;
+      }
+    } else {
+      // If we have a more complicated brush fallback to software.
+      RenderWithSoftwareRenderer(rect_node);
+      return;
     }
-
-    SbBlitterSetBlending(context_, color.a() < 1.0f);
-    SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
-
-    SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));
   }
 
   // Render the border, if it exists.
