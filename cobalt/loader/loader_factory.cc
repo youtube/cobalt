@@ -76,6 +76,25 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
   return loader.Pass();
 }
 
+// Creates a loader that fetches and decodes a Mesh.
+scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
+    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    const mesh::MeshDecoder::SuccessCallback& success_callback,
+    const mesh::MeshDecoder::FailureCallback& failure_callback,
+    const mesh::MeshDecoder::ErrorCallback& error_callback) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  scoped_ptr<Loader> loader(new Loader(
+      MakeFetcherCreator(url, url_security_callback),
+      scoped_ptr<Decoder>(
+          new mesh::MeshDecoder(resource_provider_, success_callback,
+                                failure_callback, error_callback)),
+      error_callback,
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
+  OnLoaderCreated(loader.get());
+  return loader.Pass();
+}
+
 Loader::FetcherCreator LoaderFactory::MakeFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());

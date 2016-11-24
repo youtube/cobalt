@@ -25,6 +25,7 @@
 #include "cobalt/loader/font/typeface_decoder.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/loader.h"
+#include "cobalt/loader/mesh/mesh_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
 
@@ -53,6 +54,13 @@ class LoaderFactory {
       const font::TypefaceDecoder::SuccessCallback& success_callback,
       const font::TypefaceDecoder::FailureCallback& failure_callback,
       const font::TypefaceDecoder::ErrorCallback& error_callback);
+
+  // Creates a loader that fetches and decodes a Mesh.
+  scoped_ptr<Loader> CreateMeshLoader(
+      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      const mesh::MeshDecoder::SuccessCallback& success_callback,
+      const mesh::MeshDecoder::FailureCallback& failure_callback,
+      const mesh::MeshDecoder::ErrorCallback& error_callback);
 
   // Clears out the loader factory's resource provider, aborting any in-progress
   // loads.
