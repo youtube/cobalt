@@ -25,6 +25,7 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/render_tree/brush.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
