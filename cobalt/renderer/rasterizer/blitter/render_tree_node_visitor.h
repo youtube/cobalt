@@ -39,6 +39,11 @@
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 
 #include "starboard/blitter.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
+
+#ifndef SB_HAS_BLITTER
+#define SB_HAS_BLITTER
+#endif
 
 #if SB_HAS(BLITTER)
 
