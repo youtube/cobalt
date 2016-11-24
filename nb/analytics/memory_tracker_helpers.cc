@@ -27,7 +27,8 @@ namespace nb {
 namespace analytics {
 
 AllocationGroup::AllocationGroup(const std::string& name)
-    : name_(name), allocation_bytes_(0), num_allocations_(0) {}
+    : name_(name), allocation_bytes_(0), num_allocations_(0) {
+}
 
 AllocationGroup::~AllocationGroup() {}
 
@@ -35,7 +36,6 @@ void AllocationGroup::AddAllocation(int64_t num_bytes) {
   if (num_bytes == 0)
     return;
   int num_alloc_diff = num_bytes > 0 ? 1 : -1;
-
   allocation_bytes_.fetch_add(num_bytes);
   num_allocations_.fetch_add(num_alloc_diff);
 }
