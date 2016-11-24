@@ -380,14 +380,14 @@ TEST_F(MemoryTrackerImplTest, RespectsNonCachedHandle) {
   }
   const bool kCaching = false;
   NbMemoryScopeInfo memory_scope = {
-      0,        "MyName",     __FILE__,
+      NULL, "MyName", __FILE__,
       __LINE__, __FUNCTION__, false};  // false to disallow caching.
 
   // Pushing the memory scope should trigger the caching operation to be
   // attempted. However, because caching was explicitly disabled this handle
   // should retain the value of 0.
   NbPushMemoryScope(&memory_scope);
-  EXPECT_EQ_NO_TRACKING(memory_scope.cached_handle_, uintptr_t(0));
+  EXPECT_TRUE_NO_TRACKING(memory_scope.cached_handle_ == NULL);
 
   // ... and still assert that the group was created with the expected name.
   AllocationGroup* group = memory_tracker()->GetAllocationGroup("MyName");
@@ -405,18 +405,18 @@ TEST_F(MemoryTrackerImplTest, PushAllocGroupCachedHandle) {
     return;
   }
   NbMemoryScopeInfo memory_scope = {
-      0,         // Cached handle.
+      NULL,      // Cached handle.
       "MyName",  // Memory scope name.
       __FILE__, __LINE__, __FUNCTION__,
       true  // Allows caching.
   };
 
   NbPushMemoryScope(&memory_scope);
-  EXPECT_TRUE_NO_TRACKING(memory_scope.cached_handle_ != uintptr_t(0));
+  EXPECT_TRUE_NO_TRACKING(memory_scope.cached_handle_ != NULL);
   AllocationGroup* group = memory_tracker()->GetAllocationGroup("MyName");
 
-  EXPECT_TRUE_NO_TRACKING(memory_scope.cached_handle_ ==
-                          reinterpret_cast<uintptr_t>(group));
+  EXPECT_EQ_NO_TRACKING(memory_scope.cached_handle_,
+                        static_cast<void*>(group));
 }
 
 // Tests the expectation that the macro TRACK_MEMORY_SCOPE will capture the
@@ -793,7 +793,7 @@ void AllocationStressThread::DoMalloc() {
         << "This pointer should not be in the map.";
   }
 
-  NoMemTracking no_tracking_in_scope;  // DEBUG!!
+  NoMemTracking no_tracking_in_scope;
   allocated_pts_[memory] = AllocationRecord(alloc_size, current_group);
 }
 

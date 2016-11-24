@@ -201,20 +201,20 @@ void MemoryTrackerImpl::OnPushAllocationGroup(
     void* context,
     NbMemoryScopeInfo* memory_scope_info) {
   MemoryTrackerImpl* t = static_cast<MemoryTrackerImpl*>(context);
-  uintptr_t* cached_handle = &(memory_scope_info->cached_handle_);
+  void** cached_handle = &(memory_scope_info->cached_handle_);
   const bool allows_caching = memory_scope_info->allows_caching_;
   const char* group_name = memory_scope_info->memory_scope_name_;
 
   AllocationGroup* group = NULL;
-  if (allows_caching && *cached_handle != 0) {
-    group = reinterpret_cast<AllocationGroup*>(cached_handle);
+  if (allows_caching && *cached_handle != NULL) {
+    group = static_cast<AllocationGroup*>(*cached_handle);
   } else {
     group = t->GetAllocationGroup(group_name);
     if (allows_caching) {
       // Flush all pending writes so that the the pointee is well formed
       // by the time the pointer becomes visible to other threads.
       SbAtomicMemoryBarrier();
-      *cached_handle = reinterpret_cast<uintptr_t>(group);
+      *cached_handle = static_cast<void*>(group);
     }
   }
 
