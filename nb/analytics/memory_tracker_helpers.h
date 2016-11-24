@@ -90,7 +90,7 @@ class ThreadLocalBoolean {
 // together, such as "Javascript" or "Graphics".
 class AllocationGroup {
  public:
-  AllocationGroup(const std::string& name);
+  explicit AllocationGroup(const std::string& name);
   ~AllocationGroup();
   const std::string& name() const { return name_; }
 
@@ -104,6 +104,8 @@ class AllocationGroup {
   const std::string name_;
   nb::atomic_int64_t allocation_bytes_;
   nb::atomic_int32_t num_allocations_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(AllocationGroup);
 };
 
 // A self locking data structure that maps strings -> AllocationGroups. This is
@@ -125,6 +127,8 @@ class AtomicStringAllocationGroupMap {
   Map group_map_;
   AllocationGroup* unaccounted_group_;
   mutable starboard::Mutex mutex_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(AtomicStringAllocationGroupMap);
 };
 
 class AllocationGroupStack {
