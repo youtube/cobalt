@@ -58,7 +58,7 @@ size_t WriteBuffer(uint8* buffer, const uint8* source, size_t size,
 
 }  // namespace
 
-VirtualFile::VirtualFile(const std::string& name) : size_(0), name_(name) {}
+VirtualFile::VirtualFile(const std::string& name) : name_(name) {}
 VirtualFile::~VirtualFile() {}
 
 int VirtualFile::Read(void* dest, int bytes_in, int offset_in) const {
@@ -66,10 +66,11 @@ int VirtualFile::Read(void* dest, int bytes_in, int offset_in) const {
   DCHECK_GE(bytes_in, 0);
   size_t offset = static_cast<size_t>(offset_in);
   size_t bytes = static_cast<size_t>(bytes_in);
-  if (offset > size_) {
+  size_t size = buffer_.size();
+  if (offset > size) {
     return 0;
   }
-  size_t bytes_to_read = std::min(static_cast<size_t>(size_ - offset), bytes);
+  size_t bytes_to_read = std::min(static_cast<size_t>(size - offset), bytes);
   if (bytes_to_read == 0) {
     return 0;
   }
@@ -87,13 +88,13 @@ int VirtualFile::Write(const void* source, int bytes_in, int offset_in) {
   }
 
   memcpy(&buffer_[offset], source, bytes);
-  size_ = std::max(size_, offset + bytes);
   return bytes_in;
 }
 
 int VirtualFile::Truncate(int size) {
-  size_ = std::min(size_, static_cast<size_t>(size));
-  return static_cast<int>(size_);
+  size_t newsize = std::min(buffer_.size(), static_cast<size_t>(size));
+  buffer_.resize(newsize);
+  return static_cast<int>(newsize);
 }
 
 int VirtualFile::Serialize(uint8* dest, bool dry_run) {
@@ -113,14 +114,17 @@ int VirtualFile::Serialize(uint8* dest, bool dry_run) {
 
   // NOTE: Ensure the file size is 64-bit for compatibility
   // with any existing serialized files.
-  uint64 file_size = static_cast<uint64>(size_);
+  uint64 file_size = static_cast<uint64>(buffer_.size());
   // Write the file contents size
   cur_buffer +=
       WriteBuffer(cur_buffer, reinterpret_cast<const uint8*>(&file_size),
                   sizeof(file_size), dry_run);
 
   // Write the file contents
-  cur_buffer += WriteBuffer(cur_buffer, &buffer_[0], size_, dry_run);
+  if (!buffer_.empty()) {
+    // std::vector does not define access to underlying array when empty
+    cur_buffer += WriteBuffer(cur_buffer, &buffer_[0], buffer_.size(), dry_run);
+  }
 
   // Return the number of bytes written
   return static_cast<int>(std::distance(dest, cur_buffer));
@@ -159,15 +163,17 @@ int VirtualFile::Deserialize(const uint8* source, size_t buffer_remaining) {
     DLOG(ERROR) << "Buffer overrun";
     return -1;
   }
-  size_ = static_cast<size_t>(file_size);
-
   // Read in the file contents
-  buffer_.resize(size_);
+  buffer_.resize(static_cast<size_t>(file_size));
 
-  success = ReadBuffer(&buffer_[0], &cur_buffer, size_, &buffer_remaining);
-  if (!success) {
-    DLOG(ERROR) << "Buffer overrun";
-    return -1;
+  if (!buffer_.empty()) {
+    // std::vector does not define access to underlying array when empty
+    success =
+        ReadBuffer(&buffer_[0], &cur_buffer, buffer_.size(), &buffer_remaining);
+    if (!success) {
+      DLOG(ERROR) << "Buffer overrun";
+      return -1;
+    }
   }
 
   // Return the number of bytes read
