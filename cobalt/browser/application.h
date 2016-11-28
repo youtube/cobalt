@@ -33,6 +33,11 @@
 #include "cobalt/debug/debug_web_server.h"
 #endif
 
+#if defined(OS_STARBOARD)
+#include "nb/analytics/memory_tracker.h"
+#include "nb/scoped_ptr.h"
+#endif
+
 namespace cobalt {
 namespace browser {
 
@@ -173,6 +178,13 @@ class Application {
 
   base::Timer stats_update_timer_;
   base::Timer lite_stats_update_timer_;
+
+#if defined(OS_STARBOARD)
+  // This thread (when active) will print out memory statistics of the engine.
+  // It is activated by the command line -memory_tracker.
+  nb::scoped_ptr<nb::analytics::MemoryTrackerPrintThread>
+      memory_tracker_print_thread_;
+#endif
 };
 
 // Factory method for creating an application.  It should be implemented
