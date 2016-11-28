@@ -40,7 +40,7 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
 
   // Ensure the request does not attempt to navigate outside the whitelisted
   // directory.
-  if (file_path_.ReferencesParent()) {
+  if (file_path_.ReferencesParent() || file_path_.IsAbsolute()) {
     handler->OnError(this, PlatformFileErrorToString(
                                base::PLATFORM_FILE_ERROR_ACCESS_DENIED));
     return;
