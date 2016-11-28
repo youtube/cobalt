@@ -41,7 +41,7 @@ class VirtualFile {
   int Read(void* dest, int bytes, int offset) const;
   int Write(const void* source, int bytes, int offset);
   int Truncate(int size);
-  int Size() const { return static_cast<int>(size_); }
+  int Size() const { return static_cast<int>(buffer_.size()); }
 
  private:
   explicit VirtualFile(const std::string& name);
@@ -55,7 +55,6 @@ class VirtualFile {
   int Deserialize(const uint8* source, size_t buffer_remaining);
 
   std::vector<uint8> buffer_;
-  size_t size_;
 
   std::string name_;
 
