@@ -17,9 +17,8 @@
 #
 {
   'variables': {
-    'target_arch%': 'x64',
     'target_os': 'android',
-    #'starboard_path%': 'starboard/android/x64',
+    'final_executable_type': 'shared_library',
 
     'in_app_dial%': 0,
     'gl_type%': 'system_gles3',
