@@ -51,6 +51,8 @@
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 #if defined(OS_STARBOARD)
+#include "nb/analytics/memory_tracker.h"
+#include "nb/analytics/memory_tracker_impl.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #endif  // defined(OS_STARBOARD)
@@ -432,6 +434,20 @@ Application::Application(const base::Closure& quit_closure)
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
   }
+  if (command_line->HasSwitch(switches::kMemoryTracker)) {
+#if defined(OS_STARBOARD)
+    using nb::analytics::MemoryTrackerPrintThread;
+    using nb::analytics::MemoryTracker;
+
+    DLOG(INFO) << "Using MemoryTracking";
+    MemoryTracker* memory_tracker = MemoryTracker::Get();
+    memory_tracker->InstallGlobalTrackingHooks();
+    memory_tracker_print_thread_ = CreateDebugPrintThread(memory_tracker);
+#else
+    DLOG(INFO)
+        << "Memory tracker is not enabled on non-starboard builds.";
+#endif
+  }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   base::optional<math::Size> viewport_size;
@@ -534,6 +550,13 @@ Application::Application(const base::Closure& quit_closure)
 }
 
 Application::~Application() {
+#if defined(OS_STARBOARD)
+  // explicitly reset here because the destruction of the object is complex
+  // and involves a thread join. If this were to hang the app then having
+  // the destruction at this point gives a real file-line number and a place
+  // for the debugger to land.
+  memory_tracker_print_thread_.reset(NULL);
+#endif
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
                                         account_event_callback_);
