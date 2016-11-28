@@ -95,7 +95,7 @@ class HTMLMediaElement : public HTMLElement,
     kHaveEnoughData = WebMediaPlayer::kReadyStateHaveEnoughData,
   };
 
-  WebMediaPlayer::ReadyState ready_state() const;
+  uint16_t ready_state() const;
   bool seeking() const;
 
   // Playback state
