@@ -178,6 +178,7 @@
       '<(DEPTH)/starboard/shared/pthread/once.cc',
       '<(DEPTH)/starboard/shared/pthread/thread_create.cc',
       '<(DEPTH)/starboard/shared/pthread/thread_create_local_key.cc',
+      '<(DEPTH)/starboard/shared/pthread/thread_create_priority.h',
       '<(DEPTH)/starboard/shared/pthread/thread_destroy_local_key.cc',
       '<(DEPTH)/starboard/shared/pthread/thread_detach.cc',
       '<(DEPTH)/starboard/shared/pthread/thread_get_current.cc',
