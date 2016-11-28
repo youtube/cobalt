@@ -320,9 +320,9 @@ void HTMLMediaElement::CancelKeyRequest(
   }
 }
 
-WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
+uint16_t HTMLMediaElement::ready_state() const {
   MLOG() << ready_state_;
-  return ready_state_;
+  return static_cast<uint16_t>(ready_state_);
 }
 
 bool HTMLMediaElement::seeking() const {
