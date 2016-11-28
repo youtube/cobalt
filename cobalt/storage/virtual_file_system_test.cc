@@ -104,6 +104,32 @@ TEST_F(VirtualFileSystemTest, Open) {
   EXPECT_EQ(4, file->Size());
 }
 
+TEST_F(VirtualFileSystemTest, Truncate) {
+  VirtualFile* file = vfs_.Open("file1.tmp");
+  ASSERT_TRUE(file);
+  EXPECT_EQ(0, file->Size());
+
+  const char* data = "test";
+  char file_contents[4];
+  // Write a few bytes of random data.
+  file->Write(data, 4, 0);
+  EXPECT_EQ(4, file->Size());
+  int bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(4, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data, static_cast<size_t>(bytes)));
+
+  file->Truncate(3);
+  EXPECT_EQ(3, file->Size());
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(3, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data, static_cast<size_t>(bytes)));
+
+  file->Truncate(0);
+  EXPECT_EQ(0, file->Size());
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(0, bytes);
+}
+
 TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
   // Create a few files and write some data
   VirtualFile* file = vfs_.Open("file1.tmp");
@@ -117,6 +143,12 @@ TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
   const char data2[] = "defg";
   int data2_size = 4;
   file->Write(data2, data2_size, 0);
+
+  file = vfs_.Open("file3.tmp");
+  EXPECT_TRUE(file != NULL);
+  const char data3[] = "";
+  int data3_size = 0;
+  file->Write(data3, data3_size, 0);
 
   // First perform a dry run to figure out how much space we need.
   int bytes = vfs_.Serialize(NULL, true /*dry run*/);
@@ -142,6 +174,12 @@ TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
   bytes = file->Read(file_contents, sizeof(file_contents), 0);
   EXPECT_EQ(data2_size, bytes);
   EXPECT_EQ(0, memcmp(file_contents, data2, static_cast<size_t>(bytes)));
+
+  file = new_vfs.Open("file3.tmp");
+  EXPECT_TRUE(file != NULL);
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(data3_size, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data3, static_cast<size_t>(bytes)));
 }
 
 TEST_F(VirtualFileSystemTest, DeserializeTruncated) {
