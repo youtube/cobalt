@@ -32,6 +32,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -111,6 +112,7 @@ HTMLScriptElement::~HTMLScriptElement() {
 // Algorithm for Prepare:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::Prepare() {
+  TRACK_MEMORY_SCOPE("DOM");
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(MessageLoop::current());
@@ -495,6 +497,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 void HTMLScriptElement::Execute(const std::string& content,
                                 const base::SourceLocation& script_location,
                                 bool is_external) {
+  TRACK_MEMORY_SCOPE("DOM");
   // If should_execute_ is set to false for whatever reason, then we
   // immediately exit.
   // When inserted using the document.write() method, script elements execute
