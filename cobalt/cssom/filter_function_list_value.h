@@ -33,7 +33,7 @@ class FilterFunctionListValue : public ScopedListValue<FilterFunction> {
  public:
   explicit FilterFunctionListValue(
       ScopedListValue<FilterFunction>::Builder value)
-      : ScopedListValue(value.Pass()) {}
+      : ScopedListValue<FilterFunction>(value.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitFilterFunctionList(this);

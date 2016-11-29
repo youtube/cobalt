@@ -8394,7 +8394,7 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   EXPECT_EQ(1.5f, mtm_function->vertical_fov());
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
@@ -8431,7 +8431,7 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
       dynamic_cast<cssom::URLValue*>(meshes[1]->mesh_url().get())->value());
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
@@ -8464,7 +8464,7 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
   EXPECT_EQ(4.0f, actual[3][3]);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
@@ -8490,7 +8490,7 @@ TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
@@ -8516,7 +8516,7 @@ TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kStereoscopicLeftRight);
+            cssom::KeywordValue::kStereoscopicLeftRight);
 }
 
 TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
@@ -8542,7 +8542,7 @@ TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kStereoscopicTopBottom);
+            cssom::KeywordValue::kStereoscopicTopBottom);
 }
 
 TEST_F(ParserTest, HandlesInvalidMtmStereoMode) {
