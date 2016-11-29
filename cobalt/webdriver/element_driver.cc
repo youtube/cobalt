@@ -105,7 +105,7 @@ util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
   Keyboard::TranslateToKeyEvents(keys.utf8_keys(), Keyboard::kReleaseModifiers,
                                  events.get());
   // Dispatch the keyboard events.
-  return util::CallOnMessageLoop(
+  return util::CallOnMessageLoopWithRetry(
       element_message_loop_,
       base::Bind(&ElementDriver::SendKeysInternal, base::Unretained(this),
                  base::Passed(&events)),
@@ -114,7 +114,7 @@ util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
 
 util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
-  return util::CallOnMessageLoop(
+  return util::CallOnMessageLoopWithRetry(
       element_message_loop_,
       base::Bind(&ElementDriver::FindElementsInternal<protocol::ElementId>,
                  base::Unretained(this), strategy),
@@ -123,7 +123,7 @@ util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
 
 util::CommandResult<std::vector<protocol::ElementId> >
 ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
-  return util::CallOnMessageLoop(
+  return util::CallOnMessageLoopWithRetry(
       element_message_loop_,
       base::Bind(&ElementDriver::FindElementsInternal<ElementIdVector>,
                  base::Unretained(this), strategy),
@@ -132,7 +132,7 @@ ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
 
 util::CommandResult<bool> ElementDriver::Equals(
     const ElementDriver* other_element_driver) {
-  return util::CallOnMessageLoop(
+  return util::CallOnMessageLoopWithRetry(
       element_message_loop_,
       base::Bind(&ElementDriver::EqualsInternal, base::Unretained(this),
                  other_element_driver),
