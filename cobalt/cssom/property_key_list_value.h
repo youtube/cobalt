@@ -37,7 +37,7 @@ class PropertyKeyListValue : public ListValue<PropertyKey> {
  public:
   explicit PropertyKeyListValue(
       scoped_ptr<ListValue<PropertyKey>::Builder> value)
-      : ListValue(value.Pass()) {}
+      : ListValue<PropertyKey>(value.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitPropertyKeyList(this);
