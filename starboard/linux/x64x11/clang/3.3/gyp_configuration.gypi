@@ -1,4 +1,4 @@
-# Copyright 2014 Google Inc. All Rights Reserved.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,40 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Platform specific configuration for Linux on Starboard.  Automatically
-# included by gyp_cobalt in all .gyp files by Cobalt together with base.gypi.
-#
-
 {
-  'variables': {
-    'platform_libraries': [
-      '-ldirectfb',
-      '-ldirect',
-    ],
-
-    'gl_type': 'none',
-  },
-
   'target_defaults': {
-    'default_configuration': 'linux-x64directfb_debug',
+    'default_configuration': 'linux-x64x11-clang-3-3_debug',
     'configurations': {
-      'linux-x64directfb_debug': {
+      'linux-x64x11-clang-3-3_debug': {
         'inherit_from': ['debug_base'],
       },
-      'linux-x64directfb_devel': {
+      'linux-x64x11-clang-3-3_devel': {
         'inherit_from': ['devel_base'],
       },
-      'linux-x64directfb_qa': {
+      'linux-x64x11-clang-3-3_qa': {
         'inherit_from': ['qa_base'],
       },
-      'linux-x64directfb_gold': {
+      'linux-x64x11-clang-3-3_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
   },
 
   'includes': [
-    '../shared/compiler_flags.gypi',
-    '../shared/gyp_configuration.gypi',
+    'compiler_flags.gypi',
+    '../gyp_configuration.gypi',
   ],
 }
