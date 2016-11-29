@@ -73,12 +73,19 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     return generator_variables
 
   def GetEnvironmentVariables(self):
+    # Explicitly use the clang that is in third_party/llvm-build.
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    base_path = os.path.realpath(
+        os.path.join(script_path, os.pardir, os.pardir, os.pardir))
+    toolchain = os.path.join(base_path, 'third_party', 'llvm-build',
+                             'Release+Asserts')
+    toolchain_bin_dir = os.path.join(toolchain, 'bin')
     env_variables = {
-        'CC': 'clang',
-        'CXX': 'clang++',
-        'CC_host': 'clang',
-        'CXX_host': 'clang++',
-        'LD_host': 'clang++',
+        'CC': os.path.join(toolchain_bin_dir, 'clang'),
+        'CXX': os.path.join(toolchain_bin_dir, 'clang++'),
+        'CC_host': os.path.join(toolchain_bin_dir, 'clang'),
+        'CXX_host': os.path.join(toolchain_bin_dir, 'clang++'),
+        'LD_host': os.path.join(toolchain_bin_dir, 'clang++'),
         'ARFLAGS_host': 'rcs',
         'ARTHINFLAGS_host': 'rcsT',
     }
