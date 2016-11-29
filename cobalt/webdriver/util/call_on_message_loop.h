@@ -123,16 +123,21 @@ bool TryCallOnMessageLoop(
 }
 
 // Tries to call |callback| on messageloop |message_loop_proxy|,
-// but returns a CommandResult of |window_disappeared_code| if the
-// message loop has shut down. This can happen if a WebModule shuts
-// down due to a page navigation.
+// retrying a few times if the WebModule thread appears to have gone
+// away (perhaps because of navigation). If failure persists,
+// returns a CommandResult of |window_disappeared_code|.
 template <typename ReturnValue>
-util::CommandResult<ReturnValue> CallOnMessageLoop(
+util::CommandResult<ReturnValue> CallOnMessageLoopWithRetry(
     const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
     const base::Callback<util::CommandResult<ReturnValue>(void)>& callback,
     protocol::Response::StatusCode window_disappeared_code) {
   util::CommandResult<ReturnValue> result;
-  bool success = TryCallOnMessageLoop(message_loop_proxy, callback, &result);
+
+  const int kRetryAttempts = 5;
+  bool success = false;
+  for (int i = 0; !success && i < kRetryAttempts; i++) {
+    success = TryCallOnMessageLoop(message_loop_proxy, callback, &result);
+  }
 
   if (!success) {
     result = util::CommandResult<ReturnValue>(window_disappeared_code);
