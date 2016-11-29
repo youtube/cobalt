@@ -143,7 +143,8 @@ void MicrophoneManager::Read() {
     size_t frames = read_bytes / sizeof(int16_t);
     scoped_ptr<ShellAudioBus> output_audio_bus(new ShellAudioBus(
         1, frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
-    output_audio_bus->Assign(ShellAudioBus(1, frames, samples));
+    ShellAudioBus source(1, frames, samples);
+    output_audio_bus->Assign(source);
     data_received_callback_.Run(output_audio_bus.Pass());
   } else if (read_bytes != 0) {
     state_ = kError;

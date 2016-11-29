@@ -17,6 +17,7 @@
 #include "cobalt/dom/font_face.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 
 namespace cobalt {
