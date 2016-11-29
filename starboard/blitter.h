@@ -513,8 +513,7 @@ SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
 // This function is not thread-safe.
 //
 // |out_pixel_data|: A pointer to a region of memory with a size of
-//                   (surface_height * |pitch_in_bytes| *
-//                   SbBlitterBytesPerPixelForFormat(pixel_format) bytes.
+//                   surface_height * |pitch_in_bytes| bytes.
 SB_EXPORT bool SbBlitterDownloadSurfacePixels(
     SbBlitterSurface surface,
     SbBlitterPixelDataFormat pixel_format,
