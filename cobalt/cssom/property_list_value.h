@@ -33,7 +33,7 @@ class PropertyListValue : public ScopedRefListValue<PropertyValue> {
  public:
   explicit PropertyListValue(
       scoped_ptr<ScopedRefListValue<PropertyValue>::Builder> value)
-      : ScopedRefListValue(value.Pass()) {}
+      : ScopedRefListValue<PropertyValue>(value.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitPropertyList(this);

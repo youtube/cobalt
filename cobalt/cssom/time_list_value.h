@@ -35,7 +35,7 @@ namespace cssom {
 class TimeListValue : public ListValue<base::TimeDelta> {
  public:
   explicit TimeListValue(scoped_ptr<ListValue<base::TimeDelta>::Builder> value)
-      : ListValue(value.Pass()) {}
+      : ListValue<base::TimeDelta>(value.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitTimeList(this);
@@ -53,4 +53,3 @@ class TimeListValue : public ListValue<base::TimeDelta> {
 }  // namespace cobalt
 
 #endif  // COBALT_CSSOM_TIME_LIST_VALUE_H_
-

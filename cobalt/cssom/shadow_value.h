@@ -45,7 +45,7 @@ class ShadowValue : public PropertyValue {
   ShadowValue(const std::vector<scoped_refptr<LengthValue> >& lengths,
               const scoped_refptr<RGBAColorValue>& color, bool has_inset)
       : color_(color), has_inset_(has_inset) {
-    DCHECK_LE(lengths.size(), kMaxLengths);
+    DCHECK_LE(lengths.size(), static_cast<size_t>(kMaxLengths));
     for (size_t i = 0; i < lengths.size(); ++i) {
       lengths_[i] = lengths[i];
     }

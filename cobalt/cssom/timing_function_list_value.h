@@ -32,7 +32,7 @@ class TimingFunctionListValue : public ScopedRefListValue<TimingFunction> {
  public:
   explicit TimingFunctionListValue(
       scoped_ptr<ScopedRefListValue<TimingFunction>::Builder> value)
-      : ScopedRefListValue(value.Pass()) {}
+      : ScopedRefListValue<TimingFunction>(value.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitTimingFunctionList(this);

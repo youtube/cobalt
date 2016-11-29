@@ -251,7 +251,8 @@ class SqlContext {
       : storage_manager_(storage_manager) {}
 
   friend StorageManager::StorageManager(
-      scoped_ptr<UpgradeHandler> upgrade_handler, const Options& options);
+      scoped_ptr<StorageManager::UpgradeHandler> upgrade_handler,
+      const Options& options);
   DISALLOW_COPY_AND_ASSIGN(SqlContext);
 };
 
