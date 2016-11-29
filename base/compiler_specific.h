@@ -137,7 +137,14 @@
 // method in the parent class.
 // Use like:
 //   virtual void foo() OVERRIDE;
-#if defined(COMPILER_MSVC) || defined(COMPILER_GCC)
+
+/* Test for GCC > 4.4.x */
+#if __GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ > 4))
+#define GCC_SUPPORTS_OVERRIDE
+#endif
+
+#if defined(COMPILER_MSVC) || \
+    (defined(COMPILER_GCC) && defined(GCC_SUPPORTS_OVERRIDE))
 #define OVERRIDE override
 #else
 #define OVERRIDE
