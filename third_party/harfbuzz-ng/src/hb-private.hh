@@ -1042,5 +1042,7 @@ hb_options (void)
   return _hb_options.opts;
 }
 
+/* Size signifying variable-sized array */
+#define VAR 1
 
 #endif /* HB_PRIVATE_HH */
