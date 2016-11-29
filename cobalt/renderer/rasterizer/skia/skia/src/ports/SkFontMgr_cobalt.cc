@@ -16,7 +16,11 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#else
 #include <sys/stat.h>
+#endif
 #include <cmath>
 
 #include "base/at_exit.h"
@@ -247,8 +251,13 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     SkString path_name(SkOSPath::Join(base_path, font_file.file_name.c_str()));
 
     // Sanity check that something exists at this location.
+#if defined(STARBOARD)
+    bool is_font_file_found = SbFileExists(path_name.c_str());
+#else
     struct stat status;
-    if (0 != stat(path_name.c_str(), &status)) {
+    bool is_font_file_found = (stat(path_name.c_str(), &status) == 0);
+#endif  // defined(STARBOARD)
+    if (!is_font_file_found) {
       LOG(ERROR) << "Failed to find font file: " << path_name.c_str();
       continue;
     }
