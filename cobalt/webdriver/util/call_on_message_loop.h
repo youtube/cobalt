@@ -35,18 +35,22 @@ class CallOnMessageLoopHelper {
   CallOnMessageLoopHelper(
       const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
       const CallbackType& callback)
-      : completed_event_(false, false) {
+      : completed_event_(true, false), success_(false) {
     DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy);
-    success_ = message_loop_proxy->PostTask(
-        FROM_HERE, base::Bind(&CallOnMessageLoopHelper::CallAndSignal,
-                              base::Unretained(this), callback));
-    if (!success_) {
-      completed_event_.Signal();
-    }
+    scoped_ptr<DeletionSignaler> dt(new DeletionSignaler(&completed_event_));
+    // Note that while MessageLoopProxy::PostTask returns false
+    // after the message loop has gone away, it still can return true
+    // even if tasks are posted during shutdown and will never be run,
+    // so we ignore this return value.
+    message_loop_proxy->PostTask(
+        FROM_HERE,
+        base::Bind(&CallOnMessageLoopHelper::Call, base::Unretained(this),
+                   callback, base::Passed(&dt)));
   }
 
   // Waits for result, filling |out| with the return value if successful.
-  // Returns true on success or false if the event loop PostTask returned false.
+  // Returns true on success or false if the message loop went away
+  // before the task was executed.
   bool WaitForResult(ReturnValue* out) {
     completed_event_.Wait();
     if (success_) {
@@ -55,10 +59,34 @@ class CallOnMessageLoopHelper {
     return success_;
   }
 
+  ~CallOnMessageLoopHelper() {
+    // We must ensure that we've waited for completion otherwise
+    // DeletionSignaler will have a use-after-free.
+    completed_event_.Wait();
+  }
+
  private:
-  void CallAndSignal(const CallbackType& callback) {
+  // DeletionSignaler signals an event when the destructor is called.
+  // This allows us to use the base::Passed mechanism to signal our
+  // completed_event_ both when Call() has been invoked and when
+  // the message loop has been deleted.
+  class DeletionSignaler {
+   public:
+    base::WaitableEvent* to_signal_;
+
+    explicit DeletionSignaler(base::WaitableEvent* to_signal)
+        : to_signal_(to_signal) {}
+
+    ~DeletionSignaler() { to_signal_->Signal(); }
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(DeletionSignaler);
+  };
+
+  void Call(const CallbackType& callback,
+            scoped_ptr<DeletionSignaler> dt ALLOW_UNUSED) {
     result_ = callback.Run();
-    completed_event_.Signal();
+    success_ = true;
   }
 
   base::WaitableEvent completed_event_;
