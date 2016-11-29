@@ -166,13 +166,14 @@ void MicrophoneManager::Read() {
   static int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
   int read_bytes =
       microphone_->Read(reinterpret_cast<char*>(samples), kBufferSizeInBytes);
-  if (read_bytes > 0) {
+  // If |read_bytes| is zero, nothing should happen.
+  if (read_bytes > 0 && read_bytes % sizeof(int16_t) == 0) {
     size_t frames = read_bytes / sizeof(int16_t);
     scoped_ptr<ShellAudioBus> output_audio_bus(new ShellAudioBus(
         1, frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
     output_audio_bus->Assign(ShellAudioBus(1, frames, samples));
     data_received_callback_.Run(output_audio_bus.Pass());
-  } else if (read_bytes < 0) {
+  } else if (read_bytes != 0) {
     state_ = kError;
     error_callback_.Run(new SpeechRecognitionError(
         SpeechRecognitionError::kAborted, "Microphone read failed."));
