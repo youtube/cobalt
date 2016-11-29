@@ -19,6 +19,7 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/dom/storage_area.h"
 #include "cobalt/storage/storage_manager.h"
+#include "nb/memory_scope.h"
 #include "sql/statement.h"
 
 namespace cobalt {
@@ -30,6 +31,7 @@ const int kOriginalLocalStorageSchemaVersion = 1;
 const int kLatestLocalStorageSchemaVersion = 1;
 
 void SqlInit(storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   TRACE_EVENT0("cobalt::storage", "LocalStorage::SqlInit()");
   sql::Connection* conn = sql_context->sql_connection();
   int schema_version;
@@ -74,6 +76,7 @@ void SqlInit(storage::SqlContext* sql_context) {
 void SqlReadValues(const std::string& id,
                    const LocalStorageDatabase::ReadCompletionCallback& callback,
                    storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   scoped_ptr<StorageArea::StorageMap> values(new StorageArea::StorageMap);
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement get_values(conn->GetCachedStatement(
@@ -91,6 +94,7 @@ void SqlReadValues(const std::string& id,
 
 void SqlWrite(const std::string& id, const std::string& key,
               const std::string& value, storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement write_statement(conn->GetCachedStatement(
       SQL_FROM_HERE,
@@ -105,6 +109,7 @@ void SqlWrite(const std::string& id, const std::string& key,
 
 void SqlDelete(const std::string& id, const std::string& key,
                storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement delete_statement(
       conn->GetCachedStatement(SQL_FROM_HERE,
@@ -117,6 +122,7 @@ void SqlDelete(const std::string& id, const std::string& key,
 }
 
 void SqlClear(const std::string& id, storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement clear_statement(
       conn->GetCachedStatement(SQL_FROM_HERE,
@@ -142,12 +148,14 @@ void LocalStorageDatabase::Init() {
 
 void LocalStorageDatabase::ReadAll(const std::string& id,
                                    const ReadCompletionCallback& callback) {
+  TRACK_MEMORY_SCOPE("Storage");
   Init();
   storage_->GetSqlContext(base::Bind(&SqlReadValues, id, callback));
 }
 
 void LocalStorageDatabase::Write(const std::string& id, const std::string& key,
                                  const std::string& value) {
+  TRACK_MEMORY_SCOPE("Storage");
   Init();
   storage_->GetSqlContext(base::Bind(&SqlWrite, id, key, value));
   storage_->Flush();
