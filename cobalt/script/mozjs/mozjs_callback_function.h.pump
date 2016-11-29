@@ -76,6 +76,7 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
+    TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
