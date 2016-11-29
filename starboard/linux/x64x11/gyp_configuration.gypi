@@ -13,17 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'platform_libraries': [
-      '-lEGL',
-      '-lGLESv2',
-      '-lX11',
-      '-lXcomposite',
-      '-lXext',
-      '-lXrender',
-    ],
-  },
-
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
     'configurations': {
@@ -43,6 +32,8 @@
   },
 
   'includes': [
+    'libraries.gypi',
+    '../shared/compiler_flags.gypi',
     '../shared/gyp_configuration.gypi',
   ],
 }
