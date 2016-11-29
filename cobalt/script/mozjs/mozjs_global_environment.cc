@@ -29,6 +29,7 @@
 #include "cobalt/script/mozjs/referenced_object_map.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "nb/memory_scope.h"
+#include "third_party/mozjs/js/public/RootingAPI.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 #include "third_party/mozjs/js/src/jsfun.h"
 #include "third_party/mozjs/js/src/jsobj.h"
@@ -291,8 +292,9 @@ void MozjsGlobalEnvironment::PreventGarbageCollection(
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrappable(wrappable, context_, wrapper_factory());
   JS::RootedObject proxy(context_, wrapper_private->js_object_proxy());
+  JS::Heap<JSObject*> proxy_heap(proxy);
   kept_alive_objects_.insert(CachedWrapperMultiMap::value_type(
-      wrappable.get(), JS::Heap<JSObject*>(proxy)));
+      wrappable.get(), proxy_heap));
 }
 
 void MozjsGlobalEnvironment::AllowGarbageCollection(

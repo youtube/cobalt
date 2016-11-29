@@ -37,7 +37,7 @@ class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
  public:
   explicit TransformFunctionListValue(
       ScopedListValue<TransformFunction>::Builder value)
-      : ScopedListValue(value.Pass()) {}
+      : ScopedListValue<TransformFunction>(value.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitTransformFunctionList(this);
