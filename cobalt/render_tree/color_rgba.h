@@ -24,8 +24,13 @@ namespace render_tree {
 
 // Note: this does not handle infinities or nans.
 inline float clamp(float input, float min, float max) {
+#if defined(STARBOARD)
   if (SB_UNLIKELY(input < min)) return min;
   if (SB_UNLIKELY(input > max)) return max;
+#else
+  if (input < min) return min;
+  if (input > max) return max;
+#endif
   return input;
 }
 
