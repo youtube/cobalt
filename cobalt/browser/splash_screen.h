@@ -21,6 +21,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/media/media_module_stub.h"
 #include "googleurl/src/gurl.h"
@@ -48,13 +49,28 @@ class SplashScreen {
   void Suspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
+  // Block the caller until the splash screen is ready to be rendered.
+  void WaitUntilReady();
+
  private:
+  void OnRenderTreeProduced(
+      const browser::WebModule::LayoutResults& layout_results);
+
   void OnError(const GURL& /* url */, const std::string& error) {
+    is_ready_.Signal();
     LOG(ERROR) << error;
   }
 
+  void OnWindowClosed();
+
   media::MediaModuleStub stub_media_module_;
   scoped_ptr<WebModule> web_module_;
+
+  WebModule::OnRenderTreeProducedCallback render_tree_produced_callback_;
+
+  // Signalled once the splash screen has produced its first render tree or
+  // an error occurred.
+  base::WaitableEvent is_ready_;
 };
 
 }  // namespace browser
