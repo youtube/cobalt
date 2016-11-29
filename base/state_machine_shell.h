@@ -514,7 +514,7 @@ class BASE_EXPORT StateMachineShell {
     }
 
     Result HandleUserStateEvent(State state, Event event, void *data) OVERRIDE {
-      StateMachineShell<StateEnum, EventEnum>::Result result =
+      typename StateMachineShell<StateEnum, EventEnum>::Result result =
           wrapper_->HandleUserStateEvent(static_cast<StateEnum>(state),
                                          static_cast<EventEnum>(event),
                                          data);
