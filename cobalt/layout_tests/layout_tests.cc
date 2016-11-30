@@ -189,6 +189,11 @@ INSTANTIATE_TEST_CASE_P(
     AnimationTimingAPILayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("animation-timing")));
 
+// Problematic test cases found through cluster-fuzz.
+INSTANTIATE_TEST_CASE_P(
+    ClusterFuzzLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("cluster-fuzz")));
+
 // Disable on Windows until network stack is implemented.
 #if !defined(COBALT_WIN)
 // Content Security Policy test cases.
