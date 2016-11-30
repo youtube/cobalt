@@ -163,7 +163,7 @@ void MicrophoneManager::Read() {
   DCHECK(microphone_);
   DCHECK(microphone_->MinMicrophoneReadInBytes() <= kBufferSizeInBytes);
 
-  static int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
+  int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
   int read_bytes =
       microphone_->Read(reinterpret_cast<char*>(samples), kBufferSizeInBytes);
   // If |read_bytes| is zero, nothing should happen.
