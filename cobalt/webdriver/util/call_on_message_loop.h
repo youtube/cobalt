@@ -135,7 +135,8 @@ util::CommandResult<ReturnValue> CallOnMessageLoop(
   bool success = TryCallOnMessageLoop(message_loop_proxy, callback, &result);
 
   if (!success) {
-    result = util::CommandResult<ReturnValue>(window_disappeared_code);
+    result =
+        util::CommandResult<ReturnValue>(window_disappeared_code, "", true);
   }
   return result;
 }
