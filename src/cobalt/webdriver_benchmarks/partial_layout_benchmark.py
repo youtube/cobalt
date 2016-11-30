@@ -51,6 +51,8 @@ RE_WEBDRIVER_LISTEN = re.compile(r"Starting WebDriver server on port (\d+)$")
 
 STARTUP_TIMEOUT_SECONDS = 2 * 60
 
+WEBDRIVER_HTTP_TIMEOUT_SECS = 2 * 60
+
 COBALT_EXIT_TIMEOUT_SECONDS = 5
 
 COBALT_WEBDRIVER_CAPABILITIES = {
@@ -180,6 +182,7 @@ class CobaltRunner(object):
     url = "http://{}:{}/".format(self._GetIPAddress(), port)
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
+    self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECS)
     print("Selenium Connected\n", file=self.log_file)
     _webdriver = self.webdriver
     self.test_script_started.set()
@@ -262,11 +265,10 @@ def main():
                       args.log_file) as runner:
       unittest.main(testRunner=unittest.TextTestRunner(
           verbosity=0, stream=runner.log_file))
-    return 0
   except TimeoutException:
     print("Timeout waiting for Cobalt to start", file=sys.stderr)
-    return 1
+    sys.exit(1)
 
 
 if __name__ == "__main__":
-  sys.exit(main())
+  main()

@@ -63,8 +63,8 @@ bool EndPointerDelegate::IsFirstTimeSoundStarted(
 
   endpointer_.ProcessAudio(audio_bus, NULL);
   int64_t ep_time;
-  EpStatus status = endpointer_.Status(&ep_time);
-  if (status == EP_POSSIBLE_ONSET) {
+  content::EpStatus status = endpointer_.Status(&ep_time);
+  if (status == content::EP_POSSIBLE_ONSET) {
     is_first_time_sound_started_ = true;
   }
 

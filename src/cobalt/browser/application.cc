@@ -51,6 +51,8 @@
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 #if defined(OS_STARBOARD)
+#include "nb/analytics/memory_tracker.h"
+#include "nb/analytics/memory_tracker_impl.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #endif  // defined(OS_STARBOARD)
@@ -109,6 +111,19 @@ int GetWebDriverPort() {
     }
   }
   return webdriver_port;
+}
+
+std::string GetWebDriverListenIp() {
+  // The default port on which the webdriver server should listen for incoming
+  // connections.
+  std::string webdriver_listen_ip =
+      webdriver::WebDriverModule::kDefaultListenIp;
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
+    webdriver_listen_ip =
+        command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
+  }
+  return webdriver_listen_ip;
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
@@ -297,6 +312,14 @@ Application::Application(const base::Closure& quit_closure)
       start_time_(base::TimeTicks::Now()),
       stats_update_timer_(true, true),
       lite_stats_update_timer_(true, true) {
+  // Check to see if a timed_trace has been set, indicating that we should
+  // begin a timed trace upon startup.
+  base::TimeDelta trace_duration = GetTimedTraceDuration();
+  if (trace_duration != base::TimeDelta()) {
+    trace_event::TraceToFileForDuration(
+        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
+  }
+
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -315,14 +338,6 @@ Application::Application(const base::Closure& quit_closure)
       FROM_HERE, base::TimeDelta::FromMilliseconds(kLiteStatUpdatePeriodMs),
       base::Bind(&Application::UpdatePeriodicLiteStats,
                  base::Unretained(this)));
-
-  // Check to see if a timed_trace has been set, indicating that we should
-  // begin a timed trace upon startup.
-  base::TimeDelta trace_duration = GetTimedTraceDuration();
-  if (trace_duration != base::TimeDelta()) {
-    trace_event::TraceToFileForDuration(
-        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
-  }
 
   // Get the initial URL.
   GURL initial_url = GetInitialURL();
@@ -419,6 +434,20 @@ Application::Application(const base::Closure& quit_closure)
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
   }
+  if (command_line->HasSwitch(switches::kMemoryTracker)) {
+#if defined(OS_STARBOARD)
+    using nb::analytics::MemoryTrackerPrintThread;
+    using nb::analytics::MemoryTracker;
+
+    DLOG(INFO) << "Using MemoryTracking";
+    MemoryTracker* memory_tracker = MemoryTracker::Get();
+    memory_tracker->InstallGlobalTrackingHooks();
+    memory_tracker_print_thread_ = CreateDebugPrintThread(memory_tracker);
+#else
+    DLOG(INFO)
+        << "Memory tracker is not enabled on non-starboard builds.";
+#endif
+  }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   base::optional<math::Size> viewport_size;
@@ -483,10 +512,10 @@ Application::Application(const base::Closure& quit_closure)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
-    int webdriver_port = GetWebDriverPort();
     web_driver_module_.reset(new webdriver::WebDriverModule(
-        webdriver_port, base::Bind(&BrowserModule::CreateSessionDriver,
-                                   base::Unretained(browser_module_.get())),
+        GetWebDriverPort(), GetWebDriverListenIp(),
+        base::Bind(&BrowserModule::CreateSessionDriver,
+                   base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::RequestScreenshotToBuffer,
                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::SetProxy,
@@ -521,6 +550,13 @@ Application::Application(const base::Closure& quit_closure)
 }
 
 Application::~Application() {
+#if defined(OS_STARBOARD)
+  // explicitly reset here because the destruction of the object is complex
+  // and involves a thread join. If this were to hang the app then having
+  // the destruction at this point gives a real file-line number and a place
+  // for the debugger to land.
+  memory_tracker_print_thread_.reset(NULL);
+#endif
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
                                         account_event_callback_);

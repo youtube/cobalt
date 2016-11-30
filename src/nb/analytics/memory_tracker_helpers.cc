@@ -27,7 +27,8 @@ namespace nb {
 namespace analytics {
 
 AllocationGroup::AllocationGroup(const std::string& name)
-    : name_(name), allocation_bytes_(0), num_allocations_(0) {}
+    : name_(name), allocation_bytes_(0), num_allocations_(0) {
+}
 
 AllocationGroup::~AllocationGroup() {}
 
@@ -35,7 +36,6 @@ void AllocationGroup::AddAllocation(int64_t num_bytes) {
   if (num_bytes == 0)
     return;
   int num_alloc_diff = num_bytes > 0 ? 1 : -1;
-
   allocation_bytes_.fetch_add(num_bytes);
   num_allocations_.fetch_add(num_alloc_diff);
 }
@@ -274,37 +274,6 @@ AtomicAllocationMap& ConcurrentAllocationMap::GetMapForPointer(
 const AtomicAllocationMap& ConcurrentAllocationMap::GetMapForPointer(
     const void* ptr) const {
   return pointer_map_array_[ToIndex(ptr)];
-}
-
-SimpleThread::SimpleThread(const std::string& name)
-    : thread_(kSbThreadInvalid), name_(name) {}
-
-SimpleThread::~SimpleThread() {}
-
-void SimpleThread::Start() {
-  SbThreadEntryPoint entry_point = ThreadEntryPoint;
-
-  thread_ = SbThreadCreate(0,                    // default stack_size.
-                           kSbThreadNoPriority,  // default priority.
-                           kSbThreadNoAffinity,  // default affinity.
-                           true,                 // joinable.
-                           name_.c_str(), entry_point, this);
-
-  // SbThreadCreate() above produced an invalid thread handle.
-  SB_DCHECK(thread_ != kSbThreadInvalid);
-  return;
-}
-
-void* SimpleThread::ThreadEntryPoint(void* context) {
-  SimpleThread* this_ptr = static_cast<SimpleThread*>(context);
-  this_ptr->Run();
-  return NULL;
-}
-
-void SimpleThread::DoJoin() {
-  if (!SbThreadJoin(thread_, NULL)) {
-    SB_DCHECK(false) << "Could not join thread.";
-  }
 }
 
 }  // namespace analytics

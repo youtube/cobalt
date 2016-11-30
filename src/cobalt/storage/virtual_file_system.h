@@ -59,7 +59,8 @@ class VirtualFileSystem {
   int Serialize(uint8* buffer, bool dry_run);
 
   // Deserializes a file system from a memory buffer.
-  void Deserialize(const uint8* buffer, int buffer_size);
+  // Returns false on failure.
+  bool Deserialize(const uint8* buffer, int buffer_size);
 
   // Simple file open. Will create a file if it does not exist, and files are
   // always readable and writable.

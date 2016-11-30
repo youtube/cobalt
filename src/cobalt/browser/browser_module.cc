@@ -37,6 +37,7 @@
 #include "cobalt/dom/keycode.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace browser {
@@ -135,10 +136,6 @@ BrowserModule::BrowserModule(const GURL& url,
           renderer_module_.pipeline()->GetResourceProvider())),
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-      media_module_(media::MediaModule::Create(
-          system_window, renderer_module_.render_target()->GetSize(),
-          renderer_module_.pipeline()->GetResourceProvider(),
-          options.media_module_options)),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
       render_tree_combiner_(&renderer_module_,
@@ -171,6 +168,15 @@ BrowserModule::BrowserModule(const GURL& url,
       has_resumed_(true, false),
       will_quit_(false),
       suspended_(false) {
+  // All allocations for media will be tracked by "Media" memory scope.
+  {
+    TRACK_MEMORY_SCOPE("Media");
+    media_module_ = (media::MediaModule::Create(
+        system_window, renderer_module_.render_target()->GetSize(),
+        renderer_module_.pipeline()->GetResourceProvider(),
+        options.media_module_options));
+  }
+
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
@@ -257,6 +263,15 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                        &network_module_, viewport_size,
                        renderer_module_.pipeline()->GetResourceProvider(),
                        kLayoutMaxRefreshFrequencyInHz));
+
+#if defined(STARBOARD)
+#if SB_HAS(1_CORE)
+  // Wait until the splash screen is ready before loading the main web module.
+  // This prevents starvation of the splash screen module and decoding of the
+  // splash screen image(s).
+  splash_screen_->WaitUntilReady();
+#endif
+#endif
 
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)

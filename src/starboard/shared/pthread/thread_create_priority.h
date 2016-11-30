@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/microphone.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#ifndef STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_
+#define STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_
+
+#include "starboard/thread.h"
 
 namespace starboard {
-namespace nplb {
+namespace shared {
+namespace pthread {
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+// Set priority of the current thread.
+//
+// Implement this in a platform-specific thread_create_priority.cc if the
+// platform SB_HAS(THREAD_PRIORITY_SUPPORT)
+void ThreadSetPriority(SbThreadPriority priority);
 
-TEST(SbMicrophoneGetSpeechApiKeyTest, SunnyDay) {
-  const char* speech_api_key = SbMicrophoneGetSpeechApiKey();
-
-  ASSERT_NE(speech_api_key, static_cast<const char*>(NULL));
-  EXPECT_NE(speech_api_key[0], '\0');
-}
-
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
-
-}  // namespace nplb
+}  // namespace pthread
+}  // namespace shared
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_

@@ -326,7 +326,11 @@ struct Parser : private AutoGCRooter, public StrictModeGetter
            LazyScript *lazyOuterFunction);
     ~Parser();
 
+#if defined(STARBOARD)
+    friend void MarkParser(JSTracer *trc, AutoGCRooter *parser);
+#else
     friend void js::frontend::MarkParser(JSTracer *trc, AutoGCRooter *parser);
+#endif
 
     const char *getFilename() const { return tokenStream.getFilename(); }
     JSVersion versionNumber() const { return tokenStream.versionNumber(); }

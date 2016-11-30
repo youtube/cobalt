@@ -101,6 +101,13 @@ extern const char kVideoDecoderStub[] = "video_decoder_stub";
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";
 
+// IP that the WebDriver server should be listening on.
+// (INADDR_ANY if unspecified).
+const char kWebDriverListenIp[] = "webdriver_listen_ip";
+
+// Enables memory tracking by installing the memory tracker on startup.
+const char kMemoryTracker[] = "memory_tracker";
+
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 // Determines the capacity of the image cache which manages image surfaces

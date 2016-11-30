@@ -166,14 +166,17 @@ bool IsResponseCodeSuccess(int response_code) {
 SpeechRecognizer::SpeechRecognizer(network::NetworkModule* network_module,
                                    const EventCallback& event_callback)
     : network_module_(network_module),
-      thread_("speech_recognizer"),
       started_(false),
-      event_callback_(event_callback) {
+      event_callback_(event_callback),
+      thread_("speech_recognizer") {
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 SpeechRecognizer::~SpeechRecognizer() {
   Stop();
+  // Stopping the thread here to ensure that StopInternal has completed before
+  // we finish running the destructor.
+  thread_.Stop();
 }
 
 void SpeechRecognizer::Start(const SpeechRecognitionConfig& config,
@@ -236,7 +239,7 @@ void SpeechRecognizer::OnURLFetchDownloadData(
 void SpeechRecognizer::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   UNREFERENCED_PARAMETER(source);
-  started_ = false;
+  // no-op.
 }
 
 void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,

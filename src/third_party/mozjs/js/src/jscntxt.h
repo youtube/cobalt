@@ -2165,10 +2165,10 @@ js_ReportErrorNumberUCArray(JSContext *cx, unsigned flags, JSErrorCallback callb
                             const jschar **args);
 
 extern JSBool
-js_ExpandErrorArguments(JSContext *cx, JSErrorCallback callback,
-                        void *userRef, const unsigned errorNumber,
-                        char **message, JSErrorReport *reportp,
-                        js::ErrorArgumentsType argumentsType, va_list ap);
+js_ExpandErrorArgumentsVA(JSContext *cx, JSErrorCallback callback,
+                          void *userRef, const unsigned errorNumber,
+                          char **message, JSErrorReport *reportp,
+                          js::ErrorArgumentsType argumentsType, va_list ap);
 #endif
 
 namespace js {

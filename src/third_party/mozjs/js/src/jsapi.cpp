@@ -5001,6 +5001,63 @@ struct AutoLastFrameCheck
 
 typedef Vector<char, 8, TempAllocPolicy> FileContents;
 
+#if defined(STARBOARD)
+static bool
+ReadCompleteFile(JSContext *cx, SbFile file, FileContents &buffer)
+{
+    SbFileInfo info;
+    bool success = SbFileGetInfo(file, &info);
+    if (!success) {
+        return false;
+    }
+    const int64_t kFileSize = info.size;
+    buffer.resize(kFileSize);
+    if (SbFileReadAll(file, buffer.begin(), kFileSize) < 0) {
+        return false;
+    }
+
+    return true;
+}
+
+class AutoFile
+{
+    SbFile sb_file_;
+  public:
+    AutoFile() {}
+    ~AutoFile()
+    {
+        SbFileClose(sb_file_);
+    }
+    SbFile sb_file() const { return sb_file_; }
+    bool open(JSContext *cx, const char *filename);
+    bool readAll(JSContext *cx, FileContents &buffer)
+    {
+        return ReadCompleteFile(cx, sb_file_, buffer);
+    }
+};
+
+/*
+ * Open a source file for reading. Supports "-" and NULL to mean stdin. The
+ * return value must be fclosed unless it is stdin.
+ */
+bool
+AutoFile::open(JSContext *cx, const char *filename)
+{
+    // Starboard does not support stdin.
+    if (!filename || strcmp(filename, "-") == 0) {
+        return false;
+    } else {
+        sb_file_ = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL,
+            NULL);
+        if (!SbFileIsValid(sb_file_)) {
+            JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_CANT_OPEN,
+                                 filename, "No such file or directory");
+            return false;
+        }
+    }
+    return true;
+}
+#else  // #if defined(STARBOARD)
 static bool
 ReadCompleteFile(JSContext *cx, FILE *fp, FileContents &buffer)
 {
@@ -5070,6 +5127,7 @@ AutoFile::open(JSContext *cx, const char *filename)
     return true;
 }
 
+#endif  // #if defined(STARBOARD)
 
 JS::CompileOptions::CompileOptions(JSContext *cx, JSVersion version)
     : principals(NULL),

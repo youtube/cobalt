@@ -69,12 +69,15 @@
 #include <io.h>     /* for isatty() */
 #endif
 
-#ifdef XP_WIN
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#define PATH_MAX (SB_FILE_MAX_PATH + 1)
+#elif defined(XP_WIN)
 # include <io.h>
 # include <direct.h>
 # include "jswin.h"
 # define PATH_MAX (MAX_PATH > _MAX_DIR ? MAX_PATH : _MAX_DIR)
-#elif !defined(STARBOARD)
+#else
 # include <libgen.h>
 #endif
 

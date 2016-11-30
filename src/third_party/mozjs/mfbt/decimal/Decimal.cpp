@@ -34,6 +34,10 @@
 #include <algorithm>
 #include <float.h>
 
+#if defined(STARBOARD)
+#include "starboard/double.h"
+#endif
+
 namespace WebCore {
 
 namespace DecimalPrivate {
@@ -684,13 +688,19 @@ Decimal Decimal::floor() const
 
 Decimal Decimal::fromDouble(double doubleValue)
 {
+#if defined(STARBOARD)
+    if (SbDoubleIsFinite(doubleValue))
+        return fromString(mozToString(doubleValue));
+    if (SbDoubleIsNan(doubleValue))
+        return nan();
+    return infinity(doubleValue < 0 ? Negative : Positive);
+#else
     if (std::isfinite(doubleValue))
         return fromString(mozToString(doubleValue));
-
     if (std::isinf(doubleValue))
         return infinity(doubleValue < 0 ? Negative : Positive);
-
     return nan();
+#endif
 }
 
 Decimal Decimal::fromString(const String& str)

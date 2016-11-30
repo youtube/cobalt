@@ -78,7 +78,7 @@
 // broken in that higher priority threads do not always have priority over lower
 // priority threads.  It looks like the thread created last will always have the
 // highest priority.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
 
 // --- Attribute Configuration -----------------------------------------------
 

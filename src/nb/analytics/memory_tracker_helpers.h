@@ -22,6 +22,7 @@
 
 #include "nb/analytics/memory_tracker.h"
 #include "nb/atomic.h"
+#include "nb/simple_thread.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
@@ -31,7 +32,7 @@ namespace nb {
 namespace analytics {
 
 class AllocationGroup;
-struct AllocationRecord;
+class AllocationRecord;
 
 template <typename Type>
 class ThreadLocalPointer {
@@ -89,7 +90,7 @@ class ThreadLocalBoolean {
 // together, such as "Javascript" or "Graphics".
 class AllocationGroup {
  public:
-  AllocationGroup(const std::string& name);
+  explicit AllocationGroup(const std::string& name);
   ~AllocationGroup();
   const std::string& name() const { return name_; }
 
@@ -103,6 +104,8 @@ class AllocationGroup {
   const std::string name_;
   nb::atomic_int64_t allocation_bytes_;
   nb::atomic_int32_t num_allocations_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(AllocationGroup);
 };
 
 // A self locking data structure that maps strings -> AllocationGroups. This is
@@ -124,6 +127,8 @@ class AtomicStringAllocationGroupMap {
   Map group_map_;
   AllocationGroup* unaccounted_group_;
   mutable starboard::Mutex mutex_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(AtomicStringAllocationGroupMap);
 };
 
 class AllocationGroupStack {
@@ -220,42 +225,6 @@ class ConcurrentAllocationMap {
 
   int ToIndex(const void* ptr) const;
   AtomicAllocationMap pointer_map_array_[kNumElements];
-};
-
-class SimpleThread {
- public:
-  explicit SimpleThread(const std::string& name);
-  virtual ~SimpleThread() = 0;
-
-  // Subclasses should override the Run method.
-  virtual void Run() = 0;
-
-  void Join() {
-    Cancel();
-    DoJoin();
-  }
-
-  // If Join() is intended to interrupt the Run() function then override
-  // Cancel() to send a signal.
-  // Example:
-  //   virtual void Cancel() { finished_ = true; }
-  //   virtual void Run() {
-  //     while (!finished_) { /* do work */ }
-  //   }
-  virtual void Cancel() {}
-
-  // Calls SbThreadCreate() and starts running code.
-  void Start();
-
- private:
-  static void* ThreadEntryPoint(void* context);
-  void DoJoin();
-  void DoStart();
-
-  const std::string name_;
-  SbThread thread_;
-
-  SB_DISALLOW_COPY_AND_ASSIGN(SimpleThread);
 };
 
 }  // namespace analytics

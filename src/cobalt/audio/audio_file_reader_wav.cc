@@ -153,6 +153,10 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
 
   // Load channel count.
   number_of_channels_ = load_uint16_little_endian(data + offset + 2);
+  if (number_of_channels_ == 0) {
+    DLOG(ERROR) << "No channel on WAV.";
+    return false;
+  }
 
   // Load sample rate.
   sample_rate_ =

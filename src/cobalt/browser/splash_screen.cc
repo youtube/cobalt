@@ -30,14 +30,17 @@ SplashScreen::SplashScreen(
         render_tree_produced_callback,
     network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const SplashScreen::Options& options) {
+    const SplashScreen::Options& options)
+    : render_tree_produced_callback_(render_tree_produced_callback)
+    , is_ready_(true, false) {
   WebModule::Options web_module_options;
   web_module_options.name = "SplashScreenWebModule";
 
   web_module_.reset(new WebModule(
-      options.url, render_tree_produced_callback,
+      options.url,
+      base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
-      base::Closure(), /* window_close_callback */
+      base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
       &stub_media_module_, network_module, window_dimensions, resource_provider,
       layout_refresh_rate, web_module_options));
 }
@@ -45,6 +48,20 @@ SplashScreen::SplashScreen(
 void SplashScreen::Suspend() { web_module_->Suspend(); }
 void SplashScreen::Resume(render_tree::ResourceProvider* resource_provider) {
   web_module_->Resume(resource_provider);
+}
+
+void SplashScreen::WaitUntilReady() {
+  is_ready_.Wait();
+}
+
+void SplashScreen::OnRenderTreeProduced(
+    const browser::WebModule::LayoutResults& layout_results) {
+  is_ready_.Signal();
+  render_tree_produced_callback_.Run(layout_results);
+}
+
+void SplashScreen::OnWindowClosed() {
+  is_ready_.Signal();
 }
 
 }  // namespace browser

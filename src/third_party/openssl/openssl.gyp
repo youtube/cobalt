@@ -225,8 +225,12 @@
         'openssl/crypto/des/cfb64enc.c',
         'openssl/crypto/des/cfb_enc.c',
         'openssl/crypto/des/des_enc.c',
-        'openssl/crypto/des/des_old.c',
-        'openssl/crypto/des/des_old2.c',
+        # All our code uses the uppercase DES_foo() methods, so we don't need
+        # the compatability glue. When linking as a shared library, the unused
+        # glue functions are left as undefined symbols after they get
+        # dead-stripped, so just don't build them.
+        # 'openssl/crypto/des/des_old.c',
+        # 'openssl/crypto/des/des_old2.c',
         'openssl/crypto/des/ecb3_enc.c',
         'openssl/crypto/des/ecb_enc.c',
         'openssl/crypto/des/ede_cbcm_enc.c',

@@ -122,6 +122,14 @@
         'js-confdefs.h',
       ],
       'conditions': [
+        # These W flags do not work with the ps3 compiler.
+        ['target_arch == "ps3"', {
+          'cflags!': [
+            '-Wno-invalid-offsetof',
+            '-Wno-uninitialized',
+            '-Wno-unused',
+          ]
+        }],
         [ 'target_arch == "x64" and cobalt_enable_jit == 1', {
           'sources': [
             'js/src/assembler/assembler/MacroAssemblerX86Common.cpp',
@@ -219,6 +227,16 @@
           '-Wno-unused',
           '-include',
           'js-confdefs.h',
+        ],
+        'conditions': [
+          # These W flags do not work with the ps3 compiler.
+          ['target_arch == "ps3"', {
+            'cflags!': [
+              '-Wno-invalid-offsetof',
+              '-Wno-uninitialized',
+              '-Wno-unused',
+            ]
+          }],
         ],
       },
       # Mark this target as a hard dependency because targets that depend on
@@ -365,7 +383,7 @@
             'js/src/builtin/embedjs.py',
             '-DUSE_ZLIB',
             '-p',
-            '<(CC) -E',
+            '<(CC_HOST) -E',
             '-m',
             'js/src/js.msg',
             '-o',
