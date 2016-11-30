@@ -22,6 +22,23 @@
 #ifndef STARBOARD_CLIENT_PORTING_WRAP_MAIN_WRAP_MAIN_H_
 #define STARBOARD_CLIENT_PORTING_WRAP_MAIN_WRAP_MAIN_H_
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
+namespace {
+void DisableWindowsCrtDialog() {
+#if defined(_WIN32)
+  if (!IsDebuggerPresent()) {
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  }
+#endif
+}
+}  // namespace
+
 #if defined(STARBOARD)
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -52,6 +69,7 @@ void SimpleEventHandler(const SbEvent* event) {
 
 #define STARBOARD_WRAP_SIMPLE_MAIN(main_function)                \
   void SbEventHandle(const SbEvent* event) {                     \
+    DisableWindowsCrtDialog();                                   \
     ::starboard::client_porting::wrap_main::SimpleEventHandler<  \
         main_function>(event);                                   \
   }
@@ -59,6 +77,7 @@ void SimpleEventHandler(const SbEvent* event) {
 #else
 #define STARBOARD_WRAP_SIMPLE_MAIN(main_function) \
   int main(int argc, char** argv) {               \
+    DisableWindowsCrtDialog();                    \
     return main_function(argc, argv);             \
   }
 
