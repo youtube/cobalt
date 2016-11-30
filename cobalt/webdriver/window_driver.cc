@@ -162,7 +162,7 @@ util::CommandResult<protocol::Size> WindowDriver::GetWindowSize() {
 
 util::CommandResult<void> WindowDriver::Navigate(const GURL& url) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return util::CallOnMessageLoopWithRetry(
+  return util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::NavigateInternal, base::Unretained(this), url),
       protocol::Response::kNoSuchWindow);
@@ -190,7 +190,7 @@ util::CommandResult<protocol::ElementId> WindowDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  return util::CallOnMessageLoopWithRetry(
+  return util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::FindElementsInternal<protocol::ElementId>,
                  base::Unretained(this), strategy),
@@ -200,7 +200,7 @@ util::CommandResult<protocol::ElementId> WindowDriver::FindElement(
 util::CommandResult<std::vector<protocol::ElementId> >
 WindowDriver::FindElements(const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return util::CallOnMessageLoopWithRetry(
+  return util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::FindElementsInternal<ElementIdVector>,
                  base::Unretained(this), strategy),
@@ -226,7 +226,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
 
   SyncExecuteResultHandler result_handler;
 
-  CommandResult result = util::CallOnMessageLoopWithRetry(
+  CommandResult result = util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::ExecuteScriptInternal, base::Unretained(this),
                  script, base::nullopt, &result_handler),
@@ -249,7 +249,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteAsync(
   const base::TimeDelta kDefaultAsyncTimeout =
       base::TimeDelta::FromMilliseconds(0);
   AsyncExecuteResultHandler result_handler;
-  CommandResult result = util::CallOnMessageLoopWithRetry(
+  CommandResult result = util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::ExecuteScriptInternal, base::Unretained(this),
                  script, kDefaultAsyncTimeout, &result_handler),
@@ -274,7 +274,7 @@ util::CommandResult<void> WindowDriver::SendKeys(const protocol::Keys& keys) {
   Keyboard::TranslateToKeyEvents(keys.utf8_keys(), Keyboard::kKeepModifiers,
                                  events.get());
   // Dispatch the keyboard events.
-  return util::CallOnMessageLoopWithRetry(
+  return util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::SendKeysInternal, base::Unretained(this),
                  base::Passed(&events)),
@@ -282,7 +282,7 @@ util::CommandResult<void> WindowDriver::SendKeys(const protocol::Keys& keys) {
 }
 
 util::CommandResult<protocol::ElementId> WindowDriver::GetActiveElement() {
-  return util::CallOnMessageLoopWithRetry(
+  return util::CallOnMessageLoop(
       window_message_loop_, base::Bind(&WindowDriver::GetActiveElementInternal,
                                        base::Unretained(this)),
       protocol::Response::kNoSuchWindow);
@@ -330,10 +330,10 @@ util::CommandResult<std::vector<protocol::Cookie> > WindowDriver::GetCookie(
 util::CommandResult<void> WindowDriver::AddCookie(
     const protocol::Cookie& cookie) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return util::CallOnMessageLoopWithRetry(
-      window_message_loop_, base::Bind(&WindowDriver::AddCookieInternal,
-                                       base::Unretained(this), cookie),
-      protocol::Response::kNoSuchWindow);
+  return util::CallOnMessageLoop(window_message_loop_,
+                                 base::Bind(&WindowDriver::AddCookieInternal,
+                                            base::Unretained(this), cookie),
+                                 protocol::Response::kNoSuchWindow);
 }
 
 protocol::ElementId WindowDriver::ElementToId(
