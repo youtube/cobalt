@@ -111,6 +111,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
+        '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         'css_grammar',
       ],
