@@ -264,7 +264,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                        renderer_module_.pipeline()->GetResourceProvider(),
                        kLayoutMaxRefreshFrequencyInHz));
 
-#if defined(STARBOARD)
+#if defined(OS_STARBOARD)
 #if SB_HAS(1_CORE)
   // Wait until the splash screen is ready before loading the main web module.
   // This prevents starvation of the splash screen module and decoding of the
