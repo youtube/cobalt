@@ -28,6 +28,7 @@
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/convert_callback_return_value.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
+#include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jscntxt.h"
 
