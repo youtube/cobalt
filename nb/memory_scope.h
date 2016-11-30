@@ -124,7 +124,7 @@ struct NbMemoryScopeInfo {
   // When true, if cached_handle_ is 0 then an object may be created that
   // represents the fields of this object. The handle that represents this
   // cached object is then placed in cached_hanlde_.
-  const bool allows_caching_;
+  bool allows_caching_;
 };
 
 // NbPopMemoryScopeOnScopeEnd is only allowed for C++ builds.
