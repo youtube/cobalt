@@ -670,11 +670,12 @@ template <typename CacheType>
 void ResourceCache<CacheType>::ReclaimMemoryAndMaybeProcessPendingCallbacks(
     uint32 bytes_to_reclaim_down_to) {
   ReclaimMemory(bytes_to_reclaim_down_to, false /*log_warning_if_over*/);
-  // If the current size of the cache is still greater than the cache capacity
-  // after reclaiming memory, then process any pending callbacks and try again.
-  // References to the cached resources are potentially being held until the
-  // callbacks run, so processing them may enable more memory to be reclaimed.
-  if (size_in_bytes_ > cache_capacity_) {
+  // If the current size of the cache is still greater than
+  // |bytes_to_reclaim_down_to| after reclaiming memory, then process any
+  // pending callbacks and try again. References to the cached resources are
+  // potentially being held until the callbacks run, so processing them may
+  // enable more memory to be reclaimed.
+  if (size_in_bytes_ > bytes_to_reclaim_down_to) {
     ProcessPendingCallbacks();
     ReclaimMemory(bytes_to_reclaim_down_to, true /*log_warning_if_over*/);
   }
@@ -700,12 +701,12 @@ void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
   }
 
   if (log_warning_if_over) {
-    // Log a warning if we're still over the cache capacity after attempting to
-    // reclaim memory. This can occur validly when the size of the referenced
-    // images exceeds the size of the cache.
-    DLOG_IF(WARNING, size_in_bytes_ > cache_capacity_)
+    // Log a warning if we're still over |bytes_to_reclaim_down_to| after
+    // attempting to reclaim memory. This can occur validly when the size of
+    // the referenced images exceeds the target size.
+    DLOG_IF(WARNING, size_in_bytes_ > bytes_to_reclaim_down_to)
         << "cached size: " << size_in_bytes_
-        << ", cache capacity: " << cache_capacity_;
+        << ", target size: " << bytes_to_reclaim_down_to;
   }
 }
 
