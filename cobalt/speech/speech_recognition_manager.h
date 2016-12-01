@@ -80,7 +80,7 @@ class SpeechRecognitionManager {
 
   // Callback for sending dom events if available.
   EventCallback event_callback_;
-  SpeechRecognizer recognizer_;
+  scoped_ptr<SpeechRecognizer> recognizer_;
 
   scoped_ptr<MicrophoneManager> microphone_manager_;
 
