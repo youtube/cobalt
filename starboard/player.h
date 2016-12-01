@@ -173,7 +173,7 @@ typedef uint32_t SbPlayerCompositionHandle;
 #define kSbPlayerInvalid ((SbPlayer)NULL)
 
 // Returns whether the given player handle is valid.
-SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
+static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
   return player != kSbPlayerInvalid;
 }
 
