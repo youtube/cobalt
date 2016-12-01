@@ -44,6 +44,7 @@
 #include "net/dns/dns_protocol.h"
 #include "net/dns/dns_response.h"
 #include "net/dns/dns_transaction.h"
+#include "nb/memory_scope.h"
 
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
@@ -580,6 +581,7 @@ class HostResolverImpl::ProcTask
   ~ProcTask() {}
 
   void StartLookupAttempt() {
+    TRACK_MEMORY_SCOPE("Network");
     DCHECK(origin_loop_->BelongsToCurrentThread());
     base::TimeTicks start_time = base::TimeTicks::Now();
     ++attempt_number_;
