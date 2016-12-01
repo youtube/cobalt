@@ -26,5 +26,7 @@ SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain) {
 
   swap_chain->render_target.surface->Release(swap_chain->render_target.surface);
 
+  delete swap_chain;
+
   return true;
 }
