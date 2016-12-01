@@ -13,6 +13,7 @@
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "nb/memory_scope.h"
 #include "net/base/escape.h"
 
 namespace net {
@@ -20,6 +21,7 @@ namespace net {
 // static
 bool DataURL::Parse(const GURL& url, std::string* mime_type,
                     std::string* charset, std::string* data) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(mime_type->empty());
   DCHECK(charset->empty());
   std::string::const_iterator begin = url.spec().begin();
