@@ -32,6 +32,7 @@ $var MAX_ARITY = 7
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/convert_callback_return_value.h"
+#include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -112,7 +113,8 @@ $if ARITY > 0 [[
 ]]
 
       if (!call_result) {
-        DLOG(WARNING) << "Exception in callback.";
+        DLOG(WARNING) << "Exception in callback: "
+                      << util::GetExceptionString(context_);
         callback_result.exception = true;
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
