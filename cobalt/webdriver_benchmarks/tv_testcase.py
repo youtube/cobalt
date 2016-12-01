@@ -41,6 +41,11 @@ TV_APP_PATH = "/tv"
 BASE_PARAMS = {"env_forcedOffAllExperiments": True}
 PAGE_LOAD_WAIT_SECONDS = 30
 LAYOUT_TIMEOUT_SECONDS = 5
+# Today, Cobalt's WebDriver has a race that
+# can leave the former page's DOM visible after a navigate.
+# As a workaround, sleep for a bit
+# b/33275371
+COBALT_POST_NAVIGATE_SLEEP_SECONDS = 5
 
 
 def _percentile(results, percentile):
@@ -176,6 +181,7 @@ class TvTestCase(unittest.TestCase):
     parsed_url[4] = urlencode(query_dict, doseq=True)
     final_url = urlparse.urlunparse(parsed_url)
     self.get_webdriver().get(final_url)
+    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
 
   def load_tv(self, label=None, additional_query_params=None):
     """Loads the main TV page and waits for it to display.
