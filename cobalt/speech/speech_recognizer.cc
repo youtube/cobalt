@@ -164,10 +164,12 @@ bool IsResponseCodeSuccess(int response_code) {
 }  // namespace
 
 SpeechRecognizer::SpeechRecognizer(network::NetworkModule* network_module,
-                                   const EventCallback& event_callback)
+                                   const EventCallback& event_callback,
+                                   const URLFetcherCreator& fetcher_creator)
     : network_module_(network_module),
       started_(false),
       event_callback_(event_callback),
+      fetcher_creator_(fetcher_creator),
       thread_("speech_recognizer") {
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
@@ -264,8 +266,8 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   // Use protobuffer as the output format.
   down_url = AppendQueryParameter(down_url, "output", "pb");
 
-  downstream_fetcher_.reset(
-      net::URLFetcher::Create(down_url, net::URLFetcher::GET, this));
+  downstream_fetcher_ =
+      fetcher_creator_.Run(down_url, net::URLFetcher::GET, this);
   downstream_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter());
   downstream_fetcher_->Start();
@@ -312,8 +314,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
     up_url = AppendQueryParameter(up_url, "interim", "");
   }
 
-  upstream_fetcher_.reset(
-      net::URLFetcher::Create(up_url, net::URLFetcher::POST, this));
+  upstream_fetcher_ = fetcher_creator_.Run(up_url, net::URLFetcher::POST, this);
   upstream_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter());
   upstream_fetcher_->SetChunkedUpload(encoder_->GetMimeType());
