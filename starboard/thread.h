@@ -255,7 +255,7 @@ SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
 // Returns whether |thread| is the current thread.
 //
 // |thread|: The thread to check.
-SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
+static SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
   return SbThreadGetCurrent() == thread;
 }
 
