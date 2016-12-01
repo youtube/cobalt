@@ -799,7 +799,7 @@ struct SkiaColorStops {
         positions(color_stops.size()),
         has_alpha(false) {
     for (size_t i = 0; i < color_stops.size(); ++i) {
-      if (color_stops[i].color.a() < 1.0f) {
+      if (color_stops[i].color.HasAlpha()) {
         has_alpha = true;
       }
 

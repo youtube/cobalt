@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/render_tree/brush.h"
 #include "cobalt/renderer/rasterizer/blitter/cobalt_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
@@ -40,6 +41,7 @@ using cobalt::render_tree::LinearGradientBrush;
 using cobalt::renderer::rasterizer::blitter::RenderState;
 using cobalt::renderer::rasterizer::blitter::SkiaToBlitterPixelFormat;
 using cobalt::renderer::rasterizer::blitter::RectFToRect;
+using cobalt::renderer::rasterizer::blitter::LinearGradientCache;
 using cobalt::renderer::rasterizer::skia::SkiaColorStops;
 
 int GetPixelOffsetInBytes(const SkImageInfo& image_info,
@@ -89,7 +91,7 @@ void ColorStopToPixelData(SbBlitterPixelDataFormat pixel_format,
 
 // This function uses Skia to render a gradient into the pixel data pointed
 // at pixel_data_begin.  This function is intended as a fallback in case when
-// RenderOptimizedLinearGradient is unable to render the gradient.
+// RenderSimpleGradient is unable to render the gradient.
 void RenderComplexLinearGradient(const LinearGradientBrush& brush,
                                  const ColorStopList& color_stops, int width,
                                  int height, const SkImageInfo& image_info,
@@ -209,10 +211,17 @@ void RenderOptimizedLinearGradient(SbBlitterDevice device,
                                    SbBlitterContext context,
                                    const RenderState& render_state,
                                    cobalt::math::RectF rect,
-                                   const LinearGradientBrush& brush) {
+                                   const LinearGradientBrush& brush,
+                                   LinearGradientCache* linear_gradient_cache) {
+  DCHECK(linear_gradient_cache);
   if ((rect.width() == 0) && (rect.height() == 0)) return;
 
   DCHECK(brush.IsVertical() || brush.IsHorizontal());
+
+  SbBlitterSurface surface = kSbBlitterInvalidSurface;
+  if (linear_gradient_cache) {
+    surface = linear_gradient_cache->Get(brush);
+  }
 
   // The main strategy here is to create a 1D image, and then calculate
   // the gradient values in software.  If the gradient is simple, this can be
@@ -225,54 +234,67 @@ void RenderOptimizedLinearGradient(SbBlitterDevice device,
   int width = brush.IsHorizontal() ? rect.width() : 1;
   int height = brush.IsVertical() ? rect.height() : 1;
 
-  SkImageInfo image_info = SkImageInfo::MakeN32Premul(width, height);
+  if (SbBlitterIsSurfaceValid(surface) == false) {
+    SkImageInfo image_info = SkImageInfo::MakeN32Premul(width, height);
 
-  SbBlitterPixelDataFormat pixel_format =
-      SkiaToBlitterPixelFormat(image_info.colorType());
+    SbBlitterPixelDataFormat pixel_format =
+        SkiaToBlitterPixelFormat(image_info.colorType());
 
-  if (!SbBlitterIsPixelFormatSupportedByPixelData(device, pixel_format)) {
-    NOTREACHED() << "Pixel Format is not supported by Pixel Data";
-    return;
+    if (!SbBlitterIsPixelFormatSupportedByPixelData(device, pixel_format)) {
+      NOTREACHED() << "Pixel Format is not supported by Pixel Data";
+      return;
+    }
+
+    SbBlitterPixelData pixel_data =
+        SbBlitterCreatePixelData(device, width, height, pixel_format);
+
+    int bytes_per_pixel = GetPixelOffsetInBytes(image_info, pixel_data);
+    int pitch_in_bytes = SbBlitterGetPixelDataPitchInBytes(pixel_data);
+
+    uint8_t* pixel_data_begin =
+        static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
+    uint8_t* pixel_data_end = pixel_data_begin + pitch_in_bytes * height;
+
+    if (pixel_data) {
+      const ColorStopList& color_stops(brush.color_stops());
+
+      int pixel_offset_in_bytes =
+          (width == 1) ? pitch_in_bytes : bytes_per_pixel;
+
+      // Try rendering without Skia first.
+      bool render_successful = RenderSimpleGradient(
+          brush, color_stops, width, height, pixel_format, pixel_data_begin,
+          pixel_data_end, pixel_offset_in_bytes);
+      if (!render_successful) {
+        RenderComplexLinearGradient(brush, color_stops, width, height,
+                                    image_info, pixel_data_begin,
+                                    pitch_in_bytes);
+      }
+
+      surface = SbBlitterCreateSurfaceFromPixelData(device, pixel_data);
+      linear_gradient_cache->Put(brush, surface);
+    }
   }
 
-  SbBlitterPixelData pixel_data =
-      SbBlitterCreatePixelData(device, width, height, pixel_format);
-
-  int bytes_per_pixel = GetPixelOffsetInBytes(image_info, pixel_data);
-  int pitch_in_bytes = SbBlitterGetPixelDataPitchInBytes(pixel_data);
-
-  uint8_t* pixel_data_begin =
-      static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
-  uint8_t* pixel_data_end = pixel_data_begin + pitch_in_bytes * height;
-
-  if (pixel_data) {
-    const ColorStopList& color_stops(brush.color_stops());
-
-    int pixel_offset_in_bytes = (width == 1) ? pitch_in_bytes : bytes_per_pixel;
-    bool render_successful = RenderSimpleGradient(
-        brush, color_stops, width, height, pixel_format, pixel_data_begin,
-        pixel_data_end, pixel_offset_in_bytes);
-    if (!render_successful) {
-      RenderComplexLinearGradient(brush, color_stops, width, height, image_info,
-                                  pixel_data_begin, pitch_in_bytes);
+  if (surface) {
+    bool need_blending = false;
+    for (ColorStopList::const_iterator it = brush.color_stops().begin();
+         it != brush.color_stops().end(); ++it) {
+      if (it->color.HasAlpha()) {
+        need_blending = true;
+        break;
+      }
     }
 
-    SbBlitterSurface surface =
-        SbBlitterCreateSurfaceFromPixelData(device, pixel_data);
-
-    if (surface) {
-      SbBlitterSetBlending(context, true);
-      SbBlitterSetModulateBlitsWithColor(context, false);
-      cobalt::math::Rect transformed_rect =
-          RectFToRect(render_state.transform.TransformRect(rect));
-      SbBlitterRect source_rect = SbBlitterMakeRect(0, 0, width, height);
-      SbBlitterRect dest_rect = SbBlitterMakeRect(
-          transformed_rect.x(), transformed_rect.y(), transformed_rect.width(),
-          transformed_rect.height());
-      SbBlitterBlitRectToRect(context, surface, source_rect, dest_rect);
-
-      SbBlitterDestroySurface(surface);
-    }
+    SbBlitterSetBlending(context, need_blending);
+    SbBlitterSetModulateBlitsWithColor(context, false);
+    cobalt::math::Rect transformed_rect =
+        RectFToRect(render_state.transform.TransformRect(rect));
+    SbBlitterRect source_rect = SbBlitterMakeRect(0, 0, width, height);
+    SbBlitterRect dest_rect =
+        SbBlitterMakeRect(transformed_rect.x(), transformed_rect.y(),
+                          transformed_rect.width(), transformed_rect.height());
+    SbBlitterBlitRectToRect(context, surface, source_rect, dest_rect);
   }
 }
 }  // namespace
@@ -286,7 +308,8 @@ using render_tree::LinearGradientBrush;
 
 bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
                           const RenderState& render_state,
-                          const render_tree::RectNode& rect_node) {
+                          const render_tree::RectNode& rect_node,
+                          LinearGradientCache* linear_gradient_cache) {
   DCHECK(rect_node.data().background_brush);
   const LinearGradientBrush* const linear_gradient_brush =
       base::polymorphic_downcast<LinearGradientBrush*>(
@@ -299,7 +322,8 @@ bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
     return false;
 
   RenderOptimizedLinearGradient(device, context, render_state,
-                                rect_node.data().rect, *linear_gradient_brush);
+                                rect_node.data().rect, *linear_gradient_brush,
+                                linear_gradient_cache);
   return true;
 }
 
