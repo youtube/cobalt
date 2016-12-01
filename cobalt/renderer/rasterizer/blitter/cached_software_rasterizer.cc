@@ -117,7 +117,7 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
       surface_map_.erase(found);
       surface_map_.insert(to_insert);
 
-      cache_frame_usage_ += found->second.GetEstimatedMemoryUsage();
+      cache_frame_usage_ += to_insert.second.GetEstimatedMemoryUsage();
 
       return to_insert.second;
     }
