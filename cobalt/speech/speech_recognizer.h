@@ -46,9 +46,13 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
   typedef SpeechRecognitionResultList::SpeechRecognitionResults
       SpeechRecognitionResults;
+  typedef base::Callback<scoped_ptr<net::URLFetcher>(
+      const GURL&, net::URLFetcher::RequestType, net::URLFetcherDelegate*)>
+      URLFetcherCreator;
 
   SpeechRecognizer(network::NetworkModule* network_module,
-                   const EventCallback& event_callback);
+                   const EventCallback& event_callback,
+                   const URLFetcherCreator& fetcher_creator);
   ~SpeechRecognizer() OVERRIDE;
 
   // Multiple calls to Start/Stop are allowed, the implementation should take
@@ -86,7 +90,10 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
   scoped_ptr<net::URLFetcher> upstream_fetcher_;
   // Fetcher for receiving the streaming results.
   scoped_ptr<net::URLFetcher> downstream_fetcher_;
-  EventCallback event_callback_;
+  // Used to send speech recognition event.
+  const EventCallback event_callback_;
+  // Used to create url fetcher.
+  const URLFetcherCreator fetcher_creator_;
   // Used for processing proto buffer data.
   content::ChunkedByteBuffer chunked_byte_buffer_;
   // Used for accumulating final results.

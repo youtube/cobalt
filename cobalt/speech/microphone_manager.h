@@ -38,11 +38,12 @@ class MicrophoneManager {
   typedef base::Callback<void(scoped_ptr<ShellAudioBus>)> DataReceivedCallback;
   typedef base::Callback<void(void)> CompletionCallback;
   typedef base::Callback<void(const scoped_refptr<dom::Event>&)> ErrorCallback;
+  typedef base::Callback<scoped_ptr<Microphone>(int)> MicrophoneCreator;
 
-  MicrophoneManager(int sample_rate, const DataReceivedCallback& data_received,
+  MicrophoneManager(const DataReceivedCallback& data_received,
                     const CompletionCallback& completion,
                     const ErrorCallback& error,
-                    const Microphone::Options& options);
+                    const MicrophoneCreator& microphone_creator);
 
   ~MicrophoneManager();
 
@@ -65,15 +66,12 @@ class MicrophoneManager {
   // Timer callback for fetching audio data.
   void Read();
 
-  int sample_rate_;
   const DataReceivedCallback data_received_callback_;
   const CompletionCallback completion_callback_;
   const ErrorCallback error_callback_;
+  const MicrophoneCreator microphone_creator_;
 
   scoped_ptr<Microphone> microphone_;
-#if defined(ENABLE_FAKE_MICROPHONE)
-  Microphone::Options microphone_options_;
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   // Microphone state.
   State state_;
