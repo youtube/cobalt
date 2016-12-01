@@ -257,7 +257,9 @@ namespace glm
 	typedef detail::int64 int64;
 
 
-#if GLM_HAS_EXTENDED_INTEGER_TYPE
+#if defined(STARBOARD)
+	// Empty.
+#elif GLM_HAS_EXTENDED_INTEGER_TYPE
 	using std::int8_t;
 	using std::int16_t;
 	using std::int32_t;
@@ -866,7 +868,9 @@ namespace glm
 	/// @see gtc_type_precision
 	typedef detail::uint64 uint64;
 	
-#if GLM_HAS_EXTENDED_INTEGER_TYPE
+#if defined(STARBOARD)
+	// Empty.
+#elif GLM_HAS_EXTENDED_INTEGER_TYPE
 	using std::uint8_t;
 	using std::uint16_t;
 	using std::uint32_t;
