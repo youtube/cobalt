@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/box.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "base/logging.h"
@@ -907,7 +908,7 @@ void SetupFilterNodeFromStyle(
                       style->opacity().get())->value();
 
   if (opacity < 1.0f) {
-    filter_node_builder->opacity_filter.emplace(opacity);
+    filter_node_builder->opacity_filter.emplace(std::max(0.0f, opacity));
   } else {
     // If opacity is 1, then no opacity filter should be applied, so the
     // source render tree should appear fully opaque.
@@ -1155,7 +1156,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     FilterNode::Builder filter_node_builder(border_node);
 
     if (opacity < 1.0f) {
-      filter_node_builder.opacity_filter = OpacityFilter(opacity);
+      filter_node_builder.opacity_filter.emplace(std::max(0.0f, opacity));
     }
 
     scoped_refptr<FilterNode> filter_node = new FilterNode(filter_node_builder);
