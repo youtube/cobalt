@@ -147,7 +147,11 @@ class WebModule::Impl {
   void CreateDebugServerIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
 
-  void Suspend();
+  // Suspension of the WebModule is a two-part process since a message loop
+  // gap is needed in order to give a chance to handle loader callbacks
+  // that were initiated from a loader thread.
+  void SuspendLoaders();
+  void FinishSuspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
  private:
@@ -618,21 +622,20 @@ void WebModule::Impl::InjectCustomWindowAttributes(
   }
 }
 
-void WebModule::Impl::Suspend() {
-  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Suspend()");
-  DCHECK(resource_provider_);
+void WebModule::Impl::SuspendLoaders() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::SuspendLoaders()");
 
   // Stop the generation of render trees.
   layout_manager_->Suspend();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-  // The debug overlay may be holding onto a render tree, clear that out.
-  debug_overlay_->ClearInput();
-#endif
-
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+}
+
+void WebModule::Impl::FinishSuspend() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::FinishSuspend()");
+  DCHECK(resource_provider_);
 
   // Ensure the document is not holding onto any more image cached resources so
   // that they are eligible to be purged.
@@ -644,6 +647,11 @@ void WebModule::Impl::Suspend() {
   // cache.
   image_cache_->Purge();
   remote_typeface_cache_->Purge();
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // The debug overlay may be holding onto a render tree, clear that out.
+  debug_overlay_->ClearInput();
+#endif
 
   // Finally mark that we have no resource provider.
   resource_provider_ = NULL;
@@ -877,16 +885,43 @@ debug::DebugServer* WebModule::GetDebugServer() {
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 void WebModule::Suspend() {
-  message_loop()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::Suspend, base::Unretained(impl_.get())));
+  TRACE_EVENT0("cobalt::browser", "WebModule::Suspend()");
 
-  base::WaitableEvent resource_provider_released(true, false);
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&resource_provider_released)));
+  // Suspend() must only be called by a thread external from the WebModule
+  // thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
 
-  resource_provider_released.Wait();
+  base::WaitableEvent task_finished(false /* automatic reset */,
+                                    false /* initially unsignaled */);
+
+  // Suspension of the WebModule is orchestrated here in two phases.
+  // 1) Send a signal to suspend WebModule loader activity and cancel any
+  //    in-progress loads.  Since loading may occur from any thread, this may
+  //    result in cancel/completion callbacks being posted to message_loop().
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::SuspendLoaders,
+                                      base::Unretained(impl_.get())));
+
+  // Wait for the suspension task to complete before proceeding.
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&base::WaitableEvent::Signal,
+                                      base::Unretained(&task_finished)));
+  task_finished.Wait();
+
+  // 2) Now append to the task queue a task to complete the suspension process.
+  //    Between 1 and 2, tasks may have been registered to handle resource load
+  //    completion events, and so this FinishSuspend task will be executed after
+  //    the load completions are all resolved.
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::FinishSuspend,
+                                      base::Unretained(impl_.get())));
+
+  // Wait for suspension to fully complete on the WebModule thread before
+  // continuing.
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&base::WaitableEvent::Signal,
+                                      base::Unretained(&task_finished)));
+  task_finished.Wait();
 }
 
 void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
