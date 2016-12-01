@@ -69,14 +69,16 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     const RenderState& render_state, ScratchSurfaceCache* scratch_surface_cache,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache,
-    CachedSoftwareRasterizer* software_surface_cache)
+    CachedSoftwareRasterizer* software_surface_cache,
+    LinearGradientCache* linear_gradient_cache)
     : device_(device),
       context_(context),
       render_state_(render_state),
       scratch_surface_cache_(scratch_surface_cache),
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache),
-      software_surface_cache_(software_surface_cache) {
+      software_surface_cache_(software_surface_cache),
+      linear_gradient_cache_(linear_gradient_cache) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -413,8 +415,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     } else if (background_brush_typeid ==
                base::GetTypeId<LinearGradientBrush>()) {
       DCHECK(rect_node != NULL);
-      bool rendered_gradient =
-          RenderLinearGradient(device_, context_, render_state_, *rect_node);
+      bool rendered_gradient = RenderLinearGradient(
+          device_, context_, render_state_, *rect_node, linear_gradient_cache_);
       if (!rendered_gradient) {
         RenderWithSoftwareRenderer(rect_node);
         return;
@@ -550,7 +552,7 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
           render_target, Transform(coord_mapping.sub_render_transform),
           BoundsStack(context_, Rect(coord_mapping.output_bounds.size()))),
       scratch_surface_cache_, surface_cache_delegate_, surface_cache_,
-      software_surface_cache_);
+      software_surface_cache_, linear_gradient_cache_);
   node->Accept(&sub_visitor);
 
   // Restore our original render target.

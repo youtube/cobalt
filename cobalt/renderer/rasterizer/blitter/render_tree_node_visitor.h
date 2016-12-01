@@ -33,6 +33,7 @@
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/rasterizer/blitter/cached_software_rasterizer.h"
+#include "cobalt/renderer/rasterizer/blitter/linear_gradient_cache.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
@@ -40,10 +41,6 @@
 
 #include "starboard/blitter.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
-
-#ifndef SB_HAS_BLITTER
-#define SB_HAS_BLITTER
-#endif
 
 #if SB_HAS(BLITTER)
 
@@ -70,7 +67,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                         ScratchSurfaceCache* scratch_surface_cache,
                         SurfaceCacheDelegate* surface_cache_delegate,
                         common::SurfaceCache* surface_cache,
-                        CachedSoftwareRasterizer* software_surface_cache);
+                        CachedSoftwareRasterizer* software_surface_cache,
+                        LinearGradientCache* linear_gradient_cache);
 
   void Visit(render_tree::animations::AnimateNode* animate_node) OVERRIDE {
     NOTREACHED();
@@ -122,6 +120,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // We fallback to software rasterization in order to render anything that we
   // cannot render via the Blitter API directly.  We cache the results.
   CachedSoftwareRasterizer* software_surface_cache_;
+  LinearGradientCache* linear_gradient_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };

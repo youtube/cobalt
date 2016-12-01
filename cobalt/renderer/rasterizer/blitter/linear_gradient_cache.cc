@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_RENDERER_RASTERIZER_BLITTER_LINEAR_GRADIENT_H_
-#define COBALT_RENDERER_RASTERIZER_BLITTER_LINEAR_GRADIENT_H_
-
-#include "cobalt/math/rect_f.h"
-#include "cobalt/render_tree/rect_node.h"
 #include "cobalt/renderer/rasterizer/blitter/linear_gradient_cache.h"
-#include "cobalt/renderer/rasterizer/blitter/render_state.h"
+
+#include <algorithm>
+#include <cmath>
+#include <iterator>
+
+#include "cobalt/render_tree/brush.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -30,10 +30,23 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
-bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
-                          const RenderState& render_state,
-                          const render_tree::RectNode& rect_node,
-                          LinearGradientCache* linear_gradient_cache);
+using cobalt::render_tree::LinearGradientBrush;
+
+bool LinearGradientCache::Put(const LinearGradientBrush& brush,
+                              SbBlitterSurface surface) {
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    return false;
+  }
+  return cache_.put(brush.data(), surface);
+}
+
+SbBlitterSurface LinearGradientCache::Get(const LinearGradientBrush& brush) {
+  CacheMap::iterator cache_result = cache_.find(brush.data());
+  if (cache_result == cache_.end()) {
+    return kSbBlitterInvalidSurface;
+  }
+  return cache_result->value;
+}
 
 }  // namespace blitter
 }  // namespace rasterizer
@@ -41,5 +54,3 @@ bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
 }  // namespace cobalt
 
 #endif  // #if SB_HAS(BLITTER)
-
-#endif  // COBALT_RENDERER_RASTERIZER_BLITTER_LINEAR_GRADIENT_H_

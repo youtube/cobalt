@@ -80,6 +80,7 @@ class HardwareRasterizer::Impl {
   base::optional<common::SurfaceCache> surface_cache_;
 
   CachedSoftwareRasterizer software_surface_cache_;
+  LinearGradientCache linear_gradient_cache_;
 
   FrameRateThrottler frame_rate_throttler_;
 
@@ -209,7 +210,7 @@ void HardwareRasterizer::Impl::Submit(
         initial_render_state, &scratch_surface_cache_,
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL,
-        &software_surface_cache_);
+        &software_surface_cache_, &linear_gradient_cache_);
     render_tree->Accept(&visitor);
   }
 
