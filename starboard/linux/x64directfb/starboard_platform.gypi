@@ -17,6 +17,7 @@
   'variables': {
     'starboard_platform_sources': [
         '<(DEPTH)/starboard/linux/x64directfb/main.cc',
+        '<(DEPTH)/starboard/linux/x64directfb/sanitizer_options.cc',
         '<(DEPTH)/starboard/linux/x64directfb/system_get_property.cc',
         '<(DEPTH)/starboard/shared/directfb/application_directfb.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_blit_rect_to_rect.cc',

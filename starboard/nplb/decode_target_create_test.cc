@@ -44,7 +44,6 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
 
   SbDecodeTarget target =
       SbDecodeTargetCreate(kSbDecodeTargetFormat1PlaneRGBA, &surface);
-  EXPECT_TRUE(SbDecodeTargetIsValid(target));
   if (SbDecodeTargetIsValid(target)) {
     SbBlitterSurface plane =
         SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
