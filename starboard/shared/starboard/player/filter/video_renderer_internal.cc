@@ -79,7 +79,8 @@ void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
   frames_.clear();
 }
 
-const VideoFrame& VideoRenderer::GetCurrentFrame(SbMediaTime media_time) {
+scoped_refptr<VideoFrame> VideoRenderer::GetCurrentFrame(
+    SbMediaTime media_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   if (frames_.empty()) {
@@ -87,7 +88,7 @@ const VideoFrame& VideoRenderer::GetCurrentFrame(SbMediaTime media_time) {
   }
   // Remove any frames with timestamps earlier than |media_time|, but always
   // keep at least one of the frames.
-  while (frames_.size() > 1 && frames_.front().pts() < media_time) {
+  while (frames_.size() > 1 && frames_.front()->pts() < media_time) {
     frames_.pop_front();
   }
 
@@ -101,6 +102,7 @@ bool VideoRenderer::IsEndOfStreamPlayed() const {
 
 bool VideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+  ScopedLock lock(mutex_);
   return frames_.size() < kMaxCachedFrames && !end_of_stream_written_ &&
          need_more_input_;
 }
@@ -110,8 +112,9 @@ bool VideoRenderer::IsSeekingInProgress() const {
   return seeking_;
 }
 
-void VideoRenderer::OnDecoderStatusUpdate(VideoDecoder::Status status,
-                                          VideoFrame* frame) {
+void VideoRenderer::OnDecoderStatusUpdate(
+    VideoDecoder::Status status,
+    const scoped_refptr<VideoFrame>& frame) {
   ScopedLock lock(mutex_);
 
   if (frame) {
@@ -124,7 +127,7 @@ void VideoRenderer::OnDecoderStatusUpdate(VideoDecoder::Status status,
       }
     }
     if (!frame_too_early) {
-      frames_.push_back(*frame);
+      frames_.push_back(frame);
     }
 
     if (seeking_ && frames_.size() >= kPrerollFrames) {

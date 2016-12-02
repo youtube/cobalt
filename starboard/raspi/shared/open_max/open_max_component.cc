@@ -47,15 +47,13 @@ void InitializeOpenMax() {
 
 }  // namespace
 
-OpenMaxComponent::OpenMaxComponent(const char* name, size_t minimum_output_size)
+OpenMaxComponent::OpenMaxComponent(const char* name)
     : condition_variable_(mutex_),
-      minimum_output_size_(minimum_output_size),
       handle_(NULL),
       input_port_(kInvalidPort),
       output_port_(kInvalidPort),
       output_setting_changed_(false),
-      output_buffer_(NULL),
-      output_buffer_filled_(false) {
+      output_port_enabled_(false) {
   InitializeOpenMax();
 
   OMX_CALLBACKTYPE callbacks;
@@ -99,18 +97,20 @@ OpenMaxComponent::~OpenMaxComponent() {
   SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
 
   SendCommand(OMX_CommandPortDisable, input_port_);
-  for (BufferHeaders::iterator iter = unused_buffers_.begin();
-       iter != unused_buffers_.end(); ++iter) {
-    OMX_ERRORTYPE error = OMX_FreeBuffer(handle_, input_port_, *iter);
+  for (size_t i = 0; i < input_buffers_.size(); ++i) {
+    OMX_ERRORTYPE error =
+        OMX_FreeBuffer(handle_, input_port_, input_buffers_[i]);
     SB_DCHECK(error == OMX_ErrorNone);
   }
   WaitForCommandCompletion();
 
   SendCommand(OMX_CommandPortDisable, output_port_);
-  if (output_buffer_) {
-    OMX_ERRORTYPE error = OMX_FreeBuffer(handle_, output_port_, output_buffer_);
+  for (size_t i = 0; i < output_buffers_.size(); ++i) {
+    OMX_ERRORTYPE error =
+        OMX_FreeBuffer(handle_, output_port_, output_buffers_[i]);
     SB_DCHECK(error == OMX_ErrorNone);
   }
+  output_buffers_.clear();
   WaitForCommandCompletion();
 
   SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateLoaded);
@@ -162,45 +162,34 @@ void OpenMaxComponent::WriteEOS() {
   SB_DCHECK(error == OMX_ErrorNone);
 }
 
-bool OpenMaxComponent::ReadVideoFrame(VideoFrame* frame) {
+OMX_BUFFERHEADERTYPE* OpenMaxComponent::PeekNextOutputBuffer() {
   {
     ScopedLock scoped_lock(mutex_);
-    if (output_buffer_ && !output_buffer_filled_) {
-      return false;
-    }
+
     if (!output_setting_changed_) {
-      return false;
+      return NULL;
     }
-  }
-  SB_DCHECK(output_setting_changed_);
-  if (!output_buffer_) {
-    GetOutputPortParam(&output_port_definition_);
-    SB_DCHECK(output_port_definition_.format.video.eColorFormat ==
-              OMX_COLOR_FormatYUV420PackedPlanar);
-    EnableOutputPortAndAllocateBuffer();
-    return false;
   }
 
-  if (output_buffer_->nFlags & OMX_BUFFERFLAG_EOS) {
-    *frame = VideoFrame();
-    return true;
+  if (!output_port_enabled_) {
+    EnableOutputPortAndAllocateBuffer();
   }
-  SbMediaTime timestamp =
-      ((output_buffer_->nTimeStamp.nHighPart * 0x100000000ull) +
-       output_buffer_->nTimeStamp.nLowPart) *
-      kSbMediaTimeSecond / kSbTimeSecond;
-  int width = output_port_definition_.format.video.nFrameWidth;
-  int height = output_port_definition_.format.video.nSliceHeight;
-  int pitch = output_port_definition_.format.video.nStride;
-  *frame = VideoFrame::CreateYV12Frame(
-      width, height, pitch, timestamp, output_buffer_->pBuffer,
-      output_buffer_->pBuffer + pitch * height,
-      output_buffer_->pBuffer + pitch * height * 5 / 4);
-  output_buffer_filled_ = false;
-  output_buffer_->nFilledLen = 0;
-  OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, output_buffer_);
+
+  ScopedLock scoped_lock(mutex_);
+  return filled_output_buffers_.empty() ? NULL : filled_output_buffers_.front();
+}
+
+void OpenMaxComponent::DropNextOutputBuffer() {
+  OMX_BUFFERHEADERTYPE* buffer = NULL;
+  {
+    ScopedLock scoped_lock(mutex_);
+    SB_DCHECK(!filled_output_buffers_.empty());
+    buffer = filled_output_buffers_.front();
+    filled_output_buffers_.pop();
+  }
+  buffer->nFilledLen = 0;
+  OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, buffer);
   SB_DCHECK(error == OMX_ErrorNone);
-  return true;
 }
 
 void OpenMaxComponent::SendCommand(OMX_COMMANDTYPE command, int param) {
@@ -234,48 +223,68 @@ void OpenMaxComponent::SendCommandAndWaitForCompletion(OMX_COMMANDTYPE command,
 }
 
 void OpenMaxComponent::EnableInputPortAndAllocateBuffers() {
-  SB_DCHECK(unused_buffers_.empty());
+  SB_DCHECK(input_buffers_.empty());
 
   OMXParamPortDefinition port_definition;
   GetInputPortParam(&port_definition);
+  if (OnEnableInputPort(&port_definition)) {
+    SetPortParam(port_definition);
+  }
 
   SendCommand(OMX_CommandPortEnable, input_port_);
 
-  unused_buffers_.resize(port_definition.nBufferCountActual);
-  for (int i = 0; i != port_definition.nBufferCountActual; ++i) {
-    OMX_ERRORTYPE error =
-        OMX_AllocateBuffer(handle_, &unused_buffers_[i], input_port_, NULL,
-                           port_definition.nBufferSize);
+  for (int i = 0; i < port_definition.nBufferCountActual; ++i) {
+    OMX_BUFFERHEADERTYPE* buffer;
+    OMX_ERRORTYPE error = OMX_AllocateBuffer(handle_, &buffer, input_port_,
+                                             NULL, port_definition.nBufferSize);
     SB_DCHECK(error == OMX_ErrorNone);
+    input_buffers_.push_back(buffer);
+    unused_input_buffers_.push(buffer);
   }
 
   WaitForCommandCompletion();
 }
 
 void OpenMaxComponent::EnableOutputPortAndAllocateBuffer() {
-  if (output_buffer_ != NULL) {
-    return;
+  SB_DCHECK(!output_port_enabled_);
+
+  GetOutputPortParam(&output_port_definition_);
+  if (OnEnableOutputPort(&output_port_definition_)) {
+    SetPortParam(output_port_definition_);
   }
 
   SendCommand(OMX_CommandPortEnable, output_port_);
 
-  OMX_ERRORTYPE error = OMX_AllocateBuffer(
-      handle_, &output_buffer_, output_port_, NULL,
-      std::max(output_port_definition_.nBufferSize, minimum_output_size_));
-  SB_DCHECK(error == OMX_ErrorNone);
+  output_buffers_.reserve(output_port_definition_.nBufferCountActual);
+  for (int i = 0; i < output_port_definition_.nBufferCountActual; ++i) {
+    OMX_BUFFERHEADERTYPE* buffer;
+    OMX_ERRORTYPE error =
+        OMX_AllocateBuffer(handle_, &buffer, output_port_, NULL,
+                           output_port_definition_.nBufferSize);
+    SB_DCHECK(error == OMX_ErrorNone);
+    output_buffers_.push_back(buffer);
+  }
+
   WaitForCommandCompletion();
 
-  error = OMX_FillThisBuffer(handle_, output_buffer_);
-  SB_DCHECK(error == OMX_ErrorNone);
+  output_port_enabled_ = true;
+
+  for (size_t i = 0; i < output_buffers_.size(); ++i) {
+    output_buffers_[i]->nFilledLen = 0;
+    OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, output_buffers_[i]);
+    SB_DCHECK(error == OMX_ErrorNone);
+  }
 }
 
 OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetUnusedInputBuffer() {
   for (;;) {
-    ScopedLock scoped_lock(mutex_);
-    if (!unused_buffers_.empty()) {
-      OMX_BUFFERHEADERTYPE* buffer_header = unused_buffers_.back();
-      unused_buffers_.pop_back();
-      return buffer_header;
+    {
+      ScopedLock scoped_lock(mutex_);
+      if (!unused_input_buffers_.empty()) {
+        OMX_BUFFERHEADERTYPE* buffer_header = unused_input_buffers_.front();
+        unused_input_buffers_.pop();
+        return buffer_header;
+      }
     }
     SbThreadSleep(kSbTimeMillisecond);
   }
@@ -312,13 +321,12 @@ OMX_ERRORTYPE OpenMaxComponent::OnEvent(OMX_EVENTTYPE event,
 OMX_ERRORTYPE OpenMaxComponent::OnEmptyBufferDone(
     OMX_BUFFERHEADERTYPE* buffer) {
   ScopedLock scoped_lock(mutex_);
-  unused_buffers_.push_back(buffer);
+  unused_input_buffers_.push(buffer);
 }
 
 void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
   ScopedLock scoped_lock(mutex_);
-  SB_DCHECK(!output_buffer_filled_);
-  output_buffer_filled_ = true;
+  filled_output_buffers_.push(buffer);
 }
 
 // static
