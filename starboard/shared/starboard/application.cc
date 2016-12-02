@@ -63,7 +63,7 @@ Application::Application()
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(NULL),
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
           reinterpret_cast<SbAtomicPtr>(this)));
   SB_DCHECK(!old_instance);
 }
@@ -73,7 +73,7 @@ Application::~Application() {
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
           reinterpret_cast<SbAtomicPtr>(this),
-          reinterpret_cast<SbAtomicPtr>(NULL)));
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
   SbMemoryDeallocate(start_link_);
