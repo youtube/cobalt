@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/debug/trace_event.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -302,6 +303,8 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
   if (ready_state_ == kReadyStateEnded) {
     SetReadyState(kReadyStateOpen);
   }
+
+  TRACE_EVENT1("media_stack", "MediaSource::Append()", "size", size);
 
   // If size is greater than kMaxAppendSize, we will append the data in multiple
   // small chunks with size less than or equal to kMaxAppendSize.  This can
