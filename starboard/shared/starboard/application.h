@@ -202,7 +202,7 @@ class Application {
   // used when the application needs to composite video frames with punch-out
   // video manually (should be rare). Will be called from an external thread.
   void HandleFrame(SbPlayer player,
-                   const VideoFrame& frame,
+                   const scoped_refptr<VideoFrame>& frame,
                    int x,
                    int y,
                    int width,
@@ -224,7 +224,7 @@ class Application {
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
   virtual void AcceptFrame(SbPlayer player,
-                           const VideoFrame& frame,
+                           const scoped_refptr<VideoFrame>& frame,
                            int x,
                            int y,
                            int width,
