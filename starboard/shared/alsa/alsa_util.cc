@@ -52,7 +52,7 @@ class AutoClose {
     SB_DCHECK(valid_);
     return value_;
   }
-  T* operator&() {
+  T* operator&() {  // NOLINT(runtime/operator)
     SB_DCHECK(!valid_);
     return &value_;
   }
@@ -76,18 +76,22 @@ class AutoClose {
 class HWParams
     : public AutoClose<snd_pcm_hw_params_t*, void (*)(snd_pcm_hw_params_t*)> {
  public:
-  HWParams() : AutoClose(snd_pcm_hw_params_free) {}
+  HWParams()
+      : AutoClose<snd_pcm_hw_params_t*, void (*)(snd_pcm_hw_params_t*)>(
+            snd_pcm_hw_params_free) {}
 };
 
 class SWParams
     : public AutoClose<snd_pcm_sw_params_t*, void (*)(snd_pcm_sw_params_t*)> {
  public:
-  SWParams() : AutoClose(snd_pcm_sw_params_free) {}
+  SWParams()
+      : AutoClose<snd_pcm_sw_params_t*, void (*)(snd_pcm_sw_params_t*)>(
+            snd_pcm_sw_params_free) {}
 };
 
 class PcmHandle : public AutoClose<snd_pcm_t*, int (*)(snd_pcm_t*)> {
  public:
-  PcmHandle() : AutoClose(snd_pcm_close) {}
+  PcmHandle() : AutoClose<snd_pcm_t*, int (*)(snd_pcm_t*)>(snd_pcm_close) {}
 };
 
 }  // namespace
