@@ -23,17 +23,8 @@ namespace open_max {
 
 using starboard::shared::starboard::player::VideoFrame;
 
-namespace {
-
-const char kVideoDecodeComponentName[] = "OMX.broadcom.video_decode";
-const size_t kMaxVideoFrameSize = 1920 * 1088 * 3 / 2;
-
-}  // namespace
-
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
-    : component_(kVideoDecodeComponentName, kMaxVideoFrameSize),
-      host_(NULL),
-      stream_ended_(false) {
+    : host_(NULL), stream_ended_(false) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
 
   OMXVideoParamPortFormat port_format;
@@ -61,11 +52,11 @@ void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
   }
   component_.WriteData(input_buffer.data(), input_buffer.size(),
                        input_buffer.pts() * kSbTimeSecond / kSbMediaTimeSecond);
-
-  VideoFrame frame;
-  if (component_.ReadVideoFrame(&frame)) {
-    host_->OnDecoderStatusUpdate(kNeedMoreInput, &frame);
+  if (scoped_refptr<VideoFrame> frame = component_.ReadVideoFrame()) {
+    host_->OnDecoderStatusUpdate(kNeedMoreInput, frame);
   } else {
+    // Call the callback with NULL frame to ensure that the host know that more
+    // data is expected.
     host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
   }
 }

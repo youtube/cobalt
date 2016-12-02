@@ -69,38 +69,41 @@ class DispmanxResource {
   }
 
   DISPMANX_RESOURCE_HANDLE_T handle() const { return handle_; }
+  uint32_t visible_width() const { return visible_width_; }
+  uint32_t visible_height() const { return visible_height_; }
   uint32_t width() const { return width_; }
   uint32_t height() const { return height_; }
 
  protected:
-  DispmanxResource(VC_IMAGE_TYPE_T image_type, uint32_t width, uint32_t height)
-      : width_(width), height_(height) {
-    uint32_t vc_image_ptr;
+  DispmanxResource(VC_IMAGE_TYPE_T image_type,
+                   uint32_t width,
+                   uint32_t height,
+                   uint32_t visible_width,
+                   uint32_t visible_height);
 
-    handle_ =
-        vc_dispmanx_resource_create(image_type, width, height, &vc_image_ptr);
-    SB_DCHECK(handle_ != DISPMANX_NO_HANDLE);
-  }
-
+ private:
   DISPMANX_RESOURCE_HANDLE_T handle_;
   uint32_t width_;
   uint32_t height_;
+  uint32_t visible_width_;
+  uint32_t visible_height_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(DispmanxResource);
 };
 
 class DispmanxYUV420Resource : public DispmanxResource {
  public:
-  DispmanxYUV420Resource(uint32_t width, uint32_t height)
-      : DispmanxResource(VC_IMAGE_YUV420, width, height) {}
+  DispmanxYUV420Resource(uint32_t width,
+                         uint32_t height,
+                         uint32_t visible_width,
+                         uint32_t visible_height)
+      : DispmanxResource(VC_IMAGE_YUV420,
+                         width,
+                         height,
+                         visible_width,
+                         visible_height) {}
 
-  void WriteData(const void* data) {
-    SB_DCHECK(handle_ != DISPMANX_NO_HANDLE);
-    DispmanxRect dst_rect(0, 0, width(), height() * 3 / 2);
-    int32_t result = vc_dispmanx_resource_write_data(
-        handle_, VC_IMAGE_YUV420, width(), const_cast<void*>(data), &dst_rect);
-    SB_DCHECK(result == 0);
-  }
+  void WriteData(const void* data);
   void ClearWithBlack();
 };
 
@@ -114,6 +117,7 @@ class DispmanxElement {
   ~DispmanxElement();
 
   DISPMANX_ELEMENT_HANDLE_T handle() const { return handle_; }
+  void ChangeSource(const DispmanxResource& new_src);
 
  private:
   DISPMANX_ELEMENT_HANDLE_T handle_;
@@ -124,16 +128,14 @@ class DispmanxElement {
 class DispmanxVideoRenderer {
  public:
   typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
-  DispmanxVideoRenderer(const DispmanxDisplay& display, int32_t layer)
-      : display_(display), layer_(layer) {}
 
-  void Update(const VideoFrame& video_frame);
+  DispmanxVideoRenderer(const DispmanxDisplay& display, int32_t layer);
+
+  void Update(const scoped_refptr<VideoFrame>& video_frame);
 
  private:
-  const DispmanxDisplay& display_;
-  int32_t layer_;
-  scoped_ptr<DispmanxYUV420Resource> resource_;
   scoped_ptr<DispmanxElement> element_;
+  scoped_refptr<VideoFrame> frame_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(DispmanxVideoRenderer);
 };

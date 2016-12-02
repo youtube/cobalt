@@ -49,7 +49,7 @@ class ApplicationDispmanx
   void Initialize() SB_OVERRIDE;
   void Teardown() SB_OVERRIDE;
   void AcceptFrame(SbPlayer player,
-                   const VideoFrame& frame,
+                   const scoped_refptr<VideoFrame>& frame,
                    int x,
                    int y,
                    int width,

@@ -44,7 +44,7 @@ class VideoRenderer : private VideoDecoder::Host {
 
   void Seek(SbMediaTime seek_to_pts);
 
-  const VideoFrame& GetCurrentFrame(SbMediaTime media_time);
+  scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time);
 
   bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
   bool IsEndOfStreamPlayed() const;
@@ -52,7 +52,7 @@ class VideoRenderer : private VideoDecoder::Host {
   bool IsSeekingInProgress() const;
 
  private:
-  typedef std::list<VideoFrame> Frames;
+  typedef std::list<scoped_refptr<VideoFrame> > Frames;
 
   // Preroll considered finished after either kPrerollFrames is cached or EOS
   // is reached.
@@ -65,7 +65,8 @@ class VideoRenderer : private VideoDecoder::Host {
 
   // VideoDecoder::Host method.
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
-                             VideoFrame* frame) SB_OVERRIDE;
+                             const scoped_refptr<VideoFrame>& frame)
+      SB_OVERRIDE;
 
   ThreadChecker thread_checker_;
   ::starboard::Mutex mutex_;
@@ -77,7 +78,7 @@ class VideoRenderer : private VideoDecoder::Host {
   // should still display the last frame it is rendering.  This frame will be
   // kept inside |seeking_frame_|.  It is an empty/black frame before the video
   // is started.
-  VideoFrame seeking_frame_;
+  scoped_refptr<VideoFrame> seeking_frame_;
 
   SbMediaTime seeking_to_pts_;
   bool end_of_stream_written_;
