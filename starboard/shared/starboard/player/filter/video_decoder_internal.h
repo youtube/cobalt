@@ -37,7 +37,9 @@ class VideoDecoder {
     // user should only call WriteInputFrame() when |status| is kNeedMoreInput
     // or when the instance is just created.  Also note that calling Reset() or
     // dtor from this callback will result in deadlock.
-    virtual void OnDecoderStatusUpdate(Status status, VideoFrame* frame) = 0;
+    virtual void OnDecoderStatusUpdate(
+        Status status,
+        const scoped_refptr<VideoFrame>& frame) = 0;
 
    protected:
     ~Host() {}

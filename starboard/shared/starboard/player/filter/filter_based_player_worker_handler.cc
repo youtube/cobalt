@@ -210,7 +210,7 @@ bool FilterBasedPlayerWorkerHandler::ProcessUpdateEvent(
       (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
     }
 
-    const VideoFrame& frame =
+    scoped_refptr<VideoFrame> frame =
         video_renderer_->GetCurrentFrame(audio_renderer_->GetCurrentTime());
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
@@ -230,8 +230,8 @@ void FilterBasedPlayerWorkerHandler::ProcessStopEvent() {
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
   // Clear the video frame as we terminate.
-  shared::starboard::Application::Get()->HandleFrame(player_, VideoFrame(), 0,
-                                                     0, 0, 0);
+  shared::starboard::Application::Get()->HandleFrame(
+      player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0);
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 }
 
