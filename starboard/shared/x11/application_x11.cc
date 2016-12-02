@@ -679,7 +679,7 @@ void ApplicationX11::Composite() {
         ScopedLock lock(frame_mutex_);
         if (frame_written_) {
           // Clear the old frame, now that we are done with it.
-          frame_infos_[frame_read_index_].frame = VideoFrame();
+          frame_infos_[frame_read_index_].frame = NULL;
 
           // Increment the index to the next frame, which has been written.
           frame_read_index_ = (frame_read_index_ + 1) % kNumFrames;
@@ -692,12 +692,12 @@ void ApplicationX11::Composite() {
       }
       FrameInfo& frame_info = frame_infos_[frame_read_index_];
 
-      if (!frame_info.frame.IsEndOfStream() &&
-          frame_info.frame.format() != VideoFrame::kBGRA32) {
-        frame_info.frame = frame_info.frame.ConvertTo(VideoFrame::kBGRA32);
+      if (frame_info.frame && !frame_info.frame->IsEndOfStream() &&
+          frame_info.frame->format() != VideoFrame::kBGRA32) {
+        frame_info.frame = frame_info.frame->ConvertTo(VideoFrame::kBGRA32);
       }
       window->Composite(frame_info.x, frame_info.y, frame_info.width,
-                        frame_info.height, &frame_info.frame);
+                        frame_info.height, frame_info.frame);
     }
   }
   composite_event_id_ =
@@ -705,7 +705,7 @@ void ApplicationX11::Composite() {
 }
 
 void ApplicationX11::AcceptFrame(SbPlayer player,
-                                 const VideoFrame& frame,
+                                 const scoped_refptr<VideoFrame>& frame,
                                  int x,
                                  int y,
                                  int width,

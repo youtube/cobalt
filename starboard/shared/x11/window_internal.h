@@ -33,6 +33,8 @@ struct SbWindowPrivate {
   Window window;
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
+  typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
+
   // Composites graphics and the given video frame video for this window. In
   // PLAYER_PUNCHED_OUT mode, this is the only way any graphics or video is
   // presented in the window.  The video frame will be rendered according to
@@ -41,7 +43,7 @@ struct SbWindowPrivate {
                  int bounds_y,
                  int bounds_width,
                  int bounds_height,
-                 ::starboard::shared::starboard::player::VideoFrame* frame);
+                 const starboard::scoped_refptr<VideoFrame>& frame);
 
   // The cached XRender Picture that represents the window that is the
   // destination of the composition.
