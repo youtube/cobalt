@@ -22,13 +22,14 @@
 #include <interface/vcos/vcos.h>
 #include <interface/vcos/vcos_logging.h>
 #include <interface/vmcs_host/vchost.h>
+
+#include <queue>
 #include <vector>
 
 #include "starboard/condition_variable.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -53,10 +54,8 @@ typedef OMXParam<OMX_VIDEO_PARAM_PORTFORMATTYPE, OMX_IndexParamVideoPortFormat>
 
 class OpenMaxComponent {
  public:
-  typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
-
-  explicit OpenMaxComponent(const char* name, size_t minimum_output_size = 0);
-  ~OpenMaxComponent();
+  explicit OpenMaxComponent(const char* name);
+  virtual ~OpenMaxComponent();
 
   void Start();
   void Flush();
@@ -64,7 +63,8 @@ class OpenMaxComponent {
   void WriteData(const void* data, size_t size, SbTime timestamp);
   void WriteEOS();
 
-  bool ReadVideoFrame(VideoFrame* frame);
+  OMX_BUFFERHEADERTYPE* PeekNextOutputBuffer();
+  void DropNextOutputBuffer();
 
   template <typename ParamType>
   void GetInputPortParam(ParamType* param) const {
@@ -94,8 +94,6 @@ class OpenMaxComponent {
   }
 
  private:
-  typedef std::vector<OMX_BUFFERHEADERTYPE*> BufferHeaders;
-
   struct EventDescription {
     OMX_EVENTTYPE event;
     OMX_U32 data1;
@@ -104,6 +102,13 @@ class OpenMaxComponent {
   };
 
   typedef std::vector<EventDescription> EventDescriptions;
+
+  virtual bool OnEnableInputPort(OMXParamPortDefinition* port_definition) {
+    return false;
+  }
+  virtual bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) {
+    return false;
+  }
 
   void SendCommand(OMX_COMMANDTYPE command, int param);
   void WaitForCommandCompletion();
@@ -134,16 +139,18 @@ class OpenMaxComponent {
 
   Mutex mutex_;
   ConditionVariable condition_variable_;
-  const size_t minimum_output_size_;
   OMX_HANDLETYPE handle_;
   int input_port_;
   int output_port_;
   bool output_setting_changed_;
   EventDescriptions event_descriptions_;
-  BufferHeaders unused_buffers_;
-  OMX_BUFFERHEADERTYPE* output_buffer_;
+  std::vector<OMX_BUFFERHEADERTYPE*> input_buffers_;
+  std::queue<OMX_BUFFERHEADERTYPE*> unused_input_buffers_;
+  std::vector<OMX_BUFFERHEADERTYPE*> output_buffers_;
+  std::queue<OMX_BUFFERHEADERTYPE*> filled_output_buffers_;
+
   OMXParamPortDefinition output_port_definition_;
-  bool output_buffer_filled_;
+  bool output_port_enabled_;
 };
 
 }  // namespace open_max

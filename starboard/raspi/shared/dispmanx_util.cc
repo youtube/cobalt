@@ -23,6 +23,8 @@ namespace shared {
 
 namespace {
 
+const int kElementChangeAttributesFlagSrcRect = 1 << 3;
+
 class DispmanxAutoUpdate {
  public:
   DispmanxAutoUpdate() {
@@ -52,10 +54,45 @@ class DispmanxAutoUpdate {
 
 }  // namespace
 
+DispmanxResource::DispmanxResource(VC_IMAGE_TYPE_T image_type,
+                                   uint32_t width,
+                                   uint32_t height,
+                                   uint32_t visible_width,
+                                   uint32_t visible_height)
+    : width_(width),
+      height_(height),
+      visible_width_(visible_width),
+      visible_height_(visible_height) {
+  static const uint32_t kMaxDimension = 1 << 16;
+
+  SB_DCHECK(width_ > 0 && width_ < kMaxDimension);
+  SB_DCHECK(height_ > 0 && height_ < kMaxDimension);
+  SB_DCHECK(visible_width_ > 0 && visible_width_ < kMaxDimension);
+  SB_DCHECK(visible_height > 0 && visible_height < kMaxDimension);
+  SB_DCHECK(width_ >= visible_width_);
+  SB_DCHECK(height_ >= visible_height);
+
+  uint32_t vc_image_ptr;
+
+  handle_ = vc_dispmanx_resource_create(
+      image_type, visible_width_ | (width_ << 16),
+      visible_height | (height_ << 16), &vc_image_ptr);
+  SB_DCHECK(handle_ != DISPMANX_NO_HANDLE);
+}
+
+void DispmanxYUV420Resource::WriteData(const void* data) {
+  SB_DCHECK(handle() != DISPMANX_NO_HANDLE);
+
+  DispmanxRect dst_rect(0, 0, width(), height() * 3 / 2);
+  int32_t result = vc_dispmanx_resource_write_data(
+      handle(), VC_IMAGE_YUV420, width(), const_cast<void*>(data), &dst_rect);
+  SB_DCHECK(result == 0);
+}
+
 void DispmanxYUV420Resource::ClearWithBlack() {
-  scoped_array<uint8_t> data(new uint8_t[width_ * height_ * 3 / 2]);
-  SbMemorySet(data.get(), width_ * height_, 0);
-  SbMemorySet(data.get() + width_ * height_, width_ * height_ / 2, 0x80);
+  scoped_array<uint8_t> data(new uint8_t[width() * height() * 3 / 2]);
+  SbMemorySet(data.get(), width() * height(), 0);
+  SbMemorySet(data.get() + width() * height(), width() * height() / 2, 0x80);
   WriteData(data.get());
 }
 
@@ -78,26 +115,35 @@ DispmanxElement::~DispmanxElement() {
   SB_DCHECK(result == 0) << " result=" << result;
 }
 
-void DispmanxVideoRenderer::Update(const VideoFrame& video_frame) {
-  if (video_frame.IsEndOfStream()) {
-    element_.reset();
-    resource_.reset();
+void DispmanxElement::ChangeSource(const DispmanxResource& new_src) {
+  DispmanxAutoUpdate update;
+  vc_dispmanx_element_change_source(update.handle(), handle_, new_src.handle());
+}
+
+DispmanxVideoRenderer::DispmanxVideoRenderer(const DispmanxDisplay& display,
+                                             int32_t layer) {
+  element_.reset(new DispmanxElement(display, layer, DispmanxRect(),
+                                     DispmanxResource(), DispmanxRect()));
+}
+
+void DispmanxVideoRenderer::Update(
+    const scoped_refptr<VideoFrame>& video_frame) {
+  SB_DCHECK(video_frame);
+
+  if (frame_ == video_frame) {
     return;
   }
-  if (!resource_ || resource_->width() != video_frame.width() ||
-      resource_->height() != video_frame.height()) {
-    element_.reset();
-    resource_.reset();
 
-    DispmanxRect src_rect(0, 0, video_frame.width() << 16,
-                          video_frame.height() << 16);
-    resource_.reset(
-        new DispmanxYUV420Resource(video_frame.width(), video_frame.height()));
-    element_.reset(new DispmanxElement(display_, layer_, DispmanxRect(),
-                                       *resource_, src_rect));
+  if (video_frame->IsEndOfStream()) {
+    element_->ChangeSource(DispmanxResource());
+    frame_ = video_frame;
+    return;
   }
 
-  resource_->WriteData(video_frame.GetPlane(0).data);
+  DispmanxYUV420Resource* resource =
+      reinterpret_cast<DispmanxYUV420Resource*>(video_frame->native_texture());
+  element_->ChangeSource(*resource);
+  frame_ = video_frame;
 }
 
 }  // namespace shared
