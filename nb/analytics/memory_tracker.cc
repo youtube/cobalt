@@ -31,10 +31,36 @@ MemoryTracker* MemoryTracker::Get() {
   return t;
 }
 
+
+MemoryStats GetProcessMemoryStats() {
+  MemoryStats memory_stats;
+
+  memory_stats.total_cpu_memory = SbSystemGetTotalCPUMemory();
+  memory_stats.used_cpu_memory = SbSystemGetUsedCPUMemory();
+
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    int64_t used_gpu_memory = SbSystemGetUsedGPUMemory();
+    memory_stats.total_gpu_memory = SbSystemGetTotalGPUMemory();
+    memory_stats.used_gpu_memory = SbSystemGetUsedGPUMemory();
+  }
+  return memory_stats;
+}
+
 nb::scoped_ptr<MemoryTrackerPrintThread>
 CreateDebugPrintThread(MemoryTracker* memory_tracker) {
   return nb::scoped_ptr<MemoryTrackerPrintThread>(
      new MemoryTrackerPrintThread(memory_tracker));
+}
+
+nb::scoped_ptr<MemoryTrackerPrintCSVThread>
+CreateDebugPrintCSVThread(MemoryTracker* memory_tracker,
+                          int sample_interval_ms,
+                          int total_sampling_time_ms) {
+  return nb::scoped_ptr<MemoryTrackerPrintCSVThread>(
+      new MemoryTrackerPrintCSVThread(
+          memory_tracker,
+          sample_interval_ms,
+          total_sampling_time_ms));
 }
 
 }  // namespace analytics
