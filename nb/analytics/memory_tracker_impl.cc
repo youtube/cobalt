@@ -16,15 +16,63 @@
 
 #include "nb/analytics/memory_tracker_impl.h"
 
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 
 #include "nb/atomic.h"
-#include "starboard/log.h"
 #include "starboard/atomic.h"
+#include "starboard/log.h"
+#include "starboard/time.h"
 
 namespace nb {
 namespace analytics {
+namespace {
+// NoMemoryTracking will disable memory tracking while in the current scope of
+// execution. When the object is destroyed it will reset the previous state
+// of allocation tracking.
+// Example:
+//   void Foo() {
+//     NoMemoryTracking no_memory_tracking_in_scope;
+//     int* ptr = new int();  // ptr is not tracked.
+//     delete ptr;
+//     return;    // Previous memory tracking state is restored.
+//   }
+class NoMemoryTracking {
+ public:
+  NoMemoryTracking(MemoryTracker* owner) : owner_(owner) {
+    prev_val_ = owner_->IsMemoryTrackingEnabled();
+    owner_->SetMemoryTrackingEnabled(false);
+  }
+  ~NoMemoryTracking() { owner_->SetMemoryTrackingEnabled(prev_val_); }
+
+ private:
+  bool prev_val_;
+  MemoryTracker* owner_;
+};
+
+// This is a simple algorithm to remove the "needle" from the haystack. Note
+// that this function is simple and not well optimized.
+std::string RemoveString(const std::string& haystack, const char* needle) {
+  const size_t NOT_FOUND = std::string::npos;
+
+  // Base case. No modification needed.
+  size_t pos = haystack.find(needle);
+  if (pos == NOT_FOUND) {
+    return haystack;
+  }
+  const size_t n = strlen(needle);
+  std::string output;
+  output.reserve(haystack.size());
+
+  // Copy string, omitting the portion containing the "needle".
+  std::copy(haystack.begin(), haystack.begin() + pos, back_inserter(output));
+  std::copy(haystack.begin() + pos + n, haystack.end(), back_inserter(output));
+
+  // Recursively remove same needle in haystack.
+  return RemoveString(output, needle);
+}
+}  // namespace
 
 SbMemoryReporter* MemoryTrackerImpl::GetMemoryReporter() {
   return &sb_memory_tracker_;
@@ -448,19 +496,8 @@ void MemoryTrackerPrintThread::Cancel() {
 }
 
 void MemoryTrackerPrintThread::Run() {
-  struct NoMemTracking {
-    NoMemTracking(MemoryTracker* owner) : owner_(owner) {
-      prev_val_ = owner_->IsMemoryTrackingEnabled();
-      owner_->SetMemoryTrackingEnabled(false);
-    }
-    ~NoMemTracking() { owner_->SetMemoryTrackingEnabled(prev_val_); }
-
-    bool prev_val_;
-    MemoryTracker* owner_;
-  };
-
   while (!finished_.load()) {
-    NoMemTracking no_mem_tracking_in_this_scope(memory_tracker_);
+    NoMemoryTracking no_mem_tracking_in_this_scope(memory_tracker_);
 
     // std::map<std::string, const AllocationGroup*> output;
     // typedef std::map<std::string, const AllocationGroup*>::const_iterator
@@ -537,6 +574,259 @@ void MemoryTrackerPrintThread::Run() {
 
     SbThreadSleep(1000 * 1000);
   }
+}
+
+MemoryTrackerPrintCSVThread::MemoryTrackerPrintCSVThread(
+    MemoryTracker* memory_tracker,
+    int sampling_interval_ms,
+    int sampling_time_ms)
+    : SimpleThread("MemoryTrackerPrintCSVThread"),
+      memory_tracker_(memory_tracker),
+      sample_interval_ms_(sampling_interval_ms),
+      sampling_time_ms_(sampling_time_ms),
+      start_time_(SbTimeGetNow()) {
+  Start();
+}
+
+
+MemoryTrackerPrintCSVThread::~MemoryTrackerPrintCSVThread() {
+  Cancel();
+  Join();
+}
+
+void MemoryTrackerPrintCSVThread::Cancel() {
+  canceled_.store(true);
+}
+
+std::string MemoryTrackerPrintCSVThread::ToCsvString(
+    const MapAllocationSamples& samples_in) {
+  typedef MapAllocationSamples Map;
+  typedef Map::const_iterator MapIt;
+
+  const char QUOTE[] = "\"";
+  const char DELIM[] = ",";
+  const char NEW_LINE[] = "\n";
+
+  size_t largest_sample_size = 0;
+  size_t smallest_sample_size = INT_MAX;
+
+  // Sanitize samples_in and store as samples.
+  MapAllocationSamples samples;
+  for (MapIt it = samples_in.begin(); it != samples_in.end(); ++it) {
+    std::string name = it->first;
+    const AllocationSamples& value = it->second;
+
+    if (value.allocated_bytes_.size() != value.number_allocations_.size()) {
+      SB_NOTREACHED() << "Error at " << __FILE__ << ":" << __LINE__;
+      return "ERROR";
+    }
+
+    const size_t n = value.allocated_bytes_.size();
+    if (n > largest_sample_size) {
+      largest_sample_size = n;
+    }
+    if (n < smallest_sample_size) {
+      smallest_sample_size = n;
+    }
+
+    // Strip out any characters that could make parsing the csv difficult.
+    name = RemoveString(name, QUOTE);
+    name = RemoveString(name, DELIM);
+    name = RemoveString(name, NEW_LINE);
+
+    const bool duplicate_found = (samples.end() != samples.find(name));
+    if (duplicate_found) {
+      SB_NOTREACHED() << "Error, duplicate found for entry: "
+                      << name << NEW_LINE;
+    }
+    // Store value as a sanitized sample.
+    samples[name] = value;
+  }
+
+  SB_DCHECK(largest_sample_size == smallest_sample_size);
+
+  std::stringstream ss;
+
+  // Begin output to CSV.
+  // Sometimes we need to skip the CPU memory entry.
+  const MapIt total_cpu_memory_it = samples.find(UntrackedMemoryKey());
+
+  // Preamble
+  ss << NEW_LINE << "//////////////////////////////////////////////";
+  ss << NEW_LINE << "// CSV of bytes / allocation" << NEW_LINE;
+  // HEADER.
+  ss << "Name" << DELIM << QUOTE << "Bytes/Alloc" << QUOTE << NEW_LINE;
+  // DATA.
+  for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+    if (total_cpu_memory_it == it) {
+      continue;
+    }
+
+    const AllocationSamples& samples = it->second;
+    if (samples.allocated_bytes_.empty() ||
+        samples.number_allocations_.empty()) {
+      SB_NOTREACHED() << "Should not be here";
+      return "ERROR";
+    }
+    const int32_t n_allocs = samples.number_allocations_.back();
+    const int64_t n_bytes = samples.allocated_bytes_.back();
+    int bytes_per_alloc = 0;
+    if (n_allocs > 0) {
+      bytes_per_alloc = n_bytes / n_allocs;
+    }
+    const std::string& name = it->first;
+    ss << QUOTE << name << QUOTE << DELIM << bytes_per_alloc << NEW_LINE;
+  }
+  ss << NEW_LINE;
+
+  // Preamble
+  ss << NEW_LINE << "//////////////////////////////////////////////"
+     << NEW_LINE << "// CSV of bytes allocated per region (MB's)."
+     << NEW_LINE << "// Units are in Megabytes. This is designed"
+     << NEW_LINE << "// to be used in a stacked graph." << NEW_LINE;
+
+  // HEADER.
+  for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+    if (total_cpu_memory_it == it) {
+      continue;
+    }
+    const std::string& name = it->first;
+    ss << QUOTE << name << QUOTE << DELIM;
+  }
+  // Save the total for last.
+  if (total_cpu_memory_it != samples.end()) {
+    const std::string& name = total_cpu_memory_it->first;
+    ss << QUOTE << name << QUOTE << DELIM;
+  }
+  ss << NEW_LINE;
+
+  // Print out the values of each of the samples.
+  for (int i = 0; i < smallest_sample_size; ++i) {
+    for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+      if (total_cpu_memory_it == it) {
+        continue;
+      }
+      const int64_t alloc_bytes = it->second.allocated_bytes_[i];
+      // Convert to float megabytes with decimals of precision.
+      double n = alloc_bytes / (1000 * 10);
+      n = n / (100.);
+      ss << n << DELIM;
+    }
+    if (total_cpu_memory_it != samples.end()) {
+      const int64_t alloc_bytes =
+         total_cpu_memory_it->second.allocated_bytes_[i];
+      // Convert to float megabytes with decimals of precision.
+      double n = alloc_bytes / (1000 * 10);
+      n = n / (100.);
+      ss << n << DELIM;
+    }
+    ss << NEW_LINE;
+  }
+
+  ss << NEW_LINE;
+  // Preamble
+  ss << NEW_LINE << "//////////////////////////////////////////////";
+  ss << NEW_LINE << "// CSV of number of allocations per region." << NEW_LINE;
+
+  // HEADER
+  for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+    if (total_cpu_memory_it == it) {
+      continue;
+    }
+    const std::string& name = it->first;
+    ss << QUOTE << name << QUOTE << DELIM;
+  }
+  ss << NEW_LINE;
+  for (int i = 0; i < smallest_sample_size; ++i) {
+    for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+      if (total_cpu_memory_it == it) {
+        continue;
+      }
+      const int64_t n_allocs = it->second.number_allocations_[i];
+      ss << n_allocs << DELIM;
+    }
+    ss << NEW_LINE;
+  }
+  std::string output = ss.str();
+  return output;
+}
+
+const char* MemoryTrackerPrintCSVThread::UntrackedMemoryKey() {
+  return "Untracked Memory";
+}
+
+void MemoryTrackerPrintCSVThread::Run() {
+  NoMemoryTracking no_mem_tracking_in_this_scope(memory_tracker_);
+
+  SbLogRaw("\nMemoryTrackerPrintCSVThread is sampling...\n");
+  int sample_count = 0;
+  MapAllocationSamples map_samples;
+
+  while (!TimeExpiredYet() && !canceled_.load()) {
+    // Sample total memory used by the system.
+    MemoryStats mem_stats = GetProcessMemoryStats();
+    int64_t untracked_used_memory = mem_stats.used_cpu_memory +
+                                    mem_stats.used_gpu_memory;
+
+    std::vector<const AllocationGroup*> vector_output;
+    memory_tracker_->GetAllocationGroups(&vector_output);
+
+    // Sample all known memory scopes.
+    for (int i = 0; i < vector_output.size(); ++i) {
+      const AllocationGroup* group = vector_output[i];
+      const std::string& name = group->name();
+
+      const bool first_creation = map_samples.find(group->name()) ==
+                                  map_samples.end();
+
+      AllocationSamples* new_entry  = &(map_samples[name]);
+
+      // Didn't see it before so create new entry.
+      if (first_creation) {
+        // Make up for lost samples...
+        new_entry->allocated_bytes_.resize(sample_count, 0);
+        new_entry->number_allocations_.resize(sample_count, 0);
+      }
+
+      int32_t num_allocs = - 1;
+      int64_t allocation_bytes = -1;
+      group->GetAggregateStats(&num_allocs, &allocation_bytes);
+
+      new_entry->allocated_bytes_.push_back(allocation_bytes);
+      new_entry->number_allocations_.push_back(num_allocs);
+
+      untracked_used_memory -= allocation_bytes;
+    }
+
+    // Now push in remaining total.
+    AllocationSamples* process_sample = &(map_samples[UntrackedMemoryKey()]);
+    if (untracked_used_memory < 0) {
+      // On some platforms, total GPU memory may not be correctly reported.
+      // However the allocations from the GPU memory may be reported. In this
+      // case untracked_used_memory will go negative. To protect the memory
+      // reporting the untracked_used_memory is set to 0 so that it doesn't
+      // cause an error in reporting.
+      untracked_used_memory = 0;
+    }
+    process_sample->allocated_bytes_.push_back(untracked_used_memory);
+    process_sample->number_allocations_.push_back(-1);
+
+    ++sample_count;
+    SbThreadSleep(kSbTimeMillisecond * sample_interval_ms_);
+  }
+
+  std::string output = ToCsvString(map_samples);
+  SbLogRaw(output.c_str());
+  SbLogFlush();
+  // Prevents the "thread exited code 0" from being interleaved into the
+  // output. This happens if SbLogFlush() is not implemented for the platform.
+  SbThreadSleep(1000 * kSbTimeMillisecond);
+}
+
+bool MemoryTrackerPrintCSVThread::TimeExpiredYet() {
+  const SbTime diff_us = SbTimeGetNow() - start_time_;
+  const bool expired_time = diff_us > (sampling_time_ms_ * kSbTimeMillisecond);
+  return expired_time;
 }
 
 }  // namespace analytics
