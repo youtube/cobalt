@@ -1,0 +1,11 @@
+CHANGES_up_to_1.2.6
+COPYING
+MANIFEST
+README
+pefile.py
+peutils.py
+setup.py
+pefile.egg-info/PKG-INFO
+pefile.egg-info/SOURCES.txt
+pefile.egg-info/dependency_links.txt
+pefile.egg-info/top_level.txt

@@ -1,0 +1,2 @@
+<?php
+const LATEST_FIREFOX_VERSION = '32.0.3';

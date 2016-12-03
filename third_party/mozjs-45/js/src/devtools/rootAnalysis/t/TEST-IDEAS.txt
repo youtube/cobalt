@@ -1,0 +1,27 @@
+// Hazard with function argument
+void arg_haz(Value v) {
+  gc();
+  v.isUndefined();
+}
+// Check: why chain should cover whole function
+
+// Hazard with local
+void local_haz() {
+  Value v = NullValue();
+  gc();
+  v.isUndefined();
+}
+// Check: why chain should go from body line 1-3
+
+// Hazard with retparam
+void retparam_haz() {
+  Value v;
+  f(&v);
+  gc();
+  v.isUndefined();
+}
+// Check: why chain should go from body line 2-4
+
+// class hierarchy: only in uncle, or not in uncle
+ -> perhaps just look at callgraph to find virtual instantiations?
+ 

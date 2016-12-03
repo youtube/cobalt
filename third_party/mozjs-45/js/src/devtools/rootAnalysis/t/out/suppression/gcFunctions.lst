@@ -1,0 +1,4 @@
+_Z2GCv$void GC()
+_Z22halfSuppressedFunctionv$void halfSuppressedFunction()
+_Z20unsuppressedFunctionv$void unsuppressedFunction()
+_Z1fv$void f()
