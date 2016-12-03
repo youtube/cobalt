@@ -1,0 +1,43 @@
+block: _Z1fv$void f()
+command: UNKNOWN
+begin: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:45"
+end:   "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:65"
+define: f : (void)()
+define: cell : Cell
+define: cell1 : Cell*
+define: cell2 : Cell*
+define: cell3 : Cell*
+define: nogc : AutoSuppressGC
+define: nogc:1 : AutoSuppressGC
+pentry: 1
+pexit:  15
+point 1: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:47"
+point 2: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:48"
+point 3: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:49"
+point 4: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:51"
+point 5: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:52"
+point 6: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:53"
+point 7: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:53"
+point 8: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:55"
+point 9: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:56"
+point 10: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:57"
+point 11: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:58"
+point 12: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:62"
+point 13: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:62"
+point 14: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:64"
+point 15: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:65"
+Assign(1,2, cell1 := cell)
+Assign(2,3, cell2 := cell)
+Assign(3,4, cell3 := cell)
+Call(4,5, nogc.AutoSuppressGC())
+Call(5,6, suppressedFunction())
+Call(6,7, halfSuppressedFunction())
+Call(7,8, nogc.~AutoSuppressGC())
+Call(8,9, foo(cell1*))
+Call(9,10, halfSuppressedFunction())
+Call(10,11, foo(cell2*))
+Call(11,12, unsuppressedFunction())
+Call(12,13, nogc:1.AutoSuppressGC())
+Call(13,14, nogc:1.~AutoSuppressGC())
+Call(14,15, foo(cell3*))
+

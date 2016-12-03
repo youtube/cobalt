@@ -1,0 +1,72 @@
+#1 _ZN19AutoSuppressGC_BaseC1Ev$void AutoSuppressGC_Base::AutoSuppressGC_Base()
+#2 _ZN19AutoSuppressGC_BaseC4Ev$void AutoSuppressGC_Base::AutoSuppressGC_Base()
+D 1 2
+#3 _ZN19AutoSuppressGC_BaseC2Ev$void AutoSuppressGC_Base::AutoSuppressGC_Base()
+D 3 2
+#4 _ZN19AutoSuppressGC_BaseC3Ev$void AutoSuppressGC_Base::AutoSuppressGC_Base()
+D 4 2
+#5 _ZN19AutoSuppressGC_BaseD1Ev$void AutoSuppressGC_Base::~AutoSuppressGC_Base(int32)
+#6 _ZN19AutoSuppressGC_BaseD4Ev$void AutoSuppressGC_Base::~AutoSuppressGC_Base(int32)
+D 5 6
+#7 _ZN19AutoSuppressGC_BaseD2Ev$void AutoSuppressGC_Base::~AutoSuppressGC_Base(int32)
+D 7 6
+#8 _ZN19AutoSuppressGC_BaseD3Ev$void AutoSuppressGC_Base::~AutoSuppressGC_Base(int32)
+D 8 6
+#9 _ZN20AutoSuppressGC_ChildC4Ev$void AutoSuppressGC_Child::AutoSuppressGC_Child()
+D 9 3
+#10 _ZN19AutoSuppressGC_BaseD2Ev$void AutoSuppressGC_Base::~AutoSuppressGC_Base()
+D 9 10
+#11 _ZN20AutoSuppressGC_ChildC1Ev$void AutoSuppressGC_Child::AutoSuppressGC_Child()
+D 11 9
+#12 _ZN20AutoSuppressGC_ChildC2Ev$void AutoSuppressGC_Child::AutoSuppressGC_Child()
+D 12 9
+#13 _ZN20AutoSuppressGC_ChildC3Ev$void AutoSuppressGC_Child::AutoSuppressGC_Child()
+D 13 9
+#14 _ZN20AutoSuppressGC_ChildD4Ev$void AutoSuppressGC_Child::~AutoSuppressGC_Child(int32)
+D 14 10
+#15 _ZN20AutoSuppressGC_ChildD1Ev$void AutoSuppressGC_Child::~AutoSuppressGC_Child(int32)
+D 15 14
+#16 _ZN20AutoSuppressGC_ChildD2Ev$void AutoSuppressGC_Child::~AutoSuppressGC_Child(int32)
+D 16 14
+#17 _ZN20AutoSuppressGC_ChildD3Ev$void AutoSuppressGC_Child::~AutoSuppressGC_Child(int32)
+D 17 14
+#18 _ZN14AutoSuppressGCC4Ev$void AutoSuppressGC::AutoSuppressGC()
+D 18 11
+#19 _ZN20AutoSuppressGC_ChildD1Ev$void AutoSuppressGC_Child::~AutoSuppressGC_Child()
+D 18 19
+#20 _ZN14AutoSuppressGCC1Ev$void AutoSuppressGC::AutoSuppressGC()
+D 20 18
+#21 _ZN14AutoSuppressGCC2Ev$void AutoSuppressGC::AutoSuppressGC()
+D 21 18
+#22 _ZN14AutoSuppressGCC3Ev$void AutoSuppressGC::AutoSuppressGC()
+D 22 18
+#23 _Z2GCv$void GC()
+T 23 GC Call
+#24 _Z18suppressedFunctionv$void suppressedFunction()
+T 24 GC Call
+D 24 23
+#25 _Z22halfSuppressedFunctionv$void halfSuppressedFunction()
+T 25 GC Call
+D 25 23
+#26 _Z20unsuppressedFunctionv$void unsuppressedFunction()
+T 26 GC Call
+D 26 23
+#27 _ZN14AutoSuppressGCD4Ev$void AutoSuppressGC::~AutoSuppressGC(int32)
+D 27 19
+#28 _ZN14AutoSuppressGCD1Ev$void AutoSuppressGC::~AutoSuppressGC(int32)
+D 28 27
+#29 _ZN14AutoSuppressGCD2Ev$void AutoSuppressGC::~AutoSuppressGC(int32)
+D 29 27
+#30 _ZN14AutoSuppressGCD3Ev$void AutoSuppressGC::~AutoSuppressGC(int32)
+D 30 27
+#31 _Z1fv$void f()
+T 31 GC Call
+D 31 20
+D SUPPRESS_GC 31 24
+D SUPPRESS_GC 31 25
+#32 _ZN14AutoSuppressGCD1Ev$void AutoSuppressGC::~AutoSuppressGC()
+D SUPPRESS_GC 31 32
+#33 _Z3fooP4Cell$void foo(Cell*)
+D 31 33
+D 31 25
+D 31 26

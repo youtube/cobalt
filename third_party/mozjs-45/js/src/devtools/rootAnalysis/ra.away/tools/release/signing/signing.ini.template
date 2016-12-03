@@ -1,0 +1,85 @@
+[server]
+# What ip to listen on. Set this to a specific ip if you want to listen on a
+# specific interface, or use 0.0.0.0 to listen on all interfaces.
+listen = 0.0.0.0
+# What port we listen on
+port = 8080
+# How long should files be kept on disk (in seconds)
+max_file_age = 300
+# How often should we clean up files, tokens, etc. (in seconds)
+cleanup_interval = 60
+
+[security]
+# Path to private SSL key for https
+private_ssl_cert = host.key
+# Path to public SSL certificate for https
+public_ssl_cert = host.cert
+# Who is allowed to connect to this machine? This can be a comma separated
+# list of ip addresses or networks like 192.168.1.2/24
+allowed_ips = 0.0.0.0/0
+# What filenames are acceptable to be signed? This is a comma separated list
+# of regular expressions
+allowed_filenames = .*
+# Minimum filesize that we'll sign
+min_filesize = 10
+# Maximum filesize, per format. 52428800 = 50MB, 524288000 = 500MB
+max_filesize_gpg = 524288000
+max_filesize_dmg = 52428800
+max_filesize_mar = 52428800
+max_filesize_signcode = 52428800
+max_filesize_osslsigncode = 52428800
+max_filesize_sha2signcode = 52428800
+max_filesize_emevoucher = 52428800
+# Secret for signing tokens. This should be kept private!
+# It should also be the same on all equivalent signing servers.
+token_secret = secretstring
+# Any key starting with 'token_secret' is also valid, to allow supporting
+# multiple token secrets at the same time (to make it possible to transitioning
+# to new secrets without downtime). New tokens are generated with the
+# 'token_secret' value
+token_secret0 = oldsecretstring
+# username:password for http basic authenication for generating new tokens
+new_token_auth = foo:bar
+# Any key starting with 'new_token_auth' is valid
+new_token_auth0 = foo:baz
+# Which ips are allowed to request new tokens
+new_token_allowed_ips = 127.0.0.1
+# Maximum age for a token
+max_token_age = 3600
+
+[paths]
+# Where we store signed files
+signed_dir = signed-files
+# Where we store unsigned files
+unsigned_dir = unsigned-files
+
+[signing]
+# What signing formats we support
+formats = mar,gpg,sha2signcode,signcode,osslsigncode,emevoucher
+# Which script to run to sign files
+signscript = python ./signscript.py -c signing.ini
+# How many files to sign at once
+concurrency = 4
+# Test files for the various signing formats
+# signscript will be run on each of these on startup to test that passphrases
+# have been entered correctly
+testfile_signcode = test.exe
+testfile_osslsigncode = test64.exe
+testfile_sha2signcode = test.exe
+testfile_mar = test.mar
+testfile_gpg = test.mar
+testfile_emevoucher = test.bin
+
+[signscript]
+# Various settings for signscript. signing-server.py doesn't look in here
+# Where are MozAuthenticode.{pvk,spc} located
+signcode_keydir = /path/to/keys
+osslsigncode_keydir = /path/to/keys
+sha2signcode_keydir = /path/to/keys
+# Where is the gpg directory with our private key
+gpg_homedir = /path/to/.gpg
+# Where is the eme voucher private key
+emevoucher_key = /path/to/cert.pem
+emevoucher_chain = /path/to/chain.pem
+# How to run mar
+mar_cmd = /path/to/signmar -d /path/to/nsscerts -n keyname -s
