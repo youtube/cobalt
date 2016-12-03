@@ -1,0 +1,55 @@
+JSObject*
+DataViewObject::fromBuffer(JSContext* cx, HandleObject bufobj, uint32_t byteOffset, int32_t byteLength)
+{
+    // See TypedArrayObjectTemplate<T>::fromBufferWithProto for where this was
+    // cribbed from.
+
+    if (!ObjectClassIs(bufobj, ESClass_ArrayBuffer, cx)) {
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
+        return nullptr; // must be arrayBuffer
+    }
+
+    MOZ_ASSERT(IsArrayBuffer(bufobj) || bufobj->is<ProxyObject>());
+    if (bufobj->is<ProxyObject>()) {
+        // Construct the new typed array in the compartment of the buffer so
+        // that the DataView can point directly at the buffer data. Returns a
+        // wrapper in the origin compartment for a view in the target
+        // compartment directly referencing the ArrayBufferObject.
+        JSObject* wrapped = CheckedUnwrap(bufobj);
+        if (!wrapped) {
+            JS_ReportError(cx, "Permission denied to access object");
+            return nullptr;
+        }
+        if (IsArrayBuffer(wrapped)) {
+            // Set the new view's prototype to the origin compartment's
+            // prototype, not the target's.
+            Rooted<JSObject*> proto(cx);
+            if (!GetBuiltinPrototype(cx, JSCLASS_CACHED_PROTO_KEY(&class_), &proto))
+                return nullptr;
+
+            InvokeArgs args(cx);
+            if (!args.init(3))
+                return nullptr;
+
+            args.setCallee(cx->compartment()->maybeGlobal()->createDataViewForThis());
+            args.setThis(ObjectValue(*bufobj));
+            args[0].setNumber(byteOffset);
+            args[1].setInt32(byteLength);
+            args[2].setObject(*proto);
+
+            if (!Invoke(cx, args))
+                return nullptr;
+            return &args.rval().toObject();
+        }
+    }
+
+    if (!IsArrayBuffer(bufobj)) {
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
+        return nullptr; // must be arrayBuffer
+    }
+
+    Rooted<ArrayBufferObject*> buffer(cx, &AsArrayBuffer(bufobj));
+    MOZ_ASSERT(byteOffset <= buffer->byteLength() && byteOffset + byteLength <= buffer->byteLength());
+    return create(cx, byteOffset, byteLength, buffer, proto);
+}
+

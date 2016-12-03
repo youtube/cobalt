@@ -1,0 +1,15 @@
+ChangeLog
+MANIFEST.in
+README.rst
+setup.py
+jsonmerge/__init__.py
+jsonmerge/exceptions.py
+jsonmerge/strategies.py
+jsonmerge.egg-info/PKG-INFO
+jsonmerge.egg-info/SOURCES.txt
+jsonmerge.egg-info/dependency_links.txt
+jsonmerge.egg-info/requires.txt
+jsonmerge.egg-info/top_level.txt
+tests/__init__.py
+tests/test_jsonmerge.py
+tests/test_readme.py

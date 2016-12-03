@@ -1,0 +1,126 @@
+Richards: 29502
+DeltaBlue: 55076
+Crypto: 30065
+RayTrace: 106706
+EarleyBoyer: 34637
+RegExp: 3169
+Splay: 20462
+SplayLatency: 22312
+NavierStokes: 38694
+PdfJS: 15929
+Mandreel: 22746
+MandreelLatency: 26802
+Gameboy: 62160
+CodeLoad: 17501
+Box2D: 45995
+zlib: 82336
+Typescript: 27707
+----
+Score (version 9): 29751
+	Command being timed: "/home/sfink/src/MI-GC/obj-js-opt/dist/bin/js run.js"
+	User time (seconds): 36.85
+	System time (seconds): 1.21
+	Percent of CPU this job got: 113%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:33.58
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 368236
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 835389
+	Voluntary context switches: 32702
+	Involuntary context switches: 2243
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Richards: 29865
+DeltaBlue: 55235
+Crypto: 29598
+RayTrace: 108334
+EarleyBoyer: 35501
+RegExp: 3438
+Splay: 21131
+SplayLatency: 22462
+NavierStokes: 38469
+PdfJS: 16503
+Mandreel: 27593
+MandreelLatency: 36927
+Gameboy: 55095
+CodeLoad: 18004
+Box2D: 42123
+zlib: 82425
+Typescript: 27385
+----
+Score (version 9): 30660
+	Command being timed: "/home/sfink/src/MI-GC/obj-js-opt/dist/bin/js run.js"
+	User time (seconds): 37.14
+	System time (seconds): 1.17
+	Percent of CPU this job got: 114%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:33.59
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 389424
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 801305
+	Voluntary context switches: 36230
+	Involuntary context switches: 277
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Richards: 29608
+DeltaBlue: 56273
+Crypto: 30280
+RayTrace: 107742
+EarleyBoyer: 34969
+RegExp: 3406
+Splay: 21538
+SplayLatency: 22896
+NavierStokes: 38732
+PdfJS: 15945
+Mandreel: 27252
+MandreelLatency: 36927
+Gameboy: 53702
+CodeLoad: 18114
+Box2D: 44327
+zlib: 82026
+Typescript: 27986
+----
+Score (version 9): 30749
+	Command being timed: "/home/sfink/src/MI-GC/obj-js-opt/dist/bin/js run.js"
+	User time (seconds): 36.93
+	System time (seconds): 1.24
+	Percent of CPU this job got: 113%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:33.53
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 370200
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 852974
+	Voluntary context switches: 35240
+	Involuntary context switches: 192
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
