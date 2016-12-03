@@ -20,6 +20,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
@@ -85,6 +86,8 @@ class HardwareRasterizer::Impl {
 
   base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
   base::optional<common::SurfaceCache> surface_cache_;
+
+  FrameRateThrottler frame_rate_throttler_;
 };
 
 namespace {
@@ -254,7 +257,9 @@ void HardwareRasterizer::Impl::Submit(
     canvas->flush();
   }
 
+  frame_rate_throttler_.EndInterval();
   graphics_context_->SwapBuffers(render_target_egl);
+  frame_rate_throttler_.BeginInterval();
   canvas->restore();
 }
 

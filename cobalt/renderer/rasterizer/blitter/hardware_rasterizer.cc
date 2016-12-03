@@ -26,6 +26,7 @@
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
+#include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/blitter/cached_software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
@@ -79,6 +80,8 @@ class HardwareRasterizer::Impl {
   base::optional<common::SurfaceCache> surface_cache_;
 
   CachedSoftwareRasterizer software_surface_cache_;
+
+  FrameRateThrottler frame_rate_throttler_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Debug command to toggle cache highlights to help visualize which nodes
@@ -219,7 +222,9 @@ void HardwareRasterizer::Impl::Submit(
                                 SbBlitterMakeRect(0, 0, width, height),
                                 SbBlitterMakeRect(0, 0, width, height)));
   CHECK(SbBlitterFlushContext(context));
+  frame_rate_throttler_.EndInterval();
   render_target_blitter->Flip();
+  frame_rate_throttler_.BeginInterval();
 
   ++submit_count_;
 }
