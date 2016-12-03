@@ -1,0 +1,12 @@
+
+GC Function: _Z2GCv$void GC()
+    GC
+
+GC Function: _Z22halfSuppressedFunctionv$void halfSuppressedFunction()
+    GC
+
+GC Function: _Z20unsuppressedFunctionv$void unsuppressedFunction()
+    GC
+
+GC Function: _Z1fv$void f()
+    GC

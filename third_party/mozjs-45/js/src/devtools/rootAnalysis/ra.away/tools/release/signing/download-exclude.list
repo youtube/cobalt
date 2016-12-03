@@ -1,0 +1,15 @@
+- *.zip
+- *.partial.mar
+- *.asc
+- *.tests.tar.bz2
+- *.checksums
+- jsshell*
+- /contrib/
+- /contrib-localized/
+# Skip previously signed windows builds
+- /win32/
+- /update/win32/
+# Exclude hidden files/directories
+- .*
+# Skip logs
+- /logs/

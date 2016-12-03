@@ -1,0 +1,16 @@
+#new
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_Z18suppressedFunctionv$void suppressedFunction()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_Z1fv$Cell* f()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_Z20unsuppressedFunctionv$void unsuppressedFunction()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_Z22halfSuppressedFunctionv$void halfSuppressedFunction()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_Z2GCv$void GC()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_ZN14AutoSuppressGCC4Ev$void AutoSuppressGC::AutoSuppressGC()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_ZN14AutoSuppressGCD4Ev$void AutoSuppressGC::~AutoSuppressGC(int32)
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_ZN14GCInDestructorD4Ev$void GCInDestructor::~GCInDestructor(int32)
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_ZN19AutoSuppressGC_BaseC4Ev$void AutoSuppressGC_Base::AutoSuppressGC_Base()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_ZN19AutoSuppressGC_BaseD4Ev$void AutoSuppressGC_Base::~AutoSuppressGC_Base(int32)
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_ZN20AutoSuppressGC_ChildC4Ev$void AutoSuppressGC_Child::AutoSuppressGC_Child()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_ZN20AutoSuppressGC_ChildD4Ev$void AutoSuppressGC_Child::~AutoSuppressGC_Child(int32)
+
+#old
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp$_Z1fv$void f()

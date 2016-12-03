@@ -1,0 +1,11 @@
+#new
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$_Z5js_GCv$void js_GC()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$_Z8root_argP8JSObjectS0_$void root_arg(JSObject*, JSObject*)
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$_ZN11ErrorResult5traceEv$void ErrorResult::trace()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$_ZN9JustACell18iHaveNoDataMembersEv$uint8 JustACell::iHaveNoDataMembers()
+
+#old
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$uint8 JustACell::iHaveNoDataMembers()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$void ErrorResult::trace()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$void js_GC()
+/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/sixgill-tree/source.cpp$void root_arg(JSObject*, JSObject*)
