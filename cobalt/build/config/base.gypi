@@ -67,6 +67,13 @@
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
 
+    # Allow throttling of the frame rate. This is expressed in terms of
+    # milliseconds and can be a floating point number. Keep in mind that
+    # swapping frames may take some additional processing time, so it may be
+    # better to specify a lower delay. For example, '33' instead of '33.33'
+    # for 30 Hz refresh.
+    'cobalt_minimum_frame_time_in_milliseconds%': '0',
+
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
     'gtest_target_type%': 'executable',

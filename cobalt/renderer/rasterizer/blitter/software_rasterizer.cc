@@ -95,7 +95,9 @@ void SoftwareRasterizer::Submit(
 
   SbBlitterDestroySurface(surface);
 
+  frame_rate_throttler_.EndInterval();
   render_target_blitter->Flip();
+  frame_rate_throttler_.BeginInterval();
 }
 
 render_tree::ResourceProvider* SoftwareRasterizer::GetResourceProvider() {
