@@ -33,6 +33,7 @@
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
     'cobalt_enable_jit': 0,
+    'cobalt_minimum_frame_time_in_milliseconds': '33',
 
     # RasPi 1 is ARMv6
     'arm_version': 6,
