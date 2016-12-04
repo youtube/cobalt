@@ -46,11 +46,11 @@ namespace browser {
 
 namespace {
 
-#if defined(COBALT_RELEASE)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 const int kPollerPeriodMs = 2000;
-#else   // #if defined(COBALT_RELEASE)
+#else   // #if defined(COBALT_BUILD_TYPE_GOLD)
 const int kPollerPeriodMs = 20;
-#endif  // #if defined(COBALT_RELEASE)
+#endif  // #if defined(COBALT_BUILD_TYPE_GOLD)
 
 // The maximum number of element depth in the DOM tree. Elements at a level
 // deeper than this could be discarded, and will not be rendered.
