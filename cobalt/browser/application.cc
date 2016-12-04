@@ -62,7 +62,11 @@ namespace browser {
 
 namespace {
 const int kStatUpdatePeriodMs = 1000;
+#if defined(COBALT_BUILD_TYPE_GOLD)
+const int kLiteStatUpdatePeriodMs = 1000;
+#else
 const int kLiteStatUpdatePeriodMs = 16;
+#endif
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
