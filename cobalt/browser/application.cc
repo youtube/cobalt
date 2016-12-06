@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/path_service.h"
@@ -324,6 +325,8 @@ Application::Application(const base::Closure& quit_closure)
         FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
   }
 
+  TRACE_EVENT0("cobalt::browser", "Application::Application()");
+
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -590,6 +593,7 @@ void Application::Quit() {
 }
 
 void Application::OnAccountEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnAccountEvent()");
   const account::AccountEvent* account_event =
       base::polymorphic_downcast<const account::AccountEvent*>(event);
   if (account_event->type() == account::AccountEvent::kSignedIn) {
@@ -604,6 +608,7 @@ void Application::OnAccountEvent(const base::Event* event) {
 }
 
 void Application::OnNetworkEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnNetworkEvent()");
   DCHECK(network_event_thread_checker_.CalledOnValidThread());
   const network::NetworkEvent* network_event =
       base::polymorphic_downcast<const network::NetworkEvent*>(event);
@@ -624,6 +629,7 @@ void Application::OnNetworkEvent(const base::Event* event) {
 }
 
 void Application::OnApplicationEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK(application_event_thread_checker_.CalledOnValidThread());
   const system_window::ApplicationEvent* app_event =
       base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
@@ -655,6 +661,7 @@ void Application::OnApplicationEvent(const base::Event* event) {
 }
 
 void Application::OnDeepLinkEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnDeepLinkEvent()");
   const base::DeepLinkEvent* deep_link_event =
       base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
   // TODO: Remove this when terminal application states are properly handled.
@@ -664,6 +671,7 @@ void Application::OnDeepLinkEvent(const base::Event* event) {
 }
 
 void Application::WebModuleRecreated() {
+  TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");
 #if defined(ENABLE_WEBDRIVER)
   if (web_driver_module_) {
     web_driver_module_->OnWindowRecreated();
@@ -745,6 +753,7 @@ void Application::UpdatePeriodicLiteStats() {
 }
 
 void Application::UpdatePeriodicStats() {
+  TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
 #if defined(__LB_SHELL__)
   bool memory_stats_updated = false;
 #if !defined(__LB_SHELL__FOR_RELEASE__)

@@ -25,6 +25,7 @@
 
 #include "base/at_exit.h"
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
 #include "cobalt/base/c_val.h"
@@ -48,6 +49,8 @@ const int32_t kPeriodicFontCachePurgeDelayMs = 900000;
 
 // NOTE: It is the responsibility of the caller to call Unref() on the SkData.
 SkData* NewDataFromFile(const SkString& file_path) {
+  TRACE_EVENT1("cobalt::renderer", "SkFontMgr_cobalt::NewDataFromFile()",
+               "file_path", TRACE_STR_COPY(file_path.c_str()));
   LOG(INFO) << "Loading font file: " << file_path.c_str();
 
   SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
@@ -159,6 +162,7 @@ class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
   }
 
   virtual SkStream* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+    TRACE_EVENT0("cobalt::renderer", "SkTypeface_CobaltSystem::onOpenStream()");
     *ttc_index = index_;
 
     // Scope the initial mutex lock.
@@ -175,6 +179,7 @@ class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
       }
     }
 
+    TRACE_EVENT0("cobalt::renderer", "Load data from file");
     // This is where the bulk of the time will be spent, so load the font data
     // outside of a mutex lock.
     SkAutoTUnref<SkData> data(NewDataFromFile(path_name_));
@@ -237,6 +242,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
       language_(family.language),
       page_ranges_(family.page_ranges),
       is_character_map_generated_(false) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt()");
   DCHECK(manager_owned_mutex_);
 
   if (family.names.count() == 0) {
@@ -371,6 +378,9 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
   // The character map is lazily generated. Generate it now if it isn't already
   // generated.
   if (!is_character_map_generated_) {
+    TRACE_EVENT0("cobalt::renderer",
+                 "SkFontStyleSet_Cobalt::ContainsCharacter() and "
+                 "!is_character_map_generated_");
     // Attempt to load the closest font style from the set. If it fails to load,
     // it will be removed from the set and, as long as font styles remain in the
     // set, the logic will be attempted again.
@@ -422,6 +432,7 @@ void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data) {
   if (is_character_map_generated_) {
     return;
   }
+  TRACE_EVENT0("cobalt::renderer", "GenerateCharacterMapFromData()");
 
   FT_Library freetype_lib;
   if (FT_Init_FreeType(&freetype_lib) != 0) {
@@ -476,6 +487,8 @@ int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
 
 void SkFontStyleSet_Cobalt::CreateSystemTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SkFontStyleSet_Cobalt::CreateSystemTypeface()");
   SkAutoTUnref<SkData> font_data(NewDataFromFile(style_entry->font_file_path));
   if (font_data != NULL) {
     CreateSystemTypefaceFromData(style_entry, font_data);
@@ -484,6 +497,8 @@ void SkFontStyleSet_Cobalt::CreateSystemTypeface(
 
 void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
     SkFontStyleSetEntry_Cobalt* style_entry, SkData* data) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData()");
   DCHECK(!style_entry->typeface);
 
   // Since the font data is available, generate the character map if this is a
@@ -582,13 +597,17 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* directory, const SkTArray<SkString, true>& default_fonts)
     : default_family_(NULL),
       last_font_cache_purge_time_(base::TimeTicks::Now()) {
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::SkFontMgr_Cobalt()");
   // Ensure that both the CValManager and SkFontMgrCVals are initialized. The
   // CValManager is created first as it must outlast the SkFontMgrCVals.
   base::CValManager::GetInstance();
   SkFontMgrCVals::GetInstance();
 
   SkTDArray<FontFamily*> font_families;
-  SkFontConfigParser::GetFontFamilies(directory, &font_families);
+  {
+    TRACE_EVENT0("cobalt::renderer", "SkFontConfigParser::GetFontFamilies()");
+    SkFontConfigParser::GetFontFamilies(directory, &font_families);
+  }
   BuildNameToFamilyMap(directory, &font_families);
   font_families.deleteAll();
 
@@ -807,6 +826,7 @@ SkTypeface* SkFontMgr_Cobalt::onCreateFromData(SkData* data,
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
                                                  int ttc_index) const {
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromStream()");
   bool is_fixed_pitch;
   SkTypeface::Style style;
   SkString name;
@@ -820,6 +840,7 @@ SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromFile(const char path[],
                                                int ttc_index) const {
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromFile()");
   SkAutoTUnref<SkStream> stream(SkStream::NewFromFile(path));
   return stream.get() ? createFromStream(stream, ttc_index) : NULL;
 }
@@ -838,6 +859,7 @@ SkTypeface* SkFontMgr_Cobalt::onLegacyCreateTypeface(
 
 void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
                                             SkTDArray<FontFamily*>* families) {
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::BuildNameToFamilyMap()");
   for (int i = 0; i < families->count(); i++) {
     FontFamily& family = *(*families)[i];
     bool named_font = family.names.count() > 0;
