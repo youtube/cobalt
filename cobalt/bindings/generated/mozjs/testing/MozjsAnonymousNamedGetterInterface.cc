@@ -86,7 +86,6 @@ namespace {
 
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
-  TRACE_EVENT0("cobalt::bindings", "IsSupportedNamedProperty");
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
   AnonymousNamedGetterInterface* impl =
