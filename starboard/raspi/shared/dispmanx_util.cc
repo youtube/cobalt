@@ -96,6 +96,22 @@ void DispmanxYUV420Resource::ClearWithBlack() {
   WriteData(data.get());
 }
 
+void DispmanxRGB565Resource::WriteData(const void* data) {
+  SB_DCHECK(handle() != DISPMANX_NO_HANDLE);
+
+  DispmanxRect dst_rect(0, 0, width(), height());
+  int32_t result =
+      vc_dispmanx_resource_write_data(handle(), VC_IMAGE_RGB565, width() * 2,
+                                      const_cast<void*>(data), &dst_rect);
+  SB_DCHECK(result == 0);
+}
+
+void DispmanxRGB565Resource::ClearWithBlack() {
+  scoped_array<uint8_t> data(new uint8_t[width() * height() * 2]);
+  SbMemorySet(data.get(), width() * height() * 2, 0);
+  WriteData(data.get());
+}
+
 DispmanxElement::DispmanxElement(const DispmanxDisplay& display,
                                  int32_t layer,
                                  const DispmanxRect& dest_rect,
@@ -121,9 +137,11 @@ void DispmanxElement::ChangeSource(const DispmanxResource& new_src) {
 }
 
 DispmanxVideoRenderer::DispmanxVideoRenderer(const DispmanxDisplay& display,
-                                             int32_t layer) {
+                                             int32_t layer)
+    : black_frame_(256, 256, 256, 256) {
+  black_frame_.ClearWithBlack();
   element_.reset(new DispmanxElement(display, layer, DispmanxRect(),
-                                     DispmanxResource(), DispmanxRect()));
+                                     black_frame_, DispmanxRect()));
 }
 
 void DispmanxVideoRenderer::Update(
@@ -135,7 +153,7 @@ void DispmanxVideoRenderer::Update(
   }
 
   if (video_frame->IsEndOfStream()) {
-    element_->ChangeSource(DispmanxResource());
+    element_->ChangeSource(black_frame_);
     frame_ = video_frame;
     return;
   }
