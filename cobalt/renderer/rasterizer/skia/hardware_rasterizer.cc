@@ -20,6 +20,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
@@ -234,6 +235,13 @@ void HardwareRasterizer::Impl::Submit(
 
   if (options.flags & Rasterizer::kSubmitFlags_Clear) {
     canvas->clear(SkColorSetARGB(0, 0, 0, 0));
+  } else if (options.dirty) {
+    // Only a portion of the display is dirty. Reuse the previous frame
+    // if possible.
+    if (render_target_egl->IsContentPreservedOnSwap() &&
+        render_target_egl->swap_count() >= 3) {
+      canvas->clipRect(CobaltRectFToSkiaRect(*options.dirty));
+    }
   }
 
   {
