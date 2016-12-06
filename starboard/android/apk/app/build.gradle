@@ -1,20 +1,110 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 apply plugin: 'com.android.application'
+
+// Maps the Android build type to the Cobalt build configuration type
+final COBALT_BUILD_TYPE_MAP = [
+    debug  : 'devel',
+    release: 'qa',
+]
+
+// Maps the Android ABI to the Cobalt target architecture
+final COBALT_ARCH_MAP = [
+    //'x86'        : 'x86',
+    'x86_64'     : 'x64',
+    //'armeabi'    : 'arm',
+    //'armeabi-v7a': 'arm7',
+    //'arm64-v8a'  : 'arm64',
+]
+
+// Being typed as a String[] makes this usable for varargs methods
+final String[] COBALT_ABIS = COBALT_ARCH_MAP.keySet()
 
 android {
     compileSdkVersion 25
-    buildToolsVersion "25.0.0"
+    buildToolsVersion "25.0.1"
     defaultConfig {
         applicationId "foo.cobalt.coat"
         minSdkVersion 21
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
+        ndk {
+          abiFilters COBALT_ABIS
+        }
+    }
+    splits {
+      abi {
+        enable true
+        reset()
+        include COBALT_ABIS
+      }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+    externalNativeBuild {
+        cmake {
+            path 'CMakeLists.txt'
+        }
+    }
+}
+
+// Rollup tasks for each build type, which will depend on copy tasks for each ABI.
+task copyCobaltDebug
+task copyCobaltRelease
+
+// NDK build depends on Cobalt libraries being built and copied into the build directory.
+// (NDK tasks are created dynamically, so hook dependencies when they're added)
+tasks.whenTaskAdded {
+    Task copyTask = [
+        'externalNativeBuildDebug': copyCobaltDebug,
+        'externalNativeBuildRelease': copyCobaltRelease,
+    ].get(it.name)
+    if (copyTask) {
+        it.dependsOn copyTask
+    }
+}
+
+COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
+    // Add a build directory for each buildType to the Android JNI sourceSets to hold libcobalt.so
+    // so that it can be included in the APK (the assemble task will pick up all the ABIs it holds).
+    // This is also the IMPORTED_LOCATION for the shared library during the CMake build of the
+    // native JNI code that calls into it. The capitalized buildType matches CMAKE_BUILD_TYPE.
+    def cobaltBuildDir = "build/cobalt/${buildType.capitalize()}"
+    android.sourceSets.getByName(buildType).jniLibs.srcDir cobaltBuildDir
+
+    // Add build/copy tasks for each (buildType, abi) tuple to produce the Cobalt native library.
+    COBALT_ARCH_MAP.each { abi, arch  ->
+        def cobaltNinjaDir = "../../../../out/android-${arch}_${configType}"
+        def buildTaskName = "buildCobalt${abi.capitalize()}${buildType.capitalize()}"
+        task (buildTaskName, type: Exec) {
+            commandLine 'sh', '../cobalt-ninja.sh', '-C', cobaltNinjaDir, 'cobalt'
+        }
+
+        def copyTaskName = "copyCobalt${abi.capitalize()}${buildType.capitalize()}"
+        task (copyTaskName, type: Copy, dependsOn: buildTaskName) {
+            from "${cobaltNinjaDir}/lib"
+            into "${cobaltBuildDir}/${abi}"
+            include 'libcobalt.so'
+        }
+        // The rollup copy task depends on each abi copy task.
+        tasks.getByName("copyCobalt${buildType.capitalize()}").dependsOn copyTaskName
     }
 }
 

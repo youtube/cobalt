@@ -1,4 +1,5 @@
 *.iml
+.cobaltrc
 .gradle
 /local.properties
 /.idea
@@ -6,3 +7,5 @@
 /build
 /captures
 .externalNativeBuild
+CMakeCache.txt
+CMakeFiles/
