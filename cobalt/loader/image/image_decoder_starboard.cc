@@ -38,17 +38,25 @@ ImageDecoderStarboard::ImageDecoderStarboard(
       mime_type_(mime_type),
       format_(format),
       provider_(resource_provider->GetSbDecodeTargetProvider()),
-      target_(kSbDecodeTargetInvalid) {}
+      target_(kSbDecodeTargetInvalid) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "ImageDecoderStarboard::ImageDecoderStarboard()");
+}
 
 ImageDecoderStarboard::~ImageDecoderStarboard() {}
 
 size_t ImageDecoderStarboard::DecodeChunkInternal(const uint8* data,
                                                   size_t input_byte) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "ImageDecoderStarboard::DecodeChunkInternal()");
+
   buffer_.insert(buffer_.end(), data, data + input_byte);
   return input_byte;
 }
 
 void ImageDecoderStarboard::FinishInternal() {
+  TRACE_EVENT0("cobalt::loader::image",
+               "ImageDecoderStarboard::FinishInternal()");
   DCHECK(!buffer_.empty());
   DCHECK(SbImageIsDecodeSupported(mime_type_, format_));
   target_ =
