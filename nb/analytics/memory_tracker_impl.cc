@@ -18,6 +18,7 @@
 
 #include <cstring>
 #include <iomanip>
+#include <iterator>
 #include <sstream>
 
 #include "nb/atomic.h"
@@ -66,8 +67,10 @@ std::string RemoveString(const std::string& haystack, const char* needle) {
   output.reserve(haystack.size());
 
   // Copy string, omitting the portion containing the "needle".
-  std::copy(haystack.begin(), haystack.begin() + pos, back_inserter(output));
-  std::copy(haystack.begin() + pos + n, haystack.end(), back_inserter(output));
+  std::copy(haystack.begin(), haystack.begin() + pos,
+            std::back_inserter(output));
+  std::copy(haystack.begin() + pos + n, haystack.end(),
+            std::back_inserter(output));
 
   // Recursively remove same needle in haystack.
   return RemoveString(output, needle);
