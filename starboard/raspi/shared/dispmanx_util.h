@@ -107,6 +107,22 @@ class DispmanxYUV420Resource : public DispmanxResource {
   void ClearWithBlack();
 };
 
+class DispmanxRGB565Resource : public DispmanxResource {
+ public:
+  DispmanxRGB565Resource(uint32_t width,
+                         uint32_t height,
+                         uint32_t visible_width,
+                         uint32_t visible_height)
+      : DispmanxResource(VC_IMAGE_RGB565,
+                         width,
+                         height,
+                         visible_width,
+                         visible_height) {}
+
+  void WriteData(const void* data);
+  void ClearWithBlack();
+};
+
 class DispmanxElement {
  public:
   DispmanxElement(const DispmanxDisplay& display,
@@ -136,6 +152,10 @@ class DispmanxVideoRenderer {
  private:
   scoped_ptr<DispmanxElement> element_;
   scoped_refptr<VideoFrame> frame_;
+
+  // Used to fill the background with black if no video is playing so that the
+  // console does not show through.
+  DispmanxRGB565Resource black_frame_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(DispmanxVideoRenderer);
 };
