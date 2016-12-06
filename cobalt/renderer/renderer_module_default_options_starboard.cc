@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
+#include "base/debug/trace_event.h"
 #include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
@@ -30,6 +31,7 @@ namespace {
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
+  TRACE_EVENT0("cobalt::renderer", "CreateRasterizer");
 #if COBALT_FORCE_STUB_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(new rasterizer::stub::Rasterizer());
 #else
