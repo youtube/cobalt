@@ -74,9 +74,6 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       submission_disposal_thread_("Rasterizer Submission Disposal"),
       submit_even_if_render_tree_is_unchanged_(
           submit_even_if_render_tree_is_unchanged),
-      rasterize_current_tree_interval_timer_(
-          "Renderer.Rasterize.Interval",
-          kRasterizeCurrentTreeTimerTimeIntervalInMs),
       rasterize_current_tree_timer_("Renderer.Rasterize.Duration",
                                     kRasterizeCurrentTreeTimerTimeIntervalInMs)
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -239,7 +236,6 @@ void Pipeline::RasterizeCurrentTree() {
     return;
   }
 
-  rasterize_current_tree_interval_timer_.Start(now);
   rasterize_current_tree_timer_.Start(now);
 
   // Rasterize the last submitted render tree.
