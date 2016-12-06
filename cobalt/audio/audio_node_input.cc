@@ -197,6 +197,7 @@ void AudioNodeInput::Connect(AudioNodeOutput* output) {
 
   output->AddInput(this);
   outputs_.insert(output);
+  owner_node_->OnInputNodeConnected();
 }
 
 void AudioNodeInput::Disconnect(AudioNodeOutput* output) {
