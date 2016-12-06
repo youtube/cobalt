@@ -54,6 +54,16 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
   surface_ = eglCreateWindowSurface(display_, config_, native_window_, NULL);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 
+  // Configure the surface to preserve contents on swap.
+  EGLBoolean surface_attrib_set =
+      eglSurfaceAttrib(display_, surface_,
+                       EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
+  // NOTE: Must check eglGetError() to clear any error flags and also check
+  // the return value of eglSurfaceAttrib since some implementations may not
+  // set the error condition.
+  content_preserved_on_swap_ =
+      eglGetError() == EGL_SUCCESS && surface_attrib_set == EGL_TRUE;
+
   // Query and cache information about the surface now that we have created it.
   EGLint egl_surface_width;
   EGLint egl_surface_height;
