@@ -737,18 +737,11 @@ void RenderTreeNodeVisitor::Visit(
   SkRect sk_rect_transformed;
   total_matrix.mapRect(&sk_rect_transformed, sk_rect);
 
-  if (punch_through_video_node->data().set_bounds_cb.is_null()) {
-    return;
-  }
-  bool render_punch_through =
-      punch_through_video_node->data().set_bounds_cb.Run(
-          math::Rect(static_cast<int>(sk_rect_transformed.x()),
-                     static_cast<int>(sk_rect_transformed.y()),
-                     static_cast<int>(sk_rect_transformed.width()),
-                     static_cast<int>(sk_rect_transformed.height())));
-  if (!render_punch_through) {
-    return;
-  }
+  punch_through_video_node->data().set_bounds_cb.Run(
+      math::Rect(static_cast<int>(sk_rect_transformed.x()),
+                 static_cast<int>(sk_rect_transformed.y()),
+                 static_cast<int>(sk_rect_transformed.width()),
+                 static_cast<int>(sk_rect_transformed.height())));
 
   SkPaint paint;
   paint.setXfermodeMode(SkXfermode::kSrc_Mode);
