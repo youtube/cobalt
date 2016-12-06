@@ -56,10 +56,6 @@ static SB_C_INLINE bool SbConditionVariableIsSignaled(
 // placing the newly created condition variable in |out_condition|.
 //
 // The return value indicates whether the condition variable could be created.
-//
-// TODO: It looks like WTF does not have the mutex available when creating
-// the condition variable, and pthreads doesn't appear to require the mutex on
-// condvar creation, so we should just remove the parameter.
 SB_EXPORT bool SbConditionVariableCreate(SbConditionVariable* out_condition,
                                          SbMutex* opt_mutex);
 
