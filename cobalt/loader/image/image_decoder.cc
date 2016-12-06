@@ -99,6 +99,7 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
       failure_callback_(failure_callback),
       error_callback_(error_callback),
       state_(kWaitingForHeader) {
+  TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::ImageDecoder()");
   signature_cache_.position = 0;
 
   if (!resource_provider_) {
@@ -109,6 +110,7 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
 LoadResponseType ImageDecoder::OnResponseStarted(
     Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
   UNREFERENCED_PARAMETER(fetcher);
+  TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::OnResponseStarted()");
 
   if (state_ == kSuspended) {
     DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
@@ -202,6 +204,7 @@ void ImageDecoder::Finish() {
 }
 
 bool ImageDecoder::Suspend() {
+  TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::Suspend()");
   if (state_ == kDecoding) {
     DCHECK(decoder_);
     decoder_.reset();
@@ -213,6 +216,7 @@ bool ImageDecoder::Suspend() {
 }
 
 void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::Resume()");
   if (state_ != kSuspended) {
     DCHECK_EQ(resource_provider_, resource_provider);
     return;
@@ -227,6 +231,7 @@ void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
 }
 
 void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
+  TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::DecodeChunkInternal()");
   switch (state_) {
     case kWaitingForHeader: {
       size_t consumed_size = 0;
@@ -263,6 +268,8 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
 bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
                                              size_t size,
                                              size_t* consumed_size) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "ImageDecoder::InitializeInternalDecoder()");
   const size_t index = signature_cache_.position;
   size_t fill_size = std::min(kLengthOfLongestSignature - index, size);
   memcpy(signature_cache_.data + index, input_bytes, fill_size);
