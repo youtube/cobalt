@@ -34,6 +34,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
+#include "cobalt/browser/memory_tracker_tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/loader/image/image_decoder.h"
@@ -52,8 +53,6 @@
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 #if defined(OS_STARBOARD)
-#include "nb/analytics/memory_tracker.h"
-#include "nb/analytics/memory_tracker_impl.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #endif  // defined(OS_STARBOARD)
@@ -292,7 +291,6 @@ struct NonTrivialStaticFields {
 // accessed.
 base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
     LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
 
 // Static user logs
@@ -442,18 +440,9 @@ Application::Application(const base::Closure& quit_closure)
     options.media_module_options.use_video_decoder_stub = true;
   }
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
-#if defined(OS_STARBOARD)
-    using nb::analytics::MemoryTrackerPrintThread;
-    using nb::analytics::MemoryTracker;
-
-    DLOG(INFO) << "Using MemoryTracking";
-    MemoryTracker* memory_tracker = MemoryTracker::Get();
-    memory_tracker->InstallGlobalTrackingHooks();
-    memory_tracker_print_thread_ = CreateDebugPrintThread(memory_tracker);
-#else
-    DLOG(INFO)
-        << "Memory tracker is not enabled on non-starboard builds.";
-#endif
+    std::string command_arg =
+        command_line->GetSwitchValueASCII(switches::kMemoryTracker);
+    memory_tracker_tool_ = CreateMemoryTrackerTool(command_arg);
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
@@ -557,13 +546,12 @@ Application::Application(const base::Closure& quit_closure)
 }
 
 Application::~Application() {
-#if defined(OS_STARBOARD)
   // explicitly reset here because the destruction of the object is complex
   // and involves a thread join. If this were to hang the app then having
   // the destruction at this point gives a real file-line number and a place
   // for the debugger to land.
-  memory_tracker_print_thread_.reset(NULL);
-#endif
+  memory_tracker_tool_.reset(NULL);
+
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
                                         account_event_callback_);
