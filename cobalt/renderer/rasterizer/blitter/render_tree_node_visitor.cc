@@ -302,16 +302,10 @@ void RenderTreeNodeVisitor::Visit(
       RectFToBlitterRect(render_state_.transform.TransformRect(
           punch_through_video_node->data().rect));
 
-  if (punch_through_video_node->data().set_bounds_cb.is_null()) {
-    return;
-  }
-  bool render_punch_through =
-      punch_through_video_node->data().set_bounds_cb.Run(
-          math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
-                     blitter_rect.height));
-  if (!render_punch_through) {
-    return;
-  }
+  punch_through_video_node->data().set_bounds_cb.Run(
+      math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
+                 blitter_rect.height));
+
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
   SbBlitterSetBlending(context_, false);
   SbBlitterFillRect(context_, blitter_rect);
