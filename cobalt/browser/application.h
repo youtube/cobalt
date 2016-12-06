@@ -23,6 +23,7 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
+#include "cobalt/browser/memory_tracker_tool.h"
 #include "cobalt/system_window/system_window.h"
 
 #if defined(ENABLE_WEBDRIVER)
@@ -31,11 +32,6 @@
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 #include "cobalt/debug/debug_web_server.h"
-#endif
-
-#if defined(OS_STARBOARD)
-#include "nb/analytics/memory_tracker.h"
-#include "nb/scoped_ptr.h"
 #endif
 
 namespace cobalt {
@@ -179,12 +175,7 @@ class Application {
   base::Timer stats_update_timer_;
   base::Timer lite_stats_update_timer_;
 
-#if defined(OS_STARBOARD)
-  // This thread (when active) will print out memory statistics of the engine.
-  // It is activated by the command line -memory_tracker.
-  nb::scoped_ptr<nb::analytics::MemoryTrackerPrintThread>
-      memory_tracker_print_thread_;
-#endif
+  scoped_ptr<MemoryTrackerTool> memory_tracker_tool_;
 };
 
 // Factory method for creating an application.  It should be implemented

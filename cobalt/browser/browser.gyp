@@ -29,6 +29,8 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
+        'memory_tracker_tool.cc',
+        'memory_tracker_tool.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
         'resource_provider_array_buffer_allocator.cc',
