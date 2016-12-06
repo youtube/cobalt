@@ -51,9 +51,7 @@ SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
   window_ = new SbWindowPrivate(*display_, options);
   input_ = DevInput::Create(window_);
 
-  // Create the dispmanx element to display video frames.
-  int result = 0;
-  uint32_t vc_image_ptr;
+  video_renderer_.reset(new DispmanxVideoRenderer(*display_, kVideoLayer));
 
   return window_;
 }
@@ -91,9 +89,6 @@ void ApplicationDispmanx::AcceptFrame(SbPlayer player,
                                       int y,
                                       int width,
                                       int height) {
-  if (!video_renderer_) {
-    video_renderer_.reset(new DispmanxVideoRenderer(*display_, kVideoLayer));
-  }
   video_renderer_->Update(frame);
 }
 
