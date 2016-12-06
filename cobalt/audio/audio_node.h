@@ -111,6 +111,9 @@ class AudioNode : public dom::EventTarget {
   // Disconnects an AudioNode's output.
   void Disconnect(uint32 output, script::ExceptionState* exception_state);
 
+  // Called when a new input node has been connected.
+  virtual void OnInputNodeConnected() {}
+
   // TODO: Support wrapping ShellAudioBus into another ShellAudioBus.
   virtual scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
       int32 number_of_frames, SampleType sample_type) = 0;
