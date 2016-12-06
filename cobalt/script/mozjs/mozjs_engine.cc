@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
@@ -101,6 +102,7 @@ bool DummyPreserveWrapperCallback(JSContext *cx, JSObject *obj) {
 }  // namespace
 
 MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
   runtime_ =
@@ -147,11 +149,13 @@ MozjsEngine::~MozjsEngine() {
 }
 
 scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
   return new MozjsGlobalEnvironment(runtime_);
 }
 
 void MozjsEngine::CollectGarbage() {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::CollectGarbage()");
   DCHECK(thread_checker_.CalledOnValidThread());
   JS_GC(runtime_);
 }
@@ -196,15 +200,18 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
     if (status == JSGC_BEGIN) {
+      TRACE_EVENT_BEGIN0("cobalt::script", "SpiderMonkey Garbage Collection");
       global_environment->BeginGarbageCollection();
     } else if (status == JSGC_END) {
       global_environment->EndGarbageCollection();
+      TRACE_EVENT_END0("cobalt::script", "SpiderMonkey Garbage Collection");
     }
   }
 }
 
 void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                    JSBool is_compartment) {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::FinalizeCallback()");
   MozjsEngine* engine =
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(free_op->runtime()));
   DCHECK(engine->thread_checker_.CalledOnValidThread());
@@ -220,6 +227,7 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
 }  // namespace mozjs
 
 scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine() {
+  TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine());
 }
 
