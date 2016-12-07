@@ -103,6 +103,15 @@ math::Size SystemWindowStarboard::GetWindowSize() const {
   return math::Size(window_size.width, window_size.height);
 }
 
+float SystemWindowStarboard::GetVideoPixelRatio() const {
+  SbWindowSize window_size;
+  if (!SbWindowGetSize(window_, &window_size)) {
+    DLOG(WARNING) << "SbWindowGetSize() failed.";
+    return 1.0;
+  }
+  return window_size.video_pixel_ratio;
+}
+
 SbWindow SystemWindowStarboard::GetSbWindow() { return window_; }
 
 void* SystemWindowStarboard::GetWindowHandle() {

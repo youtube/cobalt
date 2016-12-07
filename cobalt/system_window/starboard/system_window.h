@@ -36,6 +36,7 @@ class SystemWindowStarboard : public SystemWindow {
   ~SystemWindowStarboard() OVERRIDE;
 
   math::Size GetWindowSize() const OVERRIDE;
+  float GetVideoPixelRatio() const OVERRIDE;
 
   // Returns a handle to the Starboard window object.
   SbWindow GetSbWindow();
