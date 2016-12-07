@@ -17,6 +17,10 @@
 #include <algorithm>  // for std::max
 #include <fcntl.h>
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#endif
+
 #ifdef XP_UNIX
 # include <unistd.h>
 #endif
@@ -762,6 +766,8 @@ GenerateSeed()
         read(fd, static_cast<void*>(&seed), sizeof(seed));
         close(fd);
     }
+#elif defined(STARBOARD)
+    seed = SbSystemGetRandomUInt64();
 #else
 # error "Platform needs to implement GenerateSeed()"
 #endif

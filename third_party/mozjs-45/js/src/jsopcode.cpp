@@ -10,8 +10,6 @@
 
 #include "jsopcodeinlines.h"
 
-#define __STDC_FORMAT_MACROS
-
 #include "mozilla/SizePrintfMacros.h"
 
 #include <algorithm>

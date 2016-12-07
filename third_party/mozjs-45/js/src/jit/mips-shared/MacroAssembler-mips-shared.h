@@ -11,6 +11,9 @@
 # include "jit/mips32/Assembler-mips32.h"
 #endif
 
+// Unified leak fix:
+#include "jit/AtomicOp.h"
+
 namespace js {
 namespace jit {
 
