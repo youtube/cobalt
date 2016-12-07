@@ -747,6 +747,57 @@ DeallocateMappedContent(void* p, size_t length)
         MOZ_ASSERT(errno == ENOMEM);
 }
 
+#elif defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
+#undef MAP_FAILED
+#define MAP_FAILED SB_MEMORY_MAP_FAILED
+
+void InitMemorySubsystem(){
+    pageSize = SB_MEMORY_PAGE_SIZE;
+    allocGranularity = SB_MEMORY_PAGE_SIZE;
+}
+
+void* MapAlignedPages(size_t size, size_t alignment){
+    MOZ_ASSERT(size >= alignment);
+    MOZ_ASSERT(size % alignment == 0);
+    MOZ_ASSERT(size % pageSize == 0);
+    MOZ_ASSERT(alignment % allocGranularity == 0);
+
+    void* p = SbMemoryMap(size, kSbMemoryMapProtectReadWrite, NULL);
+    if (p == SB_MEMORY_MAP_FAILED) {
+        return nullptr;
+    }
+    return p;
+}
+void UnmapPages(void* p, size_t size){
+    SB_DCHECK(size <= kSbInt64Max);
+    int64_t size_as_int64_t = static_cast<int64_t>(size);
+    SbMemoryUnmap(p, size);
+}
+bool MarkPagesUnused(void* p, size_t size){
+    return true;
+}
+bool MarkPagesInUse(void* p, size_t size){
+    return true;
+}
+size_t GetPageFaultCount(){
+    return 0u;
+}
+void* AllocateMappedContent(int fd, size_t offset, size_t length, size_t alignment){
+    SB_NOTREACHED();
+    return NULL;
+}
+void DeallocateMappedContent(void* p, size_t length){
+    SB_NOTREACHED();
+}
+/* static */
+void* MapAlignedPagesLastDitch(size_t size, size_t alignment) {
+    SB_NOTREACHED();
+    return NULL;
+}
+
 #else
 #error "Memory mapping functions are not defined for your OS."
 #endif

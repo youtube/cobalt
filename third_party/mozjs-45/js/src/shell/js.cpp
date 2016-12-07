@@ -93,6 +93,22 @@
 #include "vm/Interpreter-inl.h"
 #include "vm/Stack-inl.h"
 
+// Unified leak fix:
+#include "jsshell.h"
+
+#if defined(STARBOARD)
+
+#if !defined(PATH_MAX)
+#include "starboard/configuration.h"
+#define PATH_MAX (SB_FILE_MAX_PATH + 1)
+#endif
+
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/memory.h"
+
+#endif
+
+
 using namespace js;
 using namespace js::cli;
 using namespace js::shell;
@@ -105,6 +121,9 @@ using mozilla::NumberEqualsInt32;
 using mozilla::PodCopy;
 using mozilla::PodEqual;
 using mozilla::UniquePtr;
+
+// Unified leak fix:
+using namespace JS;
 
 enum JSShellExitCode {
     EXITCODE_RUNTIME_ERROR      = 3,
@@ -3830,7 +3849,9 @@ NestedShell(JSContext* cx, unsigned argc, Value* vp)
         return false;
 
     int status = 0;
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+    return false;
+#elif defined(XP_WIN)
     if (!EscapeForShell(argv))
         return false;
     status = _spawnv(_P_WAIT, sArgv[0], argv.get());
@@ -5778,6 +5799,13 @@ ShellOpenAsmJSCacheEntryForRead(HandleObject global, const char16_t* begin, cons
                                 size_t* serializedSizeOut, const uint8_t** memoryOut,
                                 intptr_t* handleOut)
 {
+    // Starboard does not support memory mapped files, so this function is
+    // stubbed when running on top of starboard, as if |jsCachingEnabled| was
+    // set to false.
+#if defined(STARBOARD)
+    return false;
+#else  // defined(STARBOARD)
+
     if (!jsCachingEnabled || !jsCacheAsmJSPath)
         return false;
 
@@ -5790,9 +5818,7 @@ ShellOpenAsmJSCacheEntryForRead(HandleObject global, const char16_t* begin, cons
     if (off == -1 || off < (off_t)sizeof(uint32_t))
         return false;
 
-    // Map the file into memory.
-    void* memory;
-#ifdef XP_WIN
+#if defined(XP_WIN)
     HANDLE fdOsHandle = (HANDLE)_get_osfhandle(fd);
     HANDLE fileMapping = CreateFileMapping(fdOsHandle, nullptr, PAGE_READWRITE, 0, 0, nullptr);
     if (!fileMapping)
@@ -5810,7 +5836,7 @@ ShellOpenAsmJSCacheEntryForRead(HandleObject global, const char16_t* begin, cons
 
     // Perform check described by asmJSCacheCookie comment.
     if (*(uint32_t*)memory != asmJSCacheCookie) {
-#ifdef XP_WIN
+#if defined(XP_WIN)
         UnmapViewOfFile(memory);
 #else
         munmap(memory, off);
@@ -5824,17 +5850,22 @@ ShellOpenAsmJSCacheEntryForRead(HandleObject global, const char16_t* begin, cons
     *memoryOut = (uint8_t*)memory + sizeof(uint32_t);
     *handleOut = fd.forget();
     return true;
+#endif  // defined(STARBOARD)
 }
 
 static void
 ShellCloseAsmJSCacheEntryForRead(size_t serializedSize, const uint8_t* memory, intptr_t handle)
 {
+#if defined(STARBOARD)
+    return;
+#else  // defined(STARBOARD)
+
     // Undo the cookie adjustment done when opening the file.
     memory -= sizeof(uint32_t);
     serializedSize += sizeof(uint32_t);
 
     // Release the memory mapping and file.
-#ifdef XP_WIN
+#if defined(XP_WIN)
     UnmapViewOfFile(const_cast<uint8_t*>(memory));
 #else
     munmap(const_cast<uint8_t*>(memory), serializedSize);
@@ -5843,6 +5874,7 @@ ShellCloseAsmJSCacheEntryForRead(size_t serializedSize, const uint8_t* memory, i
     MOZ_ASSERT(jsCacheOpened == true);
     jsCacheOpened = false;
     close(handle);
+#endif  // defined(STARBOARD)
 }
 
 static JS::AsmJSCacheResult
@@ -5850,6 +5882,10 @@ ShellOpenAsmJSCacheEntryForWrite(HandleObject global, bool installed,
                                  const char16_t* begin, const char16_t* end,
                                  size_t serializedSize, uint8_t** memoryOut, intptr_t* handleOut)
 {
+#if defined(STARBOARD)
+    return JS::AsmJSCache_Disabled_ShellFlags;
+#else  // defined(STARBOARD)
+
     if (!jsCachingEnabled || !jsCacheAsmJSPath)
         return JS::AsmJSCache_Disabled_ShellFlags;
 
@@ -5890,7 +5926,7 @@ ShellOpenAsmJSCacheEntryForWrite(HandleObject global, bool installed,
 
     // Map the file into memory.
     void* memory;
-#ifdef XP_WIN
+#if defined(XP_WIN)
     HANDLE fdOsHandle = (HANDLE)_get_osfhandle(fd);
     HANDLE fileMapping = CreateFileMapping(fdOsHandle, nullptr, PAGE_READWRITE, 0, 0, nullptr);
     if (!fileMapping)
@@ -5912,17 +5948,22 @@ ShellOpenAsmJSCacheEntryForWrite(HandleObject global, bool installed,
     *memoryOut = (uint8_t*)memory + sizeof(uint32_t);
     *handleOut = fd.forget();
     return JS::AsmJSCache_Success;
+#endif  // defined(STARBOARD)
 }
 
 static void
 ShellCloseAsmJSCacheEntryForWrite(size_t serializedSize, uint8_t* memory, intptr_t handle)
 {
+#if defined(STARBOARD)
+    return;
+#else  // defined(STARBOARD)
+
     // Undo the cookie adjustment done when opening the file.
     memory -= sizeof(uint32_t);
     serializedSize += sizeof(uint32_t);
 
     // Write the magic cookie value after flushing the entire cache entry.
-#ifdef XP_WIN
+#if defined(XP_WIN)
     FlushViewOfFile(memory, serializedSize);
     FlushFileBuffers(HANDLE(_get_osfhandle(handle)));
 #else
@@ -5933,7 +5974,7 @@ ShellCloseAsmJSCacheEntryForWrite(size_t serializedSize, uint8_t* memory, intptr
     *(uint32_t*)memory = asmJSCacheCookie;
 
     // Free the memory mapping and file.
-#ifdef XP_WIN
+#if defined(XP_WIN)
     UnmapViewOfFile(const_cast<uint8_t*>(memory));
 #else
     munmap(memory, serializedSize);
@@ -5942,6 +5983,7 @@ ShellCloseAsmJSCacheEntryForWrite(size_t serializedSize, uint8_t* memory, intptr
     MOZ_ASSERT(jsCacheOpened == true);
     jsCacheOpened = false;
     close(handle);
+#endif  // defined(STARBOARD)
 }
 
 static bool

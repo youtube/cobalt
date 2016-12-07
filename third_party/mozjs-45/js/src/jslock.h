@@ -7,7 +7,11 @@
 #ifndef jslock_h
 #define jslock_h
 
-#ifdef JS_POSIX_NSPR
+#if defined(STARBOARD)
+
+#include "starboard/client_porting/pr_starboard/pr_starboard.h"
+
+#elif defined(JS_POSIX_NSPR)
 
 #include "vm/PosixNSPR.h"
 

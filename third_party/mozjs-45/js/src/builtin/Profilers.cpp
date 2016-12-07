@@ -8,6 +8,9 @@
 
 #include "builtin/Profilers.h"
 
+// Unified leak fix:
+#include "builtin/ModuleObject.h"
+
 #include <stdarg.h>
 
 #ifdef MOZ_CALLGRIND
