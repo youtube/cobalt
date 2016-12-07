@@ -51,7 +51,7 @@ def ConvertSingleFile(filename, output_filename):
   messages = root[0]
 
   # Write each message to the output file on its own line.
-  with open(output_filename, 'w') as output_file:
+  with open(output_filename, 'wb') as output_file:
     for msg in messages:
       # Use ; as the separator. Which means it better not be in the name.
       assert not (';' in msg.attrib['name'])
