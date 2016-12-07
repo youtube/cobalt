@@ -9,7 +9,16 @@
 
 #define JS_HAVE_LONG_LONG
 
-#if defined(_WIN64)
+#if defined(STARBOARD)
+# include "starboard/configuration.h"
+# if SB_IS(BIG_ENDIAN)
+#  define IS_BIG_ENDIAN 1
+#  undef IS_LITTLE_ENDIAN
+# else
+#  define IS_LITTLE_ENDIAN 1
+#  undef IS_BIG_ENDIAN
+# endif
+#elif defined(_WIN64)
 
 # if defined(_M_X64) || defined(_M_AMD64) || defined(_AMD64_)
 #  define IS_LITTLE_ENDIAN 1
