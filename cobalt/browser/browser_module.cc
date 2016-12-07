@@ -172,8 +172,17 @@ BrowserModule::BrowserModule(const GURL& url,
   // All allocations for media will be tracked by "Media" memory scope.
   {
     TRACK_MEMORY_SCOPE("Media");
+    math::Size output_size = renderer_module_.render_target()->GetSize();
+    if (system_window->GetVideoPixelRatio() != 1.f) {
+      output_size.set_width(
+          static_cast<int>(static_cast<float>(output_size.width()) *
+                           system_window->GetVideoPixelRatio()));
+      output_size.set_height(
+          static_cast<int>(static_cast<float>(output_size.height()) *
+                           system_window->GetVideoPixelRatio()));
+    }
     media_module_ = (media::MediaModule::Create(
-        system_window, renderer_module_.render_target()->GetSize(),
+        system_window, output_size,
         renderer_module_.pipeline()->GetResourceProvider(),
         options.media_module_options));
   }
