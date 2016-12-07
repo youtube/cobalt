@@ -169,6 +169,10 @@ PRUint32 PR_snprintf(char* out, PRUint32 outlen, const char* fmt, ...);
 
 PRIntervalTime PR_MillisecondsToInterval(PRUint32 milli);
 
+static inline PRIntervalTime PR_MicrosecondsToInterval(PRUint32 micro) {
+  return (micro + 999) / 1000;
+}
+
 PRUint32 PR_IntervalToMicroseconds(PRIntervalTime ticks);
 
 struct PRCallOnceType {};
