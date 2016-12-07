@@ -20,6 +20,9 @@
 #include "jscntxtinlines.h"
 #include "jsgcinlines.h"
 
+// Unified leak fix:
+#include "builtin/ModuleObject.h"
+
 using namespace js;
 using namespace js::gc;
 

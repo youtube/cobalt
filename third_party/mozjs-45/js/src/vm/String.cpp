@@ -19,6 +19,9 @@
 #include "jscntxtinlines.h"
 #include "jscompartmentinlines.h"
 
+// Unified leak fix:
+#include "builtin/ModuleObject.h"
+
 using namespace js;
 
 using mozilla::IsSame;
