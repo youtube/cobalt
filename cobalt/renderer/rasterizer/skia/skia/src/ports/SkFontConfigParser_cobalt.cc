@@ -300,7 +300,7 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         break;
       case 15:
         if (strncmp("postscript_name", name, 15) == 0) {
-          file->postcript_name = value;
+          file->postscript_name = value;
           seen_attributes_flag |= kSeenFontPostscriptName;
           continue;
         }
@@ -341,7 +341,7 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
   DCHECK_EQ(seen_attributes_flag, kSeenFontFullName | kSeenFontPostscriptName |
                                       kSeenWeight | kSeenStyle);
   DCHECK(!file->full_font_name.isEmpty());
-  DCHECK(!file->postcript_name.isEmpty());
+  DCHECK(!file->postscript_name.isEmpty());
 }
 
 FontFamily* FindFamily(FamilyData* family_data, const char* family_name) {
