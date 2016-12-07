@@ -177,14 +177,13 @@ HardwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
   SkFontMgr_Cobalt* font_manager =
       base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager_.get());
 
-  SkTypeface* typeface = font_manager->matchFaceNameOnlyIfFound(font_face_name);
-  SkiaTypeface* skia_type_face = NULL;
+  SkTypeface* typeface = font_manager->matchFaceName(font_face_name);
   if (typeface != NULL) {
     SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
-    skia_type_face = new SkiaTypeface(typeface);
+    return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
   }
 
-  return scoped_refptr<render_tree::Typeface>(skia_type_face);
+  return NULL;
 }
 
 scoped_refptr<render_tree::Typeface>
