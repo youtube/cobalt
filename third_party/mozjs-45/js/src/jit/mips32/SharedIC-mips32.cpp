@@ -14,6 +14,9 @@
 
 #include "jsboolinlines.h"
 
+// Unified leak fix:
+#include "jit/mips-shared/MacroAssembler-mips-shared-inl.h"
+
 using namespace js;
 using namespace js::jit;
 

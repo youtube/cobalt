@@ -28,6 +28,9 @@
 
 #include "vm/Stack-inl.h"
 
+// Unified leak fix:
+#include "jspubtd.h"
+
 using namespace js;
 using namespace js::gc;
 

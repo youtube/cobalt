@@ -6,6 +6,11 @@
 
 #include "jit/mips-shared/MacroAssembler-mips-shared.h"
 
+// Unified leak fix:
+#include "jit/MacroAssembler.h"
+#include "jit/MacroAssembler-inl.h"
+#include "jit/mips-shared/MacroAssembler-mips-shared-inl.h"
+
 using namespace js;
 using namespace jit;
 

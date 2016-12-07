@@ -16,6 +16,9 @@
 
 #include "jscompartmentinlines.h"
 
+// Unified leak fix:
+#include "builtin/ModuleObject.h"
+
 using JS::Symbol;
 using namespace js;
 
