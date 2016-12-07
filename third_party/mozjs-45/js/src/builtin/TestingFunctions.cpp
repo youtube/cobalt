@@ -39,6 +39,9 @@
 
 #include "vm/NativeObject-inl.h"
 
+// Unified leak fix:
+#include "vm/ScopeObject-inl.h"
+
 using namespace js;
 
 using mozilla::ArrayLength;

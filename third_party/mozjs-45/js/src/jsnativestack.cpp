@@ -21,12 +21,27 @@
 #  include <unistd.h>
 # endif
 
+#elif defined(STARBOARD)
+# include "starboard/memory.h"
 #else
 # error "Unsupported platform"
 
 #endif
 
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+void *
+js::GetNativeStackBaseImpl()
+{
+    void* stackHigh;
+    void* stackLow;
+    SbMemoryGetStackBounds(&stackHigh, &stackLow);
+# if JS_STACK_GROWTH_DIRECTION > 0
+    return stackLow;
+# else
+    return stackHigh;
+# endif
+}
+#elif defined(XP_WIN)
 
 void*
 js::GetNativeStackBaseImpl()

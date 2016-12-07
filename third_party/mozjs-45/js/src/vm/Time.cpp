@@ -15,7 +15,12 @@
 #define _REENTRANT 1
 #endif
 #include <string.h>
+
+#if defined(STARBOARD)
+#include "starboard/time.h"
+#else
 #include <time.h>
+#endif
 
 #include "jstypes.h"
 #include "jsutil.h"
@@ -43,7 +48,17 @@ extern int gettimeofday(struct timeval* tv);
 
 using mozilla::DebugOnly;
 
-#if defined(XP_UNIX)
+#if defined(STARBOARD)
+
+int64_t
+PRMJ_Now(void)
+{
+    // SbTime is in microseconds since the Starboard/Windows epoch, and PRMJ_Now
+    // should return microseconds since the Posix epoch.
+    return SbTimeToPosix(SbTimeGetNow());
+}
+
+#elif defined(XP_UNIX)
 int64_t
 PRMJ_Now()
 {
