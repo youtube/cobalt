@@ -111,7 +111,7 @@ struct FontFileInfo {
   FontStyle style;
 
   SkString full_font_name;
-  SkString postcript_name;
+  SkString postscript_name;
 };
 
 // A font family provides one or more names for a collection of fonts, each of
