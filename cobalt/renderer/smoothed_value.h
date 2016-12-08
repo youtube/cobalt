@@ -27,8 +27,14 @@ namespace renderer {
 class SmoothedValue {
  public:
   // |time_to_converge| indicates how long it takes for the current value
-  // to converge to a newly set target value.
-  explicit SmoothedValue(base::TimeDelta time_to_converge);
+  // to converge to a newly set target value.  A |max_slope_magnitude| can
+  // be provided to dictate the maximum slope the value will move by as it
+  // transitions from one value to another.  It must be greater than 0, if
+  // provided, and it can result in convergence times larger than
+  // |time_to_converge|.
+  explicit SmoothedValue(
+      base::TimeDelta time_to_converge,
+      base::optional<double> max_slope_magnitude = base::optional<double>());
 
   // Sets the target value that GetCurrentValue() will smoothly converge
   // towards.
@@ -65,6 +71,10 @@ class SmoothedValue {
   // Returns the current derivative of GetCurrentValue() over time.
   double GetCurrentDerivative(const base::TimeTicks& time) const;
 
+  // Returns the derivative of the function that has the highest magnitude
+  // between 0 and 1.
+  double GetDerivativeWithLargestMagnitude() const;
+
   const base::TimeDelta time_to_converge_;
 
   // The current target value that we are converging towards.
@@ -79,6 +89,8 @@ class SmoothedValue {
 
   // The derivative of GetCurrentValue() when target was last set.
   double previous_derivative_;
+
+  base::optional<double> max_slope_magnitude_;
 };
 
 }  // namespace renderer

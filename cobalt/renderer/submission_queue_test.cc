@@ -174,15 +174,17 @@ TEST(SubmissionQueueTest, PushingOldTimeResetsQueue) {
 
   queue.PushSubmission(third, SecondsToTime(5.0));
 
-  // We expect the submission queue to immediately jump to the third submission
-  // at this point, since it was inserted late.
+  // We expect the submission queue to not do anything rash at this point, even
+  // though it was inserted late.
   current = queue.GetCurrentSubmission(SecondsToTime(5.0));
   EXPECT_EQ(third.render_tree, current.render_tree);
-  EXPECT_DOUBLE_EQ(3.0, current.time_offset.InSecondsF());
+  EXPECT_DOUBLE_EQ(4.5, current.time_offset.InSecondsF());
 
+  // Make sure that we never go backwards in time, even if the difference
+  // between the render time and submission time is shrinking quickly.
   current = queue.GetCurrentSubmission(SecondsToTime(5.5));
   EXPECT_EQ(third.render_tree, current.render_tree);
-  EXPECT_DOUBLE_EQ(3.5, current.time_offset.InSecondsF());
+  EXPECT_DOUBLE_EQ(4.874633, current.time_offset.InSecondsF());
 }
 
 // This tests that pushing a submission into a full queue will result in the
