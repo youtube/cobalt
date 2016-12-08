@@ -111,6 +111,60 @@ TEST_F(RuleMatchingTest, TypeSelectorMatch) {
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
 }
 
+// [attr] should match <div attr/>.
+TEST_F(RuleMatchingTest, AttributeSelectorMatchNoValue) {
+  css_style_sheet_ = css_parser_->ParseStyleSheet(
+      "[attr] {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div attr/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
+}
+
+// [attr=value] should match <div attr="value"/>.
+TEST_F(RuleMatchingTest, AttributeSelectorMatchEquals) {
+  css_style_sheet_ = css_parser_->ParseStyleSheet(
+      "[attr=value] {}",
+      base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div attr=\"value\"/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
+}
+
+// [attr="value"] should match <div attr="value"/>.
+TEST_F(RuleMatchingTest, AttributeSelectorMatchEqualsWithQuote) {
+  css_style_sheet_ = css_parser_->ParseStyleSheet(
+      "[attr=\"value\"] {}",
+      base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div attr=\"value\"/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
+}
+
+// [attr=value] should not match <div attr/>.
+TEST_F(RuleMatchingTest, AttributeSelectorNoMatchEquals) {
+  css_style_sheet_ = css_parser_->ParseStyleSheet(
+      "[attr=value] {}",
+      base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div attr/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+}
+
 // .my-class should match <div class="my-class"/>.
 TEST_F(RuleMatchingTest, ClassSelectorMatch) {
   css_style_sheet_ = css_parser_->ParseStyleSheet(
