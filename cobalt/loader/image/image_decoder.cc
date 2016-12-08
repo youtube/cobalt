@@ -255,7 +255,8 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
 }
 
 namespace {
-#if defined(STARBOARD) && SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
 const char* GetMimeTypeFromImageType(ImageType image_type) {
   switch (image_type) {
     case kImageTypeJPEG:
@@ -314,7 +315,8 @@ scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
   }
   return scoped_ptr<ImageDataDecoder>();
 }
-#endif  // defined(STARBOARD) && SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
 
 scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageType image_type, render_tree::ResourceProvider* resource_provider) {
@@ -362,10 +364,12 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
 
   const ImageType image_type = DetermineImageType(signature_cache_.data);
 
-#if defined(STARBOARD) && SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
   decoder_ =
       MaybeCreateStarboardDecoder(mime_type_, image_type, resource_provider_);
-#endif  // defined(STARBOARD) && SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
 
   if (!decoder_) {
     decoder_ = CreateImageDecoderFromImageType(image_type, resource_provider_);
