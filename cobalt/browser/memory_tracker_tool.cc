@@ -38,7 +38,8 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     const std::string& switch_value) {
   DLOG(INFO)
       << "Memory tracker tool is not enabled on non-starboard builds.";
-  return false;
+  MemoryTrackerTool* null_ptr = NULL;
+  return scoped_ptr<MemoryTrackerTool>(null_ptr);
 }
 
 #else  // defined(OS_STARBOARD)
