@@ -635,8 +635,12 @@
 %type <rule_list> rule_list rule_list_block
 %destructor { SafeRelease($$); } <rule_list>
 
+%union { cssom::AttributeSelector::ValueMatchType attribute_match; }
+%type <attribute_match> attribute_match
+
 %union { cssom::SimpleSelector* simple_selector; }
-%type <simple_selector> class_selector_token
+%type <simple_selector> attribute_selector_token
+                        class_selector_token
                         id_selector_token
                         pseudo_class_token
                         pseudo_element_token
@@ -1910,6 +1914,43 @@ type_selector_token:
   }
   ;
 
+attribute_match:
+    '=' maybe_whitespace {
+    $$ = cssom::AttributeSelector::kEquals;
+  }
+  | kIncludesToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kIncludes;
+  }
+  | kDashMatchToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kDashMatch;
+  }
+  | kBeginsWithToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kBeginsWith;
+  }
+  | kEndsWithToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kEndsWith;
+  }
+  | kContainsToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kContains;
+  }
+
+// An attribute selector represents an element that has an attribute that
+// matches the attribute represented by the attribute selector.
+//   https://www.w3.org/TR/selectors4/#attribute-selector
+attribute_selector_token:
+    '[' maybe_whitespace identifier_token maybe_whitespace ']' {
+    $$ = new cssom::AttributeSelector($3.ToString());
+  }
+  | '[' maybe_whitespace identifier_token maybe_whitespace
+      attribute_match kStringToken maybe_whitespace ']' {
+    $$ = new cssom::AttributeSelector($3.ToString(), $5, $6.ToString());
+  }
+  | '[' maybe_whitespace identifier_token maybe_whitespace
+      attribute_match identifier_token maybe_whitespace ']' {
+    $$ = new cssom::AttributeSelector($3.ToString(), $5, $6.ToString());
+  }
+  ;
+
 // The class selector represents an element belonging to the class identified by
 // the identifier.
 //   https://www.w3.org/TR/selectors4/#class-selector
@@ -2031,7 +2072,8 @@ pseudo_element_token:
 // A simple selector represents an aspect of an element to be matched against.
 //   https://www.w3.org/TR/selectors4/#simple
 simple_selector_token:
-    class_selector_token
+    attribute_selector_token
+  | class_selector_token
   | id_selector_token
   | pseudo_class_token
   | pseudo_element_token
