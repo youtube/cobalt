@@ -43,6 +43,7 @@
 #include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/css_parser/trivial_type_pairs.h"
+#include "cobalt/cssom/attribute_selector.h"
 #include "cobalt/cssom/color_stop.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/complex_selector.h"

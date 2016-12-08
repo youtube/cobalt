@@ -23,6 +23,7 @@
 #include "base/bind.h"
 #include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/attribute_selector.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
@@ -232,6 +233,86 @@ TEST_F(ParserTest, SemicolonsDonotEndQualifiedRules) {
       parser_.ParseStyleSheet("foo; bar {} div {}", source_location_);
   ASSERT_TRUE(style_sheet);
   EXPECT_EQ(1, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, ParsesAttributeSelectorNoValue) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("[attr] {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::AttributeSelector* attribute_selector =
+      dynamic_cast<cssom::AttributeSelector*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(attribute_selector);
+  EXPECT_EQ("attr", attribute_selector->attribute_name());
+}
+
+TEST_F(ParserTest, ParsesAttributeSelectorValueWithQuotes) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("[attr=\"value\"] {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::AttributeSelector* attribute_selector =
+      dynamic_cast<cssom::AttributeSelector*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(attribute_selector);
+  EXPECT_EQ("attr", attribute_selector->attribute_name());
+  EXPECT_EQ("value", attribute_selector->attribute_value());
+}
+
+TEST_F(ParserTest, ParsesAttributeSelectorValueWithoutQuotes) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("[attr=value] {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::AttributeSelector* attribute_selector =
+      dynamic_cast<cssom::AttributeSelector*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(attribute_selector);
+  EXPECT_EQ("attr", attribute_selector->attribute_name());
+  EXPECT_EQ("value", attribute_selector->attribute_value());
 }
 
 TEST_F(ParserTest, ParsesClassSelector) {
