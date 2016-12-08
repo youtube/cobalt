@@ -75,6 +75,7 @@ std::string RemoveString(const std::string& haystack, const char* needle) {
   // Recursively remove same needle in haystack.
   return RemoveString(output, needle);
 }
+
 }  // namespace
 
 SbMemoryReporter* MemoryTrackerImpl::GetMemoryReporter() {
@@ -502,9 +503,6 @@ void MemoryTrackerPrintThread::Run() {
   while (!finished_.load()) {
     NoMemoryTracking no_mem_tracking_in_this_scope(memory_tracker_);
 
-    // std::map<std::string, const AllocationGroup*> output;
-    // typedef std::map<std::string, const AllocationGroup*>::const_iterator
-    // MapIt;
     std::vector<const AllocationGroup*> vector_output;
     memory_tracker_->GetAllocationGroups(&vector_output);
 
@@ -830,6 +828,209 @@ bool MemoryTrackerPrintCSVThread::TimeExpiredYet() {
   const SbTime diff_us = SbTimeGetNow() - start_time_;
   const bool expired_time = diff_us > (sampling_time_ms_ * kSbTimeMillisecond);
   return expired_time;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+MemoryTrackerCompressedTimeSeriesThread::MemoryTrackerCompressedTimeSeriesThread(
+    MemoryTracker* memory_tracker)
+    : SimpleThread("CompressedScaleHistogram"),
+      sample_interval_ms_(100),
+      number_samples_(400),
+      memory_tracker_(memory_tracker) {
+  Start();
+}
+
+
+MemoryTrackerCompressedTimeSeriesThread::~MemoryTrackerCompressedTimeSeriesThread() {
+  Cancel();
+  Join();
+}
+
+void MemoryTrackerCompressedTimeSeriesThread::Cancel() {
+  canceled_.store(true);
+}
+
+void MemoryTrackerCompressedTimeSeriesThread::Run() {
+  TimeSeries timeseries;
+  SbTime start_time = SbTimeGetNow();
+  while (!canceled_.load()) {
+    SbTime now_time = SbTimeGetNow() - start_time;
+    AcquireSample(memory_tracker_, &timeseries, now_time);
+    if (IsFull(timeseries, number_samples_)) {
+      const std::string str = ToCsvString(timeseries);
+      Compress(&timeseries);
+      Print(str);
+    }
+    SbThreadSleep(kSbTimeMillisecond * sample_interval_ms_);
+  }
+}
+
+std::string MemoryTrackerCompressedTimeSeriesThread::ToCsvString(
+    const TimeSeries& timeseries) {
+
+  const char QUOTE[] = "\"";
+  const char DELIM[] = ",";
+  const char NEW_LINE[] = "\n";
+
+  size_t largest_sample_size = 0;
+  size_t smallest_sample_size = INT_MAX;
+
+
+  typedef MapAllocationSamples::const_iterator MapIt;
+
+  // Sanitize samples_in and store as samples.
+  const MapAllocationSamples& samples_in = timeseries.samples_;
+  MapAllocationSamples samples;
+  for (MapIt it = samples_in.begin(); it != samples_in.end(); ++it) {
+    std::string name = it->first;
+    const AllocationSamples& value = it->second;
+
+    if (value.allocated_bytes_.size() != value.number_allocations_.size()) {
+      SB_NOTREACHED() << "Error at " << __FILE__ << ":" << __LINE__;
+      return "ERROR";
+    }
+
+    const size_t n = value.allocated_bytes_.size();
+    if (n > largest_sample_size) {
+      largest_sample_size = n;
+    }
+    if (n < smallest_sample_size) {
+      smallest_sample_size = n;
+    }
+
+    // Strip out any characters that could make parsing the csv difficult.
+    name = RemoveString(name, QUOTE);
+    name = RemoveString(name, DELIM);
+    name = RemoveString(name, NEW_LINE);
+
+    const bool duplicate_found = (samples.end() != samples.find(name));
+    if (duplicate_found) {
+      SB_NOTREACHED() << "Error, duplicate found for entry: "
+                      << name << NEW_LINE;
+    }
+    // Store value as a sanitized sample.
+    samples[name] = value;
+  }
+
+  SB_DCHECK(largest_sample_size == smallest_sample_size);
+
+  std::stringstream ss;
+
+  // Begin output to CSV.
+
+  // Preamble
+  ss << NEW_LINE << "//////////////////////////////////////////////"
+     << NEW_LINE << "// CSV of bytes allocated per region (MB's)."
+     << NEW_LINE << "// Units are in Megabytes. This is designed"
+     << NEW_LINE << "// to be used in a stacked graph." << NEW_LINE;
+
+  // HEADER.
+  for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+    const std::string& name = it->first;
+    ss << QUOTE << name << QUOTE << DELIM;
+  }
+  ss << NEW_LINE;
+
+  // Print out the values of each of the samples.
+  for (int i = 0; i < smallest_sample_size; ++i) {
+    for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+      const int64_t alloc_bytes = it->second.allocated_bytes_[i];
+      // Convert to float megabytes with decimals of precision.
+      double n = alloc_bytes / (1000 * 10);
+      n = n / (100.);
+      ss << n << DELIM;
+    }
+    ss << NEW_LINE;
+  }
+
+  ss << NEW_LINE;
+  // Preamble
+  ss << NEW_LINE << "//////////////////////////////////////////////";
+  ss << NEW_LINE << "// CSV of number of allocations per region." << NEW_LINE;
+
+  // HEADER
+  for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+    const std::string& name = it->first;
+    ss << QUOTE << name << QUOTE << DELIM;
+  }
+  ss << NEW_LINE;
+  for (int i = 0; i < smallest_sample_size; ++i) {
+    for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+      const int64_t n_allocs = it->second.number_allocations_[i];
+      ss << n_allocs << DELIM;
+    }
+    ss << NEW_LINE;
+  }
+  std::string output = ss.str();
+  return output;
+}
+
+void MemoryTrackerCompressedTimeSeriesThread::AcquireSample(
+    MemoryTracker* memory_tracker, TimeSeries* timeseries, SbTime time_now) {
+
+  const int sample_count = timeseries->time_stamps_.size();
+  timeseries->time_stamps_.push_back(time_now);
+  MapAllocationSamples& map_samples = timeseries->samples_;
+
+  std::vector<const AllocationGroup*> vector_output;
+  memory_tracker->GetAllocationGroups(&vector_output);
+
+  // Sample all known memory scopes.
+  for (int i = 0; i < vector_output.size(); ++i) {
+    const AllocationGroup* group = vector_output[i];
+    const std::string& name = group->name();
+
+    const bool first_creation = map_samples.find(group->name()) ==
+                                map_samples.end();
+
+    AllocationSamples& new_entry  = map_samples[name];
+
+    // Didn't see it before so create new entry.
+    if (first_creation) {
+      // Make up for lost samples...
+      new_entry.allocated_bytes_.resize(sample_count, 0);
+      new_entry.number_allocations_.resize(sample_count, 0);
+    }
+
+    int32_t num_allocs = - 1;
+    int64_t allocation_bytes = -1;
+    group->GetAggregateStats(&num_allocs, &allocation_bytes);
+
+    new_entry.allocated_bytes_.push_back(allocation_bytes);
+    new_entry.number_allocations_.push_back(num_allocs);
+  }
+}
+
+bool MemoryTrackerCompressedTimeSeriesThread::IsFull(
+    const TimeSeries& timeseries, int samples_limit) {
+  SB_DCHECK(samples_limit >= 0);
+  return timeseries.time_stamps_.size() >= samples_limit;
+}
+
+template<typename VectorT>
+void DoCompression(VectorT* samples) {
+  for (int i = 0; i*2 < samples->size(); ++i) {
+    (*samples)[i] = (*samples)[i*2];
+  }
+  samples->resize(samples->size() / 2);
+}
+
+void MemoryTrackerCompressedTimeSeriesThread::Compress(
+    TimeSeries* timeseries) {
+  typedef MapAllocationSamples::iterator MapIt;
+  MapAllocationSamples& samples = timeseries->samples_;
+  DoCompression(&(timeseries->time_stamps_));
+  for (MapIt it = samples.begin(); it != samples.end(); ++it) {
+    const std::string& name = it->first;
+    AllocationSamples& data = it->second;
+    DoCompression(&data.allocated_bytes_);
+    DoCompression(&data.number_allocations_);
+  }
+}
+
+void MemoryTrackerCompressedTimeSeriesThread::Print(const std::string& str) {
+  SbLogRaw(str.c_str());
+  SbLogFlush();
 }
 
 }  // namespace analytics
