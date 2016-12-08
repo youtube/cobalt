@@ -77,17 +77,6 @@ ImageType DetermineImageType(const uint8* header) {
   }
 }
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
-// clang-format off
-SbDecodeTargetFormat kPreferredFormats[] = {
-    kSbDecodeTargetFormat1PlaneRGBA,
-    kSbDecodeTargetFormat1PlaneBGRA,
-};
-// clang-format on
-#endif
-#endif
-
 }  // namespace
 
 ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
@@ -265,6 +254,101 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
   }
 }
 
+namespace {
+const char* GetMimeTypeFromImageType(ImageType image_type) {
+  switch (image_type) {
+    case kImageTypeJPEG:
+      return "image/jpeg";
+    case kImageTypePNG:
+      return "image/png";
+    case kImageTypeGIF:
+      return "image/gif";
+    case kImageTypeWebP:
+      return "image/webp";
+    case kImageTypeInvalid:
+      return NULL;
+    default: { NOTREACHED(); }
+  }
+  return NULL;
+}
+
+// If |mime_type| is empty, |image_type| will be used to deduce the mime type.
+scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
+    const std::string& mime_type, ImageType image_type,
+    render_tree::ResourceProvider* resource_provider) {
+#if defined(STARBOARD) && SB_VERSION(3) && SB_HAS(GRAPHICS)
+  // clang-format off
+  const SbDecodeTargetFormat kPreferredFormats[] = {
+      kSbDecodeTargetFormat1PlaneRGBA,
+      kSbDecodeTargetFormat1PlaneBGRA,
+  };
+  // clang-format on
+
+  const char* mime_type_c_string = NULL;
+
+  // If we weren't explicitly given a mime type (this might happen if the
+  // resource did not get fetched via HTTP), then deduce it from the image's
+  // header, if we were able to deduce that.
+  if (mime_type.empty()) {
+    mime_type_c_string = GetMimeTypeFromImageType(image_type);
+  } else {
+    mime_type_c_string = mime_type.c_str();
+  }
+
+  if (mime_type_c_string) {
+    // Find out if any of our preferred formats are supported for this mime
+    // type.
+    SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
+    for (size_t i = 0; i < SB_ARRAY_SIZE(kPreferredFormats); ++i) {
+      if (SbImageIsDecodeSupported(mime_type_c_string, kPreferredFormats[i])) {
+        format = kPreferredFormats[i];
+        break;
+      }
+    }
+
+    if (SbDecodeTargetIsFormatValid(format) &&
+        resource_provider->SupportsSbDecodeTarget()) {
+      return make_scoped_ptr<ImageDataDecoder>(new ImageDecoderStarboard(
+          resource_provider, mime_type_c_string, format));
+    }
+  }
+#else  // defined(STARBOARD) && SB_VERSION(3) && SB_HAS(GRAPHICS)
+  UNREFERENCED_PARAMETER(mime_type);
+  UNREFERENCED_PARAMETER(image_type);
+  UNREFERENCED_PARAMETER(resource_provider);
+#endif  // defined(STARBOARD) && SB_VERSION(3) && SB_HAS(GRAPHICS)
+  return scoped_ptr<ImageDataDecoder>();
+}
+
+scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
+    ImageType image_type, render_tree::ResourceProvider* resource_provider) {
+  // Call different types of decoders by matching the image signature.
+  if (s_use_stub_image_decoder) {
+    return make_scoped_ptr<ImageDataDecoder>(
+        new StubImageDecoder(resource_provider));
+  } else if (image_type == kImageTypeJPEG) {
+#if defined(__LB_PS3__)
+    return make_scoped_ptr<ImageDataDecoder>(
+        new JPEGImageDecoderPS3(resource_provider));
+#else   // defined(__LB_PS3__)
+    return make_scoped_ptr<ImageDataDecoder>(
+        new JPEGImageDecoder(resource_provider));
+#endif  // defined(__LB_PS3__)
+  } else if (image_type == kImageTypePNG) {
+    return make_scoped_ptr<ImageDataDecoder>(
+        new PNGImageDecoder(resource_provider));
+  } else if (image_type == kImageTypeWebP) {
+    return make_scoped_ptr<ImageDataDecoder>(
+        new WEBPImageDecoder(resource_provider));
+  } else if (image_type == kImageTypeGIF) {
+    return make_scoped_ptr<ImageDataDecoder>(
+        new DummyGIFImageDecoder(resource_provider));
+  } else {
+    return scoped_ptr<ImageDataDecoder>();
+  }
+}
+}  // namespace
+
 bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
                                              size_t size,
                                              size_t* consumed_size) {
@@ -282,51 +366,14 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
 
   const ImageType image_type = DetermineImageType(signature_cache_.data);
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
-  const char* mime_type_c_string = mime_type_.c_str();
+  decoder_ =
+      MaybeCreateStarboardDecoder(mime_type_, image_type, resource_provider_);
 
-  // Find out if any of our preferred formats are supported for this mime
-  // type.
-  SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
-  for (size_t i = 0; i < SB_ARRAY_SIZE(kPreferredFormats); ++i) {
-    if (SbImageIsDecodeSupported(mime_type_c_string, kPreferredFormats[i])) {
-      format = kPreferredFormats[i];
-      break;
-    }
+  if (!decoder_) {
+    decoder_ = CreateImageDecoderFromImageType(image_type, resource_provider_);
   }
 
-  if (SbDecodeTargetIsFormatValid(format) &&
-      resource_provider_->SupportsSbDecodeTarget()) {
-    decoder_ = make_scoped_ptr<ImageDataDecoder>(new ImageDecoderStarboard(
-        resource_provider_, mime_type_c_string, format));
-    return true;
-  }
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
-
-  // Call different types of decoders by matching the image signature.
-  if (s_use_stub_image_decoder) {
-    decoder_ = make_scoped_ptr<ImageDataDecoder>(
-        new StubImageDecoder(resource_provider_));
-  } else if (image_type == kImageTypeJPEG) {
-#if defined(__LB_PS3__)
-    decoder_ = make_scoped_ptr<ImageDataDecoder>(
-        new JPEGImageDecoderPS3(resource_provider_));
-#else   // defined(__LB_PS3__)
-    decoder_ = make_scoped_ptr<ImageDataDecoder>(
-        new JPEGImageDecoder(resource_provider_));
-#endif  // defined(__LB_PS3__)
-  } else if (image_type == kImageTypePNG) {
-    decoder_ = make_scoped_ptr<ImageDataDecoder>(
-        new PNGImageDecoder(resource_provider_));
-  } else if (image_type == kImageTypeWebP) {
-    decoder_ = make_scoped_ptr<ImageDataDecoder>(
-        new WEBPImageDecoder(resource_provider_));
-  } else if (image_type == kImageTypeGIF) {
-    decoder_ = make_scoped_ptr<ImageDataDecoder>(
-        new DummyGIFImageDecoder(resource_provider_));
-  } else {
+  if (!decoder_) {
     state_ = kUnsupportedImageFormat;
     return false;
   }
