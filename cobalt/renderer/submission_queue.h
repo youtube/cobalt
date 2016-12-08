@@ -128,6 +128,10 @@ class SubmissionQueue {
   // (e.g. base::TimeTicks::Now()).
   base::TimeDelta render_time(const base::TimeTicks& time);
 
+  // Returns the corresponding submission time for a given TimeTicks
+  // "real world" system value.
+  base::TimeDelta submission_time(const base::TimeTicks& time);
+
   void PurgeStaleSubmissionsFromQueue(const base::TimeTicks& time);
 
   void CheckThatNowIsMonotonicallyIncreasing(const base::TimeTicks& now);
