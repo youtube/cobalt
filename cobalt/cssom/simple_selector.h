@@ -28,6 +28,7 @@
 namespace cobalt {
 namespace cssom {
 
+class AttributeSelector;
 class ClassSelector;
 class IdSelector;
 class PseudoClass;

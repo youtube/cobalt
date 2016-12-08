@@ -18,6 +18,7 @@
 
 #include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/attribute_selector.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
@@ -40,6 +41,8 @@ class MockSelectorVisitor : public SelectorVisitor {
   MOCK_METHOD1(VisitUniversalSelector,
                void(UniversalSelector* universal_selector));
   MOCK_METHOD1(VisitTypeSelector, void(TypeSelector* type_selector));
+  MOCK_METHOD1(VisitAttributeSelector,
+               void(AttributeSelector* attribute_selector));
   MOCK_METHOD1(VisitClassSelector, void(ClassSelector* class_selector));
   MOCK_METHOD1(VisitIdSelector, void(IdSelector* id_selector));
 
@@ -75,6 +78,13 @@ TEST(SelectorVisitorTest, VisitsTypeSelector) {
   MockSelectorVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTypeSelector(&type_selector));
   type_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsAttributeSelector) {
+  AttributeSelector attribute_selector("attr");
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitAttributeSelector(&attribute_selector));
+  attribute_selector.Accept(&mock_visitor);
 }
 
 TEST(SelectorVisitorTest, VisitsClassSelector) {
