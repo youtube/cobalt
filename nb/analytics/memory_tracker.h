@@ -29,6 +29,7 @@ namespace analytics {
 class MemoryTracker;
 class MemoryTrackerPrintThread;
 class MemoryTrackerPrintCSVThread;
+class MemoryTrackerCompressedTimeSeriesThread;
 class AllocationVisitor;
 class AllocationGroup;
 class AllocationRecord;
@@ -162,6 +163,9 @@ scoped_ptr<MemoryTrackerPrintCSVThread>
     CreateDebugPrintCSVThread(MemoryTracker* memory_tracker,
                               int sample_interval_ms,
                               int total_sampling_time_ms);
+
+scoped_ptr<MemoryTrackerCompressedTimeSeriesThread>
+    CreateCompressedHistogramThread(MemoryTracker* memory_tracker);
 
 }  // namespace analytics
 }  // namespace nb

@@ -63,5 +63,12 @@ CreateDebugPrintCSVThread(MemoryTracker* memory_tracker,
           total_sampling_time_ms));
 }
 
+
+scoped_ptr<nb::analytics::MemoryTrackerCompressedTimeSeriesThread>
+CreateCompressedHistogramThread(MemoryTracker* memory_tracker) {
+  return nb::scoped_ptr<MemoryTrackerCompressedTimeSeriesThread>(
+      new MemoryTrackerCompressedTimeSeriesThread(memory_tracker));
+}
+
 }  // namespace analytics
 }  // namespace nb
