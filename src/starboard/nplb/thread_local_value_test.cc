@@ -92,73 +92,6 @@ void DoSunnyDayTest(bool use_destructor) {
   EXPECT_FALSE(my_value.destroyed);
 }
 
-// Helper function that ensures that the returned key is not recycled.
-SbThreadLocalKey CreateTLSKey_NoRecycle(SbThreadLocalDestructor dtor) {
-  SbThreadLocalKey key = SbThreadCreateLocalKey(NULL);
-  EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
-  // Some Starboard implementations may recycle the original key, so this test
-  // ensures that in that case it will be reset to NULL.
-  SbThreadSetLocalValue(key, reinterpret_cast<void*>(1));
-  SbThreadDestroyLocalKey(key);
-  key = SbThreadCreateLocalKey(DestroyThreadLocalValue);
-  return key;
-}
-
-// Tests the expectation that thread at-exit destructors don't
-// run for ThreadLocal pointers that are set to NULL.
-TEST(SbThreadLocalValueTest, NoDestructorsForNullValue) {
-  static int s_num_destructor_calls = 0;  // Must be initialized to 0.
-  s_num_destructor_calls = 0;             // Allows test to be re-run.
-
-  // Thread functionality needs to bind to functions. In C++11 we'd use a
-  // lambda function to tie everything together locally, but this
-  // function-scoped struct with static members emulates this functionality
-  // pretty well.
-  struct LocalStatic {
-    // Used as a fake destructor for thread-local-storage objects in this
-    // test.
-    static void CountsDestructorCalls(void* /*value*/) {
-      s_num_destructor_calls++;
-    }
-
-    // Sets a thread local non-NULL value, and then sets it back to NULL.
-    static void* ThreadEntryPoint(void* ptr) {
-      SbThreadLocalKey key = *static_cast<SbThreadLocalKey*>(ptr);
-      EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
-      // Set the value and then NULL it out. We expect that because the final
-      // value set was NULL, that the destructor attached to the thread's
-      // at-exit function will not run.
-      SbThreadSetLocalValue(key, reinterpret_cast<void*>(1));
-      SbThreadSetLocalValue(key, NULL);
-      return NULL;
-    }
-  };
-
-  // Setup the thread key and bind the fake test destructor.
-  SbThreadLocalKey key =
-      CreateTLSKey_NoRecycle(LocalStatic::CountsDestructorCalls);
-  EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
-
-  // Spawn the thread.
-  SbThread thread = SbThreadCreate(
-      0,                    // Signals automatic thread stack size.
-      kSbThreadNoPriority,  // Signals default priority.
-      kSbThreadNoAffinity,  // Signals default affinity.
-      true,                 // joinable thread.
-      "TestThread",
-      LocalStatic::ThreadEntryPoint,
-      static_cast<void*>(&key));
-
-  ASSERT_NE(kSbThreadInvalid, thread) << "Thread creation not successful";
-  // 2nd param is return value from ThreadEntryPoint, which is always NULL.
-  ASSERT_TRUE(SbThreadJoin(thread, NULL));
-
-  // No destructors should have run.
-  EXPECT_EQ(0, s_num_destructor_calls);
-
-  SbThreadDestroyLocalKey(key);
-}
-
 TEST(SbThreadLocalValueTest, SunnyDay) {
   DoSunnyDayTest(true);
 }
@@ -168,9 +101,15 @@ TEST(SbThreadLocalValueTest, SunnyDayNoDestructor) {
 }
 
 TEST(SbThreadLocalValueTest, SunnyDayFreshlyCreatedValuesAreNull) {
-  SbThreadLocalKey key = CreateTLSKey_NoRecycle(NULL);  // NULL dtor.
+  SbThreadLocalKey key = SbThreadCreateLocalKey(NULL);
   EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
 
+  // Some Starboard implementations may recycle the original key, so this test
+  // ensures that in that case it will be reset to NULL.
+  SbThreadSetLocalValue(key, reinterpret_cast<void*>(1));
+  SbThreadDestroyLocalKey(key);
+
+  key = SbThreadCreateLocalKey(NULL);
   EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
   SbThreadDestroyLocalKey(key);
 }

@@ -27,7 +27,6 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
@@ -35,7 +34,6 @@
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/render_overlay.h"
 #endif  // ENABLE_DEBUG_CONSOLE
-#include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -159,13 +157,6 @@ class WebModule {
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate, const Options& options = Options());
   ~WebModule();
-
-  // Call this to inject a keyboard event into the web module.
-  // Event is directed at a specific element if the element is non-null.
-  // Otherwise, the currently focused element receives the event.
-  // If element is specified, we must be on the WebModule's message loop
-  void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
-                           const dom::KeyboardEvent::Data& event);
 
   // Call this to inject a keyboard event into the web module.
   void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);

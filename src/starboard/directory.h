@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Directory module
-//
-// Provides directory listing functions.
+// Directory listing API.
 
 #ifndef STARBOARD_DIRECTORY_H_
 #define STARBOARD_DIRECTORY_H_
@@ -48,43 +46,26 @@ static SB_C_INLINE bool SbDirectoryIsValid(SbDirectory directory) {
   return directory != kSbDirectoryInvalid;
 }
 
-// Opens the given existing directory for listing. This function returns
-// kSbDirectoryInvalidHandle if it is not successful.
-//
-// If |out_error| is provided by the caller, it will be set to the appropriate
-// SbFileError code on failure.
-//
-// |out_error|: An output parameter that, in case of an error, is set to the
-// reason that the directory could not be opened.
+// Opens the given existing directory for listing. Will return
+// kSbDirectoryInvalidHandle if not successful. If |out_error| is provided by
+// the caller, it will be set to the appropriate SbFileError code on failure.
 SB_EXPORT SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error);
 
-// Closes an open directory stream handle. The return value indicates whether
-// the directory was closed successfully.
-//
-// |directory|: The directory stream handle to close.
+// Closes an open directory stream handle. Returns whether the close was
+// successful.
 SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 
-// Populates |out_entry| with the next entry in the specified directory stream,
-// and moves the stream forward by one entry.
-//
-// This function returns |true| if there was a next directory, and |false|
-// at the end of the directory stream.
-//
-// |directory|: The directory stream from which to retrieve the next directory.
-// |out_entry|: The variable to be populated with the next directory entry.
+// Populates |out_entry| with the next entry in that directory stream, and moves
+// the stream forward by one entry. Returns |true| if there was a next
+// directory, and |false| at the end of the directory stream.
 SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   SbDirectoryEntry* out_entry);
 
-// Indicates whether SbDirectoryOpen is allowed for the given |path|.
-//
-// |path|: The path to be checked.
+// Returns whether SbDirectoryOpen is allowed for the given |path|.
 SB_EXPORT bool SbDirectoryCanOpen(const char* path);
 
 // Creates the directory |path|, assuming the parent directory already exists.
-// This function returns |true| if the directory now exists (even if it existed
-// before) and returns |false| if the directory does not exist.
-//
-// |path|: The path to be created.
+// Returns whether the directory now exists (even if it existed before).
 SB_EXPORT bool SbDirectoryCreate(const char* path);
 
 #ifdef __cplusplus

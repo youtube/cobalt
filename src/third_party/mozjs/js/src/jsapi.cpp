@@ -93,8 +93,6 @@
 #include "jit/Ion.h"
 #endif
 
-#include "starboard/file.h"
-
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -5001,63 +4999,6 @@ struct AutoLastFrameCheck
 
 typedef Vector<char, 8, TempAllocPolicy> FileContents;
 
-#if defined(STARBOARD)
-static bool
-ReadCompleteFile(JSContext *cx, SbFile file, FileContents &buffer)
-{
-    SbFileInfo info;
-    bool success = SbFileGetInfo(file, &info);
-    if (!success) {
-        return false;
-    }
-    const int64_t kFileSize = info.size;
-    buffer.resize(kFileSize);
-    if (SbFileReadAll(file, buffer.begin(), kFileSize) < 0) {
-        return false;
-    }
-
-    return true;
-}
-
-class AutoFile
-{
-    SbFile sb_file_;
-  public:
-    AutoFile() {}
-    ~AutoFile()
-    {
-        SbFileClose(sb_file_);
-    }
-    SbFile sb_file() const { return sb_file_; }
-    bool open(JSContext *cx, const char *filename);
-    bool readAll(JSContext *cx, FileContents &buffer)
-    {
-        return ReadCompleteFile(cx, sb_file_, buffer);
-    }
-};
-
-/*
- * Open a source file for reading. Supports "-" and NULL to mean stdin. The
- * return value must be fclosed unless it is stdin.
- */
-bool
-AutoFile::open(JSContext *cx, const char *filename)
-{
-    // Starboard does not support stdin.
-    if (!filename || strcmp(filename, "-") == 0) {
-        return false;
-    } else {
-        sb_file_ = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL,
-            NULL);
-        if (!SbFileIsValid(sb_file_)) {
-            JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_CANT_OPEN,
-                                 filename, "No such file or directory");
-            return false;
-        }
-    }
-    return true;
-}
-#else  // #if defined(STARBOARD)
 static bool
 ReadCompleteFile(JSContext *cx, FILE *fp, FileContents &buffer)
 {
@@ -5127,7 +5068,6 @@ AutoFile::open(JSContext *cx, const char *filename)
     return true;
 }
 
-#endif  // #if defined(STARBOARD)
 
 JS::CompileOptions::CompileOptions(JSContext *cx, JSVersion version)
     : principals(NULL),
@@ -5179,27 +5119,6 @@ JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
     return script;
 }
 
-#if defined(STARBOARD)
-JSScript *
-JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
-            SbFile file)
-{
-    SbFileInfo info;
-    bool success = SbFileGetInfo(file, &info);
-    if (!success) {
-        return NULL;
-    }
-    const int64_t kFileSize = info.size;
-    FileContents buffer(cx);
-    buffer.resize(kFileSize);
-    if (SbFileReadAll(file, buffer.begin(), kFileSize) < 0) {
-        return NULL;
-    }
-    JSScript *script = Compile(cx, obj, options, buffer.begin(),
-                               buffer.length());
-    return script;
-}
-#else
 JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, FILE *fp)
 {
@@ -5210,26 +5129,15 @@ JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, FILE *fp)
     JSScript *script = Compile(cx, obj, options, buffer.begin(), buffer.length());
     return script;
 }
-#endif
 
 JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, const char *filename)
 {
-#if defined(STARBOARD)
-    starboard::ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead, NULL,
-                               NULL);
-    if (!file.IsValid()) {
-        return NULL;
-    }
-    options = options.setFileAndLine(filename, 1);
-    JSScript *script = Compile(cx, obj, options, file.file());
-#else
     AutoFile file;
     if (!file.open(cx, filename))
         return NULL;
     options = options.setFileAndLine(filename, 1);
     JSScript *script = Compile(cx, obj, options, file.fp());
-#endif
     return script;
 }
 
@@ -5577,23 +5485,12 @@ extern JS_PUBLIC_API(bool)
 JS::Evaluate(JSContext *cx, HandleObject obj, CompileOptions options,
              const char *filename, jsval *rval)
 {
-#if defined(STARBOARD)
-    starboard::ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead, NULL,
-                               NULL);
-    const int64_t kFileSize = file.GetSize();
-    FileContents buffer(cx);
-    buffer.resize(kFileSize);
-    if (file.ReadAll(buffer.begin(), kFileSize) < 0) {
-        return false;
-    }
-#else
     FileContents buffer(cx);
     {
         AutoFile file;
         if (!file.open(cx, filename) || !file.readAll(cx, buffer))
             return false;
     }
-#endif
 
     options.setFileAndLine(filename, 1);
     return Evaluate(cx, obj, options, buffer.begin(), buffer.length(), rval);
@@ -7185,3 +7082,4 @@ JS_PreventExtensions(JSContext *cx, JS::HandleObject obj)
 
     return JSObject::preventExtensions(cx, obj);
 }
+

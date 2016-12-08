@@ -19,87 +19,14 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/third_party/icu/icu_utf.h"
-#include "base/utf_string_conversion_utils.h"
-#include "cobalt/base/tokens.h"
 #include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/text.h"
-#if defined(OS_STARBOARD)
-#include "starboard/configuration.h"
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#define HANDLE_CORE_DUMP
-#include "base/lazy_instance.h"
-#include "starboard/ps4/core_dump_handler.h"
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace dom_parser {
 namespace {
-
-#if defined(HANDLE_CORE_DUMP)
-
-class LibxmlParserWrapperLog {
- public:
-  LibxmlParserWrapperLog()
-      : total_parsed_bytes_(0),
-        total_warning_count_(0),
-        total_error_count_(0),
-        total_fatal_count_(0) {
-    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
-  }
-  ~LibxmlParserWrapperLog() {
-    SbCoreDumpUnregisterHandler(CoreDumpHandler, this);
-  }
-
-  static void CoreDumpHandler(void* context) {
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total parsed bytes",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_parsed_bytes_);
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total warning count",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_warning_count_);
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total error count",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_error_count_);
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total fatal error count",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_fatal_count_);
-    SbCoreDumpLogString("LibxmlParserWrapper last fatal error",
-                        static_cast<LibxmlParserWrapperLog*>(context)
-                            ->last_fatal_message_.c_str());
-  }
-
-  void IncrementParsedBytes(int length) { total_parsed_bytes_ += length; }
-  void LogParsingIssue(LibxmlParserWrapper::IssueSeverity severity,
-                       const std::string& message) {
-    if (severity == LibxmlParserWrapper::kWarning) {
-      total_warning_count_++;
-    } else if (severity == LibxmlParserWrapper::kError) {
-      total_error_count_++;
-    } else if (severity == LibxmlParserWrapper::kFatal) {
-      total_fatal_count_++;
-      last_fatal_message_ = message;
-    } else {
-      NOTREACHED();
-    }
-  }
-
- private:
-  int total_parsed_bytes_;
-  int total_warning_count_;
-  int total_error_count_;
-  int total_fatal_count_;
-  std::string last_fatal_message_;
-  DISALLOW_COPY_AND_ASSIGN(LibxmlParserWrapperLog);
-};
-
-base::LazyInstance<LibxmlParserWrapperLog> libxml_parser_wrapper_log =
-    LAZY_INSTANCE_INITIALIZER;
-
-#endif  // defined(HANDLE_CORE_DUMP)
 
 /////////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -223,10 +150,6 @@ void LibxmlParserWrapper::OnEndDocument() {
   if (!node_stack_.empty() && !error_callback_.is_null()) {
     error_callback_.Run("Node stack not empty at end of document.");
   }
-
-  if (IsFullDocument()) {
-    document_->PostToDispatchEvent(FROM_HERE, base::Tokens::domcontentloaded());
-  }
 }
 
 void LibxmlParserWrapper::OnStartElement(
@@ -298,50 +221,42 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
   if (severity < LibxmlParserWrapper::kFatal) {
     LOG(WARNING) << "Libxml "
                  << (severity == kWarning ? "Warning: " : "Error: ") << message;
-  } else if (severity == LibxmlParserWrapper::kFatal) {
+  } else {
     LOG(ERROR) << "Libxml Fatal Error: " << message;
     if (!error_callback_.is_null()) {
       error_callback_.Run(message);
     }
-  } else {
-    NOTREACHED();
   }
-
-#if defined(HANDLE_CORE_DUMP)
-  libxml_parser_wrapper_log.Get().LogParsingIssue(severity, message);
-#endif
 }
 
 void LibxmlParserWrapper::OnCDATABlock(const std::string& value) {
   node_stack_.top()->AppendChild(new dom::CDATASection(document_, value));
 }
 
-void LibxmlParserWrapper::PreprocessChunk(const char* data, size_t size,
-                                          std::string* current_chunk) {
-  DCHECK(current_chunk);
+LibxmlParserWrapper::IssueSeverity
+LibxmlParserWrapper::CheckInputAndUpdateSeverity(const char* data,
+                                                 size_t size) {
+  if (max_severity_ == kFatal) {
+    return max_severity_;
+  }
+
   // Check the total input size.
   total_input_size_ += size;
   if (total_input_size_ > kMaxTotalInputSize) {
     static const char kMessageInputTooLong[] = "Parser input is too long.";
     OnParsingIssue(kFatal, kMessageInputTooLong);
-    return;
+    return max_severity_;
   }
 
   // Check the encoding of the input.
-  std::string input = next_chunk_start_ + std::string(data, size);
-  TruncateUTF8ToByteSize(input, input.size(), current_chunk);
-  next_chunk_start_ = input.substr(current_chunk->size());
-  if (!IsStringUTF8(*current_chunk)) {
-    current_chunk->clear();
+  if (!IsStringUTF8(std::string(data, size))) {
     static const char kMessageInputNotUTF8[] =
         "Parser input contains non-UTF8 characters.";
     OnParsingIssue(kFatal, kMessageInputNotUTF8);
-    return;
+    return max_severity_;
   }
 
-#if defined(HANDLE_CORE_DUMP)
-  libxml_parser_wrapper_log.Get().IncrementParsedBytes(static_cast<int>(size));
-#endif
+  return max_severity_;
 }
 
 }  // namespace dom_parser

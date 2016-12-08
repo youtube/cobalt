@@ -20,7 +20,6 @@
 #include "base/callback.h"
 #include "base/threading/thread.h"
 #include "cobalt/audio/audio_buffer.h"
-#include "cobalt/audio/audio_helpers.h"
 #include "cobalt/dom/array_buffer.h"
 
 namespace cobalt {
@@ -28,10 +27,9 @@ namespace audio {
 
 class AsyncAudioDecoder {
  public:
-  typedef base::Callback<void(float sample_rate, int32 number_of_frames,
-                              int32 number_of_channels,
-                              scoped_array<uint8> channels_data,
-                              SampleType sample_type)> DecodeFinishCallback;
+  typedef base::Callback<void(
+      float sample_rate, int32 number_of_frames, int32 number_of_channels,
+      scoped_array<uint8> channels_data)> DecodeFinishCallback;
 
   AsyncAudioDecoder();
 

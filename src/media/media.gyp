@@ -431,14 +431,6 @@
           'dependencies': [
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
             'shared_memory_support',
-          ],
-        }],
-        ['OS != "ios" and cobalt != 1', {
-          'dependencies': [
-            # This is only used in [x11|gl|skcanvas]_video_renderer.cc, but not
-            # when compiling Cobalt. When linking as a shared library, the
-            # unused optimized YUV functions are left as undefined symbols
-            # after they get dead-stripped.
             'yuv_convert',
           ],
         }],

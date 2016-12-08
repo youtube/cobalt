@@ -386,12 +386,6 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetInline());
 
-  // https://www.w3.org/TR/filter-effects-1/#FilterProperty
-  SetPropertyDefinition(kFilterProperty, "filter", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
-                        kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
-                        KeywordValue::GetNone());
-
   // Varies by platform in Chromium, Roboto in Cobalt.
   //   https://www.w3.org/TR/css3-fonts/#font-family-prop
   SetPropertyDefinition(
@@ -1007,10 +1001,6 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBottomProperty))) {
         return kBottomProperty;
-      }
-      if (LowerCaseEqualsASCII(property_name,
-                               GetPropertyName(kFilterProperty))) {
-        return kFilterProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kHeightProperty))) {

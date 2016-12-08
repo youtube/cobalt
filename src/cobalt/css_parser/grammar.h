@@ -55,8 +55,6 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/filter_function.h"
-#include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -66,7 +64,6 @@
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_key_list_value.h"
@@ -81,8 +78,6 @@
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/url_src_value.h"
-#include "third_party/glm/glm/gtc/type_ptr.hpp"
-#include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
 namespace css_parser {
@@ -105,7 +100,7 @@ struct cobalt_yyltype {
 
 #if defined(OS_STARBOARD)
 #include "starboard/memory.h"
-#define YYFREE SbMemoryDeallocate
+#define YYFREE SbMemoryFree
 #define YYMALLOC SbMemoryAllocate
 #endif
 

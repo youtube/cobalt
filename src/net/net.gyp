@@ -57,7 +57,6 @@
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../googleurl/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
-        '../nb/nb.gyp:nb',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/zlib/zlib.gyp:zlib',

@@ -51,8 +51,7 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   // Returns true if this JSObject is a Wrapper object.
   bool IsWrapper(JS::HandleObject wrapper) const;
 
-  bool DoesObjectImplementInterface(JS::HandleObject object,
-                                    base::TypeId id) const;
+  bool DoesObjectImplementInterface(JSObject*, base::TypeId) const;
 
  private:
   struct WrappableTypeFunctions {

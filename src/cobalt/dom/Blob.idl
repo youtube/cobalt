@@ -14,16 +14,7 @@
  * limitations under the License.
  */
 
-// https://www.w3.org/TR/2015/WD-FileAPI-20150421/#dfn-Blob
+// https://www.w3.org/TR/FileAPI/#dfn-Blob
 
-[
-  //Constructor,
-  // TODO: When arrays or sequences are supported, support the constructor
-  // defined in the standard with multiple blobparts, and drop the single
-  // ArrayBuffer constructor.
-  Constructor(optional ArrayBuffer buffer),
-  ConstructorCallWith=EnvironmentSettings
-]
-interface Blob {
-  readonly attribute unsigned long long size;
-};
+// Stub implementation of Blob so we can call "instanceof Blob".
+interface Blob {};

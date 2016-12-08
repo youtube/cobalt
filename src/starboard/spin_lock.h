@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Spin Lock module
-//
-// Defines a C++-only spin-lock implementation, built entirely on top of
-// Starboard atomics and threads. It can be safely used by both clients and
+// A C++-only spin-lock implementation, built entirely on top of
+// Starboard atomics and threads. Can be safely used by both clients and
 // implementations.
 
 #ifndef STARBOARD_SPIN_LOCK_H_

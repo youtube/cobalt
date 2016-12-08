@@ -19,9 +19,7 @@
 
 #include <string>
 
-#include "cobalt/dom/blob.h"
 #include "cobalt/dom/media_source.h"
-#include "cobalt/loader/blob_fetcher.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
@@ -36,28 +34,18 @@ namespace dom {
 // The Media Source Extension extends it to create an url from a MediaSource
 // object so we can assign it to HTMLMediaElement.src.
 //   https://rawgit.com/w3c/media-source/cfb1b3d4309a6e6e2c01bd87e048758172a86e4b/media-source.html#dom-createobjecturl
+//
+// Note: We only implemented the MediaSource related functions as they are all
+// what we need for Cobalt.
 class URL : public script::Wrappable {
  public:
   static std::string CreateObjectURL(
       script::EnvironmentSettings* environment_settings,
       const scoped_refptr<MediaSource>& media_source);
-  static std::string CreateObjectURL(
-      script::EnvironmentSettings* environment_settings,
-      const scoped_refptr<Blob>& blob);
   static void RevokeObjectURL(script::EnvironmentSettings* environment_settings,
                               const std::string& url);
 
-  static loader::BlobFetcher::ResolverCallback MakeBlobResolverCallback(
-      dom::Blob::Registry* blob_registry) {
-    DCHECK(blob_registry);
-    return base::Bind(&BlobResolver, blob_registry);
-  }
-
   DEFINE_WRAPPABLE_TYPE(URL);
-
- private:
-  static bool BlobResolver(dom::Blob::Registry* registry, const GURL& url,
-                           const char** data, size_t* size);
 };
 
 }  // namespace dom

@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/path_service.h"
@@ -51,34 +50,18 @@
 #endif  // defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
-#if defined(OS_STARBOARD)
-#include "nb/analytics/memory_tracker.h"
-#include "nb/analytics/memory_tracker_impl.h"
-#include "starboard/configuration.h"
-#include "starboard/log.h"
-#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace browser {
 
 namespace {
 const int kStatUpdatePeriodMs = 1000;
-#if defined(COBALT_BUILD_TYPE_GOLD)
-const int kLiteStatUpdatePeriodMs = 1000;
-#else
-const int kLiteStatUpdatePeriodMs = 16;
-#endif
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
-#if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
-  const int kDefaultRemoteDebuggingPort =
-      SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT;
-#else
   const int kDefaultRemoteDebuggingPort = 9222;
-#endif  // defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
   int remote_debugging_port = kDefaultRemoteDebuggingPort;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -116,19 +99,6 @@ int GetWebDriverPort() {
     }
   }
   return webdriver_port;
-}
-
-std::string GetWebDriverListenIp() {
-  // The default port on which the webdriver server should listen for incoming
-  // connections.
-  std::string webdriver_listen_ip =
-      webdriver::WebDriverModule::kDefaultListenIp;
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
-    webdriver_listen_ip =
-        command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
-  }
-  return webdriver_listen_ip;
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
@@ -194,31 +164,6 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-std::string GetMinLogLevelString() {
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kMinLogLevel)) {
-    return command_line->GetSwitchValueASCII(switches::kMinLogLevel);
-  }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-  return "info";
-}
-
-int StringToLogLevel(const std::string& log_level) {
-  if (log_level == "info") {
-    return logging::LOG_INFO;
-  } else if (log_level == "warning") {
-    return logging::LOG_WARNING;
-  } else if (log_level == "error") {
-    return logging::LOG_ERROR;
-  } else if (log_level == "fatal") {
-    return logging::LOG_FATAL;
-  } else {
-    NOTREACHED() << "Unrecognized logging level: " << log_level;
-    return logging::LOG_INFO;
-  }
-}
-
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
   if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
     int32 out;
@@ -242,8 +187,6 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->scratch_surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
                           &options->skia_cache_size_in_bytes);
-  SetIntegerIfSwitchIsSet(browser::switches::kSoftwareSurfaceCacheSizeInBytes,
-                          &options->software_surface_cache_size_in_bytes);
 }
 
 void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
@@ -315,18 +258,7 @@ Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       start_time_(base::TimeTicks::Now()),
-      stats_update_timer_(true, true),
-      lite_stats_update_timer_(true, true) {
-  // Check to see if a timed_trace has been set, indicating that we should
-  // begin a timed trace upon startup.
-  base::TimeDelta trace_duration = GetTimedTraceDuration();
-  if (trace_duration != base::TimeDelta()) {
-    trace_event::TraceToFileForDuration(
-        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
-  }
-
-  TRACE_EVENT0("cobalt::browser", "Application::Application()");
-
+      stats_update_timer_(true, true) {
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -335,16 +267,17 @@ Application::Application(const base::Closure& quit_closure)
 
   RegisterUserLogs();
 
-  // Set the minimum logging level, if specified on the command line.
-  logging::SetMinLogLevel(StringToLogLevel(GetMinLogLevelString()));
-
   stats_update_timer_.Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(kStatUpdatePeriodMs),
       base::Bind(&Application::UpdatePeriodicStats, base::Unretained(this)));
-  lite_stats_update_timer_.Start(
-      FROM_HERE, base::TimeDelta::FromMilliseconds(kLiteStatUpdatePeriodMs),
-      base::Bind(&Application::UpdatePeriodicLiteStats,
-                 base::Unretained(this)));
+
+  // Check to see if a timed_trace has been set, indicating that we should
+  // begin a timed trace upon startup.
+  base::TimeDelta trace_duration = GetTimedTraceDuration();
+  if (trace_duration != base::TimeDelta()) {
+    trace_event::TraceToFileForDuration(
+        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
+  }
 
   // Get the initial URL.
   GURL initial_url = GetInitialURL();
@@ -441,20 +374,6 @@ Application::Application(const base::Closure& quit_closure)
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
   }
-  if (command_line->HasSwitch(switches::kMemoryTracker)) {
-#if defined(OS_STARBOARD)
-    using nb::analytics::MemoryTrackerPrintThread;
-    using nb::analytics::MemoryTracker;
-
-    DLOG(INFO) << "Using MemoryTracking";
-    MemoryTracker* memory_tracker = MemoryTracker::Get();
-    memory_tracker->InstallGlobalTrackingHooks();
-    memory_tracker_print_thread_ = CreateDebugPrintThread(memory_tracker);
-#else
-    DLOG(INFO)
-        << "Memory tracker is not enabled on non-starboard builds.";
-#endif
-  }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   base::optional<math::Size> viewport_size;
@@ -511,18 +430,14 @@ Application::Application(const base::Closure& quit_closure)
       base::Bind(&Application::OnApplicationEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(system_window::ApplicationEvent::TypeId(),
                                      application_event_callback_);
-  deep_link_event_callback_ =
-      base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
-                                     deep_link_event_callback_);
 
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
+    int webdriver_port = GetWebDriverPort();
     web_driver_module_.reset(new webdriver::WebDriverModule(
-        GetWebDriverPort(), GetWebDriverListenIp(),
-        base::Bind(&BrowserModule::CreateSessionDriver,
-                   base::Unretained(browser_module_.get())),
+        webdriver_port, base::Bind(&BrowserModule::CreateSessionDriver,
+                                   base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::RequestScreenshotToBuffer,
                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::SetProxy,
@@ -557,13 +472,6 @@ Application::Application(const base::Closure& quit_closure)
 }
 
 Application::~Application() {
-#if defined(OS_STARBOARD)
-  // explicitly reset here because the destruction of the object is complex
-  // and involves a thread join. If this were to hang the app then having
-  // the destruction at this point gives a real file-line number and a place
-  // for the debugger to land.
-  memory_tracker_print_thread_.reset(NULL);
-#endif
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
                                         account_event_callback_);
@@ -571,8 +479,6 @@ Application::~Application() {
                                         network_event_callback_);
   event_dispatcher_.RemoveEventCallback(
       system_window::ApplicationEvent::TypeId(), application_event_callback_);
-  event_dispatcher_.RemoveEventCallback(
-      base::DeepLinkEvent::TypeId(), deep_link_event_callback_);
 
   app_status_ = kShutDownAppStatus;
 }
@@ -593,7 +499,6 @@ void Application::Quit() {
 }
 
 void Application::OnAccountEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnAccountEvent()");
   const account::AccountEvent* account_event =
       base::polymorphic_downcast<const account::AccountEvent*>(event);
   if (account_event->type() == account::AccountEvent::kSignedIn) {
@@ -608,7 +513,6 @@ void Application::OnAccountEvent(const base::Event* event) {
 }
 
 void Application::OnNetworkEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnNetworkEvent()");
   DCHECK(network_event_thread_checker_.CalledOnValidThread());
   const network::NetworkEvent* network_event =
       base::polymorphic_downcast<const network::NetworkEvent*>(event);
@@ -629,7 +533,6 @@ void Application::OnNetworkEvent(const base::Event* event) {
 }
 
 void Application::OnApplicationEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK(application_event_thread_checker_.CalledOnValidThread());
   const system_window::ApplicationEvent* app_event =
       base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
@@ -660,18 +563,7 @@ void Application::OnApplicationEvent(const base::Event* event) {
   }
 }
 
-void Application::OnDeepLinkEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnDeepLinkEvent()");
-  const base::DeepLinkEvent* deep_link_event =
-      base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  // TODO: Remove this when terminal application states are properly handled.
-  if (deep_link_event->IsH5vccLink()) {
-    browser_module_->Navigate(GURL(deep_link_event->link()));
-  }
-}
-
 void Application::WebModuleRecreated() {
-  TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");
 #if defined(ENABLE_WEBDRIVER)
   if (web_driver_module_) {
     web_driver_module_->OnWindowRecreated();
@@ -748,12 +640,7 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
   }
 }
 
-void Application::UpdatePeriodicLiteStats() {
-  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
-}
-
 void Application::UpdatePeriodicStats() {
-  TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
 #if defined(__LB_SHELL__)
   bool memory_stats_updated = false;
 #if !defined(__LB_SHELL__FOR_RELEASE__)
@@ -792,6 +679,8 @@ void Application::UpdatePeriodicStats() {
     *c_val_stats_.used_gpu_memory = used_gpu_memory;
   }
 #endif
+
+  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
 }
 
 }  // namespace browser

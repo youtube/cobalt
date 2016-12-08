@@ -25,8 +25,6 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/source_buffer.h"
 #include "cobalt/dom/source_buffer_list.h"
-#include "cobalt/dom/url_registry.h"
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "media/player/web_media_player.h"
 
@@ -43,7 +41,27 @@ namespace dom {
 // Note that our implementation is based on the MSE draft on 09 August 2012.
 class MediaSource : public EventTarget {
  public:
-  typedef UrlRegistry<MediaSource> Registry;
+  // This class manages a registry of MediaSource objects.  Its user can
+  // associate a MediaSource object to a blob url as well as to retrieve a
+  // MediaSource object by a blob url.  This is because to assign a MediaSource
+  // object to the src of an HTMLMediaElement, we have to first convert the
+  // MediaSource object into a blob url by calling URL.createObjectURL().
+  // And eventually the HTMLMediaElement have to retrieve the MediaSource object
+  // from the blob url.
+  // Note: It is unsafe to directly encode the pointer to the MediaSource object
+  // in the url as the url is assigned from JavaScript.
+  class Registry {
+   public:
+    void Register(const std::string& blob_url,
+                  const scoped_refptr<MediaSource>& media_source);
+    scoped_refptr<MediaSource> Retrieve(const std::string& blob_url);
+    void Unregister(const std::string& blob_url);
+
+   private:
+    typedef base::hash_map<std::string, scoped_refptr<MediaSource> >
+        MediaSourceRegistry;
+    MediaSourceRegistry media_source_registry_;
+  };
 
   // Custom, not in any spec.
   //
@@ -68,9 +86,6 @@ class MediaSource : public EventTarget {
   void EndOfStream(script::ExceptionState* exception_state);
   void EndOfStream(const std::string& error,
                    script::ExceptionState* exception_state);
-
-  static bool IsTypeSupported(script::EnvironmentSettings* settings,
-                              const std::string& type);
 
   // Custom, not in any spec.
   //

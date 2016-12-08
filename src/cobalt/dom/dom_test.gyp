@@ -24,7 +24,6 @@
       'target_name': 'dom_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'blob_test.cc',
         'comment_test.cc',
         'crypto_test.cc',
         'csp_delegate_test.cc',
@@ -42,7 +41,6 @@
         'event_test.cc',
         'float32_array_test.cc',
         'float64_array_test.cc',
-        'font_cache_test.cc',
         'html_element_factory_test.cc',
         'html_element_test.cc',
         'keyboard_event_test.cc',
@@ -72,7 +70,6 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom_testing',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
-        '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],

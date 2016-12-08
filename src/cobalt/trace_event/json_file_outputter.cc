@@ -18,37 +18,11 @@
 
 #include <string>
 
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-#include "base/command_line.h"
-#endif
 #include "base/logging.h"
 #include "base/platform_file.h"
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-#include "base/string_piece.h"
-#include "cobalt/trace_event/switches.h"
-#endif
 
 namespace cobalt {
 namespace trace_event {
-
-// Returns true if and only if log_timed_trace == "on", and
-// ENABLE_DEBUG_COMMAND_LINE_SWITCHES is set.
-bool ShouldLogTimedTrace() {
-  bool isTimedTraceSet = false;
-
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kLogTimedTrace) &&
-      command_line->GetSwitchValueASCII(switches::kLogTimedTrace) ==
-          "on") {
-    isTimedTraceSet = true;
-  }
-
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
-  return isTimedTraceSet;
-}
 
 JSONFileOutputter::JSONFileOutputter(const FilePath& output_path)
     : output_path_(output_path),
@@ -95,14 +69,6 @@ void JSONFileOutputter::OutputTraceData(
 
 void JSONFileOutputter::Write(const char* buffer, size_t length) {
   if (GetError()) {
-    return;
-  }
-
-  if (ShouldLogTimedTrace()) {
-    // These markers assist in locating the trace data in the log, and can be
-    // used by scripts to help extract the trace data.
-    LOG(INFO) << "BEGIN_TRACELOG_MARKER" << base::StringPiece(buffer, length)
-              << "END_TRACELOG_MARKER";
     return;
   }
 

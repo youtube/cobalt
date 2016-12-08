@@ -19,6 +19,5 @@
 interface SpeechRecognitionResult {
   readonly attribute unsigned long length;
   getter SpeechRecognitionAlternative item(unsigned long index);
-  // isFinal is different from the spec., but follows with Chromium.
-  readonly attribute boolean isFinal;
+  readonly attribute boolean final;
 };

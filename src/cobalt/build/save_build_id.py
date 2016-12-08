@@ -14,13 +14,12 @@
 # limitations under the License.
 """Calculates the current Build ID and writes it to 'build.id'."""
 
-import argparse
 import logging
 import os
 import sys
-import textwrap
 
 import gyp_utils
+
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 _BUILD_ID_PATH = gyp_utils.BUILD_ID_PATH
@@ -33,27 +32,11 @@ RETVAL_ERROR = 1
 def main():
   logging.basicConfig(level=logging.WARNING, format='%(message)s')
 
-  parser = argparse.ArgumentParser(
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-      description=textwrap.dedent(__doc__))
-
-  parser.add_argument(
-      '--delete',
-      '-d',
-      action='store_true',
-      default=False,
-      help='Delete build.id file.')
-
-  options = parser.parse_args()
-
   # Update the build id to the latest, even if one is already set.
   try:
     os.unlink(_BUILD_ID_PATH)
   except OSError:
     pass
-
-  if options.delete:
-    return 0
 
   build_id = gyp_utils.GetBuildNumber()
   if not build_id:

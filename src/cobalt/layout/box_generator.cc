@@ -247,7 +247,6 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
@@ -264,8 +263,6 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kStereoscopicLeftRight:
-    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -544,7 +541,6 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
@@ -561,8 +557,6 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kStereoscopicLeftRight:
-    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -694,7 +688,6 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
-      case cssom::KeywordValue::kMonoscopic:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNoWrap:
@@ -710,8 +703,6 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
-      case cssom::KeywordValue::kStereoscopicLeftRight:
-      case cssom::KeywordValue::kStereoscopicTopBottom:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:

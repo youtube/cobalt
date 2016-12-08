@@ -47,7 +47,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
-    case kSbSystemPropertySpeechApiKey:
       return false;
 
     case kSbSystemPropertyFriendlyName:

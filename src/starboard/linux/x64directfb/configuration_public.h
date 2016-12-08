@@ -52,8 +52,4 @@
 #define SB_PREFERRED_RGBA_BYTE_ORDER SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
 #endif
 
-// The current platform has microphone supported.
-#undef SB_HAS_MICROPHONE
-#define SB_HAS_MICROPHONE 1
-
 #endif  // STARBOARD_LINUX_X64DIRECTFB_CONFIGURATION_PUBLIC_H_

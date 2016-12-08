@@ -395,7 +395,7 @@ class ScopedPtrMallocFree {
  public:
   inline void operator()(void* x) const {
 #if defined(OS_STARBOARD)
-    SbMemoryDeallocate(x);
+    SbMemoryFree(x);
 #else
     free(x);
 #endif

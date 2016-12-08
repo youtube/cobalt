@@ -55,7 +55,7 @@ static JS_INLINE void js_free(void* p) {
       AllocationMetadata::GetMetadataFromUserAddress(p);
   MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(-static_cast<ssize_t>(
       AllocationMetadata::GetSizeOfAllocationFromMetadata(metadata)));
-  SbMemoryDeallocate(metadata);
+  SbMemoryFree(metadata);
 }
 
 static JS_INLINE void* js_realloc(void* p, size_t bytes) {

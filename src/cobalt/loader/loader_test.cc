@@ -100,7 +100,7 @@ class MockFetcher : public Fetcher {
 
 struct MockFetcherFactory {
  public:
-  MockFetcherFactory() : count(0) {}
+  MockFetcherFactory(): count(0) {}
   // Way to access the last fetcher created by the fetcher factory.
   MockFetcher* fetcher;
   int count;

@@ -1,2 +1,0 @@
-MAILTO=catlee@mozilla.com
-@hourly root CLEANUP_PASSWORD=sekrits /usr/bin/php /var/www/html/build/clobberer/cleanup.php

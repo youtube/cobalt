@@ -46,15 +46,15 @@ uint32 kWAVfmtChunkHeaderSize = 16;
 }  // namespace
 
 // static
-scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(
-    const uint8* data, size_t size, SampleType sample_type) {
+scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(const uint8* data,
+                                                          size_t size) {
   // Need at least the |kWAVChunkSize| bytes for this to be a WAV.
   if (size < kWAVChunkSize) {
     return scoped_ptr<AudioFileReader>();
   }
 
   scoped_ptr<AudioFileReaderWAV> audio_file_reader_wav(
-      new AudioFileReaderWAV(data, size, sample_type));
+      new AudioFileReaderWAV(data, size));
 
   if (!audio_file_reader_wav->is_valid()) {
     return scoped_ptr<AudioFileReader>();
@@ -63,12 +63,8 @@ scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(
   return make_scoped_ptr<AudioFileReader>(audio_file_reader_wav.release());
 }
 
-AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size,
-                                       SampleType sample_type)
-    : sample_rate_(0.f),
-      number_of_frames_(0),
-      number_of_channels_(0),
-      sample_type_(sample_type) {
+AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size)
+    : sample_rate_(0.f), number_of_frames_(0), number_of_channels_(0) {
   DCHECK_GE(size, kWAVRIFFChunkHeaderSize);
 
   if (ParseRIFFHeader(data, size)) {
@@ -153,10 +149,6 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
 
   // Load channel count.
   number_of_channels_ = load_uint16_little_endian(data + offset + 2);
-  if (number_of_channels_ == 0) {
-    DLOG(ERROR) << "No channel on WAV.";
-    return false;
-  }
 
   // Load sample rate.
   sample_rate_ =
@@ -183,51 +175,32 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
   const uint8* data_samples = data + offset;
 
   // Set number of frames based on size of data chunk.
-  const int32 bytes_per_src_sample =
+  int32 bytes_per_src_sample =
       static_cast<int32>(is_sample_in_float ? sizeof(float) : sizeof(int16));
   number_of_frames_ =
       static_cast<int32>(size / (bytes_per_src_sample * number_of_channels_));
-  const int32 bytes_per_dest_sample =
-      static_cast<int32>(GetSampleTypeSize(sample_type_));
-  const bool is_dest_float = sample_type_ == kSampleTypeFloat32;
 
-  // We store audio samples in the current platform's preferred format.
-  sample_data_.reset(new uint8[static_cast<size_t>(
-      number_of_frames_ * number_of_channels_ * bytes_per_dest_sample)]);
+  // We always store audio samples in float.
+  sample_data_.reset(
+      new uint8[number_of_frames_ * number_of_channels_ * sizeof(float)]);
 
-  // Here we handle all 4 possible conversion cases.  Also note that the
-  // source data is stored interleaved, and that need to convert it to planar.
-  uint8* dest_sample = sample_data_.get();
+  // The source data is stored interleaved.  We need to convert it into planar.
+  float* dest_sample = reinterpret_cast<float*>(sample_data_.get());
   for (int32 i = 0; i < number_of_channels_; ++i) {
     const uint8* src_samples = data_samples + i * bytes_per_src_sample;
 
     for (int32 j = 0; j < number_of_frames_; ++j) {
-      if (is_dest_float) {
-        float sample;
-        if (is_sample_in_float) {
-          uint32 sample_as_uint32 = load_uint32_little_endian(src_samples);
-          sample = bit_cast<float>(sample_as_uint32);
-        } else {
-          uint16 sample_pcm_unsigned = load_uint16_little_endian(src_samples);
-          int16 sample_pcm = bit_cast<int16>(sample_pcm_unsigned);
-          sample = ConvertSample<int16, float>(sample_pcm);
-        }
-        reinterpret_cast<float*>(dest_sample)[i * number_of_frames_ + j] =
-            sample;
-        src_samples += bytes_per_src_sample * number_of_channels_;
+      float sample;
+      if (is_sample_in_float) {
+        uint32 sample_as_uint32 = load_uint32_little_endian(src_samples);
+        sample = bit_cast<float>(sample_as_uint32);
       } else {
-        int16 sample;
-        if (is_sample_in_float) {
-          uint32 sample_as_uint32 = load_uint32_little_endian(src_samples);
-          float value = bit_cast<float>(sample_as_uint32);
-          sample = ConvertSample<float, int16>(value);
-        } else {
-          sample = bit_cast<int16>(load_uint16_little_endian(src_samples));
-        }
-        reinterpret_cast<int16*>(dest_sample)[i * number_of_frames_ + j] =
-            sample;
-        src_samples += bytes_per_src_sample * number_of_channels_;
+        uint16 sample_pcm_unsigned = load_uint16_little_endian(src_samples);
+        int16 sample_pcm = bit_cast<int16>(sample_pcm_unsigned);
+        sample = static_cast<float>(sample_pcm) / 32768.0f;
       }
+      dest_sample[i * number_of_frames_ + j] = sample;
+      src_samples += bytes_per_src_sample * number_of_channels_;
     }
   }
 

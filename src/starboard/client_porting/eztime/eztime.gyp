@@ -32,9 +32,9 @@
       'target_name': 'eztime_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        '<(DEPTH)/starboard/common/test_main.cc',
         'test_constants.h',
         'eztime_test.cc',
+        '<(DEPTH)/starboard/nplb/main.cc',
       ],
       'dependencies': [
         '<(DEPTH)/testing/gmock.gyp:gmock',

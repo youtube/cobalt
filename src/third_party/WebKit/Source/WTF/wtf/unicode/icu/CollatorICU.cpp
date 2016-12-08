@@ -46,7 +46,7 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #define strdup SbStringDuplicate
-#define free SbMemoryDeallocate
+#define free SbMemoryFree
 #endif
 
 namespace WTF {

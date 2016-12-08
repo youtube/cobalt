@@ -36,7 +36,7 @@ class SpeechRecognition : public dom::EventTarget {
 
   // When the start method is called, it represents the moment in time the web
   // application wishes to begin recognition.
-  void Start(script::ExceptionState* exception_state);
+  void Start();
   // The stop method represents an instruction to the recognition service to
   // stop listening to more audio, and to try and return a result using just the
   // audio that it has already received for this recognition.
@@ -106,9 +106,6 @@ class SpeechRecognition : public dom::EventTarget {
 
  private:
   ~SpeechRecognition() OVERRIDE {}
-
-  // Callback from recognition manager.
-  bool OnEventAvailable(const scoped_refptr<dom::Event>& event);
 
   // Handles main operations of speech recognition including audio encoding,
   // mic audio retrieving and audio data recognizing.

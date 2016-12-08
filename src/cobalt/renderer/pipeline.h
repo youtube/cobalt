@@ -34,6 +34,13 @@
 #include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/submission_queue.h"
 
+#if defined(OS_STARBOARD) && !SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER
+// If there is no need to frequently flip the display buffer, then enable
+// support for an optimization where the scene is not re-rasterized each frame
+// if it has not changed from the last frame.
+#define DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE
+#endif
+
 namespace cobalt {
 namespace renderer {
 
@@ -59,8 +66,7 @@ class Pipeline {
   // thread safe objects.
   Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
            const scoped_refptr<backend::RenderTarget>& render_target,
-           backend::GraphicsContext* graphics_context,
-           bool submit_even_if_render_tree_is_unchanged);
+           backend::GraphicsContext* graphics_context);
   ~Pipeline();
 
   // Submit a new render tree to the renderer pipeline.  After calling this
@@ -167,26 +173,17 @@ class Pipeline {
   // the future.
   base::optional<SubmissionQueue> submission_queue_;
 
+#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
   // Keep track of the last render tree we rendered whose animations have
   // expired so that if we see that we are asked to rasterize that render tree
   // again, we know that we do not have to do anything.
   scoped_refptr<render_tree::Node> last_rendered_expired_render_tree_;
+#endif  // defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
 
-  // If true, we will submit the current render tree to the rasterizer every
-  // frame, even if it hasn't changed.
-  const bool submit_even_if_render_tree_is_unchanged_;
-
-  // Keeps track of the last rendered animated render tree.
-  scoped_refptr<render_tree::Node> last_render_tree_;
-  // Keeps track of the area of the screen that animations previously existed
-  // within, so that we can know which regions of the screens would be dirty
-  // next frame.
-  base::optional<math::Rect> previous_animated_area_;
-  // The submission time used during the last render tree render.
-  base::optional<base::TimeDelta> last_render_time_;
-
-  // Timer tracking the amount of time spent in |RasterizeCurrentTree| each
-  // call.
+  // Timers for tracking how frequently |RasterizeCurrentTree| is called and
+  // the amount of time spent in |RasterizeCurrentTree| each call.
+  base::CValTimeIntervalTimer<base::CValPublic>
+      rasterize_current_tree_interval_timer_;
   base::CValTimeIntervalTimer<base::CValPublic> rasterize_current_tree_timer_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)

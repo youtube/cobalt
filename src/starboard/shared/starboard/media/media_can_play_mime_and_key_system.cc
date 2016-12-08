@@ -16,10 +16,10 @@
 
 #include "starboard/character.h"
 #include "starboard/log.h"
-#include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/media/mime_parser.h"
 #include "starboard/string.h"
 
-using starboard::shared::starboard::media::MimeType;
+using starboard::shared::starboard::media::MimeParser;
 
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
@@ -37,32 +37,27 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
       return kSbMediaSupportTypeNotSupported;
     }
   }
-  MimeType mime_type(mime);
-  if (!mime_type.is_valid()) {
+  MimeParser parser(mime);
+  if (!parser.is_valid()) {
     SB_DLOG(WARNING) << mime << " is not a valid mime type";
     return kSbMediaSupportTypeNotSupported;
   }
-  int codecs_index = mime_type.GetParamIndexByName("codecs");
-  if (codecs_index != MimeType::kInvalidParamIndex && codecs_index != 0) {
-    SB_DLOG(WARNING) << mime << " is not a valid mime type";
-    return kSbMediaSupportTypeNotSupported;
-  }
-  if (mime_type.type() == "application" &&
-      mime_type.subtype() == "octet-stream") {
+  if (parser.mime() == "application/octet-stream") {
     return kSbMediaSupportTypeProbably;
   }
-  if (mime_type.type() == "audio" && mime_type.subtype() == "mp4") {
+  if (parser.mime() == "audio/mp4") {
     return kSbMediaSupportTypeProbably;
   }
-  if (mime_type.type() == "video" && mime_type.subtype() == "mp4") {
+  if (parser.mime() == "video/mp4") {
     return kSbMediaSupportTypeProbably;
   }
 #if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
-  if (mime_type.type() == "video" && mime_type.subtype() == "webm") {
-    if (codecs_index == MimeType::kInvalidParamIndex) {
+  if (parser.mime() == "video/webm") {
+    if (!parser.HasParam("codecs")) {
       return kSbMediaSupportTypeMaybe;
     }
-    if (mime_type.GetParamStringValue(0) == "vp9") {
+    std::string codecs = parser.GetParam("codecs");
+    if (codecs == "vp9") {
       return kSbMediaSupportTypeProbably;
     }
     return kSbMediaSupportTypeNotSupported;

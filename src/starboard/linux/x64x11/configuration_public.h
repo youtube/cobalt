@@ -22,9 +22,6 @@
 #ifndef STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 
-// The API version implemented by this platform.
-#define SB_API_VERSION 2
-
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
@@ -109,14 +106,7 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
 
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
-
-// The current platform has microphone supported.
-#undef SB_HAS_MICROPHONE
-#define SB_HAS_MICROPHONE 1
 
 #endif  // STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_

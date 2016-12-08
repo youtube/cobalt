@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Mutex module
-//
-// Defines a mutually exclusive lock that can be used to coordinate with other
-// threads.
+// A mutually exclusive lock that can be used to coordinate with other threads.
 
 #ifndef STARBOARD_MUTEX_H_
 #define STARBOARD_MUTEX_H_
@@ -40,46 +37,31 @@ typedef enum SbMutexResult {
   kSbMutexDestroyed,
 } SbMutexResult;
 
-// Indicates whether the given result is a success. A value of |true| indicates
-// that the mutex was acquired.
-//
-// |result|: The result being checked.
+// Returns whether the given result is a success.
 static SB_C_FORCE_INLINE bool SbMutexIsSuccess(SbMutexResult result) {
   return result == kSbMutexAcquired;
 }
 
-// Creates a new mutex. The return value indicates whether the function
-// was able to create a new mutex.
-//
-// |out_mutex|: The handle to the newly created mutex.
+// Creates a new mutex, placing the handle to the newly created mutex in
+// |out_mutex|. Returns whether able to create a new mutex.
 SB_EXPORT bool SbMutexCreate(SbMutex* out_mutex);
 
-// Destroys a mutex. The return value indicates whether the destruction was
-// successful.
-//
-// |mutex|: The mutex to be invalidated.
+// Destroys a mutex, returning whether the destruction was successful. The mutex
+// specified by |mutex| is invalidated.
 SB_EXPORT bool SbMutexDestroy(SbMutex* mutex);
 
-// Acquires |mutex|, blocking indefinitely. The return value identifies
-// the acquisition result. SbMutexes are not reentrant, so a recursive
-// acquisition blocks forever.
-//
-// |mutex|: The mutex to be acquired.
+// Acquires |mutex|, blocking indefinitely, returning the acquisition result.
+// SbMutexes are not reentrant, so a recursive acquisition will block forever.
 SB_EXPORT SbMutexResult SbMutexAcquire(SbMutex* mutex);
 
-// Acquires |mutex|, without blocking. The return value identifies
-// the acquisition result. SbMutexes are not reentrant, so a recursive
-// acquisition always fails.
-//
-// |mutex|: The mutex to be acquired.
+// Acquires |mutex|, without blocking, returning the acquisition result.
+// SbMutexes are not reentrant, so a recursive acquisition will always fail.
 SB_EXPORT SbMutexResult SbMutexAcquireTry(SbMutex* mutex);
 
-// Releases |mutex| held by the current thread. The return value indicates
-// whether the release was successful. Releases should always be successful
-// if |mutex| is held by the current thread.
-//
-// |mutex|: The mutex to be released.
-SB_EXPORT bool SbMutexRelease(SbMutex* mutex);
+// Releases |mutex| held by the current thread, returning whether the release
+// was successful. Releases should always be successful if the mutex is held by
+// the current thread.
+SB_EXPORT bool SbMutexRelease(SbMutex* handle);
 
 #ifdef __cplusplus
 }  // extern "C"

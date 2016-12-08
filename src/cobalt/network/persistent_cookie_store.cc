@@ -55,13 +55,9 @@ std::vector<net::CanonicalCookie*> GetAllCookies(sql::Connection* conn) {
         get_all.ColumnString(6),
         base::Time::FromInternalValue(get_all.ColumnInt64(7)), expiry,
         get_all.ColumnBool(10), get_all.ColumnBool(11));
-    if (cookie) {
-      cookie->SetLastAccessDate(
-          base::Time::FromInternalValue(get_all.ColumnInt64(9)));
-      actual_cookies.push_back(cookie);
-    } else {
-      DLOG(ERROR) << "Failed to create cookie.";
-    }
+    cookie->SetLastAccessDate(
+        base::Time::FromInternalValue(get_all.ColumnInt64(9)));
+    actual_cookies.push_back(cookie);
   }
 
   return actual_cookies;

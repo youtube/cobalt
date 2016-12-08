@@ -33,9 +33,9 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 // Gets the path to the storage file for the given user.
-static SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
-                                               char* out_path,
-                                               int path_size) {
+SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
+                                        char* out_path,
+                                        int path_size) {
   bool success = SbUserGetProperty(user, kSbUserPropertyHomeDirectory, out_path,
                                    path_size);
   if (!success) {

@@ -39,15 +39,14 @@ class HardwareRasterizer : public Rasterizer {
  public:
   explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
                               int scratch_surface_size_in_bytes,
-                              int surface_cache_size_in_bytes,
-                              int software_surface_cache_size_in_bytes);
+                              int surface_cache_size_in_bytes);
   virtual ~HardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed
   // into the constructor.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              const Options& options) OVERRIDE;
+              int options) OVERRIDE;
 
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
 

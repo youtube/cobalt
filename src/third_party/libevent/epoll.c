@@ -28,18 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef STARBOARD
-#include "epoll-internal.h"
-#include "libevent-starboard.h"
-
-// Use libevent's local compatibility  versions of these.
-#include "third_party/libevent/compat/sys/queue.h"
-
-// Include Starboard poems after all system headers.
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#else  // STARBOARD
 #include <stdint.h>
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
@@ -48,9 +36,11 @@
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
+#ifndef STARBOARD
 #include <signal.h>
 #include <sys/epoll.h>
 #include <sys/resource.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +49,6 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#endif  // STARBOARD
 
 #include "event.h"
 #include "event-internal.h"
@@ -67,6 +56,10 @@
 #include "evsignal.h"
 #endif
 #include "log.h"
+
+#ifdef STARBOARD
+#include "epoll-internal.h"
+#endif
 
 /* due to limitations in the epoll interface, we need to keep track of
  * all file descriptors outself.

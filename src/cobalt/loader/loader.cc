@@ -51,11 +51,6 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
-  void OnReceivedPassed(Fetcher* fetcher,
-                        scoped_ptr<std::string> data) OVERRIDE {
-    UNREFERENCED_PARAMETER(fetcher);
-    decoder_->DecodeChunkPassed(data.Pass());
-  }
   void OnDone(Fetcher* fetcher) OVERRIDE {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->Finish();

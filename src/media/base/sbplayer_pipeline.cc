@@ -521,8 +521,8 @@ void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
     return;
   }
 
-  if (error != PIPELINE_OK) {
-    ResetAndRunIfNotNull(&error_cb_, error);
+  if (error != PIPELINE_OK && !error_cb_.is_null()) {
+    base::ResetAndReturn(&error_cb_).Run(error);
   }
 }
 
@@ -595,13 +595,9 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (status != PIPELINE_OK) {
-    ResetAndRunIfNotNull(&error_cb_, status);
-    return;
-  }
-
-  if (demuxer_->GetStream(DemuxerStream::AUDIO) == NULL ||
-      demuxer_->GetStream(DemuxerStream::VIDEO) == NULL) {
-    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+    if (!error_cb_.is_null()) {
+      base::ResetAndReturn(&error_cb_).Run(status);
+    }
     return;
   }
 
@@ -761,7 +757,9 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStateDestroyed:
       break;
     case kSbPlayerStateError:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE);
+      if (!error_cb_.is_null()) {
+        base::ResetAndReturn(&error_cb_).Run(PIPELINE_ERROR_DECODE);
+      }
       break;
   }
 }

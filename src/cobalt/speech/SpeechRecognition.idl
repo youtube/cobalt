@@ -28,7 +28,7 @@ interface SpeechRecognition : EventTarget {
   attribute unsigned long maxAlternatives;
 
   // methods to drive the speech interaction
-  [RaisesException] void start();
+  void start();
   void stop();
   void abort();
 

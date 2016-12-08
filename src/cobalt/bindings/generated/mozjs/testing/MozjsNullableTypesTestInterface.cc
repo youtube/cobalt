@@ -193,15 +193,6 @@ InterfaceData* CreateCachedInterfaceData() {
 JSBool get_nullableBooleanProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -224,15 +215,6 @@ JSBool get_nullableBooleanProperty(
 JSBool set_nullableBooleanProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -255,15 +237,6 @@ JSBool set_nullableBooleanProperty(
 JSBool get_nullableNumericProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -286,15 +259,6 @@ JSBool get_nullableNumericProperty(
 JSBool set_nullableNumericProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -317,15 +281,6 @@ JSBool set_nullableNumericProperty(
 JSBool get_nullableStringProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -348,15 +303,6 @@ JSBool get_nullableStringProperty(
 JSBool set_nullableStringProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -379,15 +325,6 @@ JSBool set_nullableStringProperty(
 JSBool get_nullableObjectProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -410,15 +347,6 @@ JSBool get_nullableObjectProperty(
 JSBool set_nullableObjectProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -451,15 +379,6 @@ JSBool fcn_nullableBooleanArgument(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -508,15 +427,6 @@ JSBool fcn_nullableBooleanOperation(
     NOTREACHED();
     return false;
   }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -549,15 +459,6 @@ JSBool fcn_nullableNumericArgument(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -606,15 +507,6 @@ JSBool fcn_nullableNumericOperation(
     NOTREACHED();
     return false;
   }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -647,15 +539,6 @@ JSBool fcn_nullableObjectArgument(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -704,15 +587,6 @@ JSBool fcn_nullableObjectOperation(
     NOTREACHED();
     return false;
   }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -745,15 +619,6 @@ JSBool fcn_nullableStringArgument(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -800,15 +665,6 @@ JSBool fcn_nullableStringOperation(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NullableTypesTestInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);

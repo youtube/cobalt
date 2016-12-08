@@ -69,9 +69,6 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
                    GetReachableWrappablesFunction());
   }
 
-  // Return true if the object has wrapper private.
-  static bool HasWrapperPrivate(JSContext* context, JS::HandleObject object);
-
   // Get the WrapperPrivate associated with the given Wrappable. A new JSObject
   // and WrapperPrivate object may be created.
   static WrapperPrivate* GetFromWrappable(

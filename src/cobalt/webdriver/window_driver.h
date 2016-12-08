@@ -34,7 +34,6 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
 #include "cobalt/webdriver/element_mapping.h"
-#include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/protocol/cookie.h"
 #include "cobalt/webdriver/protocol/frame_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
@@ -55,15 +54,11 @@ namespace webdriver {
 // will map to a method on this class.
 class WindowDriver : private ElementMapping {
  public:
-  typedef base::Callback<void(scoped_refptr<dom::Element>,
-                              const dom::KeyboardEvent::Data&)>
-      KeyboardEventInjector;
   typedef base::Callback<scoped_refptr<script::GlobalEnvironment>()>
       GetGlobalEnvironmentFunction;
   WindowDriver(const protocol::WindowId& window_id,
                const base::WeakPtr<dom::Window>& window,
                const GetGlobalEnvironmentFunction& get_global_environment,
-               KeyboardEventInjector keyboard_injector,
                const scoped_refptr<base::MessageLoopProxy>& message_loop);
   ~WindowDriver();
   const protocol::WindowId& window_id() { return window_id_; }
@@ -82,8 +77,6 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<std::string> GetSource();
   util::CommandResult<protocol::ScriptResult> Execute(
       const protocol::Script& script);
-  util::CommandResult<protocol::ScriptResult> ExecuteAsync(
-      const protocol::Script& script);
   util::CommandResult<void> SendKeys(const protocol::Keys& keys);
   util::CommandResult<protocol::ElementId> GetActiveElement();
   util::CommandResult<void> SwitchFrame(const protocol::FrameId& frame_id);
@@ -96,6 +89,7 @@ class WindowDriver : private ElementMapping {
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
   typedef ElementDriverMap::iterator ElementDriverMapIt;
   typedef std::vector<protocol::ElementId> ElementIdVector;
+  typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
 
   // ScriptExecutor::ElementMapping implementation.
   protocol::ElementId ElementToId(
@@ -119,12 +113,10 @@ class WindowDriver : private ElementMapping {
       const protocol::SearchStrategy& strategy);
 
   util::CommandResult<protocol::ScriptResult> ExecuteScriptInternal(
-      const protocol::Script& script,
-      base::optional<base::TimeDelta> async_timeout,
-      ScriptExecutorResult::ResultHandler* result_handler);
+      const protocol::Script& script);
 
   util::CommandResult<void> SendKeysInternal(
-      scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
+      scoped_ptr<KeyboardEventVector> keyboard_events);
 
   util::CommandResult<void> NavigateInternal(const GURL& url);
 
@@ -136,8 +128,6 @@ class WindowDriver : private ElementMapping {
 
   // Bound to the WebDriver thread.
   base::ThreadChecker thread_checker_;
-
-  KeyboardEventInjector keyboard_injector_;
 
   // Anything that interacts with the window must be run on this message loop.
   scoped_refptr<base::MessageLoopProxy> window_message_loop_;

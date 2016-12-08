@@ -27,11 +27,7 @@ void Initialize() {
 
 void* OffsetPointer(void* base, int64_t offset) {
   uintptr_t base_as_int = reinterpret_cast<uintptr_t>(base);
-#if defined(STARBOARD)
-    return reinterpret_cast<void*>(base_as_int + static_cast<uintptr_t>(offset));
-#else
-    return reinterpret_cast<void*>(base_as_int + offset);
-#endif
+  return reinterpret_cast<void*>(base_as_int + offset);
 }
 }  // namespace
 

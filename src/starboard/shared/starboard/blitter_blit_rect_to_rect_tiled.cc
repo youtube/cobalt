@@ -248,11 +248,9 @@ bool SbBlitterBlitRectToRectTiled(SbBlitterContext context,
     }
   }
 
-  bool result = SbBlitterBlitRectsToRects(context, source_surface, src_rects,
-                                          dst_rects, num_tiles);
+  return SbBlitterBlitRectsToRects(context, source_surface, src_rects,
+                                   dst_rects, num_tiles);
 
   delete[] src_rects;
   delete[] dst_rects;
-
-  return result;
 }

@@ -363,7 +363,6 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
@@ -380,8 +379,6 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -461,7 +458,6 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNone:
@@ -479,8 +475,6 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -567,7 +561,6 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
@@ -585,8 +578,6 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -689,7 +680,6 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
@@ -706,8 +696,6 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -810,7 +798,6 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
@@ -827,8 +814,6 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -931,7 +916,6 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
@@ -949,8 +933,6 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -1047,7 +1029,6 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
@@ -1065,8 +1046,6 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -1159,7 +1138,6 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
@@ -1175,8 +1153,6 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -1575,7 +1551,6 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
@@ -1592,8 +1567,6 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -1713,13 +1686,6 @@ void ComputedBackgroundImageSingleLayerProvider::VisitURL(URLValue* url_value) {
     absolute_url = GURL(url_value->value());
   } else {
     absolute_url = url_value->Resolve(base_url_);
-  }
-
-  if (!absolute_url.is_valid()) {
-    DLOG(WARNING) << "Invalid url: " << absolute_url.spec();
-    // No further process is needed if the url is invalid.
-    computed_background_image_ = KeywordValue::GetNone();
-    return;
   }
 
   computed_background_image_ = new AbsoluteURLValue(absolute_url);
@@ -1851,7 +1817,6 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
@@ -1869,8 +1834,6 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -2101,7 +2064,6 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNormal:
     case KeywordValue::kNoRepeat:
@@ -2118,8 +2080,6 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -2488,7 +2448,6 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
@@ -2505,8 +2464,6 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
@@ -2955,7 +2912,6 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderTopStyleProperty:
     case kColorProperty:
     case kContentProperty:
-    case kFilterProperty:
     case kFontFamilyProperty:
     case kFontStyleProperty:
     case kOpacityProperty:
@@ -3063,7 +3019,6 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBoxShadowProperty:
     case kContentProperty:
     case kDisplayProperty:
-    case kFilterProperty:
     case kFontFamilyProperty:
     case kFontProperty:
     case kFontStyleProperty:

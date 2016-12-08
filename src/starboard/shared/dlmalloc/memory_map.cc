@@ -13,11 +13,9 @@
 // limitations under the License.
 
 #include "starboard/memory.h"
-#include "starboard/shared/starboard/memory_reporter_internal.h"
+
 #include "starboard/shared/dlmalloc/page_internal.h"
 
 void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
-  void* memory = SbPageMap(size_bytes, flags, name);
-  SbMemoryReporterReportMappedMemory(memory, size_bytes);
-  return memory;
+  return SbPageMap(size_bytes, flags, name);
 }

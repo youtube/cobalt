@@ -201,15 +201,6 @@ JSBool fcn_callWithSettings(
     NOTREACHED();
     return false;
   }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<ExtendedIDLAttributesInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -217,10 +208,10 @@ JSBool fcn_callWithSettings(
       WrapperPrivate::GetFromObject(context, object);
   ExtendedIDLAttributesInterface* impl =
       wrapper_private->wrappable<ExtendedIDLAttributesInterface>().get();
-  MozjsGlobalEnvironment* callwith_global_environment =
+  MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
 
-  impl->CallWithSettings(callwith_global_environment->GetEnvironmentSettings());
+  impl->CallWithSettings(global_environment->GetEnvironmentSettings());
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }

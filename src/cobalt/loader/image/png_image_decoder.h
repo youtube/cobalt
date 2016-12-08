@@ -36,6 +36,11 @@ class PNGImageDecoder : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const OVERRIDE { return "PNGImageDecoder"; }
 
+  // Returns true if the signature is valid for the particular image type.
+  static bool IsValidSignature(const uint8* header) {
+    return !memcmp(header, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8);
+  }
+
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) OVERRIDE;

@@ -1,5 +1,0 @@
-include *.rst
-include COPYING
-include tox.ini
-include version.txt
-recursive-include json *

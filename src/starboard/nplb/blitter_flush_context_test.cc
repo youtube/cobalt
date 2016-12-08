@@ -67,7 +67,6 @@ TEST(SbBlitterFlushContextTest, SunnyDayWithDrawCalls) {
   // Check that flush succeeds after some commands have been submitted.
   EXPECT_TRUE(SbBlitterFlushContext(context));
 
-  EXPECT_TRUE(SbBlitterDestroySurface(surface));
   EXPECT_TRUE(SbBlitterDestroyContext(context));
   EXPECT_TRUE(SbBlitterDestroyDevice(device));
 }

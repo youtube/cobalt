@@ -45,8 +45,6 @@ class GraphicsContextStub : public GraphicsContext {
     return scoped_array<uint8_t>(
         new uint8_t[render_target->GetSize().GetArea() * 4]);
   }
-
-  void Finish() OVERRIDE {}
 };
 
 }  // namespace backend

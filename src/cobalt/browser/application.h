@@ -33,11 +33,6 @@
 #include "cobalt/debug/debug_web_server.h"
 #endif
 
-#if defined(OS_STARBOARD)
-#include "nb/analytics/memory_tracker.h"
-#include "nb/scoped_ptr.h"
-#endif
-
 namespace cobalt {
 namespace browser {
 
@@ -72,9 +67,6 @@ class Application {
   // Called to handle an application event.
   void OnApplicationEvent(const base::Event* event);
 
-  // Called to handle a deep link event.
-  void OnDeepLinkEvent(const base::Event* event);
-
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleRecreated();
 
@@ -96,7 +88,6 @@ class Application {
   base::EventCallback account_event_callback_;
   base::EventCallback network_event_callback_;
   base::EventCallback application_event_callback_;
-  base::EventCallback deep_link_event_callback_;
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.
@@ -159,7 +150,6 @@ class Application {
   void UpdateAndMaybeRegisterUserAgent();
 
   void UpdatePeriodicStats();
-  void UpdatePeriodicLiteStats();
 
   static ssize_t available_memory_;
   static int64 lifetime_in_ms_;
@@ -177,14 +167,6 @@ class Application {
   CValStats c_val_stats_;
 
   base::Timer stats_update_timer_;
-  base::Timer lite_stats_update_timer_;
-
-#if defined(OS_STARBOARD)
-  // This thread (when active) will print out memory statistics of the engine.
-  // It is activated by the command line -memory_tracker.
-  nb::scoped_ptr<nb::analytics::MemoryTrackerPrintThread>
-      memory_tracker_print_thread_;
-#endif
 };
 
 // Factory method for creating an application.  It should be implemented

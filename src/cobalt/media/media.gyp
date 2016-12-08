@@ -35,7 +35,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/media/media.gyp:media',
-        '<(DEPTH)/nb/nb.gyp:nb',
       ],
       'export_dependent_settings': [
         '<(DEPTH)/media/media.gyp:media',
@@ -46,6 +45,9 @@
             'media_module_<(sb_media_platform).cc',
             'shell_media_platform_<(sb_media_platform).cc',
             'shell_media_platform_<(sb_media_platform).h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/nb/nb.gyp:nb',
           ],
         }],
         ['OS=="starboard" and sb_media_platform == "ps4"', {
@@ -69,6 +71,9 @@
           'sources': [
             'shell_media_platform_ps3.cc',
             'shell_media_platform_ps3.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/nb/nb.gyp:nb',
           ],
         }],
       ],

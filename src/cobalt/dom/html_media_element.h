@@ -53,7 +53,7 @@ class HTMLMediaElement : public HTMLElement,
   // Web API: HTMLMediaElement
   //
   // Error state
-  scoped_refptr<MediaError> error() const;
+  scoped_refptr<MediaError> error() const { return error_; }
 
   // Network state
   std::string src() const;
@@ -95,7 +95,7 @@ class HTMLMediaElement : public HTMLElement,
     kHaveEnoughData = WebMediaPlayer::kReadyStateHaveEnoughData,
   };
 
-  uint16_t ready_state() const;
+  WebMediaPlayer::ReadyState ready_state() const;
   bool seeking() const;
 
   // Playback state

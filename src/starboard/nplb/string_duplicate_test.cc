@@ -26,7 +26,7 @@ void RunTest(const char* input) {
   EXPECT_NE(kNull, dupe);
   EXPECT_EQ(0, SbStringCompareNoCase(input, dupe));
   EXPECT_EQ(SbStringGetLength(input), SbStringGetLength(dupe));
-  SbMemoryDeallocate(dupe);
+  SbMemoryFree(dupe);
 }
 
 TEST(SbStringDuplicateTest, SunnyDay) {

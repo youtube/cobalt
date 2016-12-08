@@ -79,14 +79,8 @@ scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
       new MozjsWrapperHandle(wrapper_private));
 }
 
-bool WrapperFactory::DoesObjectImplementInterface(JS::HandleObject object,
+bool WrapperFactory::DoesObjectImplementInterface(JSObject* object,
                                                   base::TypeId type_id) const {
-  // If the object doesn't have a wrapper private which means it is not a
-  // platform object, so the object doesn't implement the interface.
-  if (!WrapperPrivate::HasWrapperPrivate(context_, object)) {
-    return false;
-  }
-
   WrappableTypeFunctionsHashMap::const_iterator it =
       wrappable_type_functions_.find(type_id);
   if (it == wrappable_type_functions_.end()) {

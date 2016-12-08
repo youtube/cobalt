@@ -240,7 +240,6 @@ const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
       }
     }
   }
-  DCHECK(primary_font_);
 
   return primary_font_;
 }

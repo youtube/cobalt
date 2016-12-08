@@ -27,9 +27,6 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/typeface.h"
-#if defined(STARBOARD)
-#include "starboard/decode_target.h"
-#endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace render_tree {
@@ -75,23 +72,6 @@ class ResourceProvider {
   virtual scoped_refptr<Image> CreateImage(
       scoped_ptr<ImageData> pixel_data) = 0;
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
-  // This function will consume an SbDecodeTarget object produced by
-  // SbDecodeTargetCreate(), wrap it in a render_tree::Image that can be used
-  // in a render tree, and return it to the caller.
-  virtual scoped_refptr<Image> CreateImageFromSbDecodeTarget(
-      SbDecodeTarget target) = 0;
-
-  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
-  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
-  virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() = 0;
-
-  // Whether SbDecodeTargetIsSupported or not.
-  virtual bool SupportsSbDecodeTarget() = 0;
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
-
   // Returns a raw chunk of memory that can later be passed into a function like
   // CreateMultiPlaneImageFromRawMemory() in order to create a texture.
   // If possible, the memory returned will be GPU memory that can be directly
@@ -126,16 +106,6 @@ class ResourceProvider {
   // typeface is returned.
   virtual scoped_refptr<Typeface> GetLocalTypeface(const char* font_family_name,
                                                    FontStyle font_style) = 0;
-
-  // Given a set of typeface information, this method returns the locally
-  // available typeface that best fits the specified parameters. In the case
-  // where no typeface is found that matches the font family name, NULL is
-  // returned.
-  //
-  // Font's typeface (aka face name) is combination of a style and a font
-  // family.  Font's style consists of weight, and a slant (but not size).
-  virtual scoped_refptr<Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) = 0;
 
   // Given a UTF-32 character, a set of typeface information, and a language,
   // this method returns the best-fit locally available fallback typeface that

@@ -20,23 +20,8 @@
     {
       'target_name': 'speech',
       'type': 'static_library',
-      'msvs_disabled_warnings': [
-        # Dereferencing NULL pointer in generated file
-        # google_streaming_api.pb.cc.
-        6011,
-      ],
       'sources': [
-        'audio_encoder_flac.cc',
-        'audio_encoder_flac.h',
-        'endpointer_delegate.cc',
-        'endpointer_delegate.h',
-        'google_streaming_api.pb.cc',
-        'google_streaming_api.pb.h',
-        'google_streaming_api.pb.proto',
-        'microphone.h',
-        'microphone_manager.cc',
-        'microphone_manager.h',
-        'speech_configuration.h',
+        'mic.h',
         'speech_recognition.cc',
         'speech_recognition.h',
         'speech_recognition_alternative.cc',
@@ -58,51 +43,18 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/content/browser/speech/speech.gyp:speech',
-        '<(DEPTH)/third_party/flac/flac.gyp:libflac',
-        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
-      ],
-      'include_dirs': [
-        # Get protobuf headers from the chromium tree.
-        '<(DEPTH)/third_party/protobuf/src',
       ],
       'conditions': [
         ['OS=="starboard"', {
           'sources': [
-            'microphone_starboard.cc',
-            'microphone_starboard.h',
+            'mic_starboard.cc',
           ],
         }],
-        ['OS=="starboard" and enable_fake_microphone == 1', {
+        ['OS!="starboard" and actual_target_arch in ["linux", "ps3", "win"]', {
           'sources': [
-            'microphone_fake.cc',
-            'microphone_fake.h',
-            'url_fetcher_fake.cc',
-            'url_fetcher_fake.h',
+            'mic_<(actual_target_arch).cc',
           ],
-          'defines': [
-            'ENABLE_FAKE_MICROPHONE',
-          ],
-          'direct_dependent_settings': {
-            'defines': [ 'ENABLE_FAKE_MICROPHONE', ],
-          },
         }],
-        ['cobalt_copy_test_data == 1', {
-          'actions': [
-            {
-              'action_name': 'speech_copy_test_data',
-              'variables': {
-                'input_files': [
-                  '<(DEPTH)/cobalt/speech/testdata/',
-                ],
-                'output_dir': 'cobalt/speech/testdata/',
-              },
-              'includes': [ '../build/copy_test_data.gypi' ],
-            },
-          ],
-        }
-
-        ],
       ],
     },
   ],

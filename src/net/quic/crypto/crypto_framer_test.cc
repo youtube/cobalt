@@ -10,7 +10,6 @@
 #include "net/quic/crypto/crypto_framer.h"
 #include "net/quic/crypto/crypto_protocol.h"
 #include "net/quic/test_tools/quic_test_utils.h"
-#include "net/test/disabled_if_big_endian.h"
 
 using base::StringPiece;
 using std::map;
@@ -63,7 +62,7 @@ class TestCryptoVisitor : public ::net::CryptoFramerVisitorInterface {
 
 }  // namespace test
 
-TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ConstructHandshakeMessage)) {
+TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   CryptoHandshakeMessage message;
   message.tag = 0xFFAA7733;
   message.tag_value_map[0x12345678] = "abcdef";
@@ -108,8 +107,7 @@ TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ConstructHandshakeMessage)) {
                                       AsChars(packet), arraysize(packet));
 }
 
-TEST(CryptoFramerTest,
-     DISABLED_IF_BIG_ENDIAN(ConstructHandshakeMessageWithTwoKeys)) {
+TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
   CryptoHandshakeMessage message;
   message.tag = 0xFFAA7733;
   message.tag_value_map[0x12345678] = "abcdef";
@@ -168,7 +166,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageInvalidLength) {
   EXPECT_TRUE(data.get() == NULL);
 }
 
-TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ProcessInput)) {
+TEST(CryptoFramerTest, ProcessInput) {
   test::TestCryptoVisitor visitor;
   CryptoFramer framer;
   framer.set_visitor(&visitor);
@@ -203,7 +201,7 @@ TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ProcessInput)) {
   EXPECT_EQ("ghijk", visitor.message_maps_[0][0x12345679]);
 }
 
-TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ProcessInputIncrementally)) {
+TEST(CryptoFramerTest, ProcessInputIncrementally) {
   test::TestCryptoVisitor visitor;
   CryptoFramer framer;
   framer.set_visitor(&visitor);
@@ -239,7 +237,7 @@ TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ProcessInputIncrementally)) {
   EXPECT_EQ("ghijk", visitor.message_maps_[0][0x12345679]);
 }
 
-TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ProcessInputTagsOutOfOrder)) {
+TEST(CryptoFramerTest, ProcessInputTagsOutOfOrder) {
   test::TestCryptoVisitor visitor;
   CryptoFramer framer;
   framer.set_visitor(&visitor);
@@ -277,7 +275,7 @@ TEST(CryptoFramerTest, ProcessInputTooManyEntries) {
   EXPECT_EQ(QUIC_CRYPTO_TOO_MANY_ENTRIES, framer.error());
 }
 
-TEST(CryptoFramerTest, DISABLED_IF_BIG_ENDIAN(ProcessInputInvalidLength)) {
+TEST(CryptoFramerTest, ProcessInputInvalidLength) {
   test::TestCryptoVisitor visitor;
   CryptoFramer framer;
   framer.set_visitor(&visitor);

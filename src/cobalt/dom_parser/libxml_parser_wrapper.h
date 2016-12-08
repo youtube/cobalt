@@ -121,10 +121,8 @@ class LibxmlParserWrapper {
   // Returns true when the input is a full document, false when it's a fragment.
   bool IsFullDocument() { return document_ == parent_node_; }
 
-  // Preprocesses the input chunk and updates the max error severity level.
-  // Sets current chunk if successful.
-  void PreprocessChunk(const char* data, size_t size,
-                       std::string* current_chunk);
+  // Checks the input, updates and returns the maximum issue severity.
+  IssueSeverity CheckInputAndUpdateSeverity(const char* data, size_t size);
 
   const scoped_refptr<dom::Document>& document() { return document_; }
   const base::SourceLocation& first_chunk_location() {
@@ -137,8 +135,6 @@ class LibxmlParserWrapper {
   const std::stack<scoped_refptr<dom::Node> >& node_stack() {
     return node_stack_;
   }
-
-  IssueSeverity max_severity() const { return max_severity_; }
 
  private:
   // Maximum total input size, as specified in Libxml's value
@@ -158,7 +154,6 @@ class LibxmlParserWrapper {
   IssueSeverity max_severity_;
   size_t total_input_size_;
 
-  std::string next_chunk_start_;
   std::stack<scoped_refptr<dom::Node> > node_stack_;
 
   DISALLOW_COPY_AND_ASSIGN(LibxmlParserWrapper);

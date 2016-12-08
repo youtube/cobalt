@@ -79,8 +79,7 @@ void RendererModule::Resume() {
     pipeline_ = make_scoped_ptr(new renderer::Pipeline(
         base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
                    options_),
-        display_->GetRenderTarget(), graphics_context_.get(),
-        options_.submit_even_if_render_tree_is_unchanged));
+        display_->GetRenderTarget(), graphics_context_.get()));
   }
 }
 

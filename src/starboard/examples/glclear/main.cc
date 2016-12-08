@@ -125,7 +125,7 @@ Application::Application() {
   }
   SB_DCHECK(surface_ != EGL_NO_SURFACE);
 
-  SbMemoryDeallocate(configs);
+  SbMemoryFree(configs);
 
   eglQuerySurface(display_, surface_, EGL_WIDTH, &egl_surface_width_);
   eglQuerySurface(display_, surface_, EGL_HEIGHT, &egl_surface_height_);

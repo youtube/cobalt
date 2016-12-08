@@ -39,21 +39,20 @@ namespace cobalt {
 namespace dom {
 
 // The font cache is typically owned by dom::Document and handles the following:
-//   - Tracking of font faces, which it uses to determine if a specified
-//     font family is local or remote, and for url determination in requesting
-//     remote typefaces.
 //   - Creation and caching of font lists, which it provides to the used
 //     style provider as requested. Font lists handle most layout-related font
 //     cache interactions. Layout objects only interact with the font cache
 //     through their font lists.
+//   - Tracking of font faces, which it uses to determine if a specified
+//     font family is local or remote, and for url determination in requesting
+//     remote typefaces.
 //   - Retrieval of typefaces, either locally from the resource provider or
-//     remotely from the remote typeface cache, and caching of both typefaces
-//     and fonts to facilitate sharing of them across font lists.
-//   - Determination of the fallback typeface for a specific character using a
-//     specific font style, and caching of that information for subsequent
-//     lookups.
-//   - Creation of glyph buffers, which is accomplished by passing the request
-//    to the resource provider.
+//     remotely from the remote typeface cache.
+//   - Caching the indices of the glyphs that the typeface provides for specific
+//     characters, so that only the first query of a specific font character
+//     necessitates the glyph lookup.
+//   - Determination of the fallback typeface for a specific character, and
+//     caching of that information for subsequent lookups.
 // NOTE: The font cache is not thread-safe and must only used within a single
 // thread.
 class FontCache {
@@ -254,21 +253,18 @@ class FontCache {
   // the constructor and an |OnRemoteFontLoadEvent| callback provided by the
   // font are registered with the remote typeface cache to be called when the
   // load finishes.
+  // If the font is loading but not currently available, |maybe_is_font_loading|
+  // will be set to true.
   scoped_refptr<render_tree::Font> TryGetRemoteFont(const GURL& url, float size,
                                                     FontListFont::State* state);
 
   // Returns NULL if the requested family is not empty and is not available in
   // the resource provider. Otherwise, returns the best matching local font.
+  // |maybe_is_font_loading| is always set to false.
   scoped_refptr<render_tree::Font> TryGetLocalFont(const std::string& family,
                                                    render_tree::FontStyle style,
                                                    float size,
                                                    FontListFont::State* state);
-
-  // Lookup by a typeface (aka font_face), typeface is defined as font family +
-  // style (weight, width, and style).
-  // Returns NULL if the requested font face is not found.
-  scoped_refptr<render_tree::Font> TryGetLocalFontByFaceName(
-      const std::string& font_face, float size, FontListFont::State* state);
 
   // Called when a remote typeface either successfully loads or fails to load.
   // In either case, the event can impact the fonts contained within the font

@@ -79,8 +79,7 @@ class WebDriverServer : private net::HttpServer::Delegate {
       HttpMethod, const std::string&, scoped_ptr<base::Value>,
       scoped_ptr<ResponseHandler>)> HandleRequestCallback;
 
-  WebDriverServer(int port, const std::string& listen_ip,
-                  const HandleRequestCallback& callback);
+  WebDriverServer(int port, const HandleRequestCallback& callback);
 
  protected:
   // net::HttpServer::Delegate implementation.

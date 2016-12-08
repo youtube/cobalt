@@ -20,8 +20,6 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
-#include "cobalt/renderer/backend/egl/graphics_system.h"
-#include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
@@ -49,7 +47,7 @@ class HardwareRasterizer::Impl {
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              const Options& options);
+              int options);
 
   render_tree::ResourceProvider* GetResourceProvider();
 
@@ -72,8 +70,6 @@ class HardwareRasterizer::Impl {
   scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
       const math::Size& size);
 
-  void ResetSkiaState();
-
   base::ThreadChecker thread_checker_;
 
   backend::GraphicsContextEGL* graphics_context_;
@@ -87,8 +83,6 @@ class HardwareRasterizer::Impl {
 
   base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
   base::optional<common::SurfaceCache> surface_cache_;
-
-  FrameRateThrottler frame_rate_throttler_;
 };
 
 namespace {
@@ -195,8 +189,7 @@ HardwareRasterizer::Impl::~Impl() {
 
 void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target,
-    const Options& options) {
+    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   backend::RenderTargetEGL* render_target_egl =
@@ -231,17 +224,9 @@ void HardwareRasterizer::Impl::Submit(
 
   // Get a SkCanvas that outputs to our hardware render target.
   SkCanvas* canvas = sk_output_surface_->getCanvas();
-  canvas->save();
 
-  if (options.flags & Rasterizer::kSubmitFlags_Clear) {
+  if (options & Rasterizer::kSubmitOptions_Clear) {
     canvas->clear(SkColorSetARGB(0, 0, 0, 0));
-  } else if (options.dirty) {
-    // Only a portion of the display is dirty. Reuse the previous frame
-    // if possible.
-    if (render_target_egl->IsContentPreservedOnSwap() &&
-        render_target_egl->swap_count() >= 3) {
-      canvas->clipRect(CobaltRectFToSkiaRect(*options.dirty));
-    }
   }
 
   {
@@ -253,8 +238,6 @@ void HardwareRasterizer::Impl::Submit(
                        base::Unretained(this));
     RenderTreeNodeVisitor visitor(
         canvas, &create_scratch_surface_function,
-        base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
-                   base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
@@ -265,10 +248,7 @@ void HardwareRasterizer::Impl::Submit(
     canvas->flush();
   }
 
-  frame_rate_throttler_.EndInterval();
   graphics_context_->SwapBuffers(render_target_egl);
-  frame_rate_throttler_.BeginInterval();
-  canvas->restore();
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
@@ -324,8 +304,6 @@ HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
   }
 }
 
-void HardwareRasterizer::Impl::ResetSkiaState() { gr_context_->resetContext(); }
-
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes)
@@ -337,8 +315,7 @@ HardwareRasterizer::~HardwareRasterizer() {}
 
 void HardwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target,
-    const Options& options) {
+    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Submit()");
   impl_->Submit(render_tree, render_target, options);

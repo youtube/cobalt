@@ -36,10 +36,6 @@ namespace shared {
 
 using ::starboard::shared::dev_input::DevInput;
 
-namespace {
-const int kVideoLayer = -1;
-}  // namespace
-
 SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
   if (SbWindowIsValid(window_)) {
     return kSbWindowInvalid;
@@ -48,11 +44,8 @@ SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
   InitializeDispmanx();
 
   SB_DCHECK(IsDispmanxInitialized());
-  window_ = new SbWindowPrivate(*display_, options);
+  window_ = new SbWindowPrivate(display_, options);
   input_ = DevInput::Create(window_);
-
-  video_renderer_.reset(new DispmanxVideoRenderer(*display_, kVideoLayer));
-
   return window_;
 }
 
@@ -83,15 +76,6 @@ void ApplicationDispmanx::Teardown() {
   SbAudioSinkPrivate::TearDown();
 }
 
-void ApplicationDispmanx::AcceptFrame(SbPlayer player,
-                                      const scoped_refptr<VideoFrame>& frame,
-                                      int x,
-                                      int y,
-                                      int width,
-                                      int height) {
-  video_renderer_->Update(frame);
-}
-
 bool ApplicationDispmanx::MayHaveSystemEvents() {
   return input_ != NULL;
 }
@@ -118,7 +102,8 @@ void ApplicationDispmanx::InitializeDispmanx() {
     return;
   }
 
-  display_.reset(new DispmanxDisplay);
+  bcm_host_init();
+  display_ = vc_dispmanx_display_open(0);
   SB_DCHECK(IsDispmanxInitialized());
 }
 
@@ -128,8 +113,10 @@ void ApplicationDispmanx::ShutdownDispmanx() {
   }
 
   SB_DCHECK(!SbWindowIsValid(window_));
-
-  display_.reset();
+  int result = vc_dispmanx_display_close(display_);
+  SB_DCHECK(result == 0);
+  display_ = DISPMANX_NO_HANDLE;
+  bcm_host_deinit();
 }
 
 }  // namespace shared

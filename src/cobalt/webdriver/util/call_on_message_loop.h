@@ -35,63 +35,26 @@ class CallOnMessageLoopHelper {
   CallOnMessageLoopHelper(
       const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
       const CallbackType& callback)
-      : completed_event_(true, false), success_(false) {
+      : completed_event_(false, false) {
     DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy);
-    scoped_ptr<DeletionSignaler> dt(new DeletionSignaler(&completed_event_));
-    // Note that while MessageLoopProxy::PostTask returns false
-    // after the message loop has gone away, it still can return true
-    // even if tasks are posted during shutdown and will never be run,
-    // so we ignore this return value.
     message_loop_proxy->PostTask(
-        FROM_HERE,
-        base::Bind(&CallOnMessageLoopHelper::Call, base::Unretained(this),
-                   callback, base::Passed(&dt)));
+        FROM_HERE, base::Bind(&CallOnMessageLoopHelper::CallAndSignal,
+                              base::Unretained(this), callback));
   }
 
-  // Waits for result, filling |out| with the return value if successful.
-  // Returns true on success or false if the message loop went away
-  // before the task was executed.
-  bool WaitForResult(ReturnValue* out) {
+  ReturnValue WaitForResult() {
     completed_event_.Wait();
-    if (success_) {
-      *out = result_;
-    }
-    return success_;
-  }
-
-  ~CallOnMessageLoopHelper() {
-    // We must ensure that we've waited for completion otherwise
-    // DeletionSignaler will have a use-after-free.
-    completed_event_.Wait();
+    return result_;
   }
 
  private:
-  // DeletionSignaler signals an event when the destructor is called.
-  // This allows us to use the base::Passed mechanism to signal our
-  // completed_event_ both when Call() has been invoked and when
-  // the message loop has been deleted.
-  class DeletionSignaler {
-   public:
-    base::WaitableEvent* to_signal_;
-
-    explicit DeletionSignaler(base::WaitableEvent* to_signal)
-        : to_signal_(to_signal) {}
-
-    ~DeletionSignaler() { to_signal_->Signal(); }
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(DeletionSignaler);
-  };
-
-  void Call(const CallbackType& callback,
-            scoped_ptr<DeletionSignaler> dt ALLOW_UNUSED) {
+  void CallAndSignal(const CallbackType& callback) {
     result_ = callback.Run();
-    success_ = true;
+    completed_event_.Signal();
   }
 
   base::WaitableEvent completed_event_;
   ReturnValue result_;
-  bool success_;
 };
 
 // Used with CallWeakOnMessageLoop.
@@ -108,37 +71,14 @@ base::optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
 }  // namespace internal
 
 // Call the base::Callback on the specified message loop and wait for it to
-// complete. Returns true if successful, or false if the underlying
-// PostTask failed. This can happen if a WebModule shuts down due to a page
-// navigation.
-//
-// On success, |out| is set to the result.
+// complete, then return the result of the callback.
 template <class ReturnValue>
-bool TryCallOnMessageLoop(
+ReturnValue CallOnMessageLoop(
     const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
-    const base::Callback<ReturnValue(void)>& callback, ReturnValue* out) {
+    const base::Callback<ReturnValue(void)>& callback) {
   internal::CallOnMessageLoopHelper<ReturnValue> call_helper(message_loop_proxy,
                                                              callback);
-  return call_helper.WaitForResult(out);
-}
-
-// Tries to call |callback| on messageloop |message_loop_proxy|,
-// but returns a CommandResult of |window_disappeared_code| if the
-// message loop has shut down. This can happen if a WebModule shuts
-// down due to a page navigation.
-template <typename ReturnValue>
-util::CommandResult<ReturnValue> CallOnMessageLoop(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
-    const base::Callback<util::CommandResult<ReturnValue>(void)>& callback,
-    protocol::Response::StatusCode window_disappeared_code) {
-  util::CommandResult<ReturnValue> result;
-  bool success = TryCallOnMessageLoop(message_loop_proxy, callback, &result);
-
-  if (!success) {
-    result =
-        util::CommandResult<ReturnValue>(window_disappeared_code, "", true);
-  }
-  return result;
+  return call_helper.WaitForResult();
 }
 
 // Supports a common pattern in the various XXXDriver classes.
@@ -157,11 +97,10 @@ util::CommandResult<ReturnValue> CallWeakOnMessageLoopAndReturnResult(
     protocol::Response::StatusCode no_such_object_code) {
   typedef util::CommandResult<ReturnValue> CommandResult;
   typedef base::optional<ReturnValue> InternalResult;
-  InternalResult result;
-  bool success = util::TryCallOnMessageLoop(
+  InternalResult result = util::CallOnMessageLoop(
       message_loop,
-      base::Bind(&internal::RunWeak<T, ReturnValue>, get_weak, cb), &result);
-  if (success && result) {
+      base::Bind(&internal::RunWeak<T, ReturnValue>, get_weak, cb));
+  if (result) {
     return CommandResult(result.value());
   } else {
     return CommandResult(no_such_object_code);

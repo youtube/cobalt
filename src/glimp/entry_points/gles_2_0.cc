@@ -281,12 +281,7 @@ GLuint GL_APIENTRY glCreateShader(GLenum type) {
 }
 
 void GL_APIENTRY glCullFace(GLenum mode) {
-  gles::Context* context = GetCurrentContext();
-  if (!context) {
-    return;
-  }
-
-  return context->CullFace(mode);
+  SB_NOTIMPLEMENTED();
 }
 
 void GL_APIENTRY glDeleteBuffers(GLsizei n, const GLuint* buffers) {

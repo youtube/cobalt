@@ -34,9 +34,7 @@
 
 #include "vm/GlobalObject-inl.h"
 
-#if defined(STARBOARD)
-// empty
-# elif defined(XP_WIN)
+# ifdef XP_WIN
 #  include "jswin.h"
 # else
 #  include <sys/mman.h>
@@ -338,7 +336,7 @@ ArrayBufferObject::uninlineData(JSContext *maybecx)
    return true;
 }
 
-#if defined(JS_ION) && defined(JS_CPU_X64) && !defined(STARBOARD)
+#if defined(JS_ION) && defined(JS_CPU_X64)
 // To avoid dynamically checking bounds on each load/store, asm.js code relies
 // on the SIGSEGV handler in AsmJSSignalHandlers.cpp. However, this only works
 // if we can guarantee that *any* out-of-bounds access generates a fault. This
@@ -442,7 +440,7 @@ ArrayBufferObject::neuterAsmJSArrayBuffer(ArrayBufferObject &buffer)
         MOZ_CRASH();
 #endif
 }
-#else  /* defined(JS_ION) && defined(JS_CPU_X64) && !defined(STARBOARD)*/
+#else  /* defined(JS_ION) && defined(JS_CPU_X64) */
 bool
 ArrayBufferObject::prepareForAsmJS(JSContext *cx, Handle<ArrayBufferObject*> buffer)
 {

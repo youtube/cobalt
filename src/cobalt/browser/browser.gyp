@@ -75,13 +75,17 @@
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
-        '<(DEPTH)/nb/nb.gyp:nb',
         'browser_bindings.gyp:bindings',
         'screen_shot_writer',
       ],
       'conditions': [
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
+        }],
+        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
+          'dependencies': [
+            '<(DEPTH)/nb/nb.gyp:nb',
+          ],
         }],
       ],
     },

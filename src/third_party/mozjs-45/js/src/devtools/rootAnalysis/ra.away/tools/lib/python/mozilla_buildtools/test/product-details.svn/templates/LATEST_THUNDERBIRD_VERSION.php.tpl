@@ -1,2 +1,0 @@
-<?php
-const LATEST_THUNDERBIRD_VERSION = '{{ VERSION }}';

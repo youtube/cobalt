@@ -18,7 +18,6 @@
 
 #include "base/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
-#include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -27,7 +26,6 @@
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -54,9 +52,9 @@ namespace cobalt {
 namespace cssom {
 
 TEST(PropertyValueToStringTest, AbsoluteURLValue) {
-  GURL url("https://www.test.com");
+  GURL url("https://www.youtube.com");
   scoped_refptr<AbsoluteURLValue> property(new AbsoluteURLValue(url));
-  EXPECT_EQ(property->ToString(), "url(https://www.test.com/)");
+  EXPECT_EQ(property->ToString(), "url(https://www.youtube.com/)");
 }
 
 TEST(PropertyValueToStringTest, FontStyleValue) {
@@ -346,90 +344,6 @@ TEST(PropertyValueToStringTest, TransformFunctionListValue) {
 TEST(PropertyValueToStringTest, URLValue) {
   scoped_refptr<URLValue> property(new URLValue("foo.png"));
   EXPECT_EQ(property->ToString(), "url(foo.png)");
-}
-
-TEST(PropertyValueToStringTest, MTMFunctionSingleMesh) {
-  scoped_ptr<MTMFunction> function(new MTMFunction(
-      new URLValue("-.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 2.5f, 3.14f,
-      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-      KeywordValue::GetMonoscopic()));
-  EXPECT_EQ(
-      "-cobalt-mtm(url(-.msh), "
-      "2.5rad 3.14rad, "
-      "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
-      "monoscopic)",
-      function->ToString());
-}
-
-TEST(PropertyValueToStringTest, MTMFunctionWithResolutionMatchedMeshes) {
-  MTMFunction::ResolutionMatchedMeshListBuilder meshes;
-  meshes.push_back(new MTMFunction::ResolutionMatchedMesh(
-      1920, 2000000, new URLValue("a.msh")));
-  meshes.push_back(
-      new MTMFunction::ResolutionMatchedMesh(640, 5, new URLValue("b.msh")));
-  scoped_ptr<MTMFunction> function(
-      new MTMFunction(new URLValue("-.msh"), meshes.Pass(), 28.5f, 3.14f,
-                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-                      KeywordValue::GetStereoscopicLeftRight()));
-  EXPECT_EQ(
-      "-cobalt-mtm(url(-.msh) 1920 2000000 url(a.msh) 640 5 url(b.msh), "
-      "28.5rad 3.14rad, "
-      "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
-      "stereoscopic-left-right)",
-      function->ToString());
-}
-
-TEST(PropertyValueToStringTest, FilterFunctionListValue) {
-  FilterFunctionListValue::Builder filter_list;
-  filter_list.push_back(new MTMFunction(
-      new URLValue("-.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
-      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-      KeywordValue::GetMonoscopic()));
-  filter_list.push_back(new MTMFunction(
-      new URLValue("world.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
-      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-      KeywordValue::GetMonoscopic()));
-  filter_list.push_back(new MTMFunction(
-      new URLValue("stereoscopic-world.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
-      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-      KeywordValue::GetStereoscopicLeftRight()));
-  filter_list.push_back(new MTMFunction(
-      new URLValue("stereoscopic-top-bottom-world.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
-      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-      KeywordValue::GetStereoscopicTopBottom()));
-
-  scoped_refptr<FilterFunctionListValue> property(
-      new FilterFunctionListValue(filter_list.Pass()));
-
-  EXPECT_EQ(
-      "-cobalt-mtm(url(-.msh), "
-      "8.5rad 3.14rad, "
-      "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
-      "monoscopic) "
-      "-cobalt-mtm(url(world.msh), "
-      "8.5rad 39rad, "
-      "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
-      "monoscopic) "
-      "-cobalt-mtm(url(stereoscopic-world.msh), "
-      "8.5rad 39rad, "
-      "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
-      "stereoscopic-left-right) "
-      "-cobalt-mtm(url(stereoscopic-top-bottom-world.msh), "
-      "8.5rad 39rad, "
-      "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
-      "stereoscopic-top-bottom)",
-      property->ToString());
 }
 
 }  // namespace cssom

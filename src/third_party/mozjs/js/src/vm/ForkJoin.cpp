@@ -7,13 +7,8 @@
 #include "jscntxt.h"
 
 #ifdef JS_THREADSAFE
-#if defined(STARBOARD)
-#include "starboard/client_porting/pr_starboard/pr_starboard.h"
-#else  // defined(STARBOARD)
 #  include "prthread.h"
 #  include "prprf.h"
-#endif  // defined(STARBOARD)
-
 #endif
 
 #include "vm/ForkJoin.h"
@@ -213,11 +208,7 @@ enum ForkJoinMode {
     NumForkJoinModes
 };
 
-#if defined(STARBOARD)
-PRTLSIndex ForkJoinSlice::ThreadPrivateIndex;
-#else   // defined(STARBOARD)
 unsigned ForkJoinSlice::ThreadPrivateIndex;
-#endif  // defined(STARBOARD)
 bool ForkJoinSlice::TLSInitialized;
 
 class ParallelDo

@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-#include "media/audio/shell_audio_streamer.h"
+#include "media/audio/null_audio_streamer.h"
+
+#include "base/logging.h"
 
 namespace media {
 
@@ -23,7 +25,7 @@ void ShellAudioStreamer::Initialize() {}
 void ShellAudioStreamer::Terminate() {}
 
 ShellAudioStreamer* ShellAudioStreamer::Instance() {
-  return NULL;
+  return NullAudioStreamer::GetInstance();
 }
 
 }  // namespace media

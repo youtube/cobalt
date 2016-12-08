@@ -18,8 +18,6 @@
 #define COBALT_RENDERER_RASTERIZER_RASTERIZER_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
-#include "cobalt/math/rect.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/node.h"
@@ -47,21 +45,7 @@ class Rasterizer {
  public:
   // When set, will clear the render target before rasterizing the render tree
   // to it.
-  static const int kSubmitFlags_Clear = (1 << 0);
-
-  struct Options {
-    Options() : flags(0) {}
-
-    // A bitwise combination of any of the |kSubmitFlags_*| constants defined
-    // above.
-    int flags;
-
-    // If specified, indicates which region of |render_target| is
-    // dirty and needs to be updated.  If animations are playing for example,
-    // then |dirty| can be setup to bound the animations.  A rasterizer is free
-    // to ignore this value if they wish.
-    base::optional<math::Rect> dirty;
-  };
+  static const int kSubmitOptions_Clear = (1 << 0);
 
   virtual ~Rasterizer() {}
 
@@ -70,11 +54,11 @@ class Rasterizer {
   // above.
   virtual void Submit(const scoped_refptr<render_tree::Node>& render_tree,
                       const scoped_refptr<backend::RenderTarget>& render_target,
-                      const Options& options) = 0;
+                      int options) = 0;
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target) {
-    Submit(render_tree, render_target, Options());
+    Submit(render_tree, render_target, 0);
   }
 
   // Returns a thread-safe object from which one can produce renderer resources

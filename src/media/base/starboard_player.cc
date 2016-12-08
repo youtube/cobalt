@@ -290,15 +290,11 @@ void StarboardPlayer::CreatePlayer() {
   SbMediaVideoCodec video_codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
 
-  player_ = SbPlayerCreate(
-      window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
-      &audio_header, &StarboardPlayer::DeallocateSampleCB,
-      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
-#if SB_VERSION(3)
-      ,
-      NULL  // provider
-#endif
-      );
+  player_ = SbPlayerCreate(window_, video_codec, audio_codec,
+                           SB_PLAYER_NO_DURATION, drm_system_, &audio_header,
+                           &StarboardPlayer::DeallocateSampleCB,
+                           &StarboardPlayer::DecoderStatusCB,
+                           &StarboardPlayer::PlayerStatusCB, this);
   set_bounds_helper_->SetPlayer(this);
 }
 

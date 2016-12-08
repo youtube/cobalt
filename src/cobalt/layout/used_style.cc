@@ -267,7 +267,6 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
@@ -285,8 +284,6 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kStereoscopicLeftRight:
-    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -359,7 +356,6 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
@@ -374,8 +370,6 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kStereoscopicLeftRight:
-    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -566,8 +560,7 @@ UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
       background_size_(background_size),
       background_position_(background_position),
       background_repeat_(background_repeat),
-      used_style_provider_(used_style_provider),
-      is_opaque_(false) {}
+      used_style_provider_(used_style_provider) {}
 
 void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     cssom::AbsoluteURLValue* url_value) {
@@ -596,16 +589,10 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
             &used_background_size_provider, &used_background_position_provider,
             &used_background_repeat_provider, frame_, single_image_size);
 
-    math::RectF image_rect(image_transform_data.composition_node_translation,
-                           image_transform_data.image_node_size);
-
-    is_opaque_ = used_background_image->IsOpaque() &&
-                 image_rect.x() <= frame_.x() && image_rect.y() <= frame_.y() &&
-                 image_rect.right() >= frame_.right() &&
-                 image_rect.bottom() >= frame_.bottom();
-
     background_node_ = new render_tree::ImageNode(
-        used_background_image, image_rect,
+        used_background_image,
+        math::RectF(image_transform_data.composition_node_translation,
+                    image_transform_data.image_node_size),
         image_transform_data.image_node_transform_matrix);
   }
 }
@@ -1176,7 +1163,6 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kMonoscopic:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
@@ -1194,8 +1180,6 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kStereoscopicLeftRight:
-    case cssom::KeywordValue::kStereoscopicTopBottom:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
@@ -1357,7 +1341,6 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
-      case cssom::KeywordValue::kMonoscopic:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNoRepeat:
@@ -1375,8 +1358,6 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
-      case cssom::KeywordValue::kStereoscopicLeftRight:
-      case cssom::KeywordValue::kStereoscopicTopBottom:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
@@ -1430,7 +1411,6 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
-      case cssom::KeywordValue::kMonoscopic:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNormal:
@@ -1447,8 +1427,6 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
-      case cssom::KeywordValue::kStereoscopicLeftRight:
-      case cssom::KeywordValue::kStereoscopicTopBottom:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:

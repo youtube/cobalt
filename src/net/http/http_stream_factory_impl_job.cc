@@ -12,7 +12,6 @@
 #include "base/stringprintf.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "nb/memory_scope.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -268,7 +267,6 @@ bool HttpStreamFactoryImpl::Job::CanUseExistingSpdySession() const {
 }
 
 void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK(stream_.get());
   DCHECK(!IsPreconnecting());
   if (IsOrphaned()) {

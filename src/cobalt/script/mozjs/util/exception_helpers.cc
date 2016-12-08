@@ -20,7 +20,6 @@
 
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsdbgapi.h"
 #include "third_party/mozjs/js/src/jsscript.h"
 
@@ -28,27 +27,7 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace util {
-std::string GetExceptionString(JSContext* context) {
-  if (!JS_IsExceptionPending(context)) {
-    return std::string("No exception pending.");
-  }
-  JS::RootedValue exception(context);
-  JS_GetPendingException(context, exception.address());
-  JS_ReportPendingException(context);
-  return GetExceptionString(context, exception);
-}
-
-std::string GetExceptionString(JSContext* context,
-                               JS::HandleValue exception) {
-  std::string exception_string;
-  MozjsExceptionState exception_state(context);
-  FromJSValue(context, exception, kNoConversionFlags, &exception_state,
-              &exception_string);
-  return exception_string;
-}
-
 std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
-  JSAutoRequest auto_request(context);
   JS::StackDescription* stack_description =
       JS::DescribeStack(context, max_frames);
   if (max_frames == 0) {

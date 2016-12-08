@@ -74,11 +74,6 @@ class SystemWindow {
   // Returns the dimensions of the window.
   virtual math::Size GetWindowSize() const = 0;
 
-  // video pixel ratio = resolution of video output / resolution of window.  Its
-  // value is usually 1.0.  Set it to a value greater than 1.0 allows the video
-  // to be played in higher resolution than the window.
-  virtual float GetVideoPixelRatio() const { return 1.f; }
-
   base::EventDispatcher* event_dispatcher() const { return event_dispatcher_; }
 
  private:

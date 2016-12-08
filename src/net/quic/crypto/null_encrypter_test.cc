@@ -4,14 +4,13 @@
 
 #include "net/quic/crypto/null_encrypter.h"
 #include "net/quic/test_tools/quic_test_utils.h"
-#include "net/test/disabled_if_big_endian.h"
 
 using base::StringPiece;
 
 namespace net {
 namespace test {
 
-TEST(NullEncrypterTest, DISABLED_IF_BIG_ENDIAN(Encrypt)) {
+TEST(NullEncrypterTest, Encrypt) {
   unsigned char expected[] = {
     // fnv hash
     0x47, 0x11, 0xea, 0x5f,

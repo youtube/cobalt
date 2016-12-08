@@ -603,17 +603,10 @@ class Box : public base::RefCounted<Box> {
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
-  struct RenderAndAnimateBackgroundImageResult {
-    // The node representing the background image (may be a CompositionNode if
-    // there are multiple layers).
-    scoped_refptr<render_tree::Node> node;
-    // Returns whether the background image opaquely fills the entire frame.
-    // If true, then we don't need to even consider rendering the background
-    // color, since it will be occluded by the image.
-    bool is_opaque;
-  };
-  RenderAndAnimateBackgroundImageResult RenderAndAnimateBackgroundImage(
-      const base::optional<render_tree::RoundedCorners>& rounded_corners);
+  void RenderAndAnimateBackgroundImage(
+      const base::optional<render_tree::RoundedCorners>& rounded_corners,
+      render_tree::CompositionNode::Builder* border_node_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBoxShadow(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,

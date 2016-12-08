@@ -258,7 +258,6 @@ function start() {
   createCommandInput();
   createMessageLog();
   createDebuggerClient();
-  showHud(false);
   showConsole(false);
   createConsoleValues();
   initDebugCommands();

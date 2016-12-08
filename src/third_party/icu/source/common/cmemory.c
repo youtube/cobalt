@@ -67,7 +67,7 @@ uprv_realloc(void * buffer, size_t size) {
             (*pFree)(pContext, buffer);
         } else {
 #if defined(STARBOARD)
-            SbMemoryDeallocate(buffer);
+            SbMemoryFree(buffer);
 #else
             free(buffer);
 #endif
@@ -94,7 +94,7 @@ uprv_free(void *buffer) {
             (*pFree)(pContext, buffer);
         } else {
 #if defined(STARBOARD)
-            SbMemoryDeallocate(buffer);
+            SbMemoryFree(buffer);
 #else
             free(buffer);
 #endif

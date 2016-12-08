@@ -21,18 +21,14 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/debug/trace_event.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/media/can_play_type_handler.h"
 
 namespace cobalt {
 namespace dom {
@@ -73,6 +69,35 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
 }
 
 }  // namespace
+
+void MediaSource::Registry::Register(
+    const std::string& blob_url,
+    const scoped_refptr<MediaSource>& media_source) {
+  DCHECK(media_source);
+  DCHECK(media_source_registry_.find(blob_url) == media_source_registry_.end());
+  media_source_registry_.insert(std::make_pair(blob_url, media_source));
+}
+
+scoped_refptr<MediaSource> MediaSource::Registry::Retrieve(
+    const std::string& blob_url) {
+  MediaSourceRegistry::iterator iter = media_source_registry_.find(blob_url);
+  if (iter == media_source_registry_.end()) {
+    DLOG(WARNING) << "Cannot find MediaSource object for blob url " << blob_url;
+    return NULL;
+  }
+
+  return iter->second;
+}
+
+void MediaSource::Registry::Unregister(const std::string& blob_url) {
+  MediaSourceRegistry::iterator iter = media_source_registry_.find(blob_url);
+  if (iter == media_source_registry_.end()) {
+    DLOG(WARNING) << "Cannot find MediaSource object for blob url " << blob_url;
+    return;
+  }
+
+  media_source_registry_.erase(iter);
+}
 
 MediaSource::MediaSource()
     : ready_state_(kReadyStateClosed),
@@ -227,19 +252,6 @@ void MediaSource::EndOfStream(const std::string& error,
   player_->SourceEndOfStream(eos_status);
 }
 
-// static
-bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
-                                  const std::string& type) {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(settings);
-  DCHECK(dom_settings);
-  media::CanPlayTypeHandler* handler = dom_settings->can_play_type_handler();
-  DCHECK(handler);
-  std::string result = handler->CanPlayType(type, "");
-  DLOG(INFO) << "MediaSource::IsTypeSupported(" << type << ") -> " << result;
-  return result == "probably";
-}
-
 void MediaSource::SetPlayer(WebMediaPlayer* player) {
   // It is possible to reuse a MediaSource object but unlikely. DCHECK it until
   // it is used in this way.
@@ -303,8 +315,6 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
   if (ready_state_ == kReadyStateEnded) {
     SetReadyState(kReadyStateOpen);
   }
-
-  TRACE_EVENT1("media_stack", "MediaSource::Append()", "size", size);
 
   // If size is greater than kMaxAppendSize, we will append the data in multiple
   // small chunks with size less than or equal to kMaxAppendSize.  This can

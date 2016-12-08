@@ -50,24 +50,6 @@ std::string URL::CreateObjectURL(
 }
 
 // static
-std::string URL::CreateObjectURL(
-    script::EnvironmentSettings* environment_settings,
-    const scoped_refptr<Blob>& blob) {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(environment_settings);
-  DCHECK(dom_settings);
-  DCHECK(dom_settings->blob_registry());
-  if (!blob) {
-    return "";
-  }
-
-  std::string blob_url = kBlobUrlProtocol;
-  blob_url += ':' + base::GenerateGUID();
-  dom_settings->blob_registry()->Register(blob_url, blob);
-  return blob_url;
-}
-
-// static
 void URL::RevokeObjectURL(script::EnvironmentSettings* environment_settings,
                           const std::string& url) {
   DOMSettings* dom_settings =
@@ -87,33 +69,7 @@ void URL::RevokeObjectURL(script::EnvironmentSettings* environment_settings,
 
   // 2. Otherwise, user agents must remove the entry from the Blob URL Store for
   // url.
-  if (!dom_settings->media_source_registry()->Unregister(url) &&
-      !dom_settings->blob_registry()->Unregister(url)) {
-    DLOG(WARNING) << "Cannot find object for blob url " << url;
-  }
-}
-
-bool URL::BlobResolver(dom::Blob::Registry* registry, const GURL& url,
-                       const char** data, size_t* size) {
-  DCHECK(data);
-  DCHECK(size);
-
-  *size = 0;
-  *data = NULL;
-
-  dom::Blob* blob = registry->Retrieve(url.spec()).get();
-
-  if (blob) {
-    *size = static_cast<size_t>(blob->size());
-
-    if (*size > 0) {
-      *data = reinterpret_cast<const char*>(blob->data());
-    }
-
-    return true;
-  } else {
-    return false;
-  }
+  dom_settings->media_source_registry()->Unregister(url);
 }
 
 }  // namespace dom

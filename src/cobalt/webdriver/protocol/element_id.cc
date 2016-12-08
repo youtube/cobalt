@@ -19,8 +19,9 @@
 namespace cobalt {
 namespace webdriver {
 namespace protocol {
-
-const char ElementId::kElementKey[] = "ELEMENT";
+namespace {
+const char kElementKey[] = "ELEMENT";
+}
 
 scoped_ptr<base::Value> ElementId::ToValue(const ElementId& element_id) {
   scoped_ptr<base::DictionaryValue> element_object(new base::DictionaryValue());

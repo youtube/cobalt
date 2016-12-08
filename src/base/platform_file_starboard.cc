@@ -161,7 +161,21 @@ int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
 
 int ReadPlatformFileAtCurrentPos(PlatformFile file, char *data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
-  return SbFileReadAll(file, data, size);
+  if (file < 0 || size < 0)
+    return -1;
+
+  int bytes_read = 0;
+  int rv;
+  do {
+    rv = SbFileRead(file, data, size);
+    if (rv <= 0) {
+      break;
+    }
+
+    bytes_read += rv;
+  } while (bytes_read < size);
+
+  return bytes_read ? bytes_read : rv;
 }
 
 int ReadPlatformFileNoBestEffort(PlatformFile file,
@@ -237,7 +251,22 @@ int WritePlatformFileAtCurrentPos(PlatformFile file,
                                   const char* data,
                                   int size) {
   base::ThreadRestrictions::AssertIOAllowed();
-  return SbFileWriteAll(file, data, size);
+  if (size < 0) {
+    return -1;
+  }
+
+  int bytes_written = 0;
+  int result;
+  do {
+    result = SbFileWrite(file, data, size);
+    if (result <= 0) {
+      break;
+    }
+
+    bytes_written += result;
+  } while (bytes_written < size);
+
+  return bytes_written ? bytes_written : result;
 }
 
 int WritePlatformFileCurPosNoBestEffort(PlatformFile file,

@@ -38,7 +38,12 @@ BufferImpl::Usage GLUsageEnumToUsage(GLenum usage) {
 }  // namespace
 
 Buffer::Buffer(nb::scoped_ptr<BufferImpl> impl)
-    : impl_(impl.Pass()), size_in_bytes_(0) {}
+    : impl_(impl.Pass()), target_valid_(false), size_in_bytes_(0) {}
+
+void Buffer::SetTarget(GLenum target) {
+  target_ = target;
+  target_valid_ = true;
+}
 
 void Buffer::Allocate(GLenum usage, size_t size) {
   size_in_bytes_ = size;
@@ -46,6 +51,7 @@ void Buffer::Allocate(GLenum usage, size_t size) {
 }
 
 void Buffer::SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data) {
+  SB_DCHECK(target_valid());
   SB_DCHECK(size_in_bytes_ >= offset + size);
   SB_DCHECK(offset >= 0);
   SB_DCHECK(size >= 0);

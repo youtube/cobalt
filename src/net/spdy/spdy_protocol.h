@@ -573,7 +573,7 @@ class SpdyFrame {
   void set_flags(uint8 flags) { frame_->flags_length_.flags_[0] = flags; }
 
   uint32 length() const {
-    return base::NetToHost32(frame_->flags_length_.length_) & kLengthMask;
+    return ntohl(frame_->flags_length_.length_) & kLengthMask;
   }
 
   void set_length(uint32 length) {
@@ -583,13 +583,13 @@ class SpdyFrame {
     | Flags (8)  |  Length (24 bits)   |
     +----------------------------------+
     */
-    frame_->flags_length_.length_ =
-        base::HostToNet32((length & kLengthMask) | (flags() << 24));
+    frame_->flags_length_.length_ = htonl((length & kLengthMask)
+                                          | (flags() << 24));
   }
 
   bool is_control_frame() const {
-    return (base::NetToHost16(frame_->control_.version_) & kControlFlagMask) ==
-           kControlFlagMask;
+    return (ntohs(frame_->control_.version_) & kControlFlagMask) ==
+        kControlFlagMask;
   }
 
   // The size of the SpdyFrameBlock structure.
@@ -614,7 +614,7 @@ class SpdyDataFrame : public SpdyFrame {
       : SpdyFrame(data, owns_buffer) {}
 
   SpdyStreamId stream_id() const {
-    return base::NetToHost32(frame_->data_.stream_id_) & kStreamIdMask;
+    return ntohl(frame_->data_.stream_id_) & kStreamIdMask;
   }
 
   // Note that setting the stream id sets the control bit to false.
@@ -622,7 +622,7 @@ class SpdyDataFrame : public SpdyFrame {
   // should always be set correctly.
   void set_stream_id(SpdyStreamId id) {
     DCHECK_EQ(0u, (id & ~kStreamIdMask));
-    frame_->data_.stream_id_ = base::HostToNet32(id & kStreamIdMask);
+    frame_->data_.stream_id_ = htonl(id & kStreamIdMask);
   }
 
   // Returns the size of the SpdyFrameBlock structure.
@@ -648,7 +648,7 @@ class SpdyControlFrame : public SpdyFrame {
   // frame.  Does not guarantee that there are no errors.
   bool AppearsToBeAValidControlFrame() const {
     // Right now we only check if the frame has an out-of-bounds type.
-    uint16 type = base::NetToHost16(block()->control_.type_);
+    uint16 type = ntohs(block()->control_.type_);
     // NOOP is not a 'valid' control frame in SPDY/3 and beyond.
     return type >= SYN_STREAM &&
         type < NUM_CONTROL_FRAME_TYPES &&
@@ -657,8 +657,8 @@ class SpdyControlFrame : public SpdyFrame {
 
   uint16 version() const {
     const int kVersionMask = 0x7fff;
-    return static_cast<uint16>(base::NetToHost16((block()->control_.version_)) &
-                               kVersionMask);
+    return static_cast<uint16>(
+        ntohs((block()->control_.version_)) & kVersionMask);
   }
 
   void set_version(uint16 version) {
@@ -668,12 +668,11 @@ class SpdyControlFrame : public SpdyFrame {
     +----------------------------------+
     */
     DCHECK_EQ(0U, version & kControlFlagMask);
-    mutable_block()->control_.version_ =
-        base::HostToNet16(kControlFlagMask | version);
+    mutable_block()->control_.version_ = htons(kControlFlagMask | version);
   }
 
   SpdyControlType type() const {
-    uint16 type = base::NetToHost16(block()->control_.type_);
+    uint16 type = ntohs(block()->control_.type_);
     LOG_IF(DFATAL, type < SYN_STREAM || type >= NUM_CONTROL_FRAME_TYPES)
         << "Invalid control frame type " << type;
     return static_cast<SpdyControlType>(type);
@@ -681,8 +680,7 @@ class SpdyControlFrame : public SpdyFrame {
 
   void set_type(SpdyControlType type) {
     DCHECK(type >= SYN_STREAM && type < NUM_CONTROL_FRAME_TYPES);
-    mutable_block()->control_.type_ =
-        base::HostToNet16(static_cast<uint16>(type));
+    mutable_block()->control_.type_ = htons(static_cast<uint16>(type));
   }
 
   // Returns true if this control frame is of a type that has a header block,
@@ -709,20 +707,19 @@ class SpdySynStreamControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
 
   SpdyStreamId stream_id() const {
-    return base::NetToHost32(block()->stream_id_) & kStreamIdMask;
+    return ntohl(block()->stream_id_) & kStreamIdMask;
   }
 
   void set_stream_id(SpdyStreamId id) {
-    mutable_block()->stream_id_ = base::HostToNet32(id & kStreamIdMask);
+    mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
   SpdyStreamId associated_stream_id() const {
-    return base::NetToHost32(block()->associated_stream_id_) & kStreamIdMask;
+    return ntohl(block()->associated_stream_id_) & kStreamIdMask;
   }
 
   void set_associated_stream_id(SpdyStreamId id) {
-    mutable_block()->associated_stream_id_ =
-        base::HostToNet32(id & kStreamIdMask);
+    mutable_block()->associated_stream_id_ = htonl(id & kStreamIdMask);
   }
 
   SpdyPriority priority() const {
@@ -777,11 +774,11 @@ class SpdySynReplyControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
 
   SpdyStreamId stream_id() const {
-    return base::NetToHost32(block()->stream_id_) & kStreamIdMask;
+    return ntohl(block()->stream_id_) & kStreamIdMask;
   }
 
   void set_stream_id(SpdyStreamId id) {
-    mutable_block()->stream_id_ = base::HostToNet32(id & kStreamIdMask);
+    mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
   int header_block_len() const {
@@ -824,23 +821,23 @@ class SpdyRstStreamControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
 
   SpdyStreamId stream_id() const {
-    return base::NetToHost32(block()->stream_id_) & kStreamIdMask;
+    return ntohl(block()->stream_id_) & kStreamIdMask;
   }
 
   void set_stream_id(SpdyStreamId id) {
-    mutable_block()->stream_id_ = base::HostToNet32(id & kStreamIdMask);
+    mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
   SpdyStatusCodes status() const {
     SpdyStatusCodes status =
-        static_cast<SpdyStatusCodes>(base::NetToHost32(block()->status_));
+        static_cast<SpdyStatusCodes>(ntohl(block()->status_));
     if (status < INVALID || status >= NUM_STATUS_CODES) {
       status = INVALID;
     }
     return status;
   }
   void set_status(SpdyStatusCodes status) {
-    mutable_block()->status_ = base::HostToNet32(static_cast<uint32>(status));
+    mutable_block()->status_ = htonl(static_cast<uint32>(status));
   }
 
   // Returns the size of the SpdyRstStreamControlFrameBlock structure.
@@ -864,11 +861,11 @@ class SpdySettingsControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
 
   uint32 num_entries() const {
-    return base::NetToHost32(block()->num_entries_);
+    return ntohl(block()->num_entries_);
   }
 
   void set_num_entries(int val) {
-    mutable_block()->num_entries_ = base::HostToNet32(static_cast<uint32>(val));
+    mutable_block()->num_entries_ = htonl(static_cast<uint32>(val));
   }
 
   int header_block_len() const {
@@ -899,10 +896,12 @@ class SpdyPingControlFrame : public SpdyControlFrame {
   SpdyPingControlFrame(char* data, bool owns_buffer)
       : SpdyControlFrame(data, owns_buffer) {}
 
-  uint32 unique_id() const { return base::NetToHost32(block()->unique_id_); }
+  uint32 unique_id() const {
+    return ntohl(block()->unique_id_);
+  }
 
   void set_unique_id(uint32 unique_id) {
-    mutable_block()->unique_id_ = base::HostToNet32(unique_id);
+    mutable_block()->unique_id_ = htonl(unique_id);
   }
 
   static size_t size() { return sizeof(SpdyPingControlFrameBlock); }
@@ -942,7 +941,7 @@ class SpdyGoAwayControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
 
   SpdyStreamId last_accepted_stream_id() const {
-    return base::NetToHost32(block()->last_accepted_stream_id_) & kStreamIdMask;
+    return ntohl(block()->last_accepted_stream_id_) & kStreamIdMask;
   }
 
   SpdyGoAwayStatus status() const {
@@ -950,7 +949,7 @@ class SpdyGoAwayControlFrame : public SpdyControlFrame {
       LOG(DFATAL) << "Attempted to access status of SPDY 2 GOAWAY.";
       return GOAWAY_INVALID;
     } else {
-      uint32 status = base::NetToHost32(block()->status_);
+      uint32 status = ntohl(block()->status_);
       if (status >= GOAWAY_NUM_STATUS_CODES) {
         return GOAWAY_INVALID;
       } else {
@@ -960,8 +959,7 @@ class SpdyGoAwayControlFrame : public SpdyControlFrame {
   }
 
   void set_last_accepted_stream_id(SpdyStreamId id) {
-    mutable_block()->last_accepted_stream_id_ =
-        base::HostToNet32(id & kStreamIdMask);
+    mutable_block()->last_accepted_stream_id_ = htonl(id & kStreamIdMask);
   }
 
   static size_t size() { return sizeof(SpdyGoAwayControlFrameBlock); }
@@ -984,11 +982,11 @@ class SpdyHeadersControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
 
   SpdyStreamId stream_id() const {
-    return base::NetToHost32(block()->stream_id_) & kStreamIdMask;
+    return ntohl(block()->stream_id_) & kStreamIdMask;
   }
 
   void set_stream_id(SpdyStreamId id) {
-    mutable_block()->stream_id_ = base::HostToNet32(id & kStreamIdMask);
+    mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
   // The number of bytes in the header block beyond the frame header length.
@@ -1032,19 +1030,19 @@ class SpdyWindowUpdateControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
 
   SpdyStreamId stream_id() const {
-    return base::NetToHost32(block()->stream_id_) & kStreamIdMask;
+    return ntohl(block()->stream_id_) & kStreamIdMask;
   }
 
   void set_stream_id(SpdyStreamId id) {
-    mutable_block()->stream_id_ = base::HostToNet32(id & kStreamIdMask);
+    mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
   uint32 delta_window_size() const {
-    return base::NetToHost32(block()->delta_window_size_);
+    return ntohl(block()->delta_window_size_);
   }
 
   void set_delta_window_size(uint32 delta_window_size) {
-    mutable_block()->delta_window_size_ = base::HostToNet32(delta_window_size);
+    mutable_block()->delta_window_size_ = htonl(delta_window_size);
   }
 
   // Returns the size of the SpdyWindowUpdateControlFrameBlock structure.

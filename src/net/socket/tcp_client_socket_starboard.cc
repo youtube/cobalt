@@ -23,7 +23,6 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "nb/memory_scope.h"
 #include "net/base/address_family.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
@@ -135,27 +134,7 @@ TCPClientSocketStarboard::~TCPClientSocketStarboard() {
   net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
-int TCPClientSocketStarboard::AdoptSocket(SbSocket socket) {
-  DCHECK(!SbSocketIsValid(socket_));
-
-  int error = SetupSocket(socket);
-  if (error) {
-    return error;
-  }
-
-  socket_ = socket;
-
-  // This is to make GetPeerAddress() work. It's up to the caller to ensure that
-  // |address_| contains a reasonable address for this socket. (i.e. at least
-  // match IPv4 vs IPv6!).
-  current_address_index_ = 0;
-  use_history_.set_was_ever_connected();
-
-  return OK;
-}
-
 int TCPClientSocketStarboard::Connect(const CompletionCallback& callback) {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK(CalledOnValidThread());
 
   // If this socket is already valid, then just return OK.
@@ -188,7 +167,6 @@ int TCPClientSocketStarboard::Connect(const CompletionCallback& callback) {
 // pretty much cribbed directly from TCPClientSocketLibevent and/or
 // TCPClientSocketWin, take your pick, they're identical
 int TCPClientSocketStarboard::DoConnectLoop(int result) {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK_NE(next_connect_state_, CONNECT_STATE_NONE);
 
   int rv = result;
@@ -214,7 +192,6 @@ int TCPClientSocketStarboard::DoConnectLoop(int result) {
 }
 
 int TCPClientSocketStarboard::DoConnect() {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK_GE(current_address_index_, 0);
   DCHECK_LT(current_address_index_, static_cast<int>(addresses_.size()));
 
@@ -261,7 +238,6 @@ int TCPClientSocketStarboard::DoConnect() {
 }
 
 int TCPClientSocketStarboard::DoConnectComplete(int result) {
-  TRACK_MEMORY_SCOPE("Network");
   // Log the end of this attempt (and any OS error it threw).
   int error = connect_error_;
   connect_error_ = OK;
@@ -292,7 +268,6 @@ int TCPClientSocketStarboard::DoConnectComplete(int result) {
 }
 
 void TCPClientSocketStarboard::DidCompleteConnect() {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK_EQ(next_connect_state_, CONNECT_STATE_CONNECT_COMPLETE);
 
   connect_error_ = SbSocketIsConnected(socket_) ? OK : ERR_FAILED;
@@ -304,7 +279,6 @@ void TCPClientSocketStarboard::DidCompleteConnect() {
 }
 
 void TCPClientSocketStarboard::LogConnectCompletion(int net_error) {
-  TRACK_MEMORY_SCOPE("Network");
   if (net_error == OK)
     UpdateConnectionTypeHistograms(CONNECTION_ANY);
 
@@ -429,7 +403,6 @@ bool TCPClientSocketStarboard::GetSSLInfo(SSLInfo* ssl_info) {
 int TCPClientSocketStarboard::Read(IOBuffer* buf,
                                    int buf_len,
                                    const CompletionCallback& callback) {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(!waiting_connect());
   DCHECK(!waiting_read_);
@@ -467,7 +440,6 @@ int TCPClientSocketStarboard::Read(IOBuffer* buf,
 }
 
 void TCPClientSocketStarboard::DidCompleteRead() {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK(waiting_read_);
   int bytes_read =
       SbSocketReceiveFrom(socket_, read_buf_->data(), read_buf_len_, NULL);
@@ -494,7 +466,6 @@ void TCPClientSocketStarboard::DidCompleteRead() {
 }
 
 void TCPClientSocketStarboard::DoReadCallback(int rv) {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK_NE(rv, ERR_IO_PENDING);
 
   // since Run may result in Read being called, clear read_callback_ up front.
@@ -506,7 +477,6 @@ void TCPClientSocketStarboard::DoReadCallback(int rv) {
 int TCPClientSocketStarboard::Write(IOBuffer* buf,
                                     int buf_len,
                                     const CompletionCallback& callback) {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(!waiting_connect());
   DCHECK(!waiting_write_);
@@ -546,7 +516,6 @@ int TCPClientSocketStarboard::Write(IOBuffer* buf,
 }
 
 void TCPClientSocketStarboard::DidCompleteWrite() {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK(waiting_write_);
   int nwrite =
       SbSocketSendTo(socket_, write_buf_->data(), write_buf_len_, NULL);
@@ -572,7 +541,6 @@ void TCPClientSocketStarboard::DidCompleteWrite() {
 }
 
 void TCPClientSocketStarboard::DoWriteCallback(int rv) {
-  TRACK_MEMORY_SCOPE("Network");
   DCHECK_NE(rv, ERR_IO_PENDING);
 
   // since Run may result in Write being called, clear write_callback_ up front.
@@ -582,27 +550,22 @@ void TCPClientSocketStarboard::DoWriteCallback(int rv) {
 }
 
 bool TCPClientSocketStarboard::SetReceiveBufferSize(int32 size) {
-  TRACK_MEMORY_SCOPE("Network");
   return SbSocketSetReceiveBufferSize(socket_, size);
 }
 
 bool TCPClientSocketStarboard::SetSendBufferSize(int32 size) {
-  TRACK_MEMORY_SCOPE("Network");
   return SbSocketSetSendBufferSize(socket_, size);
 }
 
 bool TCPClientSocketStarboard::SetKeepAlive(bool enable, int delay) {
-  TRACK_MEMORY_SCOPE("Network");
   return SbSocketSetTcpKeepAlive(socket_, enable, delay);
 }
 
 bool TCPClientSocketStarboard::SetNoDelay(bool no_delay) {
-  TRACK_MEMORY_SCOPE("Network");
   return SbSocketSetTcpNoDelay(socket_, no_delay);
 }
 
 bool TCPClientSocketStarboard::SetWindowScaling(bool enable) {
-  TRACK_MEMORY_SCOPE("Network");
   return SbSocketSetTcpWindowScaling(socket_, enable);
 }
 

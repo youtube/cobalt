@@ -16,10 +16,6 @@
 # include "jit/ExecutionModeInlines.h"
 #endif
 
-#if defined(JS_THREADSAFE) && defined(STARBOARD)
-#include "starboard/client_porting/pr_starboard/pr_starboard.h"
-#endif  // defined(JS_THREADSAFE) && defined(STARBOARD)
-
 using namespace js;
 
 using mozilla::DebugOnly;

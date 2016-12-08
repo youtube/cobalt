@@ -7,7 +7,7 @@
 
 #include <algorithm>
 #include <functional>
-#if defined(__LB_SHELL__) || defined(STARBOARD)
+#if defined(__LB_SHELL__)  // TODO: Starboard?
 #include <iterator>
 #endif
 #include <string>

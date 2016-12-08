@@ -582,7 +582,6 @@ void XSendAtom(Window window, Atom atom) {
   // XLib is not thread-safe. Since we may be coming from another thread, we
   // have to open another connection to the display to inject the wake-up event.
   Display* display = XOpenDisplay(NULL);
-  SB_DCHECK(display);
   XClientMessageEvent event = {0};
   event.type = ClientMessage;
   event.message_type = atom;
@@ -636,9 +635,7 @@ ApplicationX11::~ApplicationX11() {
 }
 
 SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
-  if (!EnsureX()) {
-    return kSbWindowInvalid;
-  }
+  EnsureX();
 
   SbWindow window = new SbWindowPrivate(display_, options);
   windows_.push_back(window);
@@ -679,7 +676,7 @@ void ApplicationX11::Composite() {
         ScopedLock lock(frame_mutex_);
         if (frame_written_) {
           // Clear the old frame, now that we are done with it.
-          frame_infos_[frame_read_index_].frame = NULL;
+          frame_infos_[frame_read_index_].frame = VideoFrame();
 
           // Increment the index to the next frame, which has been written.
           frame_read_index_ = (frame_read_index_ + 1) % kNumFrames;
@@ -692,12 +689,12 @@ void ApplicationX11::Composite() {
       }
       FrameInfo& frame_info = frame_infos_[frame_read_index_];
 
-      if (frame_info.frame && !frame_info.frame->IsEndOfStream() &&
-          frame_info.frame->format() != VideoFrame::kBGRA32) {
-        frame_info.frame = frame_info.frame->ConvertTo(VideoFrame::kBGRA32);
+      if (!frame_info.frame.IsEndOfStream() &&
+          frame_info.frame.format() != VideoFrame::kBGRA32) {
+        frame_info.frame = frame_info.frame.ConvertTo(VideoFrame::kBGRA32);
       }
       window->Composite(frame_info.x, frame_info.y, frame_info.width,
-                        frame_info.height, frame_info.frame);
+                        frame_info.height, &frame_info.frame);
     }
   }
   composite_event_id_ =
@@ -705,7 +702,7 @@ void ApplicationX11::Composite() {
 }
 
 void ApplicationX11::AcceptFrame(SbPlayer player,
-                                 const scoped_refptr<VideoFrame>& frame,
+                                 const VideoFrame& frame,
                                  int x,
                                  int y,
                                  int width,
@@ -775,25 +772,17 @@ void ApplicationX11::WakeSystemEventWait() {
   XSendAtom((*windows_.begin())->window, wake_up_atom_);
 }
 
-bool ApplicationX11::EnsureX() {
+void ApplicationX11::EnsureX() {
   // TODO: Consider thread-safety.
   if (display_) {
-    return true;
+    return;
   }
 
   XInitThreads();
   XSetIOErrorHandler(IOErrorHandler);
   XSetErrorHandler(ErrorHandler);
   display_ = XOpenDisplay(NULL);
-  if (!display_) {
-    const char *display_environment = getenv("DISPLAY");
-    if (display_environment == NULL) {
-      SB_LOG(ERROR) << "Unable to open display, DISPLAY not set.";
-    } else {
-      SB_LOG(ERROR) << "Unable to open display " << display_environment << ".";
-    }
-    return false;
-  }
+  SB_DCHECK(display_);
 
   // Disable keyup events on auto-repeat to match Windows.
   // Otherwise when holding down a key, we get a keyup event before
@@ -808,7 +797,6 @@ bool ApplicationX11::EnsureX() {
 #if SB_IS(PLAYER_PUNCHED_OUT)
   Composite();
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
-  return true;
 }
 
 void ApplicationX11::StopX() {

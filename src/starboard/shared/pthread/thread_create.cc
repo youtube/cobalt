@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2015 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,27 +16,9 @@
 
 #include <pthread.h>
 #include <sched.h>
-#include <sys/resource.h>
-#include <unistd.h>
 
-#include "starboard/log.h"
 #include "starboard/shared/pthread/is_success.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/string.h"
-
-namespace starboard {
-namespace shared {
-namespace pthread {
-
-#if !SB_HAS(THREAD_PRIORITY_SUPPORT)
-// Default implementation without thread priority support
-void ThreadSetPriority(SbThreadPriority /* priority */) {
-}
-#endif
-
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
 
 namespace {
 
@@ -45,7 +27,6 @@ struct ThreadParams {
   SbThreadEntryPoint entry_point;
   char name[128];
   void* context;
-  SbThreadPriority priority;
 };
 
 void* ThreadFunc(void* context) {
@@ -56,8 +37,6 @@ void* ThreadFunc(void* context) {
   if (thread_params->name[0] != '\0') {
     SbThreadSetName(thread_params->name);
   }
-
-  starboard::shared::pthread::ThreadSetPriority(thread_params->priority);
 
   delete thread_params;
 
@@ -105,6 +84,10 @@ SbThread SbThreadCreate(int64_t stack_size,
     pthread_attr_setstacksize(&attributes, stack_size);
   }
 
+  // Here is where we would use priority, but it doesn't really work on Linux
+  // without using a realtime scheduling policy, according to this article:
+  // http://stackoverflow.com/questions/3649281/how-to-increase-thread-priority-in-pthreads/3663250
+
   ThreadParams* params = new ThreadParams();
   params->affinity = affinity;
   params->entry_point = entry_point;
@@ -115,8 +98,6 @@ SbThread SbThreadCreate(int64_t stack_size,
   } else {
     params->name[0] = '\0';
   }
-
-  params->priority = priority;
 
   SbThread thread = kSbThreadInvalid;
   result = pthread_create(&thread, &attributes, ThreadFunc, params);

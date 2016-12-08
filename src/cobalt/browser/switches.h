@@ -29,10 +29,8 @@ extern const char kDebugConsoleMode[];
 extern const char kDisableWebmVp9[];
 extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
-extern const char kFakeMicrophone[];
 extern const char kIgnoreCertificateErrors[];
 extern const char kInputFuzzer[];
-extern const char kMinLogLevel[];
 extern const char kNullAudioStreamer[];
 extern const char kNullSavegame[];
 extern const char kPartialLayout[];
@@ -44,8 +42,6 @@ extern const char kTimedTrace[];
 extern const char kVideoContainerSizeOverride[];
 extern const char kVideoDecoderStub[];
 extern const char kWebDriverPort[];
-extern const char kWebDriverListenIp[];
-extern const char kMemoryTracker[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kImageCacheSizeInBytes[];
@@ -53,7 +49,6 @@ extern const char kInitialURL[];
 extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];
-extern const char kSoftwareSurfaceCacheSizeInBytes[];
 extern const char kSurfaceCacheSizeInBytes[];
 extern const char kViewport[];
 

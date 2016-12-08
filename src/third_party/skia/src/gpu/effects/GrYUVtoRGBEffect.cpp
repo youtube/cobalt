@@ -88,7 +88,7 @@ public:
             fsBuilder->codeAppend(".r,\n\t\t");
             fsBuilder->appendTextureLookup(samplers[1], coords[0].c_str(), coords[0].getType());
             if (yuvEffect.fNV12) {
-                fsBuilder->codeAppend(".ra,\n\t\t");
+                fsBuilder->codeAppend(".ba,\n\t\t");
             } else {
                 fsBuilder->codeAppend(".r,\n\t\t");
                 fsBuilder->appendTextureLookup(samplers[2], coords[0].c_str(), coords[0].getType());

@@ -18,10 +18,8 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "third_party/mozjs/cobalt_config/include/jscustomallocator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -88,32 +86,14 @@ EngineStats::EngineStats()
                     "Total JavaScript engine registered.") {
 }
 
-// Pretend we always preserve wrappers since we never call
-// SetPreserveWrapperCallback anywhere else. This is necessary for
-// TryPreserveReflector called by WeakMap to not crash. Disabling
-// bindings to WeakMap does not appear to be an easy option because
-// of its use in selfhosted.js. See bugzilla discussion linked where
-// they decided to include a similar dummy in the mozjs shell.
-// https://bugzilla.mozilla.org/show_bug.cgi?id=829798
-bool DummyPreserveWrapperCallback(JSContext *cx, JSObject *obj) {
-  return true;
-}
-
 }  // namespace
 
 MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
-  TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
   runtime_ =
       JS_NewRuntime(kGarbageCollectionThresholdBytes, JS_NO_HELPER_THREADS);
   CHECK(runtime_);
-
-  // Sets the size of the native stack that should not be exceeded.
-  // Setting three quarters of the web module stack size to ensure that native
-  // stack won't exceed the stack size.
-  JS_SetNativeStackQuota(runtime_,
-                         cobalt::browser::kWebModuleStackSize / 4 * 3);
 
   JS_SetRuntimePrivate(runtime_, this);
 
@@ -137,8 +117,6 @@ MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
   // Callback to be called during garbage collection during the sweep phase.
   JS_SetFinalizeCallback(runtime_, &MozjsEngine::FinalizeCallback);
 
-  js::SetPreserveWrapperCallback(runtime_, DummyPreserveWrapperCallback);
-
   EngineStats::GetInstance()->EngineCreated();
 }
 
@@ -149,13 +127,11 @@ MozjsEngine::~MozjsEngine() {
 }
 
 scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
-  TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
   return new MozjsGlobalEnvironment(runtime_);
 }
 
 void MozjsEngine::CollectGarbage() {
-  TRACE_EVENT0("cobalt::script", "MozjsEngine::CollectGarbage()");
   DCHECK(thread_checker_.CalledOnValidThread());
   JS_GC(runtime_);
 }
@@ -200,18 +176,15 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
     if (status == JSGC_BEGIN) {
-      TRACE_EVENT_BEGIN0("cobalt::script", "SpiderMonkey Garbage Collection");
       global_environment->BeginGarbageCollection();
     } else if (status == JSGC_END) {
       global_environment->EndGarbageCollection();
-      TRACE_EVENT_END0("cobalt::script", "SpiderMonkey Garbage Collection");
     }
   }
 }
 
 void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                    JSBool is_compartment) {
-  TRACE_EVENT0("cobalt::script", "MozjsEngine::FinalizeCallback()");
   MozjsEngine* engine =
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(free_op->runtime()));
   DCHECK(engine->thread_checker_.CalledOnValidThread());
@@ -227,7 +200,6 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
 }  // namespace mozjs
 
 scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine() {
-  TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine());
 }
 

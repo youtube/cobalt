@@ -1,2 +1,0 @@
-<?php
-const LATEST_FIREFOX_OLDER_VERSION = '3.6.28';

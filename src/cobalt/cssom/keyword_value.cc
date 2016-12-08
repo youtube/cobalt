@@ -56,7 +56,6 @@ struct KeywordValue::NonTrivialStaticFields {
         left_value(new KeywordValue(KeywordValue::kLeft)),
         line_through_value(new KeywordValue(KeywordValue::kLineThrough)),
         middle_value(new KeywordValue(KeywordValue::kMiddle)),
-        monoscopic_value(new KeywordValue(KeywordValue::kMonoscopic)),
         monospace_value(new KeywordValue(KeywordValue::kMonospace)),
         none_value(new KeywordValue(KeywordValue::kNone)),
         no_repeat_value(new KeywordValue(KeywordValue::kNoRepeat)),
@@ -74,10 +73,6 @@ struct KeywordValue::NonTrivialStaticFields {
         solid_value(new KeywordValue(KeywordValue::kSolid)),
         start_value(new KeywordValue(KeywordValue::kStart)),
         static_value(new KeywordValue(KeywordValue::kStatic)),
-        stereoscopic_left_right_value(
-            new KeywordValue(KeywordValue::kStereoscopicLeftRight)),
-        stereoscopic_top_bottom_value(
-            new KeywordValue(KeywordValue::kStereoscopicTopBottom)),
         top_value(new KeywordValue(KeywordValue::kTop)),
         uppercase_value(new KeywordValue(KeywordValue::kUppercase)),
         visible_value(new KeywordValue(KeywordValue::kVisible)) {}
@@ -112,7 +107,6 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> left_value;
   const scoped_refptr<KeywordValue> line_through_value;
   const scoped_refptr<KeywordValue> middle_value;
-  const scoped_refptr<KeywordValue> monoscopic_value;
   const scoped_refptr<KeywordValue> monospace_value;
   const scoped_refptr<KeywordValue> none_value;
   const scoped_refptr<KeywordValue> no_repeat_value;
@@ -130,8 +124,6 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> solid_value;
   const scoped_refptr<KeywordValue> start_value;
   const scoped_refptr<KeywordValue> static_value;
-  const scoped_refptr<KeywordValue> stereoscopic_left_right_value;
-  const scoped_refptr<KeywordValue> stereoscopic_top_bottom_value;
   const scoped_refptr<KeywordValue> top_value;
   const scoped_refptr<KeywordValue> uppercase_value;
   const scoped_refptr<KeywordValue> visible_value;
@@ -267,10 +259,6 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetMiddle() {
   return non_trivial_static_fields.Get().middle_value;
 }
 
-const scoped_refptr<KeywordValue>& KeywordValue::GetMonoscopic() {
-  return non_trivial_static_fields.Get().monoscopic_value;
-}
-
 const scoped_refptr<KeywordValue>& KeywordValue::GetMonospace() {
   return non_trivial_static_fields.Get().monospace_value;
 }
@@ -337,14 +325,6 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetStart() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetStatic() {
   return non_trivial_static_fields.Get().static_value;
-}
-
-const scoped_refptr<KeywordValue>& KeywordValue::GetStereoscopicLeftRight() {
-  return non_trivial_static_fields.Get().stereoscopic_left_right_value;
-}
-
-const scoped_refptr<KeywordValue>& KeywordValue::GetStereoscopicTopBottom() {
-  return non_trivial_static_fields.Get().stereoscopic_top_bottom_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetTop() {
@@ -427,8 +407,6 @@ std::string KeywordValue::ToString() const {
       return kMiddleKeywordName;
     case kMonospace:
       return kMonospaceKeywordName;
-    case kMonoscopic:
-      return kMonoscopicKeywordName;
     case kNone:
       return kNoneKeywordName;
     case kNoRepeat:
@@ -461,10 +439,6 @@ std::string KeywordValue::ToString() const {
       return kStartKeywordName;
     case kStatic:
       return kStaticKeywordName;
-    case kStereoscopicLeftRight:
-      return kStereoscopicLeftRightKeywordName;
-    case kStereoscopicTopBottom:
-      return kStereoscopicTopBottomKeywordName;
     case kTop:
       return kTopKeywordName;
     case kUppercase:

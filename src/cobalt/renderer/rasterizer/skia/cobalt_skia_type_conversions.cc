@@ -49,8 +49,6 @@ SkAlphaType RenderTreeAlphaFormatToSkia(
       return kPremul_SkAlphaType;
     case render_tree::kAlphaFormatUnpremultiplied:
       return kUnpremul_SkAlphaType;
-    case render_tree::kAlphaFormatOpaque:
-      return kOpaque_SkAlphaType;
     default: DLOG(FATAL) << "Unknown render tree alpha format!";
   }
   return kUnpremul_SkAlphaType;

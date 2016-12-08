@@ -32,10 +32,7 @@
 #ifndef FLAC__METADATA_H
 #define FLAC__METADATA_H
 
-#ifndef STARBOARD
 #include <sys/types.h> /* for off_t */
-#endif  // STARBOARD
-
 #include "export.h"
 #include "callback.h"
 #include "format.h"

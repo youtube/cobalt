@@ -35,9 +35,6 @@ namespace rasterizer {
 namespace common {
 
 struct OffscreenRenderCoordinateMapping {
-  OffscreenRenderCoordinateMapping()
-      : sub_render_transform(math::Matrix3F::Zeros()) {}
-
   OffscreenRenderCoordinateMapping(const math::Rect& output_bounds,
                                    const math::Vector2dF& output_pre_translate,
                                    const math::Vector2dF& output_post_scale,

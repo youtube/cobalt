@@ -436,21 +436,15 @@ scoped_refptr<Image> CreateAdditiveColorGridImage(
   return resource_provider->CreateImage(image_data.Pass());
 }
 
-scoped_refptr<Image> CreateColoredCheckersImageForAlphaFormat(
-    ResourceProvider* resource_provider, const SizeF& dimensions,
-    render_tree::AlphaFormat alpha_format) {
+scoped_refptr<Image> CreateColoredCheckersImage(
+    ResourceProvider* resource_provider, const SizeF& dimensions) {
   std::vector<RGBAWord> row_colors;
   row_colors.push_back(RGBAWord(255, 0, 0, 255));
   row_colors.push_back(RGBAWord(0, 255, 0, 255));
   row_colors.push_back(RGBAWord(0, 0, 255, 255));
   return CreateAdditiveColorGridImage(resource_provider, dimensions, row_colors,
-                                      row_colors, alpha_format);
-}
-
-scoped_refptr<Image> CreateColoredCheckersImage(
-    ResourceProvider* resource_provider, const SizeF& dimensions) {
-  return CreateColoredCheckersImageForAlphaFormat(
-      resource_provider, dimensions, render_tree::kAlphaFormatPremultiplied);
+                                      row_colors,
+                                      render_tree::kAlphaFormatPremultiplied);
 }
 
 }  // namespace
@@ -461,53 +455,6 @@ TEST_F(PixelTest, SingleRGBAImageWithSameSizeAsRenderTarget) {
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
 
   TestTree(new ImageNode(image));
-}
-
-TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaque) {
-  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
-      GetResourceProvider(), output_surface_size(),
-      render_tree::kAlphaFormatOpaque);
-
-  TestTree(new ImageNode(image));
-}
-
-TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaqueAndRoundedCorners) {
-  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
-      GetResourceProvider(), output_surface_size(),
-      render_tree::kAlphaFormatOpaque);
-
-  TestTree(new FilterNode(
-      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
-      new ImageNode(image)));
-}
-
-TEST_F(PixelTest,
-       SingleRGBAImageWithAlphaFormatOpaqueAndRoundedCornersOnSolidColor) {
-  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
-      GetResourceProvider(), output_surface_size(),
-      render_tree::kAlphaFormatOpaque);
-
-  CompositionNode::Builder builder;
-  builder.AddChild(new RectNode(
-      RectF(output_surface_size()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
-  builder.AddChild(new FilterNode(
-      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
-      new ImageNode(image)));
-  TestTree(new CompositionNode(builder.Pass()));
-}
-
-TEST_F(PixelTest, RectWithRoundedCornersOnSolidColor) {
-  CompositionNode::Builder builder;
-  builder.AddChild(new RectNode(
-      RectF(output_surface_size()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
-  builder.AddChild(new FilterNode(
-      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
-      new RectNode(RectF(output_surface_size()),
-                   scoped_ptr<Brush>(
-                       new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1))))));
-  TestTree(new CompositionNode(builder.Pass()));
 }
 
 TEST_F(PixelTest, SingleRGBAImageLargerThanRenderTarget) {
@@ -2802,8 +2749,8 @@ TEST_F(PixelTest, BoxShadowInsetCircleSpread) {
       RoundedCorners(50, 50)));
 }
 
-// PunchThroughVideoNode should trigger the painting of a solid rectangle with
-// RGBA(0, 0, 0, 0) regardless of whether SetBoundsCB returns true or false.
+// If SetBoundsCB() returns false, the PunchThroughVideoNode should have no
+// effect.
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
@@ -2816,6 +2763,8 @@ TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   TestTree(new CompositionNode(builder.Pass()));
 }
 
+// If SetBoundsCB() returns true, the PunchThroughVideoNode should trigger the
+// painting of a solid rectangle with RGBA(0, 0, 0, 0).
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsTrue) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),

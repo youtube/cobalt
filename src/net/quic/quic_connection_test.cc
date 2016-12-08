@@ -13,7 +13,6 @@
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/test_tools/quic_test_utils.h"
 #include "net/quic/quic_utils.h"
-#include "net/test/disabled_if_big_endian.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -795,8 +794,7 @@ TEST_F(QuicConnectionTest, NoQuicCongestionFeedbackFrame) {
   EXPECT_TRUE(last_feedback() == NULL);
 }
 
-TEST_F(QuicConnectionTest,
-       DISABLED_IF_BIG_ENDIAN(WithQuicCongestionFeedbackFrame)) {
+TEST_F(QuicConnectionTest, WithQuicCongestionFeedbackFrame) {
   QuicCongestionFeedbackFrame info;
   info.type = kFixRate;
   info.fix_rate.bitrate_in_bytes_per_second = 123;

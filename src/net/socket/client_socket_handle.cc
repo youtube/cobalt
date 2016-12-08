@@ -9,7 +9,6 @@
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/logging.h"
-#include "nb/memory_scope.h"
 #include "net/base/net_errors.h"
 #include "net/socket/client_socket_pool.h"
 #include "net/socket/client_socket_pool_histograms.h"
@@ -105,7 +104,6 @@ void ClientSocketHandle::RemoveLayeredPool(LayeredPool* layered_pool) {
 }
 
 void ClientSocketHandle::OnIOComplete(int result) {
-  TRACK_MEMORY_SCOPE("Network");
   CompletionCallback callback = user_callback_;
   user_callback_.Reset();
   HandleInitCompletion(result);
@@ -113,7 +111,6 @@ void ClientSocketHandle::OnIOComplete(int result) {
 }
 
 void ClientSocketHandle::HandleInitCompletion(int result) {
-  TRACK_MEMORY_SCOPE("Network");
   CHECK_NE(ERR_IO_PENDING, result);
   if (result != OK) {
     if (!socket_.get())

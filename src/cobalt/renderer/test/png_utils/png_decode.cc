@@ -209,9 +209,6 @@ PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
         }
       }
     } break;
-    case render_tree::kAlphaFormatOpaque: {
-      NOTREACHED() << "kAlphaFormatOpaque not supported.";
-    } break;
   }
 
   // End transformations. Get the updated info, and then verify.

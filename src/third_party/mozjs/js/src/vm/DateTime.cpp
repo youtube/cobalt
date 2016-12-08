@@ -8,16 +8,8 @@
 
 #if defined(STARBOARD)
 #include "jsstarboard-time.h"
-#include "starboard/configuration.h"
 #include "starboard/time_zone.h"
-// For Starboard platforms that don't have support for getting the timezone
-// name, fall back to using localtime for conversion between UTC<->localtime.
-#if !SB_HAS_QUIRK(NO_TIMEZONE_NAME_SUPPORT)
-#define USE_STARBOARD_TIME
-#endif  // !SB_HAS_QUIRK(NO_TIMEZONE_NAME_SUPPORT)
-#endif  // defined(STARBOARD)
-
-#if !defined(USE_STARBOARD_TIME)
+#else
 #include <time.h>
 #endif
 
@@ -25,7 +17,7 @@
 
 using mozilla::UnspecifiedNaN;
 
-#if !defined(USE_STARBOARD_TIME)
+#if !defined(STARBOARD)
 static bool
 ComputeLocalTime(time_t local, struct tm *ptm)
 {
@@ -139,7 +131,7 @@ UTCToLocalStandardOffsetSeconds()
     // local seconds' frame of reference and then subtract.
     return local_secs - (utc_secs + SecondsPerDay);
 }
-#endif  // defined(USE_STARBOARD_TIME)
+#endif  // defined(STARBOARD)
 
 void
 js::DateTimeInfo::updateTimeZoneAdjustment()
@@ -148,7 +140,7 @@ js::DateTimeInfo::updateTimeZoneAdjustment()
      * The difference between local standard time and UTC will never change for
      * a given time zone.
      */
-#if defined(USE_STARBOARD_TIME)
+#if defined(STARBOARD)
     utcToLocalStandardOffsetSeconds = getTZOffset() / kSbTimeSecond;
 #else
     utcToLocalStandardOffsetSeconds = UTCToLocalStandardOffsetSeconds();
@@ -187,7 +179,7 @@ js::DateTimeInfo::DateTimeInfo()
     updateTimeZoneAdjustment();
 }
 
-#if defined(USE_STARBOARD_TIME)
+#if defined(STARBOARD)
 int64_t
 js::DateTimeInfo::computeDSTOffsetMilliseconds(int64_t utcSeconds)
 {
@@ -227,7 +219,7 @@ js::DateTimeInfo::computeDSTOffsetMilliseconds(int64_t utcSeconds)
 
     return diff * msPerSecond;
 }
-#endif  // defined(USE_STARBOARD_TIME)
+#endif  // defined(STARBOARD)
 
 int64_t
 js::DateTimeInfo::getDSTOffsetMilliseconds(int64_t utcMilliseconds)

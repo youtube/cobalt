@@ -33,7 +33,6 @@
 #  include <config.h>
 #endif
 
-#ifndef STARBOARD
 #include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy(), memset() */
 #if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
@@ -45,11 +44,6 @@
 #else
 #include <netinet/in.h> /* for ntohl() */
 #endif
-#else  // STARBOARD
-#include "starboard/byte_swap.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
-#endif  // STARBOARD
-
 #if 0 /* UNUSED */
 #include "private/bitmath.h"
 #endif
@@ -69,11 +63,8 @@ typedef FLAC__uint32 bwword;
 #if WORDS_BIGENDIAN
 #define SWAP_BE_WORD_TO_HOST(x) (x)
 #else
-#if defined(_MSC_VER) && !defined(COBALT)
+#ifdef _MSC_VER
 #define SWAP_BE_WORD_TO_HOST(x) local_swap32_(x)
-#elif defined(STARBOARD)
-#include "starboard/byte_swap.h"
-#define SWAP_BE_WORD_TO_HOST(x) SB_NET_TO_HOST_U32(x)
 #else
 #define SWAP_BE_WORD_TO_HOST(x) ntohl(x)
 #endif
@@ -216,7 +207,6 @@ void FLAC__bitwriter_clear(FLAC__BitWriter *bw)
 	bw->words = bw->bits = 0;
 }
 
-#ifndef COBALT
 void FLAC__bitwriter_dump(const FLAC__BitWriter *bw, FILE *out)
 {
 	unsigned i, j;
@@ -240,7 +230,6 @@ void FLAC__bitwriter_dump(const FLAC__BitWriter *bw, FILE *out)
 		}
 	}
 }
-#endif  // COBALT
 
 FLAC__bool FLAC__bitwriter_get_write_crc16(FLAC__BitWriter *bw, FLAC__uint16 *crc)
 {

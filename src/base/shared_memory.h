@@ -67,7 +67,7 @@ class RefCountedMem : public base::RefCountedThreadSafe<RefCountedMem> {
   }
   ~RefCountedMem() {
 #if defined(OS_STARBOARD)
-    SbMemoryDeallocate(memory_);
+    SbMemoryFree(memory_);
 #else
     free(memory_);
 #endif

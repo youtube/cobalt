@@ -36,7 +36,7 @@ bool DieFileDie(const FilePath& file, bool recurse) {
 // Mostly a verbatim copy of CopyDirectory
 bool CopyRecursiveDirNoCache(const FilePath& source_dir,
                              const FilePath& dest_dir) {
-  char top_dir[SB_FILE_MAX_PATH];
+  char top_dir[PATH_MAX];
   if (base::strlcpy(top_dir, source_dir.value().c_str(), arraysize(top_dir)) >=
       arraysize(top_dir)) {
     return false;

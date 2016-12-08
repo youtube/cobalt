@@ -15,7 +15,7 @@
 
 #if defined(OS_STARBOARD)
 #include "starboard/memory.h"
-#define free SbMemoryDeallocate
+#define free SbMemoryFree
 #define malloc SbMemoryAllocate
 #endif
 

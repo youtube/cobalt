@@ -87,10 +87,7 @@ int VirtualFile::Write(const void* source, int bytes_in, int offset_in) {
     buffer_.resize(offset + bytes);
   }
 
-  if (!buffer_.empty()) {
-    // std::vector does not define access to underlying array when empty
-    memcpy(&buffer_[offset], source, bytes);
-  }
+  memcpy(&buffer_[offset], source, bytes);
   return bytes_in;
 }
 

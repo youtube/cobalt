@@ -38,8 +38,6 @@ namespace starboard {
 // dispatching events to the Starboard event handler, SbEventHandle.
 class Application {
  public:
-  typedef player::VideoFrame VideoFrame;
-
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.
   typedef SbEventDataDestructor EventHandledCallback;
@@ -202,7 +200,7 @@ class Application {
   // used when the application needs to composite video frames with punch-out
   // video manually (should be rare). Will be called from an external thread.
   void HandleFrame(SbPlayer player,
-                   const scoped_refptr<VideoFrame>& frame,
+                   const player::VideoFrame& frame,
                    int x,
                    int y,
                    int width,
@@ -224,7 +222,7 @@ class Application {
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
   virtual void AcceptFrame(SbPlayer player,
-                           const scoped_refptr<VideoFrame>& frame,
+                           const player::VideoFrame& frame,
                            int x,
                            int y,
                            int width,

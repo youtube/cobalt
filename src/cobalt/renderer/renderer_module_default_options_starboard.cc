@@ -16,7 +16,6 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
-#include "base/debug/trace_event.h"
 #include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
@@ -31,7 +30,6 @@ namespace {
 scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  TRACE_EVENT0("cobalt::renderer", "CreateRasterizer");
 #if COBALT_FORCE_STUB_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(new rasterizer::stub::Rasterizer());
 #else
@@ -56,8 +54,7 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
           graphics_context, options.scratch_surface_cache_size_in_bytes,
-          options.surface_cache_size_in_bytes,
-          options.software_surface_cache_size_in_bytes));
+          options.surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #else
 #error "Either GLES2 or the Starboard Blitter API must be available."
@@ -73,14 +70,6 @@ void RendererModule::Options::SetPerPlatformDefaultOptions() {
   skia_cache_size_in_bytes = COBALT_SKIA_CACHE_SIZE_IN_BYTES;
   scratch_surface_cache_size_in_bytes =
       COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
-  software_surface_cache_size_in_bytes =
-      COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES;
-
-  // If there is no need to frequently flip the display buffer, then enable
-  // support for an optimization where the scene is not re-rasterized each frame
-  // if it has not changed from the last frame.
-  submit_even_if_render_tree_is_unchanged =
-      SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER;
 
   create_rasterizer_function = base::Bind(&CreateRasterizer);
 }

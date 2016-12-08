@@ -1,4 +1,0 @@
-<?php
-const LATEST_FIREFOX_RELEASED_VERSION = '{{ VERSION }}';
-
-

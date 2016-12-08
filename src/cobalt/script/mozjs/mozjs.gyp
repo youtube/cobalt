@@ -26,7 +26,6 @@
         'mozjs_global_environment.cc',
         'mozjs_property_enumerator.cc',
         'mozjs_source_code.cc',
-        'mozjs_trace_logging.cc',
         'opaque_root_tracker.cc',
         'proxy_handler.cc',
         'referenced_object_map.cc',

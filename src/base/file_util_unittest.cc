@@ -211,16 +211,7 @@ class FindResultCollector {
 // Simple function to dump some text into a new file.
 void CreateTextFile(const FilePath& filename,
                     const std::wstring& contents) {
-#if defined(OS_STARBOARD)
-  SbFile file =
-      SbFileOpen(filename.value().c_str(), kSbFileCreateAlways | kSbFileWrite,
-                 NULL /*out_created*/, NULL /*out_error*/);
-  EXPECT_TRUE(file != kSbFileInvalid);
-  std::string utf8 = WideToUTF8(contents);
-  int bytes_written = SbFileWrite(file, utf8.c_str(), utf8.length());
-  EXPECT_TRUE(bytes_written == utf8.length());
-  SbFileClose(file);
-#elif defined(__LB_PS3__)
+#if defined(__LB_PS3__)
   FILE *file = fopen(filename.value().c_str(), "w");
   ASSERT_TRUE(file != NULL);
   fputws(contents.c_str(), file);
@@ -241,35 +232,18 @@ void CreateTextFile(const FilePath& filename,
   ASSERT_TRUE(file.is_open());
   file << contents;
   file.close();
-#endif  // defined(OS_STARBOARD)
+#endif
 }
 
 // Simple function to take out some text from a file.
 std::wstring ReadTextFile(const FilePath& filename) {
-#if defined(OS_STARBOARD)
-  SbFile file =
-      SbFileOpen(filename.value().c_str(), kSbFileOpenOnly | kSbFileRead,
-                 NULL /*out_created*/, NULL /*out_error*/);
-  EXPECT_TRUE(file != kSbFileInvalid);
-  char utf8_buffer[64] = {0};
-  int bytes_read =
-      SbFileRead(file, utf8_buffer, SB_ARRAY_SIZE_INT(utf8_buffer));
-  EXPECT_TRUE(bytes_read >= 0);
-  SbFileClose(file);
-  std::wstring result;
-  bool did_convert =
-      UTF8ToWide(utf8_buffer, SbStringGetLength(utf8_buffer), &result);
-  EXPECT_TRUE(did_convert);
-  return result;
-#elif defined(__LB_PS3__)
   wchar_t contents[64];
+#if defined(__LB_PS3__)
   FILE *file = fopen(filename.value().c_str(), "r");
   EXPECT_TRUE(file != NULL);
   fgetws(contents, arraysize(contents), file);
   fclose(file);
-  return std::wstring(contents);
 #elif defined(__LB_WIIU__)
-  wchar_t contents[64];
   char mb_sequence_buffer[64];
   int fd = open(filename.value().c_str(), O_RDONLY);
   EXPECT_TRUE(fd >= 0);
@@ -279,16 +253,14 @@ std::wstring ReadTextFile(const FilePath& filename) {
   const char * mb_sequence = mb_sequence_buffer;
   size_t nbytes = mbsrtowcs(contents, &mb_sequence, sizeof(contents), NULL);
   EXPECT_TRUE(mb_sequence == NULL);
-  return std::wstring(contents);
 #else
-  wchar_t contents[64];
   std::wifstream file;
   file.open(filename.value().c_str());
   EXPECT_TRUE(file.is_open());
   file.getline(contents, arraysize(contents));
   file.close();
-  return std::wstring(contents);
 #endif
+  return std::wstring(contents);
 }
 
 #if defined(OS_WIN)

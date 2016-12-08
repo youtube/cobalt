@@ -55,7 +55,7 @@
 #  define IS_64
 #endif
 
-#if SB_IS(ARCH_PPC)
+#if SB_IS(ARCH_PPC) && SB_IS(32_BIT)
 #define PR_BYTES_PER_BYTE   1
 #define PR_BYTES_PER_SHORT  2
 #define PR_BYTES_PER_INT    4

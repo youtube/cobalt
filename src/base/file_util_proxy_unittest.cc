@@ -39,16 +39,8 @@ class FileUtilProxyTest : public testing::Test {
   }
 
   void DidFinish(PlatformFileError error) {
-    if (error_ == PLATFORM_FILE_OK) {
-      error_ = error;
-    }
+    error_ = error;
     MessageLoop::current()->Quit();
-  }
-
-  void NeedsMoreWork(PlatformFileError error) {
-    if (error_ == PLATFORM_FILE_OK) {
-      error_ = error;
-    }
   }
 
   void DidCreateOrOpen(PlatformFileError error,
@@ -384,14 +376,10 @@ TEST_F(FileUtilProxyTest, Truncate_Shrink) {
   ASSERT_EQ(10, info.size);
 
   // Run.
-  PlatformFile file = GetTestPlatformFile(PLATFORM_FILE_OPEN |
-      PLATFORM_FILE_WRITE);
   FileUtilProxy::Truncate(
-      file_task_runner(), file, 7,
-      Bind(&FileUtilProxyTest::NeedsMoreWork, weak_factory_.GetWeakPtr()));
-  FileUtilProxy::Flush(
       file_task_runner(),
-      file,
+      GetTestPlatformFile(PLATFORM_FILE_OPEN | PLATFORM_FILE_WRITE),
+      7,
       Bind(&FileUtilProxyTest::DidFinish, weak_factory_.GetWeakPtr()));
   MessageLoop::current()->Run();
 
@@ -421,14 +409,10 @@ TEST_F(FileUtilProxyTest, Truncate_Expand) {
   ASSERT_EQ(10, info.size);
 
   // Run.
-  PlatformFile file = GetTestPlatformFile(PLATFORM_FILE_OPEN |
-      PLATFORM_FILE_WRITE);
   FileUtilProxy::Truncate(
-      file_task_runner(), file, 53,
-      Bind(&FileUtilProxyTest::NeedsMoreWork, weak_factory_.GetWeakPtr()));
-  FileUtilProxy::Flush(
       file_task_runner(),
-      file,
+      GetTestPlatformFile(PLATFORM_FILE_OPEN | PLATFORM_FILE_WRITE),
+      53,
       Bind(&FileUtilProxyTest::DidFinish, weak_factory_.GetWeakPtr()));
   MessageLoop::current()->Run();
 

@@ -16,7 +16,6 @@
           'toolsets': ['host', 'target'],
           'sources': [
             'buffer.c',
-            'epoll.c',
             'evbuffer.c',
             'evdns.c',
             'event.c',
@@ -40,6 +39,7 @@
             # SbSocketWaiter API. This means the Libevent is below the Starboard
             # platform abstraction line.
             [ 'OS == "starboard"', {
+              'sources': [ 'epoll.c' ],
               'sources!': [
                 'buffer.c',
                 'evbuffer.c',
@@ -47,29 +47,14 @@
                 'event_tagging.c',
                 'evrpc.c',
                 'http.c',
+                'poll.c',
                 'select.c',
                 'signal.c',
                 'strlcpy.c',
               ],
               'include_dirs': [ 'starboard' ],
               'conditions': [
-                [ 'sb_libevent_method == "epoll"', {
-                  'sources!': [ 'poll.c' ],
-                }],
-                [ 'sb_libevent_method == "poll"', {
-                  'sources!': [ 'epoll.c' ],
-                }],
                 [ 'target_os == "linux"', {
-                  'sources': [ 'epoll_sub.c' ],
-                  'include_dirs': [ 'starboard/linux' ],
-                  'link_settings': {
-                    'libraries': [
-                      '-lrt',
-                    ],
-                  },
-                }],
-                # TODO: Make this android specific, not a linux copy.
-                [ 'target_os == "android"', {
                   'sources': [ 'epoll_sub.c' ],
                   'include_dirs': [ 'starboard/linux' ],
                   'link_settings': {
@@ -81,11 +66,7 @@
                 [ 'target_os == "orbis"', {
                   'include_dirs': [ 'starboard/ps4' ],
                   }
-                ],
-                [ 'target_os == "cell"', {
-                  'include_dirs': [ 'starboard/ps3' ],
-                  },
-                ],
+                ]
               ],
             }],
             # libevent has platform-specific implementation files.  Since its

@@ -15,21 +15,6 @@
  #}
 
 {#
- # Checks if object implements interface.
- #}
-{% macro check_if_object_implements_interface() %}
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<{{impl_class}}>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
-{%- endmacro %}
-
-{#
  # Function body for operation bindings.
  # Parameters:
  #     operation: The operation context object
@@ -51,7 +36,6 @@
     NOTREACHED();
     return false;
   }
-{{ check_if_object_implements_interface() }}
 {{ nonstatic_function_prologue(impl_class) }}
 {% endif %}
 {% call(arguments_list) extract_arguments(operation) %}
@@ -272,10 +256,10 @@
  #}
 {% macro add_extra_arguments(arguments_list, raises_exception, call_with) %}
 {% if call_with %}
-  MozjsGlobalEnvironment* callwith_global_environment =
+  MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-{% do arguments_list.insert(
-    0, 'callwith_global_environment->Get%s()'|format(call_with)) %}
+{% do arguments_list.insert(0,
+                            'global_environment->Get%s()'|format(call_with)) %}
 {% endif %}
 {% do arguments_list.append('&exception_state') if raises_exception %}
 {%- endmacro %}
@@ -388,10 +372,6 @@
       MozjsGlobalEnvironment* global_environment =
           static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-      JS::RootedObject object(context);
-      if (arg.isObject()) {
-        object = JSVAL_TO_OBJECT(arg);
-      }
 {% endif %}
 {% for test, overload in resolution_tests %}
       if ({{test("arg")}}) {

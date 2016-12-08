@@ -15,9 +15,11 @@
 #ifndef STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 #define STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 
-#include "starboard/common/scoped_ptr.h"
+#include <bcm_host.h>
+
+#include <vector>
+
 #include "starboard/configuration.h"
-#include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/linux/dev_input/dev_input.h"
 #include "starboard/shared/starboard/application.h"
@@ -33,7 +35,8 @@ namespace shared {
 class ApplicationDispmanx
     : public ::starboard::shared::starboard::QueueApplication {
  public:
-  ApplicationDispmanx() : window_(kSbWindowInvalid), input_(NULL) {}
+  ApplicationDispmanx()
+      : display_(DISPMANX_NO_HANDLE), window_(kSbWindowInvalid), input_(NULL) {}
   ~ApplicationDispmanx() SB_OVERRIDE {}
 
   static ApplicationDispmanx* Get() {
@@ -48,12 +51,6 @@ class ApplicationDispmanx
   // --- Application overrides ---
   void Initialize() SB_OVERRIDE;
   void Teardown() SB_OVERRIDE;
-  void AcceptFrame(SbPlayer player,
-                   const scoped_refptr<VideoFrame>& frame,
-                   int x,
-                   int y,
-                   int width,
-                   int height) SB_OVERRIDE;
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() SB_OVERRIDE;
@@ -63,7 +60,7 @@ class ApplicationDispmanx
 
  private:
   // Returns whether DISPMANX has been initialized.
-  bool IsDispmanxInitialized() { return display_ != NULL; }
+  bool IsDispmanxInitialized() { return display_ != DISPMANX_NO_HANDLE; }
 
   // Ensures that X is up, display is populated and connected.
   void InitializeDispmanx();
@@ -72,10 +69,7 @@ class ApplicationDispmanx
   void ShutdownDispmanx();
 
   // The DISPMANX display.
-  scoped_ptr<DispmanxDisplay> display_;
-
-  // DISPMANX helper to render video frames.
-  scoped_ptr<DispmanxVideoRenderer> video_renderer_;
+  DISPMANX_DISPLAY_HANDLE_T display_;
 
   // The single open window, if any.
   SbWindow window_;

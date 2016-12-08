@@ -30,8 +30,6 @@ namespace protocol {
 // Opaque type that uniquely identifies an Element from a WebDriver session.
 class ElementId {
  public:
-  static const char kElementKey[];
-
   // Convert the ElementId to a WebElement JSON object:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#WebElement_JSON_Object
   static scoped_ptr<base::Value> ToValue(const ElementId& element_id);

@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Audio Sink API
-//
-// Provides an interface to output raw audio data.
+// An interface to output raw audio data.
 
 #ifndef STARBOARD_AUDIO_SINK_H_
 #define STARBOARD_AUDIO_SINK_H_
@@ -71,49 +69,37 @@ typedef void (*SbAudioSinkConsumeFramesFunc)(int frames_consumed,
 
 // --- Functions -------------------------------------------------------------
 
-// Indicates whether the given audio sink handle is valid.
-//
-// |audio_sink|: The audio sink handle to check.
+// Returns whether the given audio sink handle is valid.
 SB_EXPORT bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 
 // Creates an audio sink for the specified |channels| and
-// |sampling_frequency_hz|, acquires all resources needed to operate the
-// audio sink, and returns an opaque handle to the audio sink.
+// |sampling_frequency_hz|, acquiring all resources needed to operate it, and
+// returning an opaque handle to it.
+//
+// |frame_buffers| is an array of pointers to sample data.  If the sink is
+// operating in interleaved mode, the array contains only one element, which is
+// an array containing |frames_per_channel| * |channels| samples.  If the sink
+// is operating in planar mode, the number of elements in the array will be the
+// same as |channels|, each of the elements will be an array of
+// |frames_per_channel| samples.  The caller has to ensure that |frame_buffers|
+// is valid until SbAudioSinkDestroy is called.
+//
+// |update_source_status_func| cannot be NULL.  The audio sink will call it on
+// an internal thread to query the status of the source.
+//
+// |consume_frames_func| cannot be NULL.  The audio sink will call it on an
+// internal thread to report consumed frames.
+//
+// |context| will be passed back into all callbacks, and is generally used to
+// point at a class or struct that contains state associated with the audio
+// sink.
+//
+// The audio sink will start to call |update_source_status_func| immediately
+// after SbAudioSinkCreate is called, even before it returns.  The caller has
+// to ensure that the above callbacks returns meaningful values in this case.
 //
 // If the particular platform doesn't support the requested audio sink, the
 // function returns kSbAudioSinkInvalid without calling any of the callbacks.
-//
-// |channels|: The number of audio channels, such as left and right channels
-// in stereo audio.
-// |sampling_frequency_hz|: The sample frequency of the audio data being
-// streamed. For example, 22,000 Hz means 22,000 sample elements represents
-// one second of audio data.
-// |audio_sample_type|: The type of each sample of the audio data --
-// |int16|, |float32|, etc.
-// |audio_frame_storage_type|: Indicates whether frames are interleaved or
-// planar.
-// |frame_buffers|: An array of pointers to sample data.
-// - If the sink is operating in interleaved mode, the array contains only
-//   one element, which is an array containing (|frames_per_channel| *
-//   |channels|) samples.
-// - If the sink is operating in planar mode, the number of elements in the
-//   array is the same as |channels|, and each element is an array of
-//   |frames_per_channel| samples. The caller has to ensure that
-//   |frame_buffers| is valid until SbAudioSinkDestroy is called.
-// |frames_per_channel|: The size of the frame buffers, in units of the
-// number of samples per channel. The frame, in this case, represents a
-// group of samples at the same media time, one for each channel.
-// |update_source_status_func|: The audio sink calls this function on an
-// internal thread to query the status of the source. The value cannot be NULL.
-// |consume_frames_func|: The audio sink calls this function on an internal
-// thread to report consumed frames. The value cannot be NULL.
-// |context|: A value that is passed back to all callbacks and is generally
-// used to point at a class or struct that contains state associated with the
-// audio sink.
-// |update_source_status_func|: A function that the audio sink starts to call
-// immediately after SbAudioSinkCreate is called, even before it returns.
-// The caller has to ensure that the callback functions above return
-// meaningful values in this case.
 SB_EXPORT SbAudioSink
 SbAudioSinkCreate(int channels,
                   int sampling_frequency_hz,
@@ -125,36 +111,32 @@ SbAudioSinkCreate(int channels,
                   SbAudioSinkConsumeFramesFunc consume_frames_func,
                   void* context);
 
-// Destroys |audio_sink|, freeing all associated resources. Before
-// returning, the function waits until all callbacks that are in progress
-// have finished. After the function returns, no further calls are made
-// callbacks passed into SbAudioSinkCreate. In addition, you can not pass
-// |audio_sink| to any other SbAudioSink functions after SbAudioSinkDestroy
-// has been called on it.
-//
-// This function can be called on any thread. However, it cannot be called
+// Destroys |audio_sink|, freeing all associated resources.  It will wait until
+// all callbacks in progress is finished before returning.  Upon returning of
+// this function, no callbacks passed into SbAudioSinkCreate will be called
+// further.  This function can be called on any thread but cannot be called
 // within any of the callbacks passed into SbAudioSinkCreate.
-//
-// |audio_sink|: The audio sink to destroy.
+// It is not allowed to pass |audio_sink| into any other SbAudioSink function
+// once SbAudioSinkDestroy has been called on it.
 SB_EXPORT void SbAudioSinkDestroy(SbAudioSink audio_sink);
 
-// Returns the maximum number of channels supported on the platform. For
-// example, the number would be |2| if the platform only supports stereo.
+// Returns the maximum channel supported on the platform.
 SB_EXPORT int SbAudioSinkGetMaxChannels();
 
-// Returns the supported sample rate closest to |sampling_frequency_hz|.
-// On platforms that don't support all sample rates, it is the caller's
+// Returns the nearest supported sample rate of |sampling_frequency_hz|.  On
+// platforms that don't support all sample rates, it is the caller's
 // responsibility to resample the audio frames into the supported sample rate
 // returned by this function.
 SB_EXPORT int SbAudioSinkGetNearestSupportedSampleFrequency(
     int sampling_frequency_hz);
 
-// Indicates whether |audio_sample_type| is supported on this platform.
+// Returns true if the particular SbMediaAudioSampleType is supported on this
+// platform.
 SB_EXPORT bool SbAudioSinkIsAudioSampleTypeSupported(
     SbMediaAudioSampleType audio_sample_type);
 
-// Indicates whether |audio_frame_storage_type| is supported on this
-// platform.
+// Returns true if the particular SbMediaAudioFrameStorageType is supported on
+// this platform.
 SB_EXPORT bool SbAudioSinkIsAudioFrameStorageTypeSupported(
     SbMediaAudioFrameStorageType audio_frame_storage_type);
 

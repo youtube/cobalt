@@ -72,7 +72,6 @@ enum PropertyKey {
   kColorProperty,
   kContentProperty,
   kDisplayProperty,
-  kFilterProperty,
   kFontFamilyProperty,
   kFontSizeProperty,
   kFontStyleProperty,

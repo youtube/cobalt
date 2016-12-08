@@ -38,6 +38,11 @@ class DummyGIFImageDecoder : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const OVERRIDE { return "DummyGIFImageDecoder"; }
 
+  // Returns true if the signature is valid for the particular image type.
+  static bool IsValidSignature(const uint8* header) {
+    return !memcmp(header, "GIF87a", 6) || !memcmp(header, "GIF89a", 6);
+  }
+
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) OVERRIDE;

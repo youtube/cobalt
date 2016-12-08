@@ -267,27 +267,6 @@ TimeTicks TimeTicks::HighResNow() {
   return Now();
 }
 
-// static
-TimeTicks TimeTicks::ThreadNow() {
-  uint64_t absolute_micro;
-
-  struct timespec ts;
-  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) {
-    return HighResNow();
-  }
-
-  absolute_micro =
-      (static_cast<int64>(ts.tv_sec) * Time::kMicrosecondsPerSecond) +
-      (static_cast<int64>(ts.tv_nsec) / Time::kNanosecondsPerMicrosecond);
-
-  return TimeTicks(absolute_micro);
-}
-
-// static
-bool TimeTicks::HasThreadNow() {
-  return true;
-}
-
 #if defined(OS_CHROMEOS)
 // Force definition of the system trace clock; it is a chromeos-only api
 // at the moment and surfacing it in the right place requires mucking

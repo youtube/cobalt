@@ -20,13 +20,13 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/audio_decoder_internal.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class AudioDecoder : public starboard::player::filter::AudioDecoder {
+class AudioDecoder : public starboard::player::AudioDecoder {
  public:
   typedef starboard::player::InputBuffer InputBuffer;
 
@@ -35,11 +35,10 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   ~AudioDecoder() SB_OVERRIDE;
 
   void Decode(const InputBuffer& input_buffer,
-              std::vector<uint8_t>* output) SB_OVERRIDE;
+              std::vector<float>* output) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
-  int GetSamplesPerSecond() const SB_OVERRIDE;
+  int GetSamplesPerSecond() SB_OVERRIDE;
 
   bool is_valid() const { return codec_context_ != NULL; }
 
@@ -47,7 +46,6 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   void InitializeCodec();
   void TeardownCodec();
 
-  SbMediaAudioSampleType sample_type_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
 

@@ -28,7 +28,6 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
-int RoundToInt(float value);
 math::Rect RectFToRect(const math::RectF& rectf);
 
 inline SbBlitterRect RectToBlitterRect(const math::Rect& rect) {

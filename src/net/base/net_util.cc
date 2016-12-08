@@ -63,7 +63,6 @@
 #include "net/base/escape.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_module.h"
-
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
 #endif
@@ -1871,16 +1870,7 @@ COMPILE_ASSERT(arraysize(kFinalStatusNames) == IPV6_SUPPORT_MAX + 1,
 // TODO(jar): The following is a simple estimate of IPv6 support.  We may need
 // to do a test resolution, and a test connection, to REALLY verify support.
 IPv6SupportResult TestIPv6SupportInternal() {
-#if defined(OS_STARBOARD)
-  SbSocket test_socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv6, kSbSocketProtocolTcp);
-  if (!SbSocketIsValid(test_socket)) {
-    return IPv6SupportResult(false, IPV6_CANNOT_CREATE_SOCKETS,
-                             SbSystemGetLastError());
-  }
-  SbSocketDestroy(test_socket);
-  return IPv6SupportResult(true, IPV6_SUPPORT_MAX, 0);
-#elif defined(OS_ANDROID) || defined(__LB_ANDROID__)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   // TODO: We should fully implement IPv6 probe once 'getifaddrs' API available;
   // Another approach is implementing the similar feature by
   // java.net.NetworkInterface through JNI.

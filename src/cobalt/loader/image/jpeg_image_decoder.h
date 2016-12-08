@@ -41,6 +41,11 @@ class JPEGImageDecoder : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const OVERRIDE { return "JPEGImageDecoder"; }
 
+  // Returns true if the signature is valid for the particular image type.
+  static bool IsValidSignature(const uint8* header) {
+    return !memcmp(header, "\xFF\xD8\xFF", 3);
+  }
+
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t size) OVERRIDE;

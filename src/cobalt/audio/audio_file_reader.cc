@@ -23,10 +23,9 @@ namespace audio {
 
 // static
 scoped_ptr<AudioFileReader> AudioFileReader::TryCreate(const uint8* data,
-                                                       size_t size,
-                                                       SampleType sample_type) {
+                                                       size_t size) {
   // Try to create other type of audio file reader.
-  return AudioFileReaderWAV::TryCreate(data, size, sample_type).Pass();
+  return AudioFileReaderWAV::TryCreate(data, size).Pass();
 }
 
 }  // namespace audio

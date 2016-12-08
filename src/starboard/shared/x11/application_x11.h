@@ -49,7 +49,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
  protected:
   void AcceptFrame(SbPlayer player,
-                   const scoped_refptr<VideoFrame>& frame,
+                   const shared::starboard::player::VideoFrame& frame,
                    int x,
                    int y,
                    int width,
@@ -71,7 +71,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
   struct FrameInfo {
-    scoped_refptr<VideoFrame> frame;
+    shared::starboard::player::VideoFrame frame;
     int x;
     int y;
     int width;
@@ -79,9 +79,8 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   };
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
-  // Ensures that X is up, display is populated and connected, returning whether
-  // it succeeded.
-  bool EnsureX();
+  // Ensures that X is up, display is populated and connected.
+  void EnsureX();
 
   // Shuts X down.
   void StopX();

@@ -116,14 +116,11 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   for (int i = 0; i < kRenderIterationCount; ++i) {
     AnimateNode* animate_node =
         base::polymorphic_downcast<AnimateNode*>(scene.get());
-    scoped_refptr<Node> animated =
-        animate_node->Apply(base::TimeDelta::FromSecondsD(
-                                i * kFixedTimeStepInSecondsPerFrame))
-            .animated;
+    scoped_refptr<Node> animated = animate_node->Apply(
+        base::TimeDelta::FromSecondsD(i * kFixedTimeStepInSecondsPerFrame));
 
     // Submit the render tree to be rendered.
     rasterizer->Submit(animated, test_surface);
-    graphics_context->Finish();
 
     if (i == 0) {
       // Enable tracing again after one iteration has passed and any lazy
@@ -186,10 +183,6 @@ void RunCreateImageViaResourceProviderBenchmark(AlphaFormat alpha_format) {
       CreateDefaultRasterizer(graphics_context.get());
 
   ResourceProvider* resource_provider = rasterizer->GetResourceProvider();
-  if (!resource_provider->AlphaFormatSupported(alpha_format)) {
-    // Only run the test if the alpha format is supported.
-    return;
-  }
 
   const int kIterationCount = 20;
   const Size kImageSize(400, 400);

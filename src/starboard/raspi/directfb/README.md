@@ -31,7 +31,7 @@ Open '/etc/fb.modes' (as root) and add the lines:
 
 ## Modifications to /etc/directfbrc
 
-Open or create '/etc/directfbrc' (as root) and add the lines:
+Open or create 'etc/directfbrc' (as root) and add the lines:
 
     graphics-vt
     hardware

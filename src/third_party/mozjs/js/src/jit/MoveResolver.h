@@ -74,11 +74,6 @@ class MoveResolver
         bool isEffectiveAddress() const {
             return kind_ == EFFECTIVE_ADDRESS;
         }
-#if defined(JS_CPU_MIPS)
-        bool isMemoryOrEffectiveAddress() const {
-            return isMemory() || isEffectiveAddress();
-        }
-#endif
         Register reg() const {
             JS_ASSERT(isGeneralReg());
             return Register::FromCode(code_);

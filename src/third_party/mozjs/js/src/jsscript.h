@@ -19,10 +19,6 @@
 #include "js/RootingAPI.h"
 #include "vm/Shape.h"
 
-#if defined(STARBOARD) && defined(JS_THREADSAFE)
-#include "starboard/client_porting/pr_starboard/pr_starboard.h"
-#endif  // defined(STARBOARD) && defined(JS_THREADSAFE)
-
 namespace js {
 
 namespace jit {

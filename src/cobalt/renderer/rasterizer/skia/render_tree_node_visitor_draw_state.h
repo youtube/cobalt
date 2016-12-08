@@ -26,14 +26,10 @@ namespace skia {
 
 struct RenderTreeNodeVisitorDrawState {
   explicit RenderTreeNodeVisitorDrawState(SkCanvas* render_target)
-      : render_target(render_target), opacity(1.0f), clip_is_rect(true) {}
+      : render_target(render_target), opacity(1.0f) {}
 
   SkCanvas* render_target;
   float opacity;
-
-  // True if the current clip is a rectangle or not.  If it is not, we need
-  // to enable blending when rendering clipped rectangles.
-  bool clip_is_rect;
 };
 
 }  // namespace skia

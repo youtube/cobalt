@@ -25,50 +25,28 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// Sets up an empty test fixture, required for typed tests.
-template <class SbFileWriteType>
-class SbFileWriteTest : public testing::Test {};
-
-class SbFileWriter {
- public:
-  static int Write(SbFile file, char* data, int size) {
-    return SbFileWrite(file, data, size);
-  }
-};
-
-class SbFileWriterAll {
- public:
-  static int Write(SbFile file, char* data, int size) {
-    return SbFileWriteAll(file, data, size);
-  }
-};
-
-typedef testing::Types<SbFileWriter, SbFileWriterAll> SbFileWriteTestTypes;
-
-TYPED_TEST_CASE(SbFileWriteTest, SbFileWriteTestTypes);
-
 const int kBufferLength = 16 * 1024;
 
-TYPED_TEST(SbFileWriteTest, InvalidFileErrors) {
+TEST(SbFileWriteTest, InvalidFileErrors) {
   char buffer[kBufferLength] = {0};
-  int result = TypeParam::Write(kSbFileInvalid, buffer, kBufferLength);
+  int result = SbFileWrite(kSbFileInvalid, buffer, kBufferLength);
   EXPECT_EQ(-1, result);
 }
 
-TYPED_TEST(SbFileWriteTest, BasicWriting) {
-  // Choose a file size that is not an even multiple of the buffer size, but
-  // is over several times the size of the buffer.
+TEST(SbFileWriteTest, BasicWriting) {
+  // Choose a file size that is not an even multiple of the buffer size, but is
+  // over several times the size of the buffer.
   const int kFileSize = kBufferLength * 16 / 3;
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(),
-                           kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(),
+                 kSbFileCreateAlways | kSbFileWrite | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
-  // Create a bigger buffer than necessary, so we can test the memory around
-  // the portion given to SbFileRead.
+  // Create a bigger buffer than necessary, so we can test the memory around the
+  // portion given to SbFileRead.
   char buffer[kBufferLength] = {0};
 
   // Initialize to some arbitrary pattern so we can verify it later.
@@ -85,7 +63,7 @@ TYPED_TEST(SbFileWriteTest, BasicWriting) {
 
     int remaining = kFileSize - total;
     int to_write = remaining < kBufferLength ? remaining : kBufferLength;
-    int bytes_written = TypeParam::Write(file, buffer, to_write);
+    int bytes_written = SbFileWrite(file, buffer, to_write);
 
     // Check that we didn't write more than the buffer size.
     EXPECT_GE(to_write, bytes_written);
@@ -107,7 +85,7 @@ TYPED_TEST(SbFileWriteTest, BasicWriting) {
   total = 0;
   int previous_total = 0;
   while (true) {
-    int bytes_read = SbFileReadAll(file, buffer, kBufferLength);
+    int bytes_read = SbFileRead(file, buffer, kBufferLength);
     if (bytes_read == 0) {
       break;
     }
@@ -133,7 +111,7 @@ TYPED_TEST(SbFileWriteTest, BasicWriting) {
   EXPECT_TRUE(result);
 }
 
-TYPED_TEST(SbFileWriteTest, WriteZeroBytes) {
+TEST(SbFileWriteTest, WriteZeroBytes) {
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
@@ -145,7 +123,7 @@ TYPED_TEST(SbFileWriteTest, WriteZeroBytes) {
 
   // Write zero bytes.
   for (int i = 0; i < 10; ++i) {
-    int bytes_written = TypeParam::Write(file, buffer, 0);
+    int bytes_written = SbFileWrite(file, buffer, 0);
     EXPECT_EQ(0, bytes_written);
   }
 

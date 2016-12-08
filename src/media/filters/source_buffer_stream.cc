@@ -1682,7 +1682,7 @@ bool SourceBufferRange::EndOverlaps(const SourceBufferRange& range) const {
 }
 
 base::TimeDelta SourceBufferRange::GetStartTimestamp() const {
-  DLOG_IF(WARNING, buffers_.empty()) << "|buffers_| cannot be empty.";
+  DCHECK(!buffers_.empty());
   base::TimeDelta start_timestamp = media_segment_start_time_;
   if (start_timestamp == kNoTimestamp())
     start_timestamp = buffers_.front()->GetDecodeTimestamp();

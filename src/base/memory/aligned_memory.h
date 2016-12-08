@@ -99,7 +99,7 @@ inline void AlignedFree(void* ptr) {
 #if defined(COMPILER_MSVC)
   _aligned_free(ptr);
 #elif defined(OS_STARBOARD)
-  SbMemoryDeallocateAligned(ptr);
+  SbMemoryFreeAligned(ptr);
 #else
   free(ptr);
 #endif

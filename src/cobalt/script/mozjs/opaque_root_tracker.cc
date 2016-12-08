@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "cobalt/script/mozjs/weak_heap_object.h"
-#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -46,7 +45,6 @@ class OpaqueRootStateImpl : public OpaqueRootTracker::OpaqueRootState {
   }
 
   ~OpaqueRootStateImpl() {
-    JSAutoRequest auto_request(context_);
     for (ReferencedObjectPairVector::iterator it = referenced_objects_.begin();
          it != referenced_objects_.end(); ++it) {
       if (it->second.Get()) {

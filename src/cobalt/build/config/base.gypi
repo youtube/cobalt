@@ -67,13 +67,6 @@
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
 
-    # Allow throttling of the frame rate. This is expressed in terms of
-    # milliseconds and can be a floating point number. Keep in mind that
-    # swapping frames may take some additional processing time, so it may be
-    # better to specify a lower delay. For example, '33' instead of '33.33'
-    # for 30 Hz refresh.
-    'cobalt_minimum_frame_time_in_milliseconds%': '0',
-
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
     'gtest_target_type%': 'executable',
@@ -102,11 +95,9 @@
     'lbshell_root%': '<(DEPTH)/lbshell',
 
     # The relative path from src/ to the directory containing the
-    # starboard_platform.gyp file.  It is currently set to
-    # 'starboard/<(target_arch)' to make semi-starboard platforms work.
-    # TODO: Set the default value to '' once all semi-starboard platforms are
-    # moved to starboard.
-    'starboard_path%': 'starboard/<(target_arch)',
+    # starboard_platform.gyp file, or the empty string if not an autodiscovered
+    # platform.
+    'starboard_path%': '',
 
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
@@ -137,7 +128,6 @@
     #   - scratch_surface_cache_size_in_bytes
     #   - surface_cache_size_in_bytes
     #   - image_cache_size_in_bytes
-    #   - skia_glyph_atlas_width * skia_glyph_atlas_height
     #
     # The other caches affect CPU memory usage.
 
@@ -169,12 +159,6 @@
     # typefaces downloaded from a web page.
     'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
 
-    # Only relevant if you are using the Blitter API.
-    # Determines the capacity of the software surface cache, which is used to
-    # cache all surfaces that are rendered via a software rasterizer to avoid
-    # re-rendering them.
-    'software_surface_cache_size_in_bytes%': 10 * 1024 * 1024,
-
     # Modifying this value to be non-1.0f will result in the image cache
     # capacity being cleared and then temporarily reduced for the duration that
     # a video is playing.  This can be useful for some platforms if they are
@@ -183,15 +167,6 @@
     # image_cache_size_in_bytes *
     #     image_cache_capacity_multiplier_when_playing_video.
     'image_cache_capacity_multiplier_when_playing_video%': '1.0f',
-
-    # Determines the size in pixels of the glyph atlas where rendered glyphs are
-    # cached. The resulting memory usage is 2 bytes of GPU memory per pixel.
-    # When a value is used that is too small, thrashing may occur that will
-    # result in visible stutter. Such thrashing is more likely to occur when CJK
-    # language glyphs are rendered and when the size of the glyphs in pixels is
-    # larger, such as for higher resolution displays.
-    'skia_glyph_atlas_width%': '2048',
-    'skia_glyph_atlas_height%': '2048',
 
     # Compiler configuration.
 
@@ -251,10 +226,8 @@
     'werror': '',
     # Cobalt doesn't currently support tcmalloc.
     'linux_use_tcmalloc': 0,
-    # The event polling mechanism available on this platform to support libevent.
-    # Platforms may redefine to 'poll' if necessary.
-    # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
-    'sb_libevent_method%': 'epoll',
+
+    'enable_webdriver%': 0,
   },
 
   'target_defaults': {
@@ -295,25 +268,13 @@
     'include_dirs': [ '<(DEPTH)' ],
     'libraries': [ '<@(platform_libraries)' ],
 
+    # TODO: This is needed to support the option to include
+    # posix_emulation.h to all compiled source files. This dependency should
+    # be refactored and removed.
+    'include_dirs_target': [
+      '<(DEPTH)/lbshell/src',
+    ],
     'conditions': [
-      ['final_executable_type=="shared_library"', {
-        'target_conditions': [
-          ['_toolset=="target"', {
-            'defines': [
-              # Rewrite main() functions into StarboardMain. TODO: This is a
-              # hack, it would be better to be more surgical, here.
-              'main=StarboardMain',
-            ],
-            'cflags': [
-              # To link into a shared library on Linux and similar platforms,
-              # the compiler must be told to generate Position Independent Code.
-              # This appears to cause errors when linking the code statically,
-              # however.
-              '-fPIC',
-            ],
-          }],
-        ],
-      }],
       ['posix_emulation_target_type == "shared_library"', {
         'defines': [
           '__LB_BASE_SHARED__=1',
@@ -333,10 +294,6 @@
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/lb_shell',
           # headers that we don't need, but should exist somewhere in the path:
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
-          # TODO: This is needed to support the option to include
-          # posix_emulation.h to all compiled source files. This dependency
-          # should be refactored and removed.
-          '<(DEPTH)/lbshell/src',
         ],
       }],  # OS == "lb_shell"
       ['OS == "starboard"', {
@@ -464,13 +421,10 @@
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
         'enable_about_scheme': 1,
-        'enable_fake_microphone': 1,
         'enable_file_scheme': 1,
         'enable_network_logging': 1,
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
-        'enable_webdriver%': 1,
-        'sb_allows_memory_tracking': 1,
       },
     },
     {
@@ -478,13 +432,10 @@
         'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
         'enable_about_scheme': 0,
-        'enable_fake_microphone': 0,
         'enable_file_scheme': 0,
         'enable_network_logging': 0,
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
-        'enable_webdriver': 0,
-        'sb_allows_memory_tracking': 0,
       },
     }],
   ],

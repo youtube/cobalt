@@ -52,7 +52,7 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 
         (*ctx)->dir = SbDirectoryOpen(directory, NULL);
         if (!SbDirectoryIsValid((*ctx)->dir)) {
-            SbMemoryDeallocate(*ctx);
+            SbMemoryFree(*ctx);
             *ctx = NULL;
             return NULL;
         }
@@ -70,7 +70,7 @@ int LP_find_file_end(LP_DIR_CTX **ctx)
 {
     if (ctx != NULL && *ctx != NULL) {
         bool result = SbDirectoryClose((*ctx)->dir);
-        SbMemoryDeallocate(*ctx);
+        SbMemoryFree(*ctx);
         return (result ? 1 : 0);
     }
     return 0;

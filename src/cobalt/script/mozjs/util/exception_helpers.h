@@ -16,7 +16,6 @@
 #ifndef COBALT_SCRIPT_MOZJS_UTIL_EXCEPTION_HELPERS_H_
 #define COBALT_SCRIPT_MOZJS_UTIL_EXCEPTION_HELPERS_H_
 
-#include <string>
 #include <vector>
 
 #include "cobalt/script/stack_frame.h"
@@ -26,10 +25,6 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace util {
-std::string GetExceptionString(JSContext* context);
-
-std::string GetExceptionString(JSContext* context, JS::HandleValue exception);
-
 std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames);
 }  // namespace util
 }  // namespace mozjs

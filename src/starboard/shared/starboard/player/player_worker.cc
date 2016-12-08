@@ -14,8 +14,14 @@
 
 #include "starboard/shared/starboard/player/player_worker.h"
 
-#include "starboard/common/reset_and_return.h"
-#include "starboard/memory.h"
+#include <algorithm>
+
+#include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
+#include "starboard/shared/starboard/player/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/video_frame_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -23,34 +29,34 @@ namespace starboard {
 namespace player {
 
 PlayerWorker::PlayerWorker(Host* host,
-                           scoped_ptr<Handler> handler,
+                           SbWindow window,
+                           SbMediaVideoCodec video_codec,
+                           SbMediaAudioCodec audio_codec,
+                           SbDrmSystem drm_system,
+                           const SbMediaAudioHeader& audio_header,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
                            SbPlayer player,
-                           SbTime update_interval,
                            void* context)
-    : thread_(kSbThreadInvalid),
-      host_(host),
-      handler_(handler.Pass()),
+    : host_(host),
+      window_(window),
+      video_codec_(video_codec),
+      audio_codec_(audio_codec),
+      drm_system_(drm_system),
+      audio_header_(audio_header),
       decoder_status_func_(decoder_status_func),
       player_status_func_(player_status_func),
       player_(player),
       context_(context),
+      audio_renderer_(NULL),
+      video_renderer_(NULL),
+      audio_decoder_state_(kSbPlayerDecoderStateBufferFull),
+      video_decoder_state_(kSbPlayerDecoderStateBufferFull),
       ticket_(SB_PLAYER_INITIAL_TICKET),
-      player_state_(kSbPlayerStateInitialized),
-      update_interval_(update_interval) {
-  SB_DCHECK(host_ != NULL);
-  SB_DCHECK(handler_ != NULL);
-  SB_DCHECK(update_interval_ > 0);
+      paused_(true),
+      player_state_(kSbPlayerStateInitialized) {
+  SB_DCHECK(host != NULL);
 
-  handler_->Setup(this, player_, &PlayerWorker::UpdateMediaTime,
-                  &PlayerWorker::player_state,
-                  &PlayerWorker::UpdatePlayerState);
-
-  pending_audio_sample_.input_buffer = NULL;
-  pending_video_sample_.input_buffer = NULL;
-
-  SB_DCHECK(!SbThreadIsValid(thread_));
   thread_ =
       SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
                      "player_worker", &PlayerWorker::ThreadEntryPoint, this);
@@ -62,41 +68,9 @@ PlayerWorker::PlayerWorker(Host* host,
 PlayerWorker::~PlayerWorker() {
   queue_.Put(new Event(Event::kStop));
   SbThreadJoin(thread_, NULL);
-  thread_ = kSbThreadInvalid;
-
   // Now the whole pipeline has been torn down and no callback will be called.
   // The caller can ensure that upon the return of SbPlayerDestroy() all side
   // effects are gone.
-
-  // There can be events inside the queue that is not processed.  Clean them up.
-  while (Event* event = queue_.GetTimed(0)) {
-    if (event->type == Event::kWriteSample) {
-      delete event->data.write_sample.input_buffer;
-    }
-    delete event;
-  }
-
-  if (pending_audio_sample_.input_buffer != NULL) {
-    delete pending_audio_sample_.input_buffer;
-  }
-
-  if (pending_video_sample_.input_buffer != NULL) {
-    delete pending_video_sample_.input_buffer;
-  }
-}
-
-void PlayerWorker::UpdateMediaTime(SbMediaTime time) {
-  host_->UpdateMediaTime(time, ticket_);
-}
-
-void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
-  player_state_ = player_state;
-
-  if (!player_status_func_) {
-    return;
-  }
-
-  player_status_func_(player_, context_, player_state_, ticket_);
 }
 
 // static
@@ -111,35 +85,38 @@ void PlayerWorker::RunLoop() {
   SB_DCHECK(event != NULL);
   SB_DCHECK(event->type == Event::kInit);
   delete event;
-  bool running = DoInit();
+  bool running = ProcessInitEvent();
 
   SetBoundsEventData bounds = {0, 0, 0, 0};
 
   while (running) {
-    Event* event = queue_.GetTimed(update_interval_);
+    Event* event = queue_.GetTimed(kUpdateInterval);
     if (event == NULL) {
-      running &= DoUpdate(bounds);
+      running &= ProcessUpdateEvent(bounds);
       continue;
     }
 
     SB_DCHECK(event->type != Event::kInit);
 
     if (event->type == Event::kSeek) {
-      running &= DoSeek(event->data.seek);
+      running &= ProcessSeekEvent(event->data.seek);
     } else if (event->type == Event::kWriteSample) {
-      running &= DoWriteSample(event->data.write_sample);
-    } else if (event->type == Event::kWriteEndOfStream) {
-      running &= DoWriteEndOfStream(event->data.write_end_of_stream);
-    } else if (event->type == Event::kSetPause) {
-      running &= handler_->ProcessSetPauseEvent(event->data.set_pause);
-    } else if (event->type == Event::kSetBounds) {
-      if (SbMemoryCompare(&bounds, &event->data.set_bounds, sizeof(bounds)) !=
-          0) {
-        bounds = event->data.set_bounds;
-        running &= DoUpdate(bounds);
+      bool retry;
+      running &= ProcessWriteSampleEvent(event->data.write_sample, &retry);
+      if (retry && running) {
+        EnqueueEvent(event->data.write_sample);
+      } else {
+        delete event->data.write_sample.input_buffer;
       }
+    } else if (event->type == Event::kWriteEndOfStream) {
+      running &= ProcessWriteEndOfStreamEvent(event->data.write_end_of_stream);
+    } else if (event->type == Event::kSetPause) {
+      running &= ProcessSetPauseEvent(event->data.set_pause);
+    } else if (event->type == Event::kSetBounds) {
+      bounds = event->data.set_bounds;
+      ProcessUpdateEvent(bounds);
     } else if (event->type == Event::kStop) {
-      DoStop();
+      ProcessStopEvent();
       running = false;
     } else {
       SB_NOTREACHED() << "event type " << event->type;
@@ -148,17 +125,34 @@ void PlayerWorker::RunLoop() {
   }
 }
 
-bool PlayerWorker::DoInit() {
-  if (handler_->ProcessInitEvent()) {
+bool PlayerWorker::ProcessInitEvent() {
+  AudioDecoder* audio_decoder =
+      AudioDecoder::Create(audio_codec_, audio_header_);
+  VideoDecoder* video_decoder = VideoDecoder::Create(video_codec_);
+
+  if (!audio_decoder || !video_decoder) {
+    delete audio_decoder;
+    delete video_decoder;
+    UpdatePlayerState(kSbPlayerStateError);
+    return false;
+  }
+
+  audio_renderer_ = new AudioRenderer(audio_decoder, audio_header_);
+  video_renderer_ = new VideoRenderer(video_decoder);
+  if (audio_renderer_->is_valid() && video_renderer_->is_valid()) {
     UpdatePlayerState(kSbPlayerStateInitialized);
     return true;
   }
 
+  delete audio_renderer_;
+  audio_renderer_ = NULL;
+  delete video_renderer_;
+  video_renderer_ = NULL;
   UpdatePlayerState(kSbPlayerStateError);
   return false;
 }
 
-bool PlayerWorker::DoSeek(const SeekEventData& data) {
+bool PlayerWorker::ProcessSeekEvent(const SeekEventData& data) {
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
   SB_DCHECK(player_state_ != kSbPlayerStateError);
   SB_DCHECK(ticket_ != data.ticket);
@@ -166,66 +160,106 @@ bool PlayerWorker::DoSeek(const SeekEventData& data) {
   SB_DLOG(INFO) << "Try to seek to timestamp "
                 << data.seek_to_pts / kSbMediaTimeSecond;
 
-  if (pending_audio_sample_.input_buffer != NULL) {
-    delete pending_audio_sample_.input_buffer;
-    pending_audio_sample_.input_buffer = NULL;
-  }
-  if (pending_video_sample_.input_buffer != NULL) {
-    delete pending_video_sample_.input_buffer;
-    pending_video_sample_.input_buffer = NULL;
+  SbMediaTime seek_to_pts = data.seek_to_pts;
+  if (seek_to_pts < 0) {
+    SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_pts;
+    seek_to_pts = 0;
   }
 
-  if (!handler_->ProcessSeekEvent(data)) {
-    return false;
-  }
+  audio_renderer_->Pause();
+  audio_decoder_state_ = kSbPlayerDecoderStateNeedsData;
+  video_decoder_state_ = kSbPlayerDecoderStateNeedsData;
+  audio_renderer_->Seek(seek_to_pts);
+  video_renderer_->Seek(seek_to_pts);
 
   ticket_ = data.ticket;
 
   UpdatePlayerState(kSbPlayerStatePrerolling);
-  UpdateDecoderState(kSbMediaTypeAudio, kSbPlayerDecoderStateNeedsData);
-  UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
-
+  UpdateDecoderState(kSbMediaTypeAudio);
+  UpdateDecoderState(kSbMediaTypeVideo);
   return true;
 }
 
-bool PlayerWorker::DoWriteSample(const WriteSampleEventData& data) {
+bool PlayerWorker::ProcessWriteSampleEvent(const WriteSampleEventData& data,
+                                           bool* retry) {
+  SB_DCHECK(retry != NULL);
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
   SB_DCHECK(player_state_ != kSbPlayerStateError);
+
+  *retry = false;
 
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream ||
       player_state_ == kSbPlayerStateError) {
     SB_LOG(ERROR) << "Try to write sample when |player_state_| is "
                   << player_state_;
-    delete data.input_buffer;
     // Return true so the pipeline will continue running with the particular
     // call ignored.
     return true;
   }
 
   if (data.sample_type == kSbMediaTypeAudio) {
-    SB_DCHECK(pending_audio_sample_.input_buffer == NULL);
-  } else {
-    SB_DCHECK(pending_video_sample_.input_buffer == NULL);
-  }
-  bool written;
-  bool result = handler_->ProcessWriteSampleEvent(data, &written);
-  if (!written && result) {
-    if (data.sample_type == kSbMediaTypeAudio) {
-      pending_audio_sample_ = data;
+    if (audio_renderer_->IsEndOfStreamWritten()) {
+      SB_LOG(WARNING) << "Try to write audio sample after EOS is reached";
     } else {
-      pending_video_sample_ = data;
+      SB_DCHECK(audio_renderer_->CanAcceptMoreData());
+
+      if (data.input_buffer->drm_info()) {
+        if (!SbDrmSystemIsValid(drm_system_)) {
+          return false;
+        }
+        if (drm_system_->Decrypt(data.input_buffer) ==
+            SbDrmSystemPrivate::kRetry) {
+          *retry = true;
+          return true;
+        }
+      }
+      audio_renderer_->WriteSample(*data.input_buffer);
+      if (audio_renderer_->CanAcceptMoreData()) {
+        audio_decoder_state_ = kSbPlayerDecoderStateNeedsData;
+      } else {
+        audio_decoder_state_ = kSbPlayerDecoderStateBufferFull;
+      }
+      UpdateDecoderState(kSbMediaTypeAudio);
     }
   } else {
-    delete data.input_buffer;
-    if (result) {
-      UpdateDecoderState(data.sample_type, kSbPlayerDecoderStateNeedsData);
+    SB_DCHECK(data.sample_type == kSbMediaTypeVideo);
+    if (video_renderer_->IsEndOfStreamWritten()) {
+      SB_LOG(WARNING) << "Try to write video sample after EOS is reached";
+    } else {
+      SB_DCHECK(video_renderer_->CanAcceptMoreData());
+      if (data.input_buffer->drm_info()) {
+        if (!SbDrmSystemIsValid(drm_system_)) {
+          return false;
+        }
+        if (drm_system_->Decrypt(data.input_buffer) ==
+            SbDrmSystemPrivate::kRetry) {
+          *retry = true;
+          return true;
+        }
+      }
+      video_renderer_->WriteSample(*data.input_buffer);
+      if (video_renderer_->CanAcceptMoreData()) {
+        video_decoder_state_ = kSbPlayerDecoderStateNeedsData;
+      } else {
+        video_decoder_state_ = kSbPlayerDecoderStateBufferFull;
+      }
+      UpdateDecoderState(kSbMediaTypeVideo);
     }
   }
-  return result;
+
+  if (player_state_ == kSbPlayerStatePrerolling) {
+    if (!audio_renderer_->IsSeekingInProgress() &&
+        !video_renderer_->IsSeekingInProgress()) {
+      UpdatePlayerState(kSbPlayerStatePresenting);
+    }
+  }
+
+  return true;
 }
 
-bool PlayerWorker::DoWriteEndOfStream(const WriteEndOfStreamEventData& data) {
+bool PlayerWorker::ProcessWriteEndOfStreamEvent(
+    const WriteEndOfStreamEventData& data) {
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
 
   if (player_state_ == kSbPlayerStateInitialized ||
@@ -239,47 +273,124 @@ bool PlayerWorker::DoWriteEndOfStream(const WriteEndOfStreamEventData& data) {
   }
 
   if (data.stream_type == kSbMediaTypeAudio) {
-    SB_DCHECK(pending_audio_sample_.input_buffer == NULL);
+    if (audio_renderer_->IsEndOfStreamWritten()) {
+      SB_LOG(WARNING) << "Try to write audio EOS after EOS is enqueued";
+    } else {
+      SB_LOG(INFO) << "Audio EOS enqueued";
+      audio_renderer_->WriteEndOfStream();
+    }
+    audio_decoder_state_ = kSbPlayerDecoderStateBufferFull;
+    UpdateDecoderState(kSbMediaTypeAudio);
   } else {
-    SB_DCHECK(pending_video_sample_.input_buffer == NULL);
+    if (video_renderer_->IsEndOfStreamWritten()) {
+      SB_LOG(WARNING) << "Try to write video EOS after EOS is enqueued";
+    } else {
+      SB_LOG(INFO) << "Video EOS enqueued";
+      video_renderer_->WriteEndOfStream();
+    }
+    video_decoder_state_ = kSbPlayerDecoderStateBufferFull;
+    UpdateDecoderState(kSbMediaTypeVideo);
   }
 
-  if (!handler_->ProcessWriteEndOfStreamEvent(data)) {
-    return false;
+  if (player_state_ == kSbPlayerStatePrerolling) {
+    if (!audio_renderer_->IsSeekingInProgress() &&
+        !video_renderer_->IsSeekingInProgress()) {
+      UpdatePlayerState(kSbPlayerStatePresenting);
+    }
+  }
+
+  if (player_state_ == kSbPlayerStatePresenting) {
+    if (audio_renderer_->IsEndOfStreamPlayed() &&
+        video_renderer_->IsEndOfStreamPlayed()) {
+      UpdatePlayerState(kSbPlayerStateEndOfStream);
+    }
   }
 
   return true;
 }
 
-bool PlayerWorker::DoUpdate(const SetBoundsEventData& data) {
-  if (pending_audio_sample_.input_buffer != NULL) {
-    if (!DoWriteSample(common::ResetAndReturn(&pending_audio_sample_))) {
-      return false;
-    }
+bool PlayerWorker::ProcessSetPauseEvent(const SetPauseEventData& data) {
+  // TODO: Check valid
+  paused_ = data.pause;
+  if (data.pause) {
+    audio_renderer_->Pause();
+    SB_DLOG(INFO) << "Playback paused.";
+  } else {
+    audio_renderer_->Play();
+    SB_DLOG(INFO) << "Playback started.";
   }
-  if (pending_video_sample_.input_buffer != NULL) {
-    if (!DoWriteSample(common::ResetAndReturn(&pending_video_sample_))) {
-      return false;
-    }
-  }
-  return handler_->ProcessUpdateEvent(data);
+
+  return true;
 }
 
-void PlayerWorker::DoStop() {
-  handler_->ProcessStopEvent();
+bool PlayerWorker::ProcessUpdateEvent(const SetBoundsEventData& bounds) {
+  SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
 
+  if (player_state_ == kSbPlayerStatePrerolling ||
+      player_state_ == kSbPlayerStatePresenting) {
+    if (audio_renderer_->IsEndOfStreamPlayed() &&
+        video_renderer_->IsEndOfStreamPlayed()) {
+      UpdatePlayerState(kSbPlayerStateEndOfStream);
+    }
+
+    const VideoFrame& frame =
+        video_renderer_->GetCurrentFrame(audio_renderer_->GetCurrentTime());
+#if SB_IS(PLAYER_PUNCHED_OUT)
+    shared::starboard::Application::Get()->HandleFrame(
+        player_, frame, bounds.x, bounds.y, bounds.width, bounds.height);
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+
+    if (audio_decoder_state_ == kSbPlayerDecoderStateBufferFull &&
+        audio_renderer_->CanAcceptMoreData()) {
+      audio_decoder_state_ = kSbPlayerDecoderStateNeedsData;
+      UpdateDecoderState(kSbMediaTypeAudio);
+    }
+    if (video_decoder_state_ == kSbPlayerDecoderStateBufferFull &&
+        video_renderer_->CanAcceptMoreData()) {
+      video_decoder_state_ = kSbPlayerDecoderStateNeedsData;
+      UpdateDecoderState(kSbMediaTypeVideo);
+    }
+
+    host_->UpdateMediaTime(audio_renderer_->GetCurrentTime(), ticket_);
+  }
+
+  return true;
+}
+
+void PlayerWorker::ProcessStopEvent() {
+  delete audio_renderer_;
+  audio_renderer_ = NULL;
+  delete video_renderer_;
+  video_renderer_ = NULL;
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  // Clear the video frame as we terminate.
+  shared::starboard::Application::Get()->HandleFrame(player_, VideoFrame(), 0,
+                                                     0, 0, 0);
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
   UpdatePlayerState(kSbPlayerStateDestroyed);
 }
 
-void PlayerWorker::UpdateDecoderState(SbMediaType type,
-                                      SbPlayerDecoderState state) {
-  SB_DCHECK(type == kSbMediaTypeAudio || type == kSbMediaTypeVideo);
-
+void PlayerWorker::UpdateDecoderState(SbMediaType type) {
   if (!decoder_status_func_) {
     return;
   }
+  SB_DCHECK(type == kSbMediaTypeAudio || type == kSbMediaTypeVideo);
+  decoder_status_func_(
+      player_, context_, type,
+      type == kSbMediaTypeAudio ? audio_decoder_state_ : video_decoder_state_,
+      ticket_);
+}
 
-  decoder_status_func_(player_, context_, type, state, ticket_);
+void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
+  if (!player_status_func_) {
+    return;
+  }
+
+  player_state_ = player_state;
+  if (player_state == kSbPlayerStatePresenting && !paused_) {
+    audio_renderer_->Play();
+  }
+  player_status_func_(player_, context_, player_state_, ticket_);
 }
 
 }  // namespace player

@@ -10,7 +10,6 @@ body {
   right: 0;
   background-color: rgba(128, 128, 128, 0.6);
   color: #FFFFFF;
-  display: none;
 }
 
 #hud {
@@ -36,7 +35,6 @@ body {
   background-color: rgba(128, 128, 128, 0.6);
   color: #FFFFFF;
   overflow: hidden;
-  display: none;
 }
 
 #messageContainerFrame {

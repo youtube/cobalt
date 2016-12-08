@@ -26,8 +26,7 @@ namespace storage {
 SavegameThread::SavegameThread(const Savegame::Options& options)
     : options_(options),
       initialized_(true /* manual reset */, false /* initially signalled */),
-      thread_(new base::Thread("Savegame I/O")),
-      num_consecutive_flush_failures_(0) {
+      thread_(new base::Thread("Savegame I/O")) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   thread_->Start();
   thread_->message_loop()->PostTask(
@@ -89,15 +88,7 @@ void SavegameThread::FlushOnIOThread(
   DCHECK_EQ(thread_->message_loop(), MessageLoop::current());
   if (raw_bytes_ptr->size() > 0) {
     bool ret = savegame_->Write(*raw_bytes_ptr);
-    if (ret) {
-      num_consecutive_flush_failures_ = 0;
-    } else {
-      DLOG(ERROR) << "Save failed.";
-      const int kMaxConsecutiveFlushFailures = 2;
-      DCHECK_LT(++num_consecutive_flush_failures_,
-                kMaxConsecutiveFlushFailures);
-      return;
-    }
+    DCHECK(ret);
   }
 
   if (!on_flush_complete.is_null()) {

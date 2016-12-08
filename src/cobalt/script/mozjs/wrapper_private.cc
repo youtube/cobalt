@@ -20,7 +20,6 @@
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/referenced_object_map.h"
 #include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsobj.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
 
 namespace cobalt {
@@ -63,17 +62,6 @@ void WrapperPrivate::AddPrivateData(
                                  js::GetProxyTargetObject(wrapper_proxy));
   JS_SetPrivate(target_object, private_data);
   DCHECK_EQ(JS_GetPrivate(target_object), private_data);
-}
-
-// static
-bool WrapperPrivate::HasWrapperPrivate(JSContext* context,
-                                       JS::HandleObject object) {
-  if (js::IsProxy(object)) {
-    JS::RootedObject target_object(context, js::GetProxyTargetObject(object));
-    return WrapperPrivate::HasWrapperPrivate(context, target_object);
-  }
-
-  return object->hasPrivate();
 }
 
 // static

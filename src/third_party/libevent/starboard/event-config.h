@@ -8,8 +8,6 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
-#include "starboard/configuration.h"
-
 /* Define if clock_gettime is available in libc */
 #define _EVENT_DNS_USE_CPU_CLOCK_FOR_ID 1
 
@@ -26,19 +24,19 @@
 #define _EVENT_HAVE_DLFCN_H 1
 
 /* Define if your system supports the epoll system calls */
-/* #undef _EVENT_HAVE_EPOLL */
+#define _EVENT_HAVE_EPOLL 1
 
 /* Define to 1 if you have the `epoll_ctl' function. */
-/* #undef _EVENT_HAVE_EPOLL_CTL */
+#define _EVENT_HAVE_EPOLL_CTL 1
 
 /* Define if your system supports event ports */
 /* #undef _EVENT_HAVE_EVENT_PORTS */
 
 /* Define to 1 if you have the `fcntl' function. */
-/* #undef _EVENT_HAVE_FCNTL */
+#define _EVENT_HAVE_FCNTL 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
-/* #undef _EVENT_HAVE_FCNTL_H */
+#define _EVENT_HAVE_FCNTL_H 1
 
 /* Define to 1 if the system has the type `fd_mask'. */
 #define _EVENT_HAVE_FD_MASK 1
@@ -101,7 +99,7 @@
 /* #undef _EVENT_HAVE_PORT_H */
 
 /* Define to 1 if you have the `select' function. */
-/* #undef _EVENT_HAVE_SELECT */
+#define _EVENT_HAVE_SELECT 1
 
 /* Define if F_SETFD is defined in <fcntl.h> */
 #define _EVENT_HAVE_SETFD 1

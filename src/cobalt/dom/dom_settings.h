@@ -20,12 +20,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/blob.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/speech/microphone.h"
 
 namespace cobalt {
 
@@ -58,8 +55,6 @@ class DOMSettings : public script::EnvironmentSettings {
     // amount of ArrayBuffer inside main memory.  So we have provide the
     // following cache to manage ArrayBuffer in main memory.
     ArrayBuffer::Cache* array_buffer_cache;
-    // Microphone options.
-    speech::Microphone::Options microphone_options;
   };
 
   DOMSettings(const int max_dom_element_depth,
@@ -67,17 +62,12 @@ class DOMSettings : public script::EnvironmentSettings {
               network::NetworkModule* network_module,
               const scoped_refptr<Window>& window,
               MediaSource::Registry* media_source_registry,
-              Blob::Registry* blob_registry,
-              media::CanPlayTypeHandler* can_play_type_handler,
               script::JavaScriptEngine* engine,
               script::GlobalEnvironment* global_environment_proxy,
               const Options& options = Options());
   ~DOMSettings() OVERRIDE;
 
   int max_dom_element_depth() { return max_dom_element_depth_; }
-  const speech::Microphone::Options& microphone_options() const {
-    return microphone_options_;
-  }
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
   scoped_refptr<Window> window() const { return window_; }
@@ -105,25 +95,18 @@ class DOMSettings : public script::EnvironmentSettings {
   MediaSource::Registry* media_source_registry() const {
     return media_source_registry_;
   }
-  media::CanPlayTypeHandler* can_play_type_handler() const {
-    return can_play_type_handler_;
-  }
-  Blob::Registry* blob_registry() const { return blob_registry_; }
 
   // An absolute URL used to resolve relative URLs.
   virtual GURL base_url() const;
 
  private:
   const int max_dom_element_depth_;
-  const speech::Microphone::Options microphone_options_;
   loader::FetcherFactory* fetcher_factory_;
   network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
   ArrayBuffer::Allocator* array_buffer_allocator_;
   ArrayBuffer::Cache* array_buffer_cache_;
   MediaSource::Registry* media_source_registry_;
-  Blob::Registry* blob_registry_;
-  media::CanPlayTypeHandler* can_play_type_handler_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalEnvironment* global_environment_;
 

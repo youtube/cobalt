@@ -100,7 +100,7 @@ void StarboardPageAllocatorMmap::freeInternal(void* addr, size_t size) {
         updateAllocatedPages(-page_count);
         SbMemoryUnmap(addr, size);
     } else {
-        SbMemoryDeallocateAligned(addr);
+        SbMemoryFreeAligned(addr);
         non_page_blocks_.erase(it);
     }
 }

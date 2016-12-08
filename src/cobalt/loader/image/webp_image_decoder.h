@@ -34,6 +34,11 @@ class WEBPImageDecoder : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const OVERRIDE { return "WEBPImageDecoder"; }
 
+  // Returns true if the signature is valid for the particular image type.
+  static bool IsValidSignature(const uint8* header) {
+    return !memcmp(header, "RIFF", 4) && !memcmp(header + 8, "WEBPVP", 6);
+  }
+
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) OVERRIDE;

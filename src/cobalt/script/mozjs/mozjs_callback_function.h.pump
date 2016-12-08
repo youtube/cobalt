@@ -32,9 +32,7 @@ $var MAX_ARITY = 7
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/convert_callback_return_value.h"
-#include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
-#include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jscntxt.h"
 
@@ -78,15 +76,13 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
-    TRACK_MEMORY_SCOPE("Javascript");
-    TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
-    JSAutoRequest auto_request(context_);
     JS::RootedObject function(context_, weak_function_.Get());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
     } else {
+      JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, function);
       JSExceptionState* previous_exception_state =
           JS_SaveExceptionState(context_);
@@ -113,8 +109,7 @@ $if ARITY > 0 [[
 ]]
 
       if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
+        DLOG(WARNING) << "Exception in callback.";
         callback_result.exception = true;
       } else {
         callback_result = ConvertCallbackReturnValue<R>(context_, return_value);

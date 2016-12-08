@@ -427,26 +427,6 @@ class CSSStyleDeclaration : public script::Wrappable {
                                 const std::string& property_value,
                                 script::ExceptionState* exception_state) = 0;
 
-  virtual void SetProperty(const std::string& property_name,
-                           const std::string& property_value,
-                           const std::string& priority,
-                           script::ExceptionState* exception_state) = 0;
-
-  void SetProperty(const std::string& property_name,
-                   const std::string& property_value,
-                   script::ExceptionState* exception_state) {
-    SetPropertyValue(property_name, property_value, exception_state);
-  }
-
-  std::string RemoveProperty(const std::string& property_name,
-                             script::ExceptionState* exception_state) {
-    std::string retval = GetPropertyValue(property_name);
-    if (!retval.empty()) {
-      SetPropertyValue(property_name, "", exception_state);
-    }
-    return retval;
-  }
-
   // The parent rule is the CSS rule that the CSS declaration block is
   // associated with, if any, or null otherwise.
   //   https://www.w3.org/TR/2013/WD-cssom-20131205/#css-declaration-block

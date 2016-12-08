@@ -35,9 +35,6 @@ namespace alsa {
 
 namespace {
 
-const snd_pcm_uframes_t kSilenceThresholdInFrames = 256U;
-const snd_pcm_uframes_t kStartThresholdInFrames = 1024U;
-
 template <typename T, typename CloseFunc>
 class AutoClose {
  public:
@@ -148,19 +145,18 @@ void* AlsaOpenPlaybackDevice(int channel,
                                           frames_per_request);
   ALSA_CHECK(error, snd_pcm_sw_params_set_avail_min, NULL);
 
-  error = snd_pcm_sw_params_set_silence_threshold(playback_handle, sw_params,
-                                                  kSilenceThresholdInFrames);
+  error =
+      snd_pcm_sw_params_set_silence_threshold(playback_handle, sw_params, 256U);
   ALSA_CHECK(error, snd_pcm_sw_params_set_silence_threshold, NULL);
-
-  error = snd_pcm_sw_params_set_start_threshold(playback_handle, sw_params,
-                                                kStartThresholdInFrames);
-  ALSA_CHECK(error, snd_pcm_sw_params_set_start_threshold, NULL);
 
   error = snd_pcm_sw_params(playback_handle, sw_params);
   ALSA_CHECK(error, snd_pcm_sw_params, NULL);
 
   error = snd_pcm_prepare(playback_handle);
   ALSA_CHECK(error, snd_pcm_prepare, NULL);
+
+  error = snd_pcm_start(playback_handle);
+  ALSA_CHECK(error, snd_pcm_start, NULL);
 
   return playback_handle.Detach();
 }

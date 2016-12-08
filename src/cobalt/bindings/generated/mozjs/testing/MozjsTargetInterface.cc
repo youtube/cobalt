@@ -201,15 +201,6 @@ JSBool fcn_implementedInterfaceFunction(
     NOTREACHED();
     return false;
   }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<TargetInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -236,15 +227,6 @@ JSBool fcn_partialInterfaceFunction(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<TargetInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);

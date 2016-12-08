@@ -17,13 +17,11 @@
 #ifndef COBALT_LOADER_TEXT_DECODER_H_
 #define COBALT_LOADER_TEXT_DECODER_H_
 
-#include <algorithm>
 #include <string>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
 
@@ -52,21 +50,6 @@ class TextDecoder : public Decoder {
     }
     text_.append(data, size);
   }
-
-  void DecodeChunkPassed(scoped_ptr<std::string> data) OVERRIDE {
-    DCHECK(thread_checker_.CalledOnValidThread());
-    DCHECK(data);
-    if (suspended_) {
-      return;
-    }
-
-    if (text_.empty()) {
-      std::swap(*data, text_);
-    } else {
-      text_.append(*data);
-    }
-  }
-
   void Finish() OVERRIDE {
     DCHECK(thread_checker_.CalledOnValidThread());
     if (suspended_) {

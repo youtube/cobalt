@@ -46,14 +46,6 @@ class Fetcher {
     virtual void OnDone(Fetcher* fetcher) = 0;
     virtual void OnError(Fetcher* fetcher, const std::string& error) = 0;
 
-    // By default, |OnReceivedPassed| forwards the scoped_ptr<std::string>
-    // data into |OnReceived|.  Implementations have the opportunity to hold
-    // onto the scoped_ptr through overriding |OnReceivedPassed|.
-    virtual void OnReceivedPassed(Fetcher* fetcher,
-                                  scoped_ptr<std::string> data) {
-      OnReceived(fetcher, data->data(), data->length());
-    }
-
    protected:
     Handler() {}
     virtual ~Handler() {}

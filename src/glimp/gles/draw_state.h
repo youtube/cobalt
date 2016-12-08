@@ -24,7 +24,6 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/blend_state.h"
 #include "glimp/gles/buffer.h"
-#include "glimp/gles/cull_face_state.h"
 #include "glimp/gles/framebuffer.h"
 #include "glimp/gles/program.h"
 #include "glimp/gles/sampler.h"
@@ -157,9 +156,6 @@ struct DrawState {
   // existing pixels in the output framebuffer.
   BlendState blend_state;
 
-  // Defines whether face culling is enabled, and upon which face if so.
-  CullFaceState cull_face_state;
-
   // The currently bound array buffer, set by calling
   // glBindBuffer(GL_ARRAY_BUFFER).
   nb::scoped_refptr<Buffer> array_buffer;
@@ -194,7 +190,6 @@ struct DrawStateDirtyFlags {
     scissor_dirty = true;
     viewport_dirty = true;
     blend_state_dirty = true;
-    cull_face_dirty = true;
     array_buffer_dirty = true;
     element_array_buffer_dirty = true;
     used_program_dirty = true;
@@ -210,7 +205,6 @@ struct DrawStateDirtyFlags {
   bool scissor_dirty;
   bool viewport_dirty;
   bool blend_state_dirty;
-  bool cull_face_dirty;
   bool array_buffer_dirty;
   bool element_array_buffer_dirty;
   bool used_program_dirty;

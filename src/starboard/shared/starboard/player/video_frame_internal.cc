@@ -30,7 +30,7 @@ int s_v_to_r[256];
 int s_u_to_g[256];
 int s_v_to_g[256];
 int s_u_to_b[256];
-uint8_t s_clamp_table[256 * 5];
+uint8_t s_clamp_table[256 * 3];
 
 void EnsureYUVToRGBLookupTableInitialized() {
   if (s_yuv_to_rgb_lookup_table_initialized) {
@@ -47,13 +47,10 @@ void EnsureYUVToRGBLookupTableInitialized() {
   //
   // We optimize the conversion algorithm by creating two kinds of lookup
   // tables.  The color component table contains pre-calculated color component
-  // values.  The clamp table contains a map between |v| + 512 to the clamped
+  // values.  The clamp table contains a map between |v| + 256 to the clamped
   // |v| to avoid conditional operation.
-  // The minimum value of |v| can be 2.112f * (-128) = -271, the maximum value
-  // of |v| can be 1.164f * 255 + 2.112f * 127 = 565.  So we need 512 bytes at
-  // each side of the clamp buffer.
-  SbMemorySet(s_clamp_table, 0, 512);
-  SbMemorySet(s_clamp_table + 768, 0xff, 512);
+  SbMemorySet(s_clamp_table, 0, 256);
+  SbMemorySet(s_clamp_table + 512, 0xff, 256);
 
   for (int i = 0; i < 256; ++i) {
     s_y_to_rgb[i] = (static_cast<uint8_t>(i) - 16) * 1.164f;
@@ -61,88 +58,65 @@ void EnsureYUVToRGBLookupTableInitialized() {
     s_u_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.213;
     s_v_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.533f;
     s_u_to_b[i] = (static_cast<uint8_t>(i) - 128) * 2.112f;
-    s_clamp_table[512 + i] = i;
+    s_clamp_table[256 + i] = i;
   }
 
   s_yuv_to_rgb_lookup_table_initialized = true;
 }
 
 uint8_t ClampColorComponent(int component) {
-  return s_clamp_table[component + 512];
+  return s_clamp_table[component + 256];
 }
 
 }  // namespace
 
-VideoFrame::VideoFrame() {
-  InitializeToInvalidFrame();
+VideoFrame::VideoFrame(const VideoFrame& that) {
+  *this = that;
 }
 
-VideoFrame::VideoFrame(int width,
-                       int height,
-                       SbMediaTime pts,
-                       void* native_texture,
-                       void* native_texture_context,
-                       FreeNativeTextureFunc free_native_texture_func) {
-  SB_DCHECK(native_texture != NULL);
-  SB_DCHECK(free_native_texture_func != NULL);
+VideoFrame& VideoFrame::operator=(const VideoFrame& that) {
+  this->format_ = that.format_;
 
-  InitializeToInvalidFrame();
+  this->pts_ = that.pts_;
+  this->planes_ = that.planes_;
+  this->pixel_buffer_ = that.pixel_buffer_;
 
-  format_ = kNativeTexture;
-  width_ = width;
-  height_ = height;
-  pts_ = pts;
-  native_texture_ = native_texture;
-  native_texture_context_ = native_texture_context;
-  free_native_texture_func_ = free_native_texture_func;
-}
-
-VideoFrame::~VideoFrame() {
-  if (format_ == kNativeTexture) {
-    free_native_texture_func_(native_texture_context_, native_texture_);
+  for (int i = 0; i < GetPlaneCount(); ++i) {
+    const uint8_t* data = that.GetPlane(i).data;
+    const uint8_t* base = &that.pixel_buffer_[0];
+    ptrdiff_t offset = data - base;
+    SB_DCHECK(offset >= 0);
+    SB_DCHECK(offset < static_cast<ptrdiff_t>(that.pixel_buffer_.size()));
+    planes_[i].data = &pixel_buffer_[0] + offset;
   }
-}
 
-int VideoFrame::GetPlaneCount() const {
-  SB_DCHECK(format_ != kInvalid);
-  SB_DCHECK(format_ != kNativeTexture);
-
-  return static_cast<int>(planes_.size());
+  return *this;
 }
 
 const VideoFrame::Plane& VideoFrame::GetPlane(int index) const {
-  SB_DCHECK(format_ != kInvalid);
-  SB_DCHECK(format_ != kNativeTexture);
   SB_DCHECK(index >= 0 && index < GetPlaneCount()) << "Invalid index: "
                                                    << index;
   return planes_[index];
 }
 
-void* VideoFrame::native_texture() const {
-  SB_DCHECK(format_ == kNativeTexture);
-  return native_texture_;
-}
-
-scoped_refptr<VideoFrame> VideoFrame::ConvertTo(Format target_format) const {
+VideoFrame VideoFrame::ConvertTo(Format target_format) const {
   SB_DCHECK(format_ == kYV12);
   SB_DCHECK(target_format == kBGRA32);
 
   EnsureYUVToRGBLookupTableInitialized();
 
-  scoped_refptr<VideoFrame> target_frame(new VideoFrame);
+  VideoFrame target_frame;
 
-  target_frame->format_ = target_format;
-  target_frame->width_ = width();
-  target_frame->height_ = height();
-  target_frame->pts_ = pts_;
-  target_frame->pixel_buffer_.reset(new uint8_t[width() * height() * 4]);
-  target_frame->planes_.push_back(
-      Plane(width(), height(), width() * 4, target_frame->pixel_buffer_.get()));
+  target_frame.format_ = target_format;
+  target_frame.pts_ = pts_;
+  target_frame.pixel_buffer_.resize(width() * height() * 4);
+  target_frame.planes_.push_back(
+      Plane(width(), height(), width() * 4, &target_frame.pixel_buffer_[0]));
 
   const uint8_t* y_data = GetPlane(0).data;
   const uint8_t* u_data = GetPlane(1).data;
   const uint8_t* v_data = GetPlane(2).data;
-  uint8_t* bgra_data = target_frame->pixel_buffer_.get();
+  uint8_t* bgra_data = &target_frame.pixel_buffer_[0];
 
   int height = this->height();
   int width = this->width();
@@ -181,23 +155,21 @@ scoped_refptr<VideoFrame> VideoFrame::ConvertTo(Format target_format) const {
 }
 
 // static
-scoped_refptr<VideoFrame> VideoFrame::CreateEOSFrame() {
-  return new VideoFrame;
+VideoFrame VideoFrame::CreateEOSFrame() {
+  return VideoFrame();
 }
 
 // static
-scoped_refptr<VideoFrame> VideoFrame::CreateYV12Frame(int width,
-                                                      int height,
-                                                      int pitch_in_bytes,
-                                                      SbMediaTime pts,
-                                                      const uint8_t* y,
-                                                      const uint8_t* u,
-                                                      const uint8_t* v) {
-  scoped_refptr<VideoFrame> frame(new VideoFrame);
-  frame->format_ = kYV12;
-  frame->width_ = width;
-  frame->height_ = height;
-  frame->pts_ = pts;
+VideoFrame VideoFrame::CreateYV12Frame(int width,
+                                       int height,
+                                       int pitch_in_bytes,
+                                       SbMediaTime pts,
+                                       const uint8_t* y,
+                                       const uint8_t* u,
+                                       const uint8_t* v) {
+  VideoFrame frame;
+  frame.format_ = kYV12;
+  frame.pts_ = pts;
 
   // U/V planes generally have half resolution of the Y plane.  However, in the
   // extreme case that any dimension of Y plane is odd, we want to have an
@@ -208,36 +180,22 @@ scoped_refptr<VideoFrame> VideoFrame::CreateYV12Frame(int width,
 
   int y_plane_size_in_bytes = height * pitch_in_bytes;
   int uv_plane_size_in_bytes = uv_height * uv_pitch_in_bytes;
-  frame->pixel_buffer_.reset(
-      new uint8_t[y_plane_size_in_bytes + uv_plane_size_in_bytes * 2]);
-  SbMemoryCopy(frame->pixel_buffer_.get(), y, y_plane_size_in_bytes);
-  SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes, u,
-               uv_plane_size_in_bytes);
-  SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes +
-                   uv_plane_size_in_bytes,
-               v, uv_plane_size_in_bytes);
+  frame.pixel_buffer_.assign(y, y + y_plane_size_in_bytes);
+  frame.pixel_buffer_.insert(frame.pixel_buffer_.end(), u,
+                             u + uv_plane_size_in_bytes);
+  frame.pixel_buffer_.insert(frame.pixel_buffer_.end(), v,
+                             v + uv_plane_size_in_bytes);
 
-  frame->planes_.push_back(
-      Plane(width, height, pitch_in_bytes, frame->pixel_buffer_.get()));
-  frame->planes_.push_back(
+  frame.planes_.push_back(
+      Plane(width, height, pitch_in_bytes, &frame.pixel_buffer_[0]));
+  frame.planes_.push_back(
       Plane(uv_width, uv_height, uv_pitch_in_bytes,
-            frame->pixel_buffer_.get() + y_plane_size_in_bytes));
-  frame->planes_.push_back(Plane(uv_width, uv_height, uv_pitch_in_bytes,
-                                 frame->pixel_buffer_.get() +
-                                     y_plane_size_in_bytes +
-                                     uv_plane_size_in_bytes));
+            &frame.pixel_buffer_[0] + y_plane_size_in_bytes));
+  frame.planes_.push_back(Plane(uv_width, uv_height, uv_pitch_in_bytes,
+                                &frame.pixel_buffer_[0] +
+                                    y_plane_size_in_bytes +
+                                    uv_plane_size_in_bytes));
   return frame;
-}
-
-void VideoFrame::InitializeToInvalidFrame() {
-  format_ = kInvalid;
-  width_ = 0;
-  height_ = 0;
-
-  pts_ = 0;
-  native_texture_ = NULL;
-  native_texture_context_ = NULL;
-  free_native_texture_func_ = NULL;
 }
 
 }  // namespace player

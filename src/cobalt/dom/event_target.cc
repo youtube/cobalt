@@ -107,9 +107,6 @@ void EventTarget::PostToDispatchEvent(const tracked_objects::Location& location,
 void EventTarget::PostToDispatchEventAndRunCallback(
     const tracked_objects::Location& location, base::Token event_name,
     const base::Closure& callback) {
-  if (!MessageLoop::current()) {
-    return;
-  }
   MessageLoop::current()->PostTask(
       location,
       base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),

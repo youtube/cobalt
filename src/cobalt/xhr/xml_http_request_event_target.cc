@@ -64,65 +64,37 @@ XMLHttpRequestEventTarget::ontimeout() const {
 
 void XMLHttpRequestEventTarget::set_onabort(
     const EventListenerScriptObject& listener) {
-  if (listener.IsNull()) {
-    onabort_listener_ = base::nullopt;
-  } else {
-    onabort_listener_.emplace(this, listener);
-  }
+  onabort_listener_.emplace(this, listener);
   SetAttributeEventListener(base::Tokens::abort(), listener);
 }
 void XMLHttpRequestEventTarget::set_onerror(
     const EventListenerScriptObject& listener) {
-  if (listener.IsNull()) {
-    onerror_listener_ = base::nullopt;
-  } else {
-    onerror_listener_.emplace(this, listener);
-  }
+  onerror_listener_.emplace(this, listener);
   SetAttributeEventListener(base::Tokens::error(), listener);
 }
 void XMLHttpRequestEventTarget::set_onload(
     const EventListenerScriptObject& listener) {
-  if (listener.IsNull()) {
-    onload_listener_ = base::nullopt;
-  } else {
-    onload_listener_.emplace(this, listener);
-  }
+  onload_listener_.emplace(this, listener);
   SetAttributeEventListener(base::Tokens::load(), listener);
 }
 void XMLHttpRequestEventTarget::set_onloadend(
     const EventListenerScriptObject& listener) {
-  if (listener.IsNull()) {
-    onloadend_listener_ = base::nullopt;
-  } else {
-    onloadend_listener_.emplace(this, listener);
-  }
+  onloadend_listener_.emplace(this, listener);
   SetAttributeEventListener(base::Tokens::loadend(), listener);
 }
 void XMLHttpRequestEventTarget::set_onloadstart(
     const EventListenerScriptObject& listener) {
-  if (listener.IsNull()) {
-    onloadstart_listener_ = base::nullopt;
-  } else {
-    onloadstart_listener_.emplace(this, listener);
-  }
+  onloadstart_listener_.emplace(this, listener);
   SetAttributeEventListener(base::Tokens::loadstart(), listener);
 }
 void XMLHttpRequestEventTarget::set_onprogress(
     const EventListenerScriptObject& listener) {
-  if (listener.IsNull()) {
-    onprogress_listener_ = base::nullopt;
-  } else {
-    onprogress_listener_.emplace(this, listener);
-  }
+  onprogress_listener_.emplace(this, listener);
   SetAttributeEventListener(base::Tokens::progress(), listener);
 }
 void XMLHttpRequestEventTarget::set_ontimeout(
     const EventListenerScriptObject& listener) {
-  if (listener.IsNull()) {
-    ontimeout_listener_ = base::nullopt;
-  } else {
-    ontimeout_listener_.emplace(this, listener);
-  }
+  ontimeout_listener_.emplace(this, listener);
   SetAttributeEventListener(base::Tokens::timeout(), listener);
 }
 }  // namespace xhr

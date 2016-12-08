@@ -38,7 +38,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/nb/nb.gyp:nb',
       ]
     },
     {

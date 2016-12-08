@@ -52,7 +52,7 @@ class MockRasterizer : public Rasterizer {
 
   void Submit(const scoped_refptr<cobalt::render_tree::Node>&,
               const scoped_refptr<cobalt::renderer::backend::RenderTarget>&,
-              const Options& options) OVERRIDE {
+              int options) OVERRIDE {
     if (last_submission_time) {
       // Simulate a "wait for vsync".
       base::TimeDelta since_last_submit =
@@ -88,8 +88,7 @@ class RendererPipelineTest : public ::testing::Test {
     submission_count_ = 0;
     start_time_ = base::TimeTicks::Now();
     pipeline_.reset(new Pipeline(
-        base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL,
-                   true));
+        base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL));
   }
 
   static void DummyAnimateFunction(

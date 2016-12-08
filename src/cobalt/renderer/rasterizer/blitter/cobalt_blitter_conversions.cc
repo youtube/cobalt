@@ -23,9 +23,11 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
+namespace {
 int RoundToInt(float value) {
   return static_cast<int>(std::floor(value + 0.5f));
 }
+}  // namespace
 
 math::Rect RectFToRect(const math::RectF& rectf) {
   // We convert from floating point to integer in such a way that two boxes

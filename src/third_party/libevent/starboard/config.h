@@ -1,8 +1,6 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
-#include "starboard/configuration.h"
-
 /* Define if clock_gettime is available in libc */
 #define DNS_USE_CPU_CLOCK_FOR_ID 1
 
@@ -19,19 +17,19 @@
 #define HAVE_DLFCN_H 1
 
 /* Define if your system supports the epoll system calls */
-/* #undef HAVE_EPOLL */
+#define HAVE_EPOLL 1
 
 /* Define to 1 if you have the `epoll_ctl' function. */
-/* #undef HAVE_EPOLL_CTL */
+#define HAVE_EPOLL_CTL 1
 
 /* Define if your system supports event ports */
 /* #undef HAVE_EVENT_PORTS */
 
 /* Define to 1 if you have the `fcntl' function. */
-/* #undef HAVE_FCNTL */
+#define HAVE_FCNTL 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
-/* #undef HAVE_FCNTL_H */
+#define HAVE_FCNTL_H 1
 
 /* Define to 1 if the system has the type `fd_mask'. */
 #define HAVE_FD_MASK 1

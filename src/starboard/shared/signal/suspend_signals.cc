@@ -15,7 +15,6 @@
 #include "starboard/shared/signal/suspend_signals.h"
 
 #include <signal.h>
-#include <sys/socket.h>
 
 #include "starboard/configuration.h"
 #include "starboard/log.h"
@@ -72,34 +71,19 @@ void Ignore(int signal_id) {
 
 }  // namespace
 
-#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
-// See "#if !defined(MSG_NOSIGNAL)" below.
-// OS X, which we do not build for today, has another mechanism which
-// should be used.
-#error On this platform, please use SO_NOSIGPIPE and leave the SIGPIPE \
-       handler at default.
-#endif
-
 void InstallSuspendSignalHandlers() {
   SetSignalHandler(SIGTSTP, &Suspend);
   UnblockSignal(SIGTSTP);
   SetSignalHandler(SIGCONT, &Resume);
 
-#if !defined(MSG_NOSIGNAL)
-  // By default in POSIX, sending to a closed socket causes a SIGPIPE
-  // If we cannot disable that behavior, we must ignore SIGPIPE.
-  // Ignoring SIGPIPE means cases that use pipes to redirect the stdio
-  // log messages may behave in surprising ways, so it's not desirable.
+  // We might receive SIGPIPE after resuming. We should not terminate.
   SetSignalHandler(SIGPIPE, &Ignore);
-#endif
 }
 
 void UninstallSuspendSignalHandlers() {
   SetSignalHandler(SIGCONT, SIG_DFL);
   SetSignalHandler(SIGTSTP, SIG_DFL);
-#if !defined(MSG_NOSIGNAL)
   SetSignalHandler(SIGPIPE, SIG_DFL);
-#endif
 }
 
 }  // namespace signal

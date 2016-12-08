@@ -16,9 +16,6 @@
 # Starboard project.
 
 {
-  'variables': {
-    'has_platform_tests%' : '<!(python -c "import os.path; print os.path.isfile(\'<(starboard_path)/starboard_platform_tests.gyp\') & 1 | 0")',
-  },
   'targets': [
     {
       # Note that this target must be in a separate GYP file from starboard.gyp,
@@ -33,13 +30,6 @@
         '<(DEPTH)/starboard/nplb/blitter_pixel_tests/blitter_pixel_tests.gyp:*',
         '<(DEPTH)/starboard/nplb/nplb.gyp:*',
         '<(DEPTH)/starboard/starboard.gyp:*',
-      ],
-      'conditions': [
-        ['has_platform_tests==1', {
-          'dependencies': [
-            '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:starboard_platform_tests',
-          ],
-        }],
       ],
     },
   ],

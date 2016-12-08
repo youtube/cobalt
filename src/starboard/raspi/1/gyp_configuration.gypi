@@ -17,6 +17,7 @@
     'target_arch': 'arm',
     'target_os': 'linux',
 
+    'enable_webdriver': '1',
     'in_app_dial%': 0,
     'sysroot%': '/',
     'gl_type': 'system_gles2',
@@ -31,9 +32,7 @@
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 0,
-    'cobalt_minimum_frame_time_in_milliseconds': '33',
+    'javascript_engine': 'javascriptcore',
 
     # RasPi 1 is ARMv6
     'arm_version': 6,

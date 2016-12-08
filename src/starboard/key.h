@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Key module
-//
-// Defines the canonical set of Starboard key codes.
+// The canonical set of Starboard key codes.
 
 #ifndef STARBOARD_KEY_H_
 #define STARBOARD_KEY_H_
@@ -23,16 +21,17 @@
 extern "C" {
 #endif
 
-// A standard set of key codes, ordered by value, that represent each possible
-// input key across all kinds of devices. Starboard uses the semi-standard
-// Windows virtual key codes documented at:
+// A standard set of key codes representing each possible input key across all
+// kinds of devices, we use the semi-standard Windows virtual key codes.
+//
+// Windows virtual key codes doc:
 //   https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx
+//
+// The order here is by value.
 typedef enum SbKey {
   kSbKeyUnknown = 0,
   kSbKeyCancel = 0x03,
-  kSbKeyBackspace = 0x08,
-  kSbKeyBack = kSbKeyBackspace,  // You probably want kSbKeyEscape for a
-                                 // semantic "back".
+  kSbKeyBack = 0x08,
   kSbKeyTab = 0x09,
   kSbKeyBacktab = 0x0A,
   kSbKeyClear = 0x0C,

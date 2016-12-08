@@ -79,7 +79,6 @@ void ConvertUV8ToARGBSkBitmap(
 
 void SoftwareImage::Initialize(
     uint8_t* source_data, const render_tree::ImageDataDescriptor& descriptor) {
-  is_opaque_ = (descriptor.alpha_format == render_tree::kAlphaFormatOpaque);
   SkAlphaType skia_alpha_format =
       RenderTreeAlphaFormatToSkia(descriptor.alpha_format);
   DCHECK_EQ(kPremul_SkAlphaType, skia_alpha_format);

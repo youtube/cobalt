@@ -20,7 +20,6 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "base/optional.h"
 #include "base/values.h"
 
 namespace cobalt {
@@ -37,9 +36,9 @@ class ServerStatus {
   static scoped_ptr<base::Value> ToValue(const ServerStatus& status);
 
  private:
-  base::optional<std::string> os_name_;
-  base::optional<std::string> os_arch_;
-  base::optional<std::string> os_version_;
+  std::string os_name_;
+  std::string os_arch_;
+  std::string os_version_;
   std::string build_time_;
   std::string build_version_;
 };

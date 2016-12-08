@@ -16,15 +16,12 @@
 
 #include "cobalt/cssom/complex_selector.h"
 
-#include "base/logging.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/selector_visitor.h"
 
 namespace cobalt {
 namespace cssom {
-
-const int ComplexSelector::kCombinatorLimit = 32;
 
 void ComplexSelector::Accept(SelectorVisitor* visitor) {
   visitor->VisitComplexSelector(this);
@@ -42,18 +39,6 @@ void ComplexSelector::AppendCombinatorAndSelector(
     scoped_ptr<Combinator> combinator,
     scoped_ptr<CompoundSelector> compound_selector) {
   DCHECK(first_selector_);
-  DCHECK(last_selector_);
-
-  if (combinator_count_ >= kCombinatorLimit) {
-    if (!combinator_limit_exceeded_) {
-      LOG(WARNING)
-          << "Maximum number of calls to AppendCombinatorAndSelector exceeded."
-             "  Ignoring additional selectors.";
-      combinator_limit_exceeded_ = true;
-    }
-    return;
-  }
-
   specificity_.AddFrom(compound_selector->GetSpecificity());
 
   combinator->set_left_selector(last_selector_);
@@ -63,8 +48,6 @@ void ComplexSelector::AppendCombinatorAndSelector(
   last_selector_->set_right_combinator(combinator.Pass());
 
   last_selector_ = last_selector_->right_combinator()->right_selector();
-
-  combinator_count_++;
 }
 
 }  // namespace cssom

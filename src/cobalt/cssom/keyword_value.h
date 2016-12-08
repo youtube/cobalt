@@ -202,10 +202,6 @@ class KeywordValue : public PropertyValue {
     //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     kMonospace,
 
-    // "monoscopic" is a value of the "cobalt-mtm" property which indicates
-    // that the mesh should only be rendered through one eye.
-    kMonoscopic,
-
     // "none" is a value of "transform" property which means that HTML element
     // is rendered as is.
     //   https://www.w3.org/TR/css3-transforms/#transform-property
@@ -295,15 +291,6 @@ class KeywordValue : public PropertyValue {
     //   https://www.w3.org/TR/CSS21/visuren.html#choose-position
     kStatic,
 
-    // "stereoscopic-left-right" is a value of the "cobalt-mtm" property which
-    // indicates that the mesh should be rendered in two views
-    // side-by-side.
-    kStereoscopicLeftRight,
-
-    // "stereoscopic-top-bottom" is a value of the "cobalt-mtm" property which
-    // indicates that the mesh should be rendered in two views above and below.
-    kStereoscopicTopBottom,
-
     // "top" is a value of "vertical-align" property that indicates that the
     // content should be aligned vertically at the top.
     //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
@@ -358,7 +345,6 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetLeft();
   static const scoped_refptr<KeywordValue>& GetLineThrough();
   static const scoped_refptr<KeywordValue>& GetMiddle();
-  static const scoped_refptr<KeywordValue>& GetMonoscopic();
   static const scoped_refptr<KeywordValue>& GetMonospace();
   static const scoped_refptr<KeywordValue>& GetNone();
   static const scoped_refptr<KeywordValue>& GetNoRepeat();
@@ -376,8 +362,6 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetSolid();
   static const scoped_refptr<KeywordValue>& GetStart();
   static const scoped_refptr<KeywordValue>& GetStatic();
-  static const scoped_refptr<KeywordValue>& GetStereoscopicLeftRight();
-  static const scoped_refptr<KeywordValue>& GetStereoscopicTopBottom();
   static const scoped_refptr<KeywordValue>& GetTop();
   static const scoped_refptr<KeywordValue>& GetUppercase();
   static const scoped_refptr<KeywordValue>& GetVisible();

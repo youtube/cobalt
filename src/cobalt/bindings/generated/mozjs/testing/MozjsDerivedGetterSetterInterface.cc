@@ -371,15 +371,6 @@ InterfaceData* CreateCachedInterfaceData() {
 JSBool get_length(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<DerivedGetterSetterInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -402,15 +393,6 @@ JSBool get_length(
 JSBool get_propertyOnDerivedClass(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<DerivedGetterSetterInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -433,15 +415,6 @@ JSBool get_propertyOnDerivedClass(
 JSBool set_propertyOnDerivedClass(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<DerivedGetterSetterInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return false;
-  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -474,15 +447,6 @@ JSBool fcn_derivedIndexedGetter(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<DerivedGetterSetterInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -535,15 +499,6 @@ JSBool fcn_derivedIndexedSetter(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<DerivedGetterSetterInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -602,15 +557,6 @@ JSBool fcn_operationOnDerivedClass(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
-    return false;
-  }
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<DerivedGetterSetterInterface>())) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);

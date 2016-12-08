@@ -6,7 +6,6 @@
 
 #include "net/url_request/url_request_data_job.h"
 
-#include "nb/memory_scope.h"
 #include "net/base/data_url.h"
 #include "net/base/net_errors.h"
 
@@ -28,7 +27,6 @@ int URLRequestDataJob::GetData(std::string* mime_type,
                                std::string* charset,
                                std::string* data,
                                const CompletionCallback& callback) const {
-  TRACK_MEMORY_SCOPE("Network");
   // Check if data URL is valid. If not, don't bother to try to extract data.
   // Otherwise, parse the data from the data URL.
   const GURL& url = request_->url();

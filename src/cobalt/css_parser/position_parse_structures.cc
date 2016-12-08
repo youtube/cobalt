@@ -119,7 +119,7 @@ bool PositionParseStructure::PushBackElement(
           break;
         }
         default:
-          // Position value couldn't take more than 4 elements.
+          NOTREACHED();
           return false;
       }
       break;
