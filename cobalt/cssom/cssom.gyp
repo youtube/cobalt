@@ -30,6 +30,8 @@
         'animation.h',
         'animation_set.cc',
         'animation_set.h',
+        'attribute_selector.cc',
+        'attribute_selector.h',
         'before_pseudo_element.cc',
         'before_pseudo_element.h',
         'calc_value.cc',

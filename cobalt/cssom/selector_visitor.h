@@ -22,6 +22,7 @@ namespace cssom {
 
 class ActivePseudoClass;
 class AfterPseudoElement;
+class AttributeSelector;
 class BeforePseudoElement;
 class ClassSelector;
 class ComplexSelector;
@@ -44,6 +45,8 @@ class SelectorVisitor {
   virtual void VisitUniversalSelector(
       UniversalSelector* universal_selector) = 0;
   virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
+  virtual void VisitAttributeSelector(
+      AttributeSelector* attribute_selector) = 0;
   virtual void VisitClassSelector(ClassSelector* class_selector) = 0;
   virtual void VisitIdSelector(IdSelector* id_selector) = 0;
 
