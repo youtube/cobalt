@@ -16,7 +16,7 @@
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
 
 #include "starboard/media.h"
-#include "starboard/raspi/shared/open_max/open_max_component.h"
+#include "starboard/raspi/shared/open_max/open_max_video_decode_component.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
@@ -39,7 +39,7 @@ class VideoDecoder
   void Reset() SB_OVERRIDE;
 
  private:
-  OpenMaxComponent component_;
+  OpenMaxVideoDecodeComponent component_;
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.

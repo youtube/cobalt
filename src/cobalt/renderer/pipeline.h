@@ -185,10 +185,8 @@ class Pipeline {
   // The submission time used during the last render tree render.
   base::optional<base::TimeDelta> last_render_time_;
 
-  // Timers for tracking how frequently |RasterizeCurrentTree| is called and
-  // the amount of time spent in |RasterizeCurrentTree| each call.
-  base::CValTimeIntervalTimer<base::CValPublic>
-      rasterize_current_tree_interval_timer_;
+  // Timer tracking the amount of time spent in |RasterizeCurrentTree| each
+  // call.
   base::CValTimeIntervalTimer<base::CValPublic> rasterize_current_tree_timer_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)

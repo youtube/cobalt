@@ -168,11 +168,21 @@ BrowserModule::BrowserModule(const GURL& url,
       has_resumed_(true, false),
       will_quit_(false),
       suspended_(false) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
   // All allocations for media will be tracked by "Media" memory scope.
   {
     TRACK_MEMORY_SCOPE("Media");
+    math::Size output_size = renderer_module_.render_target()->GetSize();
+    if (system_window->GetVideoPixelRatio() != 1.f) {
+      output_size.set_width(
+          static_cast<int>(static_cast<float>(output_size.width()) *
+                           system_window->GetVideoPixelRatio()));
+      output_size.set_height(
+          static_cast<int>(static_cast<float>(output_size.height()) *
+                           system_window->GetVideoPixelRatio()));
+    }
     media_module_ = (media::MediaModule::Create(
-        system_window, renderer_module_.render_target()->GetSize(),
+        system_window, output_size,
         renderer_module_.pipeline()->GetResourceProvider(),
         options.media_module_options));
   }
@@ -225,6 +235,7 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Navigate()");
   web_module_loaded_.Reset();
 
   // Always post this as a task in case this is being called from the WebModule.
@@ -233,6 +244,7 @@ void BrowserModule::Navigate(const GURL& url) {
 }
 
 void BrowserModule::Reload() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Reload()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
@@ -241,6 +253,7 @@ void BrowserModule::Reload() {
 }
 
 void BrowserModule::NavigateInternal(const GURL& url) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::NavigateInternal()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
@@ -264,7 +277,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                        renderer_module_.pipeline()->GetResourceProvider(),
                        kLayoutMaxRefreshFrequencyInHz));
 
-#if defined(STARBOARD)
+#if defined(OS_STARBOARD)
 #if SB_HAS(1_CORE)
   // Wait until the splash screen is ready before loading the main web module.
   // This prevents starvation of the splash screen module and decoding of the
@@ -312,6 +325,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 }
 
 void BrowserModule::OnLoad() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
   // asynchonrous access to this object by |web_module_| during destruction.
   if (MessageLoop::current() != self_message_loop_) {
@@ -325,6 +339,7 @@ void BrowserModule::OnLoad() {
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::WaitForLoad()");
   return web_module_loaded_.TimedWait(timeout);
 }
 
@@ -502,6 +517,7 @@ void BrowserModule::InjectKeyEventToMainWebModule(
 }
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
 
@@ -512,6 +528,7 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
 }
 
 bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::FilterKeyEvent()");
   // Check for hotkeys first. If it is a hotkey, no more processing is needed.
   if (!FilterKeyEventForHotkeys(event)) {
     return false;
@@ -577,7 +594,10 @@ bool BrowserModule::TryURLHandlers(const GURL& url) {
   return false;
 }
 
-void BrowserModule::DestroySplashScreen() { splash_screen_.reset(NULL); }
+void BrowserModule::DestroySplashScreen() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroySplashScreen()");
+  splash_screen_.reset(NULL);
+}
 
 #if defined(ENABLE_WEBDRIVER)
 scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
@@ -649,6 +669,7 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
 }
 
 void BrowserModule::Suspend() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Suspend()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(!suspended_);
 
@@ -691,6 +712,7 @@ void BrowserModule::Suspend() {
 }
 
 void BrowserModule::Resume() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(suspended_);
 
@@ -721,6 +743,8 @@ void BrowserModule::Resume() {
 
 #if defined(OS_STARBOARD)
 void BrowserModule::OnRendererSubmissionRasterized() {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnRendererSubmissionRasterized()");
   if (!is_rendered_) {
     // Hide the system splash screen when the first render has completed.
     is_rendered_ = true;

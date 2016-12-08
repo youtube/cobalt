@@ -32,12 +32,17 @@ class CommandResult {
  public:
   CommandResult() : status_code_(protocol::Response::kUnknownError) {}
   explicit CommandResult(protocol::Response::StatusCode status)
-      : status_code_(status) {}
+      : status_code_(status), can_retry_(false) {}
   CommandResult(protocol::Response::StatusCode status,
                 const std::string& message)
-      : status_code_(status), error_message_(message) {}
+      : status_code_(status), error_message_(message), can_retry_(false) {}
+  CommandResult(protocol::Response::StatusCode status,
+                const std::string& message, bool can_retry)
+      : status_code_(status), error_message_(message), can_retry_(can_retry) {}
   explicit CommandResult(const T& result)
-      : status_code_(protocol::Response::kSuccess), result_(result) {}
+      : status_code_(protocol::Response::kSuccess),
+        result_(result),
+        can_retry_(false) {}
 
   bool is_success() const {
     return status_code_ == protocol::Response::kSuccess;
@@ -45,11 +50,16 @@ class CommandResult {
   protocol::Response::StatusCode status_code() const { return status_code_; }
   const T& result() const { return result_.value(); }
   std::string error_message() const { return error_message_.value_or(""); }
+  // Returns true if this result occurred due to a transient issue,
+  // such as the WebModule going away. Retrying w/ a new WebModule
+  // may succeed.
+  bool can_retry() const { return can_retry_; }
 
  private:
   protocol::Response::StatusCode status_code_;
   base::optional<T> result_;
   base::optional<std::string> error_message_;
+  bool can_retry_;
 };
 
 template <>
@@ -57,20 +67,28 @@ class CommandResult<void> {
  public:
   CommandResult() : status_code_(protocol::Response::kUnknownError) {}
   explicit CommandResult(protocol::Response::StatusCode status)
-      : status_code_(status) {}
+      : status_code_(status), can_retry_(false) {}
   CommandResult(protocol::Response::StatusCode status,
                 const std::string& message)
-      : status_code_(status), error_message_(message) {}
+      : status_code_(status), error_message_(message), can_retry_(false) {}
+  CommandResult(protocol::Response::StatusCode status,
+                const std::string& message, bool can_retry)
+      : status_code_(status), error_message_(message), can_retry_(can_retry) {}
 
   bool is_success() const {
     return status_code_ == protocol::Response::kSuccess;
   }
   protocol::Response::StatusCode status_code() const { return status_code_; }
   std::string error_message() const { return error_message_.value_or(""); }
+  // Returns true if this result occurred due to a transient issue,
+  // such as the WebModule going away. Retrying w/ a new WebModule
+  // may succeed.
+  bool can_retry() const { return can_retry_; }
 
  private:
   protocol::Response::StatusCode status_code_;
   base::optional<std::string> error_message_;
+  bool can_retry_;
 };
 
 }  // namespace util

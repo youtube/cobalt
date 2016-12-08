@@ -38,8 +38,6 @@ AudioDestinationNode::AudioDestinationNode(AudioContext* context)
     : AudioNode(context), max_channel_count_(kMaxChannelCount) {
   AudioLock::AutoLock lock(audio_lock());
 
-  audio_device_.reset(
-      new AudioDevice(static_cast<int>(channel_count(NULL)), this));
   AddInput(new AudioNodeInput(this));
 }
 
@@ -52,6 +50,15 @@ AudioDestinationNode::~AudioDestinationNode() {
 
   DCHECK_EQ(number_of_outputs(), 0u);
   RemoveAllInputs();
+}
+
+void AudioDestinationNode::OnInputNodeConnected() {
+  audio_lock()->AssertLocked();
+
+  if (!audio_device_) {
+    audio_device_.reset(
+        new AudioDevice(static_cast<int>(channel_count(NULL)), this));
+  }
 }
 
 void AudioDestinationNode::FillAudioBus(ShellAudioBus* audio_bus,

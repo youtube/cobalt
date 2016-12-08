@@ -197,8 +197,7 @@ void VideoDecoder::DecoderThreadFunc() {
         packet.pts = 0;
       } while (DecodePacket(&packet));
 
-      VideoFrame frame = VideoFrame::CreateEOSFrame();
-      host_->OnDecoderStatusUpdate(kBufferFull, &frame);
+      host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
     }
   }
 }
@@ -223,11 +222,11 @@ bool VideoDecoder::DecodePacket(AVPacket* packet) {
 
   int pitch = AlignUp(av_frame_->width, kAlignment * 2);
 
-  VideoFrame frame = VideoFrame::CreateYV12Frame(
+  scoped_refptr<VideoFrame> frame = VideoFrame::CreateYV12Frame(
       av_frame_->width, av_frame_->height, pitch,
       codec_context_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
       av_frame_->data[2]);
-  host_->OnDecoderStatusUpdate(kBufferFull, &frame);
+  host_->OnDecoderStatusUpdate(kBufferFull, frame);
   return true;
 }
 

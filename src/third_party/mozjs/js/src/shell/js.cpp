@@ -70,8 +70,10 @@
 #endif
 
 #if defined(STARBOARD)
+#if !defined(PATH_MAX)
 #include "starboard/configuration.h"
 #define PATH_MAX (SB_FILE_MAX_PATH + 1)
+#endif
 #elif defined(XP_WIN)
 # include <io.h>
 # include <direct.h>

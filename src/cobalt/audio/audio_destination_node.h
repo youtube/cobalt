@@ -48,7 +48,8 @@ class AudioDestinationNode : public AudioNode,
   uint32 max_channel_count() const { return max_channel_count_; }
 
   // From AudioNode.
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32, /*number_of_frames*/
+  void OnInputNodeConnected() OVERRIDE;
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 /*number_of_frames*/,
                                                    SampleType) OVERRIDE {
     NOTREACHED();
     return scoped_ptr<ShellAudioBus>();

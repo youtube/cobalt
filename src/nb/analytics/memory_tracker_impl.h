@@ -26,6 +26,7 @@
 #include "starboard/memory_reporter.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
+#include "starboard/time.h"
 
 namespace nb {
 namespace analytics {
@@ -177,7 +178,7 @@ class MemoryTrackerImpl : public MemoryTracker {
 
 // Start() is called when this object is created, and Cancel() & Join() are
 // called during destruction.
-class MemoryTrackerPrintThread : private SimpleThread {
+class MemoryTrackerPrintThread : public SimpleThread {
  public:
   MemoryTrackerPrintThread(MemoryTracker* memory_tracker);
   virtual ~MemoryTrackerPrintThread() SB_OVERRIDE;
@@ -189,6 +190,41 @@ class MemoryTrackerPrintThread : private SimpleThread {
  private:
   atomic_bool finished_;
   MemoryTracker* memory_tracker_;
+};
+
+// Generates CSV values of the engine.
+// There are three sections of data including:
+//   1. average bytes / alloc
+//   2. # Bytes allocated per memory scope.
+//   3. # Allocations per memory scope.
+// This data can be pasted directly into a Google spreadsheet and visualized.
+// Note that this thread will implicitly call Start() is called during
+// construction and Cancel() & Join() during destruction.
+class MemoryTrackerPrintCSVThread : public SimpleThread {
+ public:
+  MemoryTrackerPrintCSVThread(MemoryTracker* memory_tracker,
+                              int sampling_interval_ms,
+                              int sampling_time_ms);
+  virtual ~MemoryTrackerPrintCSVThread() SB_OVERRIDE;
+
+  // Overridden so that the thread can exit gracefully.
+  virtual void Cancel() SB_OVERRIDE;
+  virtual void Run() SB_OVERRIDE;
+ private:
+  struct AllocationSamples {
+    std::vector<int32_t> number_allocations_;
+    std::vector<int64_t> allocated_bytes_;
+  };
+  typedef std::map<std::string, AllocationSamples> MapAllocationSamples;
+  static std::string ToCsvString(const MapAllocationSamples& samples);
+  static const char* UntrackedMemoryKey();
+  bool TimeExpiredYet();
+
+  MemoryTracker* memory_tracker_;
+  const int sample_interval_ms_;
+  const int sampling_time_ms_;
+  SbTime start_time_;
+  atomic_bool canceled_;
 };
 
 }  // namespace analytics

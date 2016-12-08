@@ -1,0 +1,5 @@
+0. Fix the lying comment in ABO.h
+1. Make ABVO, with no new members, be a base class of everything.
+ - don't make is<ABVO> return true for TO
+ - in fact, try to remove it?
+2. Audit what all the JS_* apis do for TOs. Make them do the right thing.

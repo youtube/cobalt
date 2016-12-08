@@ -28,9 +28,21 @@ namespace analytics {
 
 class MemoryTracker;
 class MemoryTrackerPrintThread;
+class MemoryTrackerPrintCSVThread;
 class AllocationVisitor;
 class AllocationGroup;
 class AllocationRecord;
+
+struct MemoryStats {
+  MemoryStats() : total_cpu_memory(0), used_cpu_memory(0),
+                  total_gpu_memory(0), used_gpu_memory(0) {}
+  int64_t total_cpu_memory;
+  int64_t used_cpu_memory;
+  int64_t total_gpu_memory;
+  int64_t used_gpu_memory;
+};
+
+MemoryStats GetProcessMemoryStats();
 
 // Creates a MemoryTracker instance that implements the
 //  MemoryTracker. Once the instance is created it can begin tracking
@@ -141,6 +153,15 @@ class AllocationRecord {
 // Join() is automatically called on destruction.
 scoped_ptr<MemoryTrackerPrintThread>
     CreateDebugPrintThread(MemoryTracker* memory_tracker);
+
+// Creates a SimpleThread that will output the state of the memory
+// periodically. Start()/Cancel()/Join() are called AUTOMATICALLY with
+// this object. Start() is on the returned thread before it is returned.
+// Join() is automatically called on destruction.
+scoped_ptr<MemoryTrackerPrintCSVThread>
+    CreateDebugPrintCSVThread(MemoryTracker* memory_tracker,
+                              int sample_interval_ms,
+                              int total_sampling_time_ms);
 
 }  // namespace analytics
 }  // namespace nb

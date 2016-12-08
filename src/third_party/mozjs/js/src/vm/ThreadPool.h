@@ -14,7 +14,7 @@
 
 #ifdef JS_THREADSAFE
 #if defined(STARBOARD)
-#include "pr_starboard.h"
+#include "starboard/client_porting/pr_starboard/pr_starboard.h"
 #else  // defined(STARBOARD)
 #  include "prtypes.h"
 #  include "prlock.h"

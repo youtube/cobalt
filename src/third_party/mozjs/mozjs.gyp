@@ -208,6 +208,7 @@
       ],
       'dependencies': [
         'build_include_directory',
+        '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
@@ -254,6 +255,7 @@
         'js/src/shell/js.cpp',
         'js/src/shell/jsheaptools.cpp',
         'js/src/shell/jsoptparse.cpp',
+        'js/src/shell/TraceLoggingStub.cpp',
       ],
       'dependencies': [
         'mozjs_lib',

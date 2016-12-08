@@ -28,6 +28,9 @@ const char kBrowserLog[] = "browser";
 // Default page-load timeout.
 const int kPageLoadTimeoutInSeconds = 30;
 
+// Max retries for the "can_retry" CommandResult case.
+const int kMaxRetries = 5;
+
 protocol::LogEntry::LogLevel SeverityToLogLevel(int severity) {
   switch (severity) {
     case logging::LOG_INFO:
@@ -82,7 +85,11 @@ WindowDriver* SessionDriver::GetWindow(const protocol::WindowId& window_id) {
 }
 
 util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
-  util::CommandResult<void> result = window_driver_->Navigate(url);
+  int retries = 0;
+  util::CommandResult<void> result;
+  do {
+    result = window_driver_->Navigate(url);
+  } while (result.can_retry() && (retries++ < kMaxRetries));
   if (result.is_success()) {
     // TODO: Use timeout as specified by the webdriver client.
     wait_for_navigation_.Run(

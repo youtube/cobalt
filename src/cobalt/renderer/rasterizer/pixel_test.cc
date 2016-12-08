@@ -2802,8 +2802,8 @@ TEST_F(PixelTest, BoxShadowInsetCircleSpread) {
       RoundedCorners(50, 50)));
 }
 
-// If SetBoundsCB() returns false, the PunchThroughVideoNode should have no
-// effect.
+// PunchThroughVideoNode should trigger the painting of a solid rectangle with
+// RGBA(0, 0, 0, 0) regardless of whether SetBoundsCB returns true or false.
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
@@ -2816,8 +2816,6 @@ TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   TestTree(new CompositionNode(builder.Pass()));
 }
 
-// If SetBoundsCB() returns true, the PunchThroughVideoNode should trigger the
-// painting of a solid rectangle with RGBA(0, 0, 0, 0).
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsTrue) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),

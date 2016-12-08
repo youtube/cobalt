@@ -27,7 +27,11 @@ namespace backend {
 
 class RenderTargetEGL : public RenderTarget {
  public:
-  RenderTargetEGL() : swap_count_(0), has_been_made_current_(false) {}
+  RenderTargetEGL()
+      : swap_count_(0)
+      , has_been_made_current_(false)
+      , content_preserved_on_swap_(false)
+  {}
 
   // An EGLSurface is needed for the EGL function eglMakeCurrent() which
   // associates a render target with a rendering context.
@@ -40,6 +44,10 @@ class RenderTargetEGL : public RenderTarget {
 
   virtual bool IsWindowRenderTarget() const { return false; }
 
+  // Returns whether the render target contents are preserved after the
+  // target has been displayed via eglSwapBuffers().
+  bool IsContentPreservedOnSwap() const { return content_preserved_on_swap_; }
+
   int64 swap_count() { return swap_count_; }
   void increment_swap_count() { ++swap_count_; }
 
@@ -51,6 +59,7 @@ class RenderTargetEGL : public RenderTarget {
 
   int64 swap_count_;
   bool has_been_made_current_;
+  bool content_preserved_on_swap_;
 };
 
 }  // namespace backend

@@ -1,0 +1,37 @@
+
+GC Function: _Z2GCv$void GC()
+    GC
+
+GC Function: _Z22halfSuppressedFunctionv$void halfSuppressedFunction()
+    GC
+
+GC Function: _Z20unsuppressedFunctionv$void unsuppressedFunction()
+    GC
+
+GC Function: _ZN14GCInDestructorD4Ev$void GCInDestructor::~GCInDestructor(int32)
+    void GC()
+    GC
+
+GC Function: _Z1fv$Cell* f()
+    void halfSuppressedFunction()
+    GC
+
+GC Function: _ZN14GCInDestructorD1Ev$void GCInDestructor::~GCInDestructor(int32)
+    void GCInDestructor::~GCInDestructor(int32)
+    void GC()
+    GC
+
+GC Function: _ZN14GCInDestructorD1Ev$void GCInDestructor::~GCInDestructor()
+    void GCInDestructor::~GCInDestructor(int32)
+    void GC()
+    GC
+
+GC Function: _ZN14GCInDestructorD2Ev$void GCInDestructor::~GCInDestructor(int32)
+    void GCInDestructor::~GCInDestructor(int32)
+    void GC()
+    GC
+
+GC Function: _ZN14GCInDestructorD3Ev$void GCInDestructor::~GCInDestructor(int32)
+    void GCInDestructor::~GCInDestructor(int32)
+    void GC()
+    GC

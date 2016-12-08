@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/debug/trace_event.h"
 #include "base/synchronization/waitable_event.h"
 
 namespace cobalt {
@@ -117,6 +118,7 @@ void LoadSynchronously(
     base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<scoped_ptr<Decoder>()> decoder_creator,
     base::Callback<void(const std::string&)> error_callback) {
+  TRACE_EVENT0("cobalt::loader", "LoadSynchronously()");
   DCHECK(message_loop);
   DCHECK(!error_callback.is_null());
 

@@ -77,6 +77,8 @@
           'sources': [
             'microphone_fake.cc',
             'microphone_fake.h',
+            'url_fetcher_fake.cc',
+            'url_fetcher_fake.h',
           ],
           'defines': [
             'ENABLE_FAKE_MICROPHONE',

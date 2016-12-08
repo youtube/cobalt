@@ -17,6 +17,7 @@
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
@@ -32,6 +33,17 @@
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
+
+// This define exists so that developers can quickly toggle it temporarily and
+// obtain trace results for the render tree visit process here.  In general
+// though it slows down tracing too much to leave it enabled.
+#define ENABLE_RENDER_TREE_VISITOR_TRACING 0
+
+#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#define TRACE_EVENT0_IF_ENABLED(x) TRACE_EVENT0("cobalt::renderer", x)
+#else
+#define TRACE_EVENT0_IF_ENABLED(x)
+#endif
 
 namespace cobalt {
 namespace renderer {
@@ -78,6 +90,8 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(CompositionNode)");
+
   const render_tree::CompositionNode::Children& children =
       composition_node->data().children();
 
@@ -119,6 +133,8 @@ bool SourceCanRenderWithOpacity(render_tree::Node* source) {
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(FilterNode)");
+
   if (filter_node->data().blur_filter) {
     // The Starboard Blitter API does not support blur filters, so we fallback
     // to software for this.
@@ -193,6 +209,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(ImageNode)");
+
   // All Blitter API images derive from skia::Image (so that they can be
   // compatible with the Skia software renderer), so we start here by casting
   // to skia::Image.
@@ -252,6 +270,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(MatrixTransformNode)");
+
   const Matrix3F& transform = matrix_transform_node->data().transform;
 
   if (transform.Get(1, 0) != 0 || transform.Get(0, 1) != 0 ||
@@ -276,20 +296,16 @@ void RenderTreeNodeVisitor::Visit(
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::PunchThroughVideoNode* punch_through_video_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(PunchThroughVideoNode)");
+
   SbBlitterRect blitter_rect =
       RectFToBlitterRect(render_state_.transform.TransformRect(
           punch_through_video_node->data().rect));
 
-  if (punch_through_video_node->data().set_bounds_cb.is_null()) {
-    return;
-  }
-  bool render_punch_through =
-      punch_through_video_node->data().set_bounds_cb.Run(
-          math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
-                     blitter_rect.height));
-  if (!render_punch_through) {
-    return;
-  }
+  punch_through_video_node->data().set_bounds_cb.Run(
+      math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
+                 blitter_rect.height));
+
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
   SbBlitterSetBlending(context_, false);
   SbBlitterFillRect(context_, blitter_rect);
@@ -355,6 +371,8 @@ void RenderRectNodeBorder(SbBlitterContext context, ColorRGBA color, float left,
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(RectNode)");
+
   if (rect_node->data().rounded_corners) {
     // We can't render rounded corners through the Blitter API.
     RenderWithSoftwareRenderer(rect_node);
@@ -436,15 +454,20 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::RectShadowNode* rect_shadow_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(RectShadowNode)");
+
   RenderWithSoftwareRenderer(rect_shadow_node);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(TextNode)");
+
   RenderWithSoftwareRenderer(text_node);
 }
 
 void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
     render_tree::Node* node) {
+  TRACE_EVENT0("cobalt::renderer", "RenderWithSoftwareRenderer()");
   CachedSoftwareRasterizer::SurfaceReference software_surface_reference(
       software_surface_cache_, node, render_state_.transform);
   CachedSoftwareRasterizer::Surface software_surface =
@@ -483,6 +506,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   } else  // NOLINT(readability/braces)
 #endif    // defined(ENABLE_DEBUG_CONSOLE)
   {
+    TRACE_EVENT0("cobalt::renderer", "SbBlitterBlitRectToRect()");
     SbBlitterBlitRectToRect(
         context_, software_surface.surface,
         SbBlitterMakeRect(
@@ -494,6 +518,8 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
 
 scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>
 RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
+  TRACE_EVENT0_IF_ENABLED("RenderToOffscreenSurface()");
+
   common::OffscreenRenderCoordinateMapping coord_mapping =
       common::GetOffscreenRenderCoordinateMapping(
           node->GetBounds(), render_state_.transform.ToMatrix(),

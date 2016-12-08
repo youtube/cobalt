@@ -16,12 +16,6 @@
 
 #include "cobalt/speech/microphone_manager.h"
 
-#if defined(ENABLE_FAKE_MICROPHONE)
-#include "cobalt/speech/microphone_fake.h"
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
-#if defined(SB_USE_SB_MICROPHONE)
-#include "cobalt/speech/microphone_starboard.h"
-#endif  // defined(SB_USE_SB_MICROPHONE)
 #include "cobalt/speech/speech_recognition_error.h"
 
 namespace cobalt {
@@ -34,26 +28,16 @@ const int kBufferSizeInBytes = 8 * 1024;
 const float kMicReadRateInHertz = 60.0f;
 }  // namespace
 
-MicrophoneManager::MicrophoneManager(int sample_rate,
-                                     const DataReceivedCallback& data_received,
-                                     const CompletionCallback& completion,
-                                     const ErrorCallback& error,
-                                     const Microphone::Options& options)
-    : sample_rate_(sample_rate),
-      data_received_callback_(data_received),
+MicrophoneManager::MicrophoneManager(
+    const DataReceivedCallback& data_received,
+    const CompletionCallback& completion, const ErrorCallback& error,
+    const MicrophoneCreator& microphone_creator)
+    : data_received_callback_(data_received),
       completion_callback_(completion),
       error_callback_(error),
-#if defined(ENABLE_FAKE_MICROPHONE)
-      microphone_options_(options),
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
+      microphone_creator_(microphone_creator),
       state_(kStopped),
       thread_("microphone_thread") {
-  UNREFERENCED_PARAMETER(sample_rate_);
-#if defined(ENABLE_FAKE_MICROPHONE)
-  UNREFERENCED_PARAMETER(microphone_options_);
-#else
-  UNREFERENCED_PARAMETER(options);
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
@@ -82,19 +66,7 @@ bool MicrophoneManager::CreateIfNecessary() {
     return true;
   }
 
-#if defined(SB_USE_SB_MICROPHONE)
-#if defined(ENABLE_FAKE_MICROPHONE)
-  if (microphone_options_.enable_fake_microphone) {
-    microphone_.reset(new MicrophoneFake(microphone_options_));
-  } else {
-    microphone_.reset(
-        new MicrophoneStarboard(sample_rate_, kBufferSizeInBytes));
-  }
-#else
-  microphone_.reset(new MicrophoneStarboard(sample_rate_, kBufferSizeInBytes));
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
-#endif  // defined(SB_USE_SB_MICROPHONE)
-
+  microphone_ = microphone_creator_.Run(kBufferSizeInBytes);
   if (microphone_ && microphone_->IsValid()) {
     state_ = kStopped;
     return true;
@@ -163,7 +135,7 @@ void MicrophoneManager::Read() {
   DCHECK(microphone_);
   DCHECK(microphone_->MinMicrophoneReadInBytes() <= kBufferSizeInBytes);
 
-  static int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
+  int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
   int read_bytes =
       microphone_->Read(reinterpret_cast<char*>(samples), kBufferSizeInBytes);
   // If |read_bytes| is zero, nothing should happen.

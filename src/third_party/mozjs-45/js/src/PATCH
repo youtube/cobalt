@@ -1,0 +1,1721 @@
+diff --git a/.hgignore b/.hgignore
+--- a/.hgignore
++++ b/.hgignore
+@@ -38,17 +38,16 @@
+ ^js/src/.*-obj/
+ 
+ # SpiderMonkey configury
+ ^js/src/configure$
+ ^js/src/old-configure$
+ ^js/src/autom4te.cache$
+ # SpiderMonkey test result logs
+ ^js/src/tests/results-.*\.(html|txt)$
+-^js/src/devtools/rootAnalysis/t/out
+ 
+ # Java HTML5 parser classes
+ ^parser/html/java/(html|java)parser/
+ 
+ # SVN directories
+ \.svn/
+ 
+ # Ignore the files and directory that Eclipse IDE creates
+diff --git a/js/examples/jorendb.js b/js/examples/jorendb.js
+--- a/js/examples/jorendb.js
++++ b/js/examples/jorendb.js
+@@ -8,17 +8,17 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+  */
+ 
+ /*
+  * jorendb is a simple command-line debugger for shell-js programs. It is
+  * intended as a demo of the Debugger object (as there are no shell js programs
+  * to speak of).
+  *
+- * To run it: $JS -d path/to/this/file/jorendb.js
++ * To run it: $JS path/to/this/file/jorendb.js
+  * To run some JS code under it, try:
+  *    (jorendb) print load("my-script-to-debug.js")
+  * Execution will stop at debugger statements and you'll get a jorendb prompt.
+  */
+ 
+ // Debugger state.
+ var focusedFrame = null;
+ var topFrame = null;
+@@ -218,27 +218,35 @@ function describedRv(r, desc) {
+         print(desc + "Returning length-" + r.length + " list");
+         if (r.length > 0) {
+             print("  " + r[0]);
+         }
+     }
+     return r;
+ }
+ 
++function offsetLocation(script, offset) {
++    let loc = script.getOffsetLocation(offset);
++    let line = `${script.url}:${loc.lineNumber}`;
++    if (loc.columnNumber)
++        line += "." + loc.columnNumber;
++    return line;
++}
++
+ // Rerun the program (reloading it from the file)
+ function runCommand(args) {
+     print("Restarting program");
+     if (args)
+         activeTask.scriptArgs = parseArgs(args);
+     rerun = true;
+     for (var f = topFrame; f; f = f.older) {
+-        print(f.script.url + ":" + f.script.getOffsetLine(f.offset) +" was " + f.onPop);
++        print(offsetLocation(f.script, f.offset) + " was " + f.onPop);
+         if (f.older) {
+             f.onPop = function() {
+-                print("Resumifying " + this.script.url + ":" + this.script.getOffsetLine(this.offset));
++                print("Resumifying " + offsetLocation(this.script, this.offset));
+                 return null;
+             };
+         } else {
+             f.onPop = function() {
+                 return { 'return': 0 };
+             };
+         }
+     }
+@@ -487,16 +495,17 @@ function updateLocation(frame) {
+         if (loc)
+             print("\032\032" + loc + ":1");
+     }
+ }
+ 
+ function doStepOrNext(kind) {
+     var startFrame = topFrame;
+     var startLine = startFrame.line;
++    var leftStart = false;
+     // print("stepping in:   " + startFrame.fullDescription());
+     // print("starting line: " + uneval(startLine));
+ 
+     function stepPopped(completion) {
+         // Note that we're popping this frame; we need to watch for
+         // subsequent step events on its caller.
+         this.reportedPop = true;
+         printPop(this, completion);
+@@ -519,34 +528,38 @@ function doStepOrNext(kind) {
+         print("entered frame: " + newFrame.fullDescription());
+         updateLocation(newFrame);
+         topFrame = focusedFrame = newFrame;
+         return repl();
+     }
+ 
+     function stepStepped() {
+         // print("stepStepped: " + this.fullDescription());
+-        updateLocation(this);
+         var stop = false;
+ 
+         if (kind.finish) {
+             // 'finish' set a one-time onStep for stopping at the frame it
+             // wants to return to
+             stop = true;
+         } else if (kind.upto) {
+             // running until a given line is reached
+-            if (this.line == kind.stopLine)
+-                stop = true;
++            if (this.line == kind.stopLine) {
++                if (leftStart)
++                    stop = true;
++            } else {
++                leftStart = true;
++            }
+         } else {
+             // regular step; stop whenever the line number changes
+             if ((this.line != startLine) || (this != startFrame))
+                 stop = true;
+         }
+ 
+         if (stop) {
++            updateLocation(this);
+             topFrame = focusedFrame = this;
+             if (focusedFrame != startFrame)
+                 print(focusedFrame.fullDescription());
+             return repl();
+         }
+ 
+         // Otherwise, let execution continue.
+         return undefined;
+@@ -849,16 +862,18 @@ while(args.length > 0) {
+     } else {
+         if (!scriptSeen) {
+             print("  load general");
+             scriptSeen = true;
+             todo.push({
+                 'action': 'load',
+                 'script': arg,
+             });
++            actualScriptArgs.push(...args);
++            args = [];
+         } else {
+             print("  arg " + arg);
+             actualScriptArgs.push(arg);
+         }
+     }
+ }
+ print("jorendb: scriptPath = " + scriptPath);
+ print("jorendb: scriptArgs = " + scriptArgs);
+diff --git a/js/public/GCAPI.h b/js/public/GCAPI.h
+--- a/js/public/GCAPI.h
++++ b/js/public/GCAPI.h
+@@ -546,17 +546,17 @@ class JS_PUBLIC_API(AutoAssertNoAlloc)
+  *       that the hazard analysis is correct for that code, rather than relying
+  *       on this class.
+  */
+ class JS_PUBLIC_API(AutoSuppressGCAnalysis) : public AutoAssertNoAlloc
+ {
+   public:
+     AutoSuppressGCAnalysis() : AutoAssertNoAlloc() {}
+     explicit AutoSuppressGCAnalysis(JSRuntime* rt) : AutoAssertNoAlloc(rt) {}
+-} JS_HAZ_GC_SUPPRESSED;
++};
+ 
+ /**
+  * Assert that code is only ever called from a GC callback, disable the static
+  * rooting hazard analysis and assert if any allocation that could potentially
+  * trigger a GC occurs while this guard object is live.
+  *
+  * This is useful to make the static analysis ignore code that runs in GC
+  * callbacks.
+diff --git a/js/public/GCAnnotations.h b/js/public/GCAnnotations.h
+--- a/js/public/GCAnnotations.h
++++ b/js/public/GCAnnotations.h
+@@ -34,23 +34,20 @@
+ // pointer when it holds an exception (and it does its own rooting,
+ // conditionally.)
+ # define JS_HAZ_NON_GC_POINTER __attribute__((tag("Suppressed GC Pointer")))
+ 
+ // Mark a function as something that runs a garbage collection, potentially
+ // invalidating GC pointers.
+ # define JS_HAZ_GC_CALL __attribute__((tag("GC Call")))
+ 
+-# define JS_HAZ_GC_SUPPRESSED __attribute__((tag("Suppress GC")))
+-
+ #else
+ 
+ # define JS_HAZ_GC_THING
+ # define JS_HAZ_GC_POINTER
+ # define JS_HAZ_ROOTED
+ # define JS_HAZ_GC_INVALIDATED
+ # define JS_HAZ_NON_GC_POINTER
+ # define JS_HAZ_GC_CALL
+-# define JS_HAZ_GC_SUPPRESSED
+ 
+ #endif
+ 
+ #endif /* js_GCAnnotations_h */
+diff --git a/js/src/devtools/rootAnalysis/analyze.py b/js/src/devtools/rootAnalysis/analyze.py
+--- a/js/src/devtools/rootAnalysis/analyze.py
++++ b/js/src/devtools/rootAnalysis/analyze.py
+@@ -67,39 +67,36 @@ def generate_hazards(config, outfilename
+     jobs = []
+     for i in range(int(config['jobs'])):
+         command = fill(('%(js)s',
+                         '%(analysis_scriptdir)s/analyzeRoots.js',
+                         '%(gcFunctions_list)s',
+                         '%(gcEdges)s',
+                         '%(suppressedFunctions_list)s',
+                         '%(gcTypes)s',
+-                        '%(typeInfo)s',
+                         str(i+1), '%(jobs)s',
+                         'tmp.%s' % (i+1,)),
+                        config)
+         outfile = 'rootingHazards.%s' % (i+1,)
+         output = open(outfile, 'w')
+-        if config['verbose']:
+-            print_command(command, outfile=outfile, env=env(config))
++        print_command(command, outfile=outfile, env=env(config))
+         jobs.append((command, Popen(command, stdout=output, env=env(config))))
+ 
+     final_status = 0
+     while jobs:
+         pid, status = os.wait()
+         jobs = [ job for job in jobs if job[1].pid != pid ]
+         final_status = final_status or status
+ 
+     if final_status:
+         raise subprocess.CalledProcessError(final_status, 'analyzeRoots.js')
+ 
+     with open(outfilename, 'w') as output:
+         command = ['cat'] + [ 'rootingHazards.%s' % (i+1,) for i in range(int(config['jobs'])) ]
+-        if config['verbose']:
+-            print_command(command, outfile=outfilename)
++        print_command(command, outfile=outfilename)
+         subprocess.call(command, stdout=output)
+ 
+ JOBS = { 'dbs':
+              (('%(ANALYSIS_SCRIPTDIR)s/run_complete',
+                '--foreground',
+                '--no-logs',
+                '--build-root=%(objdir)s',
+                '--wrap-dir=%(sixgill)s/scripts/wrap_gcc',
+@@ -109,28 +106,27 @@ JOBS = { 'dbs':
+                '.'),
+               ()),
+ 
+          'list-dbs':
+              (('ls', '-l'),
+               ()),
+ 
+          'callgraph':
+-             (('%(js)s', '%(analysis_scriptdir)s/computeCallgraph.js', '%(typeInfo)s'),
++             (('%(js)s', '%(analysis_scriptdir)s/computeCallgraph.js'),
+               'callgraph.txt'),
+ 
+          'gcFunctions':
+              (('%(js)s', '%(analysis_scriptdir)s/computeGCFunctions.js', '%(callgraph)s',
+                '[gcFunctions]', '[gcFunctions_list]', '[gcEdges]', '[suppressedFunctions_list]'),
+               ('gcFunctions.txt', 'gcFunctions.lst', 'gcEdges.txt', 'suppressedFunctions.lst')),
+ 
+          'gcTypes':
+-             (('%(js)s', '%(analysis_scriptdir)s/computeGCTypes.js',
+-               '[gcTypes]', '[typeInfo]'),
+-              ('gcTypes.txt', 'typeInfo.txt')),
++             (('%(js)s', '%(analysis_scriptdir)s/computeGCTypes.js',),
++              'gcTypes.txt'),
+ 
+          'allFunctions':
+              (('%(sixgill_bin)s/xdbkeys', 'src_body.xdb',),
+               'allFunctions.txt'),
+ 
+          'hazards':
+              (generate_hazards, 'rootingHazards.txt'),
+ 
+@@ -154,27 +150,25 @@ def run_job(name, config):
+     if hasattr(cmdspec, '__call__'):
+         cmdspec(config, outfiles)
+     else:
+         temp_map = {}
+         cmdspec = fill(cmdspec, config)
+         if isinstance(outfiles, basestring):
+             stdout_filename = '%s.tmp' % name
+             temp_map[stdout_filename] = outfiles
+-            if config['verbose']:
+-                print_command(cmdspec, outfile=outfiles, env=env(config))
++            print_command(cmdspec, outfile=outfiles, env=env(config))
+         else:
+             stdout_filename = None
+             pc = list(cmdspec)
+             outfile = 0
+             for (i, name) in out_indexes(cmdspec):
+                 pc[i] = outfiles[outfile]
+                 outfile += 1
+-            if config['verbose']:
+-                print_command(pc, env=env(config))
++            print_command(pc, env=env(config))
+ 
+         command = list(cmdspec)
+         outfile = 0
+         for (i, name) in out_indexes(cmdspec):
+             command[i] = '%s.tmp' % name
+             temp_map[command[i]] = outfiles[outfile]
+             outfile += 1
+ 
+@@ -191,16 +185,25 @@ def run_job(name, config):
+                 print("Error renaming %s -> %s" % (temp, final))
+                 raise
+ 
+ config = { 'ANALYSIS_SCRIPTDIR': os.path.dirname(__file__) }
+ 
+ defaults = [ '%s/defaults.py' % config['ANALYSIS_SCRIPTDIR'],
+              '%s/defaults.py' % os.getcwd() ]
+ 
++for default in defaults:
++    try:
++        execfile(default, config)
++        print("Loaded %s" % default)
++    except:
++        pass
++
++data = config.copy()
++
+ parser = argparse.ArgumentParser(description='Statically analyze build tree for rooting hazards.')
+ parser.add_argument('step', metavar='STEP', type=str, nargs='?',
+                     help='run starting from this step')
+ parser.add_argument('--source', metavar='SOURCE', type=str, nargs='?',
+                     help='source code to analyze')
+ parser.add_argument('--objdir', metavar='DIR', type=str, nargs='?',
+                     help='object directory of compiled files')
+ parser.add_argument('--js', metavar='JSSHELL', type=str, nargs='?',
+@@ -212,42 +215,29 @@ parser.add_argument('--jobs', '-j', defa
+ parser.add_argument('--list', const=True, nargs='?', type=bool,
+                     help='display available steps')
+ parser.add_argument('--buildcommand', '--build', '-b', type=str, nargs='?',
+                     help='command to build the tree being analyzed')
+ parser.add_argument('--tag', '-t', type=str, nargs='?',
+                     help='name of job, also sets build command to "build.<tag>"')
+ parser.add_argument('--expect-file', type=str, nargs='?',
+                     help='deprecated option, temporarily still present for backwards compatibility')
+-parser.add_argument('--verbose', '-v', action='store_true',
+-                    help='Display cut & paste commands to run individual steps')
+ 
+ args = parser.parse_args()
+-
+-for default in defaults:
+-    try:
+-        execfile(default, config)
+-        if args.verbose:
+-            print("Loaded %s" % default)
+-    except:
+-        pass
+-
+-data = config.copy()
+-
+ for k,v in vars(args).items():
+     if v is not None:
+         data[k] = v
+ 
+ if args.tag and not args.buildcommand:
+     args.buildcommand="build.%s" % args.tag
+ 
+ if args.jobs is not None:
+     data['jobs'] = args.jobs
+ if not data.get('jobs'):
+-    data['jobs'] = subprocess.check_output(['nproc', '--ignore=1']).strip()
++    data['jobs'] = subprocess.check_output(['nproc', '--ignore=1'])
+ 
+ if args.buildcommand:
+     data['buildcommand'] = args.buildcommand
+ elif 'BUILD' in os.environ:
+     data['buildcommand'] = os.environ['BUILD']
+ else:
+     data['buildcommand'] = 'make -j4 -s'
+ 
+@@ -256,18 +246,18 @@ if 'ANALYZED_OBJDIR' in os.environ:
+ 
+ if 'SOURCE' in os.environ:
+     data['source'] = os.environ['SOURCE']
+ if not data.get('source') and data.get('sixgill_bin'):
+     path = subprocess.check_output(['sh', '-c', data['sixgill_bin'] + '/xdbkeys file_source.xdb | grep jsapi.cpp'])
+     data['source'] = path.replace("/js/src/jsapi.cpp", "")
+ 
+ steps = [ 'dbs',
++          'callgraph',
+           'gcTypes',
+-          'callgraph',
+           'gcFunctions',
+           'allFunctions',
+           'hazards',
+           'explain' ]
+ 
+ if args.list:
+     for step in steps:
+         command, outfilename = JOBS[step]
+@@ -281,17 +271,17 @@ for step in steps:
+     command, outfiles = JOBS[step]
+     if isinstance(outfiles, basestring):
+         data[step] = outfiles
+     else:
+         outfile = 0
+         for (i, name) in out_indexes(command):
+             data[name] = outfiles[outfile]
+             outfile += 1
+-        assert len(outfiles) == outfile, 'step \'%s\': mismatched number of output files (%d) and params (%d)' % (step, outfile, len(outfiles))
++        assert len(outfiles) == outfile, 'step \'%s\': mismatched number of output files and params' % step
+ 
+ if args.step:
+     steps = steps[steps.index(args.step):]
+ 
+ if args.upto:
+     steps = steps[:steps.index(args.upto)+1]
+ 
+ for step in steps:
+diff --git a/js/src/devtools/rootAnalysis/analyzeRoots.js b/js/src/devtools/rootAnalysis/analyzeRoots.js
+--- a/js/src/devtools/rootAnalysis/analyzeRoots.js
++++ b/js/src/devtools/rootAnalysis/analyzeRoots.js
+@@ -24,17 +24,17 @@ var gcFunctionsFile = scriptArgs[0] || "
+ var gcEdgesFile = scriptArgs[1] || "gcEdges.txt";
+ var suppressedFunctionsFile = scriptArgs[2] || "suppressedFunctions.lst";
+ var gcTypesFile = scriptArgs[3] || "gcTypes.txt";
+ var typeInfoFile = scriptArgs[4] || "typeInfo.txt";
+ var batch = (scriptArgs[5]|0) || 1;
+ var numBatches = (scriptArgs[6]|0) || 1;
+ var tmpfile = scriptArgs[7] || "tmp.txt";
+ 
+-GCSuppressionTypes = loadTypeInfo(typeInfoFile)["Suppress GC"];
++GCSuppressionTypes.push(...loadTypeInfo(typeInfoFile)["Suppress GC"]);
+ 
+ var gcFunctions = {};
+ var text = snarf("gcFunctions.lst").split("\n");
+ assert(text.pop().length == 0);
+ for (var line of text)
+     gcFunctions[mangled(line)] = true;
+ 
+ var suppressedFunctions = {};
+diff --git a/js/src/devtools/rootAnalysis/annotations.js b/js/src/devtools/rootAnalysis/annotations.js
+--- a/js/src/devtools/rootAnalysis/annotations.js
++++ b/js/src/devtools/rootAnalysis/annotations.js
+@@ -317,20 +317,35 @@ function isRootedTypeName(name)
+ }
+ 
+ function isUnsafeStorage(typeName)
+ {
+     typeName = stripUCSAndNamespace(typeName);
+     return typeName.startsWith('UniquePtr<');
+ }
+ 
+-function isSuppressConstructor(varName)
++function isSuppressConstructor(funcName)
+ {
+-    // varName[1] contains the unqualified name
+-    return GCSuppressionTypes.indexOf(varName[1]) != -1;
++    let [ qualifiedFunction, unqualifiedFunction ] = funcName;
++    let [ mangled, unmangled ] = splitFunction(qualifiedFunction);
++    if (!mangled.match(/C\dE/))
++        return false; // Constructors have C1E (or C4E etc.) in their mangled names
++    let m = unmangled.match(/((\w+)(<.*>)?)::\2\(/); // Foo<T>::Foo
++    if (!m)
++        return false;
++    let classType = m[1]; // Foo<T>
++    for (let type of GCSuppressionTypes) {
++        // type is something like class js::Foo<T>
++        if (type.endsWith(classType)) {
++            // Screen out js::OtherFoo
++            if (type == classType || type.endsWith("::" + classType) || type.endsWith(" " + classType))
++                return true;
++        }
++    }
++    return false;
+ }
+ 
+ // nsISupports subclasses' methods may be scriptable (or overridden
+ // via binary XPCOM), and so may GC. But some fields just aren't going
+ // to get overridden with something that can GC.
+ function isOverridableField(initialCSU, csu, field)
+ {
+     if (csu != 'nsISupports')
+diff --git a/js/src/devtools/rootAnalysis/computeCallgraph.js b/js/src/devtools/rootAnalysis/computeCallgraph.js
+--- a/js/src/devtools/rootAnalysis/computeCallgraph.js
++++ b/js/src/devtools/rootAnalysis/computeCallgraph.js
+@@ -7,198 +7,179 @@ loadRelativeToScript('annotations.js');
+ loadRelativeToScript('CFG.js');
+ 
+ var theFunctionNameToFind;
+ if (scriptArgs[0] == '--function') {
+     theFunctionNameToFind = scriptArgs[1];
+     scriptArgs = scriptArgs.slice(2);
+ }
+ 
+-var typeInfo_filename = scriptArgs[0] || "typeInfo.txt";
++var subclasses = {};
++var superclasses = {};
++var classFunctions = {};
+ 
+-var subclasses = new Map(); // Map from csu => set of immediate subclasses
+-var superclasses = new Map(); // Map from csu => set of immediate superclasses
+-var classFunctions = new Map(); // Map from "csu:name" => set of full method name
++var fieldCallSeen = {};
+ 
+-var virtualResolutionsSeen = new Set();
++function addClassEntry(index, name, other)
++{
++    if (!(name in index)) {
++        index[name] = [other];
++        return;
++    }
+ 
+-function addEntry(map, name, entry)
+-{
+-    if (!map.has(name))
+-        map.set(name, new Set());
+-    map.get(name).add(entry);
++    for (var entry of index[name]) {
++        if (entry == other)
++            return;
++    }
++
++    index[name].push(other);
+ }
+ 
+ // CSU is "Class/Struct/Union"
+ function processCSU(csuName, csu)
+ {
+     if (!("FunctionField" in csu))
+         return;
+     for (var field of csu.FunctionField) {
+         if (1 in field.Field) {
+             var superclass = field.Field[1].Type.Name;
+             var subclass = field.Field[1].FieldCSU.Type.Name;
+             assert(subclass == csuName);
+-            addEntry(subclasses, superclass, subclass);
+-            addEntry(superclasses, subclass, superclass);
++            addClassEntry(subclasses, superclass, subclass);
++            addClassEntry(superclasses, subclass, superclass);
+         }
+         if ("Variable" in field) {
+             // Note: not dealing with overloading correctly.
+             var name = field.Variable.Name[0];
+             var key = csuName + ":" + field.Field[0].Name[0];
+-            addEntry(classFunctions, key, name);
++            if (!(key in classFunctions))
++                classFunctions[key] = [];
++            classFunctions[key].push(name);
+         }
+     }
+ }
+ 
+-// Return the nearest ancestor method definition, or all nearest definitions in
+-// the case of multiple inheritance.
+-function nearestAncestorMethods(csu, method)
++function findVirtualFunctions(initialCSU, field, suppressed)
+ {
+-    var key = csu + ":" + method;
++    var worklist = [initialCSU];
++    var functions = [];
+ 
+-    if (classFunctions.has(key))
+-        return new Set(classFunctions.get(key));
++    // Virtual call targets on subclasses of nsISupports may be incomplete,
++    // if the interface is scriptable. Just treat all indirect calls on
++    // nsISupports objects as potentially GC'ing, except AddRef/Release
++    // which should never enter the JS engine (even when calling dtors).
++    while (worklist.length) {
++        var csu = worklist.pop();
++        if (csu == "nsISupports" && (field == "AddRef" || field == "Release")) {
++            suppressed[0] = true;
++            return [];
++        }
++        if (isOverridableField(initialCSU, csu, field)) {
++            // We will still resolve the virtual function call, because it's
++            // nice to have as complete a callgraph as possible for other uses.
++            // But push a token saying that we can run arbitrary code.
++            functions.push(null);
++        }
+ 
+-    var functions = new Set();
+-    if (superclasses.has(csu)) {
+-        for (var parent of superclasses.get(csu))
+-            functions.update(nearestAncestorMethods(parent, method));
++        if (csu in superclasses) {
++            for (var superclass of superclasses[csu])
++                worklist.push(superclass);
++        }
++    }
++
++    worklist = [csu];
++    while (worklist.length) {
++        var csu = worklist.pop();
++        var key = csu + ":" + field;
++
++        if (key in classFunctions) {
++            for (var name of classFunctions[key])
++                functions.push(name);
++        }
++
++        if (csu in subclasses) {
++            for (var subclass of subclasses[csu])
++                worklist.push(subclass);
++        }
+     }
+ 
+     return functions;
+ }
+ 
+-// Return [ instantations, suppressed ], where instantiations is a Set of all
+-// possible implementations of 'field' given static type 'initialCSU', plus
+-// null if arbitrary other implementations are possible, and suppressed is true
+-// if we the method is assumed to be non-GC'ing by annotation.
+-function findVirtualFunctions(initialCSU, field)
+-{
+-    var worklist = [initialCSU];
+-    var functions = new Set();
+-
+-    // Loop through all methods of initialCSU (by looking at all methods of ancestor csus).
+-    //
+-    // If field is nsISupports::AddRef or ::Release, return an empty list and a
+-    // boolean that says we assert that it cannot GC.
+-    //
+-    // If this is a method that is annotated to be dangerous (eg, it could be
+-    // overridden with an implementation that could GC), then use null as a
+-    // signal value that it should be considered to GC, even though we'll also
+-    // collect all of the instantiations for other purposes.
+-
+-    while (worklist.length) {
+-        var csu = worklist.pop();
+-        if (isSuppressedVirtualMethod(csu, field))
+-            return [ new Set(), true ];
+-        if (isOverridableField(initialCSU, csu, field)) {
+-            // We will still resolve the virtual function call, because it's
+-            // nice to have as complete a callgraph as possible for other uses.
+-            // But push a token saying that we can run arbitrary code.
+-            functions.add(null);
+-        }
+-
+-        if (superclasses.has(csu))
+-            worklist.push(...superclasses.get(csu));
+-    }
+-
+-    // Now return a list of all the instantiations of the method named 'field'
+-    // that could execute on an instance of initialCSU or a descendant class.
+-
+-    // Start with the class itself, or if it doesn't define the method, all
+-    // nearest ancestor definitions.
+-    functions.update(nearestAncestorMethods(initialCSU, field));
+-
+-    // Then recurse through all descendants to add in their definitions.
+-    var worklist = [initialCSU];
+-    while (worklist.length) {
+-        var csu = worklist.pop();
+-        var key = csu + ":" + field;
+-
+-        if (classFunctions.has(key))
+-            functions.update(classFunctions.get(key));
+-
+-        if (subclasses.has(csu))
+-            worklist.push(...subclasses.get(csu));
+-    }
+-
+-    return [ functions, false ];
+-}
+-
+-var memoized = new Map();
++var memoized = {};
+ var memoizedCount = 0;
+ 
+ function memo(name)
+ {
+-    if (!memoized.has(name)) {
+-        let id = memoized.size + 1;
+-        memoized.set(name, "" + id);
+-        print(`#${id} ${name}`);
++    if (!(name in memoized)) {
++        memoizedCount++;
++        memoized[name] = "" + memoizedCount;
++        print("#" + memoizedCount + " " + name);
+     }
+-    return memoized.get(name);
++    return memoized[name];
+ }
+ 
++var seenCallees = null;
++var seenSuppressedCallees = null;
++
+ // Return a list of all callees that the given edge might be a call to. Each
+ // one is represented by an object with a 'kind' field that is one of
+-// ('direct', 'field', 'resolved-field', 'indirect', 'unknown'), though note
+-// that 'resolved-field' is really a global record of virtual method
+-// resolutions, indepedent of this particular edge.
++// ('direct', 'field', 'indirect', 'unknown').
+ function getCallees(edge)
+ {
+     if (edge.Kind != "Call")
+         return [];
+ 
+     var callee = edge.Exp[0];
+     var callees = [];
+     if (callee.Kind == "Var") {
+         assert(callee.Variable.Kind == "Func");
+         callees.push({'kind': 'direct', 'name': callee.Variable.Name[0]});
+     } else {
+         assert(callee.Kind == "Drf");
+         if (callee.Exp[0].Kind == "Fld") {
+             var field = callee.Exp[0].Field;
+             var fieldName = field.Name[0];
+             var csuName = field.FieldCSU.Type.Name;
+-            var functions;
++            var functions = null;
+             if ("FieldInstanceFunction" in field) {
+-                let suppressed;
+-                [ functions, suppressed ] = findVirtualFunctions(csuName, fieldName, suppressed);
+-                if (suppressed) {
++                var suppressed = [ false ];
++                functions = findVirtualFunctions(csuName, fieldName, suppressed);
++                if (suppressed[0]) {
+                     // Field call known to not GC; mark it as suppressed so
+                     // direct invocations will be ignored
+                     callees.push({'kind': "field", 'csu': csuName, 'field': fieldName,
+                                   'suppressed': true});
+                 }
++            }
++            if (functions) {
++                // Known set of virtual call targets. Treat them as direct
++                // calls to all possible resolved types, but also record edges
++                // from this field call to each final callee. When the analysis
++                // is checking whether an edge can GC and it sees an unrooted
++                // pointer held live across this field call, it will know
++                // whether any of the direct callees can GC or not.
++                var targets = [];
++                var fullyResolved = true;
++                for (var name of functions) {
++                    if (name === null) {
++                        // virtual call on an nsISupports object
++                        callees.push({'kind': "field", 'csu': csuName, 'field': fieldName});
++                        fullyResolved = false;
++                    } else {
++                        callees.push({'kind': "direct", 'name': name});
++                        targets.push({'kind': "direct", 'name': name});
++                    }
++                }
++                if (fullyResolved)
++                    callees.push({'kind': "resolved-field", 'csu': csuName, 'field': fieldName, 'callees': targets});
+             } else {
+-                functions = new Set([null]); // field call
++                // Unknown set of call targets. Non-virtual field call.
++                callees.push({'kind': "field", 'csu': csuName, 'field': fieldName});
+             }
+-
+-            // Known set of virtual call targets. Treat them as direct calls to
+-            // all possible resolved types, but also record edges from this
+-            // field call to each final callee. When the analysis is checking
+-            // whether an edge can GC and it sees an unrooted pointer held live
+-            // across this field call, it will know whether any of the direct
+-            // callees can GC or not.
+-            var targets = [];
+-            var fullyResolved = true;
+-            for (var name of functions) {
+-                if (name === null) {
+-                    // Unknown set of call targets, meaning either a function
+-                    // pointer call ("field call") or a virtual method that can
+-                    // be overridden in extensions.
+-                    callees.push({'kind': "field", 'csu': csuName, 'field': fieldName});
+-                    fullyResolved = false;
+-                } else {
+-                    callees.push({'kind': "direct", 'name': name});
+-                    targets.push({'kind': "direct", 'name': name});
+-                }
+-            }
+-            if (fullyResolved)
+-                callees.push({'kind': "resolved-field", 'csu': csuName, 'field': fieldName, 'callees': targets});
+         } else if (callee.Exp[0].Kind == "Var") {
+             // indirect call through a variable.
+             callees.push({'kind': "indirect", 'variable': callee.Exp[0].Variable.Name[0]});
+         } else {
+             // unknown call target.
+             callees.push({'kind': "unknown"});
+         }
+     }
+@@ -233,87 +214,82 @@ function getAnnotations(body)
+ 
+     return all_annotations;
+ }
+ 
+ function getTags(functionName, body) {
+     var tags = new Set();
+     var annotations = getAnnotations(body);
+     if (functionName in annotations) {
++        print("crawling through");
+         for (var [ annName, annValue ] of annotations[functionName]) {
+             if (annName == 'Tag')
+                 tags.add(annValue);
+         }
+     }
+     return tags;
+ }
+ 
+ function processBody(functionName, body)
+ {
+     if (!('PEdge' in body))
+         return;
+ 
+     for (var tag of getTags(functionName, body).values())
+         print("T " + memo(functionName) + " " + tag);
+ 
+-    // Set of all callees that have been output so far, in order to suppress
+-    // repeated callgraph edges from being recorded. Use a separate set for
+-    // suppressed callees, since we don't want a suppressed edge (within one
+-    // RAII scope) to prevent an unsuppressed edge from being recorded. The
+-    // seen array is indexed by a boolean 'suppressed' variable.
+-    var seen = [ new Set(), new Set() ];
+-
+     lastline = null;
+     for (var edge of body.PEdge) {
+         if (edge.Kind != "Call")
+             continue;
+-
+-        // Whether this call is within the RAII scope of a GC suppression class
+-        var edgeSuppressed = (edge.Index[0] in body.suppressed);
+-
++        var edgeSuppressed = false;
++        var seen = seenCallees;
++        if (edge.Index[0] in body.suppressed) {
++            edgeSuppressed = true;
++            seen = seenSuppressedCallees;
++        }
+         for (var callee of getCallees(edge)) {
+-            var suppressed = Boolean(edgeSuppressed || callee.suppressed);
+-            var prologue = suppressed ? "SUPPRESS_GC " : "";
++            var prologue = (edgeSuppressed || callee.suppressed) ? "SUPPRESS_GC " : "";
+             prologue += memo(functionName) + " ";
+             if (callee.kind == 'direct') {
+-                if (!seen[+suppressed].has(callee.name)) {
+-                    seen[+suppressed].add(callee.name);
++                if (!(callee.name in seen)) {
++                    seen[callee.name] = true;
+                     printOnce("D " + prologue + memo(callee.name));
+                 }
+             } else if (callee.kind == 'field') {
+                 var { csu, field } = callee;
+                 printOnce("F " + prologue + "CLASS " + csu + " FIELD " + field);
+             } else if (callee.kind == 'resolved-field') {
+-                // Fully-resolved field (virtual method) call. Record the
+-                // callgraph edges. Do not consider suppression, since it is
+-                // local to this callsite and we are writing out a global
++                // Fully-resolved field call (usually a virtual method). Record
++                // the callgraph edges. Do not consider suppression, since it
++                // is local to this callsite and we are writing out a global
+                 // record here.
+                 //
+                 // Any field call that does *not* have an R entry must be
+                 // assumed to call anything.
+                 var { csu, field, callees } = callee;
+                 var fullFieldName = csu + "." + field;
+-                if (!virtualResolutionsSeen.has(fullFieldName)) {
+-                    virtualResolutionsSeen.add(fullFieldName);
++                if (!(fullFieldName in fieldCallSeen)) {
++                    fieldCallSeen[fullFieldName] = true;
+                     for (var target of callees)
+                         printOnce("R " + memo(fullFieldName) + " " + memo(target.name));
+                 }
+             } else if (callee.kind == 'indirect') {
+                 printOnce("I " + prologue + "VARIABLE " + callee.variable);
+             } else if (callee.kind == 'unknown') {
+                 printOnce("I " + prologue + "VARIABLE UNKNOWN");
+             } else {
+                 printErr("invalid " + callee.kind + " callee");
+                 debugger;
+             }
+         }
+     }
+ }
+ 
+-GCSuppressionTypes = loadTypeInfo(typeInfo_filename)["Suppress GC"];
++var callgraph = {};
+ 
+ var xdb = xdbLibrary();
+ xdb.open("src_comp.xdb");
+ 
+ var minStream = xdb.min_data_stream();
+ var maxStream = xdb.max_data_stream();
+ 
+ for (var csuIndex = minStream; csuIndex <= maxStream; csuIndex++) {
+@@ -346,16 +322,19 @@ function process(functionName, functionB
+ {
+     for (var body of functionBodies)
+         body.suppressed = [];
+     for (var body of functionBodies) {
+         for (var [pbody, id] of allRAIIGuardedCallPoints(functionBodies, body, isSuppressConstructor))
+             pbody.suppressed[id] = true;
+     }
+ 
++    seenCallees = {};
++    seenSuppressedCallees = {};
++
+     for (var body of functionBodies)
+         processBody(functionName, body);
+ 
+     // GCC generates multiple constructors and destructors ("in-charge" and
+     // "not-in-charge") to handle virtual base classes. They are normally
+     // identical, and it appears that GCC does some magic to alias them to the
+     // same thing. But this aliasing is not visible to the analysis. So we'll
+     // add a dummy call edge from "foo" -> "foo *INTERNAL* ", since only "foo"
+@@ -367,17 +346,17 @@ function process(functionName, functionB
+     var markerPos = functionName.indexOf(internalMarker);
+     if (markerPos > 0) {
+         var inChargeXTor = functionName.replace(internalMarker, "");
+         print("D " + memo(inChargeXTor) + " " + memo(functionName));
+ 
+         // Bug 1056410: Oh joy. GCC does something even funkier internally,
+         // where it generates calls to ~Foo() but a body for ~Foo(int32) even
+         // though it uses the same mangled name for both. So we need to add a
+-        // synthetic edge from ~Foo() -> ~Foo(int32).
++        // synthetic edge from the former to the latter.
+         //
+         // inChargeXTor will have the (int32).
+         if (functionName.indexOf("::~") > 0) {
+             var calledDestructor = inChargeXTor.replace("(int32)", "()");
+             print("D " + memo(calledDestructor) + " " + memo(inChargeXTor));
+         }
+     }
+ 
+@@ -385,47 +364,41 @@ function process(functionName, functionB
+     // different kinds of constructors/destructors are:
+     // C1	# complete object constructor
+     // C2	# base object constructor
+     // C3	# complete object allocating constructor
+     // D0	# deleting destructor
+     // D1	# complete object destructor
+     // D2	# base object destructor
+     //
+-    // In actual practice, I have observed C4 and D4 xtors generated by gcc
++    // In actual practice, I have observed a C4 constructor generated by gcc
+     // 4.9.3 (but not 4.7.3). The gcc source code says:
+     //
+     //   /* This is the old-style "[unified]" constructor.
+     //      In some cases, we may emit this function and call
+     //      it from the clones in order to share code and save space.  */
+     //
+     // Unfortunately, that "call... from the clones" does not seem to appear in
+-    // the CFG we get from GCC. So if we see a C4 constructor or D4 destructor,
+-    // inject an edge to it from C1, C2, and C3 (or D1, D2, and D3). (Note that
+-    // C3 isn't even used in current GCC, but add the edge anyway just in
+-    // case.)
+-    if (functionName.indexOf("C4E") != -1 || functionName.indexOf("D4Ev") != -1) {
++    // the CFG we get from GCC. So if we see a C4 constructor, inject an edge
++    // to it from C1, C2, and C3. (Note that C3 isn't even used in current GCC,
++    // but add the edge anyway just in case.)
++    if (functionName.indexOf("C4E") != -1) {
+         var [ mangled, unmangled ] = splitFunction(functionName);
+         // E terminates the method name (and precedes the method parameters).
+-        // If eg "C4E" shows up in the mangled name for another reason, this
+-        // will create bogus edges in the callgraph. But will affect little and
+-        // is somewhat difficult to avoid, so we will live with it.
+-        for (let [synthetic, variant] of [['C4E', 'C1E'],
+-                                          ['C4E', 'C2E'],
+-                                          ['C4E', 'C3E'],
+-                                          ['D4Ev', 'D1Ev'],
+-                                          ['D4Ev', 'D2Ev'],
+-                                          ['D4Ev', 'D3Ev']])
+-        {
+-            if (mangled.indexOf(synthetic) == -1)
+-                continue;
+-
+-            let variant_mangled = mangled.replace(synthetic, variant);
+-            let variant_full = variant_mangled + "$" + unmangled;
+-            print("D " + memo(variant_full) + " " + memo(functionName));
++        if (mangled.indexOf("C4E") != -1) {
++            // If "C4E" shows up in the mangled name for another reason, this
++            // will create bogus edges in the callgraph. But that shouldn't
++            // matter too much, and is somewhat difficult to avoid, so we will
++            // live with it.
++            var C1 = mangled.replace("C4E", "C1E");
++            var C2 = mangled.replace("C4E", "C2E");
++            var C3 = mangled.replace("C4E", "C3E");
++            print("D " + memo(C1) + " " + memo(mangled));
++            print("D " + memo(C2) + " " + memo(mangled));
++            print("D " + memo(C3) + " " + memo(mangled));
+         }
+     }
+ }
+ 
+ for (var nameIndex = minStream; nameIndex <= maxStream; nameIndex++) {
+     var name = xdb.read_key(nameIndex);
+     var data = xdb.read_entry(name);
+     process(name.readString(), JSON.parse(data.readString()));
+diff --git a/js/src/devtools/rootAnalysis/computeGCFunctions.js b/js/src/devtools/rootAnalysis/computeGCFunctions.js
+--- a/js/src/devtools/rootAnalysis/computeGCFunctions.js
++++ b/js/src/devtools/rootAnalysis/computeGCFunctions.js
+@@ -16,30 +16,26 @@ var gcFunctions_filename = scriptArgs[1]
+ var gcFunctionsList_filename = scriptArgs[2] || "gcFunctions.lst";
+ var gcEdges_filename = scriptArgs[3] || "gcEdges.txt";
+ var suppressedFunctionsList_filename = scriptArgs[4] || "suppressedFunctions.lst";
+ 
+ loadCallgraph(callgraph_filename);
+ 
+ printErr("Writing " + gcFunctions_filename);
+ redirect(gcFunctions_filename);
+-
+ for (var name in gcFunctions) {
+-    for (let readable of readableNames[name]) {
+-        print("");
+-        print("GC Function: " + name + "$" + readable);
+-        let current = name;
+-        do {
+-            current = gcFunctions[current];
+-            if (current in readableNames)
+-                print("    " + readableNames[current][0]);
+-            else
+-                print("    " + current);
+-        } while (current in gcFunctions);
+-    }
++    print("");
++    print("GC Function: " + name + "$" + readableNames[name][0]);
++    do {
++        name = gcFunctions[name];
++        if (name in readableNames)
++            print("    " + readableNames[name][0]);
++        else
++            print("    " + name);
++    } while (name in gcFunctions);
+ }
+ 
+ printErr("Writing " + gcFunctionsList_filename);
+ redirect(gcFunctionsList_filename);
+ for (var name in gcFunctions) {
+     for (var readable of readableNames[name])
+         print(name + "$" + readable);
+ }
+diff --git a/js/src/devtools/rootAnalysis/computeGCTypes.js b/js/src/devtools/rootAnalysis/computeGCTypes.js
+--- a/js/src/devtools/rootAnalysis/computeGCTypes.js
++++ b/js/src/devtools/rootAnalysis/computeGCTypes.js
+@@ -1,29 +1,23 @@
+ /* -*- indent-tabs-mode: nil; js-indent-level: 4 -*- */
+ 
+ "use strict";
+ 
+ loadRelativeToScript('utility.js');
+ loadRelativeToScript('annotations.js');
+ 
+-var gcTypes_filename = scriptArgs[0] || "gcTypes.txt";
+-var typeInfo_filename = scriptArgs[1] || "typeInfo.txt";
+-
+ var annotations = {
+     'GCPointers': [],
+     'GCThings': [],
+     'NonGCTypes': {}, // unused
+     'NonGCPointers': {},
+     'RootedPointers': {},
+-    'GCSuppressors': {},
+ };
+ 
+-var gDescriptors = new Map; // Map from descriptor string => Set of typeName
+-
+ var structureParents = {}; // Map from field => list of <parent, fieldName>
+ var pointerParents = {}; // Map from field => list of <parent, fieldName>
+ var baseClasses = {}; // Map from struct name => list of base class name strings
+ 
+ var gcTypes = {}; // map from parent struct => Set of GC typed children
+ var gcPointers = {}; // map from parent struct => Set of GC typed children
+ var gcFields = new Map;
+ 
+@@ -55,28 +49,28 @@ function processCSU(csu, body)
+             addNestedStructure(csu, type.Name, fieldName);
+         }
+     }
+ 
+     for (let { 'Name': [ annType, tag ] } of (body.Annotation || [])) {
+         if (annType != 'Tag')
+             continue;
+ 
++        debugger;
++        
+         if (tag == 'GC Pointer')
+             annotations.GCPointers.push(csu);
+         else if (tag == 'Invalidated by GC')
+             annotations.GCPointers.push(csu);
+         else if (tag == 'GC Thing')
+             annotations.GCThings.push(csu);
+         else if (tag == 'Suppressed GC Pointer')
+             annotations.NonGCPointers[csu] = true;
+         else if (tag == 'Rooted Pointer')
+             annotations.RootedPointers[csu] = true;
+-        else if (tag == 'Suppress GC')
+-            annotations.GCSuppressors[csu] = true;
+     }
+ }
+ 
+ // csu.field is of type inner
+ function addNestedStructure(csu, inner, field)
+ {
+     if (!(inner in structureParents))
+         structureParents[inner] = [];
+@@ -210,36 +204,16 @@ function addGCType(typeName, child, why,
+     markGCType(typeName, '<annotation>', '(annotation)', 0, 0, "");
+ }
+ 
+ function addGCPointer(typeName)
+ {
+     markGCType(typeName, '<pointer-annotation>', '(annotation)', 1, 0, "");
+ }
+ 
+-// Add an arbitrary descriptor to a type, and apply it recursively to all base
+-// structs and structs that contain the given typeName as a field.
+-function addDescriptor(typeName, descriptor)
+-{
+-    if (!gDescriptors.has(descriptor))
+-        gDescriptors.set(descriptor, new Set);
+-    let descriptorTypes = gDescriptors.get(descriptor);
+-    if (!descriptorTypes.has(typeName)) {
+-        descriptorTypes.add(typeName);
+-        if (typeName in structureParents) {
+-            for (let [holder, field] of structureParents[typeName])
+-                addDescriptor(holder, descriptor);
+-        }
+-        if (typeName in baseClasses) {
+-            for (let base of baseClasses[typeName])
+-                addDescriptor(base, descriptor);
+-        }
+-    }
+-}
+-
+ for (var type of listNonGCPointers())
+     annotations.NonGCPointers[type] = true;
+ 
+ function explain(csu, indent, seen) {
+     if (!seen)
+         seen = new Set();
+     seen.add(csu);
+     if (!gcFields.has(csu))
+@@ -269,31 +243,16 @@ function explain(csu, indent, seen) {
+         }
+         msg += child;
+         print(msg);
+         if (!seen.has(child))
+             explain(child, indent + "  ", seen);
+     }
+ }
+ 
+-var origOut = os.file.redirect(gcTypes_filename);
+-
+ for (var csu in gcTypes) {
+     print("GCThing: " + csu);
+     explain(csu, "  ");
+ }
+ for (var csu in gcPointers) {
+     print("GCPointer: " + csu);
+     explain(csu, "  ");
+ }
+-
+-// Redirect output to the typeInfo file and close the gcTypes file.
+-os.file.close(os.file.redirect(typeInfo_filename));
+-
+-for (let csu in annotations.GCSuppressors)
+-    addDescriptor(csu, 'Suppress GC');
+-
+-for (let [descriptor, types] of gDescriptors) {
+-    for (let csu of types)
+-        print(descriptor + "$$" + csu);
+-}
+-
+-os.file.close(os.file.redirect(origOut));
+diff --git a/js/src/devtools/rootAnalysis/explain.py b/js/src/devtools/rootAnalysis/explain.py
+--- a/js/src/devtools/rootAnalysis/explain.py
++++ b/js/src/devtools/rootAnalysis/explain.py
+@@ -1,15 +1,13 @@
+ #!/usr/bin/python
+ 
+ import re
+ import argparse
+ 
+-from collections import defaultdict
+-
+ parser = argparse.ArgumentParser(description='Process some integers.')
+ parser.add_argument('rootingHazards', nargs='?', default='rootingHazards.txt')
+ parser.add_argument('gcFunctions', nargs='?', default='gcFunctions.txt')
+ parser.add_argument('hazards', nargs='?', default='hazards.txt')
+ parser.add_argument('extra', nargs='?', default='unnecessary.txt')
+ parser.add_argument('refs', nargs='?', default='refs.txt')
+ args = parser.parse_args()
+ 
+@@ -19,17 +17,17 @@ try:
+     with open(args.rootingHazards) as rootingHazards, \
+         open(args.hazards, 'w') as hazards, \
+         open(args.extra, 'w') as extra, \
+         open(args.refs, 'w') as refs:
+         current_gcFunction = None
+ 
+         # Map from a GC function name to the list of hazards resulting from
+         # that GC function
+-        hazardousGCFunctions = defaultdict(list)
++        hazardousGCFunctions = {}
+ 
+         # List of tuples (gcFunction, index of hazard) used to maintain the
+         # ordering of the hazards
+         hazardOrder = []
+ 
+         for line in rootingHazards:
+             m = re.match(r'^Time: (.*)', line)
+             mm = re.match(r'^Run on:', line)
+@@ -50,17 +48,17 @@ try:
+                 print >>refs, line
+                 continue
+ 
+             m = re.match(r"^Function.*has unrooted.*of type.*live across GC call ('?)(.*?)('?) at \S+:\d+$", line)
+             if m:
+                 # Function names are surrounded by single quotes. Field calls
+                 # are unquoted.
+                 current_gcFunction = m.group(2)
+-                hazardousGCFunctions[current_gcFunction].append(line)
++                hazardousGCFunctions.setdefault(current_gcFunction, []).append(line)
+                 hazardOrder.append((current_gcFunction, len(hazardousGCFunctions[current_gcFunction]) - 1))
+                 num_hazards += 1
+                 continue
+ 
+             if current_gcFunction:
+                 if not line.strip():
+                     # Blank line => end of this hazard
+                     current_gcFunction = None
+@@ -81,23 +79,22 @@ try:
+                     if m.group(1) in hazardousGCFunctions:
+                         current_func = m.group(1)
+                         explanation = line
+                 elif current_func:
+                     explanation += line
+             if current_func:
+                 gcExplanations[current_func] = explanation
+ 
+-        for gcFunction, index in hazardOrder:
+-            gcHazards = hazardousGCFunctions[gcFunction]
+-
+-            if gcFunction in gcExplanations:
+-                print >>hazards, (gcHazards[index] + gcExplanations[gcFunction])
+-            else:
+-                print >>hazards, gcHazards[index]
++            for gcFunction, index in hazardOrder:
++                gcHazards = hazardousGCFunctions[gcFunction]
++                if gcFunction in gcExplanations:
++                    print >>hazards, (gcHazards[index] + gcExplanations[gcFunction])
++                else:
++                    print >>hazards, gcHazards[index]
+ 
+ except IOError as e:
+     print 'Failed: %s' % str(e)
+ 
+ print("Wrote %s" % args.hazards)
+ print("Wrote %s" % args.extra)
+ print("Wrote %s" % args.refs)
+ print("Found %d hazards and %d unsafe references" % (num_hazards, num_refs))
+diff --git a/js/src/devtools/rootAnalysis/loadCallgraph.js b/js/src/devtools/rootAnalysis/loadCallgraph.js
+--- a/js/src/devtools/rootAnalysis/loadCallgraph.js
++++ b/js/src/devtools/rootAnalysis/loadCallgraph.js
+@@ -48,18 +48,23 @@ function addGCFunction(caller, reason)
+         return true;
+     }
+ 
+     return false;
+ }
+ 
+ function addCallEdge(caller, callee, suppressed)
+ {
+-    addToKeyedList(calleeGraph, caller, {callee:callee, suppressed:suppressed});
+-    addToKeyedList(callerGraph, callee, {caller:caller, suppressed:suppressed});
++    if (!(caller in calleeGraph))
++        calleeGraph[caller] = [];
++    calleeGraph[caller].push({callee:callee, suppressed:suppressed});
++
++    if (!(callee in callerGraph))
++        callerGraph[callee] = [];
++    callerGraph[callee].push({caller:caller, suppressed:suppressed});
+ }
+ 
+ // Map from identifier to full "mangled|readable" name. Or sometimes to a
+ // Class.Field name.
+ var functionNames = [""];
+ 
+ // Map from identifier to mangled name (or to a Class.Field)
+ var idToMangled = [""];
+diff --git a/js/src/devtools/rootAnalysis/run-test.py b/js/src/devtools/rootAnalysis/run-test.py
+--- a/js/src/devtools/rootAnalysis/run-test.py
++++ b/js/src/devtools/rootAnalysis/run-test.py
+@@ -1,86 +1,152 @@
+ #!/usr/bin/env python
+ # This Source Code Form is subject to the terms of the Mozilla Public
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
++import sys
+ import os
+-import site
++import re
++import json
+ import subprocess
+-import argparse
+ 
+-testdir = os.path.abspath(os.path.join(os.path.dirname(__file__), 't'))
+-site.addsitedir(testdir)
+-from testlib import Test, equal
++testdir = os.path.abspath(os.path.dirname(__file__))
+ 
+-scriptdir = os.path.abspath(os.path.dirname(__file__))
+-
+-parser = argparse.ArgumentParser(description='run hazard analysis tests')
+-parser.add_argument(
+-    '--js', default=os.environ.get('JS'),
+-    help='JS binary to run the tests with')
+-parser.add_argument(
+-    '--sixgill', default=os.environ.get('SIXGILL', os.path.join(testdir, "sixgill")),
+-    help='Path to root of sixgill installation')
+-parser.add_argument(
+-    '--sixgill-bin', default=os.environ.get('SIXGILL_BIN'),
+-    help='Path to sixgill binary dir')
+-parser.add_argument(
+-    '--sixgill-plugin', default=os.environ.get('SIXGILL_PLUGIN'),
+-    help='Full path to sixgill gcc plugin')
+-parser.add_argument(
+-    '--gccdir', default=os.environ.get('GCCDIR'),
+-    help='Path to GCC installation dir')
+-parser.add_argument(
+-    '--cc', default=os.environ.get('CC'),
+-    help='Path to gcc')
+-parser.add_argument(
+-    '--cxx', default=os.environ.get('CXX'),
+-    help='Path to g++')
+-parser.add_argument(
+-    '--verbose', '-v', action='store_true',
+-    help='Display verbose output, including commands executed')
+-
+-cfg = parser.parse_args()
+-
+-if not cfg.js:
+-    exit('Must specify JS binary through environment variable or --js option')
+-if not cfg.cc:
+-    if cfg.gccdir:
+-        cfg.cc = os.path.join(cfg.gccdir, "bin", "gcc")
+-    else:
+-        cfg.cc = "gcc"
+-if not cfg.cxx:
+-    if cfg.gccdir:
+-        cfg.cxx = os.path.join(cfg.gccdir, "bin", "g++")
+-    else:
+-        cfg.cxx = "g++"
+-if not cfg.sixgill_bin:
+-    cfg.sixgill_bin = os.path.join(cfg.sixgill, "usr", "bin")
+-if not cfg.sixgill_plugin:
+-    cfg.sixgill_plugin = os.path.join(cfg.sixgill, "usr", "libexec", "sixgill", "gcc", "xgill.so")
+-
+-subprocess.check_call([cfg.js, '-e', 'if (!getBuildConfiguration()["has-ctypes"]) quit(1)'])
++cfg = {}
++cfg['SIXGILL_ROOT']   = os.environ.get('SIXGILL',
++                                       os.path.join(testdir, "sixgill"))
++cfg['SIXGILL_BIN']    = os.environ.get('SIXGILL_BIN',
++                                       os.path.join(cfg['SIXGILL_ROOT'], "usr", "bin"))
++cfg['SIXGILL_PLUGIN'] = os.environ.get('SIXGILL_PLUGIN',
++                                       os.path.join(cfg['SIXGILL_ROOT'], "usr", "libexec", "sixgill", "gcc", "xgill.so"))
++cfg['CC']             = os.environ.get("CC",
++                                       "gcc")
++cfg['CXX']            = os.environ.get("CXX",
++                                       cfg.get('CC', 'g++'))
++cfg['JS_BIN']         = os.environ["JS"]
+ 
+ def binpath(prog):
+-    return os.path.join(cfg.sixgill_bin, prog)
++    return os.path.join(cfg['SIXGILL_BIN'], prog)
+ 
+-try:
+-    os.mkdir(os.path.join('t', 'out'))
+-except OSError:
+-    pass
++if not os.path.exists("test-output"):
++    os.mkdir("test-output")
+ 
+-tests = ['sixgill-tree', 'suppression', 'hazards']
++# Simplified version of the body info.
++class Body(dict):
++    def __init__(self, body):
++        self['BlockIdKind'] = body['BlockId']['Kind']
++        if 'Variable' in body['BlockId']:
++            self['BlockName'] = body['BlockId']['Variable']['Name'][0]
++        self['LineRange'] = [ body['Location'][0]['Line'], body['Location'][1]['Line'] ]
++        self['Filename'] = body['Location'][0]['CacheString']
++        self['Edges'] = body.get('PEdge', [])
++        self['Points'] = { i+1: body['PPoint'][i]['Location']['Line'] for i in range(len(body['PPoint'])) }
++        self['Index'] = body['Index']
++        self['Variables'] = { x['Variable']['Name'][0]: x['Type'] for x in body['DefineVariable'] }
++
++        # Indexes
++        self['Line2Points'] = {}
++        for point, line in self['Points'].items():
++            self['Line2Points'].setdefault(line, []).append(point)
++        self['SrcPoint2Edges'] = {}
++        for edge in self['Edges']:
++            (src, dst) = edge['Index']
++            self['SrcPoint2Edges'].setdefault(src, []).append(edge)
++        self['Line2Edges'] = {}
++        for (src, edges) in self['SrcPoint2Edges'].items():
++            line = self['Points'][src]
++            self['Line2Edges'].setdefault(line, []).extend(edges)
++
++    def edges_from_line(self, line):
++        return self['Line2Edges'][line]
++
++    def edge_from_line(self, line):
++        edges = self.edges_from_line(line)
++        assert(len(edges) == 1)
++        return edges[0]
++
++    def edges_from_point(self, point):
++        return self['SrcPoint2Edges'][point]
++
++    def edge_from_point(self, point):
++        edges = self.edges_from_point(point)
++        assert(len(edges) == 1)
++        return edges[0]
++
++    def assignment_point(self, varname):
++        for edge in self['Edges']:
++            if edge['Kind'] != 'Assign':
++                continue
++            dst = edge['Exp'][0]
++            if dst['Kind'] != 'Var':
++                continue
++            if dst['Variable']['Name'][0] == varname:
++                return edge['Index'][0]
++        raise Exception("assignment to variable %s not found" % varname)
++
++    def assignment_line(self, varname):
++        return self['Points'][self.assignment_point(varname)]
++
++tests = ['test']
+ for name in tests:
+     indir = os.path.join(testdir, name)
+-    outdir = os.path.join(testdir, 'out', name)
+-    try:
++    outdir = os.path.join(testdir, "test-output", name)
++    if not os.path.exists(outdir):
+         os.mkdir(outdir)
+-    except OSError:
+-        pass
+ 
+-    test = Test(indir, outdir, cfg)
++    def compile(source):
++        cmd = "{CXX} -c {source} -fplugin={sixgill}".format(source=os.path.join(indir, source),
++                                                            CXX=cfg['CXX'], sixgill=cfg['SIXGILL_PLUGIN'])
++        print("Running %s" % cmd)
++        subprocess.check_call(["sh", "-c", cmd])
++
++    def load_db_entry(dbname, pattern):
++        if not isinstance(pattern, basestring):
++            output = subprocess.check_output([binpath("xdbkeys"), dbname + ".xdb"])
++            entries = output.splitlines()
++            matches = [f for f in entries if re.search(pattern, f)]
++            if len(matches) == 0:
++                raise Exception("entry not found")
++            if len(matches) > 1:
++                raise Exception("multiple entries found")
++            pattern = matches[0]
++
++        output = subprocess.check_output([binpath("xdbfind"), "-json", dbname + ".xdb", pattern])
++        return json.loads(output)
++
++    def computeGCTypes():
++        file("defaults.py", "w").write('''\
++analysis_scriptdir = '{testdir}'
++sixgill_bin = '{bindir}'
++'''.format(testdir=testdir, bindir=cfg['SIXGILL_BIN']))
++        cmd = [
++            os.path.join(testdir, "analyze.py"),
++            "gcTypes", "--upto", "gcTypes",
++            "--source=%s" % indir,
++            "--objdir=%s" % outdir,
++            "--js=%s" % cfg['JS_BIN'],
++        ]
++        print("Running " + " ".join(cmd))
++        output = subprocess.check_call(cmd)
++
++    def loadGCTypes():
++        gctypes = {'GCThings': [], 'GCPointers': []}
++        for line in file(os.path.join(outdir, "gcTypes.txt")):
++            m = re.match(r'^(GC\w+): (.*)', line)
++            if m:
++                gctypes[m.group(1) + 's'].append(m.group(2))
++        return gctypes
++
++    def process_body(body):
++        return Body(body)
++
++    def process_bodies(bodies):
++        return [ process_body(b) for b in bodies ]
++
++    def equal(got, expected):
++        if got != expected:
++            print("Got '%s', expected '%s'" % (got, expected))
+ 
+     os.chdir(outdir)
+     subprocess.call(["sh", "-c", "rm *.xdb"])
+-    execfile(os.path.join(indir, "test.py"), {'test': test, 'equal': equal})
++    execfile(os.path.join(indir, "test.py"))
+     print("TEST-PASSED: %s" % name)
+diff --git a/js/src/devtools/rootAnalysis/utility.js b/js/src/devtools/rootAnalysis/utility.js
+--- a/js/src/devtools/rootAnalysis/utility.js
++++ b/js/src/devtools/rootAnalysis/utility.js
+@@ -1,25 +1,16 @@
+ /* -*- indent-tabs-mode: nil; js-indent-level: 4 -*- */
+ 
+ "use strict";
+ 
+ // gcc appends this to mangled function names for "not in charge"
+ // constructors/destructors.
+ var internalMarker = " *INTERNAL* ";
+ 
+-if (! Set.prototype.hasOwnProperty("update")) {
+-    Object.defineProperty(Set.prototype, "update", {
+-        value: function (collection) {
+-            for (let elt of collection)
+-                this.add(elt);
+-        }
+-    });
+-}
+-
+ function assert(x, msg)
+ {
+     if (x)
+         return;
+     debugger;
+     if (msg)
+         throw "assertion failed: " + msg + "\n" + (Error().stack);
+     else
+@@ -186,26 +177,8 @@ function* readFileLines_gen(filename)
+     if (fp.isNull())
+         throw "Unable to open '" + filename + "'"
+ 
+     while (libc.getline(linebuf.address(), bufsize.address(), fp) > 0)
+         yield linebuf.readString();
+     libc.fclose(fp);
+     libc.free(ctypes.void_t.ptr(linebuf));
+ }
+-
+-function addToKeyedList(collection, key, entry)
+-{
+-    if (!(key in collection))
+-        collection[key] = [];
+-    collection[key].push(entry);
+-}
+-
+-function loadTypeInfo(filename)
+-{
+-    var info = {};
+-    for (var line of readFileLines_gen(filename)) {
+-        line = line.replace(/\n/, "");
+-        let [property, name] = line.split("$$");
+-        addToKeyedList(info, property, name);
+-    }
+-    return info;
+-}
+diff --git a/js/src/jsapi-tests/testGCStoreBufferRemoval.cpp b/js/src/jsapi-tests/testGCStoreBufferRemoval.cpp
+--- a/js/src/jsapi-tests/testGCStoreBufferRemoval.cpp
++++ b/js/src/jsapi-tests/testGCStoreBufferRemoval.cpp
+@@ -11,17 +11,17 @@
+ using namespace JS;
+ using namespace js;
+ 
+ struct AutoIgnoreRootingHazards {
+     // Force a nontrivial destructor so the compiler sees the whole RAII scope
+     static volatile int depth;
+     AutoIgnoreRootingHazards() { depth++; }
+     ~AutoIgnoreRootingHazards() { depth--; }
+-} JS_HAZ_GC_SUPPRESSED;
++};
+ volatile int AutoIgnoreRootingHazards::depth = 0;
+ 
+ BEGIN_TEST(testGCStoreBufferRemoval)
+ {
+     // Sanity check - objects start in the nursery and then become tenured.
+     JS_GC(cx->runtime());
+     JS::RootedObject obj(cx, NurseryObject());
+     CHECK(js::gc::IsInsideNursery(obj.get()));
+diff --git a/js/src/jsgc.h b/js/src/jsgc.h
+--- a/js/src/jsgc.h
++++ b/js/src/jsgc.h
+@@ -1243,17 +1243,17 @@ MaybeVerifyBarriers(JSContext* cx, bool 
+ #endif
+ 
+ /*
+  * Instances of this class set the |JSRuntime::suppressGC| flag for the duration
+  * that they are live. Use of this class is highly discouraged. Please carefully
+  * read the comment in vm/Runtime.h above |suppressGC| and take all appropriate
+  * precautions before instantiating this class.
+  */
+-class MOZ_RAII JS_HAZ_GC_SUPPRESSED AutoSuppressGC
++class MOZ_RAII AutoSuppressGC
+ {
+     int32_t& suppressGC_;
+ 
+   public:
+     explicit AutoSuppressGC(ExclusiveContext* cx);
+     explicit AutoSuppressGC(JSCompartment* comp);
+     explicit AutoSuppressGC(JSRuntime* rt);
+ 
+diff --git a/js/src/shell/js.cpp b/js/src/shell/js.cpp
+--- a/js/src/shell/js.cpp
++++ b/js/src/shell/js.cpp
+@@ -306,17 +306,17 @@ ShellRuntime::ShellRuntime(JSRuntime* rt
+     lastWarningEnabled(false),
+     lastWarning(rt, NullValue()),
+     watchdogLock(nullptr),
+     watchdogWakeup(nullptr),
+     watchdogThread(nullptr),
+     watchdogHasTimeout(false),
+     watchdogTimeout(0),
+     sleepWakeup(nullptr),
+-    exitCode(EXIT_SUCCESS),
++    exitCode(0),
+     quitting(false),
+     gotError(false)
+ {}
+ 
+ static ShellRuntime*
+ GetShellRuntime(JSRuntime *rt)
+ {
+     ShellRuntime* sr = static_cast<ShellRuntime*>(JS_GetRuntimePrivate(rt));
+@@ -452,20 +452,18 @@ ShellInterruptCallback(JSContext* cx)
+         if (rval.isBoolean())
+             result = rval.toBoolean();
+         else
+             result = false;
+     } else {
+         result = false;
+     }
+ 
+-    if (!result && sr->exitCode == 0) {
+-        sr->quitting = true;
++    if (!result && sr->exitCode == 0)
+         sr->exitCode = EXITCODE_TIMEOUT;
+-    }
+ 
+     return result;
+ }
+ 
+ /*
+  * Some UTF-8 files, notably those written using Notepad, have a Unicode
+  * Byte-Order-Mark (BOM) as their first character. This is useless (byte-order
+  * is meaningless for UTF-8) but causes a syntax error unless we skip it.
+@@ -6706,48 +6704,48 @@ ProcessArgs(JSContext* cx, OptionParser*
+                 return sr->exitCode;
+             filePaths.popFront();
+         } else if (ccArgno < fpArgno && ccArgno < mpArgno) {
+             const char* code = codeChunks.front();
+             RootedValue rval(cx);
+             JS::CompileOptions opts(cx);
+             opts.setFileAndLine("-e", 1);
+             if (!JS::Evaluate(cx, opts, code, strlen(code), &rval))
+-                return sr->quitting ? sr->exitCode : EXITCODE_RUNTIME_ERROR;
++                return sr->exitCode ? sr->exitCode : EXITCODE_RUNTIME_ERROR;
+             codeChunks.popFront();
+             if (sr->quitting)
+                 break;
+         } else {
+             MOZ_ASSERT(mpArgno < fpArgno && mpArgno < ccArgno);
+             char* path = modulePaths.front();
+             Process(cx, path, false, FileModule);
+             if (sr->exitCode)
+                 return sr->exitCode;
+             modulePaths.popFront();
+         }
+     }
+ 
+     if (sr->quitting)
+-        return sr->exitCode;
++        return sr->exitCode ? sr->exitCode : EXIT_SUCCESS;
+ 
+     /* The |script| argument is processed after all options. */
+     if (const char* path = op->getStringArg("script")) {
+         Process(cx, path, false);
+         if (sr->exitCode)
+             return sr->exitCode;
+     }
+ 
+ #ifdef SPIDERMONKEY_PROMISE
+     DrainJobQueue(cx);
+ #endif // SPIDERMONKEY_PROMISE
+ 
+     if (op->getBoolOption('i'))
+         Process(cx, nullptr, true);
+ 
+-    return sr->exitCode;
++    return sr->exitCode ? sr->exitCode : EXIT_SUCCESS;
+ }
+ 
+ static bool
+ SetRuntimeOptions(JSRuntime* rt, const OptionParser& op)
+ {
+     enableBaseline = !op.getBoolOption("no-baseline");
+     enableIon = !op.getBoolOption("no-ion");
+     enableAsmJS = !op.getBoolOption("no-asmjs");
+diff --git a/testing/taskcluster/scripts/builder/install-packages.sh b/testing/taskcluster/scripts/builder/install-packages.sh
+--- a/testing/taskcluster/scripts/builder/install-packages.sh
++++ b/testing/taskcluster/scripts/builder/install-packages.sh
+@@ -7,9 +7,11 @@ test -n "$TOOLTOOL_MANIFEST"
+ test -n "$TOOLTOOL_REPO"
+ test -n "$TOOLTOOL_REV"
+ 
+ tc-vcs checkout $gecko_dir/tooltool $TOOLTOOL_REPO $TOOLTOOL_REPO $TOOLTOOL_REV
+ 
+ (cd $gecko_dir; python $gecko_dir/tooltool/tooltool.py --url https://api.pub.build.mozilla.org/tooltool/ -m $gecko_dir/$TOOLTOOL_MANIFEST fetch -c $TOOLTOOL_CACHE)
+ 
+ # Another terrible hack..
+-(ls $gecko_dir/gcc/bin/gcc && ln -s $gecko_dir/gcc/bin/gcc $gecko_dir/gcc/bin/cc)
++if [ -x $gecko_dir/gcc/bin/gcc ]; then
++    [ -x $gecko_dir/gcc/bin/cc ] || ln -s $gecko_dir/gcc/bin/gcc $gecko_dir/gcc/bin/cc
++fi

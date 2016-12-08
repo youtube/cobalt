@@ -116,7 +116,7 @@ bool LocalizedStrings::LoadStrings(const std::string& language) {
     return false;
   }
   SB_DCHECK(file_contents.length() > 0);
-  SB_DCHECK(file_contents.back() == '\n');
+  SB_DCHECK(file_contents[file_contents.length() - 1] == '\n');
 
   // Each line of the file corresponds to one message (key/value).
   size_t pos = 0;

@@ -1,0 +1,32 @@
+[api]
+
+api_root: http://dev-master1.srv.releng.scl3.mozilla.com:5000
+username: user
+password: password
+
+[release-runner]
+notify_from: Release Eng <DONOTreleaseME@mozilla.com>
+notify_to: Release Duty <you@example.com>
+notify_to_release: Release Drivers <the-mailing-list@mozilla.org>
+smtp_server: localhost
+hg_host: hg.mozilla.org
+hg_username: ffxbld
+hg_ssh_key: ~/.ssh/ffxbld_rsa
+buildbot_configs: https://hg.mozilla.org/build/buildbot-configs
+buildbot_configs_branch: production
+buildbotcustom: https://hg.mozilla.org/build/buildbotcustom
+buildbotcustom_branch: production-0.8
+tools: https://hg.mozilla.org/build/tools
+tools_branch: default
+masters_json: https://hg.mozilla.org/build/tools/raw-file/default/buildfarm/maintenance/production-masters.json
+sendchange_master: localhost:9001
+staging: false
+verbose: true
+sleeptime: 30
+ssh_username: cltbld
+ssh_key: /home/cltbld/.ssh/release-runner
+docker_worker_key: /home/cltbld/docker-worker-public.pem
+
+[symlinks]
+production_config.py: {buildbot_configs}/mozilla/localconfig.py
+thunderbird_production_config.py: {buildbot_configs}/mozilla/thunderbird_localconfig.py
