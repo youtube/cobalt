@@ -25,6 +25,7 @@
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
@@ -67,7 +68,8 @@ bool HardwareResourceProvider::PixelFormatSupported(
 
 bool HardwareResourceProvider::AlphaFormatSupported(
     render_tree::AlphaFormat alpha_format) {
-  return alpha_format == render_tree::kAlphaFormatPremultiplied;
+  return alpha_format == render_tree::kAlphaFormatPremultiplied ||
+         alpha_format == render_tree::kAlphaFormatOpaque;
 }
 
 scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
@@ -95,7 +97,8 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
   const render_tree::ImageDataDescriptor& descriptor =
       skia_hardware_source_data->GetDescriptor();
 
-  DCHECK_EQ(render_tree::kAlphaFormatPremultiplied, descriptor.alpha_format);
+  DCHECK(descriptor.alpha_format == render_tree::kAlphaFormatPremultiplied ||
+         descriptor.alpha_format == render_tree::kAlphaFormatOpaque);
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   Image::DCheckForPremultipliedAlpha(descriptor.size, descriptor.pitch_in_bytes,
                                      descriptor.pixel_format,
@@ -163,6 +166,24 @@ scoped_refptr<render_tree::Typeface> HardwareResourceProvider::GetLocalTypeface(
   SkAutoTUnref<SkTypeface> typeface(font_manager_->matchFamilyStyle(
       font_family_name, CobaltFontStyleToSkFontStyle(font_style)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
+}
+
+scoped_refptr<render_tree::Typeface>
+HardwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
+    const std::string& font_face_name) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareResourceProvider::GetLocalTypefaceIfAvailable()");
+
+  SkFontMgr_Cobalt* font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager_.get());
+
+  SkTypeface* typeface = font_manager->matchFaceName(font_face_name);
+  if (typeface != NULL) {
+    SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
+    return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
+  }
+
+  return NULL;
 }
 
 scoped_refptr<render_tree::Typeface>

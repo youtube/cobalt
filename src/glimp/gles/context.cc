@@ -21,6 +21,7 @@
 #include "glimp/egl/error.h"
 #include "glimp/egl/surface.h"
 #include "glimp/gles/blend_state.h"
+#include "glimp/gles/cull_face_state.h"
 #include "glimp/gles/draw_mode.h"
 #include "glimp/gles/index_data_type.h"
 #include "glimp/gles/pixel_format.h"
@@ -299,9 +300,13 @@ void Context::Enable(GLenum cap) {
       draw_state_.scissor.enabled = true;
       draw_state_dirty_flags_.scissor_dirty = true;
       break;
+    case GL_CULL_FACE:
+      draw_state_.cull_face_state.enabled = true;
+      draw_state_.cull_face_state.mode = CullFaceState::kBack;
+      draw_state_dirty_flags_.cull_face_dirty = true;
+      break;
     case GL_DEPTH_TEST:
     case GL_DITHER:
-    case GL_CULL_FACE:
     case GL_STENCIL_TEST:
     case GL_POLYGON_OFFSET_FILL:
     case GL_SAMPLE_ALPHA_TO_COVERAGE:
@@ -323,9 +328,12 @@ void Context::Disable(GLenum cap) {
       draw_state_.scissor.enabled = false;
       draw_state_dirty_flags_.scissor_dirty = true;
       break;
+    case GL_CULL_FACE:
+      draw_state_.cull_face_state.enabled = false;
+      draw_state_dirty_flags_.cull_face_dirty = true;
+      break;
     case GL_DEPTH_TEST:
     case GL_DITHER:
-    case GL_CULL_FACE:
     case GL_STENCIL_TEST:
     case GL_POLYGON_OFFSET_FILL:
     case GL_SAMPLE_ALPHA_TO_COVERAGE:
@@ -424,6 +432,31 @@ void Context::BlendFunc(GLenum sfactor, GLenum dfactor) {
   draw_state_.blend_state.src_factor = src_factor;
   draw_state_.blend_state.dst_factor = dst_factor;
   draw_state_dirty_flags_.blend_state_dirty = true;
+}
+
+namespace {
+CullFaceState::Mode CullFaceModeFromEnum(GLenum mode) {
+  switch (mode) {
+    case GL_FRONT:
+      return CullFaceState::kFront;
+    case GL_BACK:
+      return CullFaceState::kBack;
+    case GL_FRONT_AND_BACK:
+      return CullFaceState::kFrontAndBack;
+    default:
+      return CullFaceState::kModeInvalid;
+  }
+}
+}  // namespace
+
+void Context::CullFace(GLenum mode) {
+  CullFaceState::Mode cull_face_mode = CullFaceModeFromEnum(mode);
+  if (cull_face_mode == CullFaceState::kModeInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+  draw_state_.cull_face_state.mode = cull_face_mode;
+  draw_state_dirty_flags_.cull_face_dirty = true;
 }
 
 GLuint Context::CreateProgram() {
@@ -661,10 +694,18 @@ void Context::DeleteBuffers(GLsizei n, const GLuint* buffers) {
       buffer_object->Unmap();
     }
 
-    // If a bound buffer is deleted, set the bound buffer to NULL.
-    if (buffer_object->target_valid()) {
-      *GetBoundBufferForTarget(buffer_object->target()) =
-          nb::scoped_refptr<Buffer>();
+    // If a bound buffer is deleted, set the bound buffer to NULL. The buffer
+    // may be bound to any target, therefore we must scan them all.
+    const GLenum buffer_targets[3] = {GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER,
+                                      GL_PIXEL_UNPACK_BUFFER};
+    for (int target_index = 0; target_index < SB_ARRAY_SIZE(buffer_targets);
+         ++target_index) {
+      GLenum target = buffer_targets[target_index];
+      nb::scoped_refptr<Buffer>* bound_buffer = GetBoundBufferForTarget(target);
+      SB_DCHECK(bound_buffer);
+      if ((*bound_buffer).get() == buffer_object.get()) {
+        *bound_buffer = NULL;
+      }
     }
   }
 }
@@ -697,25 +738,20 @@ void Context::BindBuffer(GLenum target, GLuint buffer) {
     return;
   }
 
-  if (buffer == 0) {
-    // Unbind the current buffer if 0 is passed in for buffer.
-    *GetBoundBufferForTarget(target) = NULL;
-    return;
+  nb::scoped_refptr<Buffer>* bound_buffer = GetBoundBufferForTarget(target);
+  SB_DCHECK(bound_buffer);
+  nb::scoped_refptr<Buffer> buffer_object;
+  if (buffer != 0) {
+    buffer_object = resource_manager_->GetBuffer(buffer);
+    if (!buffer_object) {
+      // The buffer to be bound is invalid.
+      SB_NOTIMPLEMENTED()
+          << "Creating buffers with glBindBuffer () not supported";
+      return;
+    }
   }
 
-  nb::scoped_refptr<Buffer> buffer_object =
-      resource_manager_->GetBuffer(buffer);
-
-  if (!buffer_object) {
-    // According to the specification, no error is generated if the buffer is
-    // invalid.
-    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindBuffer.xml
-    SB_DLOG(WARNING) << "Could not glBindBuffer() to invalid buffer.";
-    return;
-  }
-
-  buffer_object->SetTarget(target);
-  *GetBoundBufferForTarget(target) = buffer_object;
+  *bound_buffer = buffer_object;
 }
 
 void Context::BufferData(GLenum target,
@@ -961,11 +997,12 @@ nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
   return NULL;
 }
 
-nb::scoped_refptr<Texture>* Context::GetBoundTextureForTarget(GLenum target) {
+nb::scoped_refptr<Texture>* Context::GetBoundTextureForTarget(GLenum target,
+                                                              GLenum texture) {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (target) {
     case GL_TEXTURE_2D:
-      return &(texture_units_[active_texture_ - GL_TEXTURE0]);
+      return &(texture_units_[texture - GL_TEXTURE0]);
     case GL_TEXTURE_CUBE_MAP:
       SB_NOTREACHED() << "Currently unimplemented in glimp.";
       return NULL;
@@ -1025,7 +1062,6 @@ void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
       // Silently ignore 0 textures.
       continue;
     }
-
     nb::scoped_refptr<Texture> texture_object =
         resource_manager_->DeregisterTexture(textures[i]);
 
@@ -1036,10 +1072,18 @@ void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
       return;
     }
 
-    // If a bound texture is deleted, set the bound texture to NULL.
-    if (texture_object->target_valid()) {
-      *GetBoundTextureForTarget(texture_object->target()) = NULL;
-      enabled_textures_dirty_ = true;
+    // If a bound texture is deleted, set the bound texture to NULL. The texture
+    // may be bound to multiple texture units, including texture units that are
+    // not active, therefore we must scan them all.
+    for (int texture_index = 0;
+         texture_index < impl_->GetMaxFragmentTextureUnits(); ++texture_index) {
+      GLenum texture_unit = texture_index + GL_TEXTURE0;
+      nb::scoped_refptr<Texture>* bound_texture =
+          GetBoundTextureForTarget(GL_TEXTURE_2D, texture_unit);
+      if ((*bound_texture).get() == texture_object.get()) {
+        enabled_textures_dirty_ = true;
+        *bound_texture = NULL;
+      }
     }
   }
 }
@@ -1062,25 +1106,26 @@ void Context::BindTexture(GLenum target, GLuint texture) {
     return;
   }
 
-  if (texture == 0) {
-    // Unbind the current texture if 0 is passed in for texture.
-    *GetBoundTextureForTarget(target) = NULL;
-    enabled_textures_dirty_ = true;
-    return;
+  nb::scoped_refptr<Texture>* bound_texture =
+      GetBoundTextureForTarget(target, active_texture_);
+  SB_DCHECK(bound_texture);
+  nb::scoped_refptr<Texture> texture_object;
+  if (texture != 0) {
+    texture_object = resource_manager_->GetTexture(texture);
+    if (!texture_object) {
+      // The texture to be bound is invalid.
+      SB_NOTIMPLEMENTED()
+          << "Creating textures with glBindTexture() not supported";
+      return;
+    }
   }
 
-  nb::scoped_refptr<Texture> texture_object =
-      resource_manager_->GetTexture(texture);
-
-  if (!texture_object) {
-    // According to the specification, no error is generated if the texture is
-    // invalid.
-    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindTexture.xml
+  if ((*bound_texture).get() == texture_object.get()) {
+    // The new texture being bound is the same as the already the bound
+    // texture.
     return;
   }
-
-  texture_object->SetTarget(target);
-  *GetBoundTextureForTarget(target) = texture_object;
+  *bound_texture = texture_object;
   enabled_textures_dirty_ = true;
 }
 
@@ -1131,8 +1176,8 @@ Sampler::WrapMode WrapModeFromGLEnum(GLenum wrap_mode) {
 
 void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
-  Sampler* active_sampler =
-      (*GetBoundTextureForTarget(target))->sampler_parameters();
+  Sampler* active_sampler = (*GetBoundTextureForTarget(target, active_texture_))
+                                ->sampler_parameters();
 
   switch (pname) {
     case GL_TEXTURE_MAG_FILTER: {
@@ -1264,7 +1309,8 @@ void Context::TexImage2D(GLenum target,
   SB_DCHECK(pixel_format != kPixelFormatInvalid)
       << "Pixel format not supported by glimp.";
 
-  nb::scoped_refptr<Texture> texture_object = *GetBoundTextureForTarget(target);
+  nb::scoped_refptr<Texture> texture_object =
+      *GetBoundTextureForTarget(target, active_texture_);
   if (!texture_object) {
     // According to the specification, no error is generated if no texture
     // is bound.
@@ -1332,7 +1378,8 @@ void Context::TexSubImage2D(GLenum target,
   SB_DCHECK(pixel_format != kPixelFormatInvalid)
       << "Pixel format not supported by glimp.";
 
-  nb::scoped_refptr<Texture> texture_object = *GetBoundTextureForTarget(target);
+  nb::scoped_refptr<Texture> texture_object =
+      *GetBoundTextureForTarget(target, active_texture_);
   if (!texture_object) {
     // According to the specification, no error is generated if no texture
     // is bound.
@@ -2083,8 +2130,14 @@ void Context::Finish() {
 
 void Context::SwapBuffers() {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
-  Flush();
-  impl_->SwapBuffers(default_draw_framebuffer_->color_attachment_surface());
+  egl::Surface* surface = default_draw_framebuffer_->color_attachment_surface();
+  // If surface is a pixel buffer or a pixmap, eglSwapBuffers has no effect, and
+  // no error is generated.
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglSwapBuffers.xhtml
+  if (surface->impl()->IsWindowSurface()) {
+    Flush();
+    impl_->SwapBuffers(surface);
+  }
 }
 
 bool Context::BindTextureToEGLSurface(egl::Surface* surface) {
@@ -2092,7 +2145,7 @@ bool Context::BindTextureToEGLSurface(egl::Surface* surface) {
   SB_DCHECK(surface->GetTextureTarget() == EGL_TEXTURE_2D);
 
   const nb::scoped_refptr<Texture>& current_texture =
-      *GetBoundTextureForTarget(GL_TEXTURE_2D);
+      *GetBoundTextureForTarget(GL_TEXTURE_2D, active_texture_);
 
   if (!current_texture) {
     SB_DLOG(WARNING) << "No texture is currently bound during call to "

@@ -600,7 +600,7 @@ TEST(NetUtilTest, MAYBE_FileURLConversion) {
          "%E9%A1%B5.doc"},
     {L"D:\\plane1\\\xD835\xDC00\xD835\xDC01.txt",  // Math alphabet "AB"
      "file:///D:/plane1/%F0%9D%90%80%F0%9D%90%81.txt"},
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
     {L"/foo/bar.txt", "file:///foo/bar.txt"},
     {L"/foo/BAR.txt", "file:///foo/BAR.txt"},
     {L"/C:/foo/bar.txt", "file:///C:/foo/bar.txt"},
@@ -647,7 +647,7 @@ TEST(NetUtilTest, MAYBE_FileURLConversion) {
     {L"\\\\foo\\bar.txt", "file:/foo/bar.txt"},
     {L"\\\\foo\\bar.txt", "file://foo\\bar.txt"},
     {L"C:\\foo\\bar.txt", "file:\\\\\\c:/foo/bar.txt"},
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
     {L"/c:/foo/bar.txt", "file:/c:/foo/bar.txt"},
     {L"/c:/foo/bar.txt", "file:///c:/foo/bar.txt"},
     {L"/foo/bar.txt", "file:/foo/bar.txt"},

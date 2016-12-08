@@ -18,17 +18,23 @@
 #define COBALT_SPEECH_SPEECH_RECOGNIZER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/threading/thread.h"
-#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/network/network_module.h"
+#include "cobalt/speech/audio_encoder_flac.h"
 #include "cobalt/speech/speech_recognition_config.h"
+#include "cobalt/speech/speech_recognition_event.h"
+#include "content/browser/speech/chunked_byte_buffer.h"
+#include "media/base/audio_bus.h"
+#include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 
 namespace cobalt {
 namespace speech {
 
-// Interacts with Google speech recogniton service, and then parses recognition
-// results and forms speech recogniton event.
+// Interacts with Google speech recognition service, and then parses recognition
+// results and forms speech recognition event.
 // It creates an upstream fetcher to upload the encoded audio and a downstream
 // fetcher to fetch the speech recognition result. The fetched speech
 // recognition result is parsed by JSON parser and a SpeechRecognitionEvent,
@@ -36,18 +42,27 @@ namespace speech {
 // manager.
 class SpeechRecognizer : public net::URLFetcherDelegate {
  public:
-  explicit SpeechRecognizer(loader::FetcherFactory* fetcher_factory);
+  typedef ::media::ShellAudioBus ShellAudioBus;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
+  typedef SpeechRecognitionResultList::SpeechRecognitionResults
+      SpeechRecognitionResults;
+  typedef base::Callback<scoped_ptr<net::URLFetcher>(
+      const GURL&, net::URLFetcher::RequestType, net::URLFetcherDelegate*)>
+      URLFetcherCreator;
+
+  SpeechRecognizer(network::NetworkModule* network_module,
+                   const EventCallback& event_callback,
+                   const URLFetcherCreator& fetcher_creator);
   ~SpeechRecognizer() OVERRIDE;
 
   // Multiple calls to Start/Stop are allowed, the implementation should take
   // care of multiple calls.
   // Start speech recognizer.
-  void Start(const SpeechRecognitionConfig& config);
+  void Start(const SpeechRecognitionConfig& config, int sample_rate);
   // Stop speech recognizer.
   void Stop();
   // An encoded audio data is available and ready to be recognized.
-  void RecognizeAudio(scoped_array<uint8> encoded_audio_data, size_t size,
-                      bool is_last_chunk);
+  void RecognizeAudio(scoped_ptr<ShellAudioBus> audio_bus, bool is_last_chunk);
 
   // net::URLFetcherDelegate interface
   void OnURLFetchDownloadData(const net::URLFetcher* source,
@@ -58,18 +73,33 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
                                 int64 /*current*/, int64 /*total*/) OVERRIDE {}
 
  private:
-  void StartInternal(const SpeechRecognitionConfig& config);
+  void StartInternal(const SpeechRecognitionConfig& config, int sample_rate);
   void StopInternal();
-
-  void UploadAudioDataInternal(scoped_array<uint8> encoded_audio_data,
-                               size_t size, bool is_last_chunk);
+  void UploadAudioDataInternal(scoped_ptr<ShellAudioBus> audio_bus,
+                               bool is_last_chunk);
+  void ProcessAndFireSuccessEvent(const SpeechRecognitionResults& new_results);
 
   // This is used for creating fetchers.
-  loader::FetcherFactory* fetcher_factory_;
-  // Speech recognizer is operating in its own thread.
-  base::Thread thread_;
+  network::NetworkModule* network_module_;
   // Track the start/stop state of speech recognizer.
   bool started_;
+
+  // Encoder for encoding raw audio data to flac codec.
+  scoped_ptr<AudioEncoderFlac> encoder_;
+  // Fetcher for posting the audio data.
+  scoped_ptr<net::URLFetcher> upstream_fetcher_;
+  // Fetcher for receiving the streaming results.
+  scoped_ptr<net::URLFetcher> downstream_fetcher_;
+  // Used to send speech recognition event.
+  const EventCallback event_callback_;
+  // Used to create url fetcher.
+  const URLFetcherCreator fetcher_creator_;
+  // Used for processing proto buffer data.
+  content::ChunkedByteBuffer chunked_byte_buffer_;
+  // Used for accumulating final results.
+  SpeechRecognitionResults final_results_;
+  // Speech recognizer is operating in its own thread.
+  base::Thread thread_;
 };
 
 }  // namespace speech

@@ -15,6 +15,7 @@
  #}
 {% from 'macros.cc.template' import add_extra_arguments %}
 {% from 'macros.cc.template' import call_cobalt_function %}
+{% from 'macros.cc.template' import check_if_object_implements_interface with context %}
 {% from 'macros.cc.template' import constructor_implementation with context %}
 {% from 'macros.cc.template' import function_implementation with context %}
 {% from 'macros.cc.template' import get_impl_class_instance %}
@@ -458,6 +459,7 @@ JSBool staticget_{{attribute.idl_name}}(
 JSBool get_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+{{ check_if_object_implements_interface() }}
 {{ nonstatic_function_prologue(impl_class) }}
 {% endif %}
 {{ call_cobalt_function(impl_class, attribute.type,
@@ -480,6 +482,7 @@ JSBool staticset_{{attribute.idl_name}}(
 JSBool set_{{attribute.idl_name}}(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
+{{ check_if_object_implements_interface() }}
 {{ nonstatic_function_prologue(impl_class)}}
 {% endif %} {#- attribute.is_static #}
 {{ set_attribute_implementation(attribute, impl_class) -}}

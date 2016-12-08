@@ -38,6 +38,8 @@ const size_t kVideoFrameAlignment = SB_MEDIA_VIDEO_FRAME_ALIGNMENT;
 const size_t kGPUMemoryBufferBudget = SB_MEDIA_GPU_BUFFER_BUDGET;
 const size_t kMainMemoryBufferBudget = SB_MEDIA_MAIN_BUFFER_BUDGET;
 
+const size_t kSmallAllocationThreshold = 768U;
+
 }  // namespace
 
 ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
@@ -58,7 +60,7 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
     gpu_memory_pool_.reset(new nb::MemoryPool(
         gpu_memory_buffer_space_->GetMemory(),
         gpu_memory_buffer_space_->GetSizeInBytes(), true, /* thread_safe */
-        true /* verify_full_capacity */));
+        true /* verify_full_capacity */, kSmallAllocationThreshold));
   }
 
   DCHECK_LE(0, kMainMemoryBufferBudget > 0);
@@ -68,7 +70,8 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
   main_memory_pool_.reset(new nb::MemoryPool(main_memory_buffer_space_.get(),
                                              kMainMemoryBufferBudget,
                                              true, /* thread_safe */
-                                             true /* verify_full_capacity */));
+                                             true, /* verify_full_capacity */
+                                             kSmallAllocationThreshold));
 
   ShellBufferFactory::Initialize();
   ShellAudioStreamer::Initialize();

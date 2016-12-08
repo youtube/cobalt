@@ -106,7 +106,7 @@ void StubAudioSink::AudioThreadFunc() {
                                &is_playing, &is_eos_reached, context_);
     if (is_playing) {
       int frames_to_consume =
-          std::min(kMaxFramesToConsumePerRequest, frames_in_buffer / 2);
+          std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
       SbThreadSleep(frames_to_consume * kSbTimeSecond / sampling_frequency_hz_);
       consume_frame_func_(frames_to_consume, context_);

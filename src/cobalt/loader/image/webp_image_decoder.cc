@@ -16,6 +16,7 @@
 
 #include "cobalt/loader/image/webp_image_decoder.h"
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 
 namespace cobalt {
@@ -25,6 +26,7 @@ namespace image {
 WEBPImageDecoder::WEBPImageDecoder(
     render_tree::ResourceProvider* resource_provider)
     : ImageDataDecoder(resource_provider), internal_decoder_(NULL) {
+  TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
   WebPInitDecoderConfig(&config_);
   // Skip the in-loop filtering.
@@ -37,10 +39,16 @@ WEBPImageDecoder::WEBPImageDecoder(
   config_.options.no_enhancement = 1;
 }
 
-WEBPImageDecoder::~WEBPImageDecoder() { DeleteInternalDecoder(); }
+WEBPImageDecoder::~WEBPImageDecoder() {
+  TRACE_EVENT0("cobalt::loader::image",
+               "WEBPImageDecoder::~WEBPImageDecoder()");
+  DeleteInternalDecoder();
+}
 
 size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "WEBPImageDecoder::DecodeChunkInternal()");
   const uint8* next_input_byte = data;
   size_t bytes_in_buffer = input_byte;
 
@@ -81,6 +89,7 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
 
 bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
                                   bool* has_alpha) {
+  TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::ReadHeader()");
   // Retrieve features from the bitstream. The *features structure is filled
   // with information gathered from the bitstream.
   // Returns VP8_STATUS_OK when the features are successfully retrieved. Returns
@@ -92,7 +101,7 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
     int height = config_.input.height;
     *has_alpha = !!config_.input.has_alpha;
 
-    AllocateImageData(math::Size(width, height));
+    AllocateImageData(math::Size(width, height), *has_alpha);
     return true;
   } else if (status == VP8_STATUS_NOT_ENOUGH_DATA) {
     // Data is not enough for decoding the header.
@@ -105,6 +114,8 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
 }
 
 bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "WEBPImageDecoder::CreateInternalDecoder()");
   config_.output.colorspace = has_alpha ? MODE_rgbA : MODE_RGBA;
   config_.output.u.RGBA.stride = image_data()->GetDescriptor().pitch_in_bytes;
   config_.output.u.RGBA.size =
@@ -127,6 +138,8 @@ bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
 }
 
 void WEBPImageDecoder::DeleteInternalDecoder() {
+  TRACE_EVENT0("cobalt::loader::image",
+               "WEBPImageDecoder::DeleteInternalDecoder()");
   if (internal_decoder_) {
     // Deletes the WebPIDecoder object and associated memory. Must always be
     // called if WebPIDecode succeeded.

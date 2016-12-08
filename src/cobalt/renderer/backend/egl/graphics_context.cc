@@ -211,6 +211,7 @@ void GraphicsContextEGL::SetupBlitObjects() {
 
 GraphicsContextEGL::~GraphicsContextEGL() {
   MakeCurrent();
+  GL_CALL(glFinish());
   GL_CALL(glDeleteBuffers(1, &blit_vertex_buffer_));
   GL_CALL(glDeleteProgram(blit_program_));
   GL_CALL(glDeleteShader(blit_fragment_shader_));
@@ -348,6 +349,11 @@ scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
   }
 
   return pixels.Pass();
+}
+
+void GraphicsContextEGL::Finish() {
+  ScopedMakeCurrent scoped_current_context(this);
+  GL_CALL(glFinish());
 }
 
 void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,

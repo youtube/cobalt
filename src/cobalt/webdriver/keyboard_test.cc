@@ -31,25 +31,34 @@ namespace cobalt {
 namespace webdriver {
 namespace {
 
-int32 GetKeyCode(const scoped_refptr<dom::KeyboardEvent>& event) {
-  DCHECK(event);
-  return event->key_code();
+int32 GetKeyCode(const dom::KeyboardEvent::Data& event) {
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+            new dom::KeyboardEvent(event));
+  return keyboard_event->key_code();
 }
 
-int32 GetCharCode(const scoped_refptr<dom::KeyboardEvent>& event) {
-  return event->char_code();
+int32 GetCharCode(const dom::KeyboardEvent::Data& event) {
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+            new dom::KeyboardEvent(event));
+  return keyboard_event->char_code();
 }
 
-uint32 GetModifierBitfield(const scoped_refptr<dom::KeyboardEvent>& event) {
-  return event->modifiers();
+uint32 GetModifierBitfield(const dom::KeyboardEvent::Data& event) {
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+            new dom::KeyboardEvent(event));
+  return keyboard_event->modifiers();
 }
 
-std::string GetType(const scoped_refptr<dom::KeyboardEvent>& event) {
-  return event->type().c_str();
+std::string GetType(const dom::KeyboardEvent::Data& event) {
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+            new dom::KeyboardEvent(event));
+  return keyboard_event->type().c_str();
 }
 
-int GetLocation(const scoped_refptr<dom::KeyboardEvent>& event) {
-  return event->location();
+int GetLocation(const dom::KeyboardEvent::Data& event) {
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+            new dom::KeyboardEvent(event));
+  return keyboard_event->location();
 }
 
 class KeyboardTest : public ::testing::Test {

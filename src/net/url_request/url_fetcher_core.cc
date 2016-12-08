@@ -5,6 +5,7 @@
 #include "net/url_request/url_fetcher_core.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/file_util_proxy.h"
 #include "base/logging.h"
 #include "base/single_thread_task_runner.h"
@@ -12,6 +13,7 @@
 #include "base/stl_util.h"
 #include "base/thread_task_runner_handle.h"
 #include "base/tracked_objects.h"
+#include "nb/memory_scope.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -41,6 +43,7 @@ URLFetcherCore::Registry::Registry() {}
 URLFetcherCore::Registry::~Registry() {}
 
 void URLFetcherCore::Registry::AddURLFetcherCore(URLFetcherCore* core) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(!ContainsKey(fetchers_, core));
   fetchers_.insert(core);
 }
@@ -74,6 +77,7 @@ URLFetcherCore::FileWriter::~FileWriter() {
 
 void URLFetcherCore::FileWriter::CreateFileAtPath(
     const FilePath& file_path) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
   DCHECK(file_task_runner_.get());
   base::FileUtilProxy::CreateOrOpen(
@@ -86,6 +90,7 @@ void URLFetcherCore::FileWriter::CreateFileAtPath(
 }
 
 void URLFetcherCore::FileWriter::CreateTempFile() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
   DCHECK(file_task_runner_.get());
   base::FileUtilProxy::CreateTemporary(
@@ -96,6 +101,7 @@ void URLFetcherCore::FileWriter::CreateTempFile() {
 }
 
 void URLFetcherCore::FileWriter::WriteBuffer(int num_bytes) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   // Start writing to the file by setting the initial state
@@ -109,6 +115,7 @@ void URLFetcherCore::FileWriter::WriteBuffer(int num_bytes) {
 void URLFetcherCore::FileWriter::ContinueWrite(
     base::PlatformFileError error_code,
     int bytes_written) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (file_handle_ == base::kInvalidPlatformFileValue) {
@@ -153,6 +160,7 @@ void URLFetcherCore::FileWriter::ContinueWrite(
 }
 
 void URLFetcherCore::FileWriter::DisownFile() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   // Disowning is done by the delegate's OnURLFetchComplete method.
@@ -164,6 +172,7 @@ void URLFetcherCore::FileWriter::DisownFile() {
 }
 
 void URLFetcherCore::FileWriter::CloseFileAndCompleteRequest() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (file_handle_ != base::kInvalidPlatformFileValue) {
@@ -176,6 +185,7 @@ void URLFetcherCore::FileWriter::CloseFileAndCompleteRequest() {
 }
 
 void URLFetcherCore::FileWriter::CloseAndDeleteFile() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (file_handle_ == base::kInvalidPlatformFileValue) {
@@ -192,6 +202,7 @@ void URLFetcherCore::FileWriter::CloseAndDeleteFile() {
 
 void URLFetcherCore::FileWriter::DeleteFile(
     base::PlatformFileError error_code) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
   if (file_path_.empty())
     return;
@@ -208,6 +219,7 @@ void URLFetcherCore::FileWriter::DidCreateFile(
     base::PlatformFileError error_code,
     base::PassPlatformFile file_handle,
     bool created) {
+  TRACK_MEMORY_SCOPE("Network");
   DidCreateFileInternal(file_path, error_code, file_handle);
 }
 
@@ -215,6 +227,7 @@ void URLFetcherCore::FileWriter::DidCreateTempFile(
     base::PlatformFileError error_code,
     base::PassPlatformFile file_handle,
     const FilePath& file_path) {
+  TRACK_MEMORY_SCOPE("Network");
   DidCreateFileInternal(file_path, error_code, file_handle);
 }
 
@@ -222,6 +235,7 @@ void URLFetcherCore::FileWriter::DidCreateFileInternal(
     const FilePath& file_path,
     base::PlatformFileError error_code,
     base::PassPlatformFile file_handle) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (base::PLATFORM_FILE_OK != error_code) {
@@ -244,6 +258,7 @@ void URLFetcherCore::FileWriter::DidCreateFileInternal(
 
 void URLFetcherCore::FileWriter::DidCloseFile(
     base::PlatformFileError error_code) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (base::PLATFORM_FILE_OK != error_code) {
@@ -299,6 +314,7 @@ URLFetcherCore::URLFetcherCore(URLFetcher* fetcher,
 }
 
 void URLFetcherCore::Start() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(delegate_task_runner_);
   DCHECK(request_context_getter_) << "We need an URLRequestContext!";
   if (network_task_runner_) {
@@ -314,6 +330,7 @@ void URLFetcherCore::Start() {
 }
 
 void URLFetcherCore::Stop() {
+  TRACK_MEMORY_SCOPE("Network");
   if (delegate_task_runner_)  // May be NULL in tests.
     DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
@@ -522,6 +539,7 @@ bool URLFetcherCore::GetResponseAsString(
 
 bool URLFetcherCore::GetResponseAsFilePath(bool take_ownership,
                                            FilePath* out_response_path) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   const bool destination_is_file =
       response_destination_ == URLFetcherCore::TEMP_FILE ||
@@ -542,6 +560,7 @@ bool URLFetcherCore::GetResponseAsFilePath(bool take_ownership,
 void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
                                         const GURL& new_url,
                                         bool* defer_redirect) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK_EQ(request, request_.get());
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (stop_on_redirect_) {
@@ -555,6 +574,7 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
 }
 
 void URLFetcherCore::OnResponseStarted(URLRequest* request) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK_EQ(request, request_.get());
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (request_->status().is_success()) {
@@ -592,6 +612,7 @@ void URLFetcherCore::OnCertificateRequested(
 
 void URLFetcherCore::OnReadCompleted(URLRequest* request,
                                      int bytes_read) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(request == request_);
   DCHECK(network_task_runner_->BelongsToCurrentThread());
 #if !defined(COBALT)
@@ -611,6 +632,10 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
     if (!request_->status().is_success() || bytes_read <= 0)
       break;
 
+    if (current_response_bytes_ == 0) {
+      TRACE_EVENT_ASYNC_STEP0("net::url_request", "URLFetcher", this,
+                              "Fetch Content");
+    }
     current_response_bytes_ += bytes_read;
     InformDelegateDownloadDataIfNecessary(bytes_read);
 
@@ -709,7 +734,10 @@ void URLFetcherCore::StartOnIOThread() {
 }
 
 void URLFetcherCore::StartURLRequest() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
+  TRACE_EVENT_ASYNC_STEP0("net::url_request", "URLFetcher", this,
+                          "Waiting For Data");
 
   if (was_cancelled_) {
     // Since StartURLRequest() is posted as a *delayed* task, it may
@@ -801,6 +829,9 @@ void URLFetcherCore::StartURLRequest() {
 }
 
 void URLFetcherCore::StartURLRequestWhenAppropriate() {
+  TRACK_MEMORY_SCOPE("Network");
+  TRACE_EVENT_ASYNC_BEGIN1("net::url_request", "URLFetcher", this, "url",
+                           original_url_.path());
   DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (was_cancelled_)
@@ -832,11 +863,13 @@ void URLFetcherCore::StartURLRequestWhenAppropriate() {
 }
 
 void URLFetcherCore::CancelURLRequest() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (request_.get()) {
     request_->Cancel();
     ReleaseRequest();
+    TRACE_EVENT_ASYNC_END0("net::url_request", "URLFetcher", this);
   }
   // Release the reference to the request context. There could be multiple
   // references to URLFetcher::Core at this point so it may take a while to
@@ -852,6 +885,9 @@ void URLFetcherCore::CancelURLRequest() {
 
 void URLFetcherCore::OnCompletedURLRequest(
     base::TimeDelta backoff_delay) {
+  TRACK_MEMORY_SCOPE("Network");
+  TRACE_EVENT_ASYNC_END1("net::url_request", "URLFetcher", this, "url",
+                         original_url_.path());
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   // Save the status and backoff_delay so that delegates can read it.
@@ -862,12 +898,14 @@ void URLFetcherCore::OnCompletedURLRequest(
 }
 
 void URLFetcherCore::InformDelegateFetchIsComplete() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   if (delegate_)
     delegate_->OnURLFetchComplete(fetcher_);
 }
 
 void URLFetcherCore::NotifyMalformedContent() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (url_throttler_entry_ != NULL) {
     int status_code = response_code_;
@@ -884,6 +922,7 @@ void URLFetcherCore::NotifyMalformedContent() {
 }
 
 void URLFetcherCore::RetryOrCompleteUrlFetch() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   base::TimeDelta backoff_delay;
 
@@ -953,6 +992,7 @@ void URLFetcherCore::ReleaseRequest() {
 }
 
 base::TimeTicks URLFetcherCore::GetBackoffReleaseTime() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (original_url_throttler_entry_) {
@@ -974,6 +1014,7 @@ base::TimeTicks URLFetcherCore::GetBackoffReleaseTime() {
 
 void URLFetcherCore::CompleteAddingUploadDataChunk(
     const std::string& content, bool is_last_chunk) {
+  TRACK_MEMORY_SCOPE("Network");
   if (was_cancelled_) {
     // Since CompleteAddingUploadDataChunk() is posted as a *delayed* task, it
     // may run after the URLFetcher was already stopped.
@@ -991,6 +1032,7 @@ void URLFetcherCore::CompleteAddingUploadDataChunk(
 // Return false if the write is pending, and the next read will
 // be done later.
 bool URLFetcherCore::WriteBuffer(int num_bytes) {
+  TRACK_MEMORY_SCOPE("Network");
   bool write_complete = false;
   switch (response_destination_) {
     case STRING:
@@ -1019,6 +1061,7 @@ bool URLFetcherCore::WriteBuffer(int num_bytes) {
 }
 
 void URLFetcherCore::ReadResponse() {
+  TRACK_MEMORY_SCOPE("Network");
   // Some servers may treat HEAD requests as GET requests.  To free up the
   // network connection as soon as possible, signal that the request has
   // completed immediately, without trying to read any data back (all we care
@@ -1057,6 +1100,7 @@ void URLFetcherCore::InformDelegateResponseStartedInDelegateThread() {
 #endif  // defined(COBALT)
 
 void URLFetcherCore::InformDelegateUploadProgress() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (request_.get()) {
     int64 current = request_->GetUploadProgress().position();
@@ -1076,12 +1120,14 @@ void URLFetcherCore::InformDelegateUploadProgress() {
 
 void URLFetcherCore::InformDelegateUploadProgressInDelegateThread(
     int64 current, int64 total) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   if (delegate_)
     delegate_->OnURLFetchUploadProgress(fetcher_, current, total);
 }
 
 void URLFetcherCore::InformDelegateDownloadDataIfNecessary(int bytes_read) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (delegate_ && delegate_->ShouldSendDownloadData() && bytes_read != 0) {
     if (!download_data_cache_) {
@@ -1102,6 +1148,7 @@ void URLFetcherCore::InformDelegateDownloadDataIfNecessary(int bytes_read) {
 }
 
 void URLFetcherCore::InformDelegateDownloadData() {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (delegate_ && delegate_->ShouldSendDownloadData() &&
       download_data_cache_) {
@@ -1114,6 +1161,7 @@ void URLFetcherCore::InformDelegateDownloadData() {
 
 void URLFetcherCore::InformDelegateDownloadDataInDelegateThread(
     scoped_ptr<std::string> download_data) {
+  TRACK_MEMORY_SCOPE("Network");
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   if (delegate_) {
     delegate_->OnURLFetchDownloadData(fetcher_, download_data.Pass());

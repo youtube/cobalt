@@ -32,6 +32,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -53,7 +54,8 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       load_option_(0),
       inline_script_location_(GetSourceLocationName(), 1, 1),
       is_sync_load_successful_(false),
-      prevent_garbage_collection_count_(0) {
+      prevent_garbage_collection_count_(0),
+      should_execute_(true) {
   DCHECK(document->html_element_context()->script_runner());
 }
 
@@ -110,6 +112,7 @@ HTMLScriptElement::~HTMLScriptElement() {
 // Algorithm for Prepare:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::Prepare() {
+  TRACK_MEMORY_SCOPE("DOM");
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(MessageLoop::current());
@@ -260,12 +263,9 @@ void HTMLScriptElement::Prepare() {
                      base::Unretained(this)));
 
       if (is_sync_load_successful_) {
-        html_element_context()->script_runner()->Execute(
-            content_, base::SourceLocation(url_.spec(), 1, 1));
-
-        // If the script is from an external file, fire a simple event named
-        // load at the script element.
-        DispatchEvent(new Event(base::Tokens::load()));
+        PreventGarbageCollection();
+        ExecuteExternal();
+        AllowGarbageCollection();
       } else {
         // Executing the script block must just consist of firing a simple event
         // named error at the element.
@@ -497,7 +497,20 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 void HTMLScriptElement::Execute(const std::string& content,
                                 const base::SourceLocation& script_location,
                                 bool is_external) {
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Execute()");
+  TRACK_MEMORY_SCOPE("DOM");
+  // If should_execute_ is set to false for whatever reason, then we
+  // immediately exit.
+  // When inserted using the document.write() method, script elements execute
+  // (typically synchronously), but when inserted using innerHTML and
+  // outerHTML attributes, they do not execute at all.
+  // https://www.w3.org/TR/html5/scripting-1.html#the-script-element.
+  if (!should_execute_) {
+    return;
+  }
+
+  TRACE_EVENT2("cobalt::dom", "HTMLScriptElement::Execute()", "file_path",
+               script_location.file_path, "line_number",
+               script_location.line_number);
   // Since error is already handled, it is guaranteed the load is successful.
 
   // 1. 2. 3. Not needed by Cobalt.

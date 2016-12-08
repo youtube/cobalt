@@ -1,0 +1,249 @@
+void GC() ()
+{
+  __asm__ __volatile__("");
+  invisible ();
+}
+
+
+void suppressedFunction() ()
+{
+  GC ();
+}
+
+
+void halfSuppressedFunction() ()
+{
+  GC ();
+}
+
+
+void unsuppressedFunction() ()
+{
+  GC ();
+}
+
+
+Cell* f() ()
+{
+  struct Cell * D.2218;
+  struct GCInDestructor kaboom;
+  struct Cell cell;
+  struct Cell * cell1;
+  struct Cell * cell2;
+  struct Cell * cell3;
+  struct Cell * cell4;
+  struct Cell * cell5;
+  struct Cell * cell6;
+
+  try
+    {
+      try
+        {
+          cell1 = &cell;
+          cell2 = &cell;
+          cell3 = &cell;
+          cell4 = &cell;
+          {
+            struct AutoSuppressGC nogc;
+
+            try
+              {
+                AutoSuppressGC::AutoSuppressGC (&nogc);
+                try
+                  {
+                    suppressedFunction ();
+                    halfSuppressedFunction ();
+                  }
+                finally
+                  {
+                    AutoSuppressGC::~AutoSuppressGC (&nogc);
+                  }
+              }
+            finally
+              {
+                nogc = {CLOBBER};
+              }
+          }
+          foo (cell1);
+          halfSuppressedFunction ();
+          foo (cell2);
+          unsuppressedFunction ();
+          {
+            struct AutoSuppressGC nogc;
+
+            try
+              {
+                AutoSuppressGC::AutoSuppressGC (&nogc);
+                try
+                  {
+
+                  }
+                finally
+                  {
+                    AutoSuppressGC::~AutoSuppressGC (&nogc);
+                  }
+              }
+            finally
+              {
+                nogc = {CLOBBER};
+              }
+          }
+          foo (cell3);
+          cell5 = &cell;
+          foo (cell5);
+          cell6 = &cell;
+          D.2218 = cell6;
+          return D.2218;
+        }
+      finally
+        {
+          GCInDestructor::~GCInDestructor (&kaboom);
+        }
+    }
+  finally
+    {
+      kaboom = {CLOBBER};
+      cell = {CLOBBER};
+    }
+}
+
+
+AutoSuppressGC::AutoSuppressGC() (struct AutoSuppressGC * const this)
+{
+  struct AutoSuppressGC_Child * D.2227;
+
+  D.2227 = &this->helpImBeingSuppressed;
+  AutoSuppressGC_Child::AutoSuppressGC_Child (D.2227);
+  try
+    {
+
+    }
+  catch
+    {
+      D.2227 = &this->helpImBeingSuppressed;
+      AutoSuppressGC_Child::~AutoSuppressGC_Child (D.2227);
+    }
+}
+
+
+AutoSuppressGC_Child::AutoSuppressGC_Child() (struct AutoSuppressGC_Child * const this)
+{
+  AutoSuppressGC_Base::AutoSuppressGC_Base (this);
+  try
+    {
+
+    }
+  catch
+    {
+      AutoSuppressGC_Base::~AutoSuppressGC_Base (this);
+    }
+}
+
+
+AutoSuppressGC_Base::AutoSuppressGC_Base() (struct AutoSuppressGC_Base * const this)
+{
+
+}
+
+
+AutoSuppressGC::~AutoSuppressGC() (struct AutoSuppressGC * const this)
+{
+  struct AutoSuppressGC_Child * D.2228;
+
+  {
+    try
+      {
+        try
+          {
+
+          }
+        finally
+          {
+            D.2228 = &this->helpImBeingSuppressed;
+            AutoSuppressGC_Child::~AutoSuppressGC_Child (D.2228);
+          }
+      }
+    finally
+      {
+        MEM[(struct  &)this] = {CLOBBER};
+      }
+  }
+  <D.2211>:
+}
+
+
+AutoSuppressGC_Child::~AutoSuppressGC_Child() (struct AutoSuppressGC_Child * const this)
+{
+  {
+    try
+      {
+        try
+          {
+
+          }
+        finally
+          {
+            AutoSuppressGC_Base::~AutoSuppressGC_Base (this);
+          }
+      }
+    finally
+      {
+        MEM[(struct  &)this] = {CLOBBER};
+      }
+  }
+  <D.2082>:
+}
+
+
+AutoSuppressGC_Base::~AutoSuppressGC_Base() (struct AutoSuppressGC_Base * const this)
+{
+  try
+    {
+      {
+        try
+          {
+
+          }
+        finally
+          {
+            MEM[(struct  &)this] = {CLOBBER};
+          }
+      }
+      <D.2017>:
+    }
+  catch
+    {
+      <<<eh_must_not_throw (terminate)>>>
+    }
+}
+
+
+GCInDestructor::~GCInDestructor() (struct GCInDestructor * const this)
+{
+  volatile int * xp.0;
+
+  try
+    {
+      {
+        try
+          {
+            invisible ();
+            __asm__ __volatile__("");
+            xp.0 = xp;
+            *xp.0 = 4;
+            GC ();
+          }
+        finally
+          {
+            MEM[(struct  &)this] = {CLOBBER};
+          }
+      }
+      <D.2120>:
+    }
+  catch
+    {
+      <<<eh_must_not_throw (terminate)>>>
+    }
+}
+
+

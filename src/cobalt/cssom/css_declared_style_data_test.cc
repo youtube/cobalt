@@ -696,5 +696,36 @@ TEST(CSSDeclaredStyleDataTest,
   EXPECT_EQ(*style1 == *style2, false);
 }
 
+TEST(CSSDeclaredStyleDataTest, CanClearLongHandPropertyValueAndImportance) {
+  scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
+  style->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                       KeywordValue::GetInherit(), true);
+  style->ClearPropertyValueAndImportance(kBorderLeftWidthProperty);
+
+  scoped_refptr<CSSDeclaredStyleData> empty_style = new CSSDeclaredStyleData();
+  EXPECT_EQ(*style, *empty_style);
+}
+
+TEST(CSSDeclaredStyleDataTest, CanClearPropertyValueAndImportance) {
+  scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
+  style->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                       KeywordValue::GetInherit(), true);
+  style->ClearPropertyValueAndImportance(kBorderWidthProperty);
+
+  scoped_refptr<CSSDeclaredStyleData> empty_style = new CSSDeclaredStyleData();
+  EXPECT_EQ(*style, *empty_style);
+}
+
+TEST(CSSDeclaredStyleDataTest,
+     CanClearPropertyValueAndImportanceWithRecursion) {
+  scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
+  style->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                       KeywordValue::GetInherit(), true);
+  style->ClearPropertyValueAndImportance(kBorderProperty);
+
+  scoped_refptr<CSSDeclaredStyleData> empty_style = new CSSDeclaredStyleData();
+  EXPECT_EQ(*style, *empty_style);
+}
+
 }  // namespace cssom
 }  // namespace cobalt

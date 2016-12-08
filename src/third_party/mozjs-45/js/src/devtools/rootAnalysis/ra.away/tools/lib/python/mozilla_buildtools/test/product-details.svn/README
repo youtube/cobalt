@@ -1,0 +1,37 @@
+Project-Details
+---------------
+
+This is a library that is designed to be checked out as an SVN External for your
+project.  When checking out, use a specific revision instead of HEAD as there are no
+trunk/tag versions.
+
+This library holds information about the current builds of Firefox and Thunderbird
+that Mozilla ships including:
+
+    - Latest version numbers for all builds
+    - English and Native names for all languages we support
+
+To use this library, include either firefoxDetails.class.php or thunderbirdDetails.class.php
+and create an instance of the class.  This should get you started at least:
+
+    echo $firefoxDetails->getDownloadBlockForLocale('en-US');
+
+If you don't like PHP, there are also JSON files available containing the raw data
+from the arrays in the PHP files. Note: Whenever the php files change, export_json.php
+will need to be called to update the JSON files as well.
+
+
+I wouldn't be sad if this library got replaced by a dynamic feed coming out of
+Bouncer at some point. :)
+
+Questions?
+    Email clouserw at mozilla
+
+Bugs?
+    Bugs for this lib can be filed on bugzilla.mozilla.org in the
+        Websites :: www.mozilla.com
+    component.
+
+Looking for SeaMonkey?
+    The SeaMonkey team has a JSON feed for its latest product versions available at:
+        http://www.seamonkey-project.org/seamonkey_versions.json

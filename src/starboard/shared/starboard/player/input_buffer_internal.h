@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"

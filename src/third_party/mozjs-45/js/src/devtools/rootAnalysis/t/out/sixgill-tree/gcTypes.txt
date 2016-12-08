@@ -1,0 +1,16 @@
+GCThing: js::gc::Cell
+  which is annotated as a GCThing
+GCThing: JustACell
+  inherits from js::gc::Cell
+    which is annotated as a GCThing
+GCThing: JSObject
+  inherits from js::gc::Cell
+    which is annotated as a GCThing
+GCThing: SpecialObject
+  inherits from JSObject
+    inherits from js::gc::Cell
+      which is annotated as a GCThing
+GCPointer: UnrootedPointer
+  contains field 'obj' pointing to type JSObject
+    inherits from js::gc::Cell
+      which is annotated as a GCThing

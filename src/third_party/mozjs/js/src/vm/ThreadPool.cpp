@@ -11,7 +11,9 @@
 #include "vm/ThreadPool.h"
 
 #ifdef JS_THREADSAFE
+#if !defined(STARBOARD)
 #  include "prthread.h"
+#endif  // !defined(STARBOARD)
 #endif
 
 using namespace js;
@@ -121,8 +123,21 @@ ThreadPoolWorker::run()
     // variable and give a 10k buffer.  Is there a better way?
     // (Note: 2k proved to be fine on Mac, but too little on Linux)
     uintptr_t stackLimitOffset = WORKER_THREAD_STACK_SIZE - 10*1024;
+
+    // The following code results in an internal compiler error when compiling
+    // with GCC 4.9.2 for the MIPS architecture with optimizations enabled.
+    // A volatile qualifier is added as a workaround, as it disables those
+    // optimizations.
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 9 && __GNUC_PATCHLEVEL__ == 2 && \
+    defined(_MIPS_ARCH) && __mips16 == 1
+    volatile uintptr_t stackLimitVolatile =
+        (((uintptr_t)&stackLimitOffset) +
+          stackLimitOffset * JS_STACK_GROWTH_DIRECTION);
+    uintptr_t stackLimit = stackLimitVolatile;
+#else  // GCC 4.9.2, mips, mips16
     uintptr_t stackLimit = (((uintptr_t)&stackLimitOffset) +
                              stackLimitOffset * JS_STACK_GROWTH_DIRECTION);
+#endif  // GCC 4.9.2, mips, mips16
 
     AutoLockMonitor lock(*this);
 
@@ -207,8 +222,10 @@ ThreadPool::init()
         numWorkers_ = 0;
 
 # ifdef DEBUG
+#if !defined(STARBOARD)
     if (char *jsthreads = getenv("JS_THREADPOOL_SIZE"))
         numWorkers_ = strtol(jsthreads, NULL, 10);
+#endif  // !defined(STARBOARD)
 # endif
 #endif
 

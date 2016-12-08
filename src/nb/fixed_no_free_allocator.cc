@@ -27,28 +27,6 @@ FixedNoFreeAllocator::FixedNoFreeAllocator(void* memory_start,
   next_memory_ = memory_start_;
 }
 
-void* FixedNoFreeAllocator::Allocate(std::size_t size,
-                                     std::size_t alignment,
-                                     bool align_pointer) {
-  // Find the next aligned memory available.
-  uint8_t* aligned_next_memory =
-      AsPointer(AlignUp(AsInteger(next_memory_), alignment));
-
-  if (aligned_next_memory + size < aligned_next_memory) {
-    // "aligned_next_memory + size" overflows.
-    return NULL;
-  }
-
-  if (aligned_next_memory + size > memory_end_) {
-    // We don't have enough memory available to make this allocation.
-    return NULL;
-  }
-
-  void* memory_pointer = align_pointer ? aligned_next_memory : next_memory_;
-  next_memory_ = aligned_next_memory + size;
-  return memory_pointer;
-}
-
 void FixedNoFreeAllocator::Free(void* memory) {
   // Nothing to do here besides ensure that the freed memory belongs to us.
   SB_DCHECK(memory >= memory_start_);
@@ -65,6 +43,32 @@ std::size_t FixedNoFreeAllocator::GetAllocated() const {
 
 void FixedNoFreeAllocator::PrintAllocations() const {
   SB_NOTIMPLEMENTED();
+}
+
+void* FixedNoFreeAllocator::Allocate(std::size_t* size,
+                                     std::size_t alignment,
+                                     bool align_pointer) {
+  // Find the next aligned memory available.
+  uint8_t* aligned_next_memory =
+      AsPointer(AlignUp(AsInteger(next_memory_), alignment));
+
+  if (aligned_next_memory + *size < aligned_next_memory) {
+    // "aligned_next_memory + size" overflows.
+    return NULL;
+  }
+
+  if (aligned_next_memory + *size > memory_end_) {
+    // We don't have enough memory available to make this allocation.
+    return NULL;
+  }
+
+  if (!align_pointer) {
+    *size += AsInteger(aligned_next_memory) - AsInteger(next_memory_);
+  }
+
+  void* memory_pointer = align_pointer ? aligned_next_memory : next_memory_;
+  next_memory_ = aligned_next_memory + *size;
+  return memory_pointer;
 }
 
 }  // namespace nb

@@ -197,6 +197,7 @@ void AudioNodeInput::Connect(AudioNodeOutput* output) {
 
   output->AddInput(this);
   outputs_.insert(output);
+  owner_node_->OnInputNodeConnected();
 }
 
 void AudioNodeInput::Disconnect(AudioNodeOutput* output) {
@@ -232,13 +233,19 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
   // TODO: Consider computing computedNumberOfChannels and do up-mix or
   // down-mix base on computedNumberOfChannels. The current implementation
   // is based on the fact that the channelCountMode is max.
-  DCHECK_EQ(owner_node_->channel_count_mode(), AudioNode::kMax);
+  if (owner_node_->channel_count_mode() != AudioNode::kMax) {
+    DLOG(ERROR) << "Unsupported channel count mode: "
+                << owner_node_->channel_count_mode();
+    return;
+  }
+
   // Pull audio buffer from connected audio input. When an input is connected
   // from one or more AudioNode outputs. Fan-in is supported.
   for (std::set<AudioNodeOutput*>::iterator iter = outputs_.begin();
        iter != outputs_.end(); ++iter) {
     scoped_ptr<ShellAudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
-        static_cast<int32>(output_audio_bus->frames()));
+        static_cast<int32>(output_audio_bus->frames()),
+        output_audio_bus->sample_type());
 
     if (audio_bus) {
       MixAudioBuffer(owner_node_->channel_interpretation(), audio_bus.get(),

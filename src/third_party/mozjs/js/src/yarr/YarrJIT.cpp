@@ -868,7 +868,17 @@ class YarrGenerator : private MacroAssembler {
         sub32(Imm32(term->quantityCount.unsafeGet()), countRegister);
 
         Label loop(this);
-        BaseIndex address(input, countRegister, m_charScale, (Checked<int>(term->inputPosition - m_checked + Checked<int64_t>(term->quantityCount)) * static_cast<int>(m_charSize == Char8 ? sizeof(char) : sizeof(UChar))).unsafeGet());
+        Checked<int, RecordOverflow> checkedOffset(term->inputPosition - m_checked + Checked<int64_t>(term->quantityCount));
+        if (!checkedOffset.hasOverflowed()) {
+            checkedOffset *= static_cast<int>(m_charSize == Char8 ? sizeof(char) : sizeof(UChar));
+        }
+        if (checkedOffset.hasOverflowed()) {
+            // There has been an integer overflow, so bail out and fall back to
+            // the interpreter.
+            m_shouldFallBack = true;
+            return;
+        }
+        BaseIndex address(input, countRegister, m_charScale, checkedOffset.unsafeGet());
 
         if (m_charSize == Char8)
             load8(address, character);
@@ -1018,10 +1028,19 @@ class YarrGenerator : private MacroAssembler {
 
         Label loop(this);
         JumpList matchDest;
+        Checked<int, RecordOverflow> checkedOffset(term->inputPosition - m_checked + Checked<int64_t>(term->quantityCount));
+        if (!checkedOffset.hasOverflowed()) {
+            checkedOffset *= static_cast<int>(m_charSize == Char8 ? sizeof(char) : sizeof(UChar));
+        }
+        if (checkedOffset.hasOverflowed()) {
+            // If there has been integer overflow, fall back to the interpreter.
+            m_shouldFallBack = true;
+            return;
+        }
         if (m_charSize == Char8)
-            load8(BaseIndex(input, countRegister, TimesOne, (Checked<int>(term->inputPosition - m_checked + Checked<int64_t>(term->quantityCount)) * static_cast<int>(sizeof(char))).unsafeGet()), character);
+            load8(BaseIndex(input, countRegister, TimesOne, checkedOffset.unsafeGet()), character);
         else
-            load16(BaseIndex(input, countRegister, TimesTwo, (Checked<int>(term->inputPosition - m_checked + Checked<int64_t>(term->quantityCount)) * static_cast<int>(sizeof(UChar))).unsafeGet()), character);
+            load16(BaseIndex(input, countRegister, TimesTwo, checkedOffset.unsafeGet()), character);
         matchCharacterClass(character, matchDest, term->characterClass);
 
         if (term->invert())

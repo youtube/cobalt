@@ -19,13 +19,21 @@
 
 #include <string>
 
-#include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/speech/mic.h"
+#include "cobalt/network/network_module.h"
+#include "cobalt/script/exception_state.h"
+#include "cobalt/speech/endpointer_delegate.h"
+#include "cobalt/speech/microphone.h"
+#include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_config.h"
+#include "cobalt/speech/speech_recognition_error.h"
+#include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace speech {
+
+class MicrophoneManager;
 
 // Owned by SpeechRecognition to manage major speech recognition logic.
 // This class interacts with microphone, speech recognition service and audio
@@ -34,30 +42,52 @@ namespace speech {
 // class would encode the audio data, then send it to recogniton service.
 class SpeechRecognitionManager {
  public:
-  typedef ::media::AudioBus AudioBus;
+  typedef ::media::ShellAudioBus ShellAudioBus;
+  typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;
 
-  explicit SpeechRecognitionManager(loader::FetcherFactory* fetcher_factory);
+  SpeechRecognitionManager(network::NetworkModule* network_module,
+                           const EventCallback& event_callback,
+                           const Microphone::Options& microphone_options);
   ~SpeechRecognitionManager();
 
   // Start/Stop speech recognizer and microphone. Multiple calls would be
   // managed by their own class.
-  void Start(const SpeechRecognitionConfig& config);
+  void Start(const SpeechRecognitionConfig& config,
+             script::ExceptionState* exception_state);
   void Stop();
+  void Abort();
 
  private:
+  enum State {
+    kStarted,
+    kStopped,
+    kAborted,
+  };
+
   // Callbacks from mic.
-  void OnDataReceived(scoped_ptr<AudioBus> audio_bus);
+  void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
-  void OnError();
+  void OnMicError(const scoped_refptr<dom::Event>& event);
+
+  // Callbacks from recognizer.
+  void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
 
   base::WeakPtrFactory<SpeechRecognitionManager> weak_ptr_factory_;
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in
   // order to associate the WeakPtr with the constructing thread.
   base::WeakPtr<SpeechRecognitionManager> weak_this_;
-
   scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
-  SpeechRecognizer recognizer_;
-  scoped_ptr<Mic> mic_;
+
+  // Callback for sending dom events if available.
+  EventCallback event_callback_;
+  scoped_ptr<SpeechRecognizer> recognizer_;
+
+  scoped_ptr<MicrophoneManager> microphone_manager_;
+
+  // Delegate of endpointer which is used for detecting sound energy.
+  EndPointerDelegate endpointer_delegate_;
+
+  State state_;
 };
 
 }  // namespace speech

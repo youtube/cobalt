@@ -23,16 +23,22 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
-#include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
+#include "cobalt/css_parser/parser.h"
 #include "cobalt/debug/debug_server_module.h"
+#include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/storage.h"
+#include "cobalt/dom/url.h"
+#include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
@@ -40,11 +46,11 @@ namespace browser {
 
 namespace {
 
-#if defined(COBALT_RELEASE)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 const int kPollerPeriodMs = 2000;
-#else   // #if defined(COBALT_RELEASE)
+#else   // #if defined(COBALT_BUILD_TYPE_GOLD)
 const int kPollerPeriodMs = 20;
-#endif  // #if defined(COBALT_RELEASE)
+#endif  // #if defined(COBALT_BUILD_TYPE_GOLD)
 
 // The maximum number of element depth in the DOM tree. Elements at a level
 // deeper than this could be discarded, and will not be rendered.
@@ -112,7 +118,8 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Called to inject a keyboard event into the web module.
-  void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
+  void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
+                           const dom::KeyboardEvent::Data& event);
 
   // Called to execute JavaScript in this WebModule. Sets the |result|
   // output parameter and signals |got_result|.
@@ -140,7 +147,11 @@ class WebModule::Impl {
   void CreateDebugServerIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
 
-  void Suspend();
+  // Suspension of the WebModule is a two-part process since a message loop
+  // gap is needed in order to give a chance to handle loader callbacks
+  // that were initiated from a loader thread.
+  void SuspendLoaders();
+  void FinishSuspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
  private:
@@ -238,6 +249,9 @@ class WebModule::Impl {
   // Object to register and retrieve MediaSource object with a string key.
   scoped_ptr<dom::MediaSource::Registry> media_source_registry_;
 
+  // Object to register and retrieve Blob objects with a string key.
+  scoped_ptr<dom::Blob::Registry> blob_registry_;
+
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
 
@@ -310,8 +324,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnError, base::Unretained(this))));
   DCHECK(dom_parser_);
 
+  blob_registry_.reset(new dom::Blob::Registry);
+
   fetcher_factory_.reset(new loader::FetcherFactory(
-      data.network_module, data.options.extra_web_file_dir));
+      data.network_module, data.options.extra_web_file_dir,
+      dom::URL::MakeBlobResolverCallback(blob_registry_.get())));
   DCHECK(fetcher_factory_);
 
   loader_factory_.reset(
@@ -389,8 +406,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   environment_settings_.reset(new dom::DOMSettings(
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), javascript_engine_.get(),
-      global_environment_.get(), data.options.dom_settings_options));
+      media_source_registry_.get(), blob_registry_.get(), data.media_module,
+      javascript_engine_.get(), global_environment_.get(),
+      data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
@@ -457,6 +475,7 @@ WebModule::Impl::~Impl() {
   window_weak_.reset();
   window_ = NULL;
   media_source_registry_.reset();
+  blob_registry_.reset();
   script_runner_.reset();
   execution_state_.reset();
   global_environment_ = NULL;
@@ -472,6 +491,7 @@ WebModule::Impl::~Impl() {
 }
 
 void WebModule::Impl::InjectKeyboardEvent(
+    scoped_refptr<dom::Element> element,
     const dom::KeyboardEvent::Data& event) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
@@ -486,7 +506,11 @@ void WebModule::Impl::InjectKeyboardEvent(
   // injected.
   web_module_stat_tracker_->OnInjectEvent(keyboard_event);
 
-  window_->InjectEvent(keyboard_event);
+  if (element) {
+    element->DispatchEvent(keyboard_event);
+  } else {
+    window_->InjectEvent(keyboard_event);
+  }
 }
 
 void WebModule::Impl::ExecuteJavascript(
@@ -563,6 +587,7 @@ void WebModule::Impl::CreateWindowDriver(
   window_driver_out->reset(new webdriver::WindowDriver(
       window_id, window_weak_,
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
       base::MessageLoopProxy::current()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
@@ -597,21 +622,20 @@ void WebModule::Impl::InjectCustomWindowAttributes(
   }
 }
 
-void WebModule::Impl::Suspend() {
-  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Suspend()");
-  DCHECK(resource_provider_);
+void WebModule::Impl::SuspendLoaders() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::SuspendLoaders()");
 
   // Stop the generation of render trees.
   layout_manager_->Suspend();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-  // The debug overlay may be holding onto a render tree, clear that out.
-  debug_overlay_->ClearInput();
-#endif
-
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+}
+
+void WebModule::Impl::FinishSuspend() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::FinishSuspend()");
+  DCHECK(resource_provider_);
 
   // Ensure the document is not holding onto any more image cached resources so
   // that they are eligible to be purged.
@@ -623,6 +647,11 @@ void WebModule::Impl::Suspend() {
   // cache.
   image_cache_->Purge();
   remote_typeface_cache_->Purge();
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // The debug overlay may be holding onto a render tree, clear that out.
+  debug_overlay_->ClearInput();
+#endif
 
   // Finally mark that we have no resource provider.
   resource_provider_ = NULL;
@@ -676,18 +705,11 @@ WebModule::WebModule(
       window_close_callback, media_module, network_module, window_dimensions,
       resource_provider, kDOMMaxElementDepth, layout_refresh_rate, options);
 
-#if defined(COBALT_BUILD_TYPE_DEBUG)
-  // Non-optimized builds require a bigger stack size.
-  const size_t kBaseStackSize = 2 * 1024 * 1024;
-#else
-  const size_t kBaseStackSize = 256 * 1024;
-#endif
-
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  size_t stack_size = kBaseStackSize + base::kAsanAdditionalStackSize;
   thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_DEFAULT, stack_size));
+      base::Thread::Options(MessageLoop::TYPE_DEFAULT,
+        cobalt::browser::kWebModuleStackSize));
   DCHECK(message_loop());
 
   message_loop()->PostTask(
@@ -759,14 +781,23 @@ void WebModule::Initialize(const ConstructionData& data) {
 }
 
 void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::InjectKeyboardEvent,
+                                      base::Unretained(impl_.get()),
+                                      scoped_refptr<dom::Element>(), event));
+}
+
+void WebModule::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
+                                    const dom::KeyboardEvent::Data& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
                event.type);
   DCHECK(message_loop());
   DCHECK(impl_);
+  DCHECK_EQ(MessageLoop::current(), message_loop());
 
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::InjectKeyboardEvent,
-                                      base::Unretained(impl_.get()), event));
+  impl_->InjectKeyboardEvent(element, event);
 }
 
 std::string WebModule::ExecuteJavascript(
@@ -854,16 +885,43 @@ debug::DebugServer* WebModule::GetDebugServer() {
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 void WebModule::Suspend() {
-  message_loop()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::Suspend, base::Unretained(impl_.get())));
+  TRACE_EVENT0("cobalt::browser", "WebModule::Suspend()");
 
-  base::WaitableEvent resource_provider_released(true, false);
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&resource_provider_released)));
+  // Suspend() must only be called by a thread external from the WebModule
+  // thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
 
-  resource_provider_released.Wait();
+  base::WaitableEvent task_finished(false /* automatic reset */,
+                                    false /* initially unsignaled */);
+
+  // Suspension of the WebModule is orchestrated here in two phases.
+  // 1) Send a signal to suspend WebModule loader activity and cancel any
+  //    in-progress loads.  Since loading may occur from any thread, this may
+  //    result in cancel/completion callbacks being posted to message_loop().
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::SuspendLoaders,
+                                      base::Unretained(impl_.get())));
+
+  // Wait for the suspension task to complete before proceeding.
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&base::WaitableEvent::Signal,
+                                      base::Unretained(&task_finished)));
+  task_finished.Wait();
+
+  // 2) Now append to the task queue a task to complete the suspension process.
+  //    Between 1 and 2, tasks may have been registered to handle resource load
+  //    completion events, and so this FinishSuspend task will be executed after
+  //    the load completions are all resolved.
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::FinishSuspend,
+                                      base::Unretained(impl_.get())));
+
+  // Wait for suspension to fully complete on the WebModule thread before
+  // continuing.
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&base::WaitableEvent::Signal,
+                                      base::Unretained(&task_finished)));
+  task_finished.Wait();
 }
 
 void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {

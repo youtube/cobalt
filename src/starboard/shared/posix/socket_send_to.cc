@@ -26,6 +26,11 @@ int SbSocketSendTo(SbSocket socket,
                    const char* data,
                    int data_size,
                    const SbSocketAddress* destination) {
+#if defined(MSG_NOSIGNAL)
+  const int kSendFlags = MSG_NOSIGNAL;
+#else
+  const int kSendFlags = 0;
+#endif
   if (!SbSocketIsValid(socket)) {
     errno = EBADF;
     return -1;
@@ -39,7 +44,8 @@ int SbSocketSendTo(SbSocket socket,
       return -1;
     }
 
-    ssize_t bytes_written = send(socket->socket_fd, data, data_size, 0);
+    ssize_t bytes_written =
+        send(socket->socket_fd, data, data_size, kSendFlags);
     if (bytes_written >= 0) {
       socket->error = kSbSocketOk;
       return static_cast<int>(bytes_written);
@@ -70,8 +76,8 @@ int SbSocketSendTo(SbSocket socket,
       sockaddr_length = sock_addr.length;
     }
 
-    ssize_t bytes_written = sendto(socket->socket_fd, data, data_size, 0,
-                                   sockaddr, sockaddr_length);
+    ssize_t bytes_written = sendto(socket->socket_fd, data, data_size,
+                                   kSendFlags, sockaddr, sockaddr_length);
     if (bytes_written >= 0) {
       socket->error = kSbSocketOk;
       return static_cast<int>(bytes_written);

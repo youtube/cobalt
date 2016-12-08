@@ -19,6 +19,7 @@
 
 #include <set>
 
+#include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/typeface_decoder.h"
@@ -81,6 +82,10 @@ class LoaderFactory {
   // can be aborted.
   typedef std::set<Loader*> LoaderSet;
   LoaderSet active_loaders_;
+
+  // Thread to run asynchronous fetchers and decoders on.  At the moment,
+  // image decoding is the only thing done on this thread.
+  base::Thread load_thread_;
 };
 
 }  // namespace loader

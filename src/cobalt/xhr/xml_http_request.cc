@@ -21,6 +21,7 @@
 #include "base/compiler_specific.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/time.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
@@ -361,13 +362,13 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   StartRequest(request_body_text);
 
   // Start the timeout timer running, if applicable.
-  send_start_time_ = base::Time::Now();
+  send_start_time_ = base::TimeTicks::Now();
   if (timeout_ms_) {
     StartTimer(base::TimeDelta());
   }
   // Timer for throttling progress events.
-  upload_last_progress_time_ = base::Time();
-  last_progress_time_ = base::Time();
+  upload_last_progress_time_ = base::TimeTicks();
+  last_progress_time_ = base::TimeTicks();
 }
 
 base::optional<std::string> XMLHttpRequest::GetResponseHeader(
@@ -531,7 +532,7 @@ void XMLHttpRequest::set_timeout(uint32 timeout) {
   } else if (sent_) {
     // Timeout was set while request was in flight. Timeout is relative to
     // the start of the request.
-    StartTimer(base::Time::Now() - send_start_time_);
+    StartTimer(base::TimeTicks::Now() - send_start_time_);
   }
 }
 
@@ -614,7 +615,7 @@ void XMLHttpRequest::OnURLFetchDownloadData(
   ChangeState(kLoading);
 
   // Send a progress notification if at least 50ms have elapsed.
-  const base::Time now = base::Time::Now();
+  const base::TimeTicks now = base::TimeTicks::Now();
   const base::TimeDelta elapsed(now - last_progress_time_);
   if (elapsed > base::TimeDelta::FromMilliseconds(kProgressPeriodMs)) {
     last_progress_time_ = now;
@@ -657,7 +658,7 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
 
   // Fire a progress event if either the upload just completed, or if enough
   // time has elapsed since we sent the last one.
-  const base::Time now = base::Time::Now();
+  const base::TimeTicks now = base::TimeTicks::Now();
   const base::TimeDelta elapsed(now - upload_last_progress_time_);
   if (upload_complete_ ||
       (elapsed > base::TimeDelta::FromMilliseconds(kProgressPeriodMs))) {
@@ -702,6 +703,7 @@ void XMLHttpRequest::HandleRequestError(
       << ") " << *this << std::endl
       << script::StackTraceToString(
              settings_->global_environment()->GetStackTrace());
+  stop_timeout_ = true;
   // Step 1
   TerminateRequest();
   // Steps 2-4
@@ -735,9 +737,13 @@ void XMLHttpRequest::StartTimer(base::TimeDelta time_since_send) {
   // Subtract any time that has already elapsed from the timeout.
   // This is in case the user has set a timeout after send() was already in
   // flight.
-  timer_.Start(FROM_HERE,
-               base::TimeDelta::FromMilliseconds(timeout_ms_) - time_since_send,
-               this, &XMLHttpRequest::OnTimeout);
+  base::TimeDelta delay = std::max(
+      base::TimeDelta(),
+      base::TimeDelta::FromMilliseconds(timeout_ms_) - time_since_send);
+
+  // Queue the callback even if delay ends up being zero, to preserve the
+  // previous semantics.
+  timer_.Start(FROM_HERE, delay, this, &XMLHttpRequest::OnTimeout);
 }
 
 void XMLHttpRequest::ChangeState(XMLHttpRequest::State new_state) {

@@ -15,19 +15,19 @@
 #ifndef STARBOARD_RASPI_SHARED_WINDOW_INTERNAL_H_
 #define STARBOARD_RASPI_SHARED_WINDOW_INTERNAL_H_
 
-#include <bcm_host.h>
 #include <EGL/egl.h>
 
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
-  SbWindowPrivate(DISPMANX_DISPLAY_HANDLE_T display,
+  SbWindowPrivate(const starboard::raspi::shared::DispmanxDisplay& display,
                   const SbWindowOptions* options);
   ~SbWindowPrivate();
 
-  DISPMANX_DISPLAY_HANDLE_T display;
-  DISPMANX_ELEMENT_HANDLE_T element;
+  starboard::scoped_ptr<starboard::raspi::shared::DispmanxElement> element;
   EGL_DISPMANX_WINDOW_T window;
 };
 

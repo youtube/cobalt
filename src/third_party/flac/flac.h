@@ -9,6 +9,15 @@
 // This is a shim header to include the right flac headers.
 // Use this instead of referencing the flac headers directly.
 
+#ifdef STARBOARD
+#include "starboard/configuration.h"
+#  if SB_IS(BIG_ENDIAN)
+#    define WORDS_BIGENDIAN 1
+#  else
+#    undef WORDS_BIGENDIAN
+#  endif
+#endif  // STARBOARD
+
 #if defined(USE_SYSTEM_FLAC)
 #include <FLAC/stream_encoder.h>
 #else

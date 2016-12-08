@@ -421,7 +421,7 @@ class KeyTranslator {
                    KeyLocationCode location) {
     const bool kIsRepeat = false;
     uint32 modifiers = GetModifierStateBitfield();
-    event_vector_->push_back(new dom::KeyboardEvent(
+    event_vector_->push_back(dom::KeyboardEvent::Data(
         type, location, modifiers, key_code, char_code, kIsRepeat));
   }
 

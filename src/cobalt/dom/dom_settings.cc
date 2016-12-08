@@ -21,21 +21,23 @@
 namespace cobalt {
 namespace dom {
 
-DOMSettings::DOMSettings(const int max_dom_element_depth,
-                         loader::FetcherFactory* fetcher_factory,
-                         network::NetworkModule* network_module,
-                         const scoped_refptr<Window>& window,
-                         MediaSource::Registry* media_source_registry,
-                         script::JavaScriptEngine* engine,
-                         script::GlobalEnvironment* global_environment,
-                         const Options& options)
+DOMSettings::DOMSettings(
+    const int max_dom_element_depth, loader::FetcherFactory* fetcher_factory,
+    network::NetworkModule* network_module, const scoped_refptr<Window>& window,
+    MediaSource::Registry* media_source_registry, Blob::Registry* blob_registry,
+    media::CanPlayTypeHandler* can_play_type_handler,
+    script::JavaScriptEngine* engine,
+    script::GlobalEnvironment* global_environment, const Options& options)
     : max_dom_element_depth_(max_dom_element_depth),
+      microphone_options_(options.microphone_options),
       fetcher_factory_(fetcher_factory),
       network_module_(network_module),
       window_(window),
       array_buffer_allocator_(options.array_buffer_allocator),
       array_buffer_cache_(options.array_buffer_cache),
       media_source_registry_(media_source_registry),
+      blob_registry_(blob_registry),
+      can_play_type_handler_(can_play_type_handler),
       javascript_engine_(engine),
       global_environment_(global_environment) {
   if (array_buffer_allocator_) {

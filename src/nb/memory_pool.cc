@@ -23,15 +23,21 @@ namespace nb {
 MemoryPool::MemoryPool(void* buffer,
                        std::size_t size,
                        bool thread_safe,
-                       bool verify_full_capacity)
+                       bool verify_full_capacity,
+                       std::size_t small_allocation_threshold)
     : no_free_allocator_(buffer, size),
       reuse_allocator_(
-          scoped_ptr<Allocator>(new ReuseAllocator(&no_free_allocator_)),
+          scoped_ptr<Allocator>(new ReuseAllocator(&no_free_allocator_,
+                                                   size,
+                                                   small_allocation_threshold)),
           thread_safe) {
   SB_DCHECK(buffer);
   SB_DCHECK(size != 0U);
 
-  if (verify_full_capacity) {
+  // This is redundant if ReuseAllocator::Allcator() can allocate the difference
+  // between the requested size and the last free block from the fallback
+  // allocator and combine the blocks.
+  if (verify_full_capacity && small_allocation_threshold == 0) {
     void* p = Allocate(size);
     SB_DCHECK(p);
     Free(p);

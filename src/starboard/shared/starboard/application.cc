@@ -17,7 +17,6 @@
 #include "starboard/atomic.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -77,7 +76,7 @@ Application::~Application() {
           reinterpret_cast<SbAtomicPtr>(NULL)));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
-  SbMemoryFree(start_link_);
+  SbMemoryDeallocate(start_link_);
 }
 
 int Application::Run(int argc, char** argv) {
@@ -131,7 +130,7 @@ void Application::Cancel(SbEventId id) {
 
 #if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 void Application::HandleFrame(SbPlayer player,
-                              const player::VideoFrame& frame,
+                              const scoped_refptr<VideoFrame>& frame,
                               int x,
                               int y,
                               int width,
@@ -141,7 +140,7 @@ void Application::HandleFrame(SbPlayer player,
 #endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 
 void Application::SetStartLink(const char* start_link) {
-  SbMemoryFree(start_link_);
+  SbMemoryDeallocate(start_link_);
   if (start_link) {
     start_link_ = SbStringDuplicate(start_link);
   } else {

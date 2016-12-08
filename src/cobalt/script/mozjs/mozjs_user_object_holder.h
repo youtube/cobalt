@@ -51,6 +51,7 @@ class MozjsUserObjectHolder
         wrapper_factory_(wrapper_factory) {}
 
   void RegisterOwner(Wrappable* owner) OVERRIDE {
+    JSAutoRequest auto_request(context_);
     JS::RootedObject owned_object(context_, js_object());
     DLOG_IF(WARNING, !owned_object)
         << "Owned object has been garbage collected.";
@@ -65,6 +66,7 @@ class MozjsUserObjectHolder
 
   void DeregisterOwner(Wrappable* owner) OVERRIDE {
     // |owner| may be in the process of being destructed, so don't use it.
+    JSAutoRequest auto_request(context_);
     JS::RootedObject owned_object(context_, js_object());
     if (owned_object) {
       MozjsGlobalEnvironment* global_environment =
@@ -82,6 +84,7 @@ class MozjsUserObjectHolder
 
   scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
     DCHECK(object_handle_);
+    JSAutoRequest auto_request(context_);
     JS::RootedObject rooted_object(context_, js_object());
     return make_scoped_ptr<BaseClass>(
         new MozjsUserObjectHolder(rooted_object, context_, wrapper_factory_));

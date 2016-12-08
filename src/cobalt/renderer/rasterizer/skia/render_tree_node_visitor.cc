@@ -72,13 +72,15 @@ namespace skia {
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SkCanvas* render_target,
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
+    const base::Closure& reset_skia_context_function,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache, Type visitor_type)
     : draw_state_(render_target),
       create_scratch_surface_function_(create_scratch_surface_function),
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache),
-      visitor_type_(visitor_type) {
+      visitor_type_(visitor_type),
+      reset_skia_context_function_(reset_skia_context_function) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -187,7 +189,7 @@ SkPath RoundedRectToSkiaPath(
 }
 
 void ApplyViewportMask(
-    SkCanvas* canvas,
+    RenderTreeNodeVisitorDrawState* draw_state,
     const base::optional<render_tree::ViewportFilter>& filter) {
   if (!filter) {
     return;
@@ -195,11 +197,12 @@ void ApplyViewportMask(
 
   if (!filter->has_rounded_corners()) {
     SkRect filter_viewport(CobaltRectFToSkiaRect(filter->viewport()));
-    canvas->clipRect(filter_viewport);
+    draw_state->render_target->clipRect(filter_viewport);
   } else {
-    canvas->clipPath(
+    draw_state->render_target->clipPath(
         RoundedRectToSkiaPath(filter->viewport(), filter->rounded_corners()),
         SkRegion::kIntersect_Op, true /* doAntiAlias */);
+    draw_state->clip_is_rect = false;
   }
 }
 
@@ -264,9 +267,9 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
 
   // Render our source sub-tree into the offscreen surface.
   {
-    RenderTreeNodeVisitor sub_visitor(canvas, create_scratch_surface_function_,
-                                      surface_cache_delegate_, surface_cache_,
-                                      kType_SubVisitor);
+    RenderTreeNodeVisitor sub_visitor(
+        canvas, create_scratch_surface_function_, reset_skia_context_function_,
+        surface_cache_delegate_, surface_cache_, kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -285,7 +288,7 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   // the offscreen surface, so reset the scale for now.
   draw_state_.render_target->save();
   ApplyBlurFilterToPaint(&paint, filter_node.blur_filter);
-  ApplyViewportMask(draw_state_.render_target, filter_node.viewport_filter);
+  ApplyViewportMask(&draw_state_, filter_node.viewport_filter);
 
   draw_state_.render_target->setMatrix(CobaltMatrixToSkia(
       math::TranslateMatrix(coord_mapping.output_pre_translate) * total_matrix *
@@ -364,7 +367,22 @@ bool SourceCanRenderWithOpacity(render_tree::Node* source) {
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   if (filter_node->data().map_to_mesh_filter) {
-    // TODO: Implement support for MapToMeshFilter.
+    // TODO: Implement support for MapToMeshFilter instead of punching out
+    //       the area that it occupies.
+    SkPaint paint;
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+    paint.setARGB(0, 0, 0, 0);
+
+    math::RectF bounds = filter_node->GetBounds();
+    SkRect sk_rect = SkRect::MakeXYWH(bounds.x(), bounds.y(), bounds.width(),
+                                      bounds.height());
+
+    draw_state_.render_target->drawRect(sk_rect, paint);
+
+#if ENABLE_FLUSH_AFTER_EVERY_NODE
+    draw_state_.render_target->flush();
+#endif
+
     return;
   }
 
@@ -435,13 +453,17 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     RenderTreeNodeVisitorDrawState original_draw_state(draw_state_);
 
     draw_state_.render_target->save();
-    ApplyViewportMask(draw_state_.render_target,
-                      filter_node->data().viewport_filter);
+    // Remember the value of |clip_is_rect| because ApplyViewportMask may
+    // modify it.
+    bool clip_was_rect = draw_state_.clip_is_rect;
+    ApplyViewportMask(&draw_state_, filter_node->data().viewport_filter);
 
     if (filter_node->data().opacity_filter) {
       draw_state_.opacity *= filter_node->data().opacity_filter->opacity();
     }
     filter_node->data().source->Accept(this);
+
+    draw_state_.clip_is_rect = clip_was_rect;
     draw_state_.render_target->restore();
     draw_state_ = original_draw_state;
   } else {
@@ -488,12 +510,14 @@ bool LocalCoordsStaysWithinUnitBox(const math::Matrix3F& mat) {
 }
 
 SkPaint CreateSkPaintForImageRendering(
-    const RenderTreeNodeVisitorDrawState& draw_state) {
+    const RenderTreeNodeVisitorDrawState& draw_state, bool is_opaque) {
   SkPaint paint;
   paint.setFilterLevel(SkPaint::kLow_FilterLevel);
 
   if (draw_state.opacity < 1.0f) {
     paint.setAlpha(draw_state.opacity * 255);
+  } else if (is_opaque && draw_state.clip_is_rect) {
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
   }
 
   return paint;
@@ -503,7 +527,8 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
                             RenderTreeNodeVisitorDrawState* draw_state,
                             const math::RectF& destination_rect,
                             const math::Matrix3F* local_transform) {
-  SkPaint paint = CreateSkPaintForImageRendering(*draw_state);
+  SkPaint paint = CreateSkPaintForImageRendering(
+      *draw_state, single_plane_image->IsOpaque());
 
   // In the most frequent by far case where the normalized transformed image
   // texture coordinates lie within the unit square, then we must ensure NOT
@@ -591,7 +616,8 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
     }
   }
 
-  SkPaint paint = CreateSkPaintForImageRendering(*draw_state);
+  SkPaint paint = CreateSkPaintForImageRendering(*draw_state,
+                                                 multi_plane_image->IsOpaque());
   paint.setShader(yuv2rgb_shader);
   draw_state->render_target->drawRect(CobaltRectFToSkiaRect(destination_rect),
                                       paint);
@@ -622,7 +648,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // This should be a quick operation, and it needs to happen eventually, so
   // if it is not done now, it will be done in the next frame, or the one after
   // that.
-  image->EnsureInitialized();
+  if (image->EnsureInitialized()) {
+    // EnsureInitialized() may make a number of GL calls that results in GL
+    // state being modified behind Skia's back, therefore we have Skia reset its
+    // state in this case.
+    if (!reset_skia_context_function_.is_null()) {
+      reset_skia_context_function_.Run();
+    }
+  }
 
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
@@ -704,18 +737,11 @@ void RenderTreeNodeVisitor::Visit(
   SkRect sk_rect_transformed;
   total_matrix.mapRect(&sk_rect_transformed, sk_rect);
 
-  if (punch_through_video_node->data().set_bounds_cb.is_null()) {
-    return;
-  }
-  bool render_punch_through =
-      punch_through_video_node->data().set_bounds_cb.Run(
-          math::Rect(static_cast<int>(sk_rect_transformed.x()),
-                     static_cast<int>(sk_rect_transformed.y()),
-                     static_cast<int>(sk_rect_transformed.width()),
-                     static_cast<int>(sk_rect_transformed.height())));
-  if (!render_punch_through) {
-    return;
-  }
+  punch_through_video_node->data().set_bounds_cb.Run(
+      math::Rect(static_cast<int>(sk_rect_transformed.x()),
+                 static_cast<int>(sk_rect_transformed.y()),
+                 static_cast<int>(sk_rect_transformed.width()),
+                 static_cast<int>(sk_rect_transformed.height())));
 
   SkPaint paint;
   paint.setXfermodeMode(SkXfermode::kSrc_Mode);

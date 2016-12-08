@@ -59,6 +59,8 @@ class MEDIA_EXPORT ShellAudioBus {
 
   size_t channels() const { return channels_; }
   size_t frames() const { return frames_; }
+  SampleType sample_type() const { return sample_type_; }
+  StorageType storage_type() const { return storage_type_; }
   size_t GetSampleSizeInBytes() const;
   const uint8* interleaved_data() const;
   const uint8* planar_data(size_t channel) const;
@@ -101,6 +103,40 @@ class MEDIA_EXPORT ShellAudioBus {
   void Mix(const ShellAudioBus& source);
   void Mix(const ShellAudioBus& source, const std::vector<float>& matrix);
 
+ public:
+  // The .*ForTypes? functions below are optimized versions that assume what
+  // storage type the bus is using.  They are meant to be called after
+  // checking what storage type the bus is once, and then performing a batch
+  // of operations, where it is known that the type will not change.
+  template <typename SampleTypeName, StorageType T>
+  inline uint8* GetSamplePtrForType(size_t channel, size_t frame) const {
+    DCHECK_LT(channel, channels_);
+    DCHECK_LT(frame, frames_);
+
+    if (T == kInterleaved) {
+      return channel_data_[0] +
+             sizeof(SampleTypeName) * (channels_ * frame + channel);
+    } else if (T == kPlanar) {
+      return channel_data_[channel] + sizeof(SampleTypeName) * frame;
+    } else {
+      NOTREACHED();
+    }
+
+    return NULL;
+  }
+
+  template <typename SampleTypeName, StorageType T>
+  inline SampleTypeName GetSampleForType(size_t channel, size_t frame) const {
+    return *reinterpret_cast<const SampleTypeName*>(
+        GetSamplePtrForType<SampleTypeName, T>(channel, frame));
+  }
+
+  template <typename SourceSampleType,
+            typename DestSampleType,
+            StorageType SourceStorageType,
+            StorageType DestStorageType>
+  void MixForTypes(const ShellAudioBus& source);
+
  private:
   void SetFloat32Sample(size_t channel, size_t frame, float sample) {
     DCHECK_EQ(sample_type_, kFloat32);
@@ -108,20 +144,6 @@ class MEDIA_EXPORT ShellAudioBus {
   }
   uint8* GetSamplePtr(size_t channel, size_t frame);
   const uint8* GetSamplePtr(size_t channel, size_t frame) const;
-
-  // The *ForType functions below are optimized versions that assume what
-  // storage type the bus is using.  They are meant to be called after checking
-  // what storage type the bus is once, and then performing a batch of
-  // operations, where it is known that the type will not change.
-  // Note: The bus must have storage type of kFloat32.
-  template <StorageType T>
-  inline uint8* GetSamplePtrForType(size_t channel, size_t frame) const;
-
-  template <StorageType T>
-  inline float GetFloat32SampleForType(size_t channel, size_t frame) const;
-
-  template <StorageType SourceStorageType, StorageType DestStorageType>
-  void MixForType(const ShellAudioBus& source);
 
   // Contiguous block of channel memory if the memory is owned by this object.
   scoped_ptr_malloc<uint8, base::ScopedPtrAlignedFree> data_;

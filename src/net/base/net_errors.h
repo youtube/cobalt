@@ -49,7 +49,7 @@ inline bool IsCertificateError(int error) {
 NET_EXPORT Error MapSocketError(SbSocketError error);
 
 // Gets the last socket error as a net error.
-SB_C_INLINE Error MapLastSocketError(SbSocket socket) {
+static SB_C_INLINE Error MapLastSocketError(SbSocket socket) {
   return MapSocketError(SbSocketGetLastError(socket));
 }
 
@@ -57,7 +57,7 @@ SB_C_INLINE Error MapLastSocketError(SbSocket socket) {
 NET_EXPORT Error MapSystemError(SbSystemError error);
 
 // Gets the last system error as a net error.
-SB_C_INLINE Error MapLastSystemError() {
+static SB_C_INLINE Error MapLastSystemError() {
   return MapSystemError(SbSystemGetLastError());
 }
 

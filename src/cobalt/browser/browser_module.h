@@ -17,8 +17,8 @@
 #ifndef COBALT_BROWSER_BROWSER_MODULE_H_
 #define COBALT_BROWSER_BROWSER_MODULE_H_
 
-#include <list>
 #include <string>
+#include <vector>
 
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
@@ -71,7 +71,7 @@ class BrowserModule {
 
   // Type for a collection of URL handler callbacks that can potentially handle
   // a URL before using it to initialize a new WebModule.
-  typedef std::list<URLHandler::URLHandlerCallback> URLHandlerCollection;
+  typedef std::vector<URLHandler::URLHandlerCallback> URLHandlerCollection;
 
   BrowserModule(const GURL& url, system_window::SystemWindow* system_window,
                 account::AccountManager* account_manager,
@@ -127,12 +127,10 @@ class BrowserModule {
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
 
-#if defined(ENABLE_WEBDRIVER)
   // Wait for the onload event to be fired with the specified timeout. If the
   // webmodule is not currently loading the document, this will return
   // immediately.
   bool WaitForLoad(const base::TimeDelta& timeout);
-#endif
 
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.
@@ -181,6 +179,10 @@ class BrowserModule {
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Toggles the input fuzzer on/off.  Ignores the parameter.
   void OnFuzzerToggle(const std::string&);
+
+  // Use the config in the form of '<string name>=<int value>' to call
+  // MediaModule::SetConfiguration().
+  void OnSetMediaConfig(const std::string& config);
 
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
@@ -299,8 +301,11 @@ class BrowserModule {
 
   TraceManager trace_manager;
 
-  // Command handler object for toggline the input fuzzer on/off.
+  // Command handler object for toggling the input fuzzer on/off.
   base::ConsoleCommandManager::CommandHandler fuzzer_toggle_command_handler_;
+
+  // Command handler object for setting media module config.
+  base::ConsoleCommandManager::CommandHandler set_media_config_command_handler_;
 
 #if defined(ENABLE_SCREENSHOT)
   // Command handler object for screenshot command from the debug console.

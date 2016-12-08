@@ -21,15 +21,13 @@
     'target_os': 'linux',
     #'starboard_path%': 'starboard/linux/x64x11',
 
-    'enable_webdriver': '1',
     'in_app_dial%': 1,
     'gl_type%': 'system_gles3',
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
-    # JIT is temporarily disabled for spidermonkey.
-    'cobalt_enable_jit': 0,
+    'cobalt_enable_jit': 1,
 
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.

@@ -70,6 +70,8 @@ class InterpolateVisitor : public PropertyValueVisitor {
 
   void VisitAbsoluteURL(AbsoluteURLValue* start_absolute_url_value) OVERRIDE;
   void VisitCalc(CalcValue* start_calc_value) OVERRIDE;
+  void VisitFilterFunctionList(
+      FilterFunctionListValue* start_filter_function_list_value) OVERRIDE;
   void VisitFontStyle(FontStyleValue* start_font_style_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* start_font_weight_value) OVERRIDE;
   void VisitInteger(IntegerValue* integer_value) OVERRIDE;
@@ -352,6 +354,12 @@ void InterpolateVisitor::VisitAbsoluteURL(
 }
 
 void InterpolateVisitor::VisitCalc(CalcValue* /*start_calc_value*/) {
+  NOTIMPLEMENTED();
+  interpolated_value_ = end_value_;
+}
+
+void InterpolateVisitor::VisitFilterFunctionList(
+    FilterFunctionListValue* /*start_filter_function_list_value*/) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }

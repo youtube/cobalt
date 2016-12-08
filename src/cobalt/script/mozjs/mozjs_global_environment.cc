@@ -28,6 +28,7 @@
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/referenced_object_map.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
+#include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 #include "third_party/mozjs/js/src/jsfun.h"
 #include "third_party/mozjs/js/src/jsobj.h"
@@ -128,6 +129,7 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
       environment_settings_(NULL),
       last_error_message_(NULL),
       eval_enabled_(false) {
+  TRACK_MEMORY_SCOPE("Javascript");
   context_ = JS_NewContext(runtime, kStackChunkSize);
   DCHECK(context_);
   // Set a pointer to this class inside the JSContext.
@@ -166,6 +168,7 @@ MozjsGlobalEnvironment::~MozjsGlobalEnvironment() {
 }
 
 void MozjsGlobalEnvironment::CreateGlobalObject() {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!global_object_proxy_);
 
@@ -194,45 +197,31 @@ void MozjsGlobalEnvironment::CreateGlobalObject() {
 bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
-  MozjsSourceCode* mozjs_source_code =
-      base::polymorphic_downcast<MozjsSourceCode*>(source_code.get());
-
-  const std::string& script = mozjs_source_code->source_utf8();
-  const base::SourceLocation location = mozjs_source_code->location();
 
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
   JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
   JS::RootedValue result_value(context_);
+
   std::string error_message;
   last_error_message_ = &error_message;
-  JS::RootedObject global_object(
-      context_, js::GetProxyTargetObject(global_object_proxy_));
 
-  size_t length = script.size();
-  jschar* inflated_buffer =
-      js::InflateUTF8String(context_, script.c_str(), &length);
-  DCHECK(inflated_buffer);
-  bool success = false;
-  if (inflated_buffer) {
-    success = JS_EvaluateUCScript(context_, global_object, inflated_buffer,
-                                  length, location.file_path.c_str(),
-                                  location.line_number, result_value.address());
-    js_free(inflated_buffer);
-  }
-
+  bool success = EvaluateScriptInternal(source_code, &result_value);
   if (out_result_utf8) {
     if (success) {
       MozjsExceptionState exception_state(context_);
       FromJSValue(context_, result_value, kNoConversionFlags, &exception_state,
                   out_result_utf8);
-    } else {
+    } else if (last_error_message_) {
       *out_result_utf8 = *last_error_message_;
+    } else {
+      DLOG(ERROR) << "Script execution failed.";
     }
   }
-  JS_RestoreExceptionState(context_, previous_exception_state);
   last_error_message_ = NULL;
+  JS_RestoreExceptionState(context_, previous_exception_state);
   return success;
 }
 
@@ -240,15 +229,14 @@ bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object,
     base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
   JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
   JS::RootedValue result_value(context_);
-  if (!EvaluateScriptInternal(source_code, &result_value)) {
-    return false;
-  }
-  if (out_opaque_handle) {
+  bool success = EvaluateScriptInternal(source_code, &result_value);
+  if (success && out_opaque_handle) {
     JS::RootedObject js_object(context_);
     JS_ValueToObject(context_, result_value, js_object.address());
     MozjsObjectHandleHolder mozjs_object_holder(js_object, context_,
@@ -256,12 +244,13 @@ bool MozjsGlobalEnvironment::EvaluateScript(
     out_opaque_handle->emplace(owning_object.get(), mozjs_object_holder);
   }
   JS_RestoreExceptionState(context_, previous_exception_state);
-  return true;
+  return success;
 }
 
 bool MozjsGlobalEnvironment::EvaluateScriptInternal(
     const scoped_refptr<SourceCode>& source_code,
     JS::MutableHandleValue out_result) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(global_object_proxy_);
   MozjsSourceCode* mozjs_source_code =
@@ -276,13 +265,14 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
   size_t length = script.size();
   jschar* inflated_buffer =
       js::InflateUTF8String(context_, script.c_str(), &length);
-  DCHECK(inflated_buffer);
   bool success = false;
   if (inflated_buffer) {
     success = JS_EvaluateUCScript(context_, global_object, inflated_buffer,
                                   length, location.file_path.c_str(),
                                   location.line_number, out_result.address());
     js_free(inflated_buffer);
+  } else {
+    DLOG(ERROR) << "Malformed UTF-8 script.";
   }
 
   return success;
@@ -307,6 +297,7 @@ void MozjsGlobalEnvironment::PreventGarbageCollection(
 
 void MozjsGlobalEnvironment::AllowGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   CachedWrapperMultiMap::iterator it =
       kept_alive_objects_.find(wrappable.get());
@@ -336,6 +327,7 @@ void MozjsGlobalEnvironment::SetReportEvalCallback(
 
 void MozjsGlobalEnvironment::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
+  TRACK_MEMORY_SCOPE("Javascript");
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
 
@@ -358,12 +350,14 @@ InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(intptr_t key) {
 }
 
 void MozjsGlobalEnvironment::DoSweep() {
+  TRACK_MEMORY_SCOPE("Javascript");
   weak_object_manager_.SweepUnmarkedObjects();
   // Remove NULL references after sweeping weak references.
   referenced_objects_->RemoveNullReferences();
 }
 
 void MozjsGlobalEnvironment::BeginGarbageCollection() {
+  TRACK_MEMORY_SCOPE("Javascript");
   // It's possible that a GC could be triggered from within the
   // BeginGarbageCollection callback. Only create the OpaqueRootState the first
   // time we enter.
@@ -477,6 +471,7 @@ void MozjsGlobalEnvironment::TraceFunction(JSTracer* trace, void* data) {
 }
 
 JSBool MozjsGlobalEnvironment::CheckEval(JSContext* context) {
+  TRACK_MEMORY_SCOPE("Javascript");
   MozjsGlobalEnvironment* global_object_proxy = GetFromContext(context);
   DCHECK(global_object_proxy);
   if (!global_object_proxy->report_eval_.is_null()) {

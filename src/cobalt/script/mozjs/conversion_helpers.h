@@ -71,7 +71,6 @@ inline void ToJSValue(JSContext* context, const std::string& in_string,
   size_t length = in_string.length();
   jschar* inflated_buffer =
       js::InflateUTF8String(context, in_string.c_str(), &length);
-  DCHECK(inflated_buffer);
 
   if (!inflated_buffer) {
     LOG(ERROR) << "Failed to inflate UTF8 string.";

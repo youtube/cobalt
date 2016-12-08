@@ -58,7 +58,7 @@ uLong ZEXPORT zlibCompileFlags()
     case 8:     flags += 2 << 6;        break;
     default:    flags += 3 << 6;
     }
-#ifdef DEBUG
+#ifdef ZLIB_DEBUG
     flags += 1 << 8;
 #endif
 #if defined(ASMV) || defined(ASMINF)
@@ -112,7 +112,7 @@ uLong ZEXPORT zlibCompileFlags()
     return flags;
 }
 
-#ifdef DEBUG
+#ifdef ZLIB_DEBUG
 
 #  ifndef verbose
 #    define verbose 0
@@ -301,7 +301,7 @@ voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, uInt items, uInt size)
 void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
 {
     SB_UNREFERENCED_PARAMETER(opaque);
-    SbMemoryFree(ptr);
+    SbMemoryDeallocate(ptr);
 }
 
 #endif /* STARBOARD */

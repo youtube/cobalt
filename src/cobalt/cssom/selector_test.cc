@@ -115,5 +115,42 @@ TEST(SelectorTest, ComplexSelectorSpecificity) {
   EXPECT_EQ(Specificity(1, 2, 3), complex_selector->GetSpecificity());
 }
 
+TEST(SelectorTest, ComplexSelectorAppendCallLimit) {
+  {
+    scoped_ptr<ComplexSelector> complex_selector(new ComplexSelector());
+    complex_selector->AppendSelector(
+        make_scoped_ptr<CompoundSelector>(new CompoundSelector()));
+
+    for (int i = 0; i < ComplexSelector::kCombinatorLimit;
+         i++) {
+      scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
+      scoped_ptr<ChildCombinator> child_combinator(new ChildCombinator());
+      complex_selector->AppendCombinatorAndSelector(
+          child_combinator.PassAs<Combinator>(), compound_selector.Pass());
+    }
+
+    EXPECT_EQ(complex_selector->combinator_count(),
+              ComplexSelector::kCombinatorLimit);
+  }
+
+  {
+    scoped_ptr<ComplexSelector> complex_selector(new ComplexSelector());
+    complex_selector->AppendSelector(
+        make_scoped_ptr<CompoundSelector>(new CompoundSelector()));
+
+    for (int i = 0;
+         i < 2 * ComplexSelector::kCombinatorLimit + 1;
+         i++) {
+      scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
+      scoped_ptr<ChildCombinator> child_combinator(new ChildCombinator());
+      complex_selector->AppendCombinatorAndSelector(
+          child_combinator.PassAs<Combinator>(), compound_selector.Pass());
+    }
+
+    EXPECT_EQ(complex_selector->combinator_count(),
+              ComplexSelector::kCombinatorLimit);
+  }
+}
+
 }  // namespace cssom
 }  // namespace cobalt

@@ -34,6 +34,8 @@
 #endif
 
 #include "private/cpu.h"
+
+#ifndef STARBOARD
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -54,6 +56,7 @@
 
 #   include <signal.h>
 #   include <setjmp.h>
+#endif  // STARBOARD
 
 static sigjmp_buf jmpbuf;
 static volatile sig_atomic_t canjump = 0;
@@ -71,13 +74,13 @@ static void sigill_handler (int sig)
 # endif /* FLAC__NO_ASM */
 #endif /* FLAC__CPU_PPC */
 
-#if defined (__NetBSD__) || defined(__OpenBSD__)
+#if (defined (__NetBSD__) || defined(__OpenBSD__)) && !defined(STARBOARD)
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <machine/cpu.h>
 #endif
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#if (defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)) && !defined(STARBOARD)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #endif

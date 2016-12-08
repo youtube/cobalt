@@ -31,6 +31,8 @@
 #include "js/Value.h"
 #include "js/Vector.h"
 
+#include "starboard/file.h"
+
 /************************************************************************/
 
 namespace JS {
@@ -3990,8 +3992,14 @@ extern JS_PUBLIC_API(JSScript *)
 Compile(JSContext *cx, JS::Handle<JSObject*> obj, CompileOptions options,
         const jschar *chars, size_t length);
 
+#if defined(STARBOARD)
+extern JS_PUBLIC_API(JSScript *)
+Compile(JSContext *cx, JS::Handle<JSObject*> obj, CompileOptions options,
+        SbFile file);
+#else
 extern JS_PUBLIC_API(JSScript *)
 Compile(JSContext *cx, JS::Handle<JSObject*> obj, CompileOptions options, FILE *file);
+#endif
 
 extern JS_PUBLIC_API(JSScript *)
 Compile(JSContext *cx, JS::Handle<JSObject*> obj, CompileOptions options, const char *filename);

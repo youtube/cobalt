@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -22,20 +23,18 @@
 #include "starboard/time.h"
 #include "starboard/window.h"
 
-// TODO: Implement DRM support
 struct SbPlayerPrivate
     : starboard::shared::starboard::player::PlayerWorker::Host {
  public:
-  SbPlayerPrivate(SbWindow window,
-                  SbMediaVideoCodec video_codec,
-                  SbMediaAudioCodec audio_codec,
-                  SbMediaTime duration_pts,
-                  SbDrmSystem drm_system,
-                  const SbMediaAudioHeader* audio_header,
-                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
-                  SbPlayerDecoderStatusFunc decoder_status_func,
-                  SbPlayerStatusFunc player_status_func,
-                  void* context);
+  typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
+
+  SbPlayerPrivate(
+      SbMediaTime duration_pts,
+      SbPlayerDeallocateSampleFunc sample_deallocate_func,
+      SbPlayerDecoderStatusFunc decoder_status_func,
+      SbPlayerStatusFunc player_status_func,
+      void* context,
+      starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(SbMediaTime seek_to_pts, int ticket);
   void WriteSample(SbMediaType sample_type,
@@ -71,7 +70,7 @@ struct SbPlayerPrivate
   double volume_;
   int total_video_frames_;
 
-  starboard::shared::starboard::player::PlayerWorker worker_;
+  starboard::scoped_ptr<PlayerWorker> worker_;
 };
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_

@@ -16,6 +16,7 @@
 
 #include "cobalt/loader/image/png_image_decoder.h"
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 
 namespace cobalt {
@@ -72,6 +73,8 @@ PNGImageDecoder::PNGImageDecoder(
       info_(NULL),
       has_alpha_(false),
       interlace_buffer_(0) {
+  TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::PNGImageDecoder()");
+
   png_ = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, DecodingFailed,
                                 DecodingWarning);
   info_ = png_create_info_struct(png_);
@@ -80,6 +83,8 @@ PNGImageDecoder::PNGImageDecoder(
 }
 
 size_t PNGImageDecoder::DecodeChunkInternal(const uint8* data, size_t size) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "PNGImageDecoder::DecodeChunkInternal()");
   // int setjmp(jmp_buf env) saves the current environment (ths program state),
   // at some point of program execution, into a platform-specific data
   // structure (jmp_buf) that can be used at some later point of program
@@ -107,6 +112,7 @@ MSVC_POP_WARNING();
 }
 
 PNGImageDecoder::~PNGImageDecoder() {
+  TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::~PNGImageDecoder()");
   // Both are created at the same time. So they should be both zero
   // or both non-zero. Use && here to be safer.
   if (png_ && info_) {
@@ -127,6 +133,7 @@ PNGImageDecoder::~PNGImageDecoder() {
 // static
 void PNGImageDecoder::HeaderAvailable(png_structp png, png_infop info) {
   UNREFERENCED_PARAMETER(info);
+  TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::~PNGImageDecoder()");
   PNGImageDecoder* decoder =
       static_cast<PNGImageDecoder*>(png_get_progressive_ptr(png));
   decoder->HeaderAvailableCallback();
@@ -146,12 +153,16 @@ void PNGImageDecoder::RowAvailable(png_structp png, png_bytep row_buffer,
 // static
 void PNGImageDecoder::DecodeDone(png_structp png, png_infop info) {
   UNREFERENCED_PARAMETER(info);
+  TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::DecodeDone()");
+
   PNGImageDecoder* decoder =
       static_cast<PNGImageDecoder*>(png_get_progressive_ptr(png));
   decoder->DecodeDoneCallback();
 }
 
 void PNGImageDecoder::HeaderAvailableCallback() {
+  TRACE_EVENT0("cobalt::loader::image",
+               "PNGImageDecoder::HeaderAvailableCallback()");
   DCHECK_EQ(state(), kWaitingForHeader);
 
   png_uint_32 width = png_get_image_width(png_, info_);
@@ -236,7 +247,8 @@ void PNGImageDecoder::HeaderAvailableCallback() {
   }
 
   AllocateImageData(
-      math::Size(static_cast<int>(width), static_cast<int>(height)));
+      math::Size(static_cast<int>(width), static_cast<int>(height)),
+      has_alpha_);
 
   set_state(kReadLines);
 }

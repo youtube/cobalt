@@ -37,6 +37,13 @@
 #include "cobalt/dom/node_list_live.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#define HANDLE_CORE_DUMP
+#include "starboard/ps4/core_dump_handler.h"
+#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace dom {
@@ -49,8 +56,25 @@ struct NodeCountLog {
   NodeCountLog() : count(0) {
     base::UserLog::Register(base::UserLog::kNodeCountIndex, "NodeCnt", &count,
                             sizeof(count));
+#if defined(HANDLE_CORE_DUMP)
+    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
+#endif
   }
-  ~NodeCountLog() { base::UserLog::Deregister(base::UserLog::kNodeCountIndex); }
+
+  ~NodeCountLog() {
+#if defined(HANDLE_CORE_DUMP)
+    SbCoreDumpUnregisterHandler(CoreDumpHandler, this);
+#endif
+    base::UserLog::Deregister(base::UserLog::kNodeCountIndex);
+  }
+
+#if defined(HANDLE_CORE_DUMP)
+  static void CoreDumpHandler(void* context) {
+    SbCoreDumpLogInteger(
+        "Total number of nodes",
+        static_cast<NodeCountLog*>(context)->count);
+  }
+#endif
 
   int count;
 

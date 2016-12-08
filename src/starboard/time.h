@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Access to system time and timers.
+// Module Overview: Starboard Time module
+//
+// Provides access to system time and timers.
 
 #ifndef STARBOARD_TIME_H_
 #define STARBOARD_TIME_H_
@@ -60,27 +62,43 @@ typedef int64_t SbTimeMonotonic;
 // microseconds since the POSIX epoch.
 #define kSbTimeToPosixDelta (SB_INT64_C(-11644473600) * kSbTimeSecond)
 
-// Converts an SbTime into microseconds from the POSIX epoch.
+// Converts |SbTime| into microseconds from the POSIX epoch.
+//
+// |time|: A time that is either measured in microseconds since the epoch of
+//   January 1, 1601, UTC, or that measures the number of microseconds
+//   between two times.
 static SB_C_FORCE_INLINE int64_t SbTimeToPosix(SbTime time) {
   return time + kSbTimeToPosixDelta;
 }
 
-// Converts microseconds from the POSIX epoch into an SbTime.
+// Converts microseconds from the POSIX epoch into an |SbTime|.
+//
+// |time|: A time that measures the number of microseconds since
+//   January 1, 1970, 00:00:00, UTC.
 static SB_C_FORCE_INLINE SbTime SbTimeFromPosix(int64_t time) {
   return time - kSbTimeToPosixDelta;
 }
 
-// Safely narrows a number from a more-precise unit to a less-precise one. This
-// rounds negative values towards negative infinity.
+// Safely narrows a number from a more precise unit to a less precise one. This
+// function rounds negative values toward negative infinity.
 static SB_C_FORCE_INLINE int64_t SbTimeNarrow(int64_t time, int64_t divisor) {
   return time >= 0 ? time / divisor : (time - divisor + 1) / divisor;
 }
 
-// Gets the current system time as a SbTime.
+// Gets the current system time as an |SbTime|.
 SB_EXPORT SbTime SbTimeGetNow();
 
 // Gets a monotonically increasing time representing right now.
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicNow();
+
+#if SB_VERSION(3) && SB_HAS(TIME_THREAD_NOW)
+// Gets a monotonically increasing time representing how long the current
+// thread has been in the executing state (i.e. not pre-empted nor waiting
+// on an event). This is not necessarily total time and is intended to allow
+// measuring thread execution time between two timestamps. If this is not
+// available then SbTimeGetMonotonicNow() should be used.
+SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicThreadNow();
+#endif
 
 #ifdef __cplusplus
 }  // extern "C"

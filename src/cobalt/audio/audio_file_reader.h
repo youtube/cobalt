@@ -19,6 +19,8 @@
 
 #include "base/memory/scoped_ptr.h"  // For scoped_array
 
+#include "cobalt/audio/audio_helpers.h"
+
 namespace cobalt {
 namespace audio {
 
@@ -26,7 +28,8 @@ class AudioFileReader {
  public:
   virtual ~AudioFileReader() {}
 
-  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size);
+  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size,
+                                               SampleType sample_type);
 
   // Returns the sample data stored as float sample in planar form.  Note that
   // this function transfers the ownership of the data to the caller so it can
@@ -35,6 +38,7 @@ class AudioFileReader {
   virtual float sample_rate() const = 0;
   virtual int32 number_of_frames() const = 0;
   virtual int32 number_of_channels() const = 0;
+  virtual SampleType sample_type() const = 0;
 };
 
 }  // namespace audio

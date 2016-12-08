@@ -8,7 +8,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
 #define JS_BYTES_PER_WORD 8
 #define JS_BITS_PER_WORD_LOG2 6
 #else

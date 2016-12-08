@@ -83,6 +83,7 @@ namespace base {
     MacroOpWithNameAndValue(class_selector_prefix, ".")                 \
     MacroOpWithNameAndValue(comment_node_name, "#comment")              \
     MacroOpWithNameAndValue(document_name, "#document")                 \
+    MacroOpWithNameAndValue(domcontentloaded, "DOMContentLoaded")       \
     MacroOpWithNameAndValue(empty_pseudo_class_selector, "empty")       \
     MacroOpWithNameAndValue(focus_pseudo_class_selector, "focus")       \
     MacroOpWithNameAndValue(hover_pseudo_class_selector, "hover")       \

@@ -21,11 +21,45 @@
 #include "base/stringprintf.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
+#if defined(OS_STARBOARD)
+#include "starboard/configuration.h"
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#define HANDLE_CORE_DUMP
+#include "base/lazy_instance.h"
+#include "starboard/ps4/core_dump_handler.h"
+#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#endif  // OS_STARBOARD
 
 namespace cobalt {
 namespace loader {
 
 namespace {
+
+#if defined(HANDLE_CORE_DUMP)
+
+class NetFetcherLog {
+ public:
+  NetFetcherLog() : total_fetched_bytes_(0) {
+    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
+  }
+  ~NetFetcherLog() { SbCoreDumpUnregisterHandler(CoreDumpHandler, this); }
+
+  static void CoreDumpHandler(void* context) {
+    SbCoreDumpLogInteger(
+        "NetFetcher total fetched bytes",
+        static_cast<NetFetcherLog*>(context)->total_fetched_bytes_);
+  }
+
+  void IncrementFetchedBytes(int length) { total_fetched_bytes_ += length; }
+
+ private:
+  int total_fetched_bytes_;
+  DISALLOW_COPY_AND_ASSIGN(NetFetcherLog);
+};
+
+base::LazyInstance<NetFetcherLog> net_fetcher_log = LAZY_INSTANCE_INITIALIZER;
+
+#endif  // defined(HANDLE_CORE_DUMP)
 
 bool IsResponseCodeSuccess(int response_code) {
   // NetFetcher only considers success to be if the network request
@@ -47,30 +81,31 @@ NetFetcher::NetFetcher(const GURL& url,
                        const Options& options)
     : Fetcher(handler),
       security_callback_(security_callback),
-      ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
-          base::Bind(&NetFetcher::Start, base::Unretained(this)))) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(csp_reject_callback_(
+          base::Bind(&NetFetcher::ProcessCSPReject, base::Unretained(this)))) {
   url_fetcher_.reset(
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
   url_fetcher_->DiscardResponse();
 
-  // Delay the actual start until this function is complete. Otherwise we might
-  // call handler's callbacks at an unexpected time- e.g. receiving OnError()
-  // while a loader is still being constructed.
-  MessageLoop::current()->PostTask(FROM_HERE, start_callback_.callback());
-}
-
-void NetFetcher::Start() {
-  DCHECK(thread_checker_.CalledOnValidThread());
   const GURL& original_url = url_fetcher_->GetOriginalURL();
   if (security_callback_.is_null() ||
       security_callback_.Run(original_url, false /* did not redirect */)) {
     url_fetcher_->Start();
   } else {
-    std::string msg(base::StringPrintf("URL %s rejected by security policy.",
-                                       original_url.spec().c_str()));
-    return HandleError(msg).InvalidateThis();
+    // Delay the callback until this function is complete. Otherwise we might
+    // call handler's callbacks at an unexpected time- e.g. receiving OnError()
+    // while a loader is still being constructed.
+    MessageLoop::current()->PostTask(FROM_HERE,
+                                     csp_reject_callback_.callback());
   }
+}
+
+void NetFetcher::ProcessCSPReject() {
+  const GURL& original_url = url_fetcher_->GetOriginalURL();
+  std::string msg(base::StringPrintf("URL %s rejected by security policy.",
+                                     original_url.spec().c_str()));
+  return HandleError(msg).InvalidateThis();
 }
 
 void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
@@ -118,13 +153,17 @@ bool NetFetcher::ShouldSendDownloadData() { return true; }
 void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
                                         scoped_ptr<std::string> download_data) {
   if (IsResponseCodeSuccess(source->GetResponseCode())) {
-    handler()->OnReceived(this, download_data->data(), download_data->length());
+#if defined(HANDLE_CORE_DUMP)
+    net_fetcher_log.Get().IncrementFetchedBytes(
+        static_cast<int>(download_data->length()));
+#endif
+    handler()->OnReceivedPassed(this, download_data.Pass());
   }
 }
 
 NetFetcher::~NetFetcher() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  start_callback_.Cancel();
+  csp_reject_callback_.Cancel();
 }
 
 NetFetcher::ReturnWrapper NetFetcher::HandleError(const std::string& message) {

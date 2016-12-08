@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/css_declared_style_declaration.h"
 
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_parser.h"
@@ -63,6 +64,7 @@ std::string CSSDeclaredStyleDeclaration::css_text(
 
 void CSSDeclaredStyleDeclaration::set_css_text(
     const std::string& css_text, script::ExceptionState* /*exception_state*/) {
+  TRACE_EVENT0("cobalt::cssom", "CSSDeclaredStyleDeclaration::set_css_text");
   DCHECK(css_parser_);
   scoped_refptr<CSSDeclaredStyleData> declaration =
       css_parser_->ParseStyleDeclarationList(
@@ -112,6 +114,22 @@ std::string CSSDeclaredStyleDeclaration::GetDeclaredPropertyValueStringByKey(
 void CSSDeclaredStyleDeclaration::SetPropertyValue(
     const std::string& property_name, const std::string& property_value,
     script::ExceptionState* /*exception_state*/) {
+  DCHECK(css_parser_);
+  if (!data_) {
+    data_ = new CSSDeclaredStyleData();
+  }
+  css_parser_->ParsePropertyIntoDeclarationData(
+      property_name, property_value, non_trivial_static_fields.Get().location,
+      data_.get());
+
+  RecordMutation();
+}
+
+void CSSDeclaredStyleDeclaration::SetProperty(
+    const std::string& property_name, const std::string& property_value,
+    const std::string& priority, script::ExceptionState* /*exception_state*/) {
+  DLOG(INFO) << "CSSDeclaredStyleDeclaration::SetProperty(" << property_name
+             << "," << property_value << "," << priority << ")";
   DCHECK(css_parser_);
   if (!data_) {
     data_ = new CSSDeclaredStyleData();

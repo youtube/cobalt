@@ -15,8 +15,11 @@
 #include "jsstarboard-time.h"
 
 #include "mozilla/Assertions.h"
+#include "starboard/configuration.h"
 #include "unicode/timezone.h"
 
+// If the Starboard platform has this quirk, do not use these functions.
+#if !SB_HAS_QUIRK(NO_TIMEZONE_NAME_SUPPORT)
 SbTime getDSTOffset(int64_t utc_time_us) {
   // UDate is in milliseconds from the epoch.
   UDate udate = utc_time_us / kSbTimeMillisecond;
@@ -41,4 +44,4 @@ SbTime getTZOffset() {
   delete current_zone;
   return raw_offset_ms * kSbTimeMillisecond;
 }
-
+#endif

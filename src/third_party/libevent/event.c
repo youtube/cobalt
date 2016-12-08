@@ -28,6 +28,16 @@
 #include "config.h"
 #endif
 
+#ifdef STARBOARD
+#include "libevent-starboard.h"
+
+#include "compat/sys/queue.h"
+
+// Include Starboard poems after all system headers.
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -52,6 +62,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#endif  // STARBOARD
 
 #include "event.h"
 #include "event-internal.h"
@@ -899,7 +910,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	pev = base->timeheap.p;
 	size = base->timeheap.n;
 	for (; size-- > 0; ++pev) {
-		struct timeval *ev_tv = &(**pev).ev_timeout;
+		struct evtimeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
 	/* Now remember what the new time turned out to be. */

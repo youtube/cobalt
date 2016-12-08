@@ -55,10 +55,22 @@ class RendererModule {
     // using the hardware-accelerated Skia rasterizer.
     int skia_cache_size_in_bytes;
 
+    // Only relevant if you are using the Blitter API.
+    // Determines the capacity of the software surface cache, which is used to
+    // cache all surfaces that are rendered via a software rasterizer to avoid
+    // re-rendering them.
+    int software_surface_cache_size_in_bytes;
+
     // Determines the capacity of the surface cache.  The surface cache tracks
     // which render tree nodes are being re-used across frames and stores the
     // nodes that are most CPU-expensive to render into surfaces.
     int surface_cache_size_in_bytes;
+
+    // If this flag is set to true, the pipeline will not re-submit a render
+    // tree if it has not changed from the previous submission.  This can save
+    // CPU time so long as there's no problem with the fact that the display
+    // buffer will not be frequently swapped.
+    bool submit_even_if_render_tree_is_unchanged;
 
    private:
     // Implemented per-platform, and allows each platform to customize

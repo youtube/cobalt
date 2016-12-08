@@ -234,6 +234,7 @@
         'uint8_array.h',
         'url.cc',
         'url.h',
+        'url_registry.h',
         'url_utils.cc',
         'url_utils.h',
         'window.cc',
@@ -257,6 +258,7 @@
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/nb/nb.gyp:nb',
       ],
     },
 

@@ -32,8 +32,14 @@
 #ifndef FLAC__PRIVATE__BITWRITER_H
 #define FLAC__PRIVATE__BITWRITER_H
 
+#ifndef COBALT
 #include <stdio.h> /* for FILE */
+#endif  // COBALT
 #include "FLAC/ordinals.h"
+
+#ifdef STARBOARD
+#include "starboard/types.h"
+#endif  // STARBOARD
 
 /*
  * opaque structure definition
@@ -49,7 +55,9 @@ void FLAC__bitwriter_delete(FLAC__BitWriter *bw);
 FLAC__bool FLAC__bitwriter_init(FLAC__BitWriter *bw);
 void FLAC__bitwriter_free(FLAC__BitWriter *bw); /* does not 'free(buffer)' */
 void FLAC__bitwriter_clear(FLAC__BitWriter *bw);
+#ifndef COBALT
 void FLAC__bitwriter_dump(const FLAC__BitWriter *bw, FILE *out);
+#endif  // COBALT
 
 /*
  * CRC functions

@@ -20,8 +20,8 @@
 #include "starboard/queue.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/thread.h"
 
@@ -29,12 +29,12 @@ namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class VideoDecoder : public starboard::player::VideoDecoder {
+class VideoDecoder : public starboard::player::filter::VideoDecoder {
  public:
   typedef starboard::player::InputBuffer InputBuffer;
   typedef starboard::player::VideoFrame VideoFrame;
 
-  explicit VideoDecoder(SbMediaVideoCodec);
+  explicit VideoDecoder(SbMediaVideoCodec video_codec);
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;

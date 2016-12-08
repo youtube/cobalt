@@ -65,15 +65,15 @@ void DestructSubmissionOnMessageLoop(MessageLoop* message_loop,
 
 Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
                    const scoped_refptr<backend::RenderTarget>& render_target,
-                   backend::GraphicsContext* graphics_context)
+                   backend::GraphicsContext* graphics_context,
+                   bool submit_even_if_render_tree_is_unchanged)
     : rasterizer_created_event_(true, false),
       render_target_(render_target),
       graphics_context_(graphics_context),
       rasterizer_thread_("Rasterizer"),
       submission_disposal_thread_("Rasterizer Submission Disposal"),
-      rasterize_current_tree_interval_timer_(
-          "Renderer.Rasterize.Interval",
-          kRasterizeCurrentTreeTimerTimeIntervalInMs),
+      submit_even_if_render_tree_is_unchanged_(
+          submit_even_if_render_tree_is_unchanged),
       rasterize_current_tree_timer_("Renderer.Rasterize.Duration",
                                     kRasterizeCurrentTreeTimerTimeIntervalInMs)
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -120,6 +120,12 @@ Pipeline::~Pipeline() {
       FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
                             base::Unretained(&submission_queue_shutdown)));
   submission_queue_shutdown.Wait();
+
+  // This potential reference to a render tree whose animations may have ended
+  // must be destroyed before we shutdown the rasterizer thread since it may
+  // contain references to render tree nodes and resources.
+  last_rendered_expired_render_tree_ = NULL;
+  last_render_tree_ = NULL;
 
   // Submit a shutdown task to the rasterizer thread so that it can shutdown
   // anything that must be shutdown from that thread.
@@ -221,17 +227,15 @@ void Pipeline::RasterizeCurrentTree() {
   base::TimeTicks now = base::TimeTicks::Now();
   Submission submission = submission_queue_->GetCurrentSubmission(now);
 
-#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
   // If our render tree hasn't changed from the one that was previously rendered
   // and the animations on the previously rendered tree have expired, and it's
   // okay on this system to not flip the display buffer frequently, then we
   // can just not do anything here.
-  if (submission.render_tree == last_rendered_expired_render_tree_) {
+  if (!submit_even_if_render_tree_is_unchanged_ &&
+      submission.render_tree == last_rendered_expired_render_tree_) {
     return;
   }
-#endif  // #if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
 
-  rasterize_current_tree_interval_timer_.Start(now);
   rasterize_current_tree_timer_.Start(now);
 
   // Rasterize the last submitted render tree.
@@ -239,17 +243,18 @@ void Pipeline::RasterizeCurrentTree() {
 
   rasterize_current_tree_timer_.Stop();
 
-#if defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
   // Check whether the animations in the render tree that was just rasterized
   // have expired or not, and if so, mark that down so that if we see it in
   // the future we don't spend the time re-rendering it.
-  render_tree::animations::AnimateNode* animate_node =
-      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
-          submission.render_tree.get());
-  last_rendered_expired_render_tree_ =
-      animate_node->expiry() <= submission.time_offset ? submission.render_tree
-                                                       : NULL;
-#endif  // defined(DO_NOT_FLIP_BUFFERS_IF_RENDER_TREE_DOES_NOT_CHANGE)
+  if (!submit_even_if_render_tree_is_unchanged_) {
+    render_tree::animations::AnimateNode* animate_node =
+        base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+            submission.render_tree.get());
+    last_rendered_expired_render_tree_ =
+        animate_node->expiry() <= submission.time_offset
+            ? submission.render_tree
+            : NULL;
+  }
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
@@ -257,19 +262,45 @@ void Pipeline::RasterizeSubmissionToRenderTarget(
     const scoped_refptr<backend::RenderTarget>& render_target) {
   TRACE_EVENT0("cobalt::renderer",
                "Pipeline::RasterizeSubmissionToRenderTarget()");
+
+  // Keep track of the last render tree that we rendered so that we can watch
+  // if it changes, in which case we should reset our tracked
+  // |previous_animated_area_|.
+  if (submission.render_tree != last_render_tree_) {
+    last_render_tree_ = submission.render_tree;
+    previous_animated_area_ = base::nullopt;
+    last_render_time_ = base::nullopt;
+  }
+
   // Animate the render tree using the submitted animations.
   render_tree::animations::AnimateNode* animate_node =
       base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
           submission.render_tree.get());
-  scoped_refptr<Node> animated_render_tree =
+  render_tree::animations::AnimateNode::AnimateResults results =
       animate_node->Apply(submission.time_offset);
 
+  // Calculate a bounding box around the active animations.  Union it with the
+  // bounding box around active animations from the previous frame, and we get
+  // a scissor rectangle marking the dirty regions of the screen.
+  math::RectF animated_bounds = results.get_animation_bounds_since.Run(
+      last_render_time_ ? *last_render_time_ : base::TimeDelta());
+  math::Rect rounded_bounds = math::RoundOut(animated_bounds);
+  base::optional<math::Rect> redraw_area;
+  if (previous_animated_area_) {
+    redraw_area = math::UnionRects(rounded_bounds, *previous_animated_area_);
+  }
+  previous_animated_area_ = rounded_bounds;
+
   // Rasterize the animated render tree.
-  rasterizer_->Submit(animated_render_tree, render_target);
+  rasterizer::Rasterizer::Options rasterizer_options;
+  rasterizer_options.dirty = redraw_area;
+  rasterizer_->Submit(results.animated, render_target, rasterizer_options);
 
   if (!submission.on_rasterized_callback.is_null()) {
     submission.on_rasterized_callback.Run();
   }
+
+  last_render_time_ = submission.time_offset;
 }
 
 void Pipeline::InitializeRasterizerThread(
@@ -344,11 +375,10 @@ void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
   render_tree::animations::AnimateNode* animate_node =
       base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
           submission.render_tree.get());
-  scoped_refptr<Node> animated_render_tree =
+  render_tree::animations::AnimateNode::AnimateResults results =
       animate_node->Apply(submission.time_offset);
 
-  std::string tree_dump =
-      render_tree::DumpRenderTreeToString(animated_render_tree);
+  std::string tree_dump = render_tree::DumpRenderTreeToString(results.animated);
   if (message.empty() || message == "undefined") {
     // If no filename was specified, send output to the console.
     LOG(INFO) << tree_dump.c_str();

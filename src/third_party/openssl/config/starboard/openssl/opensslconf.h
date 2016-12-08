@@ -237,7 +237,7 @@
 #define OPENSSL_port_abort SbSystemBreakIntoDebugger
 #define OPENSSL_port_assert(x) SB_DCHECK(x)
 #define OPENSSL_port_atoi SbStringAToI
-#define OPENSSL_port_free SbMemoryFree
+#define OPENSSL_port_free SbMemoryDeallocate
 #define OPENSSL_port_getenv(x) NULL
 #define OPENSSL_port_isalnum SbCharacterIsAlphanumeric
 #define OPENSSL_port_isdigit SbCharacterIsDigit

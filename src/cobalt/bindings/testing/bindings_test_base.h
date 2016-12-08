@@ -25,6 +25,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
+#include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -69,6 +70,17 @@ class BindingsTestBase : public ::testing::Test {
         script::SourceCode::CreateSourceCode(
             script, base::SourceLocation("[object BindingsTestBase]", 1, 1));
     return global_environment_->EvaluateScript(source, out_result);
+  }
+
+  bool EvaluateScript(const std::string& script,
+                      const scoped_refptr<script::Wrappable>& owning_object,
+                      base::optional<script::OpaqueHandleHolder::Reference>*
+                          out_opaque_handle = NULL) {
+    scoped_refptr<script::SourceCode> source =
+        script::SourceCode::CreateSourceCode(
+            script, base::SourceLocation("[object BindingsTestBase]", 1, 1));
+    return global_environment_->EvaluateScript(source, owning_object,
+                                               out_opaque_handle);
   }
 
   void CollectGarbage() { engine_->CollectGarbage(); }

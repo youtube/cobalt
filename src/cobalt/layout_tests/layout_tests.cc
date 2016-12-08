@@ -92,7 +92,7 @@ TEST_P(LayoutTest, LayoutTest) {
   scoped_refptr<render_tree::animations::AnimateNode> animate_node =
       new render_tree::animations::AnimateNode(layout_results.render_tree);
   scoped_refptr<render_tree::Node> animated_tree =
-      animate_node->Apply(layout_results.layout_time);
+      animate_node->Apply(layout_results.layout_time).animated;
 
   bool results =
       pixel_tester.TestTree(animated_tree, GetParam().base_file_path);
@@ -188,6 +188,11 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     AnimationTimingAPILayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("animation-timing")));
+
+// Problematic test cases found through cluster-fuzz.
+INSTANTIATE_TEST_CASE_P(
+    ClusterFuzzLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("cluster-fuzz")));
 
 // Disable on Windows until network stack is implemented.
 #if !defined(COBALT_WIN)

@@ -41,7 +41,8 @@ class Image : public render_tree::Image {
   // to be referenced in a render tree before then, and thus this function will
   // fast-track the initialization of the backend object if it has not yet
   // executed.
-  virtual void EnsureInitialized() = 0;
+  // Returns true if an initialization actually took place.
+  virtual bool EnsureInitialized() = 0;
 
   // Mechanism to allow dynamic type checking on Image objects.
   virtual base::TypeId GetTypeId() const = 0;
@@ -78,6 +79,9 @@ class MultiPlaneImage : public Image {
   base::TypeId GetTypeId() const OVERRIDE {
     return base::GetTypeId<MultiPlaneImage>();
   }
+
+  // All currently supported MultiPlaneImage formats do not feature alpha.
+  bool IsOpaque() const OVERRIDE { return true; }
 };
 
 }  // namespace skia

@@ -20,31 +20,45 @@
       'variables': {
         'includes_starboard': 1,
       },
-      'sources': [
-        'allocator.h',
-        'allocator_decorator.cc',
-        'allocator_decorator.h',
-        'fixed_no_free_allocator.cc',
-        'fixed_no_free_allocator.h',
-        'memory_pool.cc',
-        'memory_pool.h',
-        'move.h',
-        'pointer_arithmetic.h',
-        'rect.h',
-        'ref_counted.cc',
-        'ref_counted.h',
-        'reuse_allocator.cc',
-        'reuse_allocator.h',
-        'scoped_ptr.h',
-        'thread_collision_warner.cc',
-        'thread_collision_warner.h',
-      ],
-
-      'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
-      ],
-
       'conditions': [
+        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
+          'sources': [
+            'allocator.h',
+            'allocator_decorator.cc',
+            'allocator_decorator.h',
+            'analytics/memory_tracker.cc',
+            'analytics/memory_tracker.h',
+            'analytics/memory_tracker_impl.cc',
+            'analytics/memory_tracker_impl.h',
+            'analytics/memory_tracker_helpers.cc',
+            'analytics/memory_tracker_helpers.h',
+            'atomic.h',
+            'fixed_no_free_allocator.cc',
+            'fixed_no_free_allocator.h',
+            'hash.cc',
+            'hash.h',
+            'memory_pool.cc',
+            'memory_pool.h',
+            'memory_scope.cc',
+            'memory_scope.h',
+            'move.h',
+            'pointer_arithmetic.h',
+            'rect.h',
+            'ref_counted.cc',
+            'ref_counted.h',
+            'reuse_allocator.cc',
+            'reuse_allocator.h',
+            'scoped_ptr.h',
+            'simple_thread.cc',
+            'simple_thread.h',
+            'thread_collision_warner.cc',
+            'thread_collision_warner.h',
+            'thread_local_object.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+          ],
+        }],
         ['target_arch == "ps4"', {
           'sources': [
             'kernel_contiguous_allocator_ps4.cc',
@@ -59,15 +73,26 @@
     {
       'target_name': 'nb_test',
       'type': '<(gtest_target_type)',
-      'sources': [
-        'fixed_no_free_allocator_test.cc',
-        'reuse_allocator_test.cc',
-        'run_all_unittests.cc',
-      ],
-      'dependencies': [
-        'nb',
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
+      'conditions': [
+        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
+          'sources': [
+            'analytics/memory_tracker_helpers_test.cc',
+            'analytics/memory_tracker_impl_test.cc',
+            'analytics/memory_tracker_test.cc',
+            'atomic_test.cc',
+            'fixed_no_free_allocator_test.cc',
+            'memory_scope_test.cc',
+            'reuse_allocator_test.cc',
+            'run_all_unittests.cc',
+            'test_thread.h',
+            'thread_local_object_test.cc',
+          ],
+          'dependencies': [
+            'nb',
+            '<(DEPTH)/testing/gmock.gyp:gmock',
+            '<(DEPTH)/testing/gtest.gyp:gtest',
+          ],
+        }]
       ],
     },
     {
@@ -79,6 +104,7 @@
       'variables': {
         'executable_name': 'nb_test',
       },
+      'includes': [ '../starboard/build/deploy.gypi' ],
     },
 
     {

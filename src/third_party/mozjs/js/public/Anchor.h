@@ -11,6 +11,10 @@
 
 #include "mozilla/Attributes.h"
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
+
 class JSFunction;
 class JSObject;
 class JSScript;
@@ -110,10 +114,16 @@ class Anchor : AnchorPermitted<T>
     void operator=(const Anchor &other) MOZ_DELETE;
 };
 
+#if defined(STARBOARD)
+#if SB_HAS_QUIRK(COMPILER_SAYS_GNUC_BUT_ISNT)
+#define ENABLE_COMPILER_SAYS_GNUC_BUT_ISNT_WORKAROUND
+#endif
+#endif
+
 template<typename T>
 inline Anchor<T>::~Anchor()
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(ENABLE_COMPILER_SAYS_GNUC_BUT_ISNT_WORKAROUND)
     /*
      * No code is generated for this. But because this is marked 'volatile', G++ will
      * assume it has important side-effects, and won't delete it. (G++ never looks at
@@ -154,7 +164,7 @@ inline Anchor<T>::~Anchor()
      */
     volatile T sink;
     sink = hold;
-#endif  /* defined(__GNUC__) */
+#endif  /* defined(__GNUC__) && !defined(ENABLE_COMPILER_SAYS_GNUC_BUT_ISNT_WORKAROUND) */
 }
 
 } // namespace JS

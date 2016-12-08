@@ -30,9 +30,6 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
  public:
   explicit Buffer(nb::scoped_ptr<BufferImpl> impl);
 
-  // Called when glBindBuffer() is called.
-  void SetTarget(GLenum target);
-
   // Allocates memory within this Buffer object.
   void Allocate(GLenum usage, size_t size);
 
@@ -47,16 +44,6 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
   // Returns true if the buffer is currently mapped to the CPU address space.
   bool is_mapped() const { return is_mapped_; }
 
-  // Returns true if the target has been set (e.g. via glBindBuffer()).
-  bool target_valid() const { return target_valid_; }
-
-  // Returns the target (set via glBindBuffer()).  Must be called only if
-  // target_valid() is true.
-  GLenum target() const {
-    SB_DCHECK(target_valid_);
-    return target_;
-  }
-
   GLsizeiptr size_in_bytes() const { return size_in_bytes_; }
 
   BufferImpl* impl() const { return impl_.get(); }
@@ -66,13 +53,6 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
   ~Buffer() {}
 
   nb::scoped_ptr<BufferImpl> impl_;
-
-  // The target type this buffer was last bound as, set through a call to
-  // glBindBuffer().
-  GLenum target_;
-
-  // Represents whether or not target_ as been initialized yet.
-  bool target_valid_;
 
   // The size of the allocated memory used by this buffer.
   GLsizeiptr size_in_bytes_;

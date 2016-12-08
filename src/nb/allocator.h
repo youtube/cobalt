@@ -42,14 +42,21 @@ class Allocator {
   // Will return NULL if the allocation fails.
   virtual void* Allocate(std::size_t size, std::size_t alignment) = 0;
 
-  // Allocates a range of memory of the given size for the given alignment.
-  // Returns a pointer that may not be aligned but points to a memory area that
-  // is still large enough when the pointer is subsequently aligned to the given
-  // alignment. It can allocate up to size + alignment - 1 bytes. This allows a
-  // reuse allocator to use the padding area as a free block. Will return NULL
-  // if the allocation fails.
-  virtual void* AllocateForAlignment(std::size_t size,
-                                     std::size_t alignment) = 0;
+  // When supported, allocates a range of memory of the given size for the given
+  // alignment. Returns a pointer that may not be aligned but points to a memory
+  // area that is still large enough when the pointer is subsequently aligned to
+  // the given alignment. This allows a reuse allocator to use the padding area
+  // as a free block. |size| will be set to the actual size allocated on
+  // successful allocations. Will return NULL if the allocation fails. In the
+  // case that the underlying block size is inconvenient or impossible to be
+  // retreived, the |size| can remain unchanged for a successful allocation. The
+  // user may lose the ability to combine two adjacent allocations in this case.
+  // Note that the coding style recommends that in/out parameters to be placed
+  // after input parameters but |size| is kept in the left for consistency.
+  virtual void* AllocateForAlignment(std::size_t* /*size*/,
+                                     std::size_t /*alignment*/) {
+    return 0;
+  }
 
   // Frees memory previously allocated via any call to Allocate().
   virtual void Free(void* memory) = 0;

@@ -19,7 +19,7 @@
 #include "starboard/shared/signal/suspend_signals.h"
 #include "starboard/shared/x11/application_x11.h"
 
-int main(int argc, char** argv) {
+extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();

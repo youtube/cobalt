@@ -71,6 +71,7 @@ void SendDataToListeningSocket(SocketDescriptor s,
   // Create another socket.
   SocketDescriptor cs = SbSocketCreate(sb_address.type, kSbSocketProtocolUdp);
   SbSocketSendTo(cs, data, size, &sb_address);
+  SbSocketDestroy(cs);
 #else   // defined(OS_STARBOARD)
   // Get the watching address
   SockaddrStorage bind_addr;

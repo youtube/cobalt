@@ -205,6 +205,15 @@ JSBool fcn_longFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -239,6 +248,15 @@ JSBool fcn_objectFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -271,6 +289,15 @@ JSBool fcn_optionalArgumentWithDefault(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -315,6 +342,15 @@ JSBool fcn_optionalArguments(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -415,6 +451,15 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -473,6 +518,15 @@ JSBool fcn_overloadedFunction1(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -499,6 +553,15 @@ JSBool fcn_overloadedFunction2(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -547,6 +610,15 @@ JSBool fcn_overloadedFunction3(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -591,6 +663,15 @@ JSBool fcn_overloadedFunction4(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -661,6 +742,15 @@ JSBool fcn_overloadedFunction5(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -738,6 +828,10 @@ JSBool fcn_overloadedFunction(
       MozjsGlobalEnvironment* global_environment =
           static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      JS::RootedObject object(context);
+      if (arg.isObject()) {
+        object = JSVAL_TO_OBJECT(arg);
+      }
       if (arg.isNumber()) {
         return fcn_overloadedFunction2(
                   context, argc, vp);
@@ -759,8 +853,12 @@ JSBool fcn_overloadedFunction(
       MozjsGlobalEnvironment* global_environment =
           static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      JS::RootedObject object(context);
+      if (arg.isObject()) {
+        object = JSVAL_TO_OBJECT(arg);
+      }
       if (arg.isObject() ? wrapper_factory->DoesObjectImplementInterface(
-              JSVAL_TO_OBJECT(arg), base::GetTypeId<ArbitraryInterface>()) :
+              object, base::GetTypeId<ArbitraryInterface>()) :
               false) {
         return fcn_overloadedFunction5(
                   context, argc, vp);
@@ -793,6 +891,15 @@ JSBool fcn_overloadedNullable1(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -841,6 +948,15 @@ JSBool fcn_overloadedNullable2(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -883,6 +999,10 @@ JSBool fcn_overloadedNullable(
       MozjsGlobalEnvironment* global_environment =
           static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      JS::RootedObject object(context);
+      if (arg.isObject()) {
+        object = JSVAL_TO_OBJECT(arg);
+      }
       if (arg.isNullOrUndefined()) {
         return fcn_overloadedNullable2(
                   context, argc, vp);
@@ -917,6 +1037,15 @@ JSBool fcn_stringFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -949,6 +1078,15 @@ JSBool fcn_variadicPrimitiveArguments(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -997,6 +1135,15 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -1085,6 +1232,15 @@ JSBool fcn_voidFunctionLongArg(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -1131,6 +1287,15 @@ JSBool fcn_voidFunctionNoArgs(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -1157,6 +1322,15 @@ JSBool fcn_voidFunctionObjectArg(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -1203,6 +1377,15 @@ JSBool fcn_voidFunctionStringArg(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<OperationsTestInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);

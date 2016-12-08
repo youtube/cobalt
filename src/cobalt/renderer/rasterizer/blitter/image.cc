@@ -38,7 +38,8 @@ ImageData::ImageData(SbBlitterDevice device, const math::Size& size,
           RenderTreePixelFormatToBlitter(pixel_format))),
       descriptor_(size, pixel_format, alpha_format,
                   SbBlitterGetPixelDataPitchInBytes(pixel_data_)) {
-  CHECK_EQ(render_tree::kAlphaFormatPremultiplied, alpha_format);
+  CHECK(alpha_format == render_tree::kAlphaFormatPremultiplied ||
+        alpha_format == render_tree::kAlphaFormatOpaque);
   CHECK(SbBlitterIsPixelDataValid(pixel_data_));
 }
 
@@ -63,9 +64,22 @@ SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
   surface_ = SbBlitterCreateSurfaceFromPixelData(image_data->device(),
                                                  image_data->TakePixelData());
   CHECK(SbBlitterIsSurfaceValid(surface_));
+
+  is_opaque_ = image_data->GetDescriptor().alpha_format ==
+               render_tree::kAlphaFormatOpaque;
 }
 
-void SinglePlaneImage::EnsureInitialized() {}
+SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque)
+    : surface_(surface), is_opaque_(is_opaque) {
+  CHECK(SbBlitterIsSurfaceValid(surface_));
+  SbBlitterSurfaceInfo info;
+  if (!SbBlitterGetSurfaceInfo(surface_, &info)) {
+    NOTREACHED();
+  }
+  size_ = math::Size(info.width, info.height);
+}
+
+bool SinglePlaneImage::EnsureInitialized() { return false; }
 
 const SkBitmap& SinglePlaneImage::GetBitmap() const {
   // This function will only ever get called if the Skia software renderer needs

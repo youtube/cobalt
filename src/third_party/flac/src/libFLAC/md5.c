@@ -2,8 +2,13 @@
 #  include <config.h>
 #endif
 
+#ifndef STARBOARD
 #include <stdlib.h>		/* for malloc() */
 #include <string.h>		/* for memcpy() */
+#endif  // STARBOARD
+
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 
 #include "private/md5.h"
 #include "share/alloc.h"

@@ -59,6 +59,12 @@ js::rdtsc(void)
 
     return(result);
 }
+#else
+static __inline__ uint64_t
+rdtsc(void)
+{
+    return 0;
+}
 #endif
 
 const char* const TraceLogging::type_name[] = {
@@ -157,7 +163,7 @@ TraceLogging::log(Type type, const char* file, unsigned int lineno)
 void
 TraceLogging::log(Type type, JSScript* script)
 {
-    this->log(type, script->filename, script->lineno);
+    this->log(type, script->filename(), script->lineno);
 }
 
 void

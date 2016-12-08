@@ -62,6 +62,9 @@ class Response {
     // An error occurred while executing user supplied JavaScript.
     kJavaScriptError = 17,
 
+    // An operation did not complete before its timeout expired.
+    kTimeOut = 21,
+
     // The specified window has been closed, or otherwise couldn't be found.
     kNoSuchWindow = 23,
 

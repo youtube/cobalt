@@ -22,17 +22,39 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+// Sets up an empty test fixture, required for typed tests.
+template <class SbFileReadType>
+class SbFileReadTest : public testing::Test {};
+
+class SbFileReader {
+ public:
+  static int Read(SbFile file, char* data, int size) {
+    return SbFileRead(file, data, size);
+  }
+};
+
+class SbFileReaderAll {
+ public:
+  static int Read(SbFile file, char* data, int size) {
+    return SbFileReadAll(file, data, size);
+  }
+};
+
+typedef testing::Types<SbFileReader, SbFileReaderAll> SbFileReadTestTypes;
+
+TYPED_TEST_CASE(SbFileReadTest, SbFileReadTestTypes);
+
 const int kBufferLength = 16 * 1024;
 
-TEST(SbFileReadTest, InvalidFileErrors) {
+TYPED_TEST(SbFileReadTest, InvalidFileErrors) {
   char buffer[kBufferLength];
-  int result = SbFileRead(kSbFileInvalid, buffer, kBufferLength);
+  int result = TypeParam::Read(kSbFileInvalid, buffer, kBufferLength);
   EXPECT_EQ(-1, result);
 }
 
-TEST(SbFileReadTest, BasicReading) {
-  // Create a pattern file that is not an even multiple of the buffer size, but
-  // is over several times the size of the buffer.
+TYPED_TEST(SbFileReadTest, BasicReading) {
+  // Create a pattern file that is not an even multiple of the buffer size,
+  // but is over several times the size of the buffer.
   const int kFileSize = kBufferLength * 16 / 3;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
@@ -41,8 +63,8 @@ TEST(SbFileReadTest, BasicReading) {
       SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
-  // Create a bigger buffer than necessary, so we can test the memory around the
-  // portion given to SbFileRead.
+  // Create a bigger buffer than necessary, so we can test the memory around
+  // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
@@ -58,7 +80,7 @@ TEST(SbFileReadTest, BasicReading) {
   int previous_total = 0;
   int max = 0;
   while (true) {
-    int bytes_read = SbFileRead(file, buffer, kBufferLength);
+    int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
     if (bytes_read == 0) {
       break;
     }
@@ -96,7 +118,7 @@ TEST(SbFileReadTest, BasicReading) {
   EXPECT_TRUE(result);
 }
 
-TEST(SbFileReadTest, ReadPastEnd) {
+TYPED_TEST(SbFileReadTest, ReadPastEnd) {
   const int kFileSize = kBufferLength;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
@@ -105,8 +127,8 @@ TEST(SbFileReadTest, ReadPastEnd) {
       SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
-  // Create a bigger buffer than necessary, so we can test the memory around the
-  // portion given to SbFileRead.
+  // Create a bigger buffer than necessary, so we can test the memory around
+  // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
@@ -120,7 +142,7 @@ TEST(SbFileReadTest, ReadPastEnd) {
   // Read off the end of the file.
   int position = SbFileSeek(file, kSbFileFromEnd, 0);
   EXPECT_EQ(kFileSize, position);
-  int bytes_read = SbFileRead(file, buffer, kBufferLength);
+  int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
   EXPECT_EQ(0, bytes_read);
 
   for (int i = 0; i < kRealBufferLength; ++i) {
@@ -131,7 +153,7 @@ TEST(SbFileReadTest, ReadPastEnd) {
   EXPECT_TRUE(result);
 }
 
-TEST(SbFileReadTest, ReadZeroBytes) {
+TYPED_TEST(SbFileReadTest, ReadZeroBytes) {
   const int kFileSize = kBufferLength;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
@@ -140,8 +162,8 @@ TEST(SbFileReadTest, ReadZeroBytes) {
       SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
-  // Create a bigger buffer than necessary, so we can test the memory around the
-  // portion given to SbFileRead.
+  // Create a bigger buffer than necessary, so we can test the memory around
+  // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
@@ -154,7 +176,7 @@ TEST(SbFileReadTest, ReadZeroBytes) {
 
   // Read zero bytes.
   for (int i = 0; i < 10; ++i) {
-    int bytes_read = SbFileRead(file, buffer, 0);
+    int bytes_read = TypeParam::Read(file, buffer, 0);
     EXPECT_EQ(0, bytes_read);
   }
 
@@ -166,7 +188,7 @@ TEST(SbFileReadTest, ReadZeroBytes) {
   EXPECT_TRUE(result);
 }
 
-TEST(SbFileReadTest, ReadFromMiddle) {
+TYPED_TEST(SbFileReadTest, ReadFromMiddle) {
   const int kFileSize = kBufferLength * 2;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
@@ -175,8 +197,8 @@ TEST(SbFileReadTest, ReadFromMiddle) {
       SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
-  // Create a bigger buffer than necessary, so we can test the memory around the
-  // portion given to SbFileRead.
+  // Create a bigger buffer than necessary, so we can test the memory around
+  // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
@@ -190,7 +212,7 @@ TEST(SbFileReadTest, ReadFromMiddle) {
   // Read from the middle of the file.
   int position = SbFileSeek(file, kSbFileFromBegin, kFileSize / 4);
   EXPECT_EQ(kFileSize / 4, position);
-  int bytes_read = SbFileRead(file, buffer, kBufferLength);
+  int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
   EXPECT_GE(kBufferLength, bytes_read);
   EXPECT_LT(0, bytes_read);
 

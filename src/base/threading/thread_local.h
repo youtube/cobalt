@@ -73,7 +73,7 @@ struct BASE_EXPORT ThreadLocalPlatform {
 
   static void AllocateSlot(SlotType& slot);
   static void FreeSlot(SlotType& slot);
-  static void* GetValueFromSlot(SlotType& slot);
+  static void* GetValueFromSlot(const SlotType& slot);
   static void SetValueInSlot(SlotType& slot, void* value);
 };
 
@@ -90,7 +90,7 @@ class ThreadLocalPointer {
     internal::ThreadLocalPlatform::FreeSlot(slot_);
   }
 
-  Type* Get() {
+  Type* Get() const {
     return static_cast<Type*>(
         internal::ThreadLocalPlatform::GetValueFromSlot(slot_));
   }
@@ -113,7 +113,7 @@ class ThreadLocalBoolean {
   ThreadLocalBoolean() { }
   ~ThreadLocalBoolean() { }
 
-  bool Get() {
+  bool Get() const {
     return tlp_.Get() != NULL;
   }
 

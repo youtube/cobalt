@@ -18,6 +18,8 @@
 
 #include "base/basictypes.h"
 #include "base/string_util.h"
+#include "cobalt/dom/element.h"
+#include "cobalt/dom/html_script_element.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -89,6 +91,17 @@ void LibxmlHTMLParserWrapper::OnEndElement(const std::string& name) {
   if (!IsFullDocument() && (name == "html" || name == "body")) {
     return;
   }
+
+  // If the top if the node stack is an html script element, then set its
+  // should_execute_ field to be our should_run_scripts_ field.
+  DCHECK(!node_stack().empty());
+  if (name == "script") {
+    scoped_refptr<dom::HTMLScriptElement> html_script_element =
+        node_stack().top()->AsElement()->AsHTMLElement()->AsHTMLScriptElement();
+    DCHECK(html_script_element);
+    html_script_element->set_should_execute(should_run_scripts_);
+  }
+
   LibxmlParserWrapper::OnEndElement(name);
 }
 
@@ -97,7 +110,10 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (CheckInputAndUpdateSeverity(data, size) == kFatal) {
+  std::string current_chunk;
+  PreprocessChunk(data, size, &current_chunk);
+
+  if (max_severity() == kFatal) {
     return;
   }
 
@@ -107,9 +123,10 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     // when used for setting an element's innerHTML.
     htmlEmitImpliedRootLevelParagraph(0);
 
-    html_parser_context_ = htmlCreatePushParserCtxt(
-        &html_sax_handler, this, data, static_cast<int>(size),
-        NULL /*filename*/, XML_CHAR_ENCODING_UTF8);
+    html_parser_context_ =
+        htmlCreatePushParserCtxt(&html_sax_handler, this, current_chunk.c_str(),
+                                 static_cast<int>(current_chunk.size()),
+                                 NULL /*filename*/, XML_CHAR_ENCODING_UTF8);
 
     if (!html_parser_context_) {
       static const char kErrorUnableCreateParser[] =
@@ -122,7 +139,8 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     }
   } else {
     DCHECK(html_parser_context_);
-    htmlParseChunk(html_parser_context_, data, static_cast<int>(size),
+    htmlParseChunk(html_parser_context_, current_chunk.c_str(),
+                   static_cast<int>(current_chunk.size()),
                    0 /*do not terminate*/);
   }
 }

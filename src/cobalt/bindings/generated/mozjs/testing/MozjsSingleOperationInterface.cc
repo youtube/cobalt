@@ -27,6 +27,7 @@
 #include "cobalt/script/logging_exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_callback_interface.h"
+#include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jscntxt.h"
 
@@ -40,6 +41,7 @@ using cobalt::script::LoggingExceptionState;
 using cobalt::script::mozjs::FromJSValue;
 using cobalt::script::mozjs::GetCallableForCallbackInterface;
 using cobalt::script::mozjs::ToJSValue;
+using cobalt::script::mozjs::util::GetExceptionString;
 }  // namespace
 
 namespace cobalt {
@@ -58,13 +60,13 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
     bool* had_exception) const {
   bool success = false;
   base::optional<int32_t > cobalt_return_value;
+  JSAutoRequest auto_request(context_);
   JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
 
   // This could be set to NULL if it was garbage collected.
   JS::RootedObject implementing_object(context_, implementing_object_.Get());
   DLOG_IF(WARNING, !implementing_object) << "Implementing object is NULL.";
   if (implementing_object) {
-    JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, implementing_object);
 
     // Get callable object.
@@ -90,7 +92,8 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
       DCHECK(function);
       success = JS::Call(context_, this_value, function, kNumArguments, args,
                          return_value.address());
-      DLOG_IF(WARNING, !success) << "Exception in callback.";
+      DLOG_IF(WARNING, !success) << "Exception in callback: "
+                                 << GetExceptionString(context_);
       if (success) {
         LoggingExceptionState exception_state;
         FromJSValue(context_, return_value, 0, &exception_state,

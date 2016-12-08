@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Access to the system time zone information.
+// Module Overview: Starboard Time Zone module
+//
+// Provides access to the system time zone information.
 
 #ifndef STARBOARD_TIME_ZONE_H_
 #define STARBOARD_TIME_ZONE_H_
@@ -24,17 +26,17 @@
 extern "C" {
 #endif
 
-// The number of minutes west of the Greenwich Prime Meridian, NOT including any
+// The number of minutes west of the Greenwich Prime Meridian, NOT including
 // Daylight Savings Time adjustments.
 //
 // For example: PST/PDT is 480 minutes (28800 seconds, 8 hours).
 typedef int SbTimeZone;
 
-// Gets the system's current SbTimeZone.
+// Gets the system's current SbTimeZone in minutes.
 SB_EXPORT SbTimeZone SbTimeZoneGetCurrent();
 
 // Gets the three-letter code of the current timezone in standard time,
-// regardless of current DST status. (e.g. "PST")
+// regardless of current Daylight Savings Time status. (e.g. "PST")
 SB_EXPORT const char* SbTimeZoneGetName();
 
 // Gets the three-letter code of the current timezone in Daylight Savings Time,

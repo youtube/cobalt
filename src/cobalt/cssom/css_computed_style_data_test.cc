@@ -1191,5 +1191,22 @@ TEST(CSSComputedStyleDataTest,
   ASSERT_TRUE(style2->DoDeclaredPropertiesMatch(style1));
 }
 
+TEST(CSSComputedStyleDataTest, FilterSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kFilterProperty), style->filter());
+  EXPECT_EQ(style->filter(), style->GetPropertyValue(kFilterProperty));
+
+  style->set_filter(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->filter());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFilterProperty));
+
+  style->SetPropertyValue(kFilterProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->filter());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFilterProperty));
+}
+
 }  // namespace cssom
 }  // namespace cobalt

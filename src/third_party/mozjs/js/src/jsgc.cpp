@@ -81,6 +81,10 @@
 # include <unistd.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#endif  // defined(STARBOARD)
+
 #if JS_TRACE_LOGGING
 #include "TraceLogging.h"
 #endif
@@ -2170,6 +2174,8 @@ js::GetCPUCount()
         SYSTEM_INFO sysinfo;
         GetSystemInfo(&sysinfo);
         ncpus = unsigned(sysinfo.dwNumberOfProcessors);
+#elif defined(STARBOARD)
+        ncpus = SbSystemGetNumberOfProcessors();
 # else
         long n = sysconf(_SC_NPROCESSORS_ONLN);
         ncpus = (n > 0) ? unsigned(n) : 1;

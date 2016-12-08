@@ -18,16 +18,10 @@
 
 #include <utility>
 
-#include "base/file_path.h"
-#include "base/file_util.h"
-#include "base/lazy_instance.h"
-#include "base/path_service.h"
-#include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/source_code.h"
 #include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/search.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
@@ -35,87 +29,45 @@
 namespace cobalt {
 namespace webdriver {
 namespace {
-// Path to the script to initialize the script execution harness.
-const char kWebDriverInitScriptPath[] = "webdriver/webdriver-init.js";
 
-// Wrapper around a scoped_refptr<script::SourceCode> instance. The script
-// at kWebDriverInitScriptPath will be loaded from disk and a new
-// script::SourceCode will be created.
-class LazySourceLoader {
+class SyncExecuteResultHandler : public ScriptExecutorResult::ResultHandler {
  public:
-  LazySourceLoader() {
-    FilePath exe_path;
-    if (!PathService::Get(base::DIR_EXE, &exe_path)) {
-      NOTREACHED() << "Failed to get EXE path.";
-      return;
-    }
-    FilePath script_path = exe_path.Append(kWebDriverInitScriptPath);
-    std::string script_contents;
-    if (!file_util::ReadFileToString(script_path, &script_contents)) {
-      NOTREACHED() << "Failed to read script contents.";
-      return;
-    }
-    source_code_ = script::SourceCode::CreateSourceCode(
-        script_contents.c_str(),
-        base::SourceLocation(kWebDriverInitScriptPath, 1, 1));
+  void OnResult(const std::string& result) OVERRIDE {
+    DCHECK(!result_);
+    result_ = result;
   }
-  const scoped_refptr<script::SourceCode>& source_code() {
-    return source_code_;
+  void OnTimeout() OVERRIDE { NOTREACHED(); }
+  std::string result() const {
+    DCHECK(result_);
+    return result_.value_or(std::string());
   }
 
  private:
-  scoped_refptr<script::SourceCode> source_code_;
+  base::optional<std::string> result_;
 };
 
-// The script only needs to be loaded once, so allow it to persist as a
-// LazyInstance and be shared amongst different WindowDriver instances.
-base::LazyInstance<LazySourceLoader> lazy_source_loader =
-    LAZY_INSTANCE_INITIALIZER;
+class AsyncExecuteResultHandler : public ScriptExecutorResult::ResultHandler {
+ public:
+  AsyncExecuteResultHandler() : timed_out_(false), event_(true, false) {}
 
-scoped_refptr<ScriptExecutor> CreateScriptExecutor(
-    ElementMapping* element_mapping,
-    const scoped_refptr<script::GlobalEnvironment>& global_environment) {
-  // This could be NULL if there was an error loading the harness source from
-  // disk.
-  scoped_refptr<script::SourceCode> source =
-      lazy_source_loader.Get().source_code();
-  if (!source) {
-    return NULL;
+  void WaitForResult() { event_.Wait(); }
+  bool timed_out() const { return timed_out_; }
+  const std::string& result() const { return result_; }
+
+ private:
+  void OnResult(const std::string& result) OVERRIDE {
+    result_ = result;
+    event_.Signal();
+  }
+  void OnTimeout() OVERRIDE {
+    timed_out_ = true;
+    event_.Signal();
   }
 
-  // Create a new ScriptExecutor and bind it to the global object.
-  scoped_refptr<ScriptExecutor> script_executor =
-      new ScriptExecutor(element_mapping);
-  global_environment->Bind("webdriverExecutor", script_executor);
-
-  // Evaluate the harness initialization script.
-  std::string result;
-  if (!global_environment->EvaluateScript(source, &result)) {
-    return NULL;
-  }
-
-  // The initialization script should have set this.
-  DCHECK(script_executor->execute_script_harness());
-  return script_executor;
-}
-
-void CreateFunction(
-    const std::string& function_body,
-    const scoped_refptr<script::GlobalEnvironment>& global_environment,
-    scoped_refptr<ScriptExecutor> script_executor,
-    base::optional<script::OpaqueHandleHolder::Reference>* out_opaque_handle) {
-  std::string function =
-      StringPrintf("(function() {\n%s\n})", function_body.c_str());
-  scoped_refptr<script::SourceCode> function_source =
-      script::SourceCode::CreateSourceCode(
-          function.c_str(), base::SourceLocation("[webdriver]", 1, 1));
-
-  if (!global_environment->EvaluateScript(
-          function_source, make_scoped_refptr(script_executor.get()),
-          out_opaque_handle)) {
-    DLOG(ERROR) << "Failed to create Function object";
-  }
-}
+  std::string result_;
+  bool timed_out_;
+  base::WaitableEvent event_;
+};
 
 std::string GetCurrentUrl(dom::Window* window) {
   DCHECK(window);
@@ -158,10 +110,12 @@ WindowDriver::WindowDriver(
     const protocol::WindowId& window_id,
     const base::WeakPtr<dom::Window>& window,
     const GetGlobalEnvironmentFunction& get_global_environment_function,
+    KeyboardEventInjector keyboard_injector,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : window_id_(window_id),
       window_(window),
       get_global_environment_(get_global_environment_function),
+      keyboard_injector_(keyboard_injector),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
       next_element_id_(0) {
@@ -182,9 +136,12 @@ ElementDriver* WindowDriver::GetElementDriver(
     // It's expected that the WebDriver thread is the only other thread to call
     // this function.
     DCHECK(thread_checker_.CalledOnValidThread());
-    return util::CallOnMessageLoop(window_message_loop_,
-        base::Bind(&WindowDriver::GetElementDriver, base::Unretained(this),
-                   element_id));
+    ElementDriver* result;
+    bool success = util::TryCallOnMessageLoop(
+        window_message_loop_, base::Bind(&WindowDriver::GetElementDriver,
+                                         base::Unretained(this), element_id),
+        &result);
+    return success ? result : NULL;
   }
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
   ElementDriverMap::iterator it = element_drivers_.find(element_id.id());
@@ -207,7 +164,8 @@ util::CommandResult<void> WindowDriver::Navigate(const GURL& url) {
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::CallOnMessageLoop(
       window_message_loop_,
-      base::Bind(&WindowDriver::NavigateInternal, base::Unretained(this), url));
+      base::Bind(&WindowDriver::NavigateInternal, base::Unretained(this), url),
+      protocol::Response::kNoSuchWindow);
 }
 
 util::CommandResult<std::string> WindowDriver::GetCurrentUrl() {
@@ -232,17 +190,21 @@ util::CommandResult<protocol::ElementId> WindowDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  return util::CallOnMessageLoop(window_message_loop_,
+  return util::CallOnMessageLoop(
+      window_message_loop_,
       base::Bind(&WindowDriver::FindElementsInternal<protocol::ElementId>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kNoSuchElement);
 }
 
 util::CommandResult<std::vector<protocol::ElementId> >
 WindowDriver::FindElements(const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return util::CallOnMessageLoop(window_message_loop_,
+  return util::CallOnMessageLoop(
+      window_message_loop_,
       base::Bind(&WindowDriver::FindElementsInternal<ElementIdVector>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kNoSuchElement);
 }
 
 util::CommandResult<std::string> WindowDriver::GetSource() {
@@ -256,12 +218,53 @@ util::CommandResult<std::string> WindowDriver::GetSource() {
 
 util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
     const protocol::Script& script) {
+  typedef util::CommandResult<protocol::ScriptResult> CommandResult;
   DCHECK(thread_checker_.CalledOnValidThread());
-  // Poke the lazy loader so we don't hit the disk on window_message_loop_.
-  lazy_source_loader.Get();
-  return util::CallOnMessageLoop(
-      window_message_loop_, base::Bind(&WindowDriver::ExecuteScriptInternal,
-                                       base::Unretained(this), script));
+  // Pre-load the ScriptExecutor source so we don't hit the disk on
+  // window_message_loop_.
+  ScriptExecutor::LoadExecutorSourceCode();
+
+  SyncExecuteResultHandler result_handler;
+
+  CommandResult result = util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::ExecuteScriptInternal, base::Unretained(this),
+                 script, base::nullopt, &result_handler),
+      protocol::Response::kNoSuchWindow);
+  if (result.is_success()) {
+    return CommandResult(protocol::ScriptResult(result_handler.result()));
+  } else {
+    return result;
+  }
+}
+
+util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteAsync(
+    const protocol::Script& script) {
+  typedef util::CommandResult<protocol::ScriptResult> CommandResult;
+  DCHECK(thread_checker_.CalledOnValidThread());
+  // Pre-load the ScriptExecutor source so we don't hit the disk on
+  // window_message_loop_.
+  ScriptExecutor::LoadExecutorSourceCode();
+
+  const base::TimeDelta kDefaultAsyncTimeout =
+      base::TimeDelta::FromMilliseconds(0);
+  AsyncExecuteResultHandler result_handler;
+  CommandResult result = util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::ExecuteScriptInternal, base::Unretained(this),
+                 script, kDefaultAsyncTimeout, &result_handler),
+      protocol::Response::kNoSuchWindow);
+
+  if (!result.is_success()) {
+    return result;
+  }
+
+  result_handler.WaitForResult();
+  if (result_handler.timed_out()) {
+    return CommandResult(protocol::Response::kTimeOut);
+  } else {
+    return CommandResult(protocol::ScriptResult(result_handler.result()));
+  }
 }
 
 util::CommandResult<void> WindowDriver::SendKeys(const protocol::Keys& keys) {
@@ -274,13 +277,15 @@ util::CommandResult<void> WindowDriver::SendKeys(const protocol::Keys& keys) {
   return util::CallOnMessageLoop(
       window_message_loop_,
       base::Bind(&WindowDriver::SendKeysInternal, base::Unretained(this),
-                 base::Passed(&events)));
+                 base::Passed(&events)),
+      protocol::Response::kNoSuchWindow);
 }
 
 util::CommandResult<protocol::ElementId> WindowDriver::GetActiveElement() {
   return util::CallOnMessageLoop(
       window_message_loop_, base::Bind(&WindowDriver::GetActiveElementInternal,
-                                       base::Unretained(this)));
+                                       base::Unretained(this)),
+      protocol::Response::kNoSuchWindow);
 }
 
 util::CommandResult<void> WindowDriver::SwitchFrame(
@@ -327,7 +332,8 @@ util::CommandResult<void> WindowDriver::AddCookie(
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::CallOnMessageLoop(window_message_loop_,
                                  base::Bind(&WindowDriver::AddCookieInternal,
-                                            base::Unretained(this), cookie));
+                                            base::Unretained(this), cookie),
+                                 protocol::Response::kNoSuchWindow);
 }
 
 protocol::ElementId WindowDriver::ElementToId(
@@ -351,6 +357,7 @@ protocol::ElementId WindowDriver::CreateNewElementDriver(
   std::pair<ElementDriverMapIt, bool> pair_it =
       element_drivers_.insert(std::make_pair(
           element_id.id(), new ElementDriver(element_id, weak_element, this,
+                                             keyboard_injector_,
                                              window_message_loop_)));
   DCHECK(pair_it.second)
       << "An ElementDriver was already mapped to the element id: "
@@ -373,7 +380,9 @@ util::CommandResult<T> WindowDriver::FindElementsInternal(
 }
 
 util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
-    const protocol::Script& script) {
+    const protocol::Script& script,
+    base::optional<base::TimeDelta> async_timeout,
+    ScriptExecutorResult::ResultHandler* async_handler) {
   typedef util::CommandResult<protocol::ScriptResult> CommandResult;
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
   if (!window_) {
@@ -390,7 +399,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   // global object, thus with the WindowDriver.
   if (!script_executor_) {
     scoped_refptr<ScriptExecutor> script_executor =
-        CreateScriptExecutor(this, global_environment);
+        ScriptExecutor::Create(this, global_environment);
     if (!script_executor) {
       DLOG(INFO) << "Failed to create ScriptExecutor.";
       return CommandResult(protocol::Response::kUnknownError);
@@ -401,24 +410,20 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   DLOG(INFO) << "Executing: " << script.function_body();
   DLOG(INFO) << "Arguments: " << script.argument_array();
 
-  base::optional<script::OpaqueHandleHolder::Reference> function_object;
-  CreateFunction(script.function_body(), global_environment,
-                 make_scoped_refptr(script_executor_.get()), &function_object);
-  if (!function_object) {
-    return CommandResult(protocol::Response::kJavaScriptError);
-  }
+  scoped_refptr<ScriptExecutorParams> params =
+      ScriptExecutorParams::Create(global_environment, script.function_body(),
+                                   script.argument_array(), async_timeout);
 
-  base::optional<std::string> script_result = script_executor_->Execute(
-      &(function_object->referenced_object()), script.argument_array());
-  if (script_result) {
-    return CommandResult(protocol::ScriptResult(script_result.value()));
-  } else {
-    return CommandResult(protocol::Response::kJavaScriptError);
+  if (params->function_object()) {
+    if (script_executor_->Execute(params, async_handler)) {
+      return CommandResult(protocol::Response::kSuccess);
+    }
   }
+  return CommandResult(protocol::Response::kJavaScriptError);
 }
 
 util::CommandResult<void> WindowDriver::SendKeysInternal(
-    scoped_ptr<KeyboardEventVector> events) {
+    scoped_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
   if (!window_) {
@@ -426,8 +431,7 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
   }
 
   for (size_t i = 0; i < events->size(); ++i) {
-    // InjectEvent will send to the focused element.
-    window_->InjectEvent((*events)[i]);
+    keyboard_injector_.Run(scoped_refptr<dom::Element>(), (*events)[i]);
   }
   return CommandResult(protocol::Response::kSuccess);
 }

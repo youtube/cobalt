@@ -15,6 +15,10 @@
 # include "x64/Architecture-x64.h"
 #elif defined(JS_CPU_ARM)
 # include "arm/Architecture-arm.h"
+#elif defined(JS_CPU_MIPS)
+# include "mips/Architecture-mips.h"
+#else
+# error "Unknown CPU architecture."
 #endif
 #include "FixedArityList.h"
 

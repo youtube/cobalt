@@ -1,0 +1,2 @@
+GCThing: Cell
+  which is annotated as a GCThing

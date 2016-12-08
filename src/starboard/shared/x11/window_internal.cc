@@ -30,8 +30,6 @@
 #include <X11/extensions/Xrender.h>
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
-using starboard::shared::starboard::player::VideoFrame;
-
 namespace {
 
 const int kWindowWidth = 1920;
@@ -148,11 +146,12 @@ SbWindowPrivate::~SbWindowPrivate() {
 }
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
-void SbWindowPrivate::Composite(int bounds_x,
-                                int bounds_y,
-                                int bounds_width,
-                                int bounds_height,
-                                VideoFrame* frame) {
+void SbWindowPrivate::Composite(
+    int bounds_x,
+    int bounds_y,
+    int bounds_width,
+    int bounds_height,
+    const starboard::scoped_refptr<VideoFrame>& frame) {
   XSynchronize(display, True);
   XWindowAttributes window_attributes;
   XGetWindowAttributes(display, window, &window_attributes);

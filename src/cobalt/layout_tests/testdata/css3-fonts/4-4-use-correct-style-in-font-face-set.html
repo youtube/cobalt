@@ -67,29 +67,29 @@
     }
     @font-face {
       font-family: font-face-1;
-      src: local(Roboto);
+      src: local(Roboto-Regular);
     }
     @font-face {
       font-family: font-face-2;
-      src: local(cursive);
+      src: local(DancingScript);
       font-weight: normal;
       font-style: normal;
     }
     @font-face {
       font-family: font-face-2;
-      src: local(casual);
+      src: local(Coming Soon);
       font-weight: normal;
       font-style: italic;
     }
     @font-face {
       font-family: font-face-2;
-      src: local(sans-serif-smallcaps);
+      src: local(CarroisGothicSC-Regular);
       font-weight: bold;
       font-style: normal;
     }
     @font-face {
       font-family: font-face-2;
-      src: local(monospace);
+      src: local(Droid Sans Mono);
       font-weight: bold;
       font-style: italic;
     }
@@ -98,9 +98,13 @@
 <body>
   <div class="containing-block">
     <div class="font-face-1-normal-normal">The Hegemony Consul</div>
+    <!-- Note: font-face-1 selects a local font file, which only has an regular
+      style.  So, for the next three cases, a normal style is rendered.
+    -->
     <div class="font-face-1-normal-italic">The Hegemony Consul</div>
     <div class="font-face-1-bold-normal">The Hegemony Consul</div>
     <div class="font-face-1-bold-italic">The Hegemony Consul</div>
+
     <div class="font-face-2-normal-normal">The Hegemony Consul</div>
     <div class="font-face-2-normal-italic">The Hegemony Consul</div>
     <div class="font-face-2-bold-normal">The Hegemony Consul</div>

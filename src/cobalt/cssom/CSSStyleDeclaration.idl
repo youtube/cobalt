@@ -111,6 +111,11 @@ interface CSSStyleDeclaration {
   readonly attribute unsigned long length;
   getter DOMString? item(unsigned long index);
   DOMString getPropertyValue(DOMString property);
-  [RaisesException] void setPropertyValue(DOMString property, DOMString value);
+  [RaisesException] void setProperty(
+      DOMString property, [TreatNullAs=EmptyString] DOMString value,
+      [TreatNullAs=EmptyString] optional DOMString priority);
+  [RaisesException] void setPropertyValue(
+      DOMString property, [TreatNullAs=EmptyString] DOMString value);
+  [RaisesException] DOMString removeProperty(DOMString property);
   readonly attribute CSSRule? parentRule;
 };

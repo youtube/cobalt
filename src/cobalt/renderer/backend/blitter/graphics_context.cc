@@ -75,6 +75,12 @@ scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
   return pixels.Pass();
 }
 
+void GraphicsContextBlitter::Finish() {
+  // Note: flushing the context doesn't actually guarantee that drawing has
+  // finished.
+  SbBlitterFlushContext(context_);
+}
+
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt

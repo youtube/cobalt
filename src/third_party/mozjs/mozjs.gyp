@@ -34,6 +34,10 @@
       'JS_USE_CUSTOM_ALLOCATOR',
       # Do not export symbols that are declare with JS_PUBLIC_[API|DATA].
       'STATIC_JS_API',
+      # Option that enables support for running multiple threads of JavaScript
+      # code concurrently as long as no objects or strings are shared between
+      # them.
+      'JS_THREADSAFE',
     ],
     'include_dirs': [
       'cobalt_config/include',
@@ -62,6 +66,12 @@
           'JS_NUNBOX32=1',
         ],
       }],
+      [ 'target_arch == "mips"', {
+        'defines': [
+          'JS_CPU_MIPS=1',
+          'JS_NUNBOX32=1',
+        ],
+      }],
       [ 'cobalt_enable_jit == 1', {
         'defines': [
           '<@(common_jit_defines)',
@@ -70,6 +80,17 @@
       [ 'use_asan == 1', {
         'defines': [
           'MOZ_ASAN',
+        ],
+      }],
+      [ 'cobalt_config == "debug"', {
+        'defines': [
+          'DEBUG',
+          'JS_DEBUG',
+        ],
+      }],
+      [ 'cobalt_config != "gold"', {
+        'defines': [
+          'JS_TRACE_LOGGING=1',
         ],
       }],
     ],
@@ -101,6 +122,14 @@
         'js-confdefs.h',
       ],
       'conditions': [
+        # These W flags do not work with the ps3 compiler.
+        ['target_arch == "ps3"', {
+          'cflags!': [
+            '-Wno-invalid-offsetof',
+            '-Wno-uninitialized',
+            '-Wno-unused',
+          ]
+        }],
         [ 'target_arch == "x64" and cobalt_enable_jit == 1', {
           'sources': [
             'js/src/assembler/assembler/MacroAssemblerX86Common.cpp',
@@ -161,9 +190,25 @@
             '<@(mozjs_jit_sources)',
           ],
         }],
+        [ 'target_arch == "mips" and cobalt_enable_jit == 1', {
+          'sources': [
+            'js/src/jit/mips/Architecture-mips.cpp',
+            'js/src/jit/mips/Assembler-mips.cpp',
+            'js/src/jit/mips/Bailouts-mips.cpp',
+            'js/src/jit/mips/BaselineCompiler-mips.cpp',
+            'js/src/jit/mips/BaselineIC-mips.cpp',
+            'js/src/jit/mips/CodeGenerator-mips.cpp',
+            'js/src/jit/mips/Lowering-mips.cpp',
+            'js/src/jit/mips/MacroAssembler-mips.cpp',
+            'js/src/jit/mips/MoveEmitter-mips.cpp',
+            'js/src/jit/mips/Trampoline-mips.cpp',
+            '<@(mozjs_jit_sources)',
+          ]
+        }]
       ],
       'dependencies': [
         'build_include_directory',
+        '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
@@ -184,6 +229,16 @@
           '-include',
           'js-confdefs.h',
         ],
+        'conditions': [
+          # These W flags do not work with the ps3 compiler.
+          ['target_arch == "ps3"', {
+            'cflags!': [
+              '-Wno-invalid-offsetof',
+              '-Wno-uninitialized',
+              '-Wno-unused',
+            ]
+          }],
+        ],
       },
       # Mark this target as a hard dependency because targets that depend on
       # this one need to wait for the build_include_directory to be generated.
@@ -200,12 +255,36 @@
         'js/src/shell/js.cpp',
         'js/src/shell/jsheaptools.cpp',
         'js/src/shell/jsoptparse.cpp',
+        'js/src/shell/TraceLoggingStub.cpp',
       ],
       'dependencies': [
         'mozjs_lib',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
-      ]
+      ],
+      'actions': [
+      {
+        'action_name': 'copy_test_data',
+          'variables': {
+            'input_files': [
+              'js/src/tests/',
+            ],
+            'output_dir': 'mozjs/tests/',
+            },
+            'includes': ['../../starboard/build/copy_test_data.gypi'],
+        },
+      ],
+    },
+    {
+      'target_name': 'mozjs_shell_deploy',
+      'type': 'none',
+      'dependencies': [
+        'mozjs_shell',
+      ],
+      'variables': {
+        'executable_name': 'mozjs_shell',
+      },
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
     {
       # SpiderMonkey source expects to include files from a certain directory
@@ -306,7 +385,7 @@
             'js/src/builtin/embedjs.py',
             '-DUSE_ZLIB',
             '-p',
-            '<(CC) -E',
+            '<(CC_HOST) -E',
             '-m',
             'js/src/js.msg',
             '-o',
@@ -345,7 +424,7 @@
       # Host tool used to generate a header file that defines a huge switch
       # statement for JavaScript keywords.
       'target_name': 'mozjs_keyword_header_gen',
-      'type': '<(final_executable_type)',
+      'type': 'executable',
       'toolsets': ['host'],
       'sources': [
         'js/src/jskwgen.cpp',
@@ -355,7 +434,7 @@
     {
       # Host tool used to generate a header file that defines opcode lengths.
       'target_name': 'mozjs_opcode_length_header_gen',
-      'type': '<(final_executable_type)',
+      'type': 'executable',
       'toolsets': ['host'],
       'sources': [
         'js/src/jsoplengen.cpp',

@@ -45,12 +45,19 @@ const char kEnableWebDriver[] = "enable_webdriver";
 // Additional base directory for accessing web files via file://.
 const char kExtraWebFileDir[] = "web_file_path";
 
+// If this flag is set, fake microphone will be used to mock the user voice
+// input.
+const char kFakeMicrophone[] = "fake_microphone";
+
 // Setting this switch causes all certificate errors to be ignored.
 const char kIgnoreCertificateErrors[] = "ignore_certificate_errors";
 
 // If this flag is set, input will be continuously generated randomly instead of
 // taken from an external input device (like a controller).
 const char kInputFuzzer[] = "input_fuzzer";
+
+// Set the minimum logging level: info|warning|error|fatal.
+const char kMinLogLevel[] = "min_log_level";
 
 // Use the NullAudioStreamer. Audio will be decoded but will not play back. No
 // audio output library will be initialized or used.
@@ -94,6 +101,13 @@ extern const char kVideoDecoderStub[] = "video_decoder_stub";
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";
 
+// IP that the WebDriver server should be listening on.
+// (INADDR_ANY if unspecified).
+const char kWebDriverListenIp[] = "webdriver_listen_ip";
+
+// Enables memory tracking by installing the memory tracker on startup.
+const char kMemoryTracker[] = "memory_tracker";
+
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 // Determines the capacity of the image cache which manages image surfaces
@@ -125,6 +139,13 @@ const char kScratchSurfaceCacheSizeInBytes[] =
 // hardware-accelerated Skia rasterizer.  While it depends on the platform, this
 // setting may affect GPU memory usage.
 const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
+
+// Only relevant if you are using the Blitter API.
+// Determines the capacity of the software surface cache, which is used to
+// cache all surfaces that are rendered via a software rasterizer to avoid
+// re-rendering them.
+const char kSoftwareSurfaceCacheSizeInBytes[] =
+    "software_surface_cache_size_in_bytes";
 
 // Determines the capacity of the surface cache.  The surface cache tracks which
 // render tree nodes are being re-used across frames and stores the nodes that

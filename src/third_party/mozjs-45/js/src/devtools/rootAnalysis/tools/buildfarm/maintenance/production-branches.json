@@ -1,0 +1,258 @@
+{
+  "ionmonkey": {
+    "repo": "https://hg.mozilla.org/projects/ionmonkey",
+    "graph_branches": [
+      "Ionmonkey"
+    ],
+    "repo_type": "hg"
+  },
+  "maple": {
+    "repo": "https://hg.mozilla.org/projects/maple",
+    "graph_branches": [
+      "Maple"
+    ],
+    "repo_type": "hg"
+  },
+  "ash": {
+    "repo": "https://hg.mozilla.org/projects/ash",
+    "graph_branches": [
+      "Ash"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-release": {
+    "repo": "https://hg.mozilla.org/releases/mozilla-release",
+    "graph_branches": [
+      "Mozilla-Release"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-esr38": {
+    "repo": "https://hg.mozilla.org/releases/mozilla-esr38",
+    "graph_branches": [
+      "Mozilla-Esr38"
+    ],
+    "repo_type": "hg"
+  },
+  "comm-esr38": {
+    "repo": "https://hg.mozilla.org/releases/comm-esr38",
+    "graph_branches": [
+      "Thunderbird-Esr38"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-b2g37_v2_2": {
+    "repo": "https://hg.mozilla.org/releases/mozilla-b2g37_v2_2",
+    "graph_branches": [
+      "Mozilla-B2g37-v2.2"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-b2g37_v2_2r": {
+    "repo": "https://hg.mozilla.org/releases/mozilla-b2g37_v2_2r",
+    "graph_branches": [
+      "Mozilla-B2g37-v2.2r"
+    ],
+    "repo_type": "hg"
+  },
+  "oak": {
+    "repo": "https://hg.mozilla.org/projects/oak",
+    "graph_branches": [
+      "Oak"
+    ],
+    "repo_type": "hg"
+  },
+  "pine": {
+    "repo": "https://hg.mozilla.org/projects/pine",
+    "graph_branches": [
+      "Pine"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-beta": {
+    "repo": "https://hg.mozilla.org/releases/mozilla-beta",
+    "graph_branches": [
+      "Mozilla-Beta"
+    ],
+    "repo_type": "hg"
+  },
+  "comm-beta": {
+    "repo": "https://hg.mozilla.org/releases/comm-beta",
+    "graph_branches": [
+      "Thunderbird-Beta"
+    ],
+    "repo_type": "hg"
+  },
+  "holly": {
+    "repo": "https://hg.mozilla.org/projects/holly",
+    "graph_branches": [
+      "Holly"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-inbound": {
+    "repo": "https://hg.mozilla.org/integration/mozilla-inbound",
+    "graph_branches": [
+      "Mozilla-Inbound"
+    ],
+    "repo_type": "hg"
+  },
+  "b2g-inbound": {
+    "repo": "https://hg.mozilla.org/integration/b2g-inbound",
+    "graph_branches": [
+      "B2g-Inbound"
+    ],
+    "repo_type": "hg"
+  },
+  "services-central": {
+    "repo": "https://hg.mozilla.org/services/services-central",
+    "graph_branches": [
+      "Services-Central"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-central": {
+    "repo": "https://hg.mozilla.org/mozilla-central",
+    "graph_branches": [
+      "Firefox",
+      "mobile"
+    ],
+    "repo_type": "hg"
+  },
+  "comm-central": {
+    "repo": "https://hg.mozilla.org/comm-central",
+    "graph_branches": [
+      "Thunderbird-Trunk"
+    ],
+    "repo_type": "hg"
+  },
+  "alder": {
+    "repo": "https://hg.mozilla.org/projects/alder",
+    "graph_branches": [
+      "Alder"
+    ],
+    "repo_type": "hg"
+  },
+  "cedar": {
+    "repo": "https://hg.mozilla.org/projects/cedar",
+    "graph_branches": [
+      "Cedar"
+    ],
+    "repo_type": "hg"
+  },
+  "birch": {
+    "repo": "https://hg.mozilla.org/projects/birch",
+    "graph_branches": [
+      "Birch"
+    ],
+    "repo_type": "hg"
+  },
+  "cypress": {
+    "repo": "https://hg.mozilla.org/projects/cypress",
+    "graph_branches": [
+      "Cypress"
+    ],
+    "repo_type": "hg"
+  },
+  "mozilla-aurora": {
+    "repo": "https://hg.mozilla.org/releases/mozilla-aurora",
+    "graph_branches": [
+      "Mozilla-Aurora"
+    ],
+    "repo_type": "hg"
+  },
+  "comm-aurora": {
+    "repo": "https://hg.mozilla.org/releases/comm-aurora",
+    "graph_branches": [
+      "Thunderbird-Aurora"
+    ],
+    "repo_type": "hg"
+  },
+  "ux": {
+    "repo": "https://hg.mozilla.org/projects/ux",
+    "graph_branches": [
+      "UX"
+    ],
+    "repo_type": "hg"
+  },
+  "elm": {
+    "repo": "https://hg.mozilla.org/projects/elm",
+    "graph_branches": [
+      "Elm"
+    ],
+    "repo_type": "hg"
+  },
+  "try": {
+    "repo": "https://hg.mozilla.org/try",
+    "graph_branches": [
+      "Try"
+    ],
+    "repo_type": "hg"
+  },
+  "gaia-try": {
+    "repo": "https://hg.mozilla.org/integration/gaia-try",
+    "graph_branches": [],
+    "repo_type": "hg"
+  },
+  "try-comm-central": {
+    "repo": "https://hg.mozilla.org/try-comm-central",
+    "graph_branches": [
+      "Try-Comm-Central"
+    ],
+    "repo_type": "hg"
+  },
+  "larch": {
+    "repo": "https://hg.mozilla.org/projects/larch",
+    "graph_branches": [
+      "Larch"
+    ],
+    "repo_type": "hg"
+  },
+  "build-system": {
+    "repo": "https://hg.mozilla.org/projects/build-system",
+    "graph_branches": [
+      "Build-System"
+    ],
+    "repo_type": "hg"
+  },
+  "fx-team": {
+    "repo": "https://hg.mozilla.org/integration/fx-team",
+    "graph_branches": [
+      "Fx-Team"
+    ],
+    "repo_type": "hg"
+  },
+  "addon-sdk": {
+    "repo": "https://hg.mozilla.org/projects/addon-sdk",
+    "graph_branches": [],
+    "repo_type": "hg"
+  },
+  "date": {
+    "repo": "https://hg.mozilla.org/projects/date",
+    "graph_branches": [
+      "Date"
+    ],
+    "repo_type": "hg"
+  },
+  "fig": {
+    "repo": "https://hg.mozilla.org/projects/fig",
+    "graph_branches": [
+      "Fig"
+    ],
+    "repo_type": "hg"
+  },
+  "gum": {
+    "repo": "https://hg.mozilla.org/projects/gum",
+    "graph_branches": [
+      "Gum"
+    ],
+    "repo_type": "hg"
+  },
+  "jamun": {
+    "repo": "https://hg.mozilla.org/projects/jamun",
+    "graph_branches": [
+      "Jamun"
+    ],
+    "repo_type": "hg"
+  }
+}

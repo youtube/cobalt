@@ -24,6 +24,7 @@ namespace cssom {
 
 class AbsoluteURLValue;
 class CalcValue;
+class FilterFunctionListValue;
 class FontStyleValue;
 class FontWeightValue;
 class IntegerValue;
@@ -58,6 +59,7 @@ class PropertyValueVisitor {
  public:
   virtual void VisitAbsoluteURL(AbsoluteURLValue* url_value) = 0;
   virtual void VisitCalc(CalcValue* calc_value) = 0;
+  virtual void VisitFilterFunctionList(FilterFunctionListValue*) = 0;
   virtual void VisitFontStyle(FontStyleValue* font_style_value) = 0;
   virtual void VisitFontWeight(FontWeightValue* font_weight_value) = 0;
   virtual void VisitInteger(IntegerValue* integer_value) = 0;
@@ -102,6 +104,8 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
  public:
   void VisitAbsoluteURL(AbsoluteURLValue* url_value) OVERRIDE;
   void VisitCalc(CalcValue* calc_value) OVERRIDE;
+  void VisitFilterFunctionList(
+      FilterFunctionListValue* filter_function_list_value) OVERRIDE;
   void VisitFontStyle(FontStyleValue* font_style_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* keyword_value) OVERRIDE;

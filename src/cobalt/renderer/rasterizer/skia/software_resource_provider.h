@@ -46,6 +46,21 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> CreateImage(
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE {
+    NOTREACHED();
+    SbDecodeTargetDestroy(decode_target);
+    return NULL;
+  }
+
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+
+  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
+
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) OVERRIDE;
 
@@ -57,6 +72,9 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
 
   scoped_refptr<render_tree::Typeface> GetLocalTypeface(
       const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
+
+  scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
+      const std::string& font_face_name) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
       int32 character, render_tree::FontStyle font_style,

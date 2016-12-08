@@ -100,7 +100,9 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // restraint should always be satisfied naturally.
   const SkBitmap& GetBitmap() const OVERRIDE;
 
-  void EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() OVERRIDE;
+
+  bool IsOpaque() const OVERRIDE { return is_opaque_; }
 
  private:
   ~HardwareFrontendImage() OVERRIDE;
@@ -115,6 +117,10 @@ class HardwareFrontendImage : public SinglePlaneImage {
           raw_texture_memory,
       intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
+
+  // Track if we have any alpha or not, which can enable optimizations in the
+  // case that alpha is not present.
+  bool is_opaque_;
 
   // We shadow the image dimensions so they can be quickly looked up from just
   // the frontend image object.
@@ -164,7 +170,7 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
     return planes_[plane_index]->GetBitmap();
   }
 
-  void EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() OVERRIDE;
 
  private:
   ~HardwareMultiPlaneImage() OVERRIDE;

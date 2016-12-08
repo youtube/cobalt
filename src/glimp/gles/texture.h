@@ -34,9 +34,6 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
  public:
   explicit Texture(nb::scoped_ptr<TextureImpl> impl);
 
-  // Called when glBindTexture() is called.
-  void SetTarget(GLenum target);
-
   void Initialize(GLint level,
                   PixelFormat pixel_format,
                   GLsizei width,
@@ -82,16 +79,6 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
   // or not.
   bool CanBeAttachedToFramebuffer() const;
 
-  // Returns true if the target has been set (e.g. via glBindTexture()).
-  bool target_valid() const { return target_valid_; }
-
-  // Returns the target (set via glBindTexture()).  Must be called only if
-  // target_valid() is true.
-  GLenum target() const {
-    SB_DCHECK(target_valid_);
-    return target_;
-  }
-
   TextureImpl* impl() const { return impl_.get(); }
 
   // Returns whether the data has been set yet or not.
@@ -120,13 +107,6 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
   ~Texture() {}
 
   nb::scoped_ptr<TextureImpl> impl_;
-
-  // The target type this texture was last bound as, set through a call to
-  // glBindTexture().
-  GLenum target_;
-
-  // Represents whether or not target_ as been initialized yet.
-  bool target_valid_;
 
   // True if underlying texture data has been allocated yet or not (e.g.
   // will be true after glTexImage2D() is called.)

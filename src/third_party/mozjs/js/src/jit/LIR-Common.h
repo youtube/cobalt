@@ -1495,6 +1495,43 @@ class LCompareD : public LInstructionHelper<1, 2, 0>
     }
 };
 
+#if defined(JS_CPU_MIPS)
+class LCompareDAndBranch : public LControlInstructionHelper<2, 2, 0>
+{
+    MCompare *cmpMir_;
+
+  public:
+    LIR_HEADER(CompareDAndBranch)
+    LCompareDAndBranch(MCompare *cmpMir, const LAllocation &left, const LAllocation &right,
+                       MBasicBlock *ifTrue, MBasicBlock *ifFalse)
+      : cmpMir_(cmpMir)
+    {
+        setOperand(0, left);
+        setOperand(1, right);
+        setSuccessor(0, ifTrue);
+        setSuccessor(1, ifFalse);
+    }
+
+    MBasicBlock *ifTrue() const {
+        return getSuccessor(0);
+    }
+    MBasicBlock *ifFalse() const {
+        return getSuccessor(1);
+    }
+    const LAllocation *left() {
+        return getOperand(0);
+    }
+    const LAllocation *right() {
+        return getOperand(1);
+    }
+    MTest *mir() const {
+        return mir_->toTest();
+    }
+    MCompare *cmpMir() const {
+        return cmpMir_;
+    }
+};
+#else  // defined(JS_CPU_MIPS)
 class LCompareDAndBranch : public LControlInstructionHelper<2, 2, 0>
 {
   public:
@@ -1524,6 +1561,7 @@ class LCompareDAndBranch : public LControlInstructionHelper<2, 2, 0>
         return mir_->toCompare();
     }
 };
+#endif  // defined(JS_CPU_MIPS)
 
 class LCompareS : public LInstructionHelper<1, 2, 1>
 {

@@ -193,6 +193,15 @@ InterfaceData* CreateCachedInterfaceData() {
 JSBool get_callbackAttribute(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -215,6 +224,15 @@ JSBool get_callbackAttribute(
 JSBool set_callbackAttribute(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -237,6 +255,15 @@ JSBool set_callbackAttribute(
 JSBool get_nullableCallbackAttribute(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -259,6 +286,15 @@ JSBool get_nullableCallbackAttribute(
 JSBool set_nullableCallbackAttribute(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JSBool strict, JS::MutableHandleValue vp) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -291,6 +327,15 @@ JSBool fcn_takesFunctionThatReturnsString(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -339,6 +384,15 @@ JSBool fcn_takesFunctionWithNullableParameters(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -383,6 +437,15 @@ JSBool fcn_takesFunctionWithOneParameter(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);
@@ -431,6 +494,15 @@ JSBool fcn_takesFunctionWithSeveralParameters(
     NOTREACHED();
     return false;
   }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
 
@@ -475,6 +547,15 @@ JSBool fcn_takesVoidFunction(
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
+    return false;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<CallbackFunctionInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
     return false;
   }
   MozjsExceptionState exception_state(context);

@@ -71,24 +71,29 @@ class ImageData : public render_tree::ImageData {
 class SinglePlaneImage : public skia::SinglePlaneImage {
  public:
   explicit SinglePlaneImage(scoped_ptr<ImageData> image_data);
+  SinglePlaneImage(SbBlitterSurface surface, bool is_opaque);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
   SbBlitterSurface surface() const { return surface_; }
 
   // Overrides from skia::SinglePlaneImage.
-  void EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() OVERRIDE;
 
   // When GetBitmap() is called on a blitter::SinglePlaneImage for the first
   // time, we do a one-time download of the pixel data from the Blitter API
   // surface into a SkBitmap.
   const SkBitmap& GetBitmap() const OVERRIDE;
 
+  bool IsOpaque() const OVERRIDE { return is_opaque_; }
+
  private:
   ~SinglePlaneImage() OVERRIDE;
 
   math::Size size_;
   SbBlitterSurface surface_;
+
+  bool is_opaque_;
 
   // This field is populated when GetBitmap() is called for the first time, and
   // after that is never modified.

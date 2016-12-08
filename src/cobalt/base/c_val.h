@@ -249,6 +249,7 @@ inline ThresholdList<cval::SizeInBytes> GetThresholdList<cval::SizeInBytes>() {
       {10LL * 1024LL * 1024LL * 1024LL, 1024LL * 1024LL * 1024LL, "GB"},
       {10LL * 1024LL * 1024LL, 1024LL * 1024LL, "MB"},
       {10LL * 1024LL, 1024LL, "KB"},
+      {0LL, 1L, "B"},
   };
   return ThresholdList<cval::SizeInBytes>(thresholds, arraysize(thresholds));
 }
@@ -291,21 +292,23 @@ inline std::string NumericalValToPrettyString<base::TimeDelta>(
   if (negative) {
     oss << "-";
   }
+
+  oss << std::fixed << std::setprecision(1) << std::setfill('0');
   if (value_in_us > kHour) {
-    oss << value_in_us / kHour << ":" << std::setfill('0') << std::setw(2)
-        << (value_in_us % kHour) / kMinute << ":" << std::setfill('0')
+    oss << value_in_us / kHour << ":" << std::setw(2)
+        << (value_in_us % kHour) / kMinute << ":"
         << std::setw(2) << (value_in_us % kMinute) / kSecond << "h";
   } else if (value_in_us > kMinute) {
-    oss << value_in_us / kMinute << ":" << std::setfill('0') << std::setw(2)
+    oss << value_in_us / kMinute << ":" << std::setw(2)
         << (value_in_us % kMinute) / kSecond << "m";
-  } else if (value_in_us > kSecond * 10) {
-    oss << value_in_us / kSecond << "s";
-  } else if (value_in_us > kMillisecond * 2) {
-    oss << value_in_us / kMillisecond << "ms";
-  } else if (value_in_us > 0) {
-    oss << value_in_us << "us";
+  } else if (value_in_us > kSecond) {
+    oss << std::setw(1)
+        << static_cast<double>(value_in_us) / kSecond << "s";
+  } else if (value_in_us > kMillisecond) {
+    oss << std::setw(1)
+        << static_cast<double>(value_in_us) / kMillisecond << "ms";
   } else {
-    oss << value_in_us;
+    oss << value_in_us << "us";
   }
 
   return oss.str();

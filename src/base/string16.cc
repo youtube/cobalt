@@ -4,14 +4,9 @@
 
 #include "base/string16.h"
 
-#if defined(WCHAR_T_IS_UTF16)
 
-#error This file should not be used on 2-byte wchar_t systems
-// If this winds up being needed on 2-byte wchar_t systems, either the
-// definitions below can be used, or the host system's wide character
-// functions like wmemcmp can be wrapped.
-
-#elif defined(WCHAR_T_IS_UTF32)
+// See discussion in string16.h: This is only needed on 32-bit wchar_t systems.
+#if defined(WCHAR_T_IS_UTF32)
 
 #include <ostream>
 

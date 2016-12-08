@@ -24,6 +24,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/optional.h"
@@ -66,6 +67,7 @@
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"
@@ -83,6 +85,7 @@
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/universal_selector.h"
 #include "cobalt/cssom/url_value.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace css_parser {
@@ -252,18 +255,21 @@ ParserImpl::ParserImpl(const std::string& input,
       into_declaration_data_(NULL) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
+  TRACK_MEMORY_SCOPE("CSS");
   scanner_.PrependToken(kStyleSheetEntryPointToken);
   return Parse() ? style_sheet_
                  : make_scoped_refptr(new cssom::CSSStyleSheet(css_parser_));
 }
 
 scoped_refptr<cssom::CSSRule> ParserImpl::ParseRule() {
+  TRACK_MEMORY_SCOPE("CSS");
   scanner_.PrependToken(kRuleEntryPointToken);
   return Parse() ? rule_ : NULL;
 }
 
 scoped_refptr<cssom::CSSDeclaredStyleData>
 ParserImpl::ParseStyleDeclarationList() {
+  TRACK_MEMORY_SCOPE("CSS");
   scanner_.PrependToken(kStyleDeclarationListEntryPointToken);
   return Parse() ? style_declaration_data_
                  : make_scoped_refptr(new cssom::CSSDeclaredStyleData());
@@ -271,6 +277,7 @@ ParserImpl::ParseStyleDeclarationList() {
 
 scoped_refptr<cssom::CSSFontFaceDeclarationData>
 ParserImpl::ParseFontFaceDeclarationList() {
+  TRACK_MEMORY_SCOPE("CSS");
   scanner_.PrependToken(kFontFaceDeclarationListEntryPointToken);
   return Parse() ? font_face_declaration_data_
                  : make_scoped_refptr(new cssom::CSSFontFaceDeclarationData());
@@ -288,6 +295,7 @@ void ParserImpl::LogWarningUnsupportedProperty(
 
 scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
     const std::string& property_name) {
+  TRACK_MEMORY_SCOPE("CSS");
   Token property_name_token;
   bool is_property_name_known =
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
@@ -310,6 +318,7 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
 void ParserImpl::ParsePropertyIntoDeclarationData(
     const std::string& property_name,
     cssom::CSSDeclarationData* declaration_data) {
+  TRACK_MEMORY_SCOPE("CSS");
   Token property_name_token;
   bool is_property_name_known =
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
@@ -338,11 +347,13 @@ void ParserImpl::ParsePropertyIntoDeclarationData(
 }
 
 scoped_refptr<cssom::MediaList> ParserImpl::ParseMediaList() {
+  TRACK_MEMORY_SCOPE("CSS");
   scanner_.PrependToken(kMediaListEntryPointToken);
   return Parse() ? media_list_ : make_scoped_refptr(new cssom::MediaList());
 }
 
 scoped_refptr<cssom::MediaQuery> ParserImpl::ParseMediaQuery() {
+  TRACK_MEMORY_SCOPE("CSS");
   scanner_.PrependToken(kMediaQueryEntryPointToken);
   return Parse() ? media_query_ : make_scoped_refptr(new cssom::MediaQuery());
 }
@@ -362,8 +373,10 @@ void ParserImpl::LogError(const std::string& message) {
 }
 
 bool ParserImpl::Parse() {
+  TRACK_MEMORY_SCOPE("CSS");
   // For more information on error codes
   // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
+  TRACE_EVENT0("cobalt::css_parser", "ParseImpl::Parse");
   last_syntax_error_location_ = base::nullopt;
   int error_code(yyparse(this));
   switch (error_code) {

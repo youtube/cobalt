@@ -18,6 +18,7 @@
 
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/scoped_ptr.h"
+#include "starboard/configuration.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,14 +33,21 @@ class ReuseAllocatorTest : public ::testing::Test {
  public:
   static const int kBufferSize = 1 * 1024 * 1024;
 
-  ReuseAllocatorTest() {
+  ReuseAllocatorTest() { ResetAllocator(0); }
+
+ protected:
+  void ResetAllocator(size_t small_allocation_threshold) {
     buffer_.reset(new uint8_t[kBufferSize]);
     fallback_allocator_.reset(
         new nb::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
-    allocator_.reset(new nb::ReuseAllocator(fallback_allocator_.get()));
+    if (small_allocation_threshold == 0) {
+      allocator_.reset(new nb::ReuseAllocator(fallback_allocator_.get()));
+    } else {
+      allocator_.reset(new nb::ReuseAllocator(
+          fallback_allocator_.get(), kBufferSize, small_allocation_threshold));
+    }
   }
 
- protected:
   nb::scoped_array<uint8_t> buffer_;
   nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
   nb::scoped_ptr<nb::ReuseAllocator> allocator_;
@@ -98,4 +106,33 @@ TEST_F(ReuseAllocatorTest, FreeBlockMergingRight) {
   EXPECT_EQ(test_p, blocks[1]);
   allocator_->Free(test_p);
   allocator_->Free(blocks[0]);
+}
+
+TEST_F(ReuseAllocatorTest, SmallAlloc) {
+  // Recreate allocator with small allocation threshold to 256.
+  ResetAllocator(256);
+
+  const std::size_t kBlockSizes[] = {117, 193, 509, 1111};
+  const std::size_t kAlignment = 16;
+  void* blocks[] = {NULL, NULL, NULL, NULL};
+  for (int i = 0; i < SB_ARRAY_SIZE(kBlockSizes); ++i) {
+    blocks[i] = allocator_->Allocate(kBlockSizes[i], kAlignment);
+  }
+  // The two small allocs should be in the back in reverse order.
+  EXPECT_GT(reinterpret_cast<uintptr_t>(blocks[0]),
+            reinterpret_cast<uintptr_t>(blocks[1]));
+  // Small allocs should has higher address than other allocs.
+  EXPECT_GT(reinterpret_cast<uintptr_t>(blocks[1]),
+            reinterpret_cast<uintptr_t>(blocks[3]));
+  // Non-small allocs are allocated from the front and the first one has the
+  // lowest address.
+  EXPECT_LT(reinterpret_cast<uintptr_t>(blocks[2]),
+            reinterpret_cast<uintptr_t>(blocks[3]));
+  for (int i = 0; i < SB_ARRAY_SIZE(kBlockSizes); ++i) {
+    allocator_->Free(blocks[i]);
+  }
+  // Should have one single free block equals to the capacity.
+  void* test_p = allocator_->Allocate(allocator_->GetCapacity());
+  EXPECT_TRUE(test_p != NULL);
+  allocator_->Free(test_p);
 }

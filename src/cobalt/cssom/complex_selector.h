@@ -35,7 +35,12 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/selectors4/#complex
 class ComplexSelector : public Selector {
  public:
-  ComplexSelector() : last_selector_(NULL) {}
+  static const int kCombinatorLimit;
+
+  ComplexSelector()
+      : last_selector_(NULL),
+        combinator_count_(0),
+        combinator_limit_exceeded_(false) {}
   ~ComplexSelector() OVERRIDE {}
 
   // From Selector.
@@ -47,6 +52,10 @@ class ComplexSelector : public Selector {
 
   CompoundSelector* first_selector() { return first_selector_.get(); }
   CompoundSelector* last_selector() { return last_selector_; }
+
+  int combinator_count() {
+    return combinator_count_;
+  }
 
   // For a chain of compound selectors separated by combinators, AppendSelector
   // should be first called with the left most compound selector, then
@@ -62,6 +71,9 @@ class ComplexSelector : public Selector {
 
   scoped_ptr<CompoundSelector> first_selector_;
   Specificity specificity_;
+
+  int combinator_count_;
+  bool combinator_limit_exceeded_;
 
   DISALLOW_COPY_AND_ASSIGN(ComplexSelector);
 };

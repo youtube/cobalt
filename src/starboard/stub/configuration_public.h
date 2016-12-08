@@ -22,6 +22,9 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
+// The API version implemented by this platform.
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
@@ -85,13 +88,13 @@
 // Whether the current platform is expected to have exactly 6 cores.
 #define SB_HAS_6_CORES 0
 
+// Whether the current platform supports thread priorities.
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+
 // Whether the current platform's thread scheduler will automatically balance
 // threads between cores, as opposed to systems where threads will only ever run
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
-
-// The API version implemented by this platform.
-#define SB_API_VERSION 1
 
 // --- System Header Configuration -------------------------------------------
 
@@ -119,6 +122,15 @@
 // Whether the current platform provides the standard header limits.h.
 #define SB_HAS_LIMITS_H 1
 
+// Whether the current platform provides the standard header float.h.
+#define SB_HAS_FLOAT_H 1
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 1
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 1
+
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
@@ -136,7 +148,7 @@
 #define SB_IS_WCHAR_T_SIGNED 1
 #endif
 
-// --- Attribute Configuration -----------------------------------------------
+// --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
@@ -156,6 +168,11 @@
 // The platform's annotation for marking a symbol as imported from outside of
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
+
+// On some platforms the __GNUC__ is defined even though parts of the
+// functionality are missing. Setting this to non-zero allows disabling missing
+// functionality encountered.
+#undef SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT
 
 // --- Extensions Configuration ----------------------------------------------
 
@@ -231,6 +248,11 @@
 
 // The string form of SB_PATH_SEP_CHAR.
 #define SB_PATH_SEP_STRING ":"
+
+// On some platforms the file system stores access times at a coarser
+// granularity than other times. When this quirk is defined, we assume the
+// access time is of 1 day precision.
+#undef SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME
 
 // --- Memory Configuration --------------------------------------------------
 
@@ -441,6 +463,12 @@
 
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
 
 // --- Platform Specific Audits ----------------------------------------------
 

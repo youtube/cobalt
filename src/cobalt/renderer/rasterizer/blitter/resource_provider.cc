@@ -48,7 +48,8 @@ bool ResourceProvider::PixelFormatSupported(PixelFormat pixel_format) {
 
 bool ResourceProvider::AlphaFormatSupported(
     render_tree::AlphaFormat alpha_format) {
-  return alpha_format == render_tree::kAlphaFormatPremultiplied;
+  return alpha_format == render_tree::kAlphaFormatPremultiplied ||
+         alpha_format == render_tree::kAlphaFormatOpaque;
 }
 
 scoped_ptr<render_tree::ImageData> ResourceProvider::AllocateImageData(
@@ -66,6 +67,31 @@ scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
       base::polymorphic_downcast<ImageData*>(source_data.release()));
   return make_scoped_refptr(new SinglePlaneImage(blitter_source_data.Pass()));
 }
+
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+
+scoped_refptr<render_tree::Image>
+ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
+  SbDecodeTargetFormat format = SbDecodeTargetGetFormat(decode_target);
+  if (format == kSbDecodeTargetFormat1PlaneRGBA) {
+    SbBlitterSurface surface =
+        SbDecodeTargetGetPlane(decode_target, kSbDecodeTargetPlaneRGBA);
+    DCHECK(SbBlitterIsSurfaceValid(surface));
+    bool is_opaque = SbDecodeTargetIsOpaque(decode_target);
+
+    // Now that we have the surface it contained, we are free to delete
+    // |decode_target|.
+    SbDecodeTargetDestroy(decode_target);
+    return make_scoped_refptr(new SinglePlaneImage(surface, is_opaque));
+  }
+
+  NOTREACHED()
+      << "Only format kSbDecodeTargetFormat1PlaneRGBA is currently supported.";
+  SbDecodeTargetDestroy(decode_target);
+  return NULL;
+}
+
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
 
 scoped_ptr<render_tree::RawImageMemory>
 ResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,
@@ -90,6 +116,13 @@ scoped_refptr<Typeface> ResourceProvider::GetLocalTypeface(
     const char* font_family_name, FontStyle font_style) {
   return skia_resource_provider_->GetLocalTypeface(font_family_name,
                                                    font_style);
+}
+
+scoped_refptr<render_tree::Typeface>
+ResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
+    const std::string& font_face_name) {
+  return skia_resource_provider_->GetLocalTypefaceByFaceNameIfAvailable(
+      font_face_name);
 }
 
 scoped_refptr<Typeface> ResourceProvider::GetCharacterFallbackTypeface(

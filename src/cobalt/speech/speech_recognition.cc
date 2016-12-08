@@ -28,15 +28,26 @@ namespace speech {
 SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           manager_(base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                       ->fetcher_factory())),
+                       ->network_module(),
+                   base::Bind(&SpeechRecognition::OnEventAvailable,
+                              base::Unretained(this)),
+                   base::polymorphic_downcast<dom::DOMSettings*>(settings)
+                       ->microphone_options())),
       config_("" /*lang*/, false /*continuous*/, false /*interim_results*/,
               1 /*max alternatives*/) {}
 
-void SpeechRecognition::Start() { manager_.Start(config_); }
+void SpeechRecognition::Start(script::ExceptionState* exception_state) {
+  manager_.Start(config_, exception_state);
+}
 
 void SpeechRecognition::Stop() { manager_.Stop(); }
 
-void SpeechRecognition::Abort() { NOTIMPLEMENTED(); }
+void SpeechRecognition::Abort() { manager_.Abort(); }
+
+bool SpeechRecognition::OnEventAvailable(
+    const scoped_refptr<dom::Event>& event) {
+  return DispatchEvent(event);
+}
 
 }  // namespace speech
 }  // namespace cobalt

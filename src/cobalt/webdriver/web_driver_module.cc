@@ -159,8 +159,11 @@ void OnPNGEncodeComplete(ScreenshotResultContext* context,
 
 }  // namespace
 
+const char WebDriverModule::kDefaultListenIp[] = "0.0.0.0";
+
 WebDriverModule::WebDriverModule(
-    int server_port, const CreateSessionDriverCB& create_session_driver_cb,
+    int server_port, const std::string& listen_ip,
+    const CreateSessionDriverCB& create_session_driver_cb,
     const GetScreenshotFunction& get_screenshot_function,
     const SetProxyFunction& set_proxy_function,
     const base::Closure& shutdown_cb)
@@ -294,6 +297,11 @@ WebDriverModule::WebDriverModule(
           base::Bind(&WindowDriver::Execute)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
+      StringPrintf("/session/%s/execute_async", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::ExecuteAsync)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
       StringPrintf("/session/%s/element", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::FindElement)));
@@ -400,7 +408,7 @@ WebDriverModule::WebDriverModule(
       base::Thread::Options(MessageLoop::TYPE_IO, 0));
   webdriver_thread_.message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebDriverModule::StartServer,
-                            base::Unretained(this), server_port));
+                            base::Unretained(this), server_port, listen_ip));
 }
 
 WebDriverModule::~WebDriverModule() {
@@ -423,11 +431,12 @@ void WebDriverModule::OnWindowRecreated() {
   }
 }
 
-void WebDriverModule::StartServer(int server_port) {
+void WebDriverModule::StartServer(int server_port,
+                                  const std::string& listen_ip) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // Create a new WebDriverServer and pass in the Dispatcher.
   webdriver_server_.reset(new WebDriverServer(
-      server_port,
+      server_port, listen_ip,
       base::Bind(&WebDriverDispatcher::HandleWebDriverServerRequest,
                  base::Unretained(webdriver_dispatcher_.get()))));
 }

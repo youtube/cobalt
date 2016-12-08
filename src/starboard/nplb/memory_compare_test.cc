@@ -36,8 +36,8 @@ TEST(SbMemoryCompareTest, SunnyDayEquals) {
   int result = SbMemoryCompare(memory1, memory2, kSize);
   EXPECT_EQ(0, result);
 
-  SbMemoryFree(memory1);
-  SbMemoryFree(memory2);
+  SbMemoryDeallocate(memory1);
+  SbMemoryDeallocate(memory2);
 }
 
 TEST(SbMemoryCompareTest, SunnyDayLessAndMore) {
@@ -62,8 +62,8 @@ TEST(SbMemoryCompareTest, SunnyDayLessAndMore) {
   result = SbMemoryCompare(memory2, memory1, kSize);
   EXPECT_GT(0, result);
 
-  SbMemoryFree(memory1);
-  SbMemoryFree(memory2);
+  SbMemoryDeallocate(memory1);
+  SbMemoryDeallocate(memory2);
 }
 
 }  // namespace

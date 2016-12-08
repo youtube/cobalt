@@ -32,7 +32,7 @@ const int kCrashSignalsToTrap[] = {
 };
 
 const int kStopSignalsToTrap[] = {
-    SIGTERM, SIGINT, SIGHUP,
+    SIGHUP,
 };
 
 void Crash(int signal_id) {

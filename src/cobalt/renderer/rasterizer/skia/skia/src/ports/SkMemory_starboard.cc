@@ -54,7 +54,7 @@ void* sk_realloc_throw(void* addr, size_t size) {
 
 void sk_free(void* p) {
   if (p) {
-    SbMemoryFree(p);
+    SbMemoryDeallocate(p);
   }
 }
 

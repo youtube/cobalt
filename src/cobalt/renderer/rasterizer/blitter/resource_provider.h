@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "starboard/blitter.h"
+#include "starboard/decode_target.h"
 
 #if SB_HAS(BLITTER)
 
@@ -41,6 +42,15 @@ class ResourceProvider : public render_tree::ResourceProvider {
   ~ResourceProvider() OVERRIDE {}
 
   void Finish() OVERRIDE {}
+
+#if SB_VERSION(3)
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE;
+
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+
+  bool SupportsSbDecodeTarget() OVERRIDE { return true; }
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
@@ -63,6 +73,9 @@ class ResourceProvider : public render_tree::ResourceProvider {
 
   scoped_refptr<render_tree::Typeface> GetLocalTypeface(
       const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
+
+  scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
+      const std::string& font_face_name) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
       int32 utf32_character, render_tree::FontStyle font_style,

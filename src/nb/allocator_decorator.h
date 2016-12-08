@@ -34,7 +34,7 @@ class AllocatorDecorator : public Allocator {
 
   void* Allocate(std::size_t size);
   void* Allocate(std::size_t size, std::size_t alignment);
-  void* AllocateForAlignment(std::size_t size, std::size_t alignment);
+  void* AllocateForAlignment(std::size_t* size, std::size_t alignment);
   void Free(void* memory);
   std::size_t GetCapacity() const;
   std::size_t GetAllocated() const;

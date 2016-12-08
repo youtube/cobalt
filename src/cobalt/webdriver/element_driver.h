@@ -28,6 +28,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/webdriver/element_mapping.h"
+#include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
@@ -46,9 +47,14 @@ class WindowDriver;
 // will map to a method on this class.
 class ElementDriver {
  public:
+  typedef base::Callback<void(scoped_refptr<dom::Element>,
+                              const dom::KeyboardEvent::Data&)>
+      KeyboardEventInjector;
+
   ElementDriver(const protocol::ElementId& element_id,
                 const base::WeakPtr<dom::Element>& element,
                 ElementMapping* element_mapping,
+                KeyboardEventInjector keyboard_injector,
                 const scoped_refptr<base::MessageLoopProxy>& message_loop);
   const protocol::ElementId& element_id() { return element_id_; }
 
@@ -67,7 +73,6 @@ class ElementDriver {
       const std::string& property_name);
 
  private:
-  typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
   typedef std::vector<protocol::ElementId> ElementIdVector;
 
   // Get the dom::Element* that this ElementDriver wraps. This must be called
@@ -75,7 +80,7 @@ class ElementDriver {
   dom::Element* GetWeakElement();
 
   util::CommandResult<void> SendKeysInternal(
-      scoped_ptr<KeyboardEventVector> keyboard_events);
+      scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
 
   // Shared logic between FindElement and FindElements.
   template <typename T>
@@ -90,6 +95,7 @@ class ElementDriver {
   // These should only be accessed from |element_message_loop_|.
   base::WeakPtr<dom::Element> element_;
   ElementMapping* element_mapping_;
+  KeyboardEventInjector keyboard_injector_;
   scoped_refptr<base::MessageLoopProxy> element_message_loop_;
 
   friend class WindowDriver;

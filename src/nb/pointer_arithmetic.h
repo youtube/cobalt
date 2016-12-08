@@ -31,7 +31,7 @@ inline uint8_t* AsPointer(uintptr_t integer_value) {
   return reinterpret_cast<uint8_t*>(integer_value);
 }
 
-// Helper method for subclasses to align addresses up to a specified value.
+// Helper method to align addresses up to a specified value.
 // Returns the the smallest value that is greater than or equal to value, but
 // aligned to alignment.
 template <typename T>
@@ -42,9 +42,20 @@ T AlignUp(T value, T alignment) {
 
 template <typename T>
 T* AlignUp(T* value, uintptr_t alignment) {
-  uintptr_t decremented_value = AsInteger(value) - 1;
-  return reinterpret_cast<T*>(decremented_value + alignment -
-                              (decremented_value % alignment));
+  return reinterpret_cast<T*>(AlignUp(AsInteger(value), alignment));
+}
+
+// Helper method to align addresses down to a specified value.
+// Returns the the largest value that is less than or equal to value, but
+// aligned to alignment.
+template <typename T>
+T AlignDown(T value, T alignment) {
+  return value / alignment * alignment;
+}
+
+template <typename T>
+T* AlignDown(T* value, uintptr_t alignment) {
+  return reinterpret_cast<T*>(AlignDown(AsInteger(value), alignment));
 }
 
 // Helper method for subclasses to determine if a given address or value

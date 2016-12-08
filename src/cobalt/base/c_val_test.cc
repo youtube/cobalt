@@ -16,6 +16,7 @@
 
 #include <limits>
 
+#include "base/time.h"
 #include "cobalt/base/c_val.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -64,7 +65,27 @@ TEST(CValTest, RegisterAndPrintU32) {
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
-  EXPECT_EQ(*result, "4095MB");
+  EXPECT_EQ(*result, "4294M");
+}
+
+TEST(CValTest, RegisterAndPrintU32Zero) {
+  const std::string cval_name = "32-bit unsigned int";
+  const uint32_t cval_value = 0;
+  base::CVal<uint32_t> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "0");
+}
+
+TEST(CValTest, RegisterAndPrintU32K) {
+  const std::string cval_name = "32-bit unsigned int";
+  const uint32_t cval_value = 50000;
+  base::CVal<uint32_t> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "50K");
 }
 
 TEST(CValTest, RegisterAndPrintU64) {
@@ -74,7 +95,7 @@ TEST(CValTest, RegisterAndPrintU64) {
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
-  EXPECT_EQ(*result, "17592186044415MB");
+  EXPECT_EQ(*result, "18446744073709M");
 }
 
 TEST(CValTest, RegisterAndPrintS32) {
@@ -95,6 +116,266 @@ TEST(CValTest, RegisterAndPrintS64) {
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
   EXPECT_EQ(*result, "-9223372036854775808");
+}
+
+TEST(CValTest, RegisterAndPrintSizeInBytesB) {
+  const std::string cval_name = "SizeInBytes";
+  cval::SizeInBytes cval_value(500);
+  base::CVal<cval::SizeInBytes> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "500B");
+}
+
+TEST(CValTest, RegisterAndPrintSizeInBytesZero) {
+  const std::string cval_name = "SizeInBytes";
+  cval::SizeInBytes cval_value(0);
+  base::CVal<cval::SizeInBytes> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "0B");
+}
+
+TEST(CValTest, RegisterAndPrintSizeInBytesKB) {
+  const std::string cval_name = "SizeInBytes";
+  cval::SizeInBytes cval_value(50000UL);
+  base::CVal<cval::SizeInBytes> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "48KB");
+}
+
+TEST(CValTest, RegisterAndPrintSizeInBytesMB) {
+  const std::string cval_name = "SizeInBytes";
+  cval::SizeInBytes cval_value(50000000UL);
+  base::CVal<cval::SizeInBytes> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "47MB");
+}
+
+TEST(CValTest, RegisterAndPrintSizeInBytesGB) {
+  const std::string cval_name = "SizeInBytes";
+  cval::SizeInBytes cval_value(50000000000UL);
+  base::CVal<cval::SizeInBytes> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "46GB");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaMicroseconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMicroseconds(50));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "50us");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaZero) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMicroseconds(0));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "0us");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaMilliseconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMilliseconds(50));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "50.0ms");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaMillisecondsSingleDigit) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMilliseconds(5));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "5.0ms");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaMillisecondsFraction) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMicroseconds(5500));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "5.5ms");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaSeconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromSeconds(50));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "50.0s");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaSecondsSingleDigit) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromSeconds(5));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "5.0s");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaSecondsFraction) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMilliseconds(5500));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "5.5s");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaMinutes) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMinutes(50));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "50:00m");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaMinutesSingleDigit) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMinutes(5));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "5:00m");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaMinutesAndSeconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromSeconds(92));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "1:32m");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaHours) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromHours(50));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "50:00:00h");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaHoursSingleDigit) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromHours(5));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "5:00:00h");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaHoursAndMinutes) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMinutes(92));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "1:32:00h");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaHoursAndMinutesAndSeconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromSeconds(92 * 60 + 32));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "1:32:32h");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaHoursAndSeconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromSeconds(60 * 60 + 32));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "1:00:32h");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaNegativeMicroseconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMicroseconds(-3));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "-3us");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaNegativeMilliseconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMilliseconds(-3));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "-3.0ms");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaNegativeSeconds) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromSeconds(-3));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "-3.0s");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaNegativeMinutes) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromMinutes(-3));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "-3:00m");
+}
+
+TEST(CValTest, RegisterAndPrintTimeDeltaNegativeHours) {
+  const std::string cval_name = "TimeDelta";
+  base::TimeDelta cval_value(base::TimeDelta::FromHours(-3));
+  base::CVal<base::TimeDelta> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "-3:00:00h");
 }
 
 TEST(CValTest, RegisterAndPrintFloat) {

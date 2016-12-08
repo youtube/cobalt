@@ -164,7 +164,9 @@ HardwareFrontendImage::HardwareFrontendImage(
     scoped_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
-    : size_(image_data->GetDescriptor().size),
+    : is_opaque_(image_data->GetDescriptor().alpha_format ==
+                 render_tree::kAlphaFormatOpaque),
+      size_(image_data->GetDescriptor().size),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
@@ -180,7 +182,8 @@ HardwareFrontendImage::HardwareFrontendImage(
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
-    : size_(descriptor.size),
+    : is_opaque_(descriptor.alpha_format == render_tree::kAlphaFormatOpaque),
+      size_(descriptor.size),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
@@ -210,12 +213,14 @@ const SkBitmap& HardwareFrontendImage::GetBitmap() const {
   return backend_image_->GetBitmap();
 }
 
-void HardwareFrontendImage::EnsureInitialized() {
+bool HardwareFrontendImage::EnsureInitialized() {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   if (!initialize_backend_image_.is_null()) {
     initialize_backend_image_.Run();
     initialize_backend_image_.Reset();
+    return true;
   }
+  return false;
 }
 
 void HardwareFrontendImage::InitializeBackendImageFromImageData(
@@ -257,16 +262,18 @@ HardwareMultiPlaneImage::HardwareMultiPlaneImage(
 
 HardwareMultiPlaneImage::~HardwareMultiPlaneImage() {}
 
-void HardwareMultiPlaneImage::EnsureInitialized() {
+bool HardwareMultiPlaneImage::EnsureInitialized() {
   // A multi-plane image is not considered backend-initialized until all its
   // single-plane images are backend-initialized, thus we ensure that all
   // the component images are backend-initialized.
+  bool initialized = false;
   for (int i = 0; i < render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes;
        ++i) {
     if (planes_[i]) {
-      planes_[i]->EnsureInitialized();
+      initialized |= planes_[i]->EnsureInitialized();
     }
   }
+  return initialized;
 }
 
 }  // namespace skia

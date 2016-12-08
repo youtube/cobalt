@@ -63,7 +63,7 @@ class TextureDataPBO : public TextureDataEGL {
   math::Size size_;
   GLenum format_;
   GLuint pixel_buffer_;
-  int data_size_;
+  int64 data_size_;
   GLubyte* mapped_data_;
 };
 

@@ -114,6 +114,7 @@
 %token kColorToken                            // color
 %token kContentToken                          // content
 %token kDisplayToken                          // display
+%token kFilterToken                           // filter
 %token kFontToken                             // font
 %token kFontFamilyToken                       // font-family
 %token kFontSizeToken                         // font-size
@@ -220,6 +221,7 @@
 // %token kLeftToken                    // left - also property name token
 %token kMaroonToken                     // maroon
 %token kMiddleToken                     // middle
+%token kMonoscopicToken                 // monoscopic
 %token kMonospaceToken                  // monospace
 %token kNavyToken                       // navy
 %token kNoneToken                       // none
@@ -247,6 +249,8 @@
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
+%token kStereoscopicLeftRightToken      // stereoscopic-left-right
+%token kStereoscopicTopBottomToken      // stereoscopic-top-bottom
 %token kTealToken                       // teal
 %token kToToken                         // to
 // %token kTopToken                     // top - also property name token
@@ -353,6 +357,7 @@
 %token kLinearGradientFunctionToken     // linear-gradient(
 %token kLocalFunctionToken              // local(
 %token kMatrixFunctionToken             // matrix(
+%token kMatrix3dFunctionToken           // matrix3d(
 %token kNotFunctionToken                // not(
 %token kNthChildFunctionToken           // nth-child(
 %token kNthLastChildFunctionToken       // nth-last-child(
@@ -370,6 +375,7 @@
 %token kRadialGradientFunctionToken     // radial-gradient(
 %token kRGBFunctionToken                // rgb(
 %token kRGBAFunctionToken               // rgba(
+%token kCobaltMtmFunctionToken          // -cobalt-mtm(
 
 // Tokens with a string value.
 %token <string> kStringToken            // "...", '...'
@@ -582,7 +588,16 @@
                        white_space_property_value
                        width_property_value
                        z_index_property_value
+                       filter_property_value
 %destructor { SafeRelease($$); } <property_value>
+
+%union { std::vector<float>* number_matrix; }
+%type <number_matrix> number_matrix
+%destructor { delete $$; } <number_matrix>
+
+%union { glm::mat4* matrix4x4; }
+%type <matrix4x4> cobalt_mtm_transform_function
+%destructor { delete $$; } <matrix4x4>
 
 %union { MarginOrPaddingShorthand* margin_or_padding_shorthand; }
 %type <margin_or_padding_shorthand> margin_property_value padding_property_value
@@ -762,6 +777,29 @@
 %union { cssom::TransformFunctionListValue::Builder* transform_functions; }
 %type <transform_functions> transform_list
 %destructor { delete $$; } <transform_functions>
+
+%union { cssom::FilterFunction* filter_function; }
+%type <filter_function> cobalt_mtm_filter_function
+%type <filter_function> filter_function
+%destructor { delete $$; } <filter_function>
+
+%union { cssom::FilterFunctionListValue::Builder* cobalt_mtm_filter_functions; }
+%type <cobalt_mtm_filter_functions> filter_function_list
+%destructor { delete $$; } <cobalt_mtm_filter_functions>
+
+%union {
+  cssom::MTMFunction::ResolutionMatchedMeshListBuilder* cobalt_mtm_resolution_matched_meshes; }
+%type <cobalt_mtm_resolution_matched_meshes> cobalt_mtm_resolution_matched_mesh_list
+%destructor { delete $$; } <cobalt_mtm_resolution_matched_meshes>
+
+%union { cssom::MTMFunction::ResolutionMatchedMesh* cobalt_mtm_resolution_matched_mesh; }
+%type <cobalt_mtm_resolution_matched_mesh> cobalt_mtm_resolution_matched_mesh
+%destructor { delete $$; } <cobalt_mtm_resolution_matched_mesh>
+
+%union { cssom::KeywordValue* stereo_mode; }
+%type <stereo_mode> maybe_cobalt_mtm_stereo_mode;
+%type <stereo_mode> cobalt_mtm_stereo_mode;
+%destructor { SafeRelease($$); } <stereo_mode>
 
 %union { cssom::TimeListValue::Builder* time_list; }
 %type <time_list> comma_separated_time_list
@@ -1371,6 +1409,10 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kDisplayProperty));
   }
+  | kFilterToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFilterProperty));
+  }
   | kFontToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kFontProperty));
@@ -1718,6 +1760,9 @@ identifier_token:
   | kMiddleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMiddleKeywordName);
   }
+  | kMonoscopicToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMonoscopicKeywordName);
+  }
   | kMonospaceToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMonospaceKeywordName);
   }
@@ -1795,6 +1840,14 @@ identifier_token:
   }
   | kStepStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStepStartKeywordName);
+  }
+  | kStereoscopicLeftRightToken {
+    $$ = TrivialStringPiece::FromCString(
+             cssom::kStereoscopicLeftRightKeywordName);
+  }
+  | kStereoscopicTopBottomToken {
+    $$ = TrivialStringPiece::FromCString(
+             cssom::kStereoscopicTopBottomKeywordName);
   }
   | kTealToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTealKeywordName);
@@ -3384,7 +3437,7 @@ box_shadow_list:
 validated_box_shadow_list:
     box_shadow_list {
     scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
-    if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kBoxShadow)) {
+    if (!shadow_property_info->IsShadowPropertyValid(kBoxShadow)) {
       parser_impl->LogWarning(@1, "invalid box shadow property.");
       $$ = NULL;
     } else {
@@ -3397,15 +3450,17 @@ validated_box_shadow_list:
 
 comma_separated_box_shadow_list:
     validated_box_shadow_list {
-    if ($1) {
+    scoped_refptr<cssom::PropertyValue> shadow = MakeScopedRefPtrAndRelease($1);
+    if (shadow) {
       $$ = new cssom::PropertyListValue::Builder();
-      $$->push_back(MakeScopedRefPtrAndRelease($1));
+      $$->push_back(shadow);
     }
   }
   | comma_separated_box_shadow_list comma validated_box_shadow_list {
     $$ = $1;
-    if ($$ && $3) {
-      $$->push_back(MakeScopedRefPtrAndRelease($3));
+    scoped_refptr<cssom::PropertyValue> shadow = MakeScopedRefPtrAndRelease($3);
+    if ($$ && shadow) {
+      $$->push_back(shadow);
     }
   }
   ;
@@ -4200,7 +4255,7 @@ text_shadow_list:
 validated_text_shadow_list:
     text_shadow_list {
     scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
-    if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kTextShadow)) {
+    if (!shadow_property_info->IsShadowPropertyValid(kTextShadow)) {
       parser_impl->LogWarning(@1, "invalid text shadow property.");
       $$ = NULL;
     } else {
@@ -5761,6 +5816,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kFilterToken maybe_whitespace colon filter_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFilterProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kFontToken maybe_whitespace colon font_property_value maybe_important {
     scoped_ptr<FontShorthand> font($4);
     DCHECK(font);
@@ -6404,5 +6465,124 @@ entry_point:
             parser_impl->into_declaration_data());
       }
     }
+  }
+  ;
+
+// Filters that can be applied to the object's rendering.
+//   https://www.w3.org/TR/filter-effects-1/#FilterProperty
+filter_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | filter_function_list {
+    scoped_ptr<cssom::FilterFunctionListValue::Builder> property_value($1);
+    $$ = AddRef(new cssom::FilterFunctionListValue(property_value->Pass()));
+  }
+  | common_values
+  ;
+
+filter_function_list:
+  // TODO: Parse list of filter_function's. This only parses one-element lists.
+    filter_function {
+    $$ = new cssom::FilterFunctionListValue::Builder();
+    $$->push_back($1);
+  }
+  ;
+
+// The set of allowed filter functions.
+//   https://www.w3.org/TR/filter-effects-1/
+filter_function:
+    cobalt_mtm_filter_function {
+    $$ = $1;
+  }
+  ;
+
+cobalt_mtm_filter_function:
+  // Encodes an mtm filter. Currently the only type of filter function supported.
+    kCobaltMtmFunctionToken maybe_whitespace url
+        cobalt_mtm_resolution_matched_mesh_list comma angle angle comma
+        cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
+        ')' maybe_whitespace {
+    scoped_ptr<cssom::MTMFunction::ResolutionMatchedMeshListBuilder>
+        resolution_matched_mesh_urls($4);
+    scoped_ptr<glm::mat4> transform($9);
+
+    $$ = new cssom::MTMFunction(
+        MakeScopedRefPtrAndRelease($3),
+        resolution_matched_mesh_urls->Pass(),
+        $6,
+        $7,
+        *transform,
+        MakeScopedRefPtrAndRelease($10));
+  }
+  ;
+
+cobalt_mtm_resolution_matched_mesh_list:
+    /* empty */ {
+    $$ = new cssom::MTMFunction::ResolutionMatchedMeshListBuilder();
+  }
+  // Specifies a different mesh for a particular image resolution.
+  | cobalt_mtm_resolution_matched_mesh_list cobalt_mtm_resolution_matched_mesh {
+    $$ = $1;
+    $$->push_back($2);
+  }
+  ;
+
+cobalt_mtm_resolution_matched_mesh:
+    non_negative_integer non_negative_integer url {
+    $$ = new cssom::MTMFunction::ResolutionMatchedMesh($1, $2,
+      MakeScopedRefPtrAndRelease($3));
+  }
+  ;
+
+// The set of transform functions allowed in MTM filters, currently a separate
+// production hierarchy from the main <transform_function> and represented as a
+// glm::mat4.
+//   https://www.w3.org/TR/css-transforms-1/#three-d-transform-functions
+cobalt_mtm_transform_function:
+  // Specifies an arbitrary affine 3D transformation, currently the only
+  // supported transform in MTM.
+    kMatrix3dFunctionToken maybe_whitespace number_matrix ')' maybe_whitespace {
+    scoped_ptr<std::vector<float> > matrix($3);
+    if (matrix == NULL || matrix->size() !=  16) {
+      parser_impl->LogError(
+          @3,
+          "matrix3d function expects 16 floating-point numbers as arguments");
+      YYERROR;
+    } else {
+      // GLM and the W3 spec both use column-major order.
+      $$ = new glm::mat4(glm::make_mat4(&(*matrix)[0]));
+    }
+  }
+  ;
+
+number_matrix:
+    number {
+    $$ = new std::vector<float>(1, $1);
+  }
+  | number_matrix comma number {
+    $$ = $1;
+    $$->push_back($3);
+  }
+  ;
+
+maybe_cobalt_mtm_stereo_mode:
+    /* empty */ {
+    $$ = AddRef(cssom::KeywordValue::GetMonoscopic().get());
+  }
+  | comma cobalt_mtm_stereo_mode {
+    $$ = $2;
+  }
+  ;
+
+cobalt_mtm_stereo_mode:
+    kMonoscopicToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetMonoscopic().get());
+  }
+  | kStereoscopicLeftRightToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStereoscopicLeftRight().get());
+  }
+  | kStereoscopicTopBottomToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStereoscopicTopBottom().get());
   }
   ;

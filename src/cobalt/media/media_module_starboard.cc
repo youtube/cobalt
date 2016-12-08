@@ -16,21 +16,14 @@
 
 #include "cobalt/media/media_module.h"
 
-#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/shell_media_platform_starboard.h"
 #include "cobalt/system_window/starboard/system_window.h"
-#include "media/audio/null_audio_streamer.h"
-#include "media/audio/shell_audio_sink.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 #include "media/base/message_loop_factory.h"
-#include "media/filters/shell_audio_decoder_impl.h"
-#include "media/filters/shell_raw_audio_decoder_stub.h"
-#include "media/filters/shell_raw_video_decoder_stub.h"
-#include "media/filters/shell_video_decoder_impl.h"
 #include "media/player/web_media_player_impl.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
@@ -76,14 +69,6 @@ class MediaModuleStarboard : public MediaModule {
         message_loop_factory->GetMessageLoop(MessageLoopFactory::kPipeline);
     scoped_ptr<FilterCollection> filter_collection(new FilterCollection);
 
-    ::media::ShellAudioStreamer* streamer = NULL;
-    if (options_.use_null_audio_streamer) {
-      DLOG(INFO) << "Use Null audio";
-      streamer = ::media::NullAudioStreamer::GetInstance();
-    } else {
-      DLOG(INFO) << "Use Pulse audio";
-      streamer = ::media::ShellAudioStreamer::Instance();
-    }
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
       window = polymorphic_downcast<SystemWindowStarboard*>(system_window_)
@@ -91,8 +76,8 @@ class MediaModuleStarboard : public MediaModule {
     }
     return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
         window, client, this, media_platform_.GetVideoFrameProvider(),
-        filter_collection.Pass(), new ::media::ShellAudioSink(streamer),
-        message_loop_factory.Pass(), new ::media::MediaLog));
+        filter_collection.Pass(), NULL, message_loop_factory.Pass(),
+        new ::media::MediaLog));
   }
 
  private:

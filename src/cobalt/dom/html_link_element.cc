@@ -26,6 +26,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "googleurl/src/gurl.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -54,6 +55,7 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
 // Algorithm for Obtain:
 //   https://www.w3.org/TR/html5/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
+  TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::Obtain()");
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -107,6 +109,7 @@ void HTMLLinkElement::Obtain() {
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
+  TRACK_MEMORY_SCOPE("DOM");
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 

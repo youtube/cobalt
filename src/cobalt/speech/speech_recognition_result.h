@@ -49,7 +49,7 @@ class SpeechRecognitionResult : public script::Wrappable {
   // The final MUST be set to true if this is the final time the speech service
   // will return this particular index value. If the value is false, then this
   // represents an interim result that could still be changed.
-  bool final() const { return final_; }
+  bool is_final() const { return final_; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionResult);
 

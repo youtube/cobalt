@@ -129,6 +129,7 @@
         'dependent_interface_test.cc',
         'dom_string_bindings_test.cc',
         'enumeration_bindings_test.cc',
+        'evaluate_script_test.cc',
         'exceptions_bindings_test.cc',
         'extended_attributes_test.cc',
         'garbage_collection_test.cc',

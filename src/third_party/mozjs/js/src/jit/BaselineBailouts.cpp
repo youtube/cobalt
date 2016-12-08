@@ -344,9 +344,9 @@ struct BaselineStackBuilder
         JS_ASSERT(BaselineFrameReg == FramePointer);
         priorOffset -= sizeof(void *);
         return virtualPointerAtStackOffset(priorOffset);
-#elif defined(JS_CPU_X64) || defined(JS_CPU_ARM)
-        // On X64 and ARM, the frame pointer save location depends on the caller of the
-        // the rectifier frame.
+#elif defined(JS_CPU_X64) || defined(JS_CPU_ARM) || defined(JS_CPU_MIPS)
+        // On X64, ARM, and MIPS, the frame pointer save location depends on
+        // the caller of the the rectifier frame.
         BufferPointer<IonRectifierFrameLayout> priorFrame =
             pointerAtStackOffset<IonRectifierFrameLayout>(priorOffset);
         FrameType priorType = priorFrame->prevType();
@@ -1175,9 +1175,10 @@ jit::BailoutIonToBaseline(JSContext *cx, JitActivation *activation, IonBailoutIt
     SnapshotIterator snapIter(iter);
 
     RootedFunction callee(cx, iter.maybeCallee());
+    RootedScript scr(cx, iter.script());
     if (callee) {
         IonSpew(IonSpew_BaselineBailouts, "  Callee function (%s:%u)",
-                callee->existingScript()->filename(), callee->existingScript()->lineno);
+                scr->filename(), scr->lineno);
     } else {
         IonSpew(IonSpew_BaselineBailouts, "  No callee!");
     }
@@ -1194,7 +1195,6 @@ jit::BailoutIonToBaseline(JSContext *cx, JitActivation *activation, IonBailoutIt
     RootedScript caller(cx);
     jsbytecode *callerPC = NULL;
     RootedFunction fun(cx, callee);
-    RootedScript scr(cx, iter.script());
     AutoValueVector startFrameFormals(cx);
     while (true) {
         IonSpew(IonSpew_BaselineBailouts, "    FrameNo %d", frameNo);
@@ -1217,7 +1217,7 @@ jit::BailoutIonToBaseline(JSContext *cx, JitActivation *activation, IonBailoutIt
         caller = scr;
         callerPC = callPC;
         fun = nextCallee;
-        scr = fun->existingScript();
+        scr = fun->existingScriptForInlinedFunction();
         snapIter.nextFrame();
 
         frameNo++;

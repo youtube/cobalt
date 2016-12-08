@@ -16,12 +16,16 @@
 
 #include "cobalt/browser/browser_module.h"
 
+#include <vector>
+
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/stl_util.h"
+#include "base/string_number_conversions.h"
+#include "base/string_split.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
@@ -33,6 +37,7 @@
 #include "cobalt/dom/keycode.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace browser {
@@ -53,6 +58,15 @@ const char kFuzzerToggleCommandLongHelp[] =
     "Each time this is called, it will toggle whether the input fuzzer is "
     "activated or not.  While activated, input will constantly and randomly be "
     "generated and passed directly into the main web module.";
+
+const char kSetMediaConfigCommand[] = "set_media_config";
+const char kSetMediaConfigCommandShortHelp[] =
+    "Sets media module configuration.";
+const char kSetMediaConfigCommandLongHelp[] =
+    "This can be called in the form of set_media_config('name=value'), where "
+    "name is a string and value is an int.  Refer to the implementation of "
+    "MediaModule::SetConfiguration() on individual platform for settings "
+    "supported on the particular platform.";
 
 #if defined(ENABLE_SCREENSHOT)
 // Command to take a screenshot.
@@ -122,10 +136,6 @@ BrowserModule::BrowserModule(const GURL& url,
           renderer_module_.pipeline()->GetResourceProvider())),
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-      media_module_(media::MediaModule::Create(
-          system_window, renderer_module_.render_target()->GetSize(),
-          renderer_module_.pipeline()->GetResourceProvider(),
-          options.media_module_options)),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
       render_tree_combiner_(&renderer_module_,
@@ -141,6 +151,10 @@ BrowserModule::BrowserModule(const GURL& url,
           kFuzzerToggleCommand,
           base::Bind(&BrowserModule::OnFuzzerToggle, base::Unretained(this)),
           kFuzzerToggleCommandShortHelp, kFuzzerToggleCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(set_media_config_command_handler_(
+          kSetMediaConfigCommand,
+          base::Bind(&BrowserModule::OnSetMediaConfig, base::Unretained(this)),
+          kSetMediaConfigCommandShortHelp, kSetMediaConfigCommandLongHelp)),
 #if defined(ENABLE_SCREENSHOT)
       ALLOW_THIS_IN_INITIALIZER_LIST(screenshot_command_handler_(
           kScreenshotCommand,
@@ -154,6 +168,25 @@ BrowserModule::BrowserModule(const GURL& url,
       has_resumed_(true, false),
       will_quit_(false),
       suspended_(false) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
+  // All allocations for media will be tracked by "Media" memory scope.
+  {
+    TRACK_MEMORY_SCOPE("Media");
+    math::Size output_size = renderer_module_.render_target()->GetSize();
+    if (system_window->GetVideoPixelRatio() != 1.f) {
+      output_size.set_width(
+          static_cast<int>(static_cast<float>(output_size.width()) *
+                           system_window->GetVideoPixelRatio()));
+      output_size.set_height(
+          static_cast<int>(static_cast<float>(output_size.height()) *
+                           system_window->GetVideoPixelRatio()));
+    }
+    media_module_ = (media::MediaModule::Create(
+        system_window, output_size,
+        renderer_module_.pipeline()->GetResourceProvider(),
+        options.media_module_options));
+  }
+
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
@@ -202,6 +235,7 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Navigate()");
   web_module_loaded_.Reset();
 
   // Always post this as a task in case this is being called from the WebModule.
@@ -210,6 +244,7 @@ void BrowserModule::Navigate(const GURL& url) {
 }
 
 void BrowserModule::Reload() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Reload()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
@@ -218,6 +253,7 @@ void BrowserModule::Reload() {
 }
 
 void BrowserModule::NavigateInternal(const GURL& url) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::NavigateInternal()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
@@ -241,6 +277,15 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                        renderer_module_.pipeline()->GetResourceProvider(),
                        kLayoutMaxRefreshFrequencyInHz));
 
+#if defined(OS_STARBOARD)
+#if SB_HAS(1_CORE)
+  // Wait until the splash screen is ready before loading the main web module.
+  // This prevents starvation of the splash screen module and decoding of the
+  // splash screen image(s).
+  splash_screen_->WaitUntilReady();
+#endif
+#endif
+
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   web_module_options_.csp_insecure_allowed_token =
@@ -256,6 +301,14 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       array_buffer_allocator_.get();
   options.dom_settings_options.array_buffer_cache = array_buffer_cache_.get();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+#if defined(ENABLE_FAKE_MICROPHONE)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kFakeMicrophone) ||
+      CommandLine::ForCurrentProcess()->HasSwitch(switches::kInputFuzzer)) {
+    options.dom_settings_options.microphone_options.enable_fake_microphone =
+        true;
+  }
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
+
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
   web_module_.reset(new WebModule(
@@ -272,6 +325,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 }
 
 void BrowserModule::OnLoad() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
   // asynchonrous access to this object by |web_module_| during destruction.
   if (MessageLoop::current() != self_message_loop_) {
@@ -284,11 +338,10 @@ void BrowserModule::OnLoad() {
   web_module_loaded_.Signal();
 }
 
-#if defined(ENABLE_WEBDRIVER)
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::WaitForLoad()");
   return web_module_loaded_.TimedWait(timeout);
 }
-#endif
 
 #if defined(ENABLE_SCREENSHOT)
 void BrowserModule::RequestScreenshotToFile(const FilePath& path,
@@ -374,6 +427,30 @@ void BrowserModule::OnFuzzerToggle(const std::string& message) {
   }
 }
 
+void BrowserModule::OnSetMediaConfig(const std::string& config) {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnSetMediaConfig, weak_this_, config));
+    return;
+  }
+
+  std::vector<std::string> tokens;
+  base::SplitString(config, '=', &tokens);
+
+  int value;
+  if (tokens.size() != 2 || !base::StringToInt(tokens[1], &value)) {
+    LOG(WARNING) << "Media configuration '" << config << "' is not in the"
+                 << " form of '<string name>=<int value>'.";
+    return;
+  }
+  if (media_module_->SetConfiguration(tokens[0], value)) {
+    LOG(INFO) << "Successfully setting " << tokens[0] << " to " << value;
+  } else {
+    LOG(WARNING) << "Failed to set " << tokens[0] << " to " << value;
+  }
+}
+
 void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
@@ -391,6 +468,11 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+
+  if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
+    render_tree_combiner_.UpdateDebugConsoleRenderTree(base::nullopt);
+    return;
+  }
 
   render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
@@ -435,6 +517,7 @@ void BrowserModule::InjectKeyEventToMainWebModule(
 }
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
 
@@ -445,6 +528,7 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
 }
 
 bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::FilterKeyEvent()");
   // Check for hotkeys first. If it is a hotkey, no more processing is needed.
   if (!FilterKeyEventForHotkeys(event)) {
     return false;
@@ -510,7 +594,10 @@ bool BrowserModule::TryURLHandlers(const GURL& url) {
   return false;
 }
 
-void BrowserModule::DestroySplashScreen() { splash_screen_.reset(NULL); }
+void BrowserModule::DestroySplashScreen() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroySplashScreen()");
+  splash_screen_.reset(NULL);
+}
 
 #if defined(ENABLE_WEBDRIVER)
 scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
@@ -582,10 +669,12 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
 }
 
 void BrowserModule::Suspend() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Suspend()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(!suspended_);
 
-// First release the resource provider used by all of our web modules.
+// First suspend all our web modules which implies that they will release their
+// resource provider and all resources created through it.
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {
     debug_console_->Suspend();
@@ -623,6 +712,7 @@ void BrowserModule::Suspend() {
 }
 
 void BrowserModule::Resume() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(suspended_);
 
@@ -653,6 +743,8 @@ void BrowserModule::Resume() {
 
 #if defined(OS_STARBOARD)
 void BrowserModule::OnRendererSubmissionRasterized() {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnRendererSubmissionRasterized()");
   if (!is_rendered_) {
     // Hide the system splash screen when the first render has completed.
     is_rendered_ = true;

@@ -371,14 +371,22 @@ class DataViewObject : public JSObject, public BufferView
 public:
     static Class class_;
 
+#if defined(STARBOARD)
+    template<Value ValueGetter(DataViewObject &view)>
+    static bool
+    getterImpl(JSContext *cx, CallArgs args);
+#endif
+
 private:
     static Class protoClass;
 
     static inline bool is(const Value &v);
 
+#if !defined(STARBOARD)
     template<Value ValueGetter(DataViewObject &view)>
     static bool
     getterImpl(JSContext *cx, CallArgs args);
+#endif
 
     template<Value ValueGetter(DataViewObject &view)>
     static JSBool

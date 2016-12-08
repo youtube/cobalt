@@ -94,4 +94,17 @@
     },
 
   ],
+  'conditions': [
+    ['final_executable_type == "shared_library"', {
+      'targets': [
+        {
+          'target_name': 'cobalt_bin',
+          'type': 'executable',
+          'dependencies': [
+            'cobalt',
+          ],
+        },
+      ],
+    }],
+  ],
 }

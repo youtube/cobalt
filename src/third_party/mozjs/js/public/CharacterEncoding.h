@@ -127,7 +127,7 @@ class TwoByteCharsZ : public mozilla::RangedPtr<jschar>
     TwoByteCharsZ(jschar *chars, size_t length)
       : Base(chars, length)
     {
-        JS_ASSERT(chars[length] = '\0');
+        JS_ASSERT(chars[length] == '\0');
     }
 };
 

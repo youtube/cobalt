@@ -36,7 +36,11 @@
 #include <config.h>
 #endif
 
+#ifndef STARBOARD
 #include <stdlib.h> /* for size_t */
+#else  // STARBOARD
+#include "starboard/types.h"
+#endif  // STARBOARD
 
 #include "private/float.h"
 #include "FLAC/ordinals.h" /* for FLAC__bool */

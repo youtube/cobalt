@@ -176,13 +176,13 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 };
 }  // namespace
 
-WebDriverServer::WebDriverServer(int port,
+WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
                                  const HandleRequestCallback& callback)
     : handle_request_callback_(callback) {
-  DLOG(INFO) << "Starting WebDriver server on port " << port;
   // Create http server
-  factory_.reset(new net::TCPListenSocketFactory("0.0.0.0", port));
+  factory_.reset(new net::TCPListenSocketFactory(listen_ip, port));
   server_ = new net::HttpServer(*factory_, this);
+  LOG(INFO) << "Starting WebDriver server on port " << port;
 }
 
 void WebDriverServer::OnHttpRequest(int connection_id,

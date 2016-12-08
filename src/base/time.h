@@ -593,6 +593,15 @@ class BASE_EXPORT TimeTicks {
   // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
   static TimeTicks HighResNow();
 
+  // Returns the amount of time the current thread has spent in the execution
+  // state (i.e. not pre-empted or waiting on some event). If this is not
+  // available, then HighResNow() will be returned.
+  static TimeTicks ThreadNow();
+
+  // Returns whether ThreadNow() is implemented to report thread time (as
+  // opposed to HighResNow()).
+  static bool HasThreadNow();
+
   // Returns the current system trace time or, if none is defined, the current
   // high-res time (i.e. HighResNow()). On systems where a global trace clock
   // is defined, timestamping TraceEvents's with this value guarantees

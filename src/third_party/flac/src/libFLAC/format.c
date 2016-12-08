@@ -33,9 +33,16 @@
 #  include <config.h>
 #endif
 
+#ifndef STARBOARD
 #include <stdio.h>
 #include <stdlib.h> /* for qsort() */
 #include <string.h> /* for memset() */
+#endif  // STARBOARD
+
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+
 #include "FLAC/assert.h"
 #include "FLAC/format.h"
 #include "private/format.h"
@@ -581,11 +588,11 @@ FLAC__bool FLAC__format_entropy_coding_method_partitioned_rice_contents_ensure_s
 	FLAC__ASSERT(object->capacity_by_order > 0 || (0 == object->parameters && 0 == object->raw_bits));
 
 	if(object->capacity_by_order < max_partition_order) {
-		if(0 == (object->parameters = (unsigned*)realloc(object->parameters, sizeof(unsigned)*(1 << max_partition_order))))
+		if(0 == (object->parameters = (unsigned*)realloc(object->parameters, sizeof(unsigned)*(1LL << max_partition_order))))
 			return false;
-		if(0 == (object->raw_bits = (unsigned*)realloc(object->raw_bits, sizeof(unsigned)*(1 << max_partition_order))))
+		if(0 == (object->raw_bits = (unsigned*)realloc(object->raw_bits, sizeof(unsigned)*(1LL << max_partition_order))))
 			return false;
-		memset(object->raw_bits, 0, sizeof(unsigned)*(1 << max_partition_order));
+		memset(object->raw_bits, 0, sizeof(unsigned)*(1LL << max_partition_order));
 		object->capacity_by_order = max_partition_order;
 	}
 

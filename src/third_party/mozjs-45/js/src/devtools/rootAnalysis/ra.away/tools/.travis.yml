@@ -1,0 +1,48 @@
+language: python
+python:
+  - "2.7"
+
+sudo: false
+
+env:
+  global:
+    - PIP_FIND_LINKS=file://$HOME/.cache/pip
+    - PIP_CACHE_DIR=$HOME/.cache/pip
+  matrix:
+    - TOX_ENV=py27-hg2.6
+    - TOX_ENV=py26-hg2.6
+    - TOX_ENV=py27-hg3.2
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+    - $TRAVIS_BUILD_DIR/.tox
+
+before_script:
+  - git config --global user.email "travis@travis-ci.org"
+  - git config --global user.name "Travis McTravis"
+  - cp lib/python/mozilla_buildtools/test/hgrc ~/.hgrc
+
+install:
+  - pip install tox==1.9.2
+
+script:
+  - tox -e $TOX_ENV
+  # Remove logs to avoid cache uploads
+  - rm -rf $HOME/.cache/pip/log
+
+after_script:
+  - tox -e py27-coveralls
+
+# The channel name "irc.mozilla.org#releng" is encrypted against mozilla/build-tools to prevent IRC spam of forks
+notifications:
+  irc:
+    channels:
+      - secure: VStaKCWB7rIbCJEb5hh0sGmtMxTCvm9s4WN3H00BTeNJ7DGQNP4o7b7dN637o80RzVOEE22yMMw2e4fn4wAtqG1A+0DKtcrr6KtOislDmXnex37pi90qP0I8yNEAyh7NzhGNP5u7/HP1VSwI7mgMEOyMHYa5lX7KijABcAnBybU=
+    on_success: always
+    on_failure: always
+    template:
+      - "\x02%{repository}\x0314#%{build_number}\x03\x02 (%{branch} - %{commit} : %{author}): \x02\x0312%{message}\x02\x03"
+      - "\x02Change view\x02 : \x0314%{compare_url}\x03"
+      - "\x02Build details\x02 : \x0314%{build_url}\x03"
+      - "\x02Commit message\x02 : \x0314%{commit_message}\x03"

@@ -78,7 +78,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
   *initial_containing_block = initial_containing_block_creation_results.box;
 
   // Generate boxes.
-  {
+  if (document->html()) {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
     base::StopWatch stop_watch_box_generation(
         LayoutStatTracker::kStopWatchTypeBoxGeneration,

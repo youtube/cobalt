@@ -187,6 +187,21 @@ class ResourceProviderStub : public ResourceProvider {
     return make_scoped_refptr(new ImageStub(skia_source_data.Pass()));
   }
 
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+  scoped_refptr<Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE {
+    NOTREACHED();
+    SbDecodeTargetDestroy(decode_target);
+    return NULL;
+  }
+
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+
+  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
+
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) OVERRIDE {
     return scoped_ptr<RawImageMemory>(
@@ -210,6 +225,12 @@ class ResourceProviderStub : public ResourceProvider {
                                            FontStyle font_style) OVERRIDE {
     UNREFERENCED_PARAMETER(font_family_name);
     UNREFERENCED_PARAMETER(font_style);
+    return make_scoped_refptr(new TypefaceStub(NULL));
+  }
+
+  scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
+      const std::string& font_face_name) OVERRIDE {
+    UNREFERENCED_PARAMETER(font_face_name);
     return make_scoped_refptr(new TypefaceStub(NULL));
   }
 

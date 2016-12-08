@@ -122,6 +122,9 @@ void ReturnResponse(const base::optional<protocol::SessionId>& session_id,
 template <class DriverClassT>
 class DispatchCommandFactory
     : public base::RefCounted<DispatchCommandFactory<DriverClassT> > {
+  // Max retries for the "can_retry" CommandResult case.
+  static const int kMaxRetries = 5;
+
  public:
   // Typedef'd for less verbose code.
   typedef WebDriverDispatcher::CommandResultHandler CommandResultHandler;
@@ -220,7 +223,11 @@ class DispatchCommandFactory
         DriverClassT* driver, const base::Value* parameters,
         CommandResultHandler* result_handler) {
       // Ignore parameters.
-      util::CommandResult<R> command_result = driver_command.Run(driver);
+      int retries = 0;
+      util::CommandResult<R> command_result;
+      do {
+        command_result = driver_command.Run(driver);
+      } while (command_result.can_retry() && (retries++ < kMaxRetries));
       internal::ReturnResponse(session_id, command_result, result_handler);
     }
 
@@ -245,8 +252,11 @@ class DispatchCommandFactory
         result_handler->SendInvalidRequestResponse(
             WebDriverDispatcher::CommandResultHandler::kInvalidParameters, "");
       } else {
-        util::CommandResult<R> command_result =
-            driver_command.Run(driver, param.value());
+        int retries = 0;
+        util::CommandResult<R> command_result;
+        do {
+          command_result = driver_command.Run(driver, param.value());
+        } while (command_result.can_retry() && (retries++ < kMaxRetries));
         internal::ReturnResponse(session_id, command_result, result_handler);
       }
     }

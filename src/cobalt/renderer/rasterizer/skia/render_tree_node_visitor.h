@@ -73,6 +73,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   RenderTreeNodeVisitor(
       SkCanvas* render_target,
       const CreateScratchSurfaceFunction* create_scratch_surface_function,
+      const base::Closure& reset_skia_context_function,
       SurfaceCacheDelegate* surface_cache_delegate,
       common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
@@ -103,6 +104,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   common::SurfaceCache* surface_cache_;
   base::optional<SurfaceCacheDelegate::ScopedContext>
       surface_cache_scoped_context_;
+
+  base::Closure reset_skia_context_function_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };

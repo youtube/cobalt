@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A description of the current platform in lurid detail such that common code
-// never needs to actually know what the current operating system and
-// architecture are. It is both very pragmatic and canonical in that if any
-// application code finds itself needing to make a platform decision, it should
-// always define a Starboard Configuration feature instead. This implies the
-// continued existence of very narrowly-defined configuration features, but it
-// retains porting control in Starboard.
+// Module Overview: Starboard Configuration module
+//
+// Provides a description of the current platform in lurid detail so that
+// common code never needs to actually know what the current operating system
+// and architecture are.
+//
+// It is both very pragmatic and canonical in that if any application code
+// finds itself needing to make a platform decision, it should always define
+// a Starboard Configuration feature instead. This implies the continued
+// existence of very narrowly-defined configuration features, but it retains
+// porting control in Starboard.
 
 #ifndef STARBOARD_CONFIGURATION_H_
 #define STARBOARD_CONFIGURATION_H_
@@ -35,7 +39,12 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 1
+#define SB_MAXIMUM_API_VERSION 3
+
+// The API version that is currently open for changes, and therefore is not
+// stable or frozen. Production-oriented ports should avoid declaring that they
+// implement the experimental Starboard API version.
+#define SB_EXPERIMENTAL_API_VERSION 3
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -185,6 +194,26 @@ struct CompileAssert {};
 #define SB_UNLIKELY(x) (x)
 #endif  // SB_IS(COMPILER_MSVC)
 #endif  // !defined(SB_UNLIKELY)
+
+// SB_DEPRECATED(int Foo(int bar));
+//   Annotates the function as deprecated, which will trigger a compiler
+//   warning when referenced.
+#if SB_IS(COMPILER_GCC)
+#define SB_DEPRECATED(FUNC) FUNC __attribute__((deprecated))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_DEPRECATED(FUNC) __declspec(deprecated) FUNC
+#else
+// Empty definition for other compilers.
+#define SB_DEPRECATED(FUNC) FUNC
+#endif
+
+// SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for
+// external clients, but not deprecated for starboard.
+#if defined(STARBOARD_IMPLEMENTATION)
+#define SB_DEPRECATED_EXTERNAL(FUNC) FUNC
+#else
+#define SB_DEPRECATED_EXTERNAL(FUNC) SB_DEPRECATED(FUNC)
+#endif
 
 // A macro to disallow the copy constructor and operator= functions
 // This should be used in the private: declarations for a class
@@ -336,6 +365,14 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
 #endif
 
+#if SB_VERSION(2) && !defined(SB_HAS_MICROPHONE)
+#error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
+#endif
+
+#if SB_VERSION(3) && !defined(SB_HAS_TIME_THREAD_NOW)
+#error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
+#endif
+
 #if SB_HAS(PLAYER)
 #if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
     !SB_IS(PLAYER_PRODUCING_TEXTURE)
@@ -362,6 +399,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
     (SB_HAS(2_CORES) && (SB_HAS(4_CORES) || SB_HAS(6_CORES))) ||    \
     (SB_HAS(4_CORES) && SB_HAS(6_CORES))
 #error "Only one SB_HAS_{MANY, 1, 2, 4, 6}_CORE[S] can be defined per platform."
+#endif
+
+#if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
+#error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
 #endif
 
 #if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
@@ -414,6 +455,15 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 // is available.
 #if !defined(SB_HAS_GLES2)
 #define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
+#endif
+
+// Specifies whether this platform has any kind of supported graphics system.
+#if !defined(SB_HAS_GRAPHICS)
+#if SB_HAS(GLES2) || SB_HAS(BLITTER)
+#define SB_HAS_GRAPHICS 1
+#else
+#define SB_HAS_GRAPHICS 0
+#endif
 #endif
 
 // Specifies whether the starboard media pipeline components (SbPlayerPipeline

@@ -64,6 +64,7 @@
       'vertex_skia_antialiased_color_only.glsl',
       'vertex_skia_antialiased_oval.glsl',
       'vertex_skia_color_only.glsl',
+      'vertex_mesh.glsl',
       'vertex_skia_texcoords_and_color.glsl',
       'vertex_skia_texcoords_and_color_with_texcoord_matrix.glsl',
       'vertex_skia_texcoords_derived_from_position.glsl',

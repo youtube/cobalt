@@ -71,6 +71,10 @@
 
 #include <string.h>
 
+#if defined(STARBOARD)
+#include "starboard/byte_swap.h"
+#endif
+
 #if defined(_MSC_VER) && _MSC_VER >= 1300
 #  include <stdlib.h>
 #  pragma intrinsic(_byteswap_ushort)
@@ -184,7 +188,9 @@ struct Swapper<T, 4>
 {
   static T swap(T value)
   {
-#if defined(__clang__) || defined(__GNUC__)
+#if defined(STARBOARD)
+    return static_cast<T>(SbByteSwapU32(value));
+#elif defined(__clang__) || defined(__GNUC__)
     return T(__builtin_bswap32(value));
 #elif defined(_MSC_VER)
     return T(_byteswap_ulong(value));
@@ -202,7 +208,9 @@ struct Swapper<T, 8>
 {
   static inline T swap(T value)
   {
-#if defined(__clang__) || defined(__GNUC__)
+#if defined(STARBOARD)
+    return static_cast<T>(SbByteSwapU64(value));
+#elif defined(__clang__) || defined(__GNUC__)
     return T(__builtin_bswap64(value));
 #elif defined(_MSC_VER)
     return T(_byteswap_uint64(value));

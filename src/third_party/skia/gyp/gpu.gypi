@@ -6,6 +6,10 @@
 # The skia build defines these in common_variables.gypi
 #
 {
+  'defines': [
+    'COBALT_SKIA_GLYPH_ATLAS_WIDTH=<(skia_glyph_atlas_width)',
+    'COBALT_SKIA_GLYPH_ATLAS_HEIGHT=<(skia_glyph_atlas_height)',
+  ],
   'variables': {
     'skgpu_sources': [
       '<(skia_include_path)/gpu/GrBackendProcessorFactory.h',

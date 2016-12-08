@@ -657,7 +657,11 @@ LIRGenerator::visitTest(MTest *test)
         if (comp->isDoubleComparison()) {
             LAllocation lhs = useRegister(left);
             LAllocation rhs = useRegister(right);
+#if defined(JS_CPU_MIPS)
+            LCompareDAndBranch *lir = new LCompareDAndBranch(comp, lhs, rhs, ifTrue, ifFalse);
+#else
             LCompareDAndBranch *lir = new LCompareDAndBranch(lhs, rhs, ifTrue, ifFalse);
+#endif
             return add(lir, comp);
         }
 
@@ -2260,7 +2264,12 @@ LIRGenerator::visitGetPropertyCache(MGetPropertyCache *ins)
         return assignSafepoint(lir, ins);
     }
 
+#if defined(JS_CPU_MIPS)
+    LGetPropertyCacheT *lir = new LGetPropertyCacheT(useRegister(ins->object()),
+                                                              tempForDispatchCache(ins->type()));
+#else
     LGetPropertyCacheT *lir = newLGetPropertyCacheT(ins);
+#endif
     if (!define(lir, ins))
         return false;
     return assignSafepoint(lir, ins);

@@ -589,11 +589,6 @@
               ['include', 'sys_string_conversions_linux.cc'],
             ],
           }],
-          [ 'OS=="lb_shell" and target_arch!="linux" and target_arch!="android"', {
-            'sources!': [
-              'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
-            ],
-          }],
           [ 'OS=="lb_shell" and target_arch=="android"', {
             'sources/' : [
               ['exclude', 'message_pump_shell.cc'],
@@ -659,14 +654,6 @@
 
               # We use thread_checker_impl_atomic.cc instead.
               'threading/thread_checker_impl.cc',
-            ],
-            'conditions': [
-              ['target_os!="linux" and target_arch!="android"', {
-                'sources!': [
-                  # Since wchar_t is 2-bytes wide, string16 == wstring here.
-                  'string16.cc',
-                ],
-              }],
             ],
           }],  # OS == "starboard"
           [ 'OS=="lb_shell" or OS=="starboard"', {

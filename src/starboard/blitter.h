@@ -12,14 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Starboard Blitter API.  The Blitter API provides support for issuing simple
-// blit-style draw commands to either an offscreen surface or to a Starboard
-// SbWindow object.  This API is designed to allow implementations make use
-// of GPU hardware acceleration, if it is available.  Draw commands exist for
-// solid-color rectangles and rasterization/blitting of rectangular images onto
+// Module Overview: Starboard Blitter API
+//
+// The Blitter API provides support for issuing simple blit-style draw
+// commands to either an offscreen surface or to a Starboard SbWindow object.
+// Blitter is jargon that means "BLock Transfer," which might be abbreviated
+// as BLT and, hence, the word "blit."
+//
+// This API is designed to allow implementations make use of GPU hardware
+// acceleration, if it is available.  Draw commands exist for solid-color
+// rectangles and rasterization/blitting of rectangular images onto
 // rectangular target patches.
-
-// Threading Concerns:
+//
+// #### Threading Concerns
+//
 // Note that in general the Blitter API is not thread safe, except for all
 // SbBlitterDevice-related functions.  All functions that are not required to
 // internally ensure any thread safety guarantees are prefaced with a comment
@@ -97,12 +103,16 @@ typedef SbBlitterSurfacePrivate* SbBlitterSurface;
 #define kSbBlitterInvalidSurface ((SbBlitterSurface)NULL)
 
 // SbBlitterContext objects represent a stateful communications channel with
-// a device.  All state changes and draw calls will be made through a specific
-// SbBlitterContext object.  Every draw call made on a SbBlitterContext will
-// be submitted to the device with the SbBlitterContext's current state applied
-// to it.  Draw calls may be submitted to the device as they are made on the
-// SbBlitterContext, however they are not guaranteed to be submitted until
-// the SbBlitterContext object is flushed.
+// a device.  All state changes and draw calls are made through a specific
+// SbBlitterContext object.  Every draw call made on a SbBlitterContext is
+// submitted to the device with the SbBlitterContext's current state applied
+// to it.
+//
+// Draw calls may be submitted to the device as they are made on the
+// SbBlitterContext. However, they are not guaranteed to be submitted until
+// the SbBlitterContext object is flushed. That is, until you call
+// SbBlitterFlushContext, you are not guaranteed that any API calls you have
+// made have been received or acted on by the graphics device.
 typedef struct SbBlitterContextPrivate SbBlitterContextPrivate;
 typedef SbBlitterContextPrivate* SbBlitterContext;
 #define kSbBlitterInvalidContext ((SbBlitterContext)NULL)
@@ -283,66 +293,84 @@ static SB_C_FORCE_INLINE bool SbBlitterIsContextValid(
   return context != kSbBlitterInvalidContext;
 }
 
-// Creates and returns a SbBlitterDevice object based on the Blitter API
-// implementation's decision of which device should be default.  The
-// SbBlitterDevice object represents a connection to a device (like a GPU).  On
-// many platforms there is always one single obvious choice for a device to use,
-// and that is the one that this function will return.  For example, if this is
-// called on a platform that has a single GPU, a device representing that GPU
-// should be returned by this call.  On a platform that has no GPU, a device
-// representing a software CPU implementation may be returned.  Only one
-// default device can exist within a process at a time.
-// This function is thread safe.
+// Creates and returns an SbBlitterDevice based on the Blitter API
+// implementation's decision of which device should be the default. The
+// returned SbBlitterDevice represents a connection to a device (like a GPU).
+//
+// On many platforms there is always one single obvious choice for a device
+// to use, and that is the one that this function will return. For example,
+// if this is called on a platform that has a single GPU, this call should
+// return an object that represents that GPU. On a platform that has no GPU,
+// an object representing a software CPU implementation may be returned.
+//
+// Only one default device can exist within a process at a time.
+// This function is thread-safe.
 // Returns kSbBlitterInvalidDevice on failure.
 SB_EXPORT SbBlitterDevice SbBlitterCreateDefaultDevice();
 
 // Destroys |device|, cleaning up all resources associated with it.
-// Returns whether the destruction succeeded.
-// This function is thread safe, though of course it should not be called if
-// |device| is still being accessed elsewhere.
+// This function is thread-safe, but it should not be called if |device| is
+// still being accessed elsewhere.
+//
+// The return value indicates whether the destruction succeeded.
+//
+// |device|: The SbBlitterDevice object to be destroyed.
 SB_EXPORT bool SbBlitterDestroyDevice(SbBlitterDevice device);
 
-// Creates and returns a SbBlitterSwapChain object that can be used to send
-// graphics to the display.  By calling this function, |device| will be linked
-// to |window|'s output and drawing to the returned swap chain will result in
-// |device| being used to render to |window|.  kSbBlitterInvalidSwapChain is
-// returned on failure.
+// Creates and returns an SbBlitterSwapChain that can then be used to send
+// graphics to the display. This function links |device| to |window|'s output,
+// and drawing to the returned swap chain will result in |device| being used
+// to render to |window|.
+//
 // This function must be called from the thread that called SbWindowCreate()
 // to create |window|.
+//
+// Returns kSbBlitterInvalidSwapChain on failure.
 SB_EXPORT SbBlitterSwapChain
 SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device, SbWindow window);
 
 // Destroys |swap_chain|, cleaning up all resources associated with it.
-// This function must be called on the same thread that called
-// SbBlitterCreateSwapChainFromWindow().
-// This function is not thread safe.
-// Returns the destruction succeeded.
+// This function is not thread-safe and must be called on the same thread
+// that called SbBlitterCreateSwapChainFromWindow().
+//
+// The return value indicates whether the destruction succeeded.
+//
+// |swap_chain|: The SbBlitterSwapChain to be destroyed.
 SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain);
 
 // Returns the |SbBlitterRenderTarget| object that is owned by |swap_chain|.
 // The returned object can be used to provide a target to blitter draw calls
-// wishing to draw directly to the display buffer.
-// This function is not thread safe.
-// kSbBlitterInvalidRenderTarget is returned on failure.
+// that draw directly to the display buffer. This function is not thread-safe.
+//
+// Returns kSbBlitterInvalidRenderTarget on failure.
+//
+// |swap_chain|: The SbBlitterSwapChain for which the target object is being
+// retrieved.
 SB_EXPORT SbBlitterRenderTarget
 SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain);
 
-// Returns whether |device| supports calls to SbBlitterCreatePixelData()
-// with |pixel_format|.
-// This function is thread safe.
+// Indicates whether |device| supports calls to SbBlitterCreatePixelData
+// with the specified |pixel_format|. This function is thread-safe.
+//
+// |device|: The device for which compatibility is being checked.
+// |pixel_format|: The SbBlitterPixelDataFormat for which compatibility is
+// being checked.
 SB_EXPORT bool SbBlitterIsPixelFormatSupportedByPixelData(
     SbBlitterDevice device,
     SbBlitterPixelDataFormat pixel_format);
 
-// Allocates a SbBlitterPixelData object through |device| with |width|, |height|
-// and |pixel_format|.  |pixel_format| must be supported by |device| (see
-// SbBlitterIsPixelFormatSupportedByPixelData()).  Calling this function will
-// result in the allocation of CPU-accessible (though perhaps
-// blitter-device-resident) memory to store pixel data of the requested
-// size/format. A SbBlitterPixelData object should either eventually be passed
-// into a call to SbBlitterCreateSurfaceFromPixelData(), or passed into a call
-// to SbBlitterDestroyPixelData().
-// This function is thread safe.
+// Allocates an SbBlitterPixelData object through |device| with |width|,
+// |height| and |pixel_format|. |pixel_format| must be supported by |device|
+// (see SbBlitterIsPixelFormatSupportedByPixelData()). This function is
+// thread-safe.
+//
+// Calling this function results in the allocation of CPU-accessible
+// (though perhaps blitter-device-resident) memory to store pixel data
+// of the requested size/format. An SbBlitterPixelData object should
+// eventually be passed either into a call to
+// SbBlitterCreateSurfaceFromPixelData() or into a call to
+// SbBlitterDestroyPixelData().
+//
 // Returns kSbBlitterInvalidPixelData upon failure.
 SB_EXPORT SbBlitterPixelData
 SbBlitterCreatePixelData(SbBlitterDevice device,
@@ -350,57 +378,74 @@ SbBlitterCreatePixelData(SbBlitterDevice device,
                          int height,
                          SbBlitterPixelDataFormat pixel_format);
 
-// Destroys the |pixel_data| object.  Note that
-// if SbBlitterCreateSurfaceFromPixelData() has been called on |pixel_data|
-// before, this function does not need to be and should not be called.
-// This function is thread safe.
-// Returns whether the destruction succeeded.
+// Destroys |pixel_data|. Note that this function does not need to be called
+// and should not be called if SbBlitterCreateSurfaceFromPixelData() has been
+// called on |pixel_data| before. This function is thread-safe.
+//
+// The return value indicates whether the destruction succeeded.
+//
+// |pixel_data|: The object to be destroyed.
 SB_EXPORT bool SbBlitterDestroyPixelData(SbBlitterPixelData pixel_data);
 
-// Getter method to return the pitch (in bytes) for |pixel_data|.  This
-// indicates the number of bytes per row of pixel data in the image.  -1 is
-// returned in case of an error.
-// This function is not thread safe.
+// Retrieves the pitch (in bytes) for |pixel_data|. This indicates the number of
+// bytes per row of pixel data in the image. This function is not thread-safe.
+//
+// Returns |-1| in the event of an error.
+//
+// |pixel_data|: The object for which you are retrieving the pitch.
 SB_EXPORT int SbBlitterGetPixelDataPitchInBytes(SbBlitterPixelData pixel_data);
 
-// Getter method to return a CPU-accessible pointer to the pixel data
-// represented by |pixel_data|.  This pixel data can be modified by the CPU
-// in order to initialize it on the CPU before calling
-// SbBlitterCreateSurfaceFromPixelData().  Note that the pointe returned here
-// is valid as long as |pixel_data| is valid, i.e. until either
+// Retrieves a CPU-accessible pointer to the pixel data represented by
+// |pixel_data|. This pixel data can be modified by the CPU to initialize it
+// on the CPU before calling SbBlitterCreateSurfaceFromPixelData().
+//
+// Note that the pointer returned here is valid as long as |pixel_data| is
+// valid, which means it is valid until either
 // SbBlitterCreateSurfaceFromPixelData() or SbBlitterDestroyPixelData() is
 // called.
-// This function is not thread safe.
-// If there is an error, NULL is returned.
+//
+// This function is not thread-safe.
+//
+// Returns |NULL| in the event of an error.
 SB_EXPORT void* SbBlitterGetPixelDataPointer(SbBlitterPixelData pixel_data);
 
-// Creates a SbBlitterSurface object on |device| (which must match the device
-// used to create the input SbBlitterPixelData object, |pixel_format|).
-// This function will destroy the input |pixel_data| object and so
-// |pixel_data| should not be accessed again after this function is called.
-// The returned surface cannot be used as a render target (e.g. calling
+// Creates an SbBlitterSurface object on |device|. Note that |device| must
+// match the device that was used to create the SbBlitterPixelData object
+// provided via the |pixel_data| parameter.
+//
+// This function also destroys the input |pixel_data| object. As a result,
+// |pixel_data| should not be accessed again after a call to this function.
+//
+// The returned object cannot be used as a render target (e.g. calling
 // SbBlitterGetRenderTargetFromSurface() on it will return
 // SbBlitterInvalidRenderTarget).
-// This function is thread safe with respect to |device|, however
-// |pixel_data| should not be modified on another thread while this function
-// is called.
-// kSbBlitterInvalidSurface is returned if there was an error.
+//
+// This function is thread-safe with respect to |device|, but |pixel_data|
+// should not be modified on another thread while this function is called.
+//
+// Returns kSbBlitterInvalidSurface in the event of an error.
 SB_EXPORT SbBlitterSurface
 SbBlitterCreateSurfaceFromPixelData(SbBlitterDevice device,
                                     SbBlitterPixelData pixel_data);
 
-// Returns whether the |device| supports calls to
-// SbBlitterCreateRenderTargetSurface() with |pixel_format|.
-// This function is thread safe.
+// Indicates whether the |device| supports calls to
+// SbBlitterCreateRenderTargetSurface() with |surface_format|.
+//
+// This function is thread-safe.
+//
+// |device|: The device being checked for compatibility.
+// |surface_format|: The surface format being checked for compatibility.
 SB_EXPORT bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
     SbBlitterDevice device,
     SbBlitterSurfaceFormat surface_format);
 
 // Creates a new surface with undefined pixel data on |device| with the
-// specified |width|, |height| and |pixel_format|.  One can set the pixel data
+// specified |width|, |height| and |surface_format|. One can set the pixel data
 // on the resulting surface by getting its associated SbBlitterRenderTarget
-// object by calling SbBlitterGetRenderTargetFromSurface().
-// This function is thread safe.
+// object and then calling SbBlitterGetRenderTargetFromSurface().
+//
+// This function is thread-safe.
+//
 // Returns kSbBlitterInvalidSurface upon failure.
 SB_EXPORT SbBlitterSurface
 SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
@@ -408,195 +453,277 @@ SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
                                    int height,
                                    SbBlitterSurfaceFormat surface_format);
 
-// Destroys |surface|, cleaning up all resources associated with it.
+// Destroys the |surface| object, cleaning up all resources associated with it.
 // This function is not thread safe.
-// Returns whether the destruction succeeded.
+//
+// The return value indicates whether the destruction succeeded.
+//
+// |surface|: The object to be destroyed.
 SB_EXPORT bool SbBlitterDestroySurface(SbBlitterSurface surface);
 
 // Returns the SbBlitterRenderTarget object owned by |surface|.  The returned
 // object can be used as a target for draw calls.
-// This function is not thread safe.
-// Returns kSbBlitterInvalidRenderTarget if |surface| is not able to provide a
-// render target, or on any other error.
+//
+// This function returns kSbBlitterInvalidRenderTarget if |surface| is not
+// able to provide a render target or on any other error.
+//
+// This function is not thread-safe.
 SB_EXPORT SbBlitterRenderTarget
 SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
 
-// Returns a SbBlitterSurfaceInfo structure describing immutable parameters of
-// |surface|, such as width, height and pixel format.  The results will be
-// set on the output parameter |surface_info| which cannot be NULL.
-// This function is not thread safe.
-// Returns whether the information was retrieved successfully.
+// Retrieves an SbBlitterSurfaceInfo structure, which describes immutable
+// parameters of the |surface|, such as its width, height and pixel format.
+// The results are set on the output parameter |surface_info|, which cannot
+// be NULL.
+//
+// The return value indicates whether the information was retrieved
+// successfully.
+//
+// This function is not thread-safe.
 SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
                                        SbBlitterSurfaceInfo* surface_info);
 
-// Returns whether the combination of parameters (|surface|, |pixel_format|) are
-// valid for calls to SbBlitterDownloadSurfacePixels().
-// This function is not thread safe.
+// Indicates whether the combination of parameter values is valid for calls
+// to SbBlitterDownloadSurfacePixels().
+//
+// This function is not thread-safe.
+//
+// |surface|: The surface being checked.
+// |pixel_format|: The pixel format that would be used on the surface.
 SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
     SbBlitterSurface surface,
     SbBlitterPixelDataFormat pixel_format);
 
 // Downloads |surface| pixel data into CPU memory pointed to by
 // |out_pixel_data|, formatted according to the requested |pixel_format| and
-// the requested |pitch_in_bytes|.  Thus, |out_pixel_data| must point to a
-// region of memory with a size of surface_height * |pitch_in_bytes| *
-// SbBlitterBytesPerPixelForFormat(pixel_format) bytes.  The function
-// SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels() can be called first
-// to check that your requested |pixel_format| is valid for |surface|.  When
-// this function is called, it will first wait for all previously flushed
+// the requested |pitch_in_bytes|. Before calling this function, you can call
+// SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels() to confirm that
+// |pixel_format| is, in fact, valid for |surface|.
+//
+// When this function is called, it first waits for all previously flushed
 // graphics commands to be executed by the device before downloading the data.
 // Since this function waits for the pipeline to empty, it should be used
-// sparingly, such as within in debug or test environments.  The returned
-// alpha format will be premultiplied.
-// This function is not thread safe.
-// Returns whether the pixel data was downloaded successfully or not.
+// sparingly, such as within in debug or test environments.
+//
+// The return value indicates whether the pixel data was downloaded
+// successfully.
+//
+// The returned alpha format is premultiplied.
+//
+// This function is not thread-safe.
+//
+// |out_pixel_data|: A pointer to a region of memory with a size of
+//                   surface_height * |pitch_in_bytes| bytes.
 SB_EXPORT bool SbBlitterDownloadSurfacePixels(
     SbBlitterSurface surface,
     SbBlitterPixelDataFormat pixel_format,
     int pitch_in_bytes,
     void* out_pixel_data);
 
-// Flips |swap_chain|, making the buffer that was previously accessible to
-// draw commands via SbBlitterGetRenderTargetFromSwapChain() now visible on the
-// display, while another buffer in an initially undefined state is setup as the
-// draw command target.  Note that you do not need to call
+// Flips the |swap_chain| by making the buffer previously accessible to
+// draw commands via SbBlitterGetRenderTargetFromSwapChain() visible on the
+// display, while another buffer in an initially undefined state is set up
+// as the new draw command target. Note that you do not need to call
 // SbBlitterGetRenderTargetFromSwapChain() again after flipping, the swap
-// chain's render target will always refer to its current back buffer.  This
-// function will stall the calling thread until the next vertical refresh.
-// Note that to ensure consistency with the Starboard Player API when rendering
-// punch-out video, calls to SbPlayerSetBounds() will not take effect until
-// this method is called.
-// This function is not thread safe.
-// Returns whether the flip succeeded.
+// chain's render target always refers to its current back buffer.
+//
+// This function stalls the calling thread until the next vertical refresh.
+// In addition, to ensure consistency with the Starboard Player API when
+// rendering punch-out video, calls to SbPlayerSetBounds() do not take effect
+// until this method is called.
+//
+// The return value indicates whether the flip succeeded.
+//
+// This function is not thread-safe.
+//
+// |swap_chain|: The SbBlitterSwapChain to be flipped.
 SB_EXPORT bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain);
 
-// Returns the maximum number of contexts that |device| can support in parallel.
-// In many cases, devices support only a single context.  If
-// SbBlitterCreateContext() has been used to create the maximum number of
-// contexts, all subsequent calls to SbBlitterCreateContext() will fail.
-// This function is thread safe.
-// This function returns -1 upon failure.
+// Returns the maximum number of contexts that |device| can support in
+// parallel. Note that devices often support only a single context.
+//
+// This function is thread-safe.
+//
+// This function returns |-1| upon failure.
+//
+// |device|: The SbBlitterDevice for which the maximum number of contexts is
+// returned.
 SB_EXPORT int SbBlitterGetMaxContexts(SbBlitterDevice device);
 
-// Creates a SbBlitterContext object on the specified |device|.  The returned
-// context can be used to setup draw state and issue draw calls.  Note that
-// there is a limit on the number of contexts that can exist at the same time
-// (in many cases this is 1), and this can be queried by calling
-// SbBlitterGetMaxContexts().  SbBlitterContext objects keep track of draw
-// state between a series of draw calls.  Please refer to the documentation
-// around the definition of SbBlitterContext for more information about
-// contexts.
-// This function is thread safe.
-// This function returns kSbBlitterInvalidContext upon failure.
+// Creates an SbBlitterContext object on |device|. The returned context can be
+// used to set up draw state and issue draw calls.
+//
+// Note that there is a limit on the number of contexts that can exist
+// simultaneously, which can be queried by calling SbBlitterGetMaxContexts().
+// (The limit is often |1|.)
+//
+// SbBlitterContext objects keep track of draw state between a series of draw
+// calls. Please refer to the SbBlitterContext() definition for more
+// information about contexts.
+//
+// This function is thread-safe.
+//
+// This function returns kSbBlitterInvalidContext upon failure. Note that the
+// function fails if it has already been used to create the maximum number
+// of contexts.
+//
+// |device|: The SbBlitterDevice for which the SbBlitterContext object is
+// created.
 SB_EXPORT SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device);
 
-// Destroys the specified |context| created by |device|, freeing all its
-// resources.
-// This function is not thread safe.
-// Returns whether the destruction succeeded.
+// Destroys the specified |context|, freeing all its resources. This function
+// is not thread-safe.
+//
+// The return value indicates whether the destruction succeeded.
+//
+// |context|: The object to be destroyed.
 SB_EXPORT bool SbBlitterDestroyContext(SbBlitterContext context);
 
-// Flushes all draw calls previously issued to |context|.  After this call,
-// all subsequent draw calls (on any context) are guaranteed to be processed
-// by the device after all previous draw calls issued on this |context|.
-// In many cases you will want to call this before calling
-// SbBlitterFlipSwapChain(), to ensure that all draw calls are submitted before
-// the flip occurs.
-// This function is not thread safe.
-// Returns whether the flush succeeded.
+// Flushes all draw calls previously issued to |context|. Calling this function
+// guarantees that the device processes all draw calls issued to this point on
+// this |context| before processing any subsequent draw calls on any context.
+//
+// Before calling SbBlitterFlipSwapChain(), it is often prudent to call this
+// function to ensure that all draw calls are submitted before the flip occurs.
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the flush succeeded.
+//
+// |context|: The context for which draw calls are being flushed.
 SB_EXPORT bool SbBlitterFlushContext(SbBlitterContext context);
 
 // Sets up |render_target| as the render target that all subsequent draw calls
-// made on |context| will draw to.
-// This function is not thread safe.
-// Returns whether the render target was successfully set.
+// made on |context| will use.
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the render target was set successfully.
+//
+// |context|: The object for which the render target is being set.
+// |render_target|: The target that the |context| should use for draw calls.
 SB_EXPORT bool SbBlitterSetRenderTarget(SbBlitterContext context,
                                         SbBlitterRenderTarget render_target);
 
-// Sets blending state on the specified |context|.  If |blending| is true, the
-// source alpha of subsequent draw calls will be used to blend with the
-// destination color.  In particular, Fc = Sc * Sa + Dc * (1 - Sa), where
-// Fc is the final color, Sc is the source color, Sa is the source alpha, and
-// Dc is the destination color.  If |blending| is false, the source color and
-// alpha will overwrite the destination color and alpha.  By default blending
+// Sets the blending state for the specified |context|. By default, blending
 // is disabled on a SbBlitterContext.
-// This function is not thread safe.
-// Returns whether the blending state was succcessfully set.
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the blending state was set successfully.
+//
+// |context|: The context for which the blending state is being set.
+// |blending|: The blending state for the |context|.
+// If |blending| is |true|, the source alpha of subsequent draw calls
+// is used to blend with the destination color. In particular,
+// (|Fc = Sc * Sa + Dc * (1 - Sa)|), where:
+// - |Fc| is the final color.
+// - |Sc| is the source color.
+// - |Sa| is the source alpha.
+// - |Dc| is the destination color.
+// If |blending| is |false|, the source color and source alpha overwrite
+// the destination color and alpha.
 SB_EXPORT bool SbBlitterSetBlending(SbBlitterContext context, bool blending);
 
 // Sets the context's current color.  The current color's default value is
-// SbBlitterColorFromRGBA(255, 255, 255 255).  The current color affects the
-// fill rectangle's color in calls to SbBlitterFillRect(), and if
-// SbBlitterSetModulateBlitsWithColor() has been called to enable blit color
-// modulation, the source blit surface pixel color will also be modulated by
-// the color before being output.  The color is specified in unpremultiplied
-// alpha format.
-// This function is not thread safe.
-// Returns whether the color was successfully set.
+// |SbBlitterColorFromRGBA(255, 255, 255 255)|.
+//
+// The current color affects the fill rectangle's color in calls to
+// SbBlitterFillRect(). If SbBlitterSetModulateBlitsWithColor() has been called
+// to enable blit color modulation, the source blit surface pixel color is also
+// modulated by the color before being output.
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the color was set successfully.
+//
+// |context|: The context for which the color is being set.
+// |color|: The context's new color, specified in unpremultiplied alpha format.
 SB_EXPORT bool SbBlitterSetColor(SbBlitterContext context,
                                  SbBlitterColor color);
 
 // Sets whether or not blit calls should have their source pixels modulated by
-// the current color (set via a call to SbBlitterSetColor()) before being
-// output.  This can be used to apply opacity to blit calls, as well as for
-// coloring alpha-only surfaces, and other effects.
-// This function is not thread safe.
-// Returns whether the state was successfully set.
+// the current color, which is set using SbBlitterSetColor(), before being
+// output. This function can apply opacity to blit calls, color alpha-only
+// surfaces, and apply other effects.
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the state was set successfully.
+//
+// |modulate_blits_with_color|: Indicates whether to modulate source pixels
+// in blit calls.
 SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
     SbBlitterContext context,
     bool modulate_blits_with_color);
 
-// Sets the scissor rectangle.  The scissor rectangle dictates a rectangle of
-// visibility that affects all draw calls.  Only pixels within the scissor
-// rectangle will be rendered, all drawing outside of the scissor rectangle will
-// be clipped.  When SbBlitterSetRenderTarget() is called, the scissor rectangle
-// is automatically set to the extents of the specified render target.  If a
+// Sets the scissor rectangle, which dictates a visibility area that affects
+// all draw calls. Only pixels within the scissor rectangle are rendered, and
+// all drawing outside of that area is clipped.
+//
+// When SbBlitterSetRenderTarget() is called, that function automatically sets
+// the scissor rectangle to the size of the specified render target. If a
 // scissor rectangle is specified outside of the extents of the current render
-// target bounds, it will be intersected with the render target boudns.  It is
-// an error to call this function before a render target has been specified for
-// the context.
-// This function is not thread safe.
-// Returns whether the scissor was successfully set.
+// target bounds, it will be intersected with the render target bounds.
+//
+// This function is not thread-safe.
+//
+// Returns whether the scissor was successfully set. It returns an error if
+// it is called before a render target has been specified for the context.
 SB_EXPORT bool SbBlitterSetScissor(SbBlitterContext context,
                                    SbBlitterRect rect);
 
-// Issues a draw call on |context| that fills a rectangle |rect|.  The color
-// of the rectangle is specified by the last call to SbBlitterSetColor().
-// This function is not thread safe.
-// Returns whether the draw call succeeded.
+// Issues a draw call on |context| that fills the specified rectangle |rect|.
+// The rectangle's color is determined by the last call to SbBlitterSetColor().
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the draw call succeeded.
+//
+// |context|: The context on which the draw call will operate.
+// |rect|: The rectangle to be filled.
 SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect);
 
-// Issues a draw call on |context| that blits an area of |source_surface|
-// specified by a |src_rect| to |context|'s current render target at |dst_rect|.
-// The source rectangle must lie within the dimensions of |source_surface|.  The
-// |source_surface|'s alpha will be modulated by |opacity| before being drawn.
-// For |opacity|, a value of 0 implies complete invisibility and a value of
-// 255 implies complete opaqueness.
-// This function is not thread safe.
-// Returns whether the draw call succeeded.
+// Issues a draw call on |context| that blits the area of |source_surface|
+// specified by |src_rect| to |context|'s current render target at |dst_rect|.
+// The source rectangle must lie within the dimensions of |source_surface|.
+// Note that the |source_surface|'s alpha is modulated by |opacity| before
+// being drawn. For |opacity|, a value of 0 implies complete invisibility,
+// and a value of 255 implies complete opacity.
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the draw call succeeded.
+//
+// |src_rect|: The area to be block transferred (blitted).
 SB_EXPORT bool SbBlitterBlitRectToRect(SbBlitterContext context,
                                        SbBlitterSurface source_surface,
                                        SbBlitterRect src_rect,
                                        SbBlitterRect dst_rect);
 
-// This function does the exact same as SbBlitterBlitRectToRect(), except
-// it permits values of |src_rect| outside of the dimensions of
-// |source_surface| and in these regions the pixel data from |source_surface|
-// will be wrapped.  Negative values for |src_rect.x| and |src_rect.y| are
-// allowed.  The output will all be stretched to fit inside of |dst_rect|.
-// This function is not thread safe.
-// Returns whether the draw call succeeded.
+// This function functions identically to SbBlitterBlitRectToRect(), except
+// it permits values of |src_rect| outside the dimensions of |source_surface|.
+// In those regions, the pixel data from |source_surface| will be wrapped.
+// Negative values for |src_rect.x| and |src_rect.y| are allowed.
+//
+// The output is all stretched to fit inside of |dst_rect|.
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the draw call succeeded.
 SB_EXPORT bool SbBlitterBlitRectToRectTiled(SbBlitterContext context,
                                             SbBlitterSurface source_surface,
                                             SbBlitterRect src_rect,
                                             SbBlitterRect dst_rect);
 
 // This function achieves the same effect as calling SbBlitterBlitRectToRect()
-// |num_rects| time with each of the |num_rects| values of |src_rects| and
-// |dst_rects|.  Using this function allows for greater efficiency than calling
-// SbBlitterBlitRectToRect() in a loop.
-// This function is not thread safe.
-// Returns whether the draw call succeeded.
+// |num_rects| times with each of the |num_rects| values of |src_rects| and
+// |dst_rects|. This function allows for greater efficiency than looped calls
+// to SbBlitterBlitRectToRect().
+//
+// This function is not thread-safe.
+//
+// The return value indicates whether the draw call succeeded.
 SB_EXPORT bool SbBlitterBlitRectsToRects(SbBlitterContext context,
                                          SbBlitterSurface source_surface,
                                          const SbBlitterRect* src_rects,

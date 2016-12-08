@@ -99,6 +99,13 @@ uint32_t getFlags()
     return flags;
 #endif
 
+#if defined(__GNUC__) && defined(__VFP_FP__)
+    // Mimic behavior of JSC::isVFPPresent().
+    // On ARMv6, lack of this feature will prevent the ion jit path.
+    flags |= HWCAP_VFP;
+    return flags;
+#endif
+
     return false;
 }
 

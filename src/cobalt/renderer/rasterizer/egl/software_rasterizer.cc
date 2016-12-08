@@ -40,7 +40,8 @@ SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context,
 
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    const Options& options) {
   int width = render_target->GetSize().width();
   int height = render_target->GetSize().height();
 
@@ -91,7 +92,9 @@ void SoftwareRasterizer::Submit(
       context_, render_target_egl);
 
   context_->Blit(output_texture->gl_handle(), 0, 0, width, height);
+  frame_rate_throttler_.EndInterval();
   context_->SwapBuffers(render_target_egl);
+  frame_rate_throttler_.BeginInterval();
 }
 
 render_tree::ResourceProvider* SoftwareRasterizer::GetResourceProvider() {
