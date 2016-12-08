@@ -109,8 +109,8 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   if (found_it == switch_map.end()) {
     // Error, tell the user what to do instead and then exit.
     std::stringstream ss;
-    ss << "\n";
-    ss << "memory_tracker help:\n";
+    ss << "\nNo memory tracker tool selected so help has been invoked:\n";
+    ss << "Memory Tracker help:\n";
     for (SwitchMap::const_iterator it = switch_map.begin();
       it != switch_map.end(); ++it) {
         const std::string& name = it->first;
@@ -120,15 +120,27 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     }
     ss << "\n";
     SbLogRaw(ss.str().c_str());
+    ss.str("");  // Clears the contents of stringstream.
     SbLogFlush();
+
     // Try and turn off all logging so that the stdout is less likely to be
     // polluted by interleaving output.
     logging::SetMinLogLevel(INT_MAX);
-    // SbThreadSleep wants microseconds.
+    // SbThreadSleep wants microseconds. We sleep here so that the user can
+    // read the help message before the engine starts up again and the
+    // fills the output with more logging text.
+    const SbTime four_seconds = 4000 * kSbTimeMillisecond;
+    SbThreadSleep(four_seconds);
+
+    found_it = switch_map.find(continuous_printer_tool.tool_name);
+
+    ss << "Defaulting to tool: " << found_it->first << "\n";
+    SbLogRaw(ss.str().c_str());
+    SbLogFlush();
+    // One more help message and 1-second pause. Then continue on with the
+    // execution as normal.
     const SbTime one_second = 1000 * kSbTimeMillisecond;
     SbThreadSleep(one_second);
-    SbSystemRequestStop(0);
-    return scoped_ptr<MemoryTrackerTool>(NULL);
   }
 
   // Okay we have been resolved to use a memory tracker in some way.
