@@ -38,6 +38,7 @@ class VideoRenderer : private VideoDecoder::Host {
   explicit VideoRenderer(scoped_ptr<VideoDecoder> decoder);
 
   bool is_valid() const { return true; }
+  int GetDroppedFrames() const { return dropped_frames_; }
 
   void WriteSample(const InputBuffer& input_buffer);
   void WriteEndOfStream();
@@ -76,13 +77,14 @@ class VideoRenderer : private VideoDecoder::Host {
 
   // During seeking, all frames inside |frames_| will be cleared but the app
   // should still display the last frame it is rendering.  This frame will be
-  // kept inside |seeking_frame_|.  It is an empty/black frame before the video
-  // is started.
-  scoped_refptr<VideoFrame> seeking_frame_;
+  // kept inside |last_displayed_frame_|.  It is an empty/black frame before the
+  // video is started.
+  scoped_refptr<VideoFrame> last_displayed_frame_;
 
   SbMediaTime seeking_to_pts_;
   bool end_of_stream_written_;
   bool need_more_input_;
+  int dropped_frames_;
 
   scoped_ptr<VideoDecoder> decoder_;
 };
