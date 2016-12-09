@@ -227,6 +227,78 @@ class MemoryTrackerPrintCSVThread : public SimpleThread {
   atomic_bool canceled_;
 };
 
+struct AllocationSamples {
+  std::vector<int32_t> number_allocations_;
+  std::vector<int64_t> allocated_bytes_;
+};
+typedef std::map<std::string, AllocationSamples> MapAllocationSamples;
+typedef std::vector<SbTime> TimeStamps;
+
+struct TimeSeries {
+  MapAllocationSamples samples_;
+  TimeStamps time_stamps_;
+};
+
+// Generates CSV values of the engine of a compressed-scale TimeSeries.
+//
+// A compressed-scale TimeSeries is defined as a time series which has
+// higher resolution at the most recent sampling and becomes progressively
+// lower resolution as time goes backward.
+//
+// For example, here is a compressed-histogram of order 2, which loses
+// 50% resolution on each section going back.
+//
+// Startup +------->  +--------+ ..% Resolution
+//                    +--------+
+//                    |        | 12% Resolution
+//                    +--------+
+//                    |        |
+//                    |        | 25% Resolution
+//                    +--------+
+//                    |        |
+//                    |        |
+//                    |        | 50% Resolution
+//                    |        |
+//                    |        |
+//                    +--------+
+//                    |        |
+//                    |        |
+//                    |        |
+//                    |        |
+//                    |        |
+//                    |        |
+//                    |        | 100% Resolution
+//                    |        |
+//                    |        |
+//                    |        |
+//                    |        |
+// End Time +------>  +--------+
+//
+// The the compressed histogram is dumped out as a CSV string periodically to
+// the output stream.
+class MemoryTrackerCompressedTimeSeriesThread : public SimpleThread {
+ public:
+  MemoryTrackerCompressedTimeSeriesThread(
+      MemoryTracker* memory_tracker);
+  virtual ~MemoryTrackerCompressedTimeSeriesThread() SB_OVERRIDE;
+
+  // Overridden so that the thread can exit gracefully.
+  virtual void Cancel() SB_OVERRIDE;
+  virtual void Run() SB_OVERRIDE;
+ private:
+  static std::string ToCsvString(const TimeSeries& histogram);
+  static void AcquireSample(MemoryTracker* memory_tracker,
+                            TimeSeries* histogram, SbTime now_time);
+  static bool IsFull(const TimeSeries& histogram, int num_samples);
+  static void Compress(TimeSeries* histogram);
+  static void Print(const std::string& str);
+
+  MemoryTracker* memory_tracker_;
+  const int sample_interval_ms_;
+  const int number_samples_;
+  atomic_bool canceled_;
+};
+
 }  // namespace analytics
 }  // namespace nb
 

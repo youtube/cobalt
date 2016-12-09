@@ -160,6 +160,8 @@ struct ColorRGBA {
     return *this;
   }
 
+  bool HasAlpha() const { return (a_ < 1.0f); }
+
  private:
   void CheckRange(float value) const {
     DCHECK_LE(0.0f, value);
