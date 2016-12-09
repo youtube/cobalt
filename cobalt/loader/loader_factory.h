@@ -37,7 +37,8 @@ namespace loader {
 class LoaderFactory {
  public:
   LoaderFactory(FetcherFactory* fetcher_factory,
-                render_tree::ResourceProvider* resource_provider);
+                render_tree::ResourceProvider* resource_provider,
+                base::ThreadPriority loader_thread_priority);
 
   // Creates a loader that fetches and decodes a render_tree::Image.
   scoped_ptr<Loader> CreateImageLoader(
