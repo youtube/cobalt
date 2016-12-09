@@ -19,8 +19,9 @@
 #include <vector>
 
 #include "base/threading/thread_checker.h"
+#include "base/timer.h"
 #include "cobalt/script/javascript_engine.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -37,10 +38,12 @@ class MozjsEngine : public JavaScriptEngine {
   size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
 
  private:
-  static JSBool ContextCallback(JSContext* context, unsigned context_op);
-  static void GCCallback(JSRuntime* runtime, JSGCStatus status);
+  void TimerGarbageCollect();
+  static bool ContextCallback(JSContext* context, unsigned context_op,
+                              void* data);
+  static void GCCallback(JSRuntime* runtime, JSGCStatus status, void* data);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
-                               JSBool is_compartment);
+                               bool is_compartment, void* data);
 
   base::ThreadChecker thread_checker_;
 
@@ -54,6 +57,9 @@ class MozjsEngine : public JavaScriptEngine {
 
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;
+
+  // Used to trigger a garbage collection periodically.
+  base::RepeatingTimer<MozjsEngine> gc_timer_;
 };
 }  // namespace mozjs
 }  // namespace script

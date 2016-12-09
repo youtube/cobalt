@@ -16,8 +16,8 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_WEAK_HEAP_OBJECT_H_
 #define COBALT_SCRIPT_MOZJS_45_WEAK_HEAP_OBJECT_H_
 
-#include "cobalt/script/mozjs/weak_heap_object_manager.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "cobalt/script/mozjs-45/weak_heap_object_manager.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

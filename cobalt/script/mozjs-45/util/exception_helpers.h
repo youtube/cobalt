@@ -20,7 +20,8 @@
 #include <vector>
 
 #include "cobalt/script/stack_frame.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/public/UbiNode.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -35,4 +36,5 @@ std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames);
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
-#endif  // COBALT_SCRIPT_MOZJS_UTIL_EXCEPTION_HELPERS_H_
+
+#endif  // COBALT_SCRIPT_MOZJS_45_UTIL_EXCEPTION_HELPERS_H_

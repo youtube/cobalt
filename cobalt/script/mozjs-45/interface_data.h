@@ -17,7 +17,7 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_INTERFACE_DATA_H_
 #define COBALT_SCRIPT_MOZJS_45_INTERFACE_DATA_H_
 
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -30,13 +30,6 @@ struct InterfaceData {
   // moves them.
   JS::Heap<JSObject*> prototype;
   JS::Heap<JSObject*> interface_object;
-
-  // In newer versions of SpiderMonkey, these are passed into the
-  // JS_NewObject* API functions as const pointers, so they may not need to be
-  // thread local.
-  JSClass instance_class_definition;
-  JSClass prototype_class_definition;
-  JSClass interface_object_class_definition;
 };
 
 }  // namespace mozjs
