@@ -73,7 +73,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
   // Create initial containing block.
   InitialContainingBlockCreationResults
       initial_containing_block_creation_results = CreateInitialContainingBlock(
-          document->initial_computed_style_data(), document,
+          *document->initial_computed_style_data(), document,
           used_style_provider, layout_stat_tracker);
   *initial_containing_block = initial_containing_block_creation_results.box;
 

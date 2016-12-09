@@ -73,8 +73,7 @@ bool PropagateBackgroundStyleAndTestIfChanged(
 }
 
 InitialContainingBlockCreationResults CreateInitialContainingBlock(
-    const scoped_refptr<cssom::CSSComputedStyleData>&
-        initial_containing_block_style,
+    const cssom::CSSComputedStyleData& default_initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker) {
@@ -82,6 +81,11 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
 
   InitialContainingBlockCreationResults results;
   results.background_style_source = NULL;
+
+  scoped_refptr<cssom::CSSComputedStyleData> initial_containing_block_style =
+      new cssom::CSSComputedStyleData();
+  initial_containing_block_style->AssignFrom(
+      default_initial_containing_block_style);
 
   // Propagate the computed background style of the <html> or <body> element
   // to the given style for the initial containing block.
