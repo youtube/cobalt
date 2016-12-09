@@ -281,7 +281,6 @@ class MemoryTrackerCompressedTimeSeriesThread : public SimpleThread {
   MemoryTrackerCompressedTimeSeriesThread(
       MemoryTracker* memory_tracker);
   virtual ~MemoryTrackerCompressedTimeSeriesThread() SB_OVERRIDE;
-
   // Overridden so that the thread can exit gracefully.
   virtual void Cancel() SB_OVERRIDE;
   virtual void Run() SB_OVERRIDE;
@@ -297,6 +296,21 @@ class MemoryTrackerCompressedTimeSeriesThread : public SimpleThread {
   const int sample_interval_ms_;
   const int number_samples_;
   atomic_bool canceled_;
+};
+
+// Start() is called when this object is created, and Cancel() & Join() are
+// called during destruction.
+class JavascriptMemoryTrackerThread : public SimpleThread {
+ public:
+  JavascriptMemoryTrackerThread(MemoryTracker* memory_tracker);
+  virtual ~JavascriptMemoryTrackerThread() SB_OVERRIDE;
+
+  // Overridden so that the thread can exit gracefully.
+  virtual void Cancel() SB_OVERRIDE;
+  virtual void Run() SB_OVERRIDE;
+ private:
+  atomic_bool finished_;
+  MemoryTracker* memory_tracker_;
 };
 
 }  // namespace analytics
