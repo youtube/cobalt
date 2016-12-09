@@ -227,6 +227,10 @@ class ConcurrentAllocationMap {
   AtomicAllocationMap pointer_map_array_[kNumElements];
 };
 
+inline double TimeInMinutes(SbTime time_delta) {
+  return double(time_delta) / double(kSbTimeMinute);
+}
+
 }  // namespace analytics
 }  // namespace nb
 
