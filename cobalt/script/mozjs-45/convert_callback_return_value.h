@@ -20,8 +20,8 @@
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/logging_exception_state.h"
-#include "cobalt/script/mozjs/conversion_helpers.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
