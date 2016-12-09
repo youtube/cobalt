@@ -335,7 +335,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(fetcher_factory_);
 
   loader_factory_.reset(
-      new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_));
+      new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
+                                data.options.loader_thread_priority));
 
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
@@ -691,7 +692,9 @@ WebModule::Options::Options()
       csp_enforcement_mode(dom::kCspEnforcementEnable),
       csp_insecure_allowed_token(0),
       track_event_stats(false),
-      image_cache_capacity_multiplier_when_playing_video(1.0f) {}
+      image_cache_capacity_multiplier_when_playing_video(1.0f),
+      thread_priority(base::kThreadPriority_Normal),
+      loader_thread_priority(base::kThreadPriority_Low) {}
 
 WebModule::WebModule(
     const GURL& initial_url,
@@ -710,9 +713,9 @@ WebModule::WebModule(
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_DEFAULT,
-        cobalt::browser::kWebModuleStackSize));
+  thread_.StartWithOptions(base::Thread::Options(
+      MessageLoop::TYPE_DEFAULT, cobalt::browser::kWebModuleStackSize,
+      options.thread_priority));
   DCHECK(message_loop());
 
   message_loop()->PostTask(

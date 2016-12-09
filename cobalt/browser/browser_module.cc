@@ -277,15 +277,6 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                        renderer_module_.pipeline()->GetResourceProvider(),
                        kLayoutMaxRefreshFrequencyInHz));
 
-#if defined(OS_STARBOARD)
-#if SB_HAS(1_CORE)
-  // Wait until the splash screen is ready before loading the main web module.
-  // This prevents starvation of the splash screen module and decoding of the
-  // splash screen image(s).
-  splash_screen_->WaitUntilReady();
-#endif
-#endif
-
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   web_module_options_.csp_insecure_allowed_token =

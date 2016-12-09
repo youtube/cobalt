@@ -30,12 +30,13 @@ const size_t kLoadThreadStackSize = 0;
 }  // namespace
 
 LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
-                             render_tree::ResourceProvider* resource_provider)
+                             render_tree::ResourceProvider* resource_provider,
+                             base::ThreadPriority loader_thread_priority)
     : fetcher_factory_(fetcher_factory),
       resource_provider_(resource_provider),
       load_thread_("ResourceLoader") {
   base::Thread::Options options(MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize,
-                                base::kThreadPriority_Low);
+                                loader_thread_priority);
   load_thread_.StartWithOptions(options);
 }
 
