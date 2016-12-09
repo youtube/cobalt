@@ -48,6 +48,7 @@ SbPlayerPrivate::SbPlayerPrivate(
       is_paused_(true),
       volume_(1.0),
       total_video_frames_(0),
+      dropped_video_frames_(0),
       worker_(new PlayerWorker(this,
                                player_worker_handler.Pass(),
                                decoder_status_func,
@@ -115,7 +116,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   out_player_info->is_paused = is_paused_;
   out_player_info->volume = volume_;
   out_player_info->total_video_frames = total_video_frames_;
-  out_player_info->dropped_video_frames = 0;
+  out_player_info->dropped_video_frames = dropped_video_frames_;
   out_player_info->corrupted_video_frames = 0;
 }
 
@@ -135,4 +136,9 @@ void SbPlayerPrivate::UpdateMediaTime(SbMediaTime media_time, int ticket) {
   }
   media_pts_ = media_time;
   media_pts_update_time_ = SbTimeGetMonotonicNow();
+}
+
+void SbPlayerPrivate::UpdateDroppedVideoFrames(int dropped_video_frames) {
+  starboard::ScopedLock lock(mutex_);
+  dropped_video_frames_ = dropped_video_frames;
 }

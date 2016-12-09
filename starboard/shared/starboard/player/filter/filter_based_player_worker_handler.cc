@@ -212,6 +212,8 @@ bool FilterBasedPlayerWorkerHandler::ProcessUpdateEvent(
 
     scoped_refptr<VideoFrame> frame =
         video_renderer_->GetCurrentFrame(audio_renderer_->GetCurrentTime());
+    player_worker_->UpdateDroppedVideoFrames(
+        video_renderer_->GetDroppedFrames());
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
     shared::starboard::Application::Get()->HandleFrame(

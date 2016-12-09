@@ -148,9 +148,6 @@ class OpenMaxComponent {
   std::queue<OMX_BUFFERHEADERTYPE*> unused_input_buffers_;
   std::vector<OMX_BUFFERHEADERTYPE*> output_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_output_buffers_;
-
-  OMXParamPortDefinition output_port_definition_;
-  bool output_port_enabled_;
 };
 
 }  // namespace open_max
