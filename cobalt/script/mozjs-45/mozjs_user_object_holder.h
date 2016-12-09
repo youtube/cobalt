@@ -19,12 +19,12 @@
 #include "base/hash_tables.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
-#include "cobalt/script/mozjs/referenced_object_map.h"
-#include "cobalt/script/mozjs/wrapper_factory.h"
-#include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/referenced_object_map.h"
+#include "cobalt/script/mozjs-45/wrapper_factory.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "cobalt/script/script_object.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

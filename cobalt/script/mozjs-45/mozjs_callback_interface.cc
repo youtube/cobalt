@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/mozjs/mozjs_callback_interface.h"
+#include "cobalt/script/mozjs-45/mozjs_callback_interface.h"
 
 #include "base/logging.h"
 
@@ -32,17 +32,15 @@ bool GetCallableForCallbackInterface(JSContext* context,
   DCHECK(implementing_object);
   DCHECK(property_name);
 
-  if (JS_ObjectIsCallable(context, implementing_object)) {
-    out_callable.set(OBJECT_TO_JSVAL(implementing_object));
+  if (JS::IsCallable(implementing_object)) {
+    out_callable.setObject(*implementing_object);
     return true;
   }
   // Implementing object is not callable. Check for a callable property of the
   // specified name.
   JS::RootedValue property(context);
-  if (JS_GetProperty(context, implementing_object, property_name,
-                     property.address())) {
-    if (property.isObject() &&
-        JS_ObjectIsCallable(context, JSVAL_TO_OBJECT(property))) {
+  if (JS_GetProperty(context, implementing_object, property_name, &property)) {
+    if (property.isObject() && JS::IsCallable(&property.toObject())) {
       out_callable.set(property);
       return true;
     }

@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
 
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
-#include "cobalt/script/mozjs/proxy_handler.h"
-#include "cobalt/script/mozjs/referenced_object_map.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsobj.h"
-#include "third_party/mozjs/js/src/jsproxy.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/proxy_handler.h"
+#include "cobalt/script/mozjs-45/referenced_object_map.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsfun.h"
+#include "third_party/mozjs-45/js/src/proxy/Proxy.h"
+#include "third_party/mozjs-45/js/src/vm/NativeObject.h"
 
 namespace cobalt {
 namespace script {
@@ -42,8 +43,10 @@ void WrapperPrivate::GetReachableWrappables(
 }
 
 bool WrapperPrivate::ShouldKeepWrapperAliveIfReachable() {
-  ProxyHandler* proxy_handler = base::polymorphic_downcast<ProxyHandler*>(
-      js::GetProxyHandler(wrapper_proxy_));
+  const ProxyHandler* proxy_handler =
+      base::polymorphic_downcast<const ProxyHandler*>(
+          js::GetProxyHandler(wrapper_proxy_));
+
   DCHECK(proxy_handler);
   return proxy_handler->has_custom_property() ||
          wrappable_->ShouldKeepWrapperAlive();
@@ -73,7 +76,8 @@ bool WrapperPrivate::HasWrapperPrivate(JSContext* context,
     return WrapperPrivate::HasWrapperPrivate(context, target_object);
   }
 
-  return object->hasPrivate();
+  DCHECK(object->isNative());
+  return object->as<js::NativeObject>().hasPrivate();
 }
 
 // static
@@ -141,8 +145,8 @@ void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
 
     // The wrapper's proxy object will keep the wrapper object alive, but the
     // reverse is not true, so we must trace it explicitly.
-    JS_CallHeapObjectTracer(trace, &wrapper_private->wrapper_proxy_,
-                            "WrapperPrivate::Trace");
+    JS_CallObjectTracer(trace, &wrapper_private->wrapper_proxy_,
+                        "WrapperPrivate::Trace");
 
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(wrapper_private->context_);

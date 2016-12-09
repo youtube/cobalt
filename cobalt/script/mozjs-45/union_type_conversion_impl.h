@@ -22,11 +22,11 @@
 #define COBALT_SCRIPT_MOZJS_45_UNION_TYPE_CONVERSION_IMPL_H_
 
 #include "cobalt/base/type_id.h"
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
-#include "cobalt/script/mozjs/mozjs_object_handle.h"
-#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
-#include "cobalt/script/mozjs/type_traits.h"
+#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
+#include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/union_type.h"
 
 // Conversion to/from JS::Value for IDL union types.
@@ -86,7 +86,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   // Just choose the first interface in the flattened members that matches.
   if (value.isObject()) {
     JS::RootedObject rooted_object(context);
-    bool success = JS_ValueToObject(context, value, rooted_object.address());
+    bool success = JS_ValueToObject(context, value, &rooted_object);
     DCHECK(success);
     MozjsGlobalEnvironment* global_environment =
         static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
@@ -248,7 +248,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   // Just choose the first interface in the flattened members that matches.
   if (value.isObject()) {
     JS::RootedObject rooted_object(context);
-    bool success = JS_ValueToObject(context, value, rooted_object.address());
+    bool success = JS_ValueToObject(context, value, &rooted_object);
     DCHECK(success);
     MozjsGlobalEnvironment* global_environment =
         static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
@@ -451,7 +451,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   // Just choose the first interface in the flattened members that matches.
   if (value.isObject()) {
     JS::RootedObject rooted_object(context);
-    bool success = JS_ValueToObject(context, value, rooted_object.address());
+    bool success = JS_ValueToObject(context, value, &rooted_object);
     DCHECK(success);
     MozjsGlobalEnvironment* global_environment =
         static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));

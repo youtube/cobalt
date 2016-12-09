@@ -25,13 +25,14 @@
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/mozjs/interface_data.h"
-#include "cobalt/script/mozjs/opaque_root_tracker.h"
-#include "cobalt/script/mozjs/util/exception_helpers.h"
-#include "cobalt/script/mozjs/weak_heap_object_manager.h"
-#include "cobalt/script/mozjs/wrapper_factory.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsproxy.h"
+#include "cobalt/script/mozjs-45/interface_data.h"
+#include "cobalt/script/mozjs-45/opaque_root_tracker.h"
+#include "cobalt/script/mozjs-45/util/exception_helpers.h"
+#include "cobalt/script/mozjs-45/weak_heap_object_manager.h"
+#include "cobalt/script/mozjs-45/wrapper_factory.h"
+#include "third_party/mozjs-45/js/public/Proxy.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/proxy/Proxy.h"
 
 namespace cobalt {
 namespace script {
@@ -128,14 +129,13 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   // This will be called every time an attempt is made to use eval() and
   // friends. If it returns false, then the ReportErrorHandler will be fired
   // with an error that eval() is disabled.
-  static JSBool CheckEval(JSContext* context);
+  static bool CheckEval(JSContext* context);
+
+  void ReportError(const char* message, JSErrorReport* report);
 
  private:
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
                               JS::MutableHandleValue out_result);
-
-  static void ReportErrorHandler(JSContext* context, const char* message,
-                                 JSErrorReport* report);
 
   static void TraceFunction(JSTracer* trace, void* data);
 
@@ -144,7 +144,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   struct ContextDestructor {
     explicit ContextDestructor(JSContext** context) : context(context) {}
     ~ContextDestructor() { JS_DestroyContext(*context); }
-    JSContext** context;
+    JSContext** const context;
   };
 
   typedef base::hash_map<intptr_t, InterfaceData*> CachedInterfaceData;

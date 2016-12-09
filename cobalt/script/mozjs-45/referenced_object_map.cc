@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/mozjs/referenced_object_map.h"
+#include "cobalt/script/mozjs-45/referenced_object_map.h"
 
 #include <utility>
 
