@@ -81,10 +81,6 @@ void Ignore(int signal_id) {
 #endif
 
 void InstallSuspendSignalHandlers() {
-  SetSignalHandler(SIGTSTP, &Suspend);
-  UnblockSignal(SIGTSTP);
-  SetSignalHandler(SIGCONT, &Resume);
-
 #if !defined(MSG_NOSIGNAL)
   // By default in POSIX, sending to a closed socket causes a SIGPIPE
   // If we cannot disable that behavior, we must ignore SIGPIPE.
@@ -95,8 +91,6 @@ void InstallSuspendSignalHandlers() {
 }
 
 void UninstallSuspendSignalHandlers() {
-  SetSignalHandler(SIGCONT, SIG_DFL);
-  SetSignalHandler(SIGTSTP, SIG_DFL);
 #if !defined(MSG_NOSIGNAL)
   SetSignalHandler(SIGPIPE, SIG_DFL);
 #endif
