@@ -27,6 +27,7 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder)
       seeking_to_pts_(0),
       end_of_stream_written_(false),
       need_more_input_(true),
+      dropped_frames_(0),
       decoder_(decoder.Pass()) {
   SB_DCHECK(decoder_ != NULL);
   decoder_->SetHost(this);
@@ -73,9 +74,6 @@ void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
   seeking_ = true;
   end_of_stream_written_ = false;
 
-  if (!frames_.empty()) {
-    seeking_frame_ = frames_.front();
-  }
   frames_.clear();
 }
 
@@ -84,15 +82,20 @@ scoped_refptr<VideoFrame> VideoRenderer::GetCurrentFrame(
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   if (frames_.empty()) {
-    return seeking_frame_;
+    return last_displayed_frame_;
   }
   // Remove any frames with timestamps earlier than |media_time|, but always
   // keep at least one of the frames.
   while (frames_.size() > 1 && frames_.front()->pts() < media_time) {
+    if (frames_.front() != last_displayed_frame_) {
+      ++dropped_frames_;
+    }
     frames_.pop_front();
   }
 
-  return frames_.front();
+  last_displayed_frame_ = frames_.front();
+
+  return last_displayed_frame_;
 }
 
 bool VideoRenderer::IsEndOfStreamPlayed() const {
