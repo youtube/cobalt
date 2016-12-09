@@ -76,6 +76,61 @@ std::string RemoveString(const std::string& haystack, const char* needle) {
   return RemoveString(output, needle);
 }
 
+// Bins the size 
+class AllocationSizeBinner : public AllocationVisitor {
+ public:
+  static size_t GetIndex(size_t size) {
+    size_t idx = 0;
+    for (int i = 0; i < 32; ++i) {
+      size_t val = 0x1 << i;
+      if (val > size) {
+        return i;
+      }
+    }
+    SB_NOTREACHED();
+    return 32;
+  }
+
+  explicit AllocationSizeBinner(const AllocationGroup* group_filter)
+      : group_filter_(group_filter) {
+    allocation_histogram_.resize(33);
+  }
+
+  bool PassesFilter(const AllocationRecord& alloc_record) const {
+    if (group_filter_ == NULL) {
+      return true;
+    }
+
+    return alloc_record.allocation_group == group_filter_;
+  }
+
+  virtual bool Visit(const void* memory,
+                     const AllocationRecord& alloc_record) SB_OVERRIDE {
+    if (PassesFilter(alloc_record)) {
+      const size_t idx = GetIndex(alloc_record.size);
+      allocation_histogram_[idx]++;
+    }
+    return true;
+  }
+
+  std::string ToCSVString() const {
+    std::stringstream ss;
+    for (size_t i = 0; i < allocation_histogram_.size(); ++i) {
+      const size_t min = 0x1 << i;
+      const size_t max = min << 1;
+      const size_t num_allocs = allocation_histogram_[i];
+      if (num_allocs > 0) {
+        ss << min << "..." << max << "," << num_allocs << "\n";
+      }
+    }
+    return ss.str();
+  }
+
+ private:
+  std::vector<int> allocation_histogram_;
+  const AllocationGroup* group_filter_;  // Only these allocations are tracked.
+};
+
 }  // namespace
 
 SbMemoryReporter* MemoryTrackerImpl::GetMemoryReporter() {
@@ -284,15 +339,12 @@ void MemoryTrackerImpl::Initialize(
     NbMemoryScopeReporter* memory_scope_reporter) {
   SbMemoryReporter mem_reporter = {
       MemoryTrackerImpl::OnMalloc, MemoryTrackerImpl::OnDealloc,
-
       MemoryTrackerImpl::OnMapMem, MemoryTrackerImpl::OnUnMapMem,
-
       this};
 
   NbMemoryScopeReporter mem_scope_reporter = {
       MemoryTrackerImpl::OnPushAllocationGroup,
       MemoryTrackerImpl::OnPopAllocationGroup,
-
       this,
   };
 
@@ -500,6 +552,7 @@ void MemoryTrackerPrintThread::Cancel() {
 }
 
 void MemoryTrackerPrintThread::Run() {
+  const SbTime start_time = SbTimeGetNow();
   while (!finished_.load()) {
     NoMemoryTracking no_mem_tracking_in_this_scope(memory_tracker_);
 
@@ -763,6 +816,8 @@ void MemoryTrackerPrintCSVThread::Run() {
   int sample_count = 0;
   MapAllocationSamples map_samples;
 
+  const SbTime start_time = SbTimeGetNow();
+
   while (!TimeExpiredYet() && !canceled_.load()) {
     // Sample total memory used by the system.
     MemoryStats mem_stats = GetProcessMemoryStats();
@@ -816,8 +871,11 @@ void MemoryTrackerPrintCSVThread::Run() {
     SbThreadSleep(kSbTimeMillisecond * sample_interval_ms_);
   }
 
-  std::string output = ToCsvString(map_samples);
-  SbLogRaw(output.c_str());
+  std::stringstream ss;
+  ss.precision(2);
+  ss << "Time now: " << TimeInMinutes(SbTimeGetNow() - start_time) << ",\n";
+  ss << ToCsvString(map_samples);
+  SbLogRaw(ss.str().c_str());
   SbLogFlush();
   // Prevents the "thread exited code 0" from being interleaved into the
   // output. This happens if SbLogFlush() is not implemented for the platform.
@@ -839,7 +897,6 @@ MemoryTrackerCompressedTimeSeriesThread::MemoryTrackerCompressedTimeSeriesThread
       memory_tracker_(memory_tracker) {
   Start();
 }
-
 
 MemoryTrackerCompressedTimeSeriesThread::~MemoryTrackerCompressedTimeSeriesThread() {
   Cancel();
@@ -1031,6 +1088,61 @@ void MemoryTrackerCompressedTimeSeriesThread::Compress(
 void MemoryTrackerCompressedTimeSeriesThread::Print(const std::string& str) {
   SbLogRaw(str.c_str());
   SbLogFlush();
+}
+
+JavascriptMemoryTrackerThread::JavascriptMemoryTrackerThread(MemoryTracker* memory_tracker)
+    : SimpleThread("MemoryTrackerLeadFinder"),
+  memory_tracker_(memory_tracker) {
+  Start();
+}
+
+JavascriptMemoryTrackerThread::~JavascriptMemoryTrackerThread() {
+  Cancel();
+  Join();
+}
+
+void JavascriptMemoryTrackerThread::Cancel() {
+  finished_.store(true);
+}
+
+void JavascriptMemoryTrackerThread::Run() {
+  const SbTime start_time = SbTimeGetNow();
+  const AllocationGroup* javascript_group = NULL;
+
+  while (!finished_.load()) {
+
+    if (javascript_group == NULL) {
+      // Attempt to find javascript_group
+      std::vector<const AllocationGroup*> groups;
+      memory_tracker_->GetAllocationGroups(&groups);
+      for (size_t i = 0; i < groups.size(); ++i) {
+        const AllocationGroup* group = groups[i];
+        if (group->name().compare("Javascript") == 0) {
+          javascript_group = group;
+          break;
+        }
+      }
+    }
+
+    std::stringstream ss;
+    ss.precision(2);
+    if (javascript_group) {
+      AllocationSizeBinner visitor = AllocationSizeBinner(javascript_group);
+      memory_tracker_->Accept(&visitor);
+      ss << "\nTimeNow "
+         << TimeInMinutes(SbTimeGetNow() - start_time) << " (minutes):\n"
+         << visitor.ToCSVString();
+    } else {
+      ss << "No allocations for javascript.";
+    }
+
+    SbLogRaw(ss.str().c_str());
+    SbLogFlush();
+
+    // Sleep until the next sample.
+    const SbTime one_second = 1000 * kSbTimeMillisecond;
+    SbThreadSleep(one_second);
+  }
 }
 
 }  // namespace analytics
