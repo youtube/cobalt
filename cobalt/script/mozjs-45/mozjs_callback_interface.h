@@ -18,7 +18,7 @@
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_CALLBACK_INTERFACE_H_
 
 #include "cobalt/script/callback_interface_traits.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
