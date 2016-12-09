@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/mozjs/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
 
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -41,7 +41,8 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  JS::RootedString string(context, JS_ValueToString(context, value));
+  JS::RootedString string(context, JS::ToString(context, value));
+
   if (!string) {
     exception_state->SetSimpleException(kConvertToStringFailed);
     return;
@@ -69,8 +70,7 @@ void ToJSValue(JSContext* context,
             opaque_handle_holder);
     js_object = mozjs_object_handle_holder->js_object();
   }
-  // OBJECT_TO_JSVAL handles the case where this is NULL.
-  out_value.set(OBJECT_TO_JSVAL(js_object));
+  out_value.setObjectOrNull(js_object);
 }
 
 // JSValue -> OpaqueHandle
@@ -79,17 +79,16 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  MozjsObjectHandleHolder* out_holder) {
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
-  JS::RootedObject js_object(context);
   // https://www.w3.org/TR/WebIDL/#es-object
   // 1. If Type(V) is not Object, throw a TypeError
-  // We'll handle the null case below.
+  // If the condition listed above is true, then the exception that we throw
+  // differs depending on whether the non-object is null or not.  Thus, we
+  // perform this check in two separate steps below.
   if (!value.isObjectOrNull()) {
     exception_state->SetSimpleException(kNotObjectType);
     return;
   }
-
-  js_object = JSVAL_TO_OBJECT(value);
-  if (!js_object) {
+  if (value.isNull()) {
     // Set an exception if this is not nullable.
     if (!(conversion_flags & kConversionFlagNullable)) {
       exception_state->SetSimpleException(kNotNullableType);
@@ -98,6 +97,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
+  JS::RootedObject js_object(context, &value.toObject());
   DCHECK(js_object);
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));

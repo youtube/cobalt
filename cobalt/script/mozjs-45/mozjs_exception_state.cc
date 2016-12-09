@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 
 #include <string>
 #include <vector>
@@ -21,7 +21,7 @@
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
-#include "cobalt/script/mozjs/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
 
 namespace cobalt {
 namespace script {
@@ -48,8 +48,7 @@ JSExnType ConvertToMozjsExceptionType(SimpleExceptionType type) {
   return JSEXN_ERR;
 }
 
-// JSErrorCallback.
-const JSErrorFormatString* GetErrorMessage(void* user_ref, const char* locale,
+const JSErrorFormatString* GetErrorMessage(void* user_ref,
                                            const unsigned error_number) {
   return static_cast<JSErrorFormatString*>(user_ref);
 }
@@ -67,7 +66,9 @@ void MozjsExceptionState::SetException(
   JS::RootedObject exception_object(
       context_,
       global_environment->wrapper_factory()->GetWrapperProxy(exception));
-  JS::RootedValue exception_value(context_, OBJECT_TO_JSVAL(exception_object));
+  JS::RootedValue exception_value(context_);
+  exception_value.setObject(*exception_object);
+
   JS_SetPendingException(context_, exception_value);
 
   is_exception_set_ = true;

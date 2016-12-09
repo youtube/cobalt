@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/mozjs/proxy_handler.h"
+#include "cobalt/script/mozjs-45/proxy_handler.h"
 
-#include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
+#include "third_party/mozjs-45/js/src/jsiter.h"
+#include "third_party/mozjs-45/js/src/vm/ProxyObject.h"
 
 namespace cobalt {
 namespace script {
@@ -41,24 +43,22 @@ ProxyHandler::ProxyHandler(const IndexedPropertyHooks& indexed_hooks,
   }
 }
 
-JSObject* ProxyHandler::NewProxy(JSContext* context, JSObject* object,
-                                 JSObject* prototype, JSObject* parent,
-                                 ProxyHandler* handler) {
-  JS::RootedValue as_value(context, OBJECT_TO_JSVAL(object));
-  return js::NewProxyObject(context, handler, as_value, prototype, parent);
+/* static */
+JSObject* ProxyHandler::NewProxy(JSContext* context, ProxyHandler* handler,
+                                 JSObject* object, JSObject* prototype) {
+  JS::RootedValue object_as_value(context, JS::ObjectOrNullValue(object));
+  return js::NewProxyObject(context, handler, object_as_value, prototype);
 }
 
-bool ProxyHandler::getPropertyDescriptor(JSContext* context,
-                                         JS::HandleObject proxy,
-                                         JS::HandleId id,
-                                         JSPropertyDescriptor* descriptor,
-                                         unsigned flags) {
+bool ProxyHandler::getPropertyDescriptor(
+    JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+    JS::MutableHandle<JSPropertyDescriptor> descriptor) const {
   // https://www.w3.org/TR/WebIDL/#getownproperty
   if (supports_named_properties() || supports_indexed_properties()) {
     // Convert the id to a JSValue, so we can easily convert it to Uint32 and
     // JSString.
     JS::RootedValue id_value(context);
-    if (!JS_IdToValue(context, id, id_value.address())) {
+    if (!JS_IdToValue(context, id, &id_value)) {
       NOTREACHED();
       return false;
     }
@@ -69,13 +69,13 @@ bool ProxyHandler::getPropertyDescriptor(JSContext* context,
       uint32_t index;
       if (IsArrayIndexPropertyName(context, id_value, &index) &&
           IsSupportedIndex(context, object, index)) {
-        descriptor->obj = object;
-        descriptor->attrs = JSPROP_SHARED | JSPROP_INDEX | JSPROP_ENUMERATE;
-        descriptor->getter = indexed_property_hooks_.getter;
+        descriptor.object().set(object);
+        descriptor.setGetter(indexed_property_hooks_.getter);
+        descriptor.setAttributes(JSPROP_SHARED | JSPROP_ENUMERATE);
         if (indexed_property_hooks_.setter) {
-          descriptor->setter = indexed_property_hooks_.setter;
+          descriptor.setSetter(indexed_property_hooks_.setter);
         } else {
-          descriptor->attrs |= JSPROP_READONLY;
+          descriptor.get().attrs |= JSPROP_READONLY;
         }
         return true;
       }
@@ -92,32 +92,44 @@ bool ProxyHandler::getPropertyDescriptor(JSContext* context,
         return false;
       }
       if (IsNamedPropertyVisible(context, object, property_name)) {
-        descriptor->obj = object;
-        descriptor->attrs = JSPROP_SHARED | JSPROP_ENUMERATE;
-        descriptor->getter = named_property_hooks_.getter;
+        descriptor.object().set(object);
+        descriptor.setAttributes(JSPROP_SHARED | JSPROP_ENUMERATE);
+        descriptor.setGetter(named_property_hooks_.getter);
         if (named_property_hooks_.setter) {
-          descriptor->setter = named_property_hooks_.setter;
+          descriptor.setSetter(named_property_hooks_.setter);
         } else {
-          descriptor->attrs |= JSPROP_READONLY;
+          descriptor.get().attrs |= JSPROP_READONLY;
         }
         return true;
       }
     }
   }
   return js::DirectProxyHandler::getPropertyDescriptor(context, proxy, id,
-                                                       descriptor, flags);
+                                                       descriptor);
+}
+
+bool ProxyHandler::defineProperty(JSContext* cx, JS::HandleObject proxy,
+                                  JS::HandleId id,
+                                  js::Handle<JSPropertyDescriptor> desc,
+                                  JS::ObjectOpResult& result) const {
+  // This member function needs to be marked const in order to properly
+  // override the js::DirectProxyHandler, however will modify its own,
+  // ProxyHandler specific components, hence the need for the (ab)use of
+  // const_cast.
+  const_cast<ProxyHandler*>(this)->has_custom_property_ = true;
+  return js::DirectProxyHandler::defineProperty(cx, proxy, id, desc, result);
 }
 
 bool ProxyHandler::delete_(JSContext* context, JS::HandleObject proxy,
-                           JS::HandleId id, bool* succeeded) {
+                           JS::HandleId id, JS::ObjectOpResult& result) const {
   // https://www.w3.org/TR/WebIDL/#delete
   if (supports_named_properties() || supports_indexed_properties()) {
     // Convert the id to a JSValue, so we can easily convert it to Uint32 and
     // JSString.
     JS::RootedValue id_value(context);
-    if (!JS_IdToValue(context, id, id_value.address())) {
+    if (!JS_IdToValue(context, id, &id_value)) {
       NOTREACHED();
-      return false;
+      return result.failCantDelete();
     }
     DCHECK(js::IsProxy(proxy));
     JS::RootedObject object(context, js::GetProxyTargetObject(proxy));
@@ -131,13 +143,20 @@ bool ProxyHandler::delete_(JSContext* context, JS::HandleObject proxy,
       if (IsArrayIndexPropertyName(context, id_value, &index)) {
         if (!IsSupportedIndex(context, object, index)) {
           // 1.2. If index is not a supported property index, then return true.
-          *succeeded = true;
+          result.succeed();
         } else if (!indexed_property_hooks_.deleter) {
           // 1.3. If O does not implement an interface with an indexed property
           //    deleter, then Reject.
-          *succeeded = false;
+          result.failCantDelete();
         } else {
-          *succeeded = indexed_property_hooks_.deleter(context, object, index);
+          bool succeeded =
+              indexed_property_hooks_.deleter(context, object, index) &&
+              result.succeed();
+          if (succeeded) {
+            result.succeed();
+          } else {
+            result.failCantDelete();
+          }
         }
         return true;
       }
@@ -151,58 +170,49 @@ bool ProxyHandler::delete_(JSContext* context, JS::HandleObject proxy,
         // The ID should be an integer or a string, so we shouldn't have any
         // exceptions converting to string.
         NOTREACHED();
-        return false;
+        return result.failCantDelete();
       }
       if (IsNamedPropertyVisible(context, object, property_name)) {
         if (!named_property_hooks_.deleter) {
-          *succeeded = false;
+          result.failCantDelete();
         } else {
-          *succeeded =
+          bool succeeded =
               named_property_hooks_.deleter(context, object, property_name);
+          if (succeeded) {
+            result.succeed();
+          } else {
+            result.failCantDelete();
+          }
         }
         return true;
       }
     }
   }
-  return js::DirectProxyHandler::delete_(context, proxy, id, succeeded);
+  return js::DirectProxyHandler::delete_(context, proxy, id, result);
 }
 
 bool ProxyHandler::enumerate(JSContext* context, JS::HandleObject proxy,
-                             JS::AutoIdVector& properties) {
+                             JS::MutableHandleObject objp) const {
   // https://www.w3.org/TR/WebIDL/#property-enumeration
-  // Indexed properties go first, then named properties, then everything else.
+  // Indexed properties go first, then named properties, then everything
+  // else.
   JS::RootedObject object(context, js::GetProxyTargetObject(proxy));
+  JS::AutoIdVector properties(context);
   if (supports_indexed_properties()) {
     indexed_property_hooks_.enumerate_supported(context, object, &properties);
   }
   if (supports_named_properties()) {
     named_property_hooks_.enumerate_supported(context, object, &properties);
   }
-  return js::DirectProxyHandler::enumerate(context, proxy, properties);
-}
-
-bool ProxyHandler::defineProperty(JSContext* context, JS::HandleObject proxy,
-                                  JS::HandleId id,
-                                  JSPropertyDescriptor* descriptor) {
-  has_custom_property_ = true;
-  return js::DirectProxyHandler::defineProperty(context, proxy, id, descriptor);
-}
-
-bool ProxyHandler::IsSupportedIndex(JSContext* context, JS::HandleObject object,
-                                    uint32_t index) {
-  DCHECK(indexed_property_hooks_.is_supported);
-  return indexed_property_hooks_.is_supported(context, object, index);
-}
-
-bool ProxyHandler::IsSupportedName(JSContext* context, JS::HandleObject object,
-                                   const std::string& name) {
-  DCHECK(named_property_hooks_.is_supported);
-  return named_property_hooks_.is_supported(context, object, name);
+  const bool get_property_keys_success =
+      js::GetPropertyKeys(context, object, 0, &properties);
+  DCHECK(get_property_keys_success);
+  return js::EnumeratedIdVectorToIterator(context, proxy, 0, properties, objp);
 }
 
 bool ProxyHandler::IsArrayIndexPropertyName(JSContext* context,
                                             JS::HandleValue property_value,
-                                            uint32_t* out_index) {
+                                            uint32_t* out_index) const {
   // https://www.w3.org/TR/WebIDL/#dfn-array-index-property-name
   // 1. Let i be ToUint32(P).
   uint32_t index;
@@ -217,12 +227,15 @@ bool ProxyHandler::IsArrayIndexPropertyName(JSContext* context,
 
   // 2. Let s be ToString(i).
   // 3. If s != P then return false.
-  JSBool are_equal;
+  JS::RootedValue index_as_number_value(context, JS::NumberValue(index));
   JS::RootedString index_as_string(
-      context, JS_ValueToString(context, UINT_TO_JSVAL(index)));
-  if (!JS_LooselyEqual(context, JS::StringValue(index_as_string),
-                       property_value, &are_equal) ||
-      !are_equal) {
+      context, JS::ToString(context, index_as_number_value));
+  JS::RootedValue index_as_string_value(context);
+  index_as_string_value.setString(index_as_string);
+  bool loosely_equal_output;
+  const bool loosely_equal_success = JS_LooselyEqual(
+      context, index_as_string_value, property_value, &loosely_equal_output);
+  if (!loosely_equal_success || !loosely_equal_output) {
     return false;
   }
 
@@ -231,9 +244,9 @@ bool ProxyHandler::IsArrayIndexPropertyName(JSContext* context,
   return true;
 }
 
-bool ProxyHandler::IsNamedPropertyVisible(JSContext* context,
-                                          JS::HandleObject object,
-                                          const std::string& property_name) {
+bool ProxyHandler::IsNamedPropertyVisible(
+    JSContext* context, JS::HandleObject object,
+    const std::string& property_name) const {
   // Named property visiblity algorithm.
   // https://www.w3.org/TR/WebIDL/#dfn-named-property-visibility
 
@@ -254,7 +267,7 @@ bool ProxyHandler::IsNamedPropertyVisible(JSContext* context,
   // 5. If O has an own property named P, then return false.
   // 6~7. ( Walk the prototype chain and if the prootype has P, return false)
 
-  JSBool found_property;
+  bool found_property;
   if (!JS_HasProperty(context, object, property_name.c_str(),
                       &found_property)) {
     // An error occurred searching for the property.

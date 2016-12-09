@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/mozjs/mozjs_debugger.h"
+#include "cobalt/script/mozjs-45/mozjs_debugger.h"
 
 #include "base/logging.h"
 

@@ -20,28 +20,28 @@
 #include "base/file_path.h"
 #include "base/string_util.h"
 #include "cobalt/base/wrap_main.h"
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/source_code.h"
 #include "cobalt/script/standalone_javascript_runner.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsproxy.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/proxy/Proxy.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace {
 
-JSBool Print(JSContext* context, uint32_t argc, JS::Value* arguments_value) {
+bool Print(JSContext* context, uint32_t argc, JS::Value* arguments_value) {
   std::vector<std::string> string_args;
-
   JS::CallArgs call_args = CallArgsFromVp(argc, arguments_value);
   for (uint32_t i = 0; i < call_args.length(); ++i) {
-    JSString* js_string = JS_ValueToString(context, call_args[i]);
+    JS::RootedString js_string(context, JS::ToString(context, call_args[i]));
     DCHECK(js_string);
-    JSAutoByteString auto_byte_string;
-    char* utf8_chars = auto_byte_string.encodeUtf8(context, js_string);
-    DCHECK(utf8_chars);
-    string_args.push_back(utf8_chars);
+    char* bytes = JS_EncodeStringToUTF8(context, js_string);
+    DCHECK(bytes);
+    string_args.push_back(bytes);
+    JS_free(context, bytes);
   }
 
   std::string joined = JoinString(string_args, ' ');
@@ -56,7 +56,8 @@ void SetupBindings(JSContext* context, JSObject* global_object) {
 
   JSAutoRequest auto_request(context);
   JSAutoCompartment auto_comparment(context, global_object);
-  JS_DefineFunction(context, global_object, "print", &Print, 0,
+  JS::RootedObject rooted_global_object(context, global_object);
+  JS_DefineFunction(context, rooted_global_object, "print", &Print, 0,
                     JSPROP_ENUMERATE | JSFUN_STUB_GSOPS);
 }
 
@@ -101,6 +102,7 @@ int MozjsMain(int argc, char** argv) {
   } else {
     standalone_runner.RunInteractive();
   }
+
   return 0;
 }
 
