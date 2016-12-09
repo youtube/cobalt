@@ -34,8 +34,7 @@ namespace browser {
 
 #if !defined(OS_STARBOARD)
 // A dummy implementation.
-scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
-    const std::string& switch_value) {
+scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(const std::string&) {
   DLOG(INFO)
       << "Memory tracker tool is not enabled on non-starboard builds.";
   MemoryTrackerTool* null_ptr = NULL;
