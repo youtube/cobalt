@@ -27,11 +27,6 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
     : host_(NULL), stream_ended_(false) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
 
-  OMXVideoParamPortFormat port_format;
-  component_.GetInputPortParam(&port_format);
-  port_format.eCompressionFormat = OMX_VIDEO_CodingAVC;
-  component_.SetPortParam(port_format);
-
   component_.Start();
 }
 
