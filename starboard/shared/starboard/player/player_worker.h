@@ -42,6 +42,7 @@ class PlayerWorker {
   class Host {
    public:
     virtual void UpdateMediaTime(SbMediaTime media_time, int ticket) = 0;
+    virtual void UpdateDroppedVideoFrames(int dropped_video_frames) = 0;
 
    protected:
     ~Host() {}
@@ -174,6 +175,10 @@ class PlayerWorker {
   void EnqueueEvent(const EventData& event_data) {
     SB_DCHECK(SbThreadIsValid(thread_));
     queue_.Put(new Event(event_data));
+  }
+
+  void UpdateDroppedVideoFrames(int dropped_video_frames) {
+    host_->UpdateDroppedVideoFrames(dropped_video_frames);
   }
 
  private:

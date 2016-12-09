@@ -55,6 +55,7 @@ struct SbPlayerPrivate
  private:
   // PlayerWorker::Host methods.
   void UpdateMediaTime(SbMediaTime media_time, int ticket) SB_OVERRIDE;
+  void UpdateDroppedVideoFrames(int dropped_video_frames) SB_OVERRIDE;
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
@@ -69,6 +70,7 @@ struct SbPlayerPrivate
   bool is_paused_;
   double volume_;
   int total_video_frames_;
+  int dropped_video_frames_;
 
   starboard::scoped_ptr<PlayerWorker> worker_;
 };

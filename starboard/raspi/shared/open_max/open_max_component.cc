@@ -52,8 +52,7 @@ OpenMaxComponent::OpenMaxComponent(const char* name)
       handle_(NULL),
       input_port_(kInvalidPort),
       output_port_(kInvalidPort),
-      output_setting_changed_(false),
-      output_port_enabled_(false) {
+      output_setting_changed_(false) {
   InitializeOpenMax();
 
   OMX_CALLBACKTYPE callbacks;
@@ -166,13 +165,14 @@ OMX_BUFFERHEADERTYPE* OpenMaxComponent::PeekNextOutputBuffer() {
   {
     ScopedLock scoped_lock(mutex_);
 
-    if (!output_setting_changed_) {
+    if (!output_setting_changed_ && output_buffers_.empty()) {
       return NULL;
     }
   }
 
-  if (!output_port_enabled_) {
+  if (output_setting_changed_ && filled_output_buffers_.empty()) {
     EnableOutputPortAndAllocateBuffer();
+    output_setting_changed_ = false;
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -186,6 +186,10 @@ void OpenMaxComponent::DropNextOutputBuffer() {
     SB_DCHECK(!filled_output_buffers_.empty());
     buffer = filled_output_buffers_.front();
     filled_output_buffers_.pop();
+
+    if (output_setting_changed_) {
+      return;
+    }
   }
   buffer->nFilledLen = 0;
   OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, buffer);
@@ -246,28 +250,42 @@ void OpenMaxComponent::EnableInputPortAndAllocateBuffers() {
 }
 
 void OpenMaxComponent::EnableOutputPortAndAllocateBuffer() {
-  SB_DCHECK(!output_port_enabled_);
+  if (!output_buffers_.empty()) {
+    SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
 
-  GetOutputPortParam(&output_port_definition_);
-  if (OnEnableOutputPort(&output_port_definition_)) {
-    SetPortParam(output_port_definition_);
+    SendCommand(OMX_CommandPortDisable, output_port_);
+    for (size_t i = 0; i < output_buffers_.size(); ++i) {
+      OMX_ERRORTYPE error =
+          OMX_FreeBuffer(handle_, output_port_, output_buffers_[i]);
+      SB_DCHECK(error == OMX_ErrorNone);
+    }
+    output_buffers_.clear();
+    WaitForCommandCompletion();
+    while (!filled_output_buffers_.empty()) {
+      filled_output_buffers_.pop();
+    }
+  }
+
+  OMXParamPortDefinition output_port_definition;
+
+  GetOutputPortParam(&output_port_definition);
+  if (OnEnableOutputPort(&output_port_definition)) {
+    SetPortParam(output_port_definition);
   }
 
   SendCommand(OMX_CommandPortEnable, output_port_);
 
-  output_buffers_.reserve(output_port_definition_.nBufferCountActual);
-  for (int i = 0; i < output_port_definition_.nBufferCountActual; ++i) {
+  output_buffers_.reserve(output_port_definition.nBufferCountActual);
+  for (int i = 0; i < output_port_definition.nBufferCountActual; ++i) {
     OMX_BUFFERHEADERTYPE* buffer;
     OMX_ERRORTYPE error =
         OMX_AllocateBuffer(handle_, &buffer, output_port_, NULL,
-                           output_port_definition_.nBufferSize);
+                           output_port_definition.nBufferSize);
     SB_DCHECK(error == OMX_ErrorNone);
     output_buffers_.push_back(buffer);
   }
 
   WaitForCommandCompletion();
-
-  output_port_enabled_ = true;
 
   for (size_t i = 0; i < output_buffers_.size(); ++i) {
     output_buffers_[i]->nFilledLen = 0;

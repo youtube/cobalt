@@ -102,7 +102,12 @@ void VideoFrameResourcePool::DisposeDispmanxYUV420Resource(
 
 OpenMaxVideoDecodeComponent::OpenMaxVideoDecodeComponent()
     : OpenMaxComponent(kVideoDecodeComponentName),
-      resource_pool_(new VideoFrameResourcePool(kResourcePoolSize)) {}
+      resource_pool_(new VideoFrameResourcePool(kResourcePoolSize)) {
+  OMXVideoParamPortFormat port_format;
+  GetInputPortParam(&port_format);
+  port_format.eCompressionFormat = OMX_VIDEO_CodingAVC;
+  SetPortParam(port_format);
+}
 
 scoped_refptr<VideoFrame> OpenMaxVideoDecodeComponent::ReadVideoFrame() {
   if (OMX_BUFFERHEADERTYPE* buffer = PeekNextOutputBuffer()) {
