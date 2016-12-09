@@ -19,8 +19,8 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/script/callback_interface_traits.h"
-#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
-#include "cobalt/script/mozjs/type_traits.h"
+#include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/type_traits.h"
 
 namespace cobalt {
 namespace script {

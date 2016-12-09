@@ -17,9 +17,9 @@
 #define COBALT_SCRIPT_MOZJS_45_OPAQUE_ROOT_TRACKER_H_
 
 #include "base/hash_tables.h"
-#include "cobalt/script/mozjs/referenced_object_map.h"
-#include "cobalt/script/mozjs/wrapper_factory.h"
-#include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/mozjs-45/referenced_object_map.h"
+#include "cobalt/script/mozjs-45/wrapper_factory.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
 
 namespace cobalt {
 namespace script {

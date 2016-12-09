@@ -20,10 +20,10 @@
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/logging_exception_state.h"
-#include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/mozjs_callback_function.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/mozjs_callback_function.h"
 #include "cobalt/script/script_object.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -47,7 +47,7 @@ void ToJSValue(
           callback_function);
 
   DCHECK(user_object_holder->js_object());
-  out_value.set(OBJECT_TO_JSVAL(user_object_holder->js_object()));
+  out_value.setObjectOrNull(user_object_holder->js_object());
 }
 
 // JSValue -> CallbackFunction
@@ -74,7 +74,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   // 1. If V is not a Function object, throw a TypeError
   JS::RootedObject object(context);
   if (value.isObject()) {
-    object = JSVAL_TO_OBJECT(value);
+    object = JS::RootedObject(context, &value.toObject());
   }
   if (!object || !JS_ObjectIsFunction(context, object)) {
     exception_state->SetSimpleException(kNotFunctionValue);

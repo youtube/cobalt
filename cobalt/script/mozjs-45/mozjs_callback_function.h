@@ -25,13 +25,13 @@
 
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/convert_callback_return_value.h"
-#include "cobalt/script/mozjs/util/exception_helpers.h"
-#include "cobalt/script/mozjs/weak_heap_object.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/convert_callback_return_value.h"
+#include "cobalt/script/mozjs-45/util/exception_helpers.h"
+#include "cobalt/script/mozjs-45/weak_heap_object.h"
 #include "nb/memory_scope.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jscntxt.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jscntxt.h"
 
 namespace cobalt {
 namespace script {
@@ -75,12 +75,12 @@ class MozjsCallbackFunction<R(void)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 0;
-
-      JSBool call_result = JS::Call(context_, this_value, function, 0, NULL,
-          return_value.address());
+      JS::AutoValueVector args(context_);
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);
@@ -131,17 +131,14 @@ class MozjsCallbackFunction<R(A1)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 1;
+      JS::AutoValueArray<1> args(context_);
+      ToJSValue(context_, a1, args[0]);
 
-      JS::Value args[1];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, a1, auto_array_rooter.handleAt(0));
-
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);
@@ -193,18 +190,15 @@ class MozjsCallbackFunction<R(A1, A2)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 2;
+      JS::AutoValueArray<2> args(context_);
+      ToJSValue(context_, a1, args[0]);
+      ToJSValue(context_, a2, args[1]);
 
-      JS::Value args[2];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, a1, auto_array_rooter.handleAt(0));
-      ToJSValue(context_, a2, auto_array_rooter.handleAt(1));
-
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);
@@ -257,19 +251,16 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 3;
+      JS::AutoValueArray<3> args(context_);
+      ToJSValue(context_, a1, args[0]);
+      ToJSValue(context_, a2, args[1]);
+      ToJSValue(context_, a3, args[2]);
 
-      JS::Value args[3];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, a1, auto_array_rooter.handleAt(0));
-      ToJSValue(context_, a2, auto_array_rooter.handleAt(1));
-      ToJSValue(context_, a3, auto_array_rooter.handleAt(2));
-
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);
@@ -323,20 +314,17 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 4;
+      JS::AutoValueArray<4> args(context_);
+      ToJSValue(context_, a1, args[0]);
+      ToJSValue(context_, a2, args[1]);
+      ToJSValue(context_, a3, args[2]);
+      ToJSValue(context_, a4, args[3]);
 
-      JS::Value args[4];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, a1, auto_array_rooter.handleAt(0));
-      ToJSValue(context_, a2, auto_array_rooter.handleAt(1));
-      ToJSValue(context_, a3, auto_array_rooter.handleAt(2));
-      ToJSValue(context_, a4, auto_array_rooter.handleAt(3));
-
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);
@@ -392,21 +380,18 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 5;
+      JS::AutoValueArray<5> args(context_);
+      ToJSValue(context_, a1, args[0]);
+      ToJSValue(context_, a2, args[1]);
+      ToJSValue(context_, a3, args[2]);
+      ToJSValue(context_, a4, args[3]);
+      ToJSValue(context_, a5, args[4]);
 
-      JS::Value args[5];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, a1, auto_array_rooter.handleAt(0));
-      ToJSValue(context_, a2, auto_array_rooter.handleAt(1));
-      ToJSValue(context_, a3, auto_array_rooter.handleAt(2));
-      ToJSValue(context_, a4, auto_array_rooter.handleAt(3));
-      ToJSValue(context_, a5, auto_array_rooter.handleAt(4));
-
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);
@@ -463,22 +448,19 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 6;
+      JS::AutoValueArray<6> args(context_);
+      ToJSValue(context_, a1, args[0]);
+      ToJSValue(context_, a2, args[1]);
+      ToJSValue(context_, a3, args[2]);
+      ToJSValue(context_, a4, args[3]);
+      ToJSValue(context_, a5, args[4]);
+      ToJSValue(context_, a6, args[5]);
 
-      JS::Value args[6];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, a1, auto_array_rooter.handleAt(0));
-      ToJSValue(context_, a2, auto_array_rooter.handleAt(1));
-      ToJSValue(context_, a3, auto_array_rooter.handleAt(2));
-      ToJSValue(context_, a4, auto_array_rooter.handleAt(3));
-      ToJSValue(context_, a5, auto_array_rooter.handleAt(4));
-      ToJSValue(context_, a6, auto_array_rooter.handleAt(5));
-
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);
@@ -536,23 +518,20 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
       // Callback 'this' is set to null, unless overridden by other
       // specifications
-      JS::Value this_value(JS::NullValue());
+      JS::RootedValue this_value(context_, JS::NullValue());
       JS::RootedValue return_value(context_);
       const int kNumArguments = 7;
+      JS::AutoValueArray<7> args(context_);
+      ToJSValue(context_, a1, args[0]);
+      ToJSValue(context_, a2, args[1]);
+      ToJSValue(context_, a3, args[2]);
+      ToJSValue(context_, a4, args[3]);
+      ToJSValue(context_, a5, args[4]);
+      ToJSValue(context_, a6, args[5]);
+      ToJSValue(context_, a7, args[6]);
 
-      JS::Value args[7];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, a1, auto_array_rooter.handleAt(0));
-      ToJSValue(context_, a2, auto_array_rooter.handleAt(1));
-      ToJSValue(context_, a3, auto_array_rooter.handleAt(2));
-      ToJSValue(context_, a4, auto_array_rooter.handleAt(3));
-      ToJSValue(context_, a5, auto_array_rooter.handleAt(4));
-      ToJSValue(context_, a6, auto_array_rooter.handleAt(5));
-      ToJSValue(context_, a7, auto_array_rooter.handleAt(6));
-
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+      bool call_result = JS::Call(context_, this_value, function, args,
+          &return_value);
       if (!call_result) {
         DLOG(WARNING) << "Exception in callback: "
                       << util::GetExceptionString(context_);

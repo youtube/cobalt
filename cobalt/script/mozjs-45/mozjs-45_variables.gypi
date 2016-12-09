@@ -15,28 +15,28 @@
 {
   'variables': {
     'conditions': [
-      ['javascript_engine == "mozjs"', {
+      ['javascript_engine == "mozjs-45"', {
         'generated_bindings_prefix': 'Mozjs',
         'engine_include_dirs': [],
         'engine_dependencies': [
-          '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
+          '<(DEPTH)/third_party/mozjs-45/mozjs-45.gyp:mozjs-45_lib',
         ],
         'engine_defines': [],
         'engine_templates_dir': [
-          '<(DEPTH)/cobalt/bindings/mozjs/templates',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/templates',
         ],
         'engine_template_files': [
-          '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.cc.template',
-          '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.h.template',
-          '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.cc.template',
-          '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.h.template',
-          '<(DEPTH)/cobalt/bindings/mozjs/templates/macros.cc.template',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/templates/callback-interface.cc.template',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/templates/callback-interface.h.template',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/templates/interface.cc.template',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/templates/interface.h.template',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/templates/macros.cc.template',
         ],
         'engine_bindings_scripts': [
-          '<(DEPTH)/cobalt/bindings/mozjs/code_generator.py',
-          '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler.py',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/code_generator.py',
+          '<(DEPTH)/cobalt/bindings/mozjs-45/idl_compiler.py',
         ],
-        'engine_idl_compiler': '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler.py',
+        'engine_idl_compiler': '<(DEPTH)/cobalt/bindings/mozjs-45/idl_compiler.py',
       }],
     ],
   },

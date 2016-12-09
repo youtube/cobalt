@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "cobalt/script/mozjs/mozjs_source_code.h"
+#include "cobalt/script/mozjs-45/mozjs_source_code.h"
 
 namespace cobalt {
 namespace script {
