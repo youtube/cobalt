@@ -18,7 +18,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {

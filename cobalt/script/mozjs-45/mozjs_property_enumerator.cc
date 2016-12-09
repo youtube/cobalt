@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
 
 #include "base/logging.h"
 
@@ -29,7 +29,8 @@ void MozjsPropertyEnumerator::AddProperty(const std::string& property_name) {
   JS::RootedString property_string(
       context_, JS_NewStringCopyZ(context_, property_name.c_str()));
   JS::RootedId id(context_);
-  if (JS_ValueToId(context_, STRING_TO_JSVAL(property_string), id.address())) {
+
+  if (JS_StringToId(context_, property_string, &id)) {
     properties_->append(id);
   } else {
     NOTREACHED();
