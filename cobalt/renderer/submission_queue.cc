@@ -84,7 +84,9 @@ void SubmissionQueue::PushSubmission(const Submission& submission,
 
   // Snap time to the new submission if no existing animations are playing both
   // currently and during the time that we are snapping to.
-  if (submission_queue_.size() == 1) {
+  if (submission_queue_.size() == 1 &&
+      submission_queue_.front().render_tree->GetTypeId() ==
+          base::GetTypeId<render_tree::animations::AnimateNode>()) {
     render_tree::animations::AnimateNode* animate_node =
         base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
             submission_queue_.front().render_tree.get());
