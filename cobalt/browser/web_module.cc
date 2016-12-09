@@ -118,6 +118,9 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Called to inject a keyboard event into the web module.
+  // Event is directed at a specific element if the element is non-null.
+  // Otherwise, the currently focused element receives the event.
+  // If element is specified, we must be on the WebModule's message loop
   void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
                            const dom::KeyboardEvent::Data& event);
 
@@ -781,23 +784,14 @@ void WebModule::Initialize(const ConstructionData& data) {
 }
 
 void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
+               event.type);
   DCHECK(message_loop());
   DCHECK(impl_);
   message_loop()->PostTask(FROM_HERE,
                            base::Bind(&WebModule::Impl::InjectKeyboardEvent,
                                       base::Unretained(impl_.get()),
                                       scoped_refptr<dom::Element>(), event));
-}
-
-void WebModule::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
-                                    const dom::KeyboardEvent::Data& event) {
-  TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
-               event.type);
-  DCHECK(message_loop());
-  DCHECK(impl_);
-  DCHECK_EQ(MessageLoop::current(), message_loop());
-
-  impl_->InjectKeyboardEvent(element, event);
 }
 
 std::string WebModule::ExecuteJavascript(
