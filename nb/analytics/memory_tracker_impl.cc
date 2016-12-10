@@ -29,28 +29,9 @@
 namespace nb {
 namespace analytics {
 namespace {
-// NoMemoryTracking will disable memory tracking while in the current scope of
-// execution. When the object is destroyed it will reset the previous state
-// of allocation tracking.
-// Example:
-//   void Foo() {
-//     NoMemoryTracking no_memory_tracking_in_scope;
-//     int* ptr = new int();  // ptr is not tracked.
-//     delete ptr;
-//     return;    // Previous memory tracking state is restored.
-//   }
-class NoMemoryTracking {
- public:
-  NoMemoryTracking(MemoryTracker* owner) : owner_(owner) {
-    prev_val_ = owner_->IsMemoryTrackingEnabled();
-    owner_->SetMemoryTrackingEnabled(false);
-  }
-  ~NoMemoryTracking() { owner_->SetMemoryTrackingEnabled(prev_val_); }
-
- private:
-  bool prev_val_;
-  MemoryTracker* owner_;
-};
+const char QUOTE[] = "\"";
+const char DELIMITER[] = ",";
+const char NEW_LINE[] = "\n";
 
 // This is a simple algorithm to remove the "needle" from the haystack. Note
 // that this function is simple and not well optimized.
@@ -76,7 +57,40 @@ std::string RemoveString(const std::string& haystack, const char* needle) {
   return RemoveString(output, needle);
 }
 
-// Bins the size 
+// Not optimized but works ok for a tool that dumps out in user time.
+std::string SanitizeCSVKey(std::string key) {
+  key = RemoveString(key, QUOTE);
+  key = RemoveString(key, DELIMITER);
+  key = RemoveString(key, NEW_LINE);
+  return key;
+}
+
+// NoMemoryTracking will disable memory tracking while in the current scope of
+// execution. When the object is destroyed it will reset the previous state
+// of allocation tracking.
+// Example:
+//   void Foo() {
+//     NoMemoryTracking no_memory_tracking_in_scope;
+//     int* ptr = new int();  // ptr is not tracked.
+//     delete ptr;
+//     return;    // Previous memory tracking state is restored.
+//   }
+class NoMemoryTracking {
+ public:
+  NoMemoryTracking(MemoryTracker* owner) : owner_(owner) {
+    prev_val_ = owner_->IsMemoryTrackingEnabled();
+    owner_->SetMemoryTrackingEnabled(false);
+  }
+  ~NoMemoryTracking() { owner_->SetMemoryTrackingEnabled(prev_val_); }
+
+ private:
+  bool prev_val_;
+  MemoryTracker* owner_;
+};
+
+// Bins the size according from all the encountered allocations.
+// If AllocationGroup* is non-null, then this is used as a filter such that
+// ONLY allocations belonging to that AllocationGroup are considered.
 class AllocationSizeBinner : public AllocationVisitor {
  public:
   static size_t GetIndex(size_t size) {
@@ -113,16 +127,55 @@ class AllocationSizeBinner : public AllocationVisitor {
     return true;
   }
 
+  // Outputs CSV formatted string of the data values.
+  // The header containing the binning range is printed first, then the
+  // the number of allocations in that bin.
+  // Example:
+  //   "16...32","32...64","64...128","128...256",...
+  //   831,3726,3432,10285,...
+  //
+  // In this example there are 831 allocations of size 16-32 bytes.
   std::string ToCSVString() const {
+    size_t first_idx = 0;
+    size_t end_idx = allocation_histogram_.size();
+
+    // Determine the start index by skipping all consecutive head entries
+    // that are 0.
+    while (first_idx < allocation_histogram_.size()) {
+      const size_t num_allocs = allocation_histogram_[first_idx];
+      if (num_allocs > 0) {
+        break;
+      }
+      first_idx++;
+    }
+
+    // Determine the end index by skipping all consecutive tail entries
+    // that are 0.
+    while (end_idx > 0) {
+      if (end_idx < allocation_histogram_.size()) {
+        const size_t num_allocs = allocation_histogram_[end_idx];
+        if (num_allocs > 0) {
+          break;
+        }
+      }
+      end_idx--;
+    }
+
     std::stringstream ss;
-    for (size_t i = 0; i < allocation_histogram_.size(); ++i) {
+    for (size_t i = first_idx; i < end_idx; ++i) {
       const size_t min = 0x1 << i;
       const size_t max = min << 1;
-      const size_t num_allocs = allocation_histogram_[i];
-      if (num_allocs > 0) {
-        ss << min << "..." << max << "," << num_allocs << "\n";
-      }
+      std::stringstream name_ss;
+      name_ss << QUOTE << min << "..." << max << QUOTE;
+      ss << name_ss.str() << DELIMITER;
     }
+    ss << NEW_LINE;
+
+    for (size_t i = first_idx; i < end_idx; ++i) {
+      const size_t num_allocs = allocation_histogram_[i];
+      ss << num_allocs << DELIMITER;
+    }
+    ss << NEW_LINE;
     return ss.str();
   }
 
@@ -657,10 +710,6 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
   typedef MapAllocationSamples Map;
   typedef Map::const_iterator MapIt;
 
-  const char QUOTE[] = "\"";
-  const char DELIM[] = ",";
-  const char NEW_LINE[] = "\n";
-
   size_t largest_sample_size = 0;
   size_t smallest_sample_size = INT_MAX;
 
@@ -683,11 +732,6 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
       smallest_sample_size = n;
     }
 
-    // Strip out any characters that could make parsing the csv difficult.
-    name = RemoveString(name, QUOTE);
-    name = RemoveString(name, DELIM);
-    name = RemoveString(name, NEW_LINE);
-
     const bool duplicate_found = (samples.end() != samples.find(name));
     if (duplicate_found) {
       SB_NOTREACHED() << "Error, duplicate found for entry: "
@@ -709,7 +753,7 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
   ss << NEW_LINE << "//////////////////////////////////////////////";
   ss << NEW_LINE << "// CSV of bytes / allocation" << NEW_LINE;
   // HEADER.
-  ss << "Name" << DELIM << QUOTE << "Bytes/Alloc" << QUOTE << NEW_LINE;
+  ss << "Name" << DELIMITER << QUOTE << "Bytes/Alloc" << QUOTE << NEW_LINE;
   // DATA.
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     if (total_cpu_memory_it == it) {
@@ -729,7 +773,8 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
       bytes_per_alloc = n_bytes / n_allocs;
     }
     const std::string& name = it->first;
-    ss << QUOTE << name << QUOTE << DELIM << bytes_per_alloc << NEW_LINE;
+    ss << QUOTE << SanitizeCSVKey(name) << QUOTE << DELIMITER
+       << bytes_per_alloc << NEW_LINE;
   }
   ss << NEW_LINE;
 
@@ -744,13 +789,14 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
     if (total_cpu_memory_it == it) {
       continue;
     }
-    const std::string& name = it->first;
-    ss << QUOTE << name << QUOTE << DELIM;
+    // Strip out any characters that could make parsing the csv difficult.
+    const std::string name = SanitizeCSVKey(it->first);
+    ss << QUOTE << name << QUOTE << DELIMITER;
   }
   // Save the total for last.
   if (total_cpu_memory_it != samples.end()) {
-    const std::string& name = total_cpu_memory_it->first;
-    ss << QUOTE << name << QUOTE << DELIM;
+    const std::string& name = SanitizeCSVKey(total_cpu_memory_it->first);
+    ss << QUOTE << name << QUOTE << DELIMITER;
   }
   ss << NEW_LINE;
 
@@ -764,7 +810,7 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
       // Convert to float megabytes with decimals of precision.
       double n = alloc_bytes / (1000 * 10);
       n = n / (100.);
-      ss << n << DELIM;
+      ss << n << DELIMITER;
     }
     if (total_cpu_memory_it != samples.end()) {
       const int64_t alloc_bytes =
@@ -772,7 +818,7 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
       // Convert to float megabytes with decimals of precision.
       double n = alloc_bytes / (1000 * 10);
       n = n / (100.);
-      ss << n << DELIM;
+      ss << n << DELIMITER;
     }
     ss << NEW_LINE;
   }
@@ -787,8 +833,8 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
     if (total_cpu_memory_it == it) {
       continue;
     }
-    const std::string& name = it->first;
-    ss << QUOTE << name << QUOTE << DELIM;
+    const std::string& name = SanitizeCSVKey(it->first);
+    ss << QUOTE << name << QUOTE << DELIMITER;
   }
   ss << NEW_LINE;
   for (int i = 0; i < smallest_sample_size; ++i) {
@@ -797,7 +843,7 @@ std::string MemoryTrackerPrintCSVThread::ToCsvString(
         continue;
       }
       const int64_t n_allocs = it->second.number_allocations_[i];
-      ss << n_allocs << DELIM;
+      ss << n_allocs << DELIMITER;
     }
     ss << NEW_LINE;
   }
@@ -924,14 +970,8 @@ void MemoryTrackerCompressedTimeSeriesThread::Run() {
 
 std::string MemoryTrackerCompressedTimeSeriesThread::ToCsvString(
     const TimeSeries& timeseries) {
-
-  const char QUOTE[] = "\"";
-  const char DELIM[] = ",";
-  const char NEW_LINE[] = "\n";
-
   size_t largest_sample_size = 0;
   size_t smallest_sample_size = INT_MAX;
-
 
   typedef MapAllocationSamples::const_iterator MapIt;
 
@@ -954,11 +994,6 @@ std::string MemoryTrackerCompressedTimeSeriesThread::ToCsvString(
     if (n < smallest_sample_size) {
       smallest_sample_size = n;
     }
-
-    // Strip out any characters that could make parsing the csv difficult.
-    name = RemoveString(name, QUOTE);
-    name = RemoveString(name, DELIM);
-    name = RemoveString(name, NEW_LINE);
 
     const bool duplicate_found = (samples.end() != samples.find(name));
     if (duplicate_found) {
@@ -984,7 +1019,7 @@ std::string MemoryTrackerCompressedTimeSeriesThread::ToCsvString(
   // HEADER.
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     const std::string& name = it->first;
-    ss << QUOTE << name << QUOTE << DELIM;
+    ss << QUOTE << SanitizeCSVKey(name) << QUOTE << DELIMITER;
   }
   ss << NEW_LINE;
 
@@ -995,7 +1030,7 @@ std::string MemoryTrackerCompressedTimeSeriesThread::ToCsvString(
       // Convert to float megabytes with decimals of precision.
       double n = alloc_bytes / (1000 * 10);
       n = n / (100.);
-      ss << n << DELIM;
+      ss << n << DELIMITER;
     }
     ss << NEW_LINE;
   }
@@ -1008,13 +1043,13 @@ std::string MemoryTrackerCompressedTimeSeriesThread::ToCsvString(
   // HEADER
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     const std::string& name = it->first;
-    ss << QUOTE << name << QUOTE << DELIM;
+    ss << QUOTE << SanitizeCSVKey(name) << QUOTE << DELIMITER;
   }
   ss << NEW_LINE;
   for (int i = 0; i < smallest_sample_size; ++i) {
     for (MapIt it = samples.begin(); it != samples.end(); ++it) {
       const int64_t n_allocs = it->second.number_allocations_[i];
-      ss << n_allocs << DELIM;
+      ss << n_allocs << DELIMITER;
     }
     ss << NEW_LINE;
   }
