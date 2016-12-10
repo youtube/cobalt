@@ -12,22 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/microphone.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#ifndef STARBOARD_CREATOR_CI20X11_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_CREATOR_CI20X11_CONFIGURATION_PUBLIC_H_
 
-namespace starboard {
-namespace nplb {
+#include "starboard/creator/shared/configuration_public.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
-
-TEST(SbMicrophoneGetSpeechApiKeyTest, SunnyDay) {
-  const char* speech_api_key = SbMicrophoneGetSpeechApiKey();
-
-  ASSERT_NE(speech_api_key, static_cast<const char*>(NULL));
-  EXPECT_NE(speech_api_key[0], '\0');
-}
-
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
-
-}  // namespace nplb
-}  // namespace starboard
+#endif  // STARBOARD_CREATOR_CI20X11_CONFIGURATION_PUBLIC_H_

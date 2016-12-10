@@ -102,7 +102,6 @@
         '<(DEPTH)/starboard/shared/stub/microphone_create.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_destroy.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_get_available.cc',
-        '<(DEPTH)/starboard/shared/stub/microphone_get_speech_api_key.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_is_sample_rate_supported.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_open.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_read.cc',

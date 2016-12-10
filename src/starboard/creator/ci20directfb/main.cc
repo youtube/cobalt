@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/microphone.h"
+#include "starboard/configuration.h"
+#include "starboard/shared/directfb/application_directfb.h"
+#include "starboard/shared/signal/crash_signals.h"
+#include "starboard/shared/signal/suspend_signals.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
-
-const char* SbMicrophoneGetSpeechApiKey() {
-  return "";
+int main(int argc, char** argv) {
+  tzset();
+  starboard::shared::signal::InstallCrashSignalHandlers();
+  starboard::shared::signal::InstallSuspendSignalHandlers();
+  starboard::ApplicationDirectFB application;
+  int result = application.Run(argc, argv);
+  starboard::shared::signal::UninstallSuspendSignalHandlers();
+  starboard::shared::signal::UninstallCrashSignalHandlers();
+  return result;
 }
-
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)

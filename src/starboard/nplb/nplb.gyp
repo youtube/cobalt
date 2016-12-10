@@ -21,6 +21,7 @@
       'target_name': 'nplb',
       'type': '<(gtest_target_type)',
       'sources': [
+        '<(DEPTH)/starboard/common/test_main.cc',
         'atomic_test.cc',
         'audio_sink_create_test.cc',
         'audio_sink_destroy_test.cc',
@@ -107,7 +108,6 @@
         'log_raw_dump_stack_test.cc',
         'log_raw_test.cc',
         'log_test.cc',
-        'main.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
@@ -125,7 +125,6 @@
         'microphone_create_test.cc',
         'microphone_destroy_test.cc',
         'microphone_get_available_test.cc',
-        'microphone_get_speech_api_key_test.cc',
         'microphone_is_sample_rate_supported_test.cc',
         'microphone_open_test.cc',
         'microphone_read_test.cc',

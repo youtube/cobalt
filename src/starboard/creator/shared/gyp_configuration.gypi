@@ -19,7 +19,7 @@
 
     'enable_webdriver': 0,
     'in_app_dial%': 0,
-    'gl_type': 'system_gles2',
+    'gl_type%': 'system_gles3',
     'image_cache_size_in_bytes': 32 * 1024 * 1024,
 
     'scratch_surface_cache_size_in_bytes' : 0,
@@ -39,6 +39,16 @@
       '-U__linux__',
       '--sysroot=<(sysroot)',
       '-EL',
+
+      # Suppress some warnings that will be hard to fix.
+      '-Wno-unused-local-typedefs',
+      '-Wno-unused-result',
+      '-Wno-deprecated-declarations',
+      '-Wno-missing-field-initializers',
+      '-Wno-comment',
+      '-Wno-narrowing',
+      '-Wno-unknown-pragmas',
+      '-Wno-type-limits',  # TODO: We should actually look into these.
     ],
     'linker_flags': [
       '--sysroot=<(sysroot)',
@@ -87,16 +97,10 @@
       '-lavformat',
       '-lavresample',
       '-lavutil',
-      '-lEGL',
-      '-lGLESv2',
       '-lm',
       '-lpthread',
       '-lpulse',
       '-lrt',
-      '-lX11',
-      '-lXcomposite',
-      '-lXext',
-      '-lXrender',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
@@ -129,21 +133,6 @@
       '-std=gnu++11',
       '-Wno-literal-suffix',
     ],
-    'default_configuration': 'creator-ci20_debug',
-    'configurations': {
-      'creator-ci20_debug': {
-        'inherit_from': ['debug_base'],
-      },
-      'creator-ci20_devel': {
-        'inherit_from': ['devel_base'],
-      },
-      'creator-ci20_qa': {
-        'inherit_from': ['qa_base'],
-      },
-      'creator-ci20_gold': {
-        'inherit_from': ['gold_base'],
-      },
-    }, # end of configurations
     'target_conditions': [
       ['cobalt_code==1', {
         'cflags': [

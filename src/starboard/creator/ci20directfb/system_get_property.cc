@@ -20,7 +20,7 @@
 namespace {
 
 const char* kFriendlyName = "Creator Ci20";
-const char* kPlatformName = "Creator Ci20 JZ4780";
+const char* kPlatformName = "DirectFB; Creator Ci20 JZ4780";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -47,6 +47,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
+    case kSbSystemPropertySpeechApiKey:
       return false;
 
     case kSbSystemPropertyFriendlyName:

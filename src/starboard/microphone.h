@@ -85,6 +85,9 @@ typedef struct SbMicrophoneInfo {
 
   // Microphone max supported sampling rate.
   int max_sample_rate_hz;
+
+  // The minimum read size required for each read from microphone.
+  int min_read_size;
 } SbMicrophoneInfo;
 
 // An opaque handle to an implementation-private structure representing a
@@ -102,9 +105,11 @@ static SB_C_INLINE bool SbMicrophoneIsValid(SbMicrophone microphone) {
 // Gets all currently-available microphone information and the results are
 // stored in |out_info_array|. |info_array_size| is the size of
 // |out_info_array|.
-// Return value is the number of the available microphones. A negative return
-// value indicates that either the |info_array_size| is too small or an internal
-// error is occurred.
+// Returns the number of the available microphones. A negative return
+// value indicates that an internal error has occurred. If the number of
+// available microphones is larger than |info_array_size|, |out_info_array| will
+// be filled up with as many available microphones as possible and the actual
+// number of available microphones will be returned.
 SB_EXPORT int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
                                        int info_array_size);
 
@@ -153,7 +158,9 @@ SB_EXPORT bool SbMicrophoneClose(SbMicrophone microphone);
 // an error. This function should be called frequently, otherwise microphone
 // only buffers |buffer_size| bytes which is configured in |SbMicrophoneCreate|
 // and the new audio data will be thrown out. No audio data will be read from a
-// stopped microphone.
+// stopped microphone. If |audio_data_size| is smaller than |min_read_size| of
+// |SbMicrophoneInfo|, the extra audio data which is already read from device
+// will be discarded.
 SB_EXPORT int SbMicrophoneRead(SbMicrophone microphone,
                                void* out_audio_data,
                                int audio_data_size);
@@ -162,12 +169,6 @@ SB_EXPORT int SbMicrophoneRead(SbMicrophone microphone,
 // stopped first and then be destroyed. Any data that has been recorded and not
 // read will be thrown away.
 SB_EXPORT void SbMicrophoneDestroy(SbMicrophone microphone);
-
-// Returns the Google Speech API key. The platform manufacturer is responsible
-// for registering a Google Speech API key for their products. In the API
-// Console (http://developers.google.com/console), you are able to enable the
-// Speech APIs and generate a Speech API key.
-SB_EXPORT const char* SbMicrophoneGetSpeechApiKey();
 
 #ifdef __cplusplus
 }  // extern "C"

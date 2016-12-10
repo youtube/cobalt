@@ -45,6 +45,10 @@ const char kEnableWebDriver[] = "enable_webdriver";
 // Additional base directory for accessing web files via file://.
 const char kExtraWebFileDir[] = "web_file_path";
 
+// If this flag is set, fake microphone will be used to mock the user voice
+// input.
+const char kFakeMicrophone[] = "fake_microphone";
+
 // Setting this switch causes all certificate errors to be ignored.
 const char kIgnoreCertificateErrors[] = "ignore_certificate_errors";
 

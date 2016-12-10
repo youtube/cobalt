@@ -95,9 +95,11 @@
     'lbshell_root%': '<(DEPTH)/lbshell',
 
     # The relative path from src/ to the directory containing the
-    # starboard_platform.gyp file, or the empty string if not an autodiscovered
-    # platform.
-    'starboard_path%': '',
+    # starboard_platform.gyp file.  It is currently set to
+    # 'starboard/<(target_arch)' to make semi-starboard platforms work.
+    # TODO: Set the default value to '' once all semi-starboard platforms are
+    # moved to starboard.
+    'starboard_path%': 'starboard/<(target_arch)',
 
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
@@ -449,6 +451,7 @@
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
         'enable_about_scheme': 1,
+        'enable_fake_microphone': 1,
         'enable_file_scheme': 1,
         'enable_network_logging': 1,
         'enable_remote_debugging%': 1,
@@ -461,6 +464,7 @@
         'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
         'enable_about_scheme': 0,
+        'enable_fake_microphone': 0,
         'enable_file_scheme': 0,
         'enable_network_logging': 0,
         'enable_remote_debugging%': 0,

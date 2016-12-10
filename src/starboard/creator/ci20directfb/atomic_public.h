@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_CREATOR_CI20_ATOMIC_PUBLIC_H_
-#define STARBOARD_CREATOR_CI20_ATOMIC_PUBLIC_H_
+#ifndef STARBOARD_CREATOR_CI20DIRECTFB_ATOMIC_PUBLIC_H_
+#define STARBOARD_CREATOR_CI20DIRECTFB_ATOMIC_PUBLIC_H_
 
 #include "starboard/linux/shared/atomic_public.h"
 
-#endif  // STARBOARD_CREATOR_CI20_ATOMIC_PUBLIC_H_
+#endif  // STARBOARD_CREATOR_CI20DIRECTFB_ATOMIC_PUBLIC_H_

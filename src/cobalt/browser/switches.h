@@ -29,6 +29,7 @@ extern const char kDebugConsoleMode[];
 extern const char kDisableWebmVp9[];
 extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
+extern const char kFakeMicrophone[];
 extern const char kIgnoreCertificateErrors[];
 extern const char kInputFuzzer[];
 extern const char kMinLogLevel[];

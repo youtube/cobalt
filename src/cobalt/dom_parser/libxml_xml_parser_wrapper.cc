@@ -79,14 +79,17 @@ void LibxmlXMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (CheckInputAndUpdateSeverity(data, size) == kFatal) {
+  std::string current_chunk;
+  PreprocessChunk(data, size, &current_chunk);
+
+  if (max_severity() == kFatal) {
     return;
   }
 
   if (!xml_parser_context_) {
-    xml_parser_context_ =
-        xmlCreatePushParserCtxt(&xml_sax_handler, this, data,
-                                static_cast<int>(size), NULL /*filename*/);
+    xml_parser_context_ = xmlCreatePushParserCtxt(
+        &xml_sax_handler, this, current_chunk.c_str(),
+        static_cast<int>(current_chunk.size()), NULL /*filename*/);
 
     if (!xml_parser_context_) {
       static const char kErrorUnableCreateParser[] =
@@ -94,7 +97,8 @@ void LibxmlXMLParserWrapper::DecodeChunk(const char* data, size_t size) {
       OnParsingIssue(kFatal, kErrorUnableCreateParser);
     }
   } else {
-    xmlParseChunk(xml_parser_context_, data, static_cast<int>(size),
+    xmlParseChunk(xml_parser_context_, current_chunk.c_str(),
+                  static_cast<int>(current_chunk.size()),
                   0 /*do not terminate*/);
   }
 }
