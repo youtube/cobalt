@@ -18,13 +18,19 @@ import os
 from config.base import Configs
 import config.starboard
 import gyp_utils
+import ndk_utils
 
 
 class PlatformConfig(config.starboard.PlatformConfigStarboard):
   """Starboard Android platform configuration."""
 
-  def __init__(self, platform, asan_enabled_by_default=True):
+  # TODO: make ASAN work with NDK tools and enable it by default
+  def __init__(self, platform, android_abi, asan_enabled_by_default=False):
     super(PlatformConfig, self).__init__(platform)
+
+    self.android_abi = android_abi
+    self.ndk_tools = ndk_utils.GetToolsPath(android_abi)
+    ndk_utils.CheckNdkVersion(android_abi)
 
     gyp_utils.CheckClangVersion()
 
@@ -57,10 +63,12 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     mtm_enabled = int(os.environ.get('USE_MTM', mtm_on_by_default))
 
     variables.update({
+        'NDK_HOME': ndk_utils.NDK_PATH,
+        'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'clang': 1,
         'use_asan': int(os.environ.get('USE_ASAN', use_asan_default)),
         'use_tsan': use_tsan,
-        'enable_mtm': mtm_enabled
+        'enable_mtm': mtm_enabled,
     })
 
     if variables.get('use_asan') == 1 and variables.get('use_tsan') == 1:
@@ -73,13 +81,12 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     return generator_variables
 
   def GetEnvironmentVariables(self):
-    env_variables = {
-        'CC': 'clang',
-        'CXX': 'clang++',
+    env_variables = ndk_utils.GetEnvironmentVariables(self.android_abi)
+    env_variables.update({
         'CC_host': 'clang',
         'CXX_host': 'clang++',
         'LD_host': 'clang++',
         'ARFLAGS_host': 'rcs',
         'ARTHINFLAGS_host': 'rcsT',
-    }
+        })
     return env_variables
