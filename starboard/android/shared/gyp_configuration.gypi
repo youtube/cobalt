@@ -58,14 +58,6 @@
       '-gline-tables-only',
     ],
     'platform_libraries': [
-      '-lasound',
-      '-lavcodec',
-      '-lavformat',
-      '-lavresample',
-      '-lavutil',
-      '-lpthread',
-      '-lpulse',
-      '-lrt',
     ],
     'conditions': [
       ['clang==1', {
@@ -119,16 +111,20 @@
           # linked in. We do have to allow them to linked in when using ASAN, as
           # it needs to use its own version of these allocators in the Starboard
           # implementation.
-          '-Wl,--wrap=malloc',
           '-Wl,--wrap=calloc',
-          '-Wl,--wrap=realloc',
-          '-Wl,--wrap=memalign',
           '-Wl,--wrap=reallocalign',
-          '-Wl,--wrap=free',
           '-Wl,--wrap=strdup',
           '-Wl,--wrap=malloc_usable_size',
           '-Wl,--wrap=malloc_stats_fast',
-          '-Wl,--wrap=__cxa_demangle',
+
+          # The starboard iso/posix memory implementation calls the real methods.
+          #'-Wl,--wrap=malloc',
+          #'-Wl,--wrap=realloc',
+          #'-Wl,--wrap=memalign',
+          #'-Wl,--wrap=free',
+
+          # The NDK libstdc++ uses cxa_demangle() in vterminate.cc.
+          #'-Wl,--wrap=__cxa_demangle',
         ],
       }],
     ],
@@ -141,6 +137,12 @@
       '__STDC_FORMAT_MACROS', # so that we get PRI*
       # Enable GNU extensions to get prototypes like ffsl.
       '_GNU_SOURCE=1',
+    ],
+    'cflags': [
+      # Use the headers in the NDK
+      '--sysroot=<(NDK_SYSROOT)',
+      # libwebp uses the cpufeatures library to detect ARM NEON support
+      '-I<(NDK_HOME)/sources/android/cpufeatures',
     ],
     'cflags_c': [
       # Limit to C99. This allows Linux to be a canary build for any
@@ -178,6 +180,20 @@
           '-Wno-shift-negative-value',
           # Width of bit-field exceeds width of its type- value will be truncated
           '-Wno-bitfield-width',
+        ],
+      }],
+      ['_type=="executable"', {
+        # Android Lollipop+ requires relocatable executables.
+        'cflags': [
+          '-fPIE',
+        ],
+        'ldflags': [
+          '-pie',
+        ],
+      },{
+        # Android requires relocatable shared libraries.
+        'cflags': [
+          '-fPIC',
         ],
       }],
       ['use_asan==1', {
