@@ -48,6 +48,7 @@ enum SwitchEnum {
   kNull,
   kStartup,
   kContinuousPrinter,
+  kCompressedTimeseries,
 };
 
 struct SwitchVal {
@@ -99,9 +100,21 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     "Once every second the memory state is dumped to stdout.",
     kContinuousPrinter);
 
+  SwitchVal compressed_timeseries_tool(
+    "compressed_timeseries",
+    "Use this tool to see the growth in memory usage as the app runs. The "
+    "memory growth is segmented into memory scopes and outputted as CSV. "
+    "The compressed time-series will depict the full history of the memory "
+    "using a fixed number of rows. Older history has degraded resolution and "
+    "while new entries are captured in full detail. This achieved by evicting "
+    "old entries by an exponential decay scheme.",
+    kCompressedTimeseries);
+
   SwitchMap switch_map;
   switch_map[startup_tool.tool_name] = startup_tool;
   switch_map[continuous_printer_tool.tool_name] = continuous_printer_tool;
+  switch_map[compressed_timeseries_tool.tool_name] =
+    compressed_timeseries_tool;
 
   // FAST OUT - is a thread type not selected? Then print out a help menu
   // and request that the app should shut down.
@@ -149,6 +162,10 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   MemoryTracker* memory_tracker = MemoryTracker::Get();
   memory_tracker->InstallGlobalTrackingHooks();
 
+  using nb::analytics::MemoryTrackerPrintCSVThread;
+  using nb::analytics::MemoryTrackerPrintThread;
+  using nb::analytics::MemoryTrackerCompressedTimeSeriesThread;
+
   scoped_ptr<nb::SimpleThread> thread_ptr;
   const SwitchVal& value = found_it->second;
   switch (value.enum_value) {
@@ -157,20 +174,24 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       break;
     }
     case kStartup: {
-      nb::scoped_ptr<nb::analytics::MemoryTrackerPrintCSVThread> ptr =
-          CreateDebugPrintCSVThread(memory_tracker,
-                                    1000,         // Sample once a second.
-                                    60 * 1000);   // Output after 60 seconds.
       // Create a thread that will gather memory metrics for startup.
-      thread_ptr.reset(ptr.release());
+      thread_ptr.reset(
+          new MemoryTrackerPrintCSVThread(
+              memory_tracker,
+              1000,          // Sample once a second.
+              60* 1000));    // Output after 60 seconds.
       break;
     }
     case kContinuousPrinter: {
-      nb::scoped_ptr<MemoryTrackerPrintThread> ptr =
-          CreateDebugPrintThread(memory_tracker);
-
       // Create a thread that will continuously report memory use.
-      thread_ptr.reset(ptr.release());
+      thread_ptr.reset(
+          new MemoryTrackerPrintThread(memory_tracker));
+      break;
+    }
+    case kCompressedTimeseries: {
+      // Create a thread that will continuously report memory use.
+      thread_ptr.reset(
+          new MemoryTrackerCompressedTimeSeriesThread(memory_tracker));
       break;
     }
 
