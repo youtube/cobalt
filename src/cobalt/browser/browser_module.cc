@@ -296,6 +296,8 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url) {
+  web_module_loaded_.Reset();
+
   // Always post this as a task in case this is being called from the WebModule.
   self_message_loop_->PostTask(
       FROM_HERE, base::Bind(&BrowserModule::NavigateInternal, weak_this_, url));
@@ -325,8 +327,6 @@ void BrowserModule::CoreDumpHandler(void* browser_module_as_void) {
 
 void BrowserModule::NavigateInternal(const GURL& url) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-
-  web_module_loaded_.Reset();
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
   // handles the URL, we don't use the web module.
@@ -391,9 +391,11 @@ void BrowserModule::OnLoad() {
   web_module_loaded_.Signal();
 }
 
+#if defined(ENABLE_WEBDRIVER)
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
   return web_module_loaded_.TimedWait(timeout);
 }
+#endif
 
 #if defined(ENABLE_SCREENSHOT)
 void BrowserModule::RequestScreenshotToFile(const FilePath& path,

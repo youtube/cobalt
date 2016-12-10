@@ -134,10 +134,12 @@ class BrowserModule {
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
 
+#if defined(ENABLE_WEBDRIVER)
   // Wait for the onload event to be fired with the specified timeout. If the
   // webmodule is not currently loading the document, this will return
   // immediately.
   bool WaitForLoad(const base::TimeDelta& timeout);
+#endif
 
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.

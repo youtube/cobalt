@@ -49,6 +49,8 @@ class ReuseAllocator : public Allocator {
 
   void PrintAllocations() const;
 
+  bool TryFree(void* memory);
+
  private:
   // We will allocate from the given allocator whenever we can't find
   // pre-used memory to allocate.

@@ -27,6 +27,12 @@ int SbSocketReceiveFrom(SbSocket socket,
                         char* out_data,
                         int data_size,
                         SbSocketAddress* out_source) {
+#if defined(MSG_NOSIGNAL)
+  const int kRecvFlags = MSG_NOSIGNAL;
+#else
+  const int kRecvFlags = 0;
+#endif
+
   if (!SbSocketIsValid(socket)) {
     errno = EBADF;
     return -1;
@@ -52,7 +58,8 @@ int SbSocketReceiveFrom(SbSocket socket,
       }
     }
 
-    ssize_t bytes_read = recv(socket->socket_fd, out_data, data_size, 0);
+    ssize_t bytes_read =
+        recv(socket->socket_fd, out_data, data_size, kRecvFlags);
     if (bytes_read >= 0) {
       socket->error = kSbSocketOk;
       return static_cast<int>(bytes_read);
@@ -66,8 +73,9 @@ int SbSocketReceiveFrom(SbSocket socket,
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
     sbposix::SockAddr sock_addr;
-    ssize_t bytes_read = recvfrom(socket->socket_fd, out_data, data_size, 0,
-                                  sock_addr.sockaddr(), &sock_addr.length);
+    ssize_t bytes_read =
+        recvfrom(socket->socket_fd, out_data, data_size, kRecvFlags,
+                 sock_addr.sockaddr(), &sock_addr.length);
 
     if (bytes_read >= 0) {
       if (out_source) {
