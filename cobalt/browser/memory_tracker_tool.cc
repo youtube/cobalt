@@ -49,6 +49,7 @@ enum SwitchEnum {
   kStartup,
   kContinuousPrinter,
   kCompressedTimeseries,
+  kJavascriptMemoryAnalytics,
 };
 
 struct SwitchVal {
@@ -89,19 +90,19 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   typedef std::map<std::string, SwitchVal> SwitchMap;
 
   SwitchVal startup_tool(
-    "startup",
+    "startup",  // Name of tool.
     "Records high-frequency memory metrics for the first 60 "
     "seconds of program launch and then dumps it out in CSV format "
     "to stdout.",
     kStartup);
 
   SwitchVal continuous_printer_tool(
-    "continuous_printer",
+    "continuous_printer",  // Name of tool.
     "Once every second the memory state is dumped to stdout.",
     kContinuousPrinter);
 
   SwitchVal compressed_timeseries_tool(
-    "compressed_timeseries",
+    "compressed_timeseries",  // Name of tool.
     "Use this tool to see the growth in memory usage as the app runs. The "
     "memory growth is segmented into memory scopes and outputted as CSV. "
     "The compressed time-series will depict the full history of the memory "
@@ -109,6 +110,12 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     "while new entries are captured in full detail. This achieved by evicting "
     "old entries by an exponential decay scheme.",
     kCompressedTimeseries);
+
+  SwitchVal javascript_memory_tool(
+    "javascript",
+    "Dumps javascript memory statistics once a second in CSV format to "
+    "stdout.",
+    kJavascriptMemoryAnalytics);
 
   SwitchMap switch_map;
   switch_map[startup_tool.tool_name] = startup_tool;
@@ -165,6 +172,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   using nb::analytics::MemoryTrackerPrintCSVThread;
   using nb::analytics::MemoryTrackerPrintThread;
   using nb::analytics::MemoryTrackerCompressedTimeSeriesThread;
+  using nb::analytics::JavascriptMemoryTrackerThread;
 
   scoped_ptr<nb::SimpleThread> thread_ptr;
   const SwitchVal& value = found_it->second;
@@ -194,7 +202,13 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
           new MemoryTrackerCompressedTimeSeriesThread(memory_tracker));
       break;
     }
-
+    case kJavascriptMemoryAnalytics: {
+      // Create a thread that will continuously report javascript memory
+      // analytics.
+      thread_ptr.reset(
+          new JavascriptMemoryTrackerThread(memory_tracker));
+      break;
+    }
     default: {
       SB_NOTREACHED() << "Unhandled case.";
       break;
