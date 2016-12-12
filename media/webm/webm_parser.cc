@@ -179,6 +179,7 @@ static const ElementIdInfo kTrackTranslateIds[] = {
 static const ElementIdInfo kVideoIds[] = {
   {UINT, kWebMIdFlagInterlaced},
   {UINT, kWebMIdStereoMode},
+  {LIST, kWebMIdProjection},
   {UINT, kWebMIdPixelWidth},
   {UINT, kWebMIdPixelHeight},
   {UINT, kWebMIdPixelCropBottom},
@@ -354,6 +355,14 @@ static const ElementIdInfo kSimpleTagIds[] = {
   {BINARY, kWebMIdTagBinary},
 };
 
+static const ElementIdInfo kProjectionIds[] = {
+  {FLOAT, kWebMIdProjectionPosePitch},
+  {FLOAT, kWebMIdProjectionPoseRoll},
+  {FLOAT, kWebMIdProjectionPoseYaw},
+  {BINARY, kWebMIdProjectionPrivate},
+  {UINT, kWebMIdProjectionType},
+};
+
 #define LIST_ELEMENT_INFO(id, level, id_info) \
     { (id), (level), (id_info), arraysize(id_info) }
 
@@ -402,6 +411,7 @@ static const ListElementInfo kListElementInfo[] = {
   LIST_ELEMENT_INFO(kWebMIdTag, 2, kTagIds),
   LIST_ELEMENT_INFO(kWebMIdTargets, 3, kTargetsIds),
   LIST_ELEMENT_INFO(kWebMIdSimpleTag, 3, kSimpleTagIds),
+  LIST_ELEMENT_INFO(kWebMIdProjection, 4, kProjectionIds),
 };
 
 // Parses an element header id or size field. These fields are variable length
