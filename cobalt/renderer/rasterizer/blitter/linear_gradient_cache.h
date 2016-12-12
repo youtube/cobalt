@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "cobalt/base/circular_buffer_cache.h"
+#include "cobalt/base/fixed_size_lru_cache.h"
 #include "cobalt/render_tree/brush.h"
 #include "starboard/blitter.h"
 
@@ -55,6 +55,7 @@ class LinearGradientCache {
   class SurfaceDeleter {
    public:
     void operator()(SbBlitterSurface surface) {
+      DCHECK(SbBlitterIsSurfaceValid(surface));
       if (SbBlitterIsSurfaceValid(surface)) {
         SbBlitterDestroySurface(surface);
       }
