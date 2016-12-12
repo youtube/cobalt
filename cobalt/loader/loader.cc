@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 
 namespace cobalt {
@@ -34,7 +35,11 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
  public:
   FetcherToDecoderAdapter(
       Decoder* decoder, base::Callback<void(const std::string&)> error_callback)
-      : decoder_(decoder), error_callback_(error_callback) {}
+      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+        weak_ptr_(weak_ptr_factory_.GetWeakPtr()),
+        original_message_loop_(MessageLoop::current()),
+        decoder_(decoder),
+        error_callback_(error_callback) {}
 
   // From Fetcher::Handler.
   LoadResponseType OnResponseStarted(
@@ -62,12 +67,29 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
   }
   void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
     UNREFERENCED_PARAMETER(fetcher);
-    error_callback_.Run(error);
+    HandleError(error);
   }
 
  private:
+  base::WeakPtrFactory<FetcherToDecoderAdapter> weak_ptr_factory_;
+  base::WeakPtr<FetcherToDecoderAdapter> weak_ptr_;
+
+  void HandleError(const std::string& error) {
+    if (original_message_loop_ != MessageLoop::current()) {
+      // Callback on the thread that created this object.
+      original_message_loop_->PostTask(
+          FROM_HERE,
+          base::Bind(&FetcherToDecoderAdapter::HandleError, weak_ptr_, error));
+      return;
+    }
+
+    error_callback_.Run(error);
+  }
+
+  MessageLoop* const original_message_loop_;
   Decoder* decoder_;
-  base::Callback<void(const std::string&)> error_callback_;
+  typedef base::Callback<void(const std::string&)> ErrorCallback;
+  ErrorCallback error_callback_;
 };
 
 //////////////////////////////////////////////////////////////////
@@ -112,12 +134,13 @@ void Loader::Suspend() {
     return;
   }
 
-  bool suspendable = decoder_->Suspend();
   if (fetcher_) {
     fetcher_.reset();
   }
 
   fetcher_to_decoder_adaptor_.reset();
+  bool suspendable = decoder_->Suspend();
+
   fetcher_creator_error_closure_.Cancel();
   suspended_ = true;
 

@@ -62,6 +62,9 @@ class ThreadedImageDecoderProxy : public Decoder {
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
  private:
+  bool IsLoadMessageLoopCurrent() const {
+    return MessageLoop::current() == load_message_loop_;
+  }
   base::WeakPtrFactory<ThreadedImageDecoderProxy> weak_ptr_factory_;
   base::WeakPtr<ThreadedImageDecoderProxy> weak_this_;
 
