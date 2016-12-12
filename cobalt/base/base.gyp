@@ -92,6 +92,7 @@
       'sources': [
         'c_val_test.cc',
         'token_test.cc',
+        'fixed_size_lru_cache_test.cc',
       ],
       'dependencies': [
         'base',
