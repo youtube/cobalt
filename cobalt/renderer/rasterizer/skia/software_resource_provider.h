@@ -102,7 +102,6 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
                      render_tree::FontVector* maybe_used_fonts) OVERRIDE;
 
  private:
-  SkAutoTUnref<SkFontMgr> font_manager_;
   TextShaper text_shaper_;
 };
 

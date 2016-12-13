@@ -37,8 +37,11 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SoftwareResourceProvider::SoftwareResourceProvider()
-    : font_manager_(SkFontMgr::RefDefault()) {}
+SoftwareResourceProvider::SoftwareResourceProvider() {
+  // Initialize the font manager now to ensure that it doesn't get initialized
+  // on multiple threads simultaneously later.
+  SkSafeUnref(SkFontMgr::RefDefault());
+}
 
 bool SoftwareResourceProvider::PixelFormatSupported(
     render_tree::PixelFormat pixel_format) {
@@ -103,8 +106,9 @@ bool SoftwareResourceProvider::HasLocalFontFamily(
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::HasLocalFontFamily()");
 
+  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
   SkAutoTUnref<SkFontStyleSet> style_set(
-      font_manager_->matchFamily(font_family_name));
+      font_manager->matchFamily(font_family_name));
   return style_set->count() > 0;
 }
 
@@ -113,7 +117,8 @@ scoped_refptr<render_tree::Typeface> SoftwareResourceProvider::GetLocalTypeface(
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::GetLocalTypeface()");
 
-  SkAutoTUnref<SkTypeface> typeface(font_manager_->matchFamilyStyle(
+  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyle(
       font_family_name, CobaltFontStyleToSkFontStyle(font_style)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
@@ -124,10 +129,11 @@ SoftwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::GetLocalTypefaceIfAvailable()");
 
-  SkFontMgr_Cobalt* font_manager =
-      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager_.get());
+  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkFontMgr_Cobalt* cobalt_font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
 
-  SkTypeface* typeface = font_manager->matchFaceName(font_face_name);
+  SkTypeface* typeface = cobalt_font_manager->matchFaceName(font_face_name);
   if (typeface != NULL) {
     SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
@@ -143,7 +149,8 @@ SoftwareResourceProvider::GetCharacterFallbackTypeface(
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::GetCharacterFallbackTypeface()");
 
-  SkAutoTUnref<SkTypeface> typeface(font_manager_->matchFamilyStyleCharacter(
+  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyleCharacter(
       0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
       character));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
