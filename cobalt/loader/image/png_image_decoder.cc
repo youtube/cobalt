@@ -246,9 +246,13 @@ void PNGImageDecoder::HeaderAvailableCallback() {
     }
   }
 
-  AllocateImageData(
-      math::Size(static_cast<int>(width), static_cast<int>(height)),
-      has_alpha_);
+  if (!AllocateImageData(
+          math::Size(static_cast<int>(width), static_cast<int>(height)),
+          has_alpha_)) {
+    set_state(kError);
+    longjmp(png_->jmpbuf, 1);
+    return;
+  }
 
   set_state(kReadLines);
 }

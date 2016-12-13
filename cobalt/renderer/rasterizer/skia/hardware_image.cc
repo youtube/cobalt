@@ -145,9 +145,9 @@ class HardwareFrontendImage::HardwareBackendImage {
         ->unref();
   }
 
-  const SkBitmap& GetBitmap() const {
+  const SkBitmap* GetBitmap() const {
     DCHECK(thread_checker_.CalledOnValidThread());
-    return bitmap_;
+    return &bitmap_;
   }
 
  private:
@@ -205,7 +205,7 @@ HardwareFrontendImage::~HardwareFrontendImage() {
   }  // else let the scoped pointer clean it up immediately.
 }
 
-const SkBitmap& HardwareFrontendImage::GetBitmap() const {
+const SkBitmap* HardwareFrontendImage::GetBitmap() const {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   // Forward this call to the backend image.  This method must be called from
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
