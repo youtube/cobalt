@@ -19,5 +19,7 @@
 
 interface Console {
   void log(DOMString text);
+  void info(DOMString text);
+  void error(DOMString text);
   void trace();
 };
