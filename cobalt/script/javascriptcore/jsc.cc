@@ -35,7 +35,7 @@ namespace script {
 namespace javascriptcore {
 namespace {
 
-JSC::EncodedJSValue PrintFunction(JSC::ExecState* exec) {
+JSC::EncodedJSValue JSC_HOST_CALL PrintFunction(JSC::ExecState* exec) {
   std::vector<std::string> string_args;
   for (uint32 i = 0; i < exec->argumentCount(); ++i) {
     string_args.push_back(
