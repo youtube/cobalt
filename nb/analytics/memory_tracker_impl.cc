@@ -1125,44 +1125,51 @@ void MemoryTrackerCompressedTimeSeriesThread::Print(const std::string& str) {
   SbLogFlush();
 }
 
-JavascriptMemoryTrackerThread::JavascriptMemoryTrackerThread(MemoryTracker* memory_tracker)
+MemorySizeBinnerThread::MemorySizeBinnerThread(
+    MemoryTracker* memory_tracker,
+    const std::string& memory_scope_name)
     : SimpleThread("MemoryTrackerLeadFinder"),
-  memory_tracker_(memory_tracker) {
+      memory_tracker_(memory_tracker),
+      memory_scope_name_(memory_scope_name) {
   Start();
 }
 
-JavascriptMemoryTrackerThread::~JavascriptMemoryTrackerThread() {
+MemorySizeBinnerThread::~MemorySizeBinnerThread() {
   Cancel();
   Join();
 }
 
-void JavascriptMemoryTrackerThread::Cancel() {
+void MemorySizeBinnerThread::Cancel() {
   finished_.store(true);
 }
 
-void JavascriptMemoryTrackerThread::Run() {
+const AllocationGroup* FindAllocationGroup(const std::string& name,
+                                           MemoryTracker* memory_tracker) {
+  std::vector<const AllocationGroup*> groups;
+  memory_tracker->GetAllocationGroups(&groups);
+  // Find by exact string match.
+  for (size_t i = 0; i < groups.size(); ++i) {
+    const AllocationGroup* group = groups[i];
+    if (group->name().compare(name) == 0) {
+      return group;
+    }
+  }
+  return NULL;
+}
+
+void MemorySizeBinnerThread::Run() {
   const SbTime start_time = SbTimeGetNow();
-  const AllocationGroup* javascript_group = NULL;
+  const AllocationGroup* target_group = NULL;
 
   while (!finished_.load()) {
-
-    if (javascript_group == NULL) {
-      // Attempt to find javascript_group
-      std::vector<const AllocationGroup*> groups;
-      memory_tracker_->GetAllocationGroups(&groups);
-      for (size_t i = 0; i < groups.size(); ++i) {
-        const AllocationGroup* group = groups[i];
-        if (group->name().compare("Javascript") == 0) {
-          javascript_group = group;
-          break;
-        }
-      }
+    if (target_group == NULL) {
+      target_group = FindAllocationGroup(memory_scope_name_, memory_tracker_);
     }
 
     std::stringstream ss;
     ss.precision(2);
-    if (javascript_group) {
-      AllocationSizeBinner visitor = AllocationSizeBinner(javascript_group);
+    if (target_group) {
+      AllocationSizeBinner visitor = AllocationSizeBinner(target_group);
       memory_tracker_->Accept(&visitor);
       ss << "\nTimeNow "
          << TimeInMinutes(SbTimeGetNow() - start_time) << " (minutes):\n"

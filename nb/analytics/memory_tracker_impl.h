@@ -298,12 +298,20 @@ class MemoryTrackerCompressedTimeSeriesThread : public SimpleThread {
   atomic_bool canceled_;
 };
 
+// This tool inspects a memory scope and reports on the memory usage.
+// The output will be a CSV file printed to stdout representing
+// the number of memory allocations for objects. The objects are binned
+// according to the size of the memory allocation. Objects within the same
+// power of two are binned together. For example 1024 will be binned with 1025.
+//
 // Start() is called when this object is created, and Cancel() & Join() are
 // called during destruction.
-class JavascriptMemoryTrackerThread : public SimpleThread {
+class MemorySizeBinnerThread : public SimpleThread {
  public:
-  JavascriptMemoryTrackerThread(MemoryTracker* memory_tracker);
-  virtual ~JavascriptMemoryTrackerThread() SB_OVERRIDE;
+  // memory_scope_name represents the memory scope that is to be investigated.
+  MemorySizeBinnerThread(MemoryTracker* memory_tracker,
+                         const std::string& memory_scope_name);
+  virtual ~MemorySizeBinnerThread() SB_OVERRIDE;
 
   // Overridden so that the thread can exit gracefully.
   virtual void Cancel() SB_OVERRIDE;
@@ -311,6 +319,7 @@ class JavascriptMemoryTrackerThread : public SimpleThread {
  private:
   atomic_bool finished_;
   MemoryTracker* memory_tracker_;
+  std::string memory_scope_name_;
 };
 
 }  // namespace analytics

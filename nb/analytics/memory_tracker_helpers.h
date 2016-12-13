@@ -228,7 +228,7 @@ class ConcurrentAllocationMap {
 };
 
 inline double TimeInMinutes(SbTime time_delta) {
-  return double(time_delta) / double(kSbTimeMinute);
+  return static_cast<double>(time_delta) / static_cast<double>(kSbTimeMinute);
 }
 
 }  // namespace analytics
