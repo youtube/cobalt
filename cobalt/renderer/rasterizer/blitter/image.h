@@ -48,7 +48,7 @@ class ImageData : public render_tree::ImageData {
   ~ImageData() OVERRIDE;
 
   const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE {
-    return descriptor_;
+    return *descriptor_;
   }
 
   uint8* GetMemory() OVERRIDE;
@@ -59,7 +59,7 @@ class ImageData : public render_tree::ImageData {
  private:
   SbBlitterDevice device_;
   SbBlitterPixelData pixel_data_;
-  render_tree::ImageDataDescriptor descriptor_;
+  base::optional<render_tree::ImageDataDescriptor> descriptor_;
 };
 
 // render_tree::Image objects are implemented in the Blitter API via
@@ -83,7 +83,7 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   // When GetBitmap() is called on a blitter::SinglePlaneImage for the first
   // time, we do a one-time download of the pixel data from the Blitter API
   // surface into a SkBitmap.
-  const SkBitmap& GetBitmap() const OVERRIDE;
+  const SkBitmap* GetBitmap() const OVERRIDE;
 
   bool IsOpaque() const OVERRIDE { return is_opaque_; }
 

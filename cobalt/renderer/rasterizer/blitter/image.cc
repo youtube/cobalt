@@ -35,12 +35,17 @@ ImageData::ImageData(SbBlitterDevice device, const math::Size& size,
     : device_(device),
       pixel_data_(SbBlitterCreatePixelData(
           device_, size.width(), size.height(),
-          RenderTreePixelFormatToBlitter(pixel_format))),
-      descriptor_(size, pixel_format, alpha_format,
-                  SbBlitterGetPixelDataPitchInBytes(pixel_data_)) {
+          RenderTreePixelFormatToBlitter(pixel_format))) {
   CHECK(alpha_format == render_tree::kAlphaFormatPremultiplied ||
         alpha_format == render_tree::kAlphaFormatOpaque);
-  CHECK(SbBlitterIsPixelDataValid(pixel_data_));
+
+  if (SbBlitterIsPixelDataValid(pixel_data_)) {
+    descriptor_.emplace(size, pixel_format, alpha_format,
+                        SbBlitterGetPixelDataPitchInBytes(pixel_data_));
+  } else {
+    LOG(WARNING) << "Failed to allocate pixel data for image.";
+    DCHECK(false);
+  }
 }
 
 ImageData::~ImageData() {
@@ -50,7 +55,11 @@ ImageData::~ImageData() {
 }
 
 uint8* ImageData::GetMemory() {
-  return static_cast<uint8*>(SbBlitterGetPixelDataPointer(pixel_data_));
+  if (!SbBlitterIsPixelDataValid(pixel_data_)) {
+    return NULL;
+  } else {
+    return static_cast<uint8*>(SbBlitterGetPixelDataPointer(pixel_data_));
+  }
 }
 
 SbBlitterPixelData ImageData::TakePixelData() {
@@ -81,7 +90,7 @@ SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque)
 
 bool SinglePlaneImage::EnsureInitialized() { return false; }
 
-const SkBitmap& SinglePlaneImage::GetBitmap() const {
+const SkBitmap* SinglePlaneImage::GetBitmap() const {
   // This function will only ever get called if the Skia software renderer needs
   // to reference the image, and so should be called rarely.  In that case, the
   // first time it is called on this image, we will download the image data from
@@ -96,12 +105,18 @@ const SkBitmap& SinglePlaneImage::GetBitmap() const {
 
     SkAutoLockPixels lock(*bitmap_);
 
-    CHECK(SbBlitterDownloadSurfacePixels(
+    bool result = SbBlitterDownloadSurfacePixels(
         surface_, SkiaToBlitterPixelFormat(image_info.colorType()),
-        bitmap_->rowBytes(), bitmap_->getPixels()));
+        bitmap_->rowBytes(), bitmap_->getPixels());
+    if (!result) {
+      LOG(WARNING) << "Failed to download surface pixel data so that it could "
+                      "be accessed by software skia.";
+      bitmap_ = base::nullopt;
+      DCHECK(false);
+    }
   }
 
-  return *bitmap_;
+  return &bitmap_.value();
 }
 
 SinglePlaneImage::~SinglePlaneImage() { SbBlitterDestroySurface(surface_); }
