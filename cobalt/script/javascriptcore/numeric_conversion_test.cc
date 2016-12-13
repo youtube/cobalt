@@ -38,7 +38,7 @@ namespace javascriptcore {
 namespace {
 
 template <int kNumber>
-JSC::EncodedJSValue returnNumberFunction(JSC::ExecState* exec) {
+JSC::EncodedJSValue JSC_HOST_CALL returnNumberFunction(JSC::ExecState* exec) {
   return JSC::JSValue::encode(JSC::jsNumber(kNumber));
 }
 

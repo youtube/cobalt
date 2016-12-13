@@ -770,7 +770,8 @@ void Application::UpdatePeriodicStats() {
   }
 #elif defined(OS_STARBOARD)
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
-  available_memory_ = SbSystemGetTotalCPUMemory() - used_cpu_memory;
+  available_memory_ =
+      static_cast<ssize_t>(SbSystemGetTotalCPUMemory() - used_cpu_memory);
   c_val_stats_.free_cpu_memory = available_memory_;
   c_val_stats_.used_cpu_memory = used_cpu_memory;
 

@@ -84,7 +84,7 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   // This function can be posted to |message_loop_| to destroy a fetcher on it.
   void DestroyFetcher(scoped_ptr<net::URLFetcher> fetcher);
   void CreateNewFetcher();
-  void Read_Locked(uint64 position, uint64 size, uint8* data,
+  void Read_Locked(uint64 position, size_t size, uint8* data,
                    const ReadCB& read_cb);
   void ProcessPendingRead_Locked();
   void TryToSendRequest_Locked();
@@ -113,7 +113,7 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
 
   ReadCB pending_read_cb_;
   uint64 pending_read_position_;
-  uint64 pending_read_size_;
+  size_t pending_read_size_;
   uint8* pending_read_data_;
 
   csp::SecurityCallback security_callback_;
