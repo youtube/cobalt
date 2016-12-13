@@ -72,7 +72,7 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
   }
 
   base::AutoLock auto_lock(lock_);
-  Read_Locked(static_cast<uint64>(position), static_cast<uint64>(size), data,
+  Read_Locked(static_cast<uint64>(position), static_cast<size_t>(size), data,
               read_cb);
 }
 
@@ -305,7 +305,7 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
   fetcher_->Start();
 }
 
-void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
+void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
                                             uint8* data,
                                             const ReadCB& read_cb) {
   lock_.AssertAcquired();
@@ -323,7 +323,7 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
   if (total_size_of_resource_) {
     position = std::min(position, total_size_of_resource_.value());
     if (size + position > total_size_of_resource_.value()) {
-      size = total_size_of_resource_.value() - position;
+      size = static_cast<size_t>(total_size_of_resource_.value() - position);
     }
   }
 
@@ -339,7 +339,8 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
       position + size <= buffer_offset_ + buffer_.GetLength()) {
     // All data is available
     size_t bytes_peeked;
-    buffer_.Peek(data, size, position - buffer_offset_, &bytes_peeked);
+    buffer_.Peek(data, size, static_cast<size_t>(position - buffer_offset_),
+                 &bytes_peeked);
     DCHECK_EQ(bytes_peeked, size);
     DCHECK_GE(static_cast<int>(bytes_peeked), 0);
     read_cb.Run(static_cast<int>(bytes_peeked));
@@ -382,8 +383,8 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
     last_request_offset_ = 0;
   }
 
-  size_t required_size =
-      last_read_position_ - last_request_offset_ + pending_read_size_;
+  size_t required_size = static_cast<size_t>(
+      last_read_position_ - last_request_offset_ + pending_read_size_);
   if (required_size > buffer_.GetMaxCapacity()) {
     // The capacity of the current buffer is not large enough to hold the
     // pending read.
