@@ -130,7 +130,7 @@ void AnimateNode::TraverseListBuilder::Visit(animations::AnimateNode* animate) {
     traverse_list_->insert(traverse_list_->end(),
                            animate->traverse_list_.begin(),
                            animate->traverse_list_.end());
-    std::reverse(traverse_list_->begin() + static_cast<int64>(start_size),
+    std::reverse(traverse_list_->begin() + static_cast<ptrdiff_t>(start_size),
                  traverse_list_->end());
     animated_ = true;
   } else {
