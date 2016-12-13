@@ -116,7 +116,6 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   backend::GraphicsContextEGL* cobalt_context_;
   GrContext* gr_context_;
 
-  SkAutoTUnref<SkFontMgr> font_manager_;
   TextShaper text_shaper_;
 
   // We keep a handle to the message loop that this resource provider was
