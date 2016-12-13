@@ -37,8 +37,7 @@ namespace browser {
 scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(const std::string&) {
   DLOG(INFO)
       << "Memory tracker tool is not enabled on non-starboard builds.";
-  MemoryTrackerTool* null_ptr = NULL;
-  return scoped_ptr<MemoryTrackerTool>(null_ptr);
+  return scoped_ptr<MemoryTrackerTool>();
 }
 
 #else  // defined(OS_STARBOARD)
@@ -172,7 +171,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   using nb::analytics::MemoryTrackerPrintCSVThread;
   using nb::analytics::MemoryTrackerPrintThread;
   using nb::analytics::MemoryTrackerCompressedTimeSeriesThread;
-  using nb::analytics::JavascriptMemoryTrackerThread;
+  using nb::analytics::MemorySizeBinnerThread;
 
   scoped_ptr<nb::SimpleThread> thread_ptr;
   const SwitchVal& value = found_it->second;
@@ -206,7 +205,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       // Create a thread that will continuously report javascript memory
       // analytics.
       thread_ptr.reset(
-          new JavascriptMemoryTrackerThread(memory_tracker));
+          new MemorySizeBinnerThread(memory_tracker, "Javascript"));
       break;
     }
     default: {
