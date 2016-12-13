@@ -100,7 +100,8 @@ bool MicrophoneFake::Open() {
   if (read_data_from_file_) {
     // Read from local files.
     SB_DCHECK(file_paths_.size() != 0);
-    uint64 random_index = base::RandGenerator(file_paths_.size());
+    size_t random_index =
+        static_cast<size_t>(base::RandGenerator(file_paths_.size()));
     starboard::ScopedFile file(file_paths_[random_index].value().c_str(),
                                kSbFileOpenOnly | kSbFileRead, NULL, NULL);
     SB_DCHECK(file.IsValid());
