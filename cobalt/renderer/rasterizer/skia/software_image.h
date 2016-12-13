@@ -53,7 +53,7 @@ class SoftwareImage : public SinglePlaneImage {
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
-  const SkBitmap& GetBitmap() const OVERRIDE { return bitmap_; }
+  const SkBitmap* GetBitmap() const OVERRIDE { return &bitmap_; }
 
   bool EnsureInitialized() OVERRIDE { return false; }
 
@@ -94,7 +94,7 @@ class SoftwareMultiPlaneImage : public MultiPlaneImage {
   render_tree::MultiPlaneImageFormat GetFormat() const OVERRIDE {
     return format_;
   }
-  const SkBitmap& GetBitmap(int plane_index) const OVERRIDE {
+  const SkBitmap* GetBitmap(int plane_index) const OVERRIDE {
     return planes_[plane_index]->GetBitmap();
   }
 

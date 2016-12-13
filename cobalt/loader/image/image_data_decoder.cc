@@ -102,7 +102,7 @@ bool ImageDataDecoder::FinishWithSuccess() {
   return state_ == kDone;
 }
 
-void ImageDataDecoder::AllocateImageData(const math::Size& size,
+bool ImageDataDecoder::AllocateImageData(const math::Size& size,
                                          bool has_alpha) {
   DCHECK(resource_provider_->AlphaFormatSupported(
       render_tree::kAlphaFormatOpaque));
@@ -111,6 +111,14 @@ void ImageDataDecoder::AllocateImageData(const math::Size& size,
   image_data_ = resource_provider_->AllocateImageData(
       size, pixel_format(), has_alpha ? render_tree::kAlphaFormatPremultiplied
                                       : render_tree::kAlphaFormatOpaque);
+  if (!image_data_) {
+    DLOG(WARNING) << "Failed to allocate image data (" << size.width() << "x"
+                  << size.height() << ").";
+    // We want to know in debug if we have problems allocating image data.
+    // It should never happen.
+    DCHECK(false);
+  }
+  return image_data_;
 }
 
 void ImageDataDecoder::CalculatePixelFormat() {

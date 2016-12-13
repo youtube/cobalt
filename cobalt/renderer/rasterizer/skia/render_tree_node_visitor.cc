@@ -549,9 +549,11 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
 
     SkRect src = SkRect::MakeXYWH(x, y, width, height);
 
-    draw_state->render_target->drawBitmapRectToRect(
-        single_plane_image->GetBitmap(), &src,
-        CobaltRectFToSkiaRect(destination_rect), &paint);
+    const SkBitmap* bitmap = single_plane_image->GetBitmap();
+    if (bitmap) {
+      draw_state->render_target->drawBitmapRectToRect(
+          *bitmap, &src, CobaltRectFToSkiaRect(destination_rect), &paint);
+    }
   } else {
     // Use the more general approach which allows arbitrary local texture
     // coordinate matrices.
@@ -560,13 +562,16 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
     ConvertLocalTransformMatrixToSkiaShaderFormat(
         single_plane_image->GetSize(), destination_rect, &skia_local_transform);
 
-    SkAutoTUnref<SkShader> image_shader(SkShader::CreateBitmapShader(
-        single_plane_image->GetBitmap(), SkShader::kRepeat_TileMode,
-        SkShader::kRepeat_TileMode, &skia_local_transform));
-    paint.setShader(image_shader);
+    const SkBitmap* bitmap = single_plane_image->GetBitmap();
+    if (bitmap) {
+      SkAutoTUnref<SkShader> image_shader(SkShader::CreateBitmapShader(
+          *bitmap, SkShader::kRepeat_TileMode, SkShader::kRepeat_TileMode,
+          &skia_local_transform));
+      paint.setShader(image_shader);
 
-    draw_state->render_target->drawRect(CobaltRectFToSkiaRect(destination_rect),
-                                        paint);
+      draw_state->render_target->drawRect(
+          CobaltRectFToSkiaRect(destination_rect), paint);
+    }
   }
 }
 
@@ -576,18 +581,24 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
                            const math::Matrix3F* local_transform) {
   SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
 
-  const SkBitmap& y_bitmap = multi_plane_image->GetBitmap(0);
-  DCHECK(!y_bitmap.isNull());
+  const SkBitmap* y_bitmap = multi_plane_image->GetBitmap(0);
+  if (!y_bitmap) {
+    return;
+  }
+  DCHECK(!y_bitmap->isNull());
   SkMatrix y_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(y_bitmap.width(), y_bitmap.height()), destination_rect,
+      math::Size(y_bitmap->width(), y_bitmap->height()), destination_rect,
       &y_matrix);
 
-  const SkBitmap& u_bitmap = multi_plane_image->GetBitmap(1);
-  DCHECK(!u_bitmap.isNull());
+  const SkBitmap* u_bitmap = multi_plane_image->GetBitmap(1);
+  if (!u_bitmap) {
+    return;
+  }
+  DCHECK(!u_bitmap->isNull());
   SkMatrix u_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(u_bitmap.width(), u_bitmap.height()), destination_rect,
+      math::Size(u_bitmap->width(), u_bitmap->height()), destination_rect,
       &u_matrix);
 
   SkAutoTUnref<SkShader> yuv2rgb_shader;
@@ -596,18 +607,21 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
     case render_tree::kMultiPlaneImageFormatYUV2PlaneBT709:
       yuv2rgb_shader.reset(SkNEW_ARGS(
           SkNV122RGBShader,
-          (kRec709_SkYUVColorSpace, y_bitmap, y_matrix, u_bitmap, u_matrix)));
+          (kRec709_SkYUVColorSpace, *y_bitmap, y_matrix, *u_bitmap, u_matrix)));
       break;
     case render_tree::kMultiPlaneImageFormatYUV3PlaneBT709: {
-      const SkBitmap& v_bitmap = multi_plane_image->GetBitmap(2);
-      DCHECK(!v_bitmap.isNull());
+      const SkBitmap* v_bitmap = multi_plane_image->GetBitmap(2);
+      if (!v_bitmap) {
+        return;
+      }
+      DCHECK(!v_bitmap->isNull());
       SkMatrix v_matrix = skia_local_transform;
       ConvertLocalTransformMatrixToSkiaShaderFormat(
-          math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect,
+          math::Size(v_bitmap->width(), v_bitmap->height()), destination_rect,
           &v_matrix);
       yuv2rgb_shader.reset(SkNEW_ARGS(
-          SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
-                            u_bitmap, u_matrix, v_bitmap, v_matrix)));
+          SkYUV2RGBShader, (kRec709_SkYUVColorSpace, *y_bitmap, y_matrix,
+                            *u_bitmap, u_matrix, *v_bitmap, v_matrix)));
       break;
     }
     default: {
