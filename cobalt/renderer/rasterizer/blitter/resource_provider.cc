@@ -57,8 +57,14 @@ scoped_ptr<render_tree::ImageData> ResourceProvider::AllocateImageData(
     AlphaFormat alpha_format) {
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
-  return scoped_ptr<render_tree::ImageData>(
+
+  scoped_ptr<render_tree::ImageData> image_data(
       new ImageData(device_, size, pixel_format, alpha_format));
+  if (!image_data->GetMemory()) {
+    return scoped_ptr<render_tree::ImageData>();
+  } else {
+    return image_data.Pass();
+  }
 }
 
 scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(

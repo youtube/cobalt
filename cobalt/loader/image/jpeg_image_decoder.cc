@@ -186,9 +186,12 @@ bool JPEGImageDecoder::ReadHeader() {
     return false;
   }
 
-  AllocateImageData(math::Size(static_cast<int>(info_.image_width),
-                               static_cast<int>(info_.image_height)),
-                    false);
+  if (!AllocateImageData(math::Size(static_cast<int>(info_.image_width),
+                                    static_cast<int>(info_.image_height)),
+                         false)) {
+    return false;
+  }
+
   return true;
 }
 
