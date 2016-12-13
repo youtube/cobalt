@@ -50,6 +50,16 @@ void Console::Log(const std::string& text) const {
   NotifyListeners(text, kLog);
 }
 
+void Console::Info(const std::string& text) const {
+  LOG(INFO) << "[console.info()] " << text;
+  NotifyListeners(text, kLog);
+}
+
+void Console::Error(const std::string& text) const {
+  LOG(ERROR) << "[console.error()] " << text;
+  NotifyListeners(text, kLog);
+}
+
 void Console::Trace() const { LOG(INFO) << execution_state_->GetStackTrace(); }
 
 // static
