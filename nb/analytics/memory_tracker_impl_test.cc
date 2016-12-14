@@ -486,6 +486,43 @@ TEST_F(MemoryTrackerImplTest, MacrosGroupAccounting) {
   }
 }
 
+// Tests the expectation that the MemoryTrackerDebugCallback works as expected
+// to notify of incoming allocations.
+TEST_F(MemoryTrackerImplTest, MemoryTrackerDebugCallback) {
+  // Memory tracker is not enabled for this build.
+  if (!MemoryTrackerEnabled()) {
+    return;
+  }
+
+  // Impl of the callback. Copies the allocation information so that we can
+  // ensure it produces expected values.
+  class MemoryTrackerDebugCallbackTest : public MemoryTrackerDebugCallback {
+   public:
+    MemoryTrackerDebugCallbackTest() { Reset(); }
+    virtual void OnMemoryAllocation(const void* memory_block,
+                                    const AllocationRecord& record) {
+      last_memory_block_ = memory_block;
+      last_allocation_record_ = record;
+    }
+    void Reset() {
+      last_memory_block_ = NULL;
+      last_allocation_record_ = AllocationRecord::Empty();
+    }
+    const void* last_memory_block_;
+    AllocationRecord last_allocation_record_;
+  };
+
+  // Needs to be static due to concurrent and lockless nature of object.
+  static MemoryTrackerDebugCallbackTest s_debug_callback;
+  s_debug_callback.Reset();
+
+  memory_tracker()->SetMemoryTrackerDebugCallback(&s_debug_callback);
+  void* memory_block = SbMemoryAllocate(8);
+  EXPECT_EQ_NO_TRACKING(memory_block, s_debug_callback.last_memory_block_);
+  EXPECT_EQ_NO_TRACKING(8, s_debug_callback.last_allocation_record_.size);
+  SbMemoryDeallocate(memory_block);
+}
+
 // Tests the expectation that the visitor can access the allocations.
 TEST_F(MemoryTrackerImplTest, VisitorAccess) {
   // Memory tracker is not enabled for this build.
