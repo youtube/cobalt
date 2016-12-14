@@ -88,94 +88,6 @@ class NoMemoryTracking {
   MemoryTracker* owner_;
 };
 
-// Bins the size according from all the encountered allocations.
-// If AllocationGroup* is non-null, then this is used as a filter such that
-// ONLY allocations belonging to that AllocationGroup are considered.
-class AllocationSizeBinner : public AllocationVisitor {
- public:
-  static size_t GetIndex(size_t size) {
-    size_t idx = 0;
-    for (int i = 0; i < 32; ++i) {
-      size_t val = 0x1 << i;
-      if (val > size) {
-        return i;
-      }
-    }
-    SB_NOTREACHED();
-    return 32;
-  }
-  explicit AllocationSizeBinner(const AllocationGroup* group_filter)
-      : group_filter_(group_filter) {
-    allocation_histogram_.resize(33);
-  }
-  bool PassesFilter(const AllocationRecord& alloc_record) const {
-    if (group_filter_ == NULL) {
-      return true;
-    }
-    return alloc_record.allocation_group == group_filter_;
-  }
-  virtual bool Visit(const void* memory,
-                     const AllocationRecord& alloc_record) SB_OVERRIDE {
-    if (PassesFilter(alloc_record)) {
-      const size_t idx = GetIndex(alloc_record.size);
-      allocation_histogram_[idx]++;
-    }
-    return true;
-  }
-
-  // Outputs CSV formatted string of the data values.
-  // The header containing the binning range is printed first, then the
-  // the number of allocations in that bin.
-  // Example:
-  //   "16...32","32...64","64...128","128...256",...
-  //   831,3726,3432,10285,...
-  //
-  // In this example there are 831 allocations of size 16-32 bytes.
-  std::string ToCSVString() const {
-    size_t first_idx = 0;
-    size_t end_idx = allocation_histogram_.size();
-
-    // Determine the start index by skipping all consecutive head entries
-    // that are 0.
-    while (first_idx < allocation_histogram_.size()) {
-      const size_t num_allocs = allocation_histogram_[first_idx];
-      if (num_allocs > 0) {
-        break;
-      }
-      first_idx++;
-    }
-
-    // Determine the end index by skipping all consecutive tail entries
-    // that are 0.
-    while (end_idx > 0) {
-      if (end_idx < allocation_histogram_.size()) {
-        const size_t num_allocs = allocation_histogram_[end_idx];
-        if (num_allocs > 0) {
-          break;
-        }
-      }
-      end_idx--;
-    }
-    std::stringstream ss;
-    for (size_t i = first_idx; i < end_idx; ++i) {
-      const size_t min = 0x1 << i;
-      const size_t max = min << 1;
-      std::stringstream name_ss;
-      name_ss << QUOTE << min << "..." << max << QUOTE;
-      ss << name_ss.str() << DELIMITER;
-    }
-    ss << NEW_LINE;
-    for (size_t i = first_idx; i < end_idx; ++i) {
-      const size_t num_allocs = allocation_histogram_[i];
-      ss << num_allocs << DELIMITER;
-    }
-    ss << NEW_LINE;
-    return ss.str();
-  }
- private:
-  std::vector<int> allocation_histogram_;
-  const AllocationGroup* group_filter_;  // Only these allocations are tracked.
-};
 }  // namespace
 
 SbMemoryReporter* MemoryTrackerImpl::GetMemoryReporter() {
@@ -1172,11 +1084,31 @@ void MemorySizeBinnerThread::Run() {
     std::stringstream ss;
     ss.precision(2);
     if (target_group) {
-      AllocationSizeBinner visitor = AllocationSizeBinner(target_group);
-      memory_tracker_->Accept(&visitor);
-      ss << "\nTimeNow "
-         << TimeInMinutes(SbTimeGetNow() - start_time) << " (minutes):\n"
-         << visitor.ToCSVString();
+      AllocationSizeBinner visitor_binner = AllocationSizeBinner(target_group);
+      memory_tracker_->Accept(&visitor_binner);
+
+      size_t min_size = 0;
+      size_t max_size = 0;
+
+      visitor_binner.GetLargestSizeRange(&min_size, &max_size);
+
+      FindTopSizes top_size_visitor =
+          FindTopSizes(min_size, max_size, target_group);
+      memory_tracker_->Accept(&top_size_visitor);
+
+      ss << NEW_LINE;
+      ss << "TimeNow " << TimeInMinutes(SbTimeGetNow() - start_time)
+         << " (minutes):";
+      ss << NEW_LINE;
+      ss << "Tracking " << memory_scope_name_ << ", ";
+      ss << "first row is allocation size range, second row is number of "
+         << NEW_LINE << "allocations in that range." << NEW_LINE;
+      ss << visitor_binner.ToCSVString();
+      ss << NEW_LINE;
+      ss << "Largest allocation range: \"" << min_size << "..." << max_size
+         << "\"" << NEW_LINE;
+      ss << "Printing out top allocations from this range: " << NEW_LINE;
+      ss << top_size_visitor.ToString(5) << NEW_LINE;
     } else {
       ss << "No allocations for javascript.";
     }
@@ -1188,6 +1120,193 @@ void MemorySizeBinnerThread::Run() {
     const SbTime one_second = 1000 * kSbTimeMillisecond;
     SbThreadSleep(one_second);
   }
+}
+
+size_t AllocationSizeBinner::GetBucketIndexForAllocationSize(size_t size) {
+  size_t idx = 0;
+  for (int i = 0; i < 32; ++i) {
+    size_t val = 0x1 << i;
+    if (val > size) {
+      return i;
+    }
+  }
+  SB_NOTREACHED();
+  return 32;
+}
+
+void AllocationSizeBinner::GetSizeRange(size_t size,
+                                        size_t* min_value,
+                                        size_t* max_value) {
+  size_t idx = GetBucketIndexForAllocationSize(size);
+  IndexToSizeRange(idx, min_value, max_value);
+}
+
+void AllocationSizeBinner::IndexToSizeRange(size_t idx,
+                                            size_t* min_value,
+                                            size_t* max_value) {
+  if (idx == 0) {
+    *min_value = 0;
+    *max_value = 0;
+    return;
+  }
+  *min_value = 0x1 << (idx - 1);
+  *max_value = (*min_value << 1) - 1;
+  return;
+}
+
+size_t AllocationSizeBinner::GetIndexRepresentingMostMemoryConsumption() const {
+  int64_t largest_allocation_total = 0;
+  size_t largest_allocation_total_idx = 0;
+
+  for (size_t i = 0; i < allocation_histogram_.size(); ++i) {
+    size_t alloc_size = 0x1 << i;
+    size_t count = allocation_histogram_[i];
+    int64_t allocation_total =
+        static_cast<int64_t>(alloc_size) * static_cast<int64_t>(count);
+
+    if (largest_allocation_total < allocation_total) {
+      largest_allocation_total = allocation_total;
+      largest_allocation_total_idx = i;
+    }
+  }
+  return largest_allocation_total_idx;
+}
+
+void AllocationSizeBinner::GetLargestSizeRange(size_t* min_value,
+                                               size_t* max_value) const {
+  size_t index = GetIndexRepresentingMostMemoryConsumption();
+  IndexToSizeRange(index, min_value, max_value);
+}
+
+AllocationSizeBinner::AllocationSizeBinner(const AllocationGroup* group_filter)
+    : group_filter_(group_filter) {
+  allocation_histogram_.resize(33);
+}
+
+bool AllocationSizeBinner::PassesFilter(
+    const AllocationRecord& alloc_record) const {
+  if (group_filter_ == NULL) {
+    return true;
+  }
+
+  return alloc_record.allocation_group == group_filter_;
+}
+
+bool AllocationSizeBinner::Visit(const void* memory,
+                                 const AllocationRecord& alloc_record) {
+  if (PassesFilter(alloc_record)) {
+    const size_t idx = GetBucketIndexForAllocationSize(alloc_record.size);
+    allocation_histogram_[idx]++;
+  }
+  return true;
+}
+
+std::string AllocationSizeBinner::ToCSVString() const {
+  size_t first_idx = 0;
+  size_t end_idx = allocation_histogram_.size();
+
+  // Determine the start index by skipping all consecutive head entries
+  // that are 0.
+  while (first_idx < allocation_histogram_.size()) {
+    const size_t num_allocs = allocation_histogram_[first_idx];
+    if (num_allocs > 0) {
+      break;
+    }
+    first_idx++;
+  }
+
+  // Determine the end index by skipping all consecutive tail entries
+  // that are 0.
+  while (end_idx > 0) {
+    if (end_idx < allocation_histogram_.size()) {
+      const size_t num_allocs = allocation_histogram_[end_idx];
+      if (num_allocs > 0) {
+        ++end_idx;
+        break;
+      }
+    }
+    end_idx--;
+  }
+
+  std::stringstream ss;
+  for (size_t i = first_idx; i < end_idx; ++i) {
+    size_t min = 0;
+    size_t max = 0;
+    IndexToSizeRange(i, &min, &max);
+    std::stringstream name_ss;
+    name_ss << QUOTE << min << "..." << max << QUOTE;
+    ss << name_ss.str() << DELIMITER;
+  }
+  ss << NEW_LINE;
+
+  for (size_t i = first_idx; i < end_idx; ++i) {
+    const size_t num_allocs = allocation_histogram_[i];
+    ss << num_allocs << DELIMITER;
+  }
+  ss << NEW_LINE;
+  return ss.str();
+}
+
+FindTopSizes::FindTopSizes(size_t minimum_size,
+                           size_t maximum_size,
+                           const AllocationGroup* group)
+    : minimum_size_(minimum_size),
+      maximum_size_(maximum_size),
+      group_filter_(group) {}
+
+bool FindTopSizes::Visit(const void* memory,
+                         const AllocationRecord& alloc_record) {
+  if (PassesFilter(alloc_record)) {
+    size_counter_[alloc_record.size]++;
+  }
+  return true;
+}
+
+std::string FindTopSizes::ToString(size_t max_elements_to_print) const {
+  std::vector<GroupAllocation> group_allocs = GetTopAllocations();
+  const size_t n = std::min(max_elements_to_print, group_allocs.size());
+
+  if (!group_allocs.empty()) {
+    std::stringstream ss;
+
+    for (size_t i = 0; i < n; ++i) {
+      GroupAllocation g = group_allocs[i];
+      size_t total_size = g.allocation_count * g.allocation_size;
+      ss << "    " << total_size
+         << " bytes allocated with object size: " << g.allocation_size
+         << " bytes in " << g.allocation_count << " instances " << NEW_LINE;
+    }
+    return ss.str();
+  } else {
+    return std::string();
+  }
+}
+
+std::vector<nb::analytics::FindTopSizes::GroupAllocation>
+FindTopSizes::GetTopAllocations() const {
+  std::vector<GroupAllocation> group_allocs;
+  // Push objects to a vector.
+  for (SizeCounterMap::const_iterator it = size_counter_.begin();
+       it != size_counter_.end(); ++it) {
+    GroupAllocation alloc = {it->first, it->second};
+    group_allocs.push_back(alloc);
+  }
+
+  std::sort(group_allocs.begin(), group_allocs.end(),
+            GroupAllocation::LessAllocationSize);
+  // Biggest first.
+  std::reverse(group_allocs.begin(), group_allocs.end());
+  return group_allocs;
+}
+
+bool FindTopSizes::PassesFilter(const AllocationRecord& alloc_record) const {
+  if (alloc_record.size < minimum_size_)
+    return false;
+  if (alloc_record.size > maximum_size_)
+    return false;
+  if (!group_filter_)
+    return true;  // No group filter when null.
+  return group_filter_ == alloc_record.allocation_group;
 }
 
 }  // namespace analytics

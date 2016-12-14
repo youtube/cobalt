@@ -555,6 +555,100 @@ TEST_F(MemoryTrackerImplTest, VisitorAccess) {
   EXPECT_EQ_NO_TRACKING(0, visitor.num_memory_allocs_);
 }
 
+// Tests the expectation that AllocationSizeBinner will correctly bin
+// allocations.
+TEST_F(MemoryTrackerImplTest, AllocationSizeBinner) {
+  // Memory tracker is not enabled for this build.
+  if (!MemoryTrackerEnabled()) {
+    return;
+  }
+
+  const size_t index =
+      AllocationSizeBinner::GetBucketIndexForAllocationSize(24);
+  EXPECT_EQ_NO_TRACKING(
+      5, AllocationSizeBinner::GetBucketIndexForAllocationSize(24));
+
+  const size_t kAllocSize = 24;
+
+  AllocationSizeBinner binner(NULL);
+  void* dummy_memory = SbMemoryAllocate(kAllocSize);
+
+  AllocationRecord allocation_record(kAllocSize, NULL);
+  binner.Visit(dummy_memory, allocation_record);
+
+  size_t min_val = 0;
+  size_t max_val = 0;
+  AllocationSizeBinner::GetSizeRange(kAllocSize, &min_val, &max_val);
+  EXPECT_EQ_NO_TRACKING(16, min_val);
+  EXPECT_EQ_NO_TRACKING(31, max_val);
+
+  // 0 -> [0,0]
+  // 1 -> [1,1]
+  // 2 -> [2,3]
+  // 3 -> [4,7]
+  // 4 -> [8,15]
+  // 5 -> [16,31] ...
+  EXPECT_EQ_NO_TRACKING(1, binner.allocation_histogram()[5]);
+
+  allocation_record.size = 15;
+  binner.Visit(NULL, allocation_record);
+  binner.Visit(NULL, allocation_record);
+
+  size_t min_value = 0;
+  size_t max_value = 0;
+  binner.GetLargestSizeRange(&min_value, &max_value);
+  EXPECT_EQ_NO_TRACKING(min_value, 8);
+  EXPECT_EQ_NO_TRACKING(max_value, 15);
+
+  std::string csv_string = binner.ToCSVString();
+
+  // Expect header.
+  bool found = (csv_string.find("\"8...15\",\"16...31\"") != std::string::npos);
+  EXPECT_TRUE_NO_TRACKING(found);
+
+  // Expect data.
+  found = (csv_string.find("2,1") != std::string::npos);
+  SbMemoryFree(dummy_memory);
+}
+
+// Tests the expectation that AllocationSizeBinner will correctly bin
+// allocations.
+TEST_F(MemoryTrackerImplTest, FindTopSizes) {
+  // Memory tracker is not enabled for this build.
+  if (!MemoryTrackerEnabled()) {
+    return;
+  }
+
+  const size_t min_size = 21;
+  const size_t max_size = 23;
+  AllocationGroup* group = NULL;  // signals "accept any group".
+
+  FindTopSizes top_sizes_visitor(min_size, max_size, group);
+
+  AllocationRecord record_a(21, group);
+  AllocationRecord record_b(22, group);
+  AllocationRecord record_c(22, group);
+  AllocationRecord record_d(24, group);
+
+  const void* dummy_alloc = NULL;
+  top_sizes_visitor.Visit(dummy_alloc, record_a);
+  top_sizes_visitor.Visit(dummy_alloc, record_b);
+  top_sizes_visitor.Visit(dummy_alloc, record_c);
+  top_sizes_visitor.Visit(dummy_alloc, record_d);
+
+  std::vector<FindTopSizes::GroupAllocation> top_allocations =
+      top_sizes_visitor.GetTopAllocations();
+
+  // Expect element 24 to be filtered out, leaving only 22 and 24.
+  EXPECT_EQ_NO_TRACKING(top_allocations.size(), 2);
+  // Expect that allocation size 22 is the top allocation.
+  EXPECT_EQ_NO_TRACKING(top_allocations[0].allocation_size, 22);
+  EXPECT_EQ_NO_TRACKING(top_allocations[0].allocation_count, 2);
+  // And then the 21 byte allocation.
+  EXPECT_EQ_NO_TRACKING(top_allocations[1].allocation_size, 21);
+  EXPECT_EQ_NO_TRACKING(top_allocations[1].allocation_count, 1);
+}
+
 // A stress test that rapidly adds allocations, but saves all deletions
 // for the main thread. This test will catch concurrency errors related
 // to reporting new allocations.
