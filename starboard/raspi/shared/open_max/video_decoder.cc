@@ -21,13 +21,9 @@ namespace raspi {
 namespace shared {
 namespace open_max {
 
-using starboard::shared::starboard::player::VideoFrame;
-
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
     : host_(NULL), stream_ended_(false) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
-
-  component_.Start();
 }
 
 VideoDecoder::~VideoDecoder() {}
@@ -36,6 +32,8 @@ void VideoDecoder::SetHost(Host* host) {
   SB_DCHECK(host != NULL);
   SB_DCHECK(host_ == NULL);
   host_ = host;
+
+  component_.Start();
 }
 
 void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
@@ -45,13 +43,17 @@ void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
     SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
     return;
   }
+
   component_.WriteData(input_buffer.data(), input_buffer.size(),
                        input_buffer.pts() * kSbTimeSecond / kSbMediaTimeSecond);
-  if (scoped_refptr<VideoFrame> frame = component_.ReadVideoFrame()) {
+  bool frame_sent = false;
+  while (scoped_refptr<VideoFrame> frame = component_.ReadFrame()) {
     host_->OnDecoderStatusUpdate(kNeedMoreInput, frame);
-  } else {
-    // Call the callback with NULL frame to ensure that the host know that more
-    // data is expected.
+    frame_sent = true;
+  }
+  // Call the callback with NULL frame to ensure that the host know that more
+  // data is expected.
+  if (!frame_sent) {
     host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
   }
 }

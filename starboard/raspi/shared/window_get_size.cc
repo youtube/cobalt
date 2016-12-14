@@ -25,6 +25,9 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
 
   size->width = window->window.width;
   size->height = window->window.height;
-  size->video_pixel_ratio = 1.0f;
+  if (size->height > 720) {
+    // Limit the maximum video resolution on raspi to 720p.
+    size->video_pixel_ratio = 720.f / size->height;
+  }
   return true;
 }

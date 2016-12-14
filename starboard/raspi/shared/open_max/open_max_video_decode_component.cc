@@ -26,8 +26,8 @@ namespace open_max {
 namespace {
 
 const char kVideoDecodeComponentName[] = "OMX.broadcom.video_decode";
-const size_t kResourcePoolSize = 12;
-const size_t kOMXOutputBufferCount = 4;
+const size_t kResourcePoolSize = 26;
+const size_t kOMXOutputBufferCount = 12;
 const int kMaxFrameWidth = 1920;
 const int kMaxFrameHeight = 1088;
 const size_t kMaxVideoFrameSize = kMaxFrameWidth * kMaxFrameHeight * 3 / 2;
@@ -39,16 +39,14 @@ typedef OpenMaxVideoDecodeComponent::VideoFrame VideoFrame;
 VideoFrameResourcePool::VideoFrameResourcePool(size_t max_number_of_resources)
     : max_number_of_resources_(max_number_of_resources),
       number_of_resources_(0),
+      last_frame_width_(0),
       last_frame_height_(0) {}
 
 VideoFrameResourcePool::~VideoFrameResourcePool() {
-  for (ResourceMap::iterator iter = resource_map_.begin();
-       iter != resource_map_.end(); ++iter) {
-    while (!iter->second.empty()) {
-      delete iter->second.front();
-      iter->second.pop();
-      --number_of_resources_;
-    }
+  while (!free_resources_.empty()) {
+    delete free_resources_.front();
+    free_resources_.pop();
+    --number_of_resources_;
   }
   SB_DCHECK(number_of_resources_ == 0) << number_of_resources_;
 }
@@ -59,12 +57,20 @@ DispmanxYUV420Resource* VideoFrameResourcePool::Alloc(int width,
                                                       int visible_height) {
   ScopedLock scoped_lock(mutex_);
 
+  if (last_frame_width_ != width || last_frame_height_ != height) {
+    while (!free_resources_.empty()) {
+      delete free_resources_.front();
+      free_resources_.pop();
+      --number_of_resources_;
+    }
+  }
+
+  last_frame_width_ = width;
   last_frame_height_ = height;
 
-  ResourceMap::iterator iter = resource_map_.find(height);
-  if (iter != resource_map_.end() && !iter->second.empty()) {
-    DispmanxYUV420Resource* resource = iter->second.front();
-    iter->second.pop();
+  if (!free_resources_.empty()) {
+    DispmanxYUV420Resource* resource = free_resources_.front();
+    free_resources_.pop();
     return resource;
   }
 
@@ -79,13 +85,14 @@ DispmanxYUV420Resource* VideoFrameResourcePool::Alloc(int width,
 
 void VideoFrameResourcePool::Free(DispmanxYUV420Resource* resource) {
   ScopedLock scoped_lock(mutex_);
-  if (resource->height() != last_frame_height_) {
+  if (resource->width() != last_frame_width_ ||
+      resource->height() != last_frame_height_) {
     // The video has adapted, free the resource as it won't be reused any soon.
     delete resource;
     --number_of_resources_;
     return;
   }
-  resource_map_[resource->height()].push(resource);
+  free_resources_.push(resource);
 }
 
 // static
@@ -102,24 +109,58 @@ void VideoFrameResourcePool::DisposeDispmanxYUV420Resource(
 
 OpenMaxVideoDecodeComponent::OpenMaxVideoDecodeComponent()
     : OpenMaxComponent(kVideoDecodeComponentName),
-      resource_pool_(new VideoFrameResourcePool(kResourcePoolSize)) {
+      resource_pool_(new VideoFrameResourcePool(kResourcePoolSize)),
+      frame_creator_thread_(kSbThreadInvalid),
+      buffer_filled_condition_variable_(mutex_),
+      kill_frame_creator_thread_(false) {
   OMXVideoParamPortFormat port_format;
   GetInputPortParam(&port_format);
   port_format.eCompressionFormat = OMX_VIDEO_CodingAVC;
   SetPortParam(port_format);
 }
 
-scoped_refptr<VideoFrame> OpenMaxVideoDecodeComponent::ReadVideoFrame() {
-  if (OMX_BUFFERHEADERTYPE* buffer = PeekNextOutputBuffer()) {
-    if (scoped_refptr<VideoFrame> frame = CreateVideoFrame(buffer)) {
-      DropNextOutputBuffer();
-      return frame;
-    }
-  }
-  return NULL;
+OpenMaxVideoDecodeComponent::~OpenMaxVideoDecodeComponent() {
+  Flush();
 }
 
-scoped_refptr<VideoFrame> OpenMaxVideoDecodeComponent::CreateVideoFrame(
+scoped_refptr<VideoFrame> OpenMaxVideoDecodeComponent::ReadFrame() {
+  if (!SbThreadIsValid(frame_creator_thread_)) {
+    SB_DCHECK(!kill_frame_creator_thread_);
+    frame_creator_thread_ = SbThreadCreate(
+        0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
+        "omx_video_decoder",
+        &OpenMaxVideoDecodeComponent::FrameCreatorThreadEntryPoint, this);
+  }
+
+  ScopedLock scoped_lock(mutex_);
+  if (decoded_frames_.empty()) {
+    return NULL;
+  }
+  scoped_refptr<VideoFrame> frame = decoded_frames_.front();
+  decoded_frames_.pop();
+  return frame;
+}
+
+void OpenMaxVideoDecodeComponent::Flush() {
+  if (SbThreadIsValid(frame_creator_thread_)) {
+    {
+      ScopedLock scoped_lock(mutex_);
+      kill_frame_creator_thread_ = true;
+      buffer_filled_condition_variable_.Signal();
+    }
+    SbThreadJoin(frame_creator_thread_, NULL);
+    frame_creator_thread_ = kSbThreadInvalid;
+    kill_frame_creator_thread_ = false;
+  }
+
+  while (!decoded_frames_.empty()) {
+    decoded_frames_.pop();
+  }
+
+  OpenMaxComponent::Flush();
+}
+
+scoped_refptr<VideoFrame> OpenMaxVideoDecodeComponent::CreateFrame(
     OMX_BUFFERHEADERTYPE* buffer) {
   scoped_refptr<VideoFrame> frame;
   if (buffer->nFlags & OMX_BUFFERFLAG_EOS) {
@@ -162,6 +203,49 @@ bool OpenMaxVideoDecodeComponent::OnEnableOutputPort(
   port_definition->nBufferSize =
       std::max(port_definition->nBufferSize, kMaxVideoFrameSize);
   return true;
+}
+
+void OpenMaxVideoDecodeComponent::OnOutputBufferFilled() {
+  ScopedLock scoped_lock(mutex_);
+  buffer_filled_condition_variable_.Signal();
+}
+
+void OpenMaxVideoDecodeComponent::OnOutputSettingChanged() {
+  ScopedLock scoped_lock(mutex_);
+  buffer_filled_condition_variable_.Signal();
+}
+
+void OpenMaxVideoDecodeComponent::CreateFrames() {
+  for (;;) {
+    OMX_BUFFERHEADERTYPE* buffer = PeekNextOutputBuffer();
+    {
+      ScopedLock scoped_lock(mutex_);
+      if (kill_frame_creator_thread_) {
+        return;
+      }
+      if (!buffer) {
+        buffer_filled_condition_variable_.Wait();
+        continue;
+      }
+    }
+    if (scoped_refptr<VideoFrame> frame = CreateFrame(buffer)) {
+      DropNextOutputBuffer();
+      ScopedLock scoped_lock(mutex_);
+      decoded_frames_.push(frame);
+    } else {
+      // This indicates that there is a very large frame backlog and it is safe
+      // to sleep for a while in this case.
+      SbThreadSleep(kSbTimeMillisecond * 10);
+    }
+  }
+}
+
+// static
+void* OpenMaxVideoDecodeComponent::FrameCreatorThreadEntryPoint(void* context) {
+  OpenMaxVideoDecodeComponent* component =
+      reinterpret_cast<OpenMaxVideoDecodeComponent*>(context);
+  component->CreateFrames();
+  return NULL;
 }
 
 }  // namespace open_max
