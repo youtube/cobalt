@@ -168,9 +168,10 @@ TEST(SbMicrophoneCreateTest, RainyDayInvalidBufferSize_2G) {
   if (available_microphones != 0) {
     ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
         info_array[0].id, info_array[0].max_sample_rate_hz));
+    // Create a microphone with 2 gigabytes buffer size.
     SbMicrophone microphone =
         SbMicrophoneCreate(info_array[0].id, info_array[0].max_sample_rate_hz,
-                           2 * 1024 * 1024 * 1024L);
+                           2 * 1024 * 1024 * 1024LL);
     EXPECT_FALSE(SbMicrophoneIsValid(microphone));
     SbMicrophoneDestroy(microphone);
   }
