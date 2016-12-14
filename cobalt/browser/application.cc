@@ -34,7 +34,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
-#include "cobalt/browser/memory_tracker_tool.h"
+#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/loader/image/image_decoder.h"
@@ -442,7 +442,8 @@ Application::Application(const base::Closure& quit_closure)
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);
-    memory_tracker_tool_ = CreateMemoryTrackerTool(command_arg);
+    memory_tracker_tool_ =
+        memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
