@@ -57,12 +57,16 @@ class VideoRenderer : private VideoDecoder::Host {
 
   // Preroll considered finished after either kPrerollFrames is cached or EOS
   // is reached.
-  static const size_t kPrerollFrames = 1;
+  static const size_t kPrerollFrames = 8;
   // Set a soft limit for the max video frames we can cache so we can:
   // 1. Avoid using too much memory.
   // 2. Have the frame cache full to simulate the state that the renderer can
   //    no longer accept more data.
-  static const size_t kMaxCachedFrames = 8;
+  static const size_t kMaxCachedFrames = 12;
+  // When there are more encoded frames inside the decoder than the following
+  // number, the render no longer sends more data to the decoder until some
+  // frames are decoded.
+  static const int kMaxDecodingFrames = 60;
 
   // VideoDecoder::Host method.
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
