@@ -29,6 +29,7 @@ class VideoDecoder
     : public starboard::shared::starboard::player::filter::VideoDecoder {
  public:
   typedef starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
 
   explicit VideoDecoder(SbMediaVideoCodec video_codec);
   ~VideoDecoder() SB_OVERRIDE;

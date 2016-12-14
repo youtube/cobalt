@@ -19,8 +19,11 @@
 #include <queue>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/condition_variable.h"
+#include "starboard/mutex.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/raspi/shared/open_max/open_max_component.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace raspi {
@@ -44,36 +47,52 @@ class VideoFrameResourcePool
 
  private:
   typedef std::queue<DispmanxYUV420Resource*> ResourceQueue;
-  // Map frame height to resource handles.
-  typedef std::map<int, ResourceQueue> ResourceMap;
 
   const size_t max_number_of_resources_;
 
   Mutex mutex_;
   size_t number_of_resources_;
+  int last_frame_width_;
   int last_frame_height_;
-  ResourceMap resource_map_;
+  ResourceQueue free_resources_;
 };
 
 // Encapsulate a "OMX.broadcom.video_decode" component.  Note that member
 // functions of this class is expected to be called from ANY threads as this
 // class works with the VideoDecoder filter, the OpenMAX component, and also
 // manages the disposition of Dispmanx resource.
-class OpenMaxVideoDecodeComponent : public OpenMaxComponent {
+class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
  public:
   typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
 
-  OpenMaxVideoDecodeComponent();
+  using OpenMaxComponent::Start;
+  using OpenMaxComponent::WriteData;
+  using OpenMaxComponent::WriteEOS;
 
-  scoped_refptr<VideoFrame> ReadVideoFrame();
+  OpenMaxVideoDecodeComponent();
+  ~OpenMaxVideoDecodeComponent();
+
+  scoped_refptr<VideoFrame> ReadFrame();
+  void Flush();
 
  private:
-  scoped_refptr<VideoFrame> CreateVideoFrame(OMX_BUFFERHEADERTYPE* buffer);
+  scoped_refptr<VideoFrame> CreateFrame(OMX_BUFFERHEADERTYPE* buffer);
 
   bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) SB_OVERRIDE;
+  void OnOutputBufferFilled() SB_OVERRIDE;
+  void OnOutputSettingChanged() SB_OVERRIDE;
+
+  void CreateFrames();
+  static void* FrameCreatorThreadEntryPoint(void* context);
 
   scoped_refptr<VideoFrameResourcePool> resource_pool_;
   OMXParamPortDefinition output_port_definition_;
+
+  SbThread frame_creator_thread_;
+  Mutex mutex_;
+  ConditionVariable buffer_filled_condition_variable_;
+  bool kill_frame_creator_thread_;
+  std::queue<scoped_refptr<VideoFrame> > decoded_frames_;
 };
 
 }  // namespace open_max
