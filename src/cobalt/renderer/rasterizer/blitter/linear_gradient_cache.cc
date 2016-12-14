@@ -45,7 +45,9 @@ SbBlitterSurface LinearGradientCache::Get(const LinearGradientBrush& brush) {
   if (cache_result == cache_.end()) {
     return kSbBlitterInvalidSurface;
   }
-  return cache_result->value;
+  SbBlitterSurface surface = cache_result->value;
+  DCHECK(SbBlitterIsSurfaceValid(surface));
+  return surface;
 }
 
 }  // namespace blitter

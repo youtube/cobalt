@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef COBALT_BASE_CIRCULAR_BUFFER_CACHE_H_
-#define COBALT_BASE_CIRCULAR_BUFFER_CACHE_H_
+#ifndef COBALT_BASE_FIXED_SIZE_LRU_CACHE_H_
+#define COBALT_BASE_FIXED_SIZE_LRU_CACHE_H_
 
 #include <algorithm>
 #include <functional>
@@ -38,6 +38,7 @@ class FixedSizeLRUCache {
   };
 
   typedef value_type* iterator;
+  typedef value_type const* const_iterator;
 
   // Functor that checks if two items have keys that match (based on a template
   // argument).
@@ -51,10 +52,17 @@ class FixedSizeLRUCache {
   };
 
   iterator begin() { return data_; }
+  const_iterator begin() const { return data_; }
   iterator end() {
-    return begin() + std::min(current_index_,
-                              static_cast<std::size_t>(kMaxItemsInBuffer));
+    DCHECK_LE(current_index_, kMaxItemsInBuffer);
+    return begin() + current_index_;
   }
+  const_iterator end() const {
+    DCHECK_LE(current_index_, kMaxItemsInBuffer);
+    return begin() + current_index_;
+  }
+
+  std::size_t size() const { return std::distance(begin(), end()); }
 
   FixedSizeLRUCache() : current_index_(0) {}
   ~FixedSizeLRUCache() {
@@ -65,12 +73,15 @@ class FixedSizeLRUCache {
 
   // Complexity is O(N).
   iterator find(const Key& key) {
-    iterator it = std::find_if(begin(), end(), KeyEqual(key));
-    if (it != end()) {
+    value_type* array_end = end();
+    iterator it = std::find_if(begin(), array_end, KeyEqual(key));
+    if (it != array_end) {
       MoveToFront(it);
+
       return begin();
     }
-    return end();
+
+    return array_end;
   }
 
   bool empty() const { return current_index_ == 0; }
@@ -116,21 +127,30 @@ class FixedSizeLRUCache {
     if (it == begin()) {
       return;
     }
+    DCHECK_NE(it, end());
     value_type tmp(*it);
     ShiftValuesDown(begin(), it + 1);
     std::swap(*begin(), tmp);
     COMPILE_ASSERT(kMaxItemsInBuffer > 0, array_size_must_be_non_zero);
   }
 
+  // This function takes in two forward iterators, and shifts items down
+  // so that the starting_iterator now points to an empty value that can be
+  // written to, and the value near the ending_iterator is overwritten.
+  // The function does not call the destructor on any values, so it is advised
+  // that the destructor be called on the value that is to be ovewritten before
+  // this function is called.
   void ShiftValuesDown(iterator starting_iterator, iterator ending_iterator) {
     std::size_t distance = std::distance(starting_iterator, ending_iterator);
     if (distance > 1) {
       std::size_t items_to_move = distance - 1;
-      std::copy(begin(), begin() + items_to_move, begin() + 1);
+      DCHECK_LT(items_to_move, kMaxItemsInBuffer);
+      std::copy_backward(starting_iterator, starting_iterator + items_to_move,
+                         ending_iterator);
     }
   }
 };
 
 }  // namespace base
 
-#endif  // COBALT_BASE_CIRCULAR_BUFFER_CACHE_H_
+#endif  // COBALT_BASE_FIXED_SIZE_LRU_CACHE_H_

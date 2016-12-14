@@ -142,6 +142,17 @@ class WebModule {
     // must be less than or equal to 1.0f) until the video ends.  This can
     // help for platforms that are low on image memory while playing a video.
     float image_cache_capacity_multiplier_when_playing_video;
+
+    // Specifies the priority of the web module's thread.  This is the thread
+    // that is responsible for executing JavaScript, managing the DOM, and
+    // performing layouts.  The default value is base::kThreadPriority_Normal.
+    base::ThreadPriority thread_priority;
+
+    // Specifies the priority that the web module's corresponding loader thread
+    // will be assigned.  This is the thread responsible for performing resource
+    // decoding, such as image decoding.  The default value is
+    // base::kThreadPriority_Low.
+    base::ThreadPriority loader_thread_priority;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
