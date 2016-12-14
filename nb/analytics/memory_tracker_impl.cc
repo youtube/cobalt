@@ -104,20 +104,16 @@ class AllocationSizeBinner : public AllocationVisitor {
     SB_NOTREACHED();
     return 32;
   }
-
   explicit AllocationSizeBinner(const AllocationGroup* group_filter)
       : group_filter_(group_filter) {
     allocation_histogram_.resize(33);
   }
-
   bool PassesFilter(const AllocationRecord& alloc_record) const {
     if (group_filter_ == NULL) {
       return true;
     }
-
     return alloc_record.allocation_group == group_filter_;
   }
-
   virtual bool Visit(const void* memory,
                      const AllocationRecord& alloc_record) SB_OVERRIDE {
     if (PassesFilter(alloc_record)) {
@@ -160,7 +156,6 @@ class AllocationSizeBinner : public AllocationVisitor {
       }
       end_idx--;
     }
-
     std::stringstream ss;
     for (size_t i = first_idx; i < end_idx; ++i) {
       const size_t min = 0x1 << i;
@@ -170,7 +165,6 @@ class AllocationSizeBinner : public AllocationVisitor {
       ss << name_ss.str() << DELIMITER;
     }
     ss << NEW_LINE;
-
     for (size_t i = first_idx; i < end_idx; ++i) {
       const size_t num_allocs = allocation_histogram_[i];
       ss << num_allocs << DELIMITER;
@@ -178,12 +172,10 @@ class AllocationSizeBinner : public AllocationVisitor {
     ss << NEW_LINE;
     return ss.str();
   }
-
  private:
   std::vector<int> allocation_histogram_;
   const AllocationGroup* group_filter_;  // Only these allocations are tracked.
 };
-
 }  // namespace
 
 SbMemoryReporter* MemoryTrackerImpl::GetMemoryReporter() {
@@ -267,6 +259,7 @@ void MemoryTrackerImpl::Clear() {
   // memory deallocation.
   atomic_allocation_map_.Clear();
   total_bytes_allocated_.store(0);
+  debug_callback_ = NULL;
 }
 
 void MemoryTrackerImpl::Debug_PushAllocationGroupBreakPointByName(
@@ -416,6 +409,11 @@ bool MemoryTrackerImpl::IsCurrentThreadAllowedToReport() const {
   return SbThreadGetId() == thread_filter_id_;
 }
 
+void MemoryTrackerImpl::SetMemoryTrackerDebugCallback(
+    MemoryTrackerDebugCallback* cb) {
+  debug_callback_ = cb;
+}
+
 MemoryTrackerImpl::DisableDeletionInScope::DisableDeletionInScope(
     MemoryTrackerImpl* owner)
     : owner_(owner) {
@@ -428,7 +426,7 @@ MemoryTrackerImpl::DisableDeletionInScope::~DisableDeletionInScope() {
 }
 
 MemoryTrackerImpl::MemoryTrackerImpl()
-    : thread_filter_id_(kSbThreadInvalidId) {
+    : thread_filter_id_(kSbThreadInvalidId), debug_callback_(NULL) {
   total_bytes_allocated_.store(0);
   global_hooks_installed_ = false;
   Initialize(&sb_memory_tracker_, &nb_memory_scope_reporter_);
@@ -472,7 +470,7 @@ bool MemoryTrackerImpl::AddMemoryTracking(const void* memory, size_t size) {
 #ifndef NDEBUG
   // This section of the code is designed to allow a developer to break
   // execution whenever the debug allocation stack is in scope, so that the
-  // allocations can be stepped through.
+  // allocations can be stepped through. This is a THREAD LOCAL operation.
   // Example:
   //   Debug_PushAllocationGroupBreakPointByName("Javascript");
   //  ...now set a break point below at "static int i = 0"
@@ -488,6 +486,12 @@ bool MemoryTrackerImpl::AddMemoryTracking(const void* memory, size_t size) {
   if (added) {
     AddAllocationBytes(size);
     group->AddAllocation(size);
+    // Useful for investigating what the heck is being allocated. For example
+    // the developer may want to track certain allocations that meet a certain
+    // criteria.
+    if (debug_callback_) {
+      debug_callback_->OnMemoryAllocation(memory, alloc_record);
+    }
   } else {
     // Handles the case where the memory hasn't been properly been reported
     // released. This is less serious than you would think because the memory
@@ -585,7 +589,6 @@ MemoryTrackerImpl::DisableMemoryTrackingInScope::
     ~DisableMemoryTrackingInScope() {
   owner_->SetMemoryTrackingEnabled(prev_value_);
 }
-
 
 MemoryTrackerPrintThread::MemoryTrackerPrintThread(
     MemoryTracker* memory_tracker)
