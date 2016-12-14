@@ -27,6 +27,7 @@ namespace nb {
 namespace analytics {
 
 class MemoryTracker;
+class MemoryTrackerDebugCallback;
 class MemoryTrackerPrintThread;
 class MemoryTrackerPrintCSVThread;
 class MemoryTrackerCompressedTimeSeriesThread;
@@ -118,6 +119,13 @@ class MemoryTracker {
   // supplied AllocRecord is written.
   virtual bool GetMemoryTracking(const void* memory,
                                  AllocationRecord* record) const = 0;
+  // Attaches a debug callback which fires on every new allocation that becomes
+  // visible. The intended use case is to allow the developer to inspect
+  // allocations that meet certain criteria. For example all allocations that
+  // are of a certain size range and are allocated under a particular memory
+  // scope.
+  virtual void SetMemoryTrackerDebugCallback(
+      MemoryTrackerDebugCallback* cb) = 0;
 
  protected:
   virtual ~MemoryTracker() {}
@@ -132,6 +140,18 @@ class AllocationVisitor {
   virtual bool Visit(const void* memory,
                      const AllocationRecord& alloc_record) = 0;
   virtual ~AllocationVisitor() {}
+};
+
+// See also MemoryTracker::SetMemoryTrackerDebugCallback(...)
+// The intended use case is to allow the developer to inspect
+// allocations that meet certain criteria. For example all allocations that
+// are of a certain size range and are allocated under a particular memory
+// scope.
+class MemoryTrackerDebugCallback {
+ public:
+  virtual ~MemoryTrackerDebugCallback() {}
+  virtual void OnMemoryAllocation(const void* memory_block,
+                                  const AllocationRecord& record) = 0;
 };
 
 // Contains an allocation record for a pointer including it's size and what
