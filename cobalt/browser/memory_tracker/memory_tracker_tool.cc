@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/browser/memory_tracker_tool.h"
+#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 
 #include <map>
 #include <string>
@@ -31,12 +31,12 @@
 
 namespace cobalt {
 namespace browser {
+namespace memory_tracker {
 
 #if !defined(OS_STARBOARD)
 // A dummy implementation.
 scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(const std::string&) {
-  DLOG(INFO)
-      << "Memory tracker tool is not enabled on non-starboard builds.";
+  DLOG(INFO) << "Memory tracker tool is not enabled on non-starboard builds.";
   return scoped_ptr<MemoryTrackerTool>();
 }
 
@@ -54,10 +54,11 @@ enum SwitchEnum {
 struct SwitchVal {
   SwitchVal() : help_msg(), enum_value(kNull) {}
   SwitchVal(const SwitchVal& other)
-    : tool_name(other.tool_name), help_msg(other.help_msg),
-      enum_value(other.enum_value) {}
+      : tool_name(other.tool_name),
+        help_msg(other.help_msg),
+        enum_value(other.enum_value) {}
   SwitchVal(const char* name, const char* msg, SwitchEnum val)
-    : tool_name(name), help_msg(msg), enum_value(val) {}
+      : tool_name(name), help_msg(msg), enum_value(val) {}
 
   std::string tool_name;
   std::string help_msg;
@@ -68,9 +69,7 @@ struct SwitchVal {
 
 class MemoryTrackerThreadImpl : public MemoryTrackerTool {
  public:
-  explicit MemoryTrackerThreadImpl(nb::SimpleThread* ptr)
-    : thread_ptr_(ptr) {
-  }
+  explicit MemoryTrackerThreadImpl(nb::SimpleThread* ptr) : thread_ptr_(ptr) {}
 
   virtual ~MemoryTrackerThreadImpl() OVERRIDE {}
   scoped_ptr<nb::SimpleThread> thread_ptr_;
@@ -89,38 +88,38 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   typedef std::map<std::string, SwitchVal> SwitchMap;
 
   SwitchVal startup_tool(
-    "startup",  // Name of tool.
-    "Records high-frequency memory metrics for the first 60 "
-    "seconds of program launch and then dumps it out in CSV format "
-    "to stdout.",
-    kStartup);
+      "startup",  // Name of tool.
+      "Records high-frequency memory metrics for the first 60 "
+      "seconds of program launch and then dumps it out in CSV format "
+      "to stdout.",
+      kStartup);
 
   SwitchVal continuous_printer_tool(
-    "continuous_printer",  // Name of tool.
-    "Once every second the memory state is dumped to stdout.",
-    kContinuousPrinter);
+      "continuous_printer",  // Name of tool.
+      "Once every second the memory state is dumped to stdout.",
+      kContinuousPrinter);
 
   SwitchVal compressed_timeseries_tool(
-    "compressed_timeseries",  // Name of tool.
-    "Use this tool to see the growth in memory usage as the app runs. The "
-    "memory growth is segmented into memory scopes and outputted as CSV. "
-    "The compressed time-series will depict the full history of the memory "
-    "using a fixed number of rows. Older history has degraded resolution and "
-    "while new entries are captured in full detail. This achieved by evicting "
-    "old entries by an exponential decay scheme.",
-    kCompressedTimeseries);
+      "compressed_timeseries",  // Name of tool.
+      "Use this tool to see the growth in memory usage as the app runs. The "
+      "memory growth is segmented into memory scopes and outputted as CSV. "
+      "The compressed time-series will depict the full history of the memory "
+      "using a fixed number of rows. Older history has degraded resolution and "
+      "while new entries are captured in full detail. This achieved by "
+      "evicting "
+      "old entries by an exponential decay scheme.",
+      kCompressedTimeseries);
 
   SwitchVal javascript_memory_tool(
-    "javascript",
-    "Dumps javascript memory statistics once a second in CSV format to "
-    "stdout.",
-    kJavascriptMemoryAnalytics);
+      "javascript",
+      "Dumps javascript memory statistics once a second in CSV format to "
+      "stdout.",
+      kJavascriptMemoryAnalytics);
 
   SwitchMap switch_map;
   switch_map[startup_tool.tool_name] = startup_tool;
   switch_map[continuous_printer_tool.tool_name] = continuous_printer_tool;
-  switch_map[compressed_timeseries_tool.tool_name] =
-    compressed_timeseries_tool;
+  switch_map[compressed_timeseries_tool.tool_name] = compressed_timeseries_tool;
 
   // FAST OUT - is a thread type not selected? Then print out a help menu
   // and request that the app should shut down.
@@ -131,11 +130,11 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     ss << "\nNo memory tracker tool selected so help has been invoked:\n";
     ss << "Memory Tracker help:\n";
     for (SwitchMap::const_iterator it = switch_map.begin();
-      it != switch_map.end(); ++it) {
-        const std::string& name = it->first;
-        const SwitchVal& val = it->second;
-        ss << "    memory_tracker="
-          << name << " " << "\"" << val.help_msg << "\"\n";
+         it != switch_map.end(); ++it) {
+      const std::string& name = it->first;
+      const SwitchVal& val = it->second;
+      ss << "    memory_tracker=" << name << " "
+         << "\"" << val.help_msg << "\"\n";
     }
     ss << "\n";
     SbLogRaw(ss.str().c_str());
@@ -182,17 +181,15 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     }
     case kStartup: {
       // Create a thread that will gather memory metrics for startup.
-      thread_ptr.reset(
-          new MemoryTrackerPrintCSVThread(
-              memory_tracker,
-              1000,          // Sample once a second.
-              60* 1000));    // Output after 60 seconds.
+      thread_ptr.reset(new MemoryTrackerPrintCSVThread(
+          memory_tracker,
+          1000,         // Sample once a second.
+          60 * 1000));  // Output after 60 seconds.
       break;
     }
     case kContinuousPrinter: {
       // Create a thread that will continuously report memory use.
-      thread_ptr.reset(
-          new MemoryTrackerPrintThread(memory_tracker));
+      thread_ptr.reset(new MemoryTrackerPrintThread(memory_tracker));
       break;
     }
     case kCompressedTimeseries: {
@@ -220,5 +217,6 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
 
 #endif  // defined(OS_STARBOARD)
 
+}  // namespace memory_tracker
 }  // namespace browser
 }  // namespace cobalt
