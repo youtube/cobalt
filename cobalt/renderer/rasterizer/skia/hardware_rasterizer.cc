@@ -255,7 +255,6 @@ void HardwareRasterizer::Impl::Submit(
     // Create an SkSurface from the render target so that we can acquire a
     // SkCanvas object from it in Submit().
     sk_output_surface = CreateSkiaRenderTargetSurface(skia_render_target);
-    sk_output_surface->ref();
     sk_output_surface_map_[render_target] = sk_output_surface;
   } else {
     sk_output_surface = sk_output_surface_map_[render_target];
