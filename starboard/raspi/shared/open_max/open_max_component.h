@@ -30,6 +30,7 @@
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/thread.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -109,10 +110,13 @@ class OpenMaxComponent {
   virtual bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) {
     return false;
   }
+  virtual void OnOutputSettingChanged() {}
+  virtual void OnOutputBufferFilled() {}
 
   void SendCommand(OMX_COMMANDTYPE command, int param);
   void WaitForCommandCompletion();
   void SendCommandAndWaitForCompletion(OMX_COMMANDTYPE command, int param);
+  void DisableOutputPort();
   void EnableInputPortAndAllocateBuffers();
   void EnableOutputPortAndAllocateBuffer();
   OMX_BUFFERHEADERTYPE* GetUnusedInputBuffer();
@@ -123,6 +127,7 @@ class OpenMaxComponent {
                         OMX_PTR event_data);
   OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer);
   void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer);
+  void RunFillBufferLoop();
 
   static OMX_ERRORTYPE EventHandler(OMX_HANDLETYPE handle,
                                     OMX_PTR app_data,
@@ -136,9 +141,10 @@ class OpenMaxComponent {
   static OMX_ERRORTYPE FillBufferDone(OMX_HANDLETYPE handle,
                                       OMX_PTR app_data,
                                       OMX_BUFFERHEADERTYPE* buffer);
+  static void* FillBufferThreadEntryPoint(void* context);
 
   Mutex mutex_;
-  ConditionVariable condition_variable_;
+  ConditionVariable event_condition_variable_;
   OMX_HANDLETYPE handle_;
   int input_port_;
   int output_port_;
@@ -148,6 +154,11 @@ class OpenMaxComponent {
   std::queue<OMX_BUFFERHEADERTYPE*> unused_input_buffers_;
   std::vector<OMX_BUFFERHEADERTYPE*> output_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_output_buffers_;
+  std::queue<OMX_BUFFERHEADERTYPE*> unused_output_buffers_;
+
+  SbThread fill_buffer_thread_;
+  bool kill_fill_buffer_thread_;
+  ConditionVariable output_available_condition_variable_;
 };
 
 }  // namespace open_max

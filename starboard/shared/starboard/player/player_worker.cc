@@ -50,7 +50,6 @@ PlayerWorker::PlayerWorker(Host* host,
   pending_audio_sample_.input_buffer = NULL;
   pending_video_sample_.input_buffer = NULL;
 
-  SB_DCHECK(!SbThreadIsValid(thread_));
   thread_ =
       SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
                      "player_worker", &PlayerWorker::ThreadEntryPoint, this);
