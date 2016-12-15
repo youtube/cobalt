@@ -403,7 +403,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
       data.options.location_policy, data.options.csp_enforcement_mode,
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
-      data.window_close_callback, data.options.csp_insecure_allowed_token);
+      data.window_close_callback, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
