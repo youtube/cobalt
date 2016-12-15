@@ -105,7 +105,7 @@ int64_t SbPageGetUnallocatedPhysicalMemoryBytes() {
   size_t program_size = 0;
   size_t resident = 0;
 
-  fscanf(f, "%lu %lu", &program_size, &resident);
+  fscanf(f, "%zu %zu", &program_size, &resident);
   fclose(f);
   return SbPageGetTotalPhysicalMemoryBytes() - resident * SB_MEMORY_PAGE_SIZE;
 }

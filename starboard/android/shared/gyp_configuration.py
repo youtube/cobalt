@@ -65,6 +65,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     variables.update({
         'NDK_HOME': ndk_utils.NDK_PATH,
         'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
+        'ANDROID_ABI': self.android_abi,
         'clang': 1,
         'use_asan': int(os.environ.get('USE_ASAN', use_asan_default)),
         'use_tsan': use_tsan,
