@@ -108,7 +108,7 @@ class Window : public EventTarget {
          dom::CspEnforcementType csp_enforcement_mode,
          const base::Closure& csp_policy_changed_callback,
          const base::Closure& window_close_callback,
-         int csp_insecure_allowed_token = 0);
+         int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
   //
