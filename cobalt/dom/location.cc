@@ -40,10 +40,6 @@ void Location::Replace(const std::string& url) {
   // that is successful, navigate the browsing context to the specified url with
   // replacement enabled and exceptions enabled.
 
-  DCHECK(!hashchange_callback_.is_null());
-  DCHECK(!navigation_callback_.is_null());
-  DCHECK(!security_callback_.is_null());
-
   GURL new_url = url_utils_.url().Resolve(url);
   if (!new_url.is_valid()) {
     DLOG(WARNING) << "New url is invalid, aborting the navigation.";
@@ -63,7 +59,8 @@ void Location::Replace(const std::string& url) {
   }
 
   // Check new URL against security policy.
-  if (!security_callback_.Run(new_url, false /* did redirect */)) {
+  if (!security_callback_.is_null() &&
+      !security_callback_.Run(new_url, false /* did redirect */)) {
     DLOG(WARNING) << "URL " << new_url
                   << " is rejected by policy, aborting the navigation.";
     return;
@@ -76,9 +73,13 @@ void Location::Replace(const std::string& url) {
           old_url.ReplaceComponents(replacements) &&
       new_url.has_ref() && new_url.ref() != old_url.ref()) {
     url_utils_.set_url(new_url);
-    hashchange_callback_.Run();
+    if (!hashchange_callback_.is_null()) {
+      hashchange_callback_.Run();
+    }
   } else {
-    navigation_callback_.Run(new_url);
+    if (!navigation_callback_.is_null()) {
+      navigation_callback_.Run(new_url);
+    }
   }
 }
 
