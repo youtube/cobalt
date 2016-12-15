@@ -633,7 +633,13 @@ void HTMLElement::UpdateComputedStyleRecursively(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
-    const base::TimeDelta& style_change_event_time, bool ancestors_were_valid) {
+    const base::TimeDelta& style_change_event_time, bool ancestors_were_valid,
+    int current_element_depth) {
+  int max_depth = node_document()->dom_max_element_depth();
+  if (max_depth > 0 && current_element_depth >= max_depth) {
+    return;
+  }
+
   // Update computed style for this element.
   bool is_valid =
       ancestors_were_valid && matching_rules_valid_ && computed_style_valid_;
@@ -657,7 +663,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
     if (html_element) {
       html_element->UpdateComputedStyleRecursively(
           css_computed_style_declaration(), root_computed_style,
-          style_change_event_time, is_valid);
+          style_change_event_time, is_valid, current_element_depth + 1);
     }
   }
 }

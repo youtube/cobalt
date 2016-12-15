@@ -212,8 +212,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
           parent_computed_style,
       const scoped_refptr<const cssom::CSSComputedStyleData>&
           root_computed_style,
-      const base::TimeDelta& style_change_event_time,
-      bool ancestors_were_valid);
+      const base::TimeDelta& style_change_event_time, bool ancestors_were_valid,
+      int current_element_depth);
   // Updates the cached computed style of this element.
   void UpdateComputedStyle(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
