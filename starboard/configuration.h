@@ -87,44 +87,6 @@
   ((int)(SB_ARRAY_SIZE(array)))  // NOLINT(readability/casting)
 #endif
 
-// Tells the compiler a function is using a printf-style format string.
-// |format_param| is the one-based index of the format string parameter;
-// |dots_param| is the one-based index of the "..." parameter.
-// For v*printf functions (which take a va_list), pass 0 for dots_param.
-// (This is undocumented but matches what the system C headers do.)
-// (Partially taken from base/compiler_specific.h)
-#if SB_IS(COMPILER_GCC)
-#define SB_PRINTF_FORMAT(format_param, dots_param) \
-  __attribute__((format(printf, format_param, dots_param)))
-#else
-#define SB_PRINTF_FORMAT(format_param, dots_param)
-#endif
-
-// Trivially references a parameter that is otherwise unreferenced, preventing a
-// compiler warning on some platforms.
-#if SB_IS(COMPILER_MSVC)
-#define SB_UNREFERENCED_PARAMETER(x) (x)
-#else
-#define SB_UNREFERENCED_PARAMETER(x) \
-  do {                               \
-    (void)(x);                       \
-  } while (0)
-#endif
-
-// Makes a pointer-typed parameter restricted so that the compiler can make
-// certain optimizations because it knows the pointers are unique.
-#if defined(__cplusplus)
-#if SB_IS(COMPILER_MSVC)
-#define SB_RESTRICT __restrict
-#elif SB_IS(COMPILER_GCC)
-#define SB_RESTRICT __restrict__
-#else  // COMPILER
-#define SB_RESTRICT
-#endif  // COMPILER
-#else   // __cplusplus
-#define SB_RESTRICT restrict
-#endif  // __cplusplus
-
 // Will cause a compiler error with |msg| if |expr| is false. |msg| must be a
 // valid identifier, and must be a unique type in the scope of the declaration.
 #if defined(__cplusplus)
@@ -142,16 +104,92 @@ struct CompileAssert {};
   extern char _COMPILE_ASSERT_##msg[(expr) ? 1 : -1]
 #endif
 
+// Standard CPP trick to stringify an evaluated macro definition.
+#define SB_STRINGIFY(x) SB_STRINGIFY2(x)
+#define SB_STRINGIFY2(x) #x
+
+// A macro to disallow the copy constructor and operator= functions
+// This should be used in the private: declarations for a class
+#define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&);                  \
+  void operator=(const TypeName&)
+
+// An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
+// variable.  Setting this up properly means avoiding slow color swizzles when
+// passing pixel data from one library to another.  Note that these definitions
+// are in byte-order and so are endianness-independent.
+#define SB_PREFERRED_RGBA_BYTE_ORDER_RGBA 1
+#define SB_PREFERRED_RGBA_BYTE_ORDER_BGRA 2
+#define SB_PREFERRED_RGBA_BYTE_ORDER_ARGB 3
+
+// --- Platform Configuration ------------------------------------------------
+
+// Include the platform-specific configuration. This macro is set by GYP in
+// starboard_base_target.gypi and passed in on the command line for all targets
+// and all configurations.
+#include STARBOARD_CONFIGURATION_INCLUDE
+
+// --- Overridable Helper Macros ---------------------------------------------
+
+// The following macros can be overridden in STARBOARD_CONFIGURATION_INCLUDE
+
+// Makes a pointer-typed parameter restricted so that the compiler can make
+// certain optimizations because it knows the pointers are unique.
+#if !defined(SB_RESTRICT)
+#if defined(__cplusplus)
+#if SB_IS(COMPILER_MSVC)
+#define SB_RESTRICT __restrict
+#elif SB_IS(COMPILER_GCC)
+#define SB_RESTRICT __restrict__
+#else  // COMPILER
+#define SB_RESTRICT
+#endif  // COMPILER
+#else   // __cplusplus
+#define SB_RESTRICT restrict
+#endif  // __cplusplus
+#endif  // SB_RESTRICT
+
+// Tells the compiler a function is using a printf-style format string.
+// |format_param| is the one-based index of the format string parameter;
+// |dots_param| is the one-based index of the "..." parameter.
+// For v*printf functions (which take a va_list), pass 0 for dots_param.
+// (This is undocumented but matches what the system C headers do.)
+// (Partially taken from base/compiler_specific.h)
+#if !defined(SB_PRINTF_FORMAT)
+#if SB_IS(COMPILER_GCC)
+#define SB_PRINTF_FORMAT(format_param, dots_param) \
+  __attribute__((format(printf, format_param, dots_param)))
+#else
+#define SB_PRINTF_FORMAT(format_param, dots_param)
+#endif
+#endif  // SB_PRINTF_FORMAT
+
+// Trivially references a parameter that is otherwise unreferenced, preventing a
+// compiler warning on some platforms.
+#if !defined(SB_UNREFERENCED_PARAMETER)
+#if SB_IS(COMPILER_MSVC)
+#define SB_UNREFERENCED_PARAMETER(x) (x)
+#else
+#define SB_UNREFERENCED_PARAMETER(x) \
+  do {                               \
+    (void)(x);                       \
+  } while (0)
+#endif
+#endif  // SB_UNREFERENCED_PARAMETER
+
 // Causes the annotated (at the end) function to generate a warning if the
 // result is not accessed.
+#if !defined(SB_WARN_UNUSED_RESULT)
 #if defined(COMPILER_GCC)
 #define SB_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
 #define SB_WARN_UNUSED_RESULT
-#endif
+#endif  // COMPILER_GCC
+#endif  // SB_WARN_UNUSED_RESULT
 
 // Declares a function as overriding a virtual function on compilers that
 // support it.
+#if !defined(SB_OVERRIDE)
 #if defined(COMPILER_MSVC)
 #define SB_OVERRIDE override
 #elif defined(__clang__)
@@ -159,19 +197,25 @@ struct CompileAssert {};
 #else
 #define SB_OVERRIDE
 #endif
+#endif  // SB_OVERRIDE
 
-// Declare numeric literals of specific 64-bit types.
+// Declare numeric literals of signed 64-bit type.
+#if !defined(SB_INT64_C)
 #if defined(_MSC_VER)
 #define SB_INT64_C(x) x##I64
-#define SB_UINT64_C(x) x##UI64
 #else  // defined(_MSC_VER)
 #define SB_INT64_C(x) x##LL
+#endif  // defined(_MSC_VER)
+#endif  // SB_INT64_C
+
+// Declare numeric literals of unsigned 64-bit type.
+#if !defined(SB_UINT64_C)
+#if defined(_MSC_VER)
+#define SB_UINT64_C(x) x##UI64
+#else  // defined(_MSC_VER)
 #define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
-
-// Standard CPP trick to stringify an evaluated macro definition.
-#define SB_STRINGIFY(x) SB_STRINGIFY2(x)
-#define SB_STRINGIFY2(x) #x
+#endif  // SB_INT64_C
 
 // Macro for hinting that an expression is likely to be true.
 #if !defined(SB_LIKELY)
@@ -198,6 +242,7 @@ struct CompileAssert {};
 // SB_DEPRECATED(int Foo(int bar));
 //   Annotates the function as deprecated, which will trigger a compiler
 //   warning when referenced.
+#if !defined(SB_DEPRECATED)
 #if SB_IS(COMPILER_GCC)
 #define SB_DEPRECATED(FUNC) FUNC __attribute__((deprecated))
 #elif SB_IS(COMPILER_MSVC)
@@ -206,6 +251,7 @@ struct CompileAssert {};
 // Empty definition for other compilers.
 #define SB_DEPRECATED(FUNC) FUNC
 #endif
+#endif  // SB_DEPRECATED
 
 // SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for
 // external clients, but not deprecated for starboard.
@@ -214,27 +260,6 @@ struct CompileAssert {};
 #else
 #define SB_DEPRECATED_EXTERNAL(FUNC) SB_DEPRECATED(FUNC)
 #endif
-
-// A macro to disallow the copy constructor and operator= functions
-// This should be used in the private: declarations for a class
-#define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);                  \
-  void operator=(const TypeName&)
-
-// An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
-// variable.  Setting this up properly means avoiding slow color swizzles when
-// passing pixel data from one library to another.  Note that these definitions
-// are in byte-order and so are endianness-independent.
-#define SB_PREFERRED_RGBA_BYTE_ORDER_RGBA 1
-#define SB_PREFERRED_RGBA_BYTE_ORDER_BGRA 2
-#define SB_PREFERRED_RGBA_BYTE_ORDER_ARGB 3
-
-// --- Platform Configuration ------------------------------------------------
-
-// Include the platform-specific configuration. This macro is set by GYP in
-// starboard_base_target.gypi and passed in on the command line for all targets
-// and all configurations.
-#include STARBOARD_CONFIGURATION_INCLUDE
 
 // --- Configuration Audits --------------------------------------------------
 
