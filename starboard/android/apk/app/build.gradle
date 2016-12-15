@@ -22,7 +22,7 @@ final COBALT_BUILD_TYPE_MAP = [
 
 // Maps the Android ABI to the Cobalt target architecture
 final COBALT_ARCH_MAP = [
-    //'x86'        : 'x86',
+    'x86'        : 'x86',
     'x86_64'     : 'x64',
     //'armeabi'    : 'arm',
     //'armeabi-v7a': 'arm7',

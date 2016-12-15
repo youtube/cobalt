@@ -58,6 +58,8 @@
       '-gline-tables-only',
     ],
     'platform_libraries': [
+      '-lEGL',
+      '-lGLESv3',
     ],
     'conditions': [
       ['clang==1', {
@@ -137,6 +139,8 @@
       '__STDC_FORMAT_MACROS', # so that we get PRI*
       # Enable GNU extensions to get prototypes like ffsl.
       '_GNU_SOURCE=1',
+      # Enable compile-time decisions based on the ABI
+      'ANDROID_ABI=<(ANDROID_ABI)',
     ],
     'cflags': [
       # Use the headers in the NDK
