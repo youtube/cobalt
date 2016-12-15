@@ -104,7 +104,7 @@ int VirtualFile::Serialize(uint8* dest, bool dry_run) {
   uint8* cur_buffer = dest;
 
   // Write filename length
-  size_t name_length = name_.length();
+  uint64 name_length = name_.length();
   DCHECK_LT(name_length, kMaxVfsPathname);
   cur_buffer +=
       WriteBuffer(cur_buffer, reinterpret_cast<const uint8*>(&name_length),
@@ -113,7 +113,7 @@ int VirtualFile::Serialize(uint8* dest, bool dry_run) {
   // Write the filename
   cur_buffer +=
       WriteBuffer(cur_buffer, reinterpret_cast<const uint8*>(name_.c_str()),
-                  name_length, dry_run);
+                  static_cast<size_t>(name_length), dry_run);
 
   // NOTE: Ensure the file size is 64-bit for compatibility
   // with any existing serialized files.
@@ -136,7 +136,7 @@ int VirtualFile::Serialize(uint8* dest, bool dry_run) {
 int VirtualFile::Deserialize(const uint8* source, size_t buffer_remaining) {
   // Read in filename length
   const uint8* cur_buffer = source;
-  size_t name_length;
+  uint64 name_length;
   bool success = ReadBuffer(reinterpret_cast<uint8*>(&name_length), &cur_buffer,
                             sizeof(name_length), &buffer_remaining);
   if (!success) {
@@ -151,12 +151,12 @@ int VirtualFile::Deserialize(const uint8* source, size_t buffer_remaining) {
   // Read in filename
   char name[kMaxVfsPathname];
   success = ReadBuffer(reinterpret_cast<uint8*>(name), &cur_buffer,
-                       name_length, &buffer_remaining);
+                       static_cast<size_t>(name_length), &buffer_remaining);
   if (!success) {
     DLOG(ERROR) << "Buffer overrun";
     return -1;
   }
-  name_.assign(name, name_length);
+  name_.assign(name, static_cast<size_t>(name_length));
 
   // Read in file contents size.
   uint64 file_size;
