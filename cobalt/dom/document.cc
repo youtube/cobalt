@@ -79,7 +79,8 @@ Document::Document(HTMLElementContext* html_element_context,
           default_timeline_(new DocumentTimeline(this, 0))),
       user_agent_style_sheet_(options.user_agent_style_sheet),
       initial_computed_style_declaration_(
-          new cssom::CSSComputedStyleDeclaration()) {
+          new cssom::CSSComputedStyleDeclaration()),
+      dom_max_element_depth_(options.dom_max_element_depth) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
@@ -559,7 +560,7 @@ void Document::UpdateComputedStyles() {
       // Then update the computed styles for the other elements.
       root->UpdateComputedStyleRecursively(
           root->css_computed_style_declaration(), root->computed_style(),
-          style_change_event_time, true);
+          style_change_event_time, true, 0 /* current_element_depth */);
     }
 
     is_computed_style_dirty_ = false;
