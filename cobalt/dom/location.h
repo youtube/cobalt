@@ -50,8 +50,9 @@ class Location : public script::Wrappable {
   void Replace(const std::string& url);
 
   void Reload() {
-    DCHECK(!navigation_callback_.is_null());
-    navigation_callback_.Run(url());
+    if (!navigation_callback_.is_null()) {
+      navigation_callback_.Run(url());
+    }
   }
 
   // Web API: URLUtils (implements)
