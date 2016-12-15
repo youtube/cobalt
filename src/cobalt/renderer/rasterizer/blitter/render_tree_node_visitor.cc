@@ -540,6 +540,10 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
   scoped_ptr<CachedScratchSurface> scratch_surface(new CachedScratchSurface(
       scratch_surface_cache_, coord_mapping.output_bounds.size()));
   SbBlitterSurface surface = scratch_surface->GetSurface();
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    return scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>();
+  }
+
   SbBlitterRenderTarget render_target =
       SbBlitterGetRenderTargetFromSurface(surface);
 

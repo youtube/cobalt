@@ -61,7 +61,7 @@ class Image : public render_tree::Image {
 // is stored contiguously.  This style of image is by far the most common.
 class SinglePlaneImage : public Image {
  public:
-  virtual const SkBitmap& GetBitmap() const = 0;
+  virtual const SkBitmap* GetBitmap() const = 0;
 
   base::TypeId GetTypeId() const OVERRIDE {
     return base::GetTypeId<SinglePlaneImage>();
@@ -74,7 +74,7 @@ class SinglePlaneImage : public Image {
 class MultiPlaneImage : public Image {
  public:
   virtual render_tree::MultiPlaneImageFormat GetFormat() const = 0;
-  virtual const SkBitmap& GetBitmap(int plane_index) const = 0;
+  virtual const SkBitmap* GetBitmap(int plane_index) const = 0;
 
   base::TypeId GetTypeId() const OVERRIDE {
     return base::GetTypeId<MultiPlaneImage>();

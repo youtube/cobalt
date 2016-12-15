@@ -248,14 +248,14 @@ void RenderOptimizedLinearGradient(SbBlitterDevice device,
     SbBlitterPixelData pixel_data =
         SbBlitterCreatePixelData(device, width, height, pixel_format);
 
-    int bytes_per_pixel = GetPixelOffsetInBytes(image_info, pixel_data);
-    int pitch_in_bytes = SbBlitterGetPixelDataPitchInBytes(pixel_data);
+    if (SbBlitterIsPixelDataValid(pixel_data)) {
+      int bytes_per_pixel = GetPixelOffsetInBytes(image_info, pixel_data);
+      int pitch_in_bytes = SbBlitterGetPixelDataPitchInBytes(pixel_data);
 
-    uint8_t* pixel_data_begin =
-        static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
-    uint8_t* pixel_data_end = pixel_data_begin + pitch_in_bytes * height;
+      uint8_t* pixel_data_begin =
+          static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
+      uint8_t* pixel_data_end = pixel_data_begin + pitch_in_bytes * height;
 
-    if (pixel_data) {
       const ColorStopList& color_stops(brush.color_stops());
 
       int pixel_offset_in_bytes =
