@@ -24,11 +24,13 @@ import sys
 import urllib
 import urllib2
 
+import bootstrap_path  # pylint: disable=unused-import
+from cobalt.tools import paths
+from starboard.tools import platform
+
 _CLANG_REVISION = '264915-1'
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-_SOURCE_TREE_DIR = os.path.abspath(
-    os.path.join(_SCRIPT_DIR, os.pardir, os.pardir))
 
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
@@ -39,37 +41,16 @@ _PORT_SEARCH_PATH = [
     'starboard',
 ]
 
-# The list of files that must be present in a directory to allow it to be
-# considered a valid port.
-_PORT_FILES = [
-    'gyp_configuration.gypi',
-    'gyp_configuration.py',
-    'starboard_platform.gyp',
-    'configuration_public.h',
-    'atomic_public.h',
-    'thread_types_public.h',
-]
-
-# Whether to emit warnings if it finds a directory that almost has a port.
-# TODO: Enable when tree is clean.
-_WARN_ON_ALMOST_PORTS = False
-
 # The path to the build.id file that preserves a build ID.
 BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
 
 
 def GetGyp():
   if 'gyp' not in sys.modules:
-    # Add directory to path to make sure that cygpath can be imported.
-    sys.path.insert(0,
-                    os.path.join(_SOURCE_TREE_DIR, 'lbshell', 'build', 'pylib'))
-    sys.path.insert(0, os.path.join(_SOURCE_TREE_DIR, 'tools', 'gyp', 'pylib'))
+    sys.path.insert(0, os.path.join(paths.REPOSITORY_ROOT, 'tools', 'gyp',
+                                    'pylib'))
     importlib.import_module('gyp')
   return sys.modules['gyp']
-
-
-def GetSourceTreeDir():
-  return _SOURCE_TREE_DIR
 
 
 def GypDebugOptions():
@@ -188,9 +169,8 @@ def EnsureClangAvailable(base_dir, bin_path):
 
   # Run the clang update script to get the correct version of clang.
   # Then check that clang is in the path.
-  source_tree_dir = GetSourceTreeDir()
-  update_script = os.path.join(source_tree_dir, 'tools', 'clang', 'scripts',
-                               'update.sh')
+  update_script = os.path.join(paths.REPOSITORY_ROOT, 'tools', 'clang',
+                               'scripts', 'update.sh')
   update_proc = subprocess.Popen([update_script, _CLANG_REVISION, base_dir])
   rc = update_proc.wait()
   if rc != 0:
@@ -288,53 +268,6 @@ def GetConstantValue(file_path, constant_name):
   return value
 
 
-def GetStackSizeConstant(platform, constant_name):
-  """Gets a constant value from lb_shell_constants.h."""
-  # TODO: This needs to be reimplemented if necessary. For now,
-  # it'll return the default value.
-  _, _ = platform, constant_name
-  return 0
-
-
-def _IsValidPortFilenameList(directory, filenames):
-  """Determines if |filenames| contains the required files for a valid port."""
-
-  missing = set(_PORT_FILES) - set(filenames)
-  if missing:
-    if len(missing) < (len(_PORT_FILES) / 2) and _WARN_ON_ALMOST_PORTS:
-      logging.warning('Directory %s contains several files needed for a port, '
-                      'but not all of them. In particular, it is missing: %s',
-                      directory, ', '.join(missing))
-  return not missing
-
-
-def _GetPortName(root, directory):
-  """Gets the name of a port found at |directory| off of |root|."""
-
-  assert directory.startswith(root)
-  start = len(root) + 1  # Remove the trailing slash from the root.
-
-  assert start < len(directory)
-
-  # Calculate the name based on relative path from search root to port.
-  return re.sub(r'[^a-zA-Z0-9_]', r'-', directory[start:])
-
-
-def _FindValidPorts(root, result):
-  """Adds name->path for all ports under |directory| to |result|."""
-  for current_path, _, filenames in os.walk(root):
-    if _IsValidPortFilenameList(current_path, filenames):
-      if current_path == root:
-        logging.warning('Found port at search path root: %s', current_path)
-      port_name = _GetPortName(root, current_path)
-      if port_name in result:
-        logging.error('Found duplicate port name "%s" at "%s" and "%s"',
-                      port_name, result[port_name], current_path)
-      result[port_name] = current_path
-
-  return result
-
-
 def _FindThirdPartyPlatforms():
   """Workhorse for GetThirdPartyPlatforms().
 
@@ -348,12 +281,17 @@ def _FindThirdPartyPlatforms():
 
   result = {}
   for path_element in _PORT_SEARCH_PATH:
-    root = os.path.join(_SOURCE_TREE_DIR, path_element)
+    root = os.path.join(paths.REPOSITORY_ROOT, path_element)
     if not os.path.isdir(root):
       logging.warning('Port search path directory not found: %s', path_element)
       continue
     root = os.path.realpath(root)
-    _FindValidPorts(root, result)
+    for platform_info in platform.PlatformInfo.EnumeratePorts(root):
+      if platform_info.port_name in result:
+        logging.error('Found duplicate port name "%s" at "%s" and "%s"',
+                      platform_info.port_name, result[platform_info.port_name],
+                      platform_info.path)
+      result[platform_info.port_name] = platform_info.path
 
   return result
 
