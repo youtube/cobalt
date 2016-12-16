@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/threading/thread_checker.h"
+#include "base/timer.h"
 #include "cobalt/script/javascript_engine.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
@@ -37,6 +38,7 @@ class MozjsEngine : public JavaScriptEngine {
   size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
 
  private:
+  void TimerGarbageCollect();
   static JSBool ContextCallback(JSContext* context, unsigned context_op);
   static void GCCallback(JSRuntime* runtime, JSGCStatus status);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
@@ -54,6 +56,9 @@ class MozjsEngine : public JavaScriptEngine {
 
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;
+
+  // Used to trigger a garbage collection periodically.
+  base::RepeatingTimer<MozjsEngine> gc_timer_;
 };
 }  // namespace mozjs
 }  // namespace script
