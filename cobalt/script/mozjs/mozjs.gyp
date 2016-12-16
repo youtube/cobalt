@@ -80,6 +80,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         '<(DEPTH)/third_party/mozjs/test/jscustomallocator_test.cc',
+        'mozjs_trace_logging.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
