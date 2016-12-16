@@ -21,17 +21,18 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
 
 #if defined(OS_STARBOARD)
 #include "nb/analytics/memory_tracker.h"
-#include "nb/analytics/memory_tracker_impl.h"
-#include "nb/scoped_ptr.h"
-#include "nb/simple_thread.h"
+#include "starboard/log.h"
 #endif
 
 namespace cobalt {
 namespace browser {
 namespace memory_tracker {
+
+using nb::analytics::MemoryTracker;
 
 #if !defined(OS_STARBOARD)
 // A dummy implementation.
@@ -65,22 +66,27 @@ struct SwitchVal {
   SwitchEnum enum_value;
 };
 
+class SbLogger : public AbstractLogger {
+ public:
+  virtual void Output(const char* str) OVERRIDE { SbLogRaw(str); }
+
+  virtual void Flush() OVERRIDE { SbLogFlush(); }
+};
+
 }  // namespace.
 
 class MemoryTrackerThreadImpl : public MemoryTrackerTool {
  public:
-  explicit MemoryTrackerThreadImpl(nb::SimpleThread* ptr) : thread_ptr_(ptr) {}
-
-  virtual ~MemoryTrackerThreadImpl() OVERRIDE {}
-  scoped_ptr<nb::SimpleThread> thread_ptr_;
+  explicit MemoryTrackerThreadImpl(base::SimpleThread* ptr)
+      : thread_ptr_(ptr) {}
+  virtual ~MemoryTrackerThreadImpl() OVERRIDE { thread_ptr_.reset(NULL); }
+  scoped_ptr<base::SimpleThread> thread_ptr_;
 };
 
 scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     const std::string& command_arg) {
   // The command line switch for memory_tracker was used. Look into the args
   // and determine the mode that the memory_tracker should be used for.
-  using nb::analytics::MemoryTrackerPrintThread;
-  using nb::analytics::MemoryTracker;
 
   // The map is used to
   // 1) Resolve the string to an enum.
@@ -120,6 +126,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   switch_map[startup_tool.tool_name] = startup_tool;
   switch_map[continuous_printer_tool.tool_name] = continuous_printer_tool;
   switch_map[compressed_timeseries_tool.tool_name] = compressed_timeseries_tool;
+  switch_map[javascript_memory_tool.tool_name] = javascript_memory_tool;
 
   // FAST OUT - is a thread type not selected? Then print out a help menu
   // and request that the app should shut down.
@@ -167,12 +174,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   MemoryTracker* memory_tracker = MemoryTracker::Get();
   memory_tracker->InstallGlobalTrackingHooks();
 
-  using nb::analytics::MemoryTrackerPrintCSVThread;
-  using nb::analytics::MemoryTrackerPrintThread;
-  using nb::analytics::MemoryTrackerCompressedTimeSeriesThread;
-  using nb::analytics::MemorySizeBinnerThread;
-
-  scoped_ptr<nb::SimpleThread> thread_ptr;
+  scoped_ptr<AbstractMemoryTrackerTool> tool_ptr;
   const SwitchVal& value = found_it->second;
   switch (value.enum_value) {
     case kNull: {
@@ -181,28 +183,27 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     }
     case kStartup: {
       // Create a thread that will gather memory metrics for startup.
-      thread_ptr.reset(new MemoryTrackerPrintCSVThread(
-          memory_tracker,
-          1000,         // Sample once a second.
-          60 * 1000));  // Output after 60 seconds.
+      int sampling_interval_ms = 1000;   // Sample once a second.
+      int sampling_time_ms = 60 * 1000;  // Output after 60 seconds
+      tool_ptr.reset(
+          new MemoryTrackerPrintCSV(sampling_interval_ms, sampling_time_ms));
       break;
     }
     case kContinuousPrinter: {
       // Create a thread that will continuously report memory use.
-      thread_ptr.reset(new MemoryTrackerPrintThread(memory_tracker));
+      // thread_ptr.reset(new MemoryTrackerPrintThread(memory_tracker));
+      tool_ptr.reset(new MemoryTrackerPrint);
       break;
     }
     case kCompressedTimeseries: {
       // Create a thread that will continuously report memory use.
-      thread_ptr.reset(
-          new MemoryTrackerCompressedTimeSeriesThread(memory_tracker));
+      tool_ptr.reset(new MemoryTrackerCompressedTimeSeries);
       break;
     }
     case kJavascriptMemoryAnalytics: {
       // Create a thread that will continuously report javascript memory
       // analytics.
-      thread_ptr.reset(
-          new MemorySizeBinnerThread(memory_tracker, "Javascript"));
+      tool_ptr.reset(new MemorySizeBinner("Javascript"));
       break;
     }
     default: {
@@ -210,9 +211,14 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       break;
     }
   }
-  // Wrap the tool up in MemoryTrackerThreadImpl.
-  return scoped_ptr<MemoryTrackerTool>(
-      new MemoryTrackerThreadImpl(thread_ptr.release()));
+
+  if (tool_ptr.get()) {
+    base::SimpleThread* thread = new MemoryTrackerToolThread(
+        memory_tracker, tool_ptr.release(), new SbLogger);
+    return scoped_ptr<MemoryTrackerTool>(new MemoryTrackerThreadImpl(thread));
+  } else {
+    return scoped_ptr<MemoryTrackerTool>();
+  }
 }
 
 #endif  // defined(OS_STARBOARD)
