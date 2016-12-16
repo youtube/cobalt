@@ -162,7 +162,7 @@
       'sources': [
         '<(input_directory)/splash_screen.css',
         '<(input_directory)/splash_screen.html',
-        '<(input_directory)/you_tube_logo.jpg',
+        '<(input_directory)/you_tube_logo.png',
       ],
       'actions': [
         {
