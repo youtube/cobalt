@@ -23,14 +23,10 @@
 #include "nb/scoped_ptr.h"
 
 namespace nb {
-
 namespace analytics {
 
 class MemoryTracker;
 class MemoryTrackerDebugCallback;
-class MemoryTrackerPrintThread;
-class MemoryTrackerPrintCSVThread;
-class MemoryTrackerCompressedTimeSeriesThread;
 class AllocationVisitor;
 class AllocationGroup;
 class AllocationRecord;
@@ -167,25 +163,6 @@ class AllocationRecord {
   size_t size;
   AllocationGroup* allocation_group;
 };
-
-// Creates a SimpleThread that will output the state of the memory
-// periodically. Start()/Cancel()/Join() are called AUTOMATICALLY with
-// this object. Start() is on the returned thread before it is returned.
-// Join() is automatically called on destruction.
-scoped_ptr<MemoryTrackerPrintThread>
-    CreateDebugPrintThread(MemoryTracker* memory_tracker);
-
-// Creates a SimpleThread that will output the state of the memory
-// periodically. Start()/Cancel()/Join() are called AUTOMATICALLY with
-// this object. Start() is on the returned thread before it is returned.
-// Join() is automatically called on destruction.
-scoped_ptr<MemoryTrackerPrintCSVThread>
-    CreateDebugPrintCSVThread(MemoryTracker* memory_tracker,
-                              int sample_interval_ms,
-                              int total_sampling_time_ms);
-
-scoped_ptr<MemoryTrackerCompressedTimeSeriesThread>
-    CreateCompressedHistogramThread(MemoryTracker* memory_tracker);
 
 }  // namespace analytics
 }  // namespace nb
