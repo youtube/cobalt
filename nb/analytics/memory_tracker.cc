@@ -46,29 +46,5 @@ MemoryStats GetProcessMemoryStats() {
   return memory_stats;
 }
 
-nb::scoped_ptr<MemoryTrackerPrintThread>
-CreateDebugPrintThread(MemoryTracker* memory_tracker) {
-  return nb::scoped_ptr<MemoryTrackerPrintThread>(
-     new MemoryTrackerPrintThread(memory_tracker));
-}
-
-nb::scoped_ptr<MemoryTrackerPrintCSVThread>
-CreateDebugPrintCSVThread(MemoryTracker* memory_tracker,
-                          int sample_interval_ms,
-                          int total_sampling_time_ms) {
-  return nb::scoped_ptr<MemoryTrackerPrintCSVThread>(
-      new MemoryTrackerPrintCSVThread(
-          memory_tracker,
-          sample_interval_ms,
-          total_sampling_time_ms));
-}
-
-
-scoped_ptr<nb::analytics::MemoryTrackerCompressedTimeSeriesThread>
-CreateCompressedHistogramThread(MemoryTracker* memory_tracker) {
-  return nb::scoped_ptr<MemoryTrackerCompressedTimeSeriesThread>(
-      new MemoryTrackerCompressedTimeSeriesThread(memory_tracker));
-}
-
 }  // namespace analytics
 }  // namespace nb
