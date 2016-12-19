@@ -65,6 +65,7 @@
         'blitter_set_render_target_test.cc',
         'blitter_set_scissor_test.cc',
         'byte_swap_test.cc',
+        'char_is_signed_test.cc',
         'character_is_alphanumeric_test.cc',
         'character_is_digit_test.cc',
         'character_is_hex_digit_test.cc',
