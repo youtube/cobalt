@@ -209,7 +209,11 @@ scoped_refptr<Event> Document::CreateEvent(
     return new UIEvent(Event::Uninitialized);
   }
 
-  DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+  DOMException::Raise(DOMException::kNotSupportedErr,
+                      "document.createEvent does not support \""
+                        + interface_name + "\".",
+                      exception_state);
+
   // Return value will be ignored.
   return NULL;
 }
