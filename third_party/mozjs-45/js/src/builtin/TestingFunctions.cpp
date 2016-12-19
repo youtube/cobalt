@@ -1142,7 +1142,9 @@ OOMTest(JSContext* cx, unsigned argc, Value* vp)
         threadEnd = threadOption + 1;
     }
 
+#if defined(JS_GC_ZEAL)
     JS_SetGCZeal(cx, 0, JS_DEFAULT_ZEAL_FREQ);
+#endif
 
     for (unsigned thread = threadStart; thread < threadEnd; thread++) {
         if (verbose)
