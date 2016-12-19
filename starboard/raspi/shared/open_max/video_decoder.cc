@@ -15,6 +15,7 @@
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
 #include "starboard/log.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace raspi {
@@ -44,8 +45,18 @@ void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
     return;
   }
 
-  component_.WriteData(input_buffer.data(), input_buffer.size(),
-                       input_buffer.pts() * kSbTimeSecond / kSbMediaTimeSecond);
+  int offset = 0;
+  int size = static_cast<int>(input_buffer.size());
+  while (offset != size) {
+    int written = component_.WriteData(
+        input_buffer.data() + offset, size - offset,
+        input_buffer.pts() * kSbTimeSecond / kSbMediaTimeSecond);
+    SB_DCHECK(written >= 0);
+    offset += written;
+    if (written == 0) {
+      SbThreadSleep(kSbTimeMillisecond);
+    }
+  }
   bool frame_sent = false;
   while (scoped_refptr<VideoFrame> frame = component_.ReadFrame()) {
     host_->OnDecoderStatusUpdate(kNeedMoreInput, frame);

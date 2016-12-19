@@ -32,6 +32,9 @@ const int kMaxFrameWidth = 1920;
 const int kMaxFrameHeight = 1088;
 const size_t kMaxVideoFrameSize = kMaxFrameWidth * kMaxFrameHeight * 3 / 2;
 
+typedef OMXParam<OMX_VIDEO_PARAM_PORTFORMATTYPE, OMX_IndexParamVideoPortFormat>
+    OMXVideoParamPortFormat;
+
 }  // namespace
 
 typedef OpenMaxVideoDecodeComponent::VideoFrame VideoFrame;
@@ -205,12 +208,7 @@ bool OpenMaxVideoDecodeComponent::OnEnableOutputPort(
   return true;
 }
 
-void OpenMaxVideoDecodeComponent::OnOutputBufferFilled() {
-  ScopedLock scoped_lock(mutex_);
-  buffer_filled_condition_variable_.Signal();
-}
-
-void OpenMaxVideoDecodeComponent::OnOutputSettingChanged() {
+void OpenMaxVideoDecodeComponent::OnReadyToPeekOutputBuffer() {
   ScopedLock scoped_lock(mutex_);
   buffer_filled_condition_variable_.Signal();
 }
