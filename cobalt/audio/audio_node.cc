@@ -44,6 +44,7 @@ void AudioNode::set_channel_count(uint32 channel_count,
   // NOT_SUPPORTED_ERR exception.
   if (channel_count == 0) {
     dom::DOMException::Raise(dom::DOMException::kNotSupportedErr,
+                             "Audio node channel count must be non-zero.",
                              exception_state);
     return;
   }

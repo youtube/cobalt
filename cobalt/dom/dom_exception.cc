@@ -65,5 +65,12 @@ void DOMException::Raise(ExceptionCode code,
   exception_state->SetException(make_scoped_refptr(new DOMException(code)));
 }
 
+// static
+void DOMException::Raise(ExceptionCode code, const std::string& message,
+                         script::ExceptionState* exception_state) {
+  exception_state->SetException(
+      make_scoped_refptr(new DOMException(code, message)));
+}
+
 }  // namespace dom
 }  // namespace cobalt
