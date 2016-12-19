@@ -20,6 +20,7 @@
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
@@ -144,9 +145,11 @@ MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
 
   EngineStats::GetInstance()->EngineCreated();
 
-  gc_timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(
-                                 kGarbageCollectionIntervalSeconds),
-                  this, &MozjsEngine::TimerGarbageCollect);
+  if (MessageLoop::current()) {
+    gc_timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(
+                                   kGarbageCollectionIntervalSeconds),
+                    this, &MozjsEngine::TimerGarbageCollect);
+  }
 }
 
 MozjsEngine::~MozjsEngine() {
@@ -208,7 +211,9 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
   if (status == JSGC_END) {
     engine->accumulated_extra_memory_cost_ = 0;
     // Reset the GC timer to avoid having the timed GC come soon after this one.
-    engine->gc_timer_.Reset();
+    if (engine->gc_timer_.IsRunning()) {
+      engine->gc_timer_.Reset();
+    }
   }
   for (int i = 0; i < engine->contexts_.size(); ++i) {
     MozjsGlobalEnvironment* global_environment =
