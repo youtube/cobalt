@@ -342,6 +342,15 @@ size_t MemoryTrackerImpl::RemoveMemoryTracking(const void* memory) {
   {
     // Not a correct name. TODO - change.
     DisableDeletionInScope no_memory_deletion(this);
+
+    // Useful for investigating what the heck is being deallocated. For example
+    // the developer may want to track certain allocations that meet a certain
+    // criteria.
+    if (debug_callback_) {
+      if (atomic_allocation_map_.Get(memory, &alloc_record)) {
+        debug_callback_->OnMemoryDeallocation(memory, alloc_record);
+      }
+    }
     removed = atomic_allocation_map_.Remove(memory, &alloc_record);
   }
 
