@@ -148,6 +148,8 @@ class MemoryTrackerDebugCallback {
   virtual ~MemoryTrackerDebugCallback() {}
   virtual void OnMemoryAllocation(const void* memory_block,
                                   const AllocationRecord& record) = 0;
+  virtual void OnMemoryDeallocation(const void* memory_block,
+                                    const AllocationRecord& record) = 0;
 };
 
 // Contains an allocation record for a pointer including it's size and what
