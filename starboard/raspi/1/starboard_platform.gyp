@@ -39,6 +39,8 @@
         '<(DEPTH)/starboard/raspi/shared/main.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component.h',
+        '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component_base.cc',
+        '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component_base.h',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_video_decode_component.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_video_decode_component.h',
         '<(DEPTH)/starboard/raspi/shared/open_max/video_decoder.cc',
