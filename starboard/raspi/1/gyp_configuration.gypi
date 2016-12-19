@@ -49,6 +49,9 @@
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
 
+      # Force char to be signed.
+      '-fsigned-char',
+
       # Suppress some warnings that will be hard to fix.
       '-Wno-unused-local-typedefs',
       '-Wno-unused-result',
