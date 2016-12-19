@@ -79,8 +79,7 @@ class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
   scoped_refptr<VideoFrame> CreateFrame(OMX_BUFFERHEADERTYPE* buffer);
 
   bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) SB_OVERRIDE;
-  void OnOutputBufferFilled() SB_OVERRIDE;
-  void OnOutputSettingChanged() SB_OVERRIDE;
+  void OnReadyToPeekOutputBuffer() SB_OVERRIDE;
 
   void CreateFrames();
   static void* FrameCreatorThreadEntryPoint(void* context);
