@@ -18,6 +18,7 @@
 #include "nb/memory_scope.h"
 #include "nb/scoped_ptr.h"
 #include "nb/test_thread.h"
+#include "starboard/configuration.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -499,17 +500,28 @@ TEST_F(MemoryTrackerImplTest, MemoryTrackerDebugCallback) {
   class MemoryTrackerDebugCallbackTest : public MemoryTrackerDebugCallback {
    public:
     MemoryTrackerDebugCallbackTest() { Reset(); }
-    virtual void OnMemoryAllocation(const void* memory_block,
-                                    const AllocationRecord& record) {
-      last_memory_block_ = memory_block;
-      last_allocation_record_ = record;
+    virtual void OnMemoryAllocation(
+        const void* memory_block,
+        const AllocationRecord& record) SB_OVERRIDE {
+      last_memory_block_allocated_ = memory_block;
+      last_allocation_record_allocated_ = record;
+    }
+    virtual void OnMemoryDeallocation(
+        const void* memory_block,
+        const AllocationRecord& record) SB_OVERRIDE {
+      last_memory_block_deallocated_ = memory_block;
+      last_allocation_record_deallocated_ = record;
     }
     void Reset() {
-      last_memory_block_ = NULL;
-      last_allocation_record_ = AllocationRecord::Empty();
+      last_memory_block_allocated_ = NULL;
+      last_memory_block_deallocated_ = NULL;
+      last_allocation_record_allocated_ = AllocationRecord::Empty();
+      last_allocation_record_deallocated_ = AllocationRecord::Empty();
     }
-    const void* last_memory_block_;
-    AllocationRecord last_allocation_record_;
+    const void* last_memory_block_allocated_;
+    const void* last_memory_block_deallocated_;
+    AllocationRecord last_allocation_record_allocated_;
+    AllocationRecord last_allocation_record_deallocated_;
   };
 
   // Needs to be static due to concurrent and lockless nature of object.
@@ -518,9 +530,25 @@ TEST_F(MemoryTrackerImplTest, MemoryTrackerDebugCallback) {
 
   memory_tracker()->SetMemoryTrackerDebugCallback(&s_debug_callback);
   void* memory_block = SbMemoryAllocate(8);
-  EXPECT_EQ_NO_TRACKING(memory_block, s_debug_callback.last_memory_block_);
-  EXPECT_EQ_NO_TRACKING(8, s_debug_callback.last_allocation_record_.size);
+  EXPECT_EQ_NO_TRACKING(
+      memory_block,
+      s_debug_callback.last_memory_block_allocated_);
+  EXPECT_EQ_NO_TRACKING(
+      8,
+      s_debug_callback.last_allocation_record_allocated_.size);
+  // ... and no memory should have been deallocated.
+  EXPECT_TRUE_NO_TRACKING(s_debug_callback.last_memory_block_deallocated_
+                          == NULL);
+
+  // After this call we check that the callback for deallocation was used.
   SbMemoryDeallocate(memory_block);
+  EXPECT_EQ_NO_TRACKING(
+      memory_block,
+      s_debug_callback.last_memory_block_deallocated_);
+
+  EXPECT_EQ_NO_TRACKING(
+      s_debug_callback.last_allocation_record_deallocated_.size,
+      8);
 }
 
 // Tests the expectation that the visitor can access the allocations.
@@ -553,100 +581,6 @@ TEST_F(MemoryTrackerImplTest, VisitorAccess) {
   // Now no allocations should be available.
   memory_tracker()->Accept(&visitor);
   EXPECT_EQ_NO_TRACKING(0, visitor.num_memory_allocs_);
-}
-
-// Tests the expectation that AllocationSizeBinner will correctly bin
-// allocations.
-TEST_F(MemoryTrackerImplTest, AllocationSizeBinner) {
-  // Memory tracker is not enabled for this build.
-  if (!MemoryTrackerEnabled()) {
-    return;
-  }
-
-  const size_t index =
-      AllocationSizeBinner::GetBucketIndexForAllocationSize(24);
-  EXPECT_EQ_NO_TRACKING(
-      5, AllocationSizeBinner::GetBucketIndexForAllocationSize(24));
-
-  const size_t kAllocSize = 24;
-
-  AllocationSizeBinner binner(NULL);
-  void* dummy_memory = SbMemoryAllocate(kAllocSize);
-
-  AllocationRecord allocation_record(kAllocSize, NULL);
-  binner.Visit(dummy_memory, allocation_record);
-
-  size_t min_val = 0;
-  size_t max_val = 0;
-  AllocationSizeBinner::GetSizeRange(kAllocSize, &min_val, &max_val);
-  EXPECT_EQ_NO_TRACKING(16, min_val);
-  EXPECT_EQ_NO_TRACKING(31, max_val);
-
-  // 0 -> [0,0]
-  // 1 -> [1,1]
-  // 2 -> [2,3]
-  // 3 -> [4,7]
-  // 4 -> [8,15]
-  // 5 -> [16,31] ...
-  EXPECT_EQ_NO_TRACKING(1, binner.allocation_histogram()[5]);
-
-  allocation_record.size = 15;
-  binner.Visit(NULL, allocation_record);
-  binner.Visit(NULL, allocation_record);
-
-  size_t min_value = 0;
-  size_t max_value = 0;
-  binner.GetLargestSizeRange(&min_value, &max_value);
-  EXPECT_EQ_NO_TRACKING(min_value, 8);
-  EXPECT_EQ_NO_TRACKING(max_value, 15);
-
-  std::string csv_string = binner.ToCSVString();
-
-  // Expect header.
-  bool found = (csv_string.find("\"8...15\",\"16...31\"") != std::string::npos);
-  EXPECT_TRUE_NO_TRACKING(found);
-
-  // Expect data.
-  found = (csv_string.find("2,1") != std::string::npos);
-  SbMemoryFree(dummy_memory);
-}
-
-// Tests the expectation that AllocationSizeBinner will correctly bin
-// allocations.
-TEST_F(MemoryTrackerImplTest, FindTopSizes) {
-  // Memory tracker is not enabled for this build.
-  if (!MemoryTrackerEnabled()) {
-    return;
-  }
-
-  const size_t min_size = 21;
-  const size_t max_size = 23;
-  AllocationGroup* group = NULL;  // signals "accept any group".
-
-  FindTopSizes top_sizes_visitor(min_size, max_size, group);
-
-  AllocationRecord record_a(21, group);
-  AllocationRecord record_b(22, group);
-  AllocationRecord record_c(22, group);
-  AllocationRecord record_d(24, group);
-
-  const void* dummy_alloc = NULL;
-  top_sizes_visitor.Visit(dummy_alloc, record_a);
-  top_sizes_visitor.Visit(dummy_alloc, record_b);
-  top_sizes_visitor.Visit(dummy_alloc, record_c);
-  top_sizes_visitor.Visit(dummy_alloc, record_d);
-
-  std::vector<FindTopSizes::GroupAllocation> top_allocations =
-      top_sizes_visitor.GetTopAllocations();
-
-  // Expect element 24 to be filtered out, leaving only 22 and 24.
-  EXPECT_EQ_NO_TRACKING(top_allocations.size(), 2);
-  // Expect that allocation size 22 is the top allocation.
-  EXPECT_EQ_NO_TRACKING(top_allocations[0].allocation_size, 22);
-  EXPECT_EQ_NO_TRACKING(top_allocations[0].allocation_count, 2);
-  // And then the 21 byte allocation.
-  EXPECT_EQ_NO_TRACKING(top_allocations[1].allocation_size, 21);
-  EXPECT_EQ_NO_TRACKING(top_allocations[1].allocation_count, 1);
 }
 
 // A stress test that rapidly adds allocations, but saves all deletions
