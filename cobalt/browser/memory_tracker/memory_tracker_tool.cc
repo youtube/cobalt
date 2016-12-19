@@ -21,9 +21,10 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
 
+// Conditional includes.
 #if defined(OS_STARBOARD)
+#include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
 #include "nb/analytics/memory_tracker.h"
 #include "starboard/log.h"
 #endif
@@ -31,8 +32,6 @@
 namespace cobalt {
 namespace browser {
 namespace memory_tracker {
-
-using nb::analytics::MemoryTracker;
 
 #if !defined(OS_STARBOARD)
 // A dummy implementation.
@@ -42,6 +41,8 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(const std::string&) {
 }
 
 #else  // defined(OS_STARBOARD)
+
+using nb::analytics::MemoryTracker;
 
 namespace {
 enum SwitchEnum {
@@ -69,7 +70,6 @@ struct SwitchVal {
 class SbLogger : public AbstractLogger {
  public:
   virtual void Output(const char* str) OVERRIDE { SbLogRaw(str); }
-
   virtual void Flush() OVERRIDE { SbLogFlush(); }
 };
 
