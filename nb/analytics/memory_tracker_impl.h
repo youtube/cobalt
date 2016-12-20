@@ -172,7 +172,7 @@ class MemoryTrackerImpl : public MemoryTracker {
 
   atomic_int64_t total_bytes_allocated_;
 
-  MemoryTrackerDebugCallback* debug_callback_;
+  scoped_ptr<MemoryTrackerDebugCallback> debug_callback_;
 
   // THREAD LOCAL SECTION.
   ThreadLocalBoolean memory_deletion_enabled_tls_;
