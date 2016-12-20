@@ -42,9 +42,9 @@ void Initialize() {
   data_path += "icu";
   data_path += SB_FILE_SEP_STRING;
 #if U_IS_BIG_ENDIAN
-  data_path += "icudt46b";
+  data_path += "icudt56b";
 #else
-  data_path += "icudt46l";
+  data_path += "icudt56l";
 #endif
   // set this as the data directory.
   u_setDataDirectory(data_path.c_str());
