@@ -169,15 +169,6 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 #define memcmp(s1, s2, n) SbMemoryCompare(s1, s2, n)
 #define memmove(d, s, n) SbMemoryMove(d, s, n)
 
-// number conversion functions
-#define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
-#define atoi(v) SbStringAToI(v)
-#define atol(v) SbStringAToL(v)
-#define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
-#define strtoul(s, o, b) SbStringParseUnsignedInteger(s, o, b)
-#define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
-#define strtod(s, o) SbStringParseDouble(s, o)
-
 #endif  // POEM_NO_EMULATION
 
 #endif  // STARBOARD
