@@ -60,6 +60,7 @@
     'platform_libraries': [
       '-lEGL',
       '-lGLESv3',
+      '-landroid'
     ],
     'conditions': [
       ['clang==1', {
