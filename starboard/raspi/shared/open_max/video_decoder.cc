@@ -50,6 +50,7 @@ void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
   while (offset != size) {
     int written = component_.WriteData(
         input_buffer.data() + offset, size - offset,
+        OpenMaxComponent::kDataNonEOS,
         input_buffer.pts() * kSbTimeSecond / kSbMediaTimeSecond);
     SB_DCHECK(written >= 0);
     offset += written;
