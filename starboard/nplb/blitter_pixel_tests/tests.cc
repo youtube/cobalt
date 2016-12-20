@@ -66,6 +66,12 @@ TEST_F(SbBlitterPixelTest, SolidFillRedBoxOnWhiteBackground) {
                                       GetWidth() / 2, GetHeight() / 2));
 }
 
+// Returns half of a dimension, though it will never round it down to 0.
+int HalveDimension(int d) {
+  SB_DCHECK(d > 0);
+  return std::max(1, d / 2);
+}
+
 SbBlitterSurface CreateCheckerImageWithBlits(SbBlitterDevice device,
                                              SbBlitterContext context,
                                              SbBlitterColor color_a,
@@ -82,10 +88,14 @@ SbBlitterSurface CreateCheckerImageWithBlits(SbBlitterDevice device,
   SbBlitterSetColor(context, color_a);
   SbBlitterFillRect(context, SbBlitterMakeRect(0, 0, width, height));
 
+  int half_width = HalveDimension(width);
+  int half_height = HalveDimension(height);
+
   SbBlitterSetColor(context, color_b);
-  SbBlitterFillRect(context, SbBlitterMakeRect(0, 0, width / 2, height / 2));
+  SbBlitterFillRect(context, SbBlitterMakeRect(0, 0, half_width, half_height));
   SbBlitterFillRect(
-      context, SbBlitterMakeRect(width / 2, height / 2, width / 2, height / 2));
+      context, SbBlitterMakeRect(half_width, half_height, width - half_width,
+                                 height - half_height));
 
   return surface;
 }
@@ -290,12 +300,15 @@ SbBlitterSurface CreateCheckerImageWithPixelData(SbBlitterDevice device,
       SbBlitterCreatePixelData(device, width, height, pixel_data_format);
   SB_CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
+  int half_width = HalveDimension(width);
+  int half_height = HalveDimension(height);
+
   int pitch = SbBlitterGetPixelDataPitchInBytes(pixel_data);
   uint8_t* current_byte =
       static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
-      bool use_color_a = (x < width / 2) ^ (y < height / 2);
+      bool use_color_a = (x < half_width) ^ (y < half_height);
       SbBlitterColor color = use_color_a ? color_a : color_b;
       float a_float = SbBlitterAFromColor(color) / 255.0f;
       current_byte[g] = SbBlitterGFromColor(color) * a_float;
@@ -324,12 +337,15 @@ SbBlitterSurface CreateAlphaCheckerImageWithPixelData(SbBlitterDevice device,
       device, width, height, kSbBlitterPixelDataFormatA8);
   SB_CHECK(SbBlitterIsPixelDataValid(pixel_data));
 
+  int half_width = HalveDimension(width);
+  int half_height = HalveDimension(height);
+
   int pitch = SbBlitterGetPixelDataPitchInBytes(pixel_data);
   uint8_t* current_byte =
       static_cast<uint8_t*>(SbBlitterGetPixelDataPointer(pixel_data));
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
-      bool use_color_a = (x < width / 2) ^ (y < height / 2);
+      bool use_color_a = (x < half_width) ^ (y < half_height);
       *current_byte = use_color_a ? color_a : color_b;
       ++current_byte;
     }
@@ -554,6 +570,132 @@ TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRect) {
   SbBlitterBlitRectToRect(context_, checker_image,
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()),
                           SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRectWithSourceWidthOf1) {
+  // This is a common scenario for rendering vertical linear gradients.
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
+      device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), 1, GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, 1, GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRectWithSourceHeightOf1) {
+  // This is a common scenario for rendering horizontal linear gradients.
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
+      device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), 1);
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), 1),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRectPixelDataWithSourceWidthOf1) {
+  // This is a common scenario for rendering vertical linear gradients.
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), 1, GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, 1, GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
+}
+
+TEST_F(SbBlitterPixelTest,
+       ScissoredBlitRectToRectPixelDataWithBlitSourceWidthOf1) {
+  // This is a common scenario for rendering vertical linear gradients.
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), 8, GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(4, 0, 1, GetHeight()),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
+}
+
+TEST_F(SbBlitterPixelTest,
+       ScissoredBlitRectToRectPixelDataWithSourceHeightOf1) {
+  // This is a common scenario for rendering horizontal linear gradients.
+  SbBlitterSurface checker_image = CreateCheckerImageWithPixelData(
+      device_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), GetWidth(), 1);
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(32, 32, GetWidth() - 48, GetHeight() - 48));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, GetWidth(), 1),
+                          SbBlitterMakeRect(0, 0, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
+}
+
+TEST_F(SbBlitterPixelTest, ScissoredBlitRectToRectWithSourceWidthOf1AtTopLeft) {
+  // This is a common scenario for rendering vertical linear gradients.  This
+  // test exercises a bug that was found when rendering outside the top-left
+  // corner of the render surface and scissor rectangle.
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
+      device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), 1, GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(-10, -10, GetWidth(), GetHeight()));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, 1, GetHeight()),
+                          SbBlitterMakeRect(-12, -12, GetWidth(), GetHeight()));
+
+  SbBlitterDestroySurface(checker_image);
+}
+
+TEST_F(SbBlitterPixelTest,
+       ScissoredBlitRectToRectWithSourceWidthOf1AtBottomRight) {
+  // This is a common scenario for rendering vertical linear gradients.  This
+  // test exercises a bug that was found when rendering outside the bottom-right
+  // corner of the render surface and scissor rectangle.
+  SbBlitterSurface checker_image = CreateCheckerImageWithBlits(
+      device_, context_, SbBlitterColorFromRGBA(255, 255, 255, 255),
+      SbBlitterColorFromRGBA(0, 0, 0, 255), 1, GetHeight());
+
+  SbBlitterSetRenderTarget(context_, render_target_);
+
+  SbBlitterSetScissor(
+      context_, SbBlitterMakeRect(10, 10, GetWidth() + 10, GetHeight() + 10));
+  SbBlitterBlitRectToRect(context_, checker_image,
+                          SbBlitterMakeRect(0, 0, 1, GetHeight()),
+                          SbBlitterMakeRect(20, 20, GetWidth(), GetHeight()));
 
   SbBlitterDestroySurface(checker_image);
 }
