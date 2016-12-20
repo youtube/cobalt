@@ -217,6 +217,13 @@ $(document).ready(function() {
 
   /** Prettyprint code blocks */
   $('pre').addClass("prettyprint");
+  
+  if (window.location.hostname.indexOf('cobalt.foo') !== -1) { 
+    $('a').each(function() {
+      var href = this.href;
+      var newHref = href.replace(/\/cobalt/, '');
+    });
+  }
 });
 
 
