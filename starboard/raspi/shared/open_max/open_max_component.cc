@@ -45,19 +45,27 @@ void OpenMaxComponent::Flush() {
   SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
 }
 
-int OpenMaxComponent::WriteData(const void* data, int size, SbTime timestamp) {
+int OpenMaxComponent::WriteData(const void* data, int size, DataType type,
+                                SbTime timestamp) {
   int offset = 0;
 
-  while (offset != size) {
+  while (offset < size) {
     OMX_BUFFERHEADERTYPE* buffer_header = GetUnusedInputBuffer();
     if (buffer_header == NULL) {
       return offset;
     }
 
-    int size_to_append = std::min<int>(size - offset, buffer_header->nAllocLen);
+    int size_to_append = size - offset;
+    if (size_to_append > buffer_header->nAllocLen) {
+      size_to_append = buffer_header->nAllocLen;
+      buffer_header->nFlags = 0;
+    } else if (type == kDataEOS) {
+      buffer_header->nFlags = OMX_BUFFERFLAG_EOS;
+    } else {
+      buffer_header->nFlags = 0;
+    }
     buffer_header->nOffset = 0;
     buffer_header->nFilledLen = size_to_append;
-    buffer_header->nFlags = 0;
 
     buffer_header->nTimeStamp.nLowPart = timestamp;
     buffer_header->nTimeStamp.nHighPart = timestamp >> 32;
@@ -74,7 +82,10 @@ int OpenMaxComponent::WriteData(const void* data, int size, SbTime timestamp) {
 }
 
 void OpenMaxComponent::WriteEOS() {
-  OMX_BUFFERHEADERTYPE* buffer_header = GetUnusedInputBuffer();
+  OMX_BUFFERHEADERTYPE* buffer_header;
+  while ((buffer_header = GetUnusedInputBuffer()) == NULL) {
+    SbThreadSleep(kSbTimeMillisecond);
+  }
 
   buffer_header->nOffset = 0;
   buffer_header->nFilledLen = 0;
@@ -137,6 +148,12 @@ OpenMaxComponent::~OpenMaxComponent() {
   DisableOutputPort();
 
   SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateLoaded);
+}
+
+void OpenMaxComponent::OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
+                                    OMX_PTR /* event_data */) {
+  SB_NOTREACHED() << "OMX_EventError received with " << std::hex << data1
+                  << " " << data2;
 }
 
 void OpenMaxComponent::DisableOutputPort() {
