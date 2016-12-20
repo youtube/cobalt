@@ -45,6 +45,7 @@ class SplashScreen {
                const math::Size& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
                float layout_refresh_rate, const Options& options = Options());
+  ~SplashScreen();
 
   void Suspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
@@ -64,13 +65,14 @@ class SplashScreen {
   void OnWindowClosed();
 
   media::MediaModuleStub stub_media_module_;
-  scoped_ptr<WebModule> web_module_;
 
   WebModule::OnRenderTreeProducedCallback render_tree_produced_callback_;
 
   // Signalled once the splash screen has produced its first render tree or
   // an error occurred.
   base::WaitableEvent is_ready_;
+
+  scoped_ptr<WebModule> web_module_;
 };
 
 }  // namespace browser
