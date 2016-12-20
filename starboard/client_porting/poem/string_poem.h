@@ -99,9 +99,16 @@ extern "C" {
 static SB_C_INLINE char* PoemStringConcat(char* out_destination,
                                           const char* source,
                                           int num_chars_to_copy) {
+  if (num_chars_to_copy <= 0)
+    return out_destination;
+
   int destination_length = (int)(SbStringGetLength(out_destination));
-  SbStringConcat(out_destination, source,
-                 destination_length + num_chars_to_copy + 1);
+
+  int destination_size = destination_length + num_chars_to_copy + 1;
+  if (destination_size < 0) {  // Did we accidentally overflow?
+    destination_size = INT_MAX;
+  }
+  SbStringConcat(out_destination, source, destination_size);
   return out_destination;
 }
 
@@ -110,7 +117,8 @@ static SB_C_INLINE char* PoemStringConcat(char* out_destination,
 // for strcat.
 static SB_C_INLINE char* PoemStringConcatUnsafe(char* out_destination,
                                                 const char* source) {
-  return PoemStringConcat(out_destination, source, INT_MAX);
+  return PoemStringConcat(out_destination, source,
+                          (int)SbStringGetLength(source));
 }
 
 // Inline wrapper for a drop-in replacement for |strncpy|.  This function
