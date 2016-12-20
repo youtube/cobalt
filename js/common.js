@@ -130,7 +130,7 @@ $(document).ready(function() {
       addClass('expand-container');
 
   var url = window.location.origin + window.location.pathname;
-  console.log(window.location.origin);
+  var backup_url = window.location.origin + '/cobalt' + window.location.pathname;
   console.log(window.location.pathname);
   console.log(url);
   /** Highlight the active document in left nav
@@ -167,6 +167,10 @@ $(document).ready(function() {
   highlightActive.call($('#sidebar a').filter(function() {
     if (this.href + 'index.md' == url) {
       return this.href + 'index.md' == url;
+    } else if (this.href + 'index.md' == backup_url) {
+      return this.href + 'index.md' == backup_url;
+    } else if (this.href == backup_url) {
+      return this.href == backup_url;
     }
     return this.href == url;
   }));
