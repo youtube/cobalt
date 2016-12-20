@@ -51,6 +51,12 @@ SplashScreen::SplashScreen(
       layout_refresh_rate, web_module_options));
 }
 
+SplashScreen::~SplashScreen() {
+  // Destroy the web module first to prevent our callbacks from being called
+  // (from another thread) while member objects are being destroyed.
+  web_module_.reset();
+}
+
 void SplashScreen::Suspend() { web_module_->Suspend(); }
 void SplashScreen::Resume(render_tree::ResourceProvider* resource_provider) {
   web_module_->Resume(resource_provider);
