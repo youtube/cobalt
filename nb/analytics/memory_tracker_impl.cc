@@ -110,7 +110,6 @@ void MemoryTrackerImpl::Clear() {
   // memory deallocation.
   atomic_allocation_map_.Clear();
   total_bytes_allocated_.store(0);
-  debug_callback_ = NULL;
 }
 
 void MemoryTrackerImpl::Debug_PushAllocationGroupBreakPointByName(
@@ -218,7 +217,11 @@ bool MemoryTrackerImpl::IsCurrentThreadAllowedToReport() const {
 
 void MemoryTrackerImpl::SetMemoryTrackerDebugCallback(
     MemoryTrackerDebugCallback* cb) {
-  debug_callback_ = cb;
+  if (debug_callback_.get()) {
+    SB_DCHECK(false) << "Can only set MemoryTrackerDebugCallback once.";
+    return;
+  }
+  debug_callback_.reset(cb);
 }
 
 MemoryTrackerImpl::DisableDeletionInScope::DisableDeletionInScope(
@@ -337,20 +340,20 @@ size_t MemoryTrackerImpl::RemoveMemoryTracking(const void* memory) {
   AllocationRecord alloc_record;
   bool removed = false;
 
+  // Useful for investigating what the heck is being deallocated. For example
+  // the developer may want to track certain allocations that meet a certain
+  // criteria.
+  if (debug_callback_) {
+    if (atomic_allocation_map_.Get(memory, &alloc_record)) {
+      DisableMemoryTrackingInScope no_memory_tracking(this);
+      debug_callback_->OnMemoryDeallocation(memory, alloc_record);
+    }
+  }
+
   // Prevent a map::erase() from causing an endless stack overflow by
   // disabling memory deletion for the very limited scope.
   {
-    // Not a correct name. TODO - change.
     DisableDeletionInScope no_memory_deletion(this);
-
-    // Useful for investigating what the heck is being deallocated. For example
-    // the developer may want to track certain allocations that meet a certain
-    // criteria.
-    if (debug_callback_) {
-      if (atomic_allocation_map_.Get(memory, &alloc_record)) {
-        debug_callback_->OnMemoryDeallocation(memory, alloc_record);
-      }
-    }
     removed = atomic_allocation_map_.Remove(memory, &alloc_record);
   }
 
