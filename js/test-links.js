@@ -23,8 +23,8 @@ $(document).ready(function() {
     $('a').each(function() {
       var href = this.href;
       console.log(this.href);
-      var newHref = href.replace(/^\/cobalt/, '');
-      console.log('nh: ' + newHref);
+      var newHref = href.replace(/\/cobalt/, '');
+      console.log('nh2: ' + newHref);
     });
   }
 });
