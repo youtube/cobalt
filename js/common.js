@@ -221,7 +221,7 @@ $(document).ready(function() {
   if (window.location.hostname.indexOf('cobalt.foo') !== -1) { 
     $('a').each(function() {
       var href = this.href;
-      this.href = href.replace(/\/cobalt/, '');
+      this.href = href.replace(/foo\/cobalt/, 'foo');
     });
   }
 });
