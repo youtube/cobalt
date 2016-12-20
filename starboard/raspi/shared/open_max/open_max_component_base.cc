@@ -127,8 +127,7 @@ OMX_ERRORTYPE OpenMaxComponentBase::OnEvent(OMX_EVENTTYPE event,
                                             OMX_U32 data2,
                                             OMX_PTR event_data) {
   if (event == OMX_EventError && data1 != OMX_ErrorSameState) {
-    SB_NOTREACHED() << "OMX_EventError received with " << std::hex << data1
-                    << " " << data2;
+    OnErrorEvent(data1, data2, event_data);
     return OMX_ErrorNone;
   }
 

@@ -31,12 +31,23 @@ namespace open_max {
 
 class OpenMaxComponent : protected OpenMaxComponentBase {
  public:
+  enum DataType {
+    kDataNonEOS,    // Do not flag any buffer as end of stream.
+    kDataEOS,       // Flag the last buffer written as end of stream.
+  };
+
   explicit OpenMaxComponent(const char* name);
 
   void Start();
   void Flush();
 
-  int WriteData(const void* data, int size, SbTime timestamp);
+  // Write data to the input buffer. Returns the number of bytes written or
+  // -1 if an error occurred.
+  // This will return immediately once no more buffers are available.
+  int WriteData(const void* data, int size, DataType type, SbTime timestamp);
+
+  // Write an empty buffer that is flagged as the end of the input stream.
+  // This will block until a buffer is available.
   void WriteEOS();
 
   OMX_BUFFERHEADERTYPE* PeekNextOutputBuffer();
@@ -45,7 +56,9 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
  protected:
   ~OpenMaxComponent();
 
- private:
+  // Callbacks available to children.
+  void OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
+                    OMX_PTR event_data) SB_OVERRIDE;
   virtual bool OnEnableInputPort(OMXParamPortDefinition* port_definition) {
     return false;
   }
@@ -56,6 +69,7 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   }
   virtual void OnReadyToPeekOutputBuffer() {}
 
+ private:
   void DisableOutputPort();
 
   void EnableInputPortAndAllocateBuffers();
@@ -63,6 +77,7 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   void EnableOutputPortAndAllocateBuffer();
   OMX_BUFFERHEADERTYPE* GetUnusedInputBuffer();
 
+  // Callbacks not intended to be overridden by children.
   void OnOutputSettingChanged() SB_OVERRIDE;
   OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer) SB_OVERRIDE;
   void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) SB_OVERRIDE;

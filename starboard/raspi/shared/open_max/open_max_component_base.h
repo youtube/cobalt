@@ -101,6 +101,8 @@ class OpenMaxComponentBase {
                         OMX_U32 data2,
                         OMX_PTR event_data);
 
+  virtual void OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
+                            OMX_PTR event_data) = 0;
   virtual void OnOutputSettingChanged() = 0;
   virtual OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer) = 0;
   virtual void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) = 0;
