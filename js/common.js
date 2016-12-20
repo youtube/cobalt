@@ -117,7 +117,7 @@ $(document).ready(function() {
     // If an element matches the target link hash and the target host and
     // page match the current host and page, scroll to the element.
     if (!$(this).hasClass('mdl-tabs__tab')) {
-      console.log(this);
+      //console.log(this);
       checkLinkBeforeScroll(this);
     }
   });
@@ -131,8 +131,6 @@ $(document).ready(function() {
 
   var url = window.location.origin + window.location.pathname;
   var backup_url = window.location.origin + '/cobalt' + window.location.pathname;
-  console.log(window.location.pathname);
-  console.log(url);
   /** Highlight the active document in left nav
    * closest expandable to active item, contains header + item list -- e.g.:
    * <li class="expand-container">
