@@ -18,8 +18,8 @@ $(document).ready(function() {
   /**
    * Rewrite links to serve correctly on cobalt.foo.
    */
-  var letsPretend = False;
-  if (window.location.hostname.indexOf('cobalt.foo') !== -1 || letsPretend == True) { 
+  var letsPretend = false;
+  if (window.location.hostname.indexOf('cobalt.foo') !== -1 || letsPretend == true) { 
     $('a').each(function() {
       var href = this.href;
       console.log(this.href);
