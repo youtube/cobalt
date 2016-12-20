@@ -320,6 +320,11 @@
                 'defines': [
                   'U_STATIC_IMPLEMENTATION',
                 ],
+                'direct_dependent_settings': {
+                  'defines': [
+                    'U_STATIC_IMPLEMENTATION',
+                  ],
+                },
               }],
             ],
           },
