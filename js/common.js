@@ -130,6 +130,9 @@ $(document).ready(function() {
       addClass('expand-container');
 
   var url = window.location.origin + window.location.pathname;
+  console.log(window.location.origin);
+  console.log(window.location.pathname);
+  console.log(url);
   /** Highlight the active document in left nav
    * closest expandable to active item, contains header + item list -- e.g.:
    * <li class="expand-container">
