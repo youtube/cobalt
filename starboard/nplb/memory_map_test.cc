@@ -128,12 +128,12 @@ TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
   ptrdiff_t sum_function_offset =
       sum_function_start -
       reinterpret_cast<uint8_t*>(
-          reinterpret_cast<intptr_t>(sum_function_start) & ~0x1);
+          reinterpret_cast<uintptr_t>(sum_function_start) & ~0x1);
   sum_function_start -= sum_function_offset;
 
   // Get the last address of the page that |sum_function_start| is on.
   uint8_t* sum_function_page_end = reinterpret_cast<uint8_t*>(
-      (reinterpret_cast<intptr_t>(sum_function_start) / SB_MEMORY_PAGE_SIZE) *
+      (reinterpret_cast<uintptr_t>(sum_function_start) / SB_MEMORY_PAGE_SIZE) *
           SB_MEMORY_PAGE_SIZE +
       SB_MEMORY_PAGE_SIZE);
   ASSERT_TRUE(SbMemoryIsAligned(sum_function_page_end, SB_MEMORY_PAGE_SIZE));
