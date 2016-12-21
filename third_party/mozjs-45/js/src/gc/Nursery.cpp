@@ -119,8 +119,10 @@ js::Nursery::updateDecommittedRegion()
 # ifndef XP_DARWIN
         uintptr_t decommitStart = chunk(numActiveChunks_).start();
         uintptr_t decommitSize = heapEnd() - decommitStart;
+#if !defined(STARBOARD)
         MOZ_ASSERT(decommitStart == AlignBytes(decommitStart, Alignment));
         MOZ_ASSERT(decommitSize == AlignBytes(decommitStart, Alignment));
+#endif
         MarkPagesUnused((void*)decommitStart, decommitSize);
 # endif
     }
