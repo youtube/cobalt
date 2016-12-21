@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "6b612fbb_05c2b193",
+        "filename": "src/starboard/shared/wayland/application_wayland.cc",
+        "patchSetId": 8
+      },
+      "lineNbr": 29,
+      "author": {
+        "id": 5250
+      },
+      "writtenOn": "2016-12-21T05:46:03Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "6b612fbb_c544396b",
+      "range": {
+        "startLine": 25,
+        "startChar": 0,
+        "endLine": 29,
+        "endChar": 24
+      },
+      "revId": "6c2b251670d013e636863c2b2f3662ae87cedcac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6b612fbb_053f11cd",
         "filename": "src/starboard/shared/wayland/application_wayland.cc",
         "patchSetId": 8
@@ -36,6 +60,30 @@
       "writtenOn": "2016-11-14T05:57:40Z",
       "side": 1,
       "message": "Our naming convention for functions is CapitalizedCamelCase, like RegistryAddObject\nhttps://google.github.io/styleguide/cppguide.html#Function_Names",
+      "range": {
+        "startLine": 32,
+        "startChar": 12,
+        "endLine": 32,
+        "endChar": 31
+      },
+      "revId": "6c2b251670d013e636863c2b2f3662ae87cedcac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6b612fbb_25c7b5a3",
+        "filename": "src/starboard/shared/wayland/application_wayland.cc",
+        "patchSetId": 8
+      },
+      "lineNbr": 32,
+      "author": {
+        "id": 5250
+      },
+      "writtenOn": "2016-12-21T05:46:03Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "6b612fbb_053f11cd",
       "range": {
         "startLine": 32,
         "startChar": 12,
@@ -71,6 +119,30 @@
     },
     {
       "key": {
+        "uuid": "f04a7097_f47b4e2a",
+        "filename": "src/starboard/shared/wayland/application_wayland.cc",
+        "patchSetId": 8
+      },
+      "lineNbr": 66,
+      "author": {
+        "id": 5250
+      },
+      "writtenOn": "2016-12-21T05:46:03Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "6b612fbb_25441565",
+      "range": {
+        "startLine": 25,
+        "startChar": 0,
+        "endLine": 66,
+        "endChar": 78
+      },
+      "revId": "6c2b251670d013e636863c2b2f3662ae87cedcac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6b612fbb_45590949",
         "filename": "src/starboard/shared/wayland/application_wayland.h",
         "patchSetId": 8
@@ -82,6 +154,30 @@
       "writtenOn": "2016-11-14T05:57:40Z",
       "side": 1,
       "message": "I\u0027ll have to figure out how contributed code gets copyrighted. We might need to make this \"Copyright 2016 The Cobalt Authors\" or something like that, with Samsung Electronics in the AUTHORS file in the root of the project.",
+      "range": {
+        "startLine": 1,
+        "startChar": 3,
+        "endLine": 1,
+        "endChar": 37
+      },
+      "revId": "6c2b251670d013e636863c2b2f3662ae87cedcac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "f04a7097_147fda1a",
+        "filename": "src/starboard/shared/wayland/application_wayland.h",
+        "patchSetId": 8
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 5250
+      },
+      "writtenOn": "2016-12-21T05:46:03Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "6b612fbb_45590949",
       "range": {
         "startLine": 1,
         "startChar": 3,
