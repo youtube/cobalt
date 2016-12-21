@@ -149,6 +149,12 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
   scoped_ptr<backend::GraphicsContext> graphics_context =
       graphics_system->CreateGraphicsContext();
 
+  // Initialize the debug context. This will cause GraphicsContextEGL to compute
+  // whether or not the pixels require a vertical flip, fixing a crash when the
+  // vertical flip requirement is determined after the pipelines are created.
+  // The root cause of the crash has yet to be discovered.
+  graphics_context->InitializeDebugContext();
+
   // Create a dummy offscreen surface so that we can have a target when we start
   // a frame with the graphics context.
   const math::Size kDummySurfaceDimensions(1, 1);
