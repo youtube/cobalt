@@ -16,7 +16,8 @@
 
 #include "unicode/utypes.h"
 
-#if !U_HAVE_WCSCPY
+#if !U_HAVE_WCSCPY && !defined(STARBOARD)
+
 
 #include "cwchar.h"
 
@@ -50,4 +51,3 @@ U_CAPI size_t uprv_wcslen(const wchar_t *src) {
 }
 
 #endif
-

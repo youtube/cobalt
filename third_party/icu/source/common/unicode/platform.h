@@ -680,8 +680,10 @@
 #elif (U_PLATFORM == U_STARBOARD)
 #  if SB_IS(WCHAR_T_UTF16)
 #    define U_SIZEOF_WCHAR_T    2
-#  else
+#  elif SB_IS(WCHAR_T_UTF32)
 #    define U_SIZEOF_WCHAR_T    4
+#  else
+#    error "Starboard: Unknown size of wchar_t."
 #  endif
 #elif (U_PLATFORM == U_PF_ANDROID && __ANDROID_API__ < 9)
     /*
