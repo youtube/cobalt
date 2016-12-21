@@ -12,12 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unwind.h>
+
 #include "starboard/system.h"
 #include "starboard/log.h"
 
+namespace {
+class CallbackContext {
+ public:
+  void** out_stack;
+  int stack_size;
+  int count;
+  CallbackContext(void** out_stack, int stack_size)
+      : out_stack(out_stack), stack_size(stack_size), count(0) {}
+};
+
+_Unwind_Reason_Code UnwindCallback(struct _Unwind_Context* uwc,
+                                   void* user_context) {
+  CallbackContext* callback_context =
+      static_cast<CallbackContext*>(user_context);
+  _Unwind_Ptr ip = _Unwind_GetIP(uwc);
+
+  if (ip == 0) {
+    return _URC_END_OF_STACK;
+  }
+
+  if (callback_context->count == callback_context->stack_size) {
+    return _URC_END_OF_STACK;
+  }
+
+  callback_context->out_stack[callback_context->count] =
+      reinterpret_cast<void*>(ip);
+  callback_context->count++;
+  return _URC_NO_REASON;
+}
+}  // namespace
+
 int SbSystemGetStack(void** out_stack, int stack_size) {
-  // TODO: Implement for Android
-  // see http://stackoverflow.com/questions/8115192/android-ndk-getting-the-backtrace
-  SB_NOTIMPLEMENTED();
-  return 0;
+  CallbackContext callback_context(out_stack, stack_size);
+
+  _Unwind_Backtrace(UnwindCallback, &callback_context);
+  return callback_context.count;
 }
