@@ -264,7 +264,7 @@ typedef int8_t UBool;
  * @stable ICU 2.0
  */
 #if !defined(U_WCHAR_IS_UTF16) && !defined(U_WCHAR_IS_UTF32)
-#   ifdef __STDC_ISO_10646__
+#   if defined(__STDC_ISO_10646__) || defined(STARBOARD)
 #       if (U_SIZEOF_WCHAR_T==2)
 #           define U_WCHAR_IS_UTF16
 #       elif (U_SIZEOF_WCHAR_T==4)

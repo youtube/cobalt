@@ -31,6 +31,10 @@
 #define _BUFFER_CAPACITY_MULTIPLIER 2
 
 #if !defined(U_WCHAR_IS_UTF16) && !defined(U_WCHAR_IS_UTF32)
+#if defined(STARBOARD)
+#error "Starboard does not (yet) have wcstombs."
+#endif
+
 // TODO: We should use CharString for char buffers and UnicodeString for UChar buffers.
 // Then we could change this to work only with wchar_t buffers.
 static inline UBool 
