@@ -46,12 +46,16 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     return layout_stat_tracker_.get();
   }
 
-  // |OnInjectEvent| starts event stat tracking if
+  // |OnStartInjectEvent| starts event stat tracking if
   // |should_track_injected_events_| is true. Otherwise, it does nothing.
-  void OnInjectEvent(const scoped_refptr<dom::Event>& event);
+  void OnStartInjectEvent(const scoped_refptr<dom::Event>& event);
 
-  // |OnRenderTreeProduced| ends stat tracking for the current event and also
-  // triggers flushing of periodic counts within the stat trackers.
+  // |OnEndInjectEvent| notifies the event stat tracking that the event has
+  // finished being injected. If no render tree is pending, it also ends
+  // tracking of the event.
+  void OnEndInjectEvent(bool is_new_render_tree_pending);
+
+  // |OnRenderTreeProduced| ends stat tracking for the current event.
   void OnRenderTreeProduced();
 
  private:
@@ -64,11 +68,14 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   enum StopWatchType {
     kStopWatchTypeEvent,
+    kStopWatchTypeInjectEvent,
     kNumStopWatchTypes,
   };
 
   struct EventStats {
     explicit EventStats(const std::string& name);
+
+    base::CVal<int, base::CValPublic> produced_render_tree_;
 
     // Count-related
     base::CVal<int, base::CValPublic> count_dom_html_elements_created;

@@ -30,7 +30,6 @@ namespace dom {
 class DomStatTracker : public base::StopWatchOwner {
  public:
   enum StopWatchType {
-    kStopWatchTypeInjectEvent,
     kStopWatchTypeUpdateComputedStyle,
     kNumStopWatchTypes,
   };

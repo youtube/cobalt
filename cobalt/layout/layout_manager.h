@@ -71,6 +71,8 @@ class LayoutManager {
   void Suspend();
   void Resume();
 
+  bool IsNewRenderTreePending() const;
+
  private:
   class Impl;
   const scoped_ptr<Impl> impl_;

@@ -31,7 +31,7 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
       current_event_type_(kEventTypeInvalid),
       name_(name),
       event_is_processing_(StringPrintf("Event.%s.IsProcessing", name.c_str()),
-          0, "Nonzero when an event is being processed.") {
+                           false, "Nonzero when an event is being processed.") {
   if (should_track_event_stats_) {
     event_stats_.reserve(kNumEventTypes);
     for (int i = 0; i < kNumEventTypes; ++i) {
@@ -51,16 +51,19 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
 
 WebModuleStatTracker::~WebModuleStatTracker() { EndCurrentEvent(false); }
 
-void WebModuleStatTracker::OnInjectEvent(
+void WebModuleStatTracker::OnStartInjectEvent(
     const scoped_refptr<dom::Event>& event) {
   if (!should_track_event_stats_) {
     return;
   }
 
-  EndCurrentEvent(false);
+  // If an event is already being tracked, then don't track this event. It needs
+  // to be allowed to finish.
+  if (current_event_type_ != kEventTypeInvalid) {
+    return;
+  }
 
-  event_is_processing_ = 1;
-
+  // Determine the event type.
   if (event->type() == base::Tokens::keydown()) {
     current_event_type_ = kEventTypeKeyDown;
   } else if (event->type() == base::Tokens::keyup()) {
@@ -69,26 +72,45 @@ void WebModuleStatTracker::OnInjectEvent(
     current_event_type_ = kEventTypeInvalid;
   }
 
-  // If this is a valid event, then all of the timers are now started/enabled.
-  // They will continue running for this event until either another event is
-  // injected, or a render tree is produced for this event.
+  // If this is a valid event type, then start tracking it.
   if (current_event_type_ != kEventTypeInvalid) {
-    stop_watches_[kStopWatchTypeEvent].Start();
+    event_is_processing_ = true;
+
+    // Clear the counts and durations at the start of the event.
+    dom_stat_tracker_->FlushPeriodicTracking();
+    layout_stat_tracker_->FlushPeriodicTracking();
+    stop_watch_durations_[kStopWatchTypeEvent] = base::TimeDelta();
+    stop_watch_durations_[kStopWatchTypeInjectEvent] = base::TimeDelta();
+
+    // Start the event timers.
     dom_stat_tracker_->EnableStopWatches();
     layout_stat_tracker_->EnableStopWatches();
+    stop_watches_[kStopWatchTypeEvent].Start();
+    stop_watches_[kStopWatchTypeInjectEvent].Start();
   }
 }
 
-void WebModuleStatTracker::OnRenderTreeProduced() {
-  EndCurrentEvent(true);
+void WebModuleStatTracker::OnEndInjectEvent(bool is_new_render_tree_pending) {
+  // If the injection isn't currently being timed, then this event injection
+  // isn't being tracked. Simply return.
+  if (!stop_watches_[kStopWatchTypeInjectEvent].IsCounting()) {
+    return;
+  }
 
-  // Counts are flushed after new render trees are produced.
-  dom_stat_tracker_->FlushPeriodicTracking();
-  layout_stat_tracker_->FlushPeriodicTracking();
+  stop_watches_[kStopWatchTypeInjectEvent].Stop();
+
+  if (!is_new_render_tree_pending) {
+    EndCurrentEvent(false);
+  }
 }
 
+void WebModuleStatTracker::OnRenderTreeProduced() { EndCurrentEvent(true); }
+
 WebModuleStatTracker::EventStats::EventStats(const std::string& name)
-    : count_dom_html_elements_created(
+    : produced_render_tree_(
+          StringPrintf("Event.%s.ProducedRenderTree", name.c_str()), false,
+          "Nonzero when the event produced a render tree."),
+      count_dom_html_elements_created(
           StringPrintf("Event.Count.%s.DOM.HtmlElement.Created", name.c_str()),
           0, "Number of HTML elements created."),
       count_dom_html_elements_destroyed(
@@ -157,14 +179,14 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
     return;
   }
 
-  event_is_processing_ = 0;
+  event_is_processing_ = false;
 
-  stop_watch_durations_[kStopWatchTypeEvent] = base::TimeDelta();
-  stop_watches_[kStopWatchTypeEvent].Stop();
   dom_stat_tracker_->DisableStopWatches();
   layout_stat_tracker_->DisableStopWatches();
+  stop_watches_[kStopWatchTypeEvent].Stop();
 
   EventStats* event_stats = event_stats_[current_event_type_];
+  event_stats->produced_render_tree_ = was_render_tree_produced;
 
   // Update event counts
   event_stats->count_dom_html_elements_created =
@@ -181,20 +203,9 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       layout_stat_tracker_->boxes_destroyed_count();
 
   // Update event durations
-  base::TimeDelta event_injection_duration =
-      dom_stat_tracker_->GetStopWatchTypeDuration(
-          dom::DomStatTracker::kStopWatchTypeInjectEvent);
-  // If a render tree was produced, then the total duration is the duration from
-  // when the event started until now. Otherwise, the injection duration is
-  // used. This is because some events do not trigger a new layout. In these
-  // cases, using the duration from the start of the event until now is
-  // misleading as it merely indicates how long the user waited to initiate the
-  // next event. When this occurs, the injection duration provides a much more
-  // accurate picture of how long the event takes.
-  event_stats->duration_total = was_render_tree_produced
-                                    ? stop_watch_durations_[kStopWatchTypeEvent]
-                                    : event_injection_duration;
-  event_stats->duration_dom_inject_event = event_injection_duration;
+  event_stats->duration_total = stop_watch_durations_[kStopWatchTypeEvent];
+  event_stats->duration_dom_inject_event =
+      stop_watch_durations_[kStopWatchTypeInjectEvent];
   event_stats->duration_dom_update_computed_style =
       dom_stat_tracker_->GetStopWatchTypeDuration(
           dom::DomStatTracker::kStopWatchTypeUpdateComputedStyle);
