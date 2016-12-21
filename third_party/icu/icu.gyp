@@ -230,15 +230,6 @@
           },
           # Since ICU wants to internally use its own deprecated APIs, don't
           # complain about it.
-          'cflags': [
-            '-Wno-deprecated-declarations',
-          ],
-          'cflags_cc': [
-            '-frtti',
-          ],
-          'cflags_cc!': [
-            '-fno-rtti',
-          ],
           'xcode_settings': {
             'GCC_ENABLE_CPP_RTTI': 'YES',       # -frtti
           },
@@ -248,6 +239,33 @@
             },
           },
           'conditions': [
+            [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "lb_shell"', {
+              # Since ICU wants to internally use its own deprecated APIs, don't
+              # complain about it.
+              'cflags': [
+                '-Wno-deprecated-declarations',
+              ],
+              'cflags_cc': [
+                '-frtti',
+              ],
+            }],
+            ['OS == "mac" or OS == "ios"', {
+              'xcode_settings': {
+                'GCC_ENABLE_CPP_RTTI': 'YES',       # -frtti
+              },
+            }],
+            ['OS == "win"', {
+              'msvs_settings': {
+                'VCCLCompilerTool': {
+                  'RuntimeTypeInfo': 'true',
+                },
+              }
+            }],
+            ['(OS == "lb_shell" or OS=="starboard") and target_arch == "ps3"', {
+              'cflags_cc': [
+                '-Xc+=rtti',
+              ],
+            }],
             [ 'use_system_icu==1 and want_separate_host_toolset==1', {
               'toolsets': ['host'],
             }],
