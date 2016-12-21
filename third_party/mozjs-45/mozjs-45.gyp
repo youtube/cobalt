@@ -63,6 +63,7 @@
         'build_include_directory',
         '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
       'direct_dependent_settings': {
@@ -97,7 +98,7 @@
       },
       'include_dirs': [
         '<(DEPTH)/third_party/mozjs-45/js/src',
-        '<(DEPTH)/third_party/icu/public/common',
+        '<(DEPTH)/third_party/icu/source/common',
         '<(generated_include_directory)',
       ],
       'sources': [
