@@ -23,8 +23,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 
-#include <limits.h>
-
 // The API version implemented by this platform.
 #define SB_API_VERSION 2
 
@@ -311,7 +309,9 @@
 #define SB_MAX_THREADS 90
 
 // The maximum number of thread local storage keys supported by this platform.
-#define SB_MAX_THREAD_LOCAL_KEYS PTHREAD_KEYS_MAX
+// This comes from bionic PTHREAD_KEYS_MAX in limits.h, which we've decided
+// to not include here to decrease symbol pollution.
+#define SB_MAX_THREAD_LOCAL_KEYS 128
 
 // The maximum length of the name for a thread, including the NULL-terminator.
 #define SB_MAX_THREAD_NAME_LENGTH 16;
