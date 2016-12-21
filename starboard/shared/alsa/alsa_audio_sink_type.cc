@@ -225,6 +225,8 @@ void AlsaAudioSink::AudioThreadFunc() {
 bool AlsaAudioSink::IdleLoop() {
   SB_DLOG(INFO) << "alsa::AlsaAudioSink enters idle loop";
 
+  bool drain = true;
+
   for (;;) {
     {
       ScopedLock lock(mutex_);
@@ -239,12 +241,12 @@ bool AlsaAudioSink::IdleLoop() {
     if (is_playing && frames_in_buffer > 0) {
       return true;
     }
-    int delayed_frame = AlsaGetBufferedFrames(playback_handle_);
-    if (delayed_frame < kMinimumFramesInALSA) {
+    if (drain) {
+      drain = false;
       AlsaWriteFrames(playback_handle_, silence_frames_, kFramesPerRequest);
-    } else {
-      SbThreadSleep(time_to_wait_);
+      AlsaDrain(playback_handle_);
     }
+    SbThreadSleep(time_to_wait_);
   }
 
   return false;
