@@ -598,8 +598,13 @@ void ContentSecurityPolicy::CreateSelfSource() {
   config.host = url_.host();
   config.path.clear();
   config.port = url_.IntPort();
+#if defined(COBALT_BUILD_TYPE_GOLD)
   config.host_wildcard = SourceConfig::kNoWildcard;
   config.port_wildcard = SourceConfig::kNoWildcard;
+#else
+  config.host_wildcard = SourceConfig::kHasWildcard;
+  config.port_wildcard = SourceConfig::kHasWildcard;
+#endif
   self_source_.reset(new Source(this, config));
 }
 
