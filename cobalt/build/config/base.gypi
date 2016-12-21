@@ -340,9 +340,13 @@
         ],
       }],  # OS == "lb_shell"
       ['OS == "starboard"', {
-        # Keeps common Starboard target changes in the starboard project.
-        'includes': [
-          '../../../starboard/starboard_base_target.gypi',
+        'target_conditions': [
+          ['_toolset=="target"', {
+            # Keeps common Starboard target changes in the starboard project.
+            'includes': [
+              '../../../starboard/starboard_base_target.gypi',
+            ],
+          }],
         ],
       }],  # OS == "starboard"
       ['target_arch in ["xb1", "xb360"]', {
