@@ -321,11 +321,6 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
   if (event->type() == base::Tokens::keydown() ||
       event->type() == base::Tokens::keypress() ||
       event->type() == base::Tokens::keyup()) {
-    base::StopWatch stop_watch_inject_event(
-        DomStatTracker::kStopWatchTypeInjectEvent,
-        base::StopWatch::kAutoStartOn,
-        html_element_context_->dom_stat_tracker());
-
     // Event.target:focused element processing the key event or if no element
     // focused, then the body element if available, otherwise the root element.
     //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown

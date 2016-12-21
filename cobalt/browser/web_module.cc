@@ -507,15 +507,16 @@ void WebModule::Impl::InjectKeyboardEvent(
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event));
 
-  // Give the stat tracker a chance to start tracking the event before it is
-  // injected.
-  web_module_stat_tracker_->OnInjectEvent(keyboard_event);
+  web_module_stat_tracker_->OnStartInjectEvent(keyboard_event);
 
   if (element) {
     element->DispatchEvent(keyboard_event);
   } else {
     window_->InjectEvent(keyboard_event);
   }
+
+  web_module_stat_tracker_->OnEndInjectEvent(
+      layout_manager_->IsNewRenderTreePending());
 }
 
 void WebModule::Impl::ExecuteJavascript(
