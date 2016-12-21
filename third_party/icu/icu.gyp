@@ -302,6 +302,14 @@
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
                ],
             }],
+            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux" or clang==1)', {
+              'cflags_cc': [
+                '-frtti',
+              ],
+              'cflags_cc!': [
+                '-fno-rtti',
+              ],
+            }],
             [ 'OS == "win" and clang==1', {
               # Note: General clang warnings should go in the
               # clang_warning_flags block above.
@@ -435,17 +443,7 @@
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
                ],
             }],
-            ['(OS=="lb_shell" or OS=="starboard") and target_arch=="android"', {
-              'cflags_cc': [
-                '-frtti',
-              ],
-              'link_settings': {
-                'libraries': [
-                  '-lgabi++_static',
-                ],
-              },
-            }],
-            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="linux" or clang==1)', {
+            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux" or clang==1)', {
               'cflags_cc': [
                 '-frtti',
               ],
