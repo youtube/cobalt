@@ -33,6 +33,9 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
+  // TODO this is basically irrelevent under android, where we
+  // will almost always be a .so that's loaded by the Android runtime.
+  // We should remove it.
   char path[PATH_MAX + 1];
   size_t bytes_read = readlink("/proc/self/exe", path, PATH_MAX);
   if (bytes_read < 1) {
@@ -78,6 +81,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   path[0] = '\0';
 
   switch (path_id) {
+    // TODO should be funneled from Context.getDataDir()
     case kSbSystemPathContentDirectory: {
       if (!GetExecutableDirectory(path, kPathSize)) {
         return false;
@@ -88,6 +92,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
+    // TODO should be funneled from Context.getCacheDir()
     case kSbSystemPathCacheDirectory: {
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
@@ -100,6 +105,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
+    // TODO should be funneled from Context.getDir()
     case kSbSystemPathDebugOutputDirectory: {
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
@@ -112,6 +118,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
+    // TODO probably irrelevent, maybe Context.getDataDir()
     case kSbSystemPathSourceDirectory: {
       if (!GetExecutableDirectory(path, kPathSize)) {
         return false;
@@ -123,8 +130,9 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
+    // TODO should be funneled from Context.getCacheDir() maybe in "temp"
     case kSbSystemPathTempDirectory: {
-      if (SbStringCopy(path, "/tmp/cobalt", kPathSize) >= kPathSize) {
+      if (SbStringCopy(path, "/cache", kPathSize) >= kPathSize) {
         return false;
       }
 
@@ -132,11 +140,14 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
+    // TODO probably subdir in Context.getDir()
     case kSbSystemPathTestOutputDirectory: {
       return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
                              path_size);
     }
 
+    // TODO not really applicable, but should it be the APK path?
+    // The jar file? The .so?
     case kSbSystemPathExecutableFile: {
       return GetExecutablePath(out_path, path_size);
     }
