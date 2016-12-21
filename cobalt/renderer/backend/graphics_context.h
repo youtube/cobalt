@@ -50,6 +50,9 @@ class GraphicsContext {
   virtual scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) = 0;
 
+  // Initializes any values that are needed in a debugging context.
+  virtual void InitializeDebugContext() {}
+
   // Saves render target pixels to CPU memory returned as a scoped_array.
   // This function will wait for the pipeline to flush, so it is slow and should
   // only be used in a debug context.  One use case for the returned image
