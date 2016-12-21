@@ -21,3 +21,4 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 python run_cobalt_bindings_tests.py jsc "$@"
 python run_cobalt_bindings_tests.py mozjs "$@"
+python run_cobalt_bindings_tests.py mozjs-45 "$@"
