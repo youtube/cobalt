@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/application_android.h"
 
+#include <time.h>
+
 #include "starboard/event.h"
 #include "starboard/log.h"
 
@@ -29,7 +31,8 @@ ApplicationAndroid::~ApplicationAndroid() {
 }
 
 void ApplicationAndroid::Initialize() {
-  SB_NOTIMPLEMENTED();
+  // Called once here to help SbTimeZoneGet*Name()
+  tzset();
 }
 
 void ApplicationAndroid::Teardown() {
