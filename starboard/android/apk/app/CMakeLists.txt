@@ -18,15 +18,4 @@ add_library(coat-jni SHARED
     src/main/jni/main_activity.cc
 )
 
-# Use native header files both in the Android project and all of Cobalt
-include_directories(src/main/jni/ ../../../../)
-
-# Cobalt native libraries are copied here by gradle before running CMake
-set(cobalt_lib_dir
-    ${CMAKE_SOURCE_DIR}/build/cobalt/${CMAKE_BUILD_TYPE}/${ANDROID_ABI})
-add_library(cobalt SHARED IMPORTED)
-set_target_properties(cobalt PROPERTIES IMPORTED_LOCATION
-    ${cobalt_lib_dir}/libcobalt.so)
-
-# TODO: link cobalt and resolve its imports (e.g. libEGL)
-# target_link_libraries( coat-jni cobalt )
+include_directories(src/main/jni/)
