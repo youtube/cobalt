@@ -54,6 +54,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   void Suspend();
   void Resume();
 
+  bool IsNewRenderTreePending() const;
+
  private:
   void StartLayoutTimer();
   void DoLayoutAndProduceRenderTree();
@@ -203,6 +205,10 @@ void LayoutManager::Impl::Resume() {
   suspended_ = false;
 }
 
+bool LayoutManager::Impl::IsNewRenderTreePending() const {
+  return layout_dirty_;
+}
+
 #if defined(ENABLE_TEST_RUNNER)
 void LayoutManager::Impl::DoTestRunnerLayoutCallback() {
   DCHECK_EQ(kTestRunnerMode, layout_trigger_);
@@ -314,6 +320,9 @@ LayoutManager::~LayoutManager() {}
 
 void LayoutManager::Suspend() { impl_->Suspend(); }
 void LayoutManager::Resume() { impl_->Resume(); }
+bool LayoutManager::IsNewRenderTreePending() const {
+  return impl_->IsNewRenderTreePending();
+}
 
 }  // namespace layout
 }  // namespace cobalt
