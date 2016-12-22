@@ -28,9 +28,7 @@ namespace open_max {
 OpenMaxComponent::OpenMaxComponent(const char* name)
     : OpenMaxComponentBase(name),
       output_setting_changed_(false),
-      fill_buffer_thread_(kSbThreadInvalid),
-      kill_fill_buffer_thread_(false),
-      output_available_condition_variable_(mutex_) {}
+      outstanding_output_buffers_(0) {}
 
 void OpenMaxComponent::Start() {
   SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateIdle);
@@ -39,7 +37,6 @@ void OpenMaxComponent::Start() {
 }
 
 void OpenMaxComponent::Flush() {
-  output_setting_changed_ = SbThreadIsValid(fill_buffer_thread_);
   DisableOutputPort();
   SendCommandAndWaitForCompletion(OMX_CommandFlush, input_port_);
   SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
@@ -81,10 +78,10 @@ int OpenMaxComponent::WriteData(const void* data, int size, DataType type,
   return offset;
 }
 
-void OpenMaxComponent::WriteEOS() {
+bool OpenMaxComponent::WriteEOS() {
   OMX_BUFFERHEADERTYPE* buffer_header;
-  while ((buffer_header = GetUnusedInputBuffer()) == NULL) {
-    SbThreadSleep(kSbTimeMillisecond);
+  if ((buffer_header = GetUnusedInputBuffer()) == NULL) {
+    return false;
   }
 
   buffer_header->nOffset = 0;
@@ -93,38 +90,52 @@ void OpenMaxComponent::WriteEOS() {
 
   OMX_ERRORTYPE error = OMX_EmptyThisBuffer(handle_, buffer_header);
   SB_DCHECK(error == OMX_ErrorNone);
+  return true;
 }
 
-OMX_BUFFERHEADERTYPE* OpenMaxComponent::PeekNextOutputBuffer() {
+OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetOutputBuffer() {
+  bool enable_output_port = false;
+
   {
     ScopedLock scoped_lock(mutex_);
 
     if (!output_setting_changed_ && output_buffers_.empty()) {
       return NULL;
     }
+
+    enable_output_port = output_setting_changed_ &&
+                         filled_output_buffers_.empty() &&
+                         outstanding_output_buffers_ == 0;
   }
 
-  if (output_setting_changed_ && filled_output_buffers_.empty()) {
+  if (enable_output_port) {
     EnableOutputPortAndAllocateBuffer();
     output_setting_changed_ = false;
   }
 
   ScopedLock scoped_lock(mutex_);
-  return filled_output_buffers_.empty() ? NULL : filled_output_buffers_.front();
-}
-
-void OpenMaxComponent::DropNextOutputBuffer() {
-  ScopedLock scoped_lock(mutex_);
-  SB_DCHECK(!filled_output_buffers_.empty());
+  if (filled_output_buffers_.empty()) {
+    return NULL;
+  }
   OMX_BUFFERHEADERTYPE* buffer = filled_output_buffers_.front();
   filled_output_buffers_.pop();
+  ++outstanding_output_buffers_;
+  return buffer;
+}
 
-  if (output_setting_changed_) {
-    return;
+void OpenMaxComponent::DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer) {
+  {
+    ScopedLock scoped_lock(mutex_);
+    SB_DCHECK(outstanding_output_buffers_ > 0);
+    --outstanding_output_buffers_;
+
+    if (output_setting_changed_) {
+      return;
+    }
   }
-
-  free_output_buffers_.push(buffer);
-  output_available_condition_variable_.Signal();
+  buffer->nFilledLen = 0;
+  OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, buffer);
+  SB_DCHECK(error == OMX_ErrorNone);
 }
 
 OpenMaxComponent::~OpenMaxComponent() {
@@ -157,16 +168,6 @@ void OpenMaxComponent::OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
 }
 
 void OpenMaxComponent::DisableOutputPort() {
-  if (SbThreadIsValid(fill_buffer_thread_)) {
-    {
-      ScopedLock scoped_lock(mutex_);
-      kill_fill_buffer_thread_ = true;
-      output_available_condition_variable_.Signal();
-    }
-    SbThreadJoin(fill_buffer_thread_, NULL);
-    fill_buffer_thread_ = kSbThreadInvalid;
-    kill_fill_buffer_thread_ = false;
-  }
   if (!output_buffers_.empty()) {
     SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
 
@@ -181,10 +182,8 @@ void OpenMaxComponent::DisableOutputPort() {
     while (!filled_output_buffers_.empty()) {
       filled_output_buffers_.pop();
     }
-    while (!free_output_buffers_.empty()) {
-      free_output_buffers_.pop();
-    }
   }
+  outstanding_output_buffers_ = 0;
 }
 
 void OpenMaxComponent::EnableInputPortAndAllocateBuffers() {
@@ -235,14 +234,10 @@ void OpenMaxComponent::EnableOutputPortAndAllocateBuffer() {
   WaitForCommandCompletion();
 
   for (size_t i = 0; i < output_buffers_.size(); ++i) {
-    free_output_buffers_.push(output_buffers_[i]);
+    output_buffers_[i]->nFilledLen = 0;
+    OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, output_buffers_[i]);
+    SB_DCHECK(error == OMX_ErrorNone);
   }
-
-  SB_DCHECK(!kill_fill_buffer_thread_);
-  fill_buffer_thread_ =
-      SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
-                     "output_buffer_filler",
-                     &OpenMaxComponent::FillBufferThreadEntryPoint, this);
 }
 
 OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetUnusedInputBuffer() {
@@ -258,7 +253,6 @@ OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetUnusedInputBuffer() {
 void OpenMaxComponent::OnOutputSettingChanged() {
   ScopedLock scoped_lock(mutex_);
   output_setting_changed_ = true;
-  OnReadyToPeekOutputBuffer();
 }
 
 OMX_ERRORTYPE OpenMaxComponent::OnEmptyBufferDone(
@@ -268,46 +262,8 @@ OMX_ERRORTYPE OpenMaxComponent::OnEmptyBufferDone(
 }
 
 void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
-  {
-    ScopedLock scoped_lock(mutex_);
-    if (output_setting_changed_) {
-      return;
-    }
-    filled_output_buffers_.push(buffer);
-  }
-  OnReadyToPeekOutputBuffer();
-}
-
-void OpenMaxComponent::RunFillBufferLoop() {
-  for (;;) {
-    OMX_BUFFERHEADERTYPE* buffer = NULL;
-    {
-      ScopedLock scoped_lock(mutex_);
-      if (kill_fill_buffer_thread_) {
-        break;
-      }
-      if (!free_output_buffers_.empty()) {
-        buffer = free_output_buffers_.front();
-        free_output_buffers_.pop();
-      } else {
-        output_available_condition_variable_.Wait();
-        continue;
-      }
-    }
-    if (buffer) {
-      buffer->nFilledLen = 0;
-
-      OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, buffer);
-      SB_DCHECK(error == OMX_ErrorNone);
-    }
-  }
-}
-
-// static
-void* OpenMaxComponent::FillBufferThreadEntryPoint(void* context) {
-  OpenMaxComponent* component = reinterpret_cast<OpenMaxComponent*>(context);
-  component->RunFillBufferLoop();
-  return NULL;
+  ScopedLock scoped_lock(mutex_);
+  filled_output_buffers_.push(buffer);
 }
 
 }  // namespace open_max
