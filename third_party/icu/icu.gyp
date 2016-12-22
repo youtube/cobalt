@@ -45,10 +45,6 @@
       # No dependency on the default platform encoding.
       # Will cut down the code size.
       'U_CHARSET_IS_UTF8=1',
-      # Use starboard atomics and mutexes
-      'U_USER_ATOMICS_H=third_party/icu/source/starboard/atomic_sb.h',
-      'U_USER_MUTEX_H=third_party/icu/source/starboard/mutex_sb.h',
-      'U_USER_MUTEX_CPP=third_party/icu/source/starboard/mutex_sb.cpp'
     ],
     'conditions': [
       ['component=="static_library"', {
@@ -60,6 +56,14 @@
             'U_STATIC_IMPLEMENTATION',
           ]
         },
+      }],
+      ['(OS=="starboard")', {
+        'defines': [
+          # Use starboard atomics and mutexes
+          'U_USER_ATOMICS_H=third_party/icu/source/starboard/atomic_sb.h',
+          'U_USER_MUTEX_H=third_party/icu/source/starboard/mutex_sb.h',
+          'U_USER_MUTEX_CPP=third_party/icu/source/starboard/mutex_sb.cpp'
+        ]
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
@@ -265,6 +269,13 @@
               'cflags_cc': [
                 '-Xc+=rtti',
               ],
+              'cflags!': [
+                '-Wno-deprecated-declarations',
+                '-Wno-unused-function',
+              ],
+              'cflags_cc!': [
+                '-frtti',
+              ],
             }],
             [ 'use_system_icu==1 and want_separate_host_toolset==1', {
               'toolsets': ['host'],
@@ -431,6 +442,13 @@
             ['(OS == "lb_shell" or OS=="starboard") and target_arch == "ps3"', {
               'cflags_cc': [
                 '-Xc+=rtti',
+              ],
+              'cflags!': [
+                '-Wno-deprecated-declarations',
+                '-Wno-unused-function',
+              ],
+              'cflags_cc!': [
+                '-frtti',
               ],
             }],
             ['OS=="lb_shell"', {

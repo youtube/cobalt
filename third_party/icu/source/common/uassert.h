@@ -21,7 +21,9 @@
 #define U_ASSERT_H
 /* utypes.h is included to get the proper define for uint8_t */
 #include "unicode/utypes.h"
+#if defined(STARBOARD)
 #include "starboard/configuration.h"
+#endif
 #if U_DEBUG
 #if !defined(STARBOARD)
 #   include <assert.h>
