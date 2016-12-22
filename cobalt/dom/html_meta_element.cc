@@ -45,6 +45,14 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
     node_document()->csp_delegate()->OnReceiveHeader(
         csp_text, csp::kHeaderTypeEnforce, header_source);
   }
+
+  std::string cobalt_jit_attribute = GetAttribute("cobalt-jit").value_or("");
+  if (LowerCaseEqualsASCII(cobalt_jit_attribute, "disable")) {
+    node_document()->DisableJit();
+  } else if (!LowerCaseEqualsASCII(cobalt_jit_attribute, "")) {
+    LOG(WARNING) << "Invalid value for \"cobalt-jit\" element: "
+                 << cobalt_jit_attribute;
+  }
 }
 
 bool HTMLMetaElement::IsDescendantOfHeadElement() const {
