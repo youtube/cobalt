@@ -697,7 +697,6 @@ void MemoryTrackerCompressedTimeSeries::AcquireSample(
 
 bool MemoryTrackerCompressedTimeSeries::IsFull(const TimeSeries& timeseries,
                                                size_t samples_limit) {
-  SB_DCHECK(samples_limit >= 0);
   return timeseries.time_stamps_.size() >= samples_limit;
 }
 
