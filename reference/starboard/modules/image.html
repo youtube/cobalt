@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cobalt / Starboard Module Reference: types.h</title>
+    <title>Cobalt / Starboard Module Reference: image.h</title>
 
             <!-- Webfont -->
     
@@ -50,7 +50,7 @@
 
 
     <!-- metadata -->
-    <meta name="og:title" content="Cobalt / Starboard Module Reference: types.h"/>
+    <meta name="og:title" content="Cobalt / Starboard Module Reference: image.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
     <link rel="shortcut icon" type="image/png" href="/favicon.ico">
@@ -427,7 +427,7 @@
   <div class="container">
     <div class="row">
       <div class="col-md-11">
-        <h1>Starboard Module Reference: types.h</h1>
+        <h1>Starboard Module Reference: image.h</h1>
       </div>
     </div>
   </div>
@@ -741,256 +741,176 @@
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Provides a suite of standard types that should be universally available on
-all platforms, specifically focused on explicitly-sized integer types and
-booleans. This module also includes some related ubiquitous definitions like
-limits of the explicitly-sized integer types, and standard pointer and int32
-sentinel values.</p>
+        <p>API for hardware accelerated image decoding. This module allows for the
+client to feed in raw, encoded data to be decoded directly into an
+SbDecodeTarget.  It also provides an interface for the client to query what
+combinations of encoded image formats and SbDecodeTargetFormats are
+supported or not.<br>
+All functions in this module are safe to call from any thread at any point
+in time.<br></p>
 
-<h2 id="macros">Macros</h2>
+<h4 id="sbimageisdecodesupported-and-sbimagedecode-example">SbImageIsDecodeSupported and SbImageDecode Example</h4>
 
-<div id="macro-documentation-section">
-
-<h3 id="dbl_mant_dig" class="small-h3">DBL_MANT_DIG</h3>
-
-<h3 id="int_max" class="small-h3">INT_MAX</h3>
-
-<h3 id="int_min" class="small-h3">INT_MIN</h3>
-
-<h3 id="long_max" class="small-h3">LONG_MAX</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="long_min" class="small-h3">LONG_MIN</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="null" class="small-h3">NULL</h3>
-
-Simulate stddef.h for platforms that don't provide it.
-
-<h3 id="uint_max" class="small-h3">UINT_MAX</h3>
-
-Assume int is 32-bits until we find a platform for which that fails.
-
-</div>
+<p>Let&#39;s assume that we&#39;re on a Blitter platform.<br>
+SbDecodeTargetProvider* provider = GetProviderFromSomewhere();
+void* data = GetCompressedJPEGFromSomewhere();
+int data_size = GetCompressedJPEGSizeFromSomewhere();
+const char* mime_type = &quot;image/jpeg&quot;;
+SbDecodeTargetFormat format = kSbDecodeTargetFormat1PlaneRGBA;<br>
+if (!SbImageIsDecodeSupported(mime_type, format)) {
+return;
+}<br>
+SbDecodeTarget result_target = SbDecodeImage(provider, data, data_size,
+mime_type, format);
+SbBlitterSurface surface =
+SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
+// Do stuff with surface...<br></p>
 
 <h2 id="functions">Functions</h2>
 
-<h3 id="ksbint16max">kSbInt16Max</h3>
+<h3 id="sbimagedecode">SbImageDecode</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Max = ((int16_t)0x7FFF);
+<p><strong>Description</strong></p>
+
+<p>Attempt to decode encoded <code class="prettyprint">mime_type</code> image data <code class="prettyprint">data</code> of size <code class="prettyprint">data_size</code>
+into an SbDecodeTarget of SbDecodeFormatType <code class="prettyprint">format</code>, possibly using
+SbDecodeTargetProvider <code class="prettyprint">provider</code>, if it is non-null.  Thus, four following
+scenarios regarding the provider may happen:<br>
+<ol><li>The provider is required by the <code class="prettyprint">SbImageDecode</code> implementation and no
+provider is given.  The implementation should gracefully fail by
+immediately returning kSbDecodeTargetInvalid.
+</li><li>The provider is required and is passed in.  The implementation will
+proceed forward, using the SbDecodeTarget from the provider.
+</li><li>The provider is not required and is passed in.  The provider will NOT be
+called, and the implementation will proceed to decoding however it
+desires.
+</li><li>The provider is not required and is not passed in.  The implementation
+will proceed forward.</li></ol>
+Thus, it is NOT safe for clients of this API to assume that the <code class="prettyprint">provider</code>
+it passes in will be called.  Finally, if the decode succeeds, a new
+SbDecodeTarget will be allocated. If <code class="prettyprint">mime_type</code> image decoding for the
+requested format is not supported or the decode fails,
+kSbDecodeTargetInvalid will be returned, with any intermediate allocations
+being cleaned up in the implementation.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbImageDecode-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbImageDecode-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbImageDecode-declaration">
+<pre>
+SB_EXPORT SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
+                                       void* data,
+                                       int data_size,
+                                       const char* mime_type,
+                                       SbDecodeTargetFormat format);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbImageDecode-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/configuration.h&quot;
+#include &quot;starboard/image.h&quot;
+
+#if !(SB_VERSION(3) &amp;&amp; SB_HAS(GRAPHICS))
+#error &quot;SbImageDecode requires SB_VERSION(3) and SB_HAS(GRAPHICS).&quot;
+#endif
+
+SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
+                             void* data,
+                             int data_size,
+                             const char* mime_type,
+                             SbDecodeTargetFormat format) {
+  return kSbDecodeTargetInvalid;
+}
 </code></pre></div>
+<p></div>
+</div></p>
+
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
+    <td><code>SbDecodeTargetProvider*</code><br>
+        <code>provider</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>void*</code><br>
+        <code>data</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>
+        <code>data_size</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>const char*</code><br>
+        <code>mime_type</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>SbDecodeTargetFormat</code><br>
+        <code>format</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint16min">kSbInt16Min</h3>
+<h3 id="sbimageisdecodesupported">SbImageIsDecodeSupported</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Min = ((int16_t)0x8000);
+<p><strong>Description</strong></p>
+
+<p>Whether the current platform supports hardware accelerated decoding an
+image of mime type <code class="prettyprint">mime_type</code> into SbDecodeTargetFormat <code class="prettyprint">format</code>.  The
+result of this function must not change over the course of the program,
+which means that the results of this function may be cached indefinitely.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbImageIsDecodeSupported-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbImageIsDecodeSupported-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbImageIsDecodeSupported-declaration">
+<pre>
+SB_EXPORT bool SbImageIsDecodeSupported(const char* mime_type,
+                                        SbDecodeTargetFormat format);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbImageIsDecodeSupported-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/configuration.h&quot;
+#include &quot;starboard/image.h&quot;
+
+#if !(SB_VERSION(3) &amp;&amp; SB_HAS(GRAPHICS))
+#error &quot;SbImageIsDecodeSupported requires SB_VERSION(3) and SB_HAS(GRAPHICS).&quot;
+#endif
+
+bool SbImageIsDecodeSupported(const char* mime_type,
+                              SbDecodeTargetFormat format) {
+  return false;
+}
 </code></pre></div>
+<p></div>
+</div></p>
+
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
+    <td><code>const char*</code><br>
+        <code>mime_type</code></td>
     <td> </td>
   </tr>
-</table>
-
-<h3 id="ksbint32max">kSbInt32Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int32_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint64max">kSbInt64Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint64min">kSbInt64Min</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Min = ((int64_t)SB_INT64_C(0x8000000000000000));
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint8max">kSbInt8Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Max = ((int8_t)0x7F);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint8min">kSbInt8Min</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Min = ((int8_t)0x80);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint16max">kSbUInt16Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint16_t kSbUInt16Max = ((uint16_t)0xFFFF);
-#define kSbInt32Min ((int32_t)0x80000000)
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint16_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint32max">kSbUInt32Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint32_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint64max">kSbUInt64Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-// A value that represents an int that is probably invalid.
-#define kSbInvalidInt kSbInt32Min
-#if !SB_HAS(FLOAT_H)
-#endif
-// --- Standard Include Emulation Audits ---------------------------------------
-#if !defined(UINT_MAX) || !defined(INT_MIN) || !defined(INT_MAX) || \
-    !defined(LONG_MIN) || !defined(LONG_MAX)
-#error &quot;limits.h or emulation did not provide a needed limit macro.&quot;
-#endif
-#if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
-    (LONG_MIN + 1 == LONG_MAX - 1)
-// This should always evaluate to false, but ensures that the limits macros can
-// be used arithmetically in the preprocessor.
-#endif
-#if !defined(PRId32)
-#error &quot;inttypes.h should provide the portable formatting macros.&quot;
-#endif
-// --- Standard Type Audits ----------------------------------------------------
-#if SB_IS(WCHAR_T_UTF16)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
-                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_UTF32)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
-                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_SIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &lt; 0,
-                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
-#endif
-#if SB_IS(WCHAR_T_UNSIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &gt; 0,
-                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
-#endif
-#ifdef __cplusplus
-}  // extern &quot;C&quot;
-#endif
-#endif  // STARBOARD_TYPES_H_
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint8max">kSbUInt8Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint8_t kSbUInt8Max = ((uint8_t)0xFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint8_t</code></td>
+    <td><code>SbDecodeTargetFormat</code><br>
+        <code>format</code></td>
     <td> </td>
   </tr>
 </table>
