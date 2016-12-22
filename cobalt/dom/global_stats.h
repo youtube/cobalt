@@ -51,7 +51,6 @@ class GlobalStats {
   void Add(NamedNodeMap* object);
   void Add(Node* object);
   void Add(NodeList* object);
-  void Add(xhr::XMLHttpRequest* object);
   void AddEventListener();
   void Remove(Attr* object);
   void Remove(DOMStringMap* object);
@@ -60,8 +59,13 @@ class GlobalStats {
   void Remove(NamedNodeMap* object);
   void Remove(Node* object);
   void Remove(NodeList* object);
-  void Remove(xhr::XMLHttpRequest* object);
   void RemoveEventListener();
+
+  void StartDispatchEvent();
+  void StopDispatchEvent();
+
+  void Add(xhr::XMLHttpRequest* object);
+  void Remove(xhr::XMLHttpRequest* object);
   void IncreaseXHRMemoryUsage(size_t delta);
   void DecreaseXHRMemoryUsage(size_t delta);
 
@@ -69,17 +73,21 @@ class GlobalStats {
   GlobalStats();
   ~GlobalStats();
 
-  // Number of live DOM objects.
-  base::CVal<int> num_attrs;
-  base::CVal<int> num_dom_string_maps;
-  base::CVal<int> num_dom_token_lists;
-  base::CVal<int, base::CValPublic> num_event_listeners;
-  base::CVal<int> num_html_collections;
-  base::CVal<int> num_named_node_maps;
-  base::CVal<int, base::CValPublic> num_nodes;
-  base::CVal<int> num_node_lists;
-  base::CVal<int> num_xhrs;
-  base::CVal<base::cval::SizeInBytes> xhr_memory;
+  // DOM-related tracking
+  base::CVal<int> num_attrs_;
+  base::CVal<int> num_dom_string_maps_;
+  base::CVal<int> num_dom_token_lists_;
+  base::CVal<int, base::CValPublic> num_event_listeners_;
+  base::CVal<int> num_html_collections_;
+  base::CVal<int> num_named_node_maps_;
+  base::CVal<int, base::CValPublic> num_nodes_;
+  base::CVal<int> num_node_lists_;
+
+  base::CVal<int> num_active_dispatch_events_;
+
+  // XHR-related tracking
+  base::CVal<int> num_xhrs_;
+  base::CVal<base::cval::SizeInBytes> xhr_memory_;
 
   friend struct DefaultSingletonTraits<GlobalStats>;
   DISALLOW_COPY_AND_ASSIGN(GlobalStats);

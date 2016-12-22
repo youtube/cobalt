@@ -75,7 +75,10 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       submit_even_if_render_tree_is_unchanged_(
           submit_even_if_render_tree_is_unchanged),
       rasterize_current_tree_timer_("Renderer.Rasterize.Duration",
-                                    kRasterizeCurrentTreeTimerTimeIntervalInMs)
+                                    kRasterizeCurrentTreeTimerTimeIntervalInMs),
+      has_active_animations_(
+          "Renderer.HasActiveAnimations", false,
+          "Is non-zero if the current render tree has active animations.")
 #if defined(ENABLE_DEBUG_CONSOLE)
       ,
       ALLOW_THIS_IN_INITIALIZER_LIST(dump_current_render_tree_command_handler_(
@@ -246,15 +249,15 @@ void Pipeline::RasterizeCurrentTree() {
   // Check whether the animations in the render tree that was just rasterized
   // have expired or not, and if so, mark that down so that if we see it in
   // the future we don't spend the time re-rendering it.
-  if (!submit_even_if_render_tree_is_unchanged_) {
-    render_tree::animations::AnimateNode* animate_node =
-        base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
-            submission.render_tree.get());
-    last_rendered_expired_render_tree_ =
-        animate_node->expiry() <= submission.time_offset
-            ? submission.render_tree
-            : NULL;
-  }
+  render_tree::animations::AnimateNode* animate_node =
+      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+          submission.render_tree.get());
+  last_rendered_expired_render_tree_ =
+      animate_node->expiry() <= submission.time_offset ? submission.render_tree
+                                                       : NULL;
+  // If the last render tree is expired, then no animations are currently
+  // playing.
+  has_active_animations_ = last_rendered_expired_render_tree_ == NULL;
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
