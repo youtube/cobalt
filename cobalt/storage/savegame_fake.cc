@@ -30,7 +30,8 @@ SavegameFake::SavegameFake(const Options& options) : Savegame(options) {
   }
 }
 
-bool SavegameFake::PlatformRead(ByteVector* bytes_ptr) {
+bool SavegameFake::PlatformRead(ByteVector* bytes_ptr, size_t max_to_read) {
+  SB_UNREFERENCED_PARAMETER(max_to_read);
   if (s_persistent_data_) {
     *bytes_ptr = *s_persistent_data_;
     return true;
