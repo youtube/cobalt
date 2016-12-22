@@ -39,8 +39,10 @@ static SB_C_INLINE int PoemAbs(int x) {
 
 #include "starboard/string.h"
 #include "starboard/system.h"
+#ifdef __cplusplus
+#include <string>
+#endif
 
-#include <stdlib.h>
 // number conversion functions
 #define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
 #define atoi(v) SbStringAToI(v)
