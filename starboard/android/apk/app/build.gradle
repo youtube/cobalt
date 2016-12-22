@@ -50,5 +50,8 @@ android {
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.android.support:leanback-v17:25.0.1'
-    compile project(':cobalt')
+
+    // http://www.akaita.com/post/android-native-library-module-debug/
+    releaseCompile project(path: ':cobalt', configuration: 'release')
+    debugCompile project(path: ':cobalt', configuration: 'debug')
 }

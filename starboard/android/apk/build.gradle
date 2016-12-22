@@ -2,7 +2,7 @@
 
 // These are the ABIs that we target. It affects which architectures of Cobalt get built,
 // as well as which ABIs are expected for the split APKs.
-ext.cobaltABIs = (String[]) [ 'x86', 'x86_64' ]
+ext.cobaltABIs = (String[]) [ 'x86' ]
 
 buildscript {
     repositories {
