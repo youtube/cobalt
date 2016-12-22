@@ -189,6 +189,9 @@ class Pipeline {
   // call.
   base::CValTimeIntervalTimer<base::CValPublic> rasterize_current_tree_timer_;
 
+  // Tracks whether or not animations are currently playing.
+  base::CVal<int> has_active_animations_;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.
   base::ConsoleCommandManager::CommandHandler

@@ -426,8 +426,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(!error_callback_.is_null());
 
   layout_manager_.reset(new layout::LayoutManager(
-      window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
-                                base::Unretained(this)),
+      name_, window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
+                                       base::Unretained(this)),
       data.options.layout_trigger, data.dom_max_element_depth,
       data.layout_refresh_rate, data.network_module->preferred_language(),
       web_module_stat_tracker_->layout_stat_tracker()));
@@ -538,11 +538,6 @@ void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
 
 void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
-  // Notify the stat tracker that a render tree has been produced. This signals
-  // the end of previous event tracking, and triggers flushing of periodic
-  // counts.
-  web_module_stat_tracker_->OnRenderTreeProduced();
-
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -550,6 +545,11 @@ void WebModule::Impl::OnRenderTreeProduced(
 #else  // ENABLE_DEBUG_CONSOLE
   render_tree_produced_callback_.Run(layout_results);
 #endif  // ENABLE_DEBUG_CONSOLE
+
+  // Notify the stat tracker that a render tree has been produced. This signals
+  // the end of previous event tracking, and triggers flushing of periodic
+  // counts.
+  web_module_stat_tracker_->OnRenderTreeProduced();
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
