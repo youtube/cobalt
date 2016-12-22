@@ -25,7 +25,7 @@
 #ifndef ICU_SOURCE_STARBOARD_MUTEX_SB_H_
 #define ICU_SOURCE_STARBOARD_MUTEX_SB_H_
 
-#include "starboard/shared/pthread/types_public.h"
+#include "starboard/thread_types.h"
 
 typedef SbMutex UMutex;
 typedef SbConditionVariable UConditionVar;
