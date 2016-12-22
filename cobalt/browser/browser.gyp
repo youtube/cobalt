@@ -29,6 +29,8 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
+        'memory_tracker/buffered_file_writer.cc',
+        'memory_tracker/buffered_file_writer.h',
         'memory_tracker/memory_tracker_tool.cc',
         'memory_tracker/memory_tracker_tool.h',
         'memory_tracker/memory_tracker_tool_impl.cc',

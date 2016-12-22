@@ -22,7 +22,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
-#include "nb/analytics/memory_tracker.h"
+#include "nb/analytics/memory_tracker_helpers.h"
 #include "starboard/log.h"
 
 namespace cobalt {
@@ -38,6 +38,7 @@ enum SwitchEnum {
   kContinuousPrinter,
   kCompressedTimeseries,
   kBinnerAnalytics,
+  kAllocationLogger,
 };
 
 struct SwitchVal {
@@ -133,8 +134,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       "The compressed time-series will depict the full history of the memory "
       "using a fixed number of rows. Older history has degraded resolution and "
       "while new entries are captured in full detail. This achieved by "
-      "evicting "
-      "old entries by an exponential decay scheme.",
+      "evicting old entries by an exponential decay scheme.",
       kCompressedTimeseries);
 
   SwitchVal binner_tool(
@@ -145,11 +145,20 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       "should be tracked. For example: binner(Javascript).",
       kBinnerAnalytics);
 
+  SwitchVal allocation_logger_tool(
+      "allocation_logger",
+      "Continuously writes allocations and deallocations to memory_log.txt. "
+      "This is a legacy format used by lbshell. The location of this "
+      "memory_log.txt file is in the platform dependent directory specified "
+      "by kSbSystemPathDebugOutputDirectory.",
+      kAllocationLogger);
+
   SwitchMap switch_map;
   switch_map[startup_tool.tool_name] = startup_tool;
   switch_map[continuous_printer_tool.tool_name] = continuous_printer_tool;
   switch_map[compressed_timeseries_tool.tool_name] = compressed_timeseries_tool;
   switch_map[binner_tool.tool_name] = binner_tool;
+  switch_map[allocation_logger_tool.tool_name] = allocation_logger_tool;
 
   std::string tool_name = ParseToolName(command_arg);
   std::string tool_arg = ParseToolArg(command_arg);
@@ -197,10 +206,10 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   // Okay we have been resolved to use a memory tracker in some way.
   DLOG(INFO) << "\n\nUsing MemoryTracking=" << found_it->first << "\n";
 
-  MemoryTracker* memory_tracker = MemoryTracker::Get();
-  memory_tracker->InstallGlobalTrackingHooks();
-
+  // Tools are expected to instantiate the MemoryTracker if they need it.
+  MemoryTracker* memory_tracker = NULL;
   scoped_ptr<AbstractMemoryTrackerTool> tool_ptr;
+
   const SwitchVal& value = found_it->second;
   switch (value.enum_value) {
     case kNull: {
@@ -208,6 +217,8 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       break;
     }
     case kStartup: {
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will gather memory metrics for startup.
       int sampling_interval_ms = 1000;   // Sample once a second.
       int sampling_time_ms = 60 * 1000;  // Output after 60 seconds
@@ -216,19 +227,31 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       break;
     }
     case kContinuousPrinter: {
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report memory use.
       tool_ptr.reset(new MemoryTrackerPrint);
       break;
     }
     case kCompressedTimeseries: {
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report memory use.
       tool_ptr.reset(new MemoryTrackerCompressedTimeSeries);
       break;
     }
     case kBinnerAnalytics: {
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report javascript memory
       // analytics.
       tool_ptr.reset(new MemorySizeBinner(tool_arg));
+      break;
+    }
+    case kAllocationLogger: {
+      scoped_ptr<MemoryTrackerLogWriter> disk_writer_tool(
+          new MemoryTrackerLogWriter());
+      tool_ptr.reset(disk_writer_tool.release());
       break;
     }
     default: {
@@ -238,8 +261,9 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   }
 
   if (tool_ptr.get()) {
-    base::SimpleThread* thread = new MemoryTrackerToolThread(
-        memory_tracker, tool_ptr.release(), new SbLogger);
+    base::SimpleThread* thread =
+        new MemoryTrackerToolThread(memory_tracker,  // May be NULL.
+                                    tool_ptr.release(), new SbLogger);
     return scoped_ptr<MemoryTrackerTool>(new MemoryTrackerThreadImpl(thread));
   } else {
     return scoped_ptr<MemoryTrackerTool>();
