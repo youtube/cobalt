@@ -14,7 +14,7 @@
             ],
           },
         }],
-        ['OS!="starboard" and actual_target_arch=="ps3"', {
+        ['OS=="starboard" and actual_target_arch=="ps3"', {
           'target_defaults': {
             'cflags_cc_host': [
               '-Wno-unused-result',
