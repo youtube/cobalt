@@ -62,6 +62,10 @@ class VideoDecoder {
   // is called again.
   virtual void Reset() = 0;
 
+  // This function is periodically called on the player worker thread so the
+  // decoder can do some process inside it when necessary.
+  virtual void Update() {}
+
   // Individual implementation has to implement this function to create a video
   // decoder.
   static VideoDecoder* Create(SbMediaVideoCodec video_codec);

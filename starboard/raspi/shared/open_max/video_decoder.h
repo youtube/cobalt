@@ -15,10 +15,17 @@
 #ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
 
+#include <queue>
+
+#include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/mutex.h"
+#include "starboard/queue.h"
+#include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
 #include "starboard/raspi/shared/open_max/open_max_video_decode_component.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace raspi {
@@ -38,15 +45,39 @@ class VideoDecoder
   void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
+  void Update() SB_OVERRIDE;
 
  private:
-  OpenMaxVideoDecodeComponent component_;
+  struct Event {
+    enum Type { kWriteInputBuffer, kWriteEOS, kReset };
+    explicit Event(const Type type) : type(type) {
+      SB_DCHECK(type != kWriteInputBuffer);
+    }
+    explicit Event(const InputBuffer& input_buffer)
+        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
+
+    Type type;
+    InputBuffer input_buffer;
+  };
+
+  bool TryToDeliverOneFrame();
+  static void* ThreadEntryPoint(void* context);
+  void RunLoop();
+  scoped_refptr<VideoFrame> CreateFrame(const OMX_BUFFERHEADERTYPE* buffer);
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
+  scoped_refptr<DispmanxResourcePool> resource_pool_;
   Host* host_;
+  bool eos_written_;
 
-  bool stream_ended_;
+  SbThread thread_;
+  bool request_thread_termination_;
+  Queue<Event*> queue_;
+
+  Mutex mutex_;
+  std::queue<OMX_BUFFERHEADERTYPE*> filled_buffers_;
+  std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
 };
 
 }  // namespace open_max
