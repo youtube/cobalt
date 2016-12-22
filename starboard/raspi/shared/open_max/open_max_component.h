@@ -19,9 +19,9 @@
 #include <vector>
 
 #include "starboard/log.h"
+#include "starboard/mutex.h"
 #include "starboard/raspi/shared/open_max/open_max_component_base.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/thread.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -48,32 +48,31 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
 
   // Write an empty buffer that is flagged as the end of the input stream.
   // This will block until a buffer is available.
-  void WriteEOS();
+  bool WriteEOS();
 
-  OMX_BUFFERHEADERTYPE* PeekNextOutputBuffer();
-  void DropNextOutputBuffer();
+  // Try to get the next output buffer.  The function may enable the output port
+  // internally if the output port has never been enabled or if the output
+  // format has been changed.  In both case it enables the output port in
+  // response to an output setting change.
+  OMX_BUFFERHEADERTYPE* GetOutputBuffer();
+  void DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer);
 
  protected:
   ~OpenMaxComponent();
-
   // Callbacks available to children.
   void OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
                     OMX_PTR event_data) SB_OVERRIDE;
   virtual bool OnEnableInputPort(OMXParamPortDefinition* port_definition) {
     return false;
   }
-  virtual void* AllocateInputBuffer(OMX_U32 size) { return NULL; }
-  virtual void FreeInputBuffer(void* p) { SB_NOTREACHED(); }
   virtual bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) {
     return false;
   }
-  virtual void OnReadyToPeekOutputBuffer() {}
 
  private:
   void DisableOutputPort();
 
   void EnableInputPortAndAllocateBuffers();
-  void Attach(OpenMaxComponent* component);
   void EnableOutputPortAndAllocateBuffer();
   OMX_BUFFERHEADERTYPE* GetUnusedInputBuffer();
 
@@ -81,9 +80,6 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   void OnOutputSettingChanged() SB_OVERRIDE;
   OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer) SB_OVERRIDE;
   void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) SB_OVERRIDE;
-  void RunFillBufferLoop();
-
-  static void* FillBufferThreadEntryPoint(void* context);
 
   Mutex mutex_;
   bool output_setting_changed_;
@@ -91,11 +87,7 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   std::queue<OMX_BUFFERHEADERTYPE*> free_input_buffers_;
   std::vector<OMX_BUFFERHEADERTYPE*> output_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_output_buffers_;
-  std::queue<OMX_BUFFERHEADERTYPE*> free_output_buffers_;
-
-  SbThread fill_buffer_thread_;
-  bool kill_fill_buffer_thread_;
-  ConditionVariable output_available_condition_variable_;
+  int outstanding_output_buffers_;
 };
 
 }  // namespace open_max
