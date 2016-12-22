@@ -20,7 +20,7 @@ using starboard::shared::starboard::player::InputBuffer;
 
 namespace {
 
-const SbTime kUpdateInterval = 5 * kSbTimeMillisecond;
+const SbTime kUpdateInterval = kSbTimeMillisecond;
 
 SbMediaTime GetMediaTime(SbMediaTime media_pts,
                          SbTimeMonotonic media_pts_update_time) {

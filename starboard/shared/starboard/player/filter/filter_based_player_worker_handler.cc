@@ -223,6 +223,10 @@ bool FilterBasedPlayerWorkerHandler::ProcessUpdateEvent(
     (*player_worker_.*update_media_time_cb_)(audio_renderer_->GetCurrentTime());
   }
 
+  if (video_renderer_) {
+    video_renderer_->Update();
+  }
+
   return true;
 }
 

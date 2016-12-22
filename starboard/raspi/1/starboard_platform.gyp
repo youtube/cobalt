@@ -37,6 +37,8 @@
         '<(DEPTH)/starboard/raspi/shared/dispmanx_util.cc',
         '<(DEPTH)/starboard/raspi/shared/dispmanx_util.h',
         '<(DEPTH)/starboard/raspi/shared/main.cc',
+        '<(DEPTH)/starboard/raspi/shared/open_max/dispmanx_resource_pool.cc',
+        '<(DEPTH)/starboard/raspi/shared/open_max/dispmanx_resource_pool.h',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component.h',
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_component_base.cc',
