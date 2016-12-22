@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cobalt / Starboard Module Reference: types.h</title>
+    <title>Cobalt / Starboard Module Reference: decode_target.h</title>
 
             <!-- Webfont -->
     
@@ -50,7 +50,7 @@
 
 
     <!-- metadata -->
-    <meta name="og:title" content="Cobalt / Starboard Module Reference: types.h"/>
+    <meta name="og:title" content="Cobalt / Starboard Module Reference: decode_target.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
     <link rel="shortcut icon" type="image/png" href="/favicon.ico">
@@ -427,7 +427,7 @@
   <div class="container">
     <div class="row">
       <div class="col-md-11">
-        <h1>Starboard Module Reference: types.h</h1>
+        <h1>Starboard Module Reference: decode_target.h</h1>
       </div>
     </div>
   </div>
@@ -741,256 +741,441 @@
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Provides a suite of standard types that should be universally available on
-all platforms, specifically focused on explicitly-sized integer types and
-booleans. This module also includes some related ubiquitous definitions like
-limits of the explicitly-sized integer types, and standard pointer and int32
-sentinel values.</p>
+        <p>A target for decoding image and video data into. This corresponds roughly to
+an EGLImage, but that extension may not be fully supported on all GL
+platforms. SbDecodeTarget supports multi-plane targets. We need a mechanism
+for SbBlitter as well, and this is able to more-or-less unify the two.<br>
+An SbDecodeTarget can be passed into any function which decodes video or
+image data. This allows the application to allocate fast graphics memory, and
+have decoding done directly into this memory, avoiding unnecessary memory
+copies, and also avoiding pushing data between CPU and GPU memory
+unnecessarily.<br></p>
 
-<h2 id="macros">Macros</h2>
+<h4 id="sbdecodetargetformat">SbDecodeTargetFormat</h4>
 
-<div id="macro-documentation-section">
+<p>SbDecodeTargets support several different formats that can be used to decode
+into and render from. Some formats may be easier to decode into, and others
+may be easier to render. Some may take less memory. Each decoder needs to
+support the SbDecodeTargetFormat passed into it, or the decode will produce
+an error. Each decoder provides a way to check if a given
+SbDecodeTargetFormat is supported by that decoder.<br></p>
 
-<h3 id="dbl_mant_dig" class="small-h3">DBL_MANT_DIG</h3>
+<h4 id="sbdecodetargetprovider">SbDecodeTargetProvider</h4>
 
-<h3 id="int_max" class="small-h3">INT_MAX</h3>
+<p>Some components may need to acquire SbDecodeTargets compatible with a certain
+rendering context, which may need to be created on a particular thread. The
+SbDecodeTargetProvider is a way for the primary rendering context to provide
+an interface that can create SbDecodeTargets on demand by other system.<br>
+The primary usage is likely to be the the SbPlayer implementation on some
+platforms.<br></p>
 
-<h3 id="int_min" class="small-h3">INT_MIN</h3>
+<h4 id="sbdecodetarget-example">SbDecodeTarget Example</h4>
 
-<h3 id="long_max" class="small-h3">LONG_MAX</h3>
+<p>Let&#39;s say there&#39;s an image decoder for .foo files:<br>
+bool SbImageDecodeFooSupportsFormat(SbDecodeTargetFormat format);
+SbDecodeTarget SbImageDecodeFoo(void* data, int data_size,
+SbDecodeTargetFormat format);<br>
+First, the client should enumerate which SbDecodeTargetFormats are supported
+by that decoder.<br>
+SbDecodeTargetFormat kPreferredFormats[] = {
+kSbDecodeTargetFormat3PlaneYUVI420,
+kSbDecodeTargetFormat1PlaneRGBA,
+kSbDecodeTargetFormat1PlaneBGRA,
+};<br>
+SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
+for (int i = 0; i &lt; SB_ARRAY_SIZE_INT(kPreferredFormats); ++i) {
+if (SbImageDecodeFooSupportsFormat(kPreferredFormats[i])) {
+format = kPreferredFormats[i];
+break;
+}
+}<br>
+Now that the client has a format, it can create a decode target that it
+will use to decode the .foo file into. Let&#39;s assume format is
+kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform.
+Also, we won&#39;t do any error checking, to keep things even simpler.<br>
+SbDecodeTarget target = SbImageDecodeFoo(encoded_foo_data,
+encoded_foo_data_size, format);<br>
+// If the decode works, you can get the texture out and render it.
+GLuint texture =
+SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);<br></p>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<h2 id="enums">Enums</h2>
 
-<h3 id="long_min" class="small-h3">LONG_MIN</h3>
+<h3 id="sbdecodetargetformat">SbDecodeTargetFormat</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>The list of all possible decoder target formats. An SbDecodeTarget consists
+of one or more planes of data, each plane corresponding with a surface. For
+some formats, different planes will be different sizes for the same
+dimensions.<br>
+NOTE: For enumeration entries with an alpha component, the alpha will always
+be premultiplied unless otherwise explicitly specified.</p>
 
-<h3 id="null" class="small-h3">NULL</h3>
+<p><strong>Values</strong></p>
 
-Simulate stddef.h for platforms that don't provide it.
+<ul>
+<li>  <code class="prettyprint">kSbDecodeTargetFormat1PlaneRGBA</code> - A decoder target format consisting of a single RGBA plane, in that channelorder.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetFormat1PlaneBGRA</code> - A decoder target format consisting of a single BGRA plane, in that channelorder.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetFormat2PlaneYUVNV12</code> - A decoder target format consisting of Y and interleaved UV planes, in thatplane and channel order.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetFormat3PlaneYUVI420</code> - A decoder target format consisting of Y, U, and V planes, in that order.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetFormatInvalid</code> - An invalid decode target format.</li>
+</ul>
 
-<h3 id="uint_max" class="small-h3">UINT_MAX</h3>
+<h3 id="sbdecodetargetplane">SbDecodeTargetPlane</h3>
 
-Assume int is 32-bits until we find a platform for which that fails.
+<p>All the planes supported by SbDecodeTarget.</p>
 
-</div>
+<p><strong>Values</strong></p>
+
+<ul>
+<li>  <code class="prettyprint">kSbDecodeTargetPlaneRGBA</code> - The RGBA plane for the RGBA format.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetPlaneBGRA</code> - The BGRA plane for the BGRA format.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetPlaneY</code> - The Y plane for multi-plane YUV formats.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetPlaneUV</code> - The UV plane for 2-plane YUV formats.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetPlaneU</code> - The U plane for 3-plane YUV formats.</li>
+<li>  <code class="prettyprint">kSbDecodeTargetPlaneV</code> - The V plane for 3-plane YUV formats.</li>
+</ul>
+
+<h2 id="structs">Structs</h2>
+
+<h3 id="sbdecodetargetprivate">SbDecodeTargetPrivate</h3>
+
+<p>Private structure representing a target for image data decoding.</p>
+
+<h3 id="sbdecodetargetprovider">SbDecodeTargetProvider</h3>
+
+<p>An object that can acquire and release SbDecodeTarget instances.</p>
+
+<p><strong>Members</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Members</th></tr>
+  <tr>
+    <td><code>SbDecodeTargetAcquireFunction</code><br>        <code>acquire</code></td>    <td>The function to acquire a new SbDecodeTarget from the provider.</td>  </tr>
+  <tr>
+    <td><code>SbDecodeTargetReleaseFunction</code><br>        <code>release</code></td>    <td>The function to release an acquired SbDecodeTarget back to the provider.</td>  </tr>
+</table>
 
 <h2 id="functions">Functions</h2>
 
-<h3 id="ksbint16max">kSbInt16Max</h3>
+<h3 id="sbdecodetarget">SbDecodeTarget</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Inline convenience function to acquire an <code>SbDecodeTarget</code> of type <code class="prettyprint">format</code>,
+<code class="prettyprint">width</code>, and <code class="prettyprint">height</code> from <code class="prettyprint">provider</code>.</p>
 
 <p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Max = ((int16_t)0x7FFF);
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE SbDecodeTarget
+SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider* provider,
+                                  SbDecodeTargetFormat format,
+                                  int width,
+                                  int height) {
+  return provider-&gt;acquire(provider-&gt;context, format, width, height);
+}
 </code></pre></div>
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
+    <td><code>SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider*</code><br>
+        <code>provider</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>SbDecodeTargetFormat</code><br>
+        <code>format</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>
+        <code>width</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>int</code><br>
+        <code>height</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint16min">kSbInt16Min</h3>
+<h3 id="sbdecodetargetcreate">SbDecodeTargetCreate</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Creates a new EGL/GLES2-compatible <code><a href="#sbdecodetarget">SbDecodeTarget</a></code> from one or more <code class="prettyprint">planes</code>
+owned by <code class="prettyprint">context</code>, created from <code class="prettyprint">display</code>. Must be called from a thread
+where <code class="prettyprint">context</code> is current.</p>
 
 <p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Min = ((int16_t)0x8000);
+<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(EGLDisplay display,
+                                              EGLContext context,
+                                              SbDecodeTargetFormat format,
+                                              GLuint* planes);
 </code></pre></div>
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
+    <td><code>EGLDisplay</code><br>        <code>display</code></td>
+    <td>The EGLDisplay being targeted.</td>
+  </tr>
+  <tr>
+    <td><code>EGLContext</code><br>        <code>context</code></td>
+    <td>The EGLContext used for this operation, or EGL_NO_CONTEXT if a
+context is not required.</td>
+  </tr>
+  <tr>
+    <td><code>SbDecodeTargetFormat</code><br>        <code>format</code></td>
+    <td>The format of the decode target being created.</td>
+  </tr>
+  <tr>
+    <td><code>GLuint*</code><br>        <code>planes</code></td>
+    <td>An array of GLES Texture handles to be bundled into an
+SbDecodeTarget. Must not be NULL. Is expected to have the same number of
+entries as the number of planes for <code>format</code>, in the order and size expected
+by that format.</td>
+  </tr>
+</table>
+
+<h3 id="sbdecodetargetdestroy">SbDecodeTargetDestroy</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Destroys the given <code><a href="#sbdecodetarget">SbDecodeTarget</a></code>. Note that calling this function does NOT
+destroy the associated surfaces with it, in order to accommodate the case
+in which it is desirable for the lifetime of the surface to outlive the
+SbDecodeTarget that contains it. If the surfaces should be destroyed along
+with the <code><a href="#sbdecodetarget">SbDecodeTarget</a></code>, then they should be extracted with
+<code class="prettyprint">SbDecodeTargetGetPlane</code> and destroyed manually by the client.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDecodeTargetDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDecodeTargetDestroy-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDecodeTargetDestroy-declaration">
+<pre>
+SB_EXPORT void SbDecodeTargetDestroy(SbDecodeTarget decode_target);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDecodeTargetDestroy-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/decode_target.h&quot;
+
+void SbDecodeTargetDestroy(SbDecodeTarget /*decode_target*/) {}
+</code></pre></div>
+<p></div>
+</div></p>
+
+<p><strong>Parameters</strong></p>
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbDecodeTarget</code><br>
+        <code>decode_target</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint32max">kSbInt32Max</h3>
+<h3 id="sbdecodetargetgetformat">SbDecodeTargetGetFormat</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
+<p><strong>Description</strong></p>
+
+<p>Gets the format that <code class="prettyprint">decode_target</code> was created with.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDecodeTargetGetFormat-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDecodeTargetGetFormat-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDecodeTargetGetFormat-declaration">
+<pre>
+SB_EXPORT SbDecodeTargetFormat
+SbDecodeTargetGetFormat(SbDecodeTarget decode_target);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDecodeTargetGetFormat-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/decode_target.h&quot;
+
+SbDecodeTargetFormat SbDecodeTargetGetFormat(SbDecodeTarget /*decode_target*/) {
+  return kSbDecodeTargetFormatInvalid;
+}
 </code></pre></div>
+<p></div>
+</div></p>
+
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int32_t</code></td>
+    <td><code>SbDecodeTarget</code><br>
+        <code>decode_target</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint64max">kSbInt64Max</h3>
+<h3 id="sbdecodetargetgetplane">SbDecodeTargetGetPlane</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Stub function for when graphics aren&#39;t enabled.  There is no concept of a
+plane, and <code class="prettyprint">NULL</code> is always returned.</p>
 
 <p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE void* SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
+                                                SbDecodeTargetPlane plane) {
+  SB_UNREFERENCED_PARAMETER(decode_target);
+  SB_UNREFERENCED_PARAMETER(plane);
+  return NULL;
+}
 </code></pre></div>
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
+    <td><code>SbDecodeTarget</code><br>
+        <code>decode_target</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>SbDecodeTargetPlane</code><br>
+        <code>plane</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint64min">kSbInt64Min</h3>
+<h3 id="sbdecodetargetisformatvalid">SbDecodeTargetIsFormatValid</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether a given format is valid.</p>
 
 <p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Min = ((int64_t)SB_INT64_C(0x8000000000000000));
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
+    SbDecodeTargetFormat format) {
+  return format != kSbDecodeTargetFormatInvalid;
+}
 </code></pre></div>
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
+    <td><code>SbDecodeTargetFormat</code><br>
+        <code>format</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint8max">kSbInt8Max</h3>
+<h3 id="sbdecodetargetisopaque">SbDecodeTargetIsOpaque</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Max = ((int8_t)0x7F);
+<p><strong>Description</strong></p>
+
+<p>Gets whether <code class="prettyprint">decode_target</code> is opaque or not.  The underlying source of
+this value is expected to be properly maintained by the Starboard
+implementation.  So, for example, if an opaque only image type were decoded
+into an <code><a href="#sbdecodetarget">SbDecodeTarget</a></code>, then the implementation would configure things in
+such a way that this function would return true.  By opaque, it is meant
+that all alpha values are guaranteed to be 255, if <code class="prettyprint">decode_target</code> is of a
+format that has alpha values.  If <code class="prettyprint">decode_target</code> is of a format that does
+not have alpha values, then this function should return <code class="prettyprint">true</code>.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbDecodeTargetIsOpaque-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbDecodeTargetIsOpaque-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbDecodeTargetIsOpaque-declaration">
+<pre>
+SB_EXPORT bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbDecodeTargetIsOpaque-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/configuration.h&quot;
+#include &quot;starboard/decode_target.h&quot;
+
+#if !(SB_VERSION(3) &amp;&amp; SB_HAS(GRAPHICS))
+#error &quot;SbDecodeTargetIsOpaque requires SB_VERSION(3) and SB_HAS(GRAPHICS).&quot;
+#endif
+
+bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target) {
+  return false;
+}
 </code></pre></div>
+<p></div>
+</div></p>
+
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
+    <td><code>SbDecodeTarget</code><br>
+        <code>decode_target</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint8min">kSbInt8Min</h3>
+<h3 id="sbdecodetargetisvalid">SbDecodeTargetIsValid</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Returns whether the given file handle is valid.</p>
 
 <p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Min = ((int8_t)0x80);
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbDecodeTargetIsValid(SbDecodeTarget handle) {
+  return handle != kSbDecodeTargetInvalid;
+}
 </code></pre></div>
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
+    <td><code>SbDecodeTarget</code><br>
+        <code>handle</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbuint16max">kSbUInt16Max</h3>
+<h3 id="sbdecodetargetreleasetoprovider">SbDecodeTargetReleaseToProvider</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Inline convenience function to release <code class="prettyprint">decode_target</code> back to <code class="prettyprint">provider</code>.</p>
 
 <p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint16_t kSbUInt16Max = ((uint16_t)0xFFFF);
-#define kSbInt32Min ((int32_t)0x80000000)
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE void SbDecodeTargetReleaseToProvider(
+    SbDecodeTargetProvider* provider,
+    SbDecodeTarget decode_target) {
+  provider-&gt;release(provider-&gt;context, decode_target);
+}
 </code></pre></div>
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((uint16_t</code></td>
+    <td><code>SbDecodeTargetProvider*</code><br>
+        <code>provider</code></td>
     <td> </td>
   </tr>
-</table>
-
-<h3 id="ksbuint32max">kSbUInt32Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((uint32_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint64max">kSbUInt64Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-// A value that represents an int that is probably invalid.
-#define kSbInvalidInt kSbInt32Min
-#if !SB_HAS(FLOAT_H)
-#endif
-// --- Standard Include Emulation Audits ---------------------------------------
-#if !defined(UINT_MAX) || !defined(INT_MIN) || !defined(INT_MAX) || \
-    !defined(LONG_MIN) || !defined(LONG_MAX)
-#error &quot;limits.h or emulation did not provide a needed limit macro.&quot;
-#endif
-#if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
-    (LONG_MIN + 1 == LONG_MAX - 1)
-// This should always evaluate to false, but ensures that the limits macros can
-// be used arithmetically in the preprocessor.
-#endif
-#if !defined(PRId32)
-#error &quot;inttypes.h should provide the portable formatting macros.&quot;
-#endif
-// --- Standard Type Audits ----------------------------------------------------
-#if SB_IS(WCHAR_T_UTF16)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
-                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_UTF32)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
-                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_SIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &lt; 0,
-                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
-#endif
-#if SB_IS(WCHAR_T_UNSIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &gt; 0,
-                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
-#endif
-#ifdef __cplusplus
-}  // extern &quot;C&quot;
-#endif
-#endif  // STARBOARD_TYPES_H_
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint8max">kSbUInt8Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint8_t kSbUInt8Max = ((uint8_t)0xFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint8_t</code></td>
+    <td><code>SbDecodeTarget</code><br>
+        <code>decode_target</code></td>
     <td> </td>
   </tr>
 </table>

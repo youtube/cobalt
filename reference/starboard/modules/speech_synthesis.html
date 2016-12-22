@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cobalt / Starboard Module Reference: types.h</title>
+    <title>Cobalt / Starboard Module Reference: speech_synthesis.h</title>
 
             <!-- Webfont -->
     
@@ -50,7 +50,7 @@
 
 
     <!-- metadata -->
-    <meta name="og:title" content="Cobalt / Starboard Module Reference: types.h"/>
+    <meta name="og:title" content="Cobalt / Starboard Module Reference: speech_synthesis.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
     <link rel="shortcut icon" type="image/png" href="/favicon.ico">
@@ -427,7 +427,7 @@
   <div class="container">
     <div class="row">
       <div class="col-md-11">
-        <h1>Starboard Module Reference: types.h</h1>
+        <h1>Starboard Module Reference: speech_synthesis.h</h1>
       </div>
     </div>
   </div>
@@ -741,256 +741,139 @@
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Provides a suite of standard types that should be universally available on
-all platforms, specifically focused on explicitly-sized integer types and
-booleans. This module also includes some related ubiquitous definitions like
-limits of the explicitly-sized integer types, and standard pointer and int32
-sentinel values.</p>
-
-<h2 id="macros">Macros</h2>
-
-<div id="macro-documentation-section">
-
-<h3 id="dbl_mant_dig" class="small-h3">DBL_MANT_DIG</h3>
-
-<h3 id="int_max" class="small-h3">INT_MAX</h3>
-
-<h3 id="int_min" class="small-h3">INT_MIN</h3>
-
-<h3 id="long_max" class="small-h3">LONG_MAX</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="long_min" class="small-h3">LONG_MIN</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="null" class="small-h3">NULL</h3>
-
-Simulate stddef.h for platforms that don't provide it.
-
-<h3 id="uint_max" class="small-h3">UINT_MAX</h3>
-
-Assume int is 32-bits until we find a platform for which that fails.
-
-</div>
+        <p>A basic text-to-speech API intended to be used for audio accessibilty.<br>
+Implementations of this API should audibly play back text to assist
+users in non-visual navigation of the application.<br>
+Note that these functions do not have to be thread-safe. They must
+only be called from a single application thread.</p>
 
 <h2 id="functions">Functions</h2>
 
-<h3 id="ksbint16max">kSbInt16Max</h3>
+<h3 id="sbspeechsynthesiscancel">SbSpeechSynthesisCancel</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Max = ((int16_t)0x7FFF);
+<p><strong>Description</strong></p>
+
+<p>Cancels all speaking and queued speech synthesis audio. Must
+return immediately.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSpeechSynthesisCancel-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSpeechSynthesisCancel-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSpeechSynthesisCancel-declaration">
+<pre>
+SB_EXPORT void SbSpeechSynthesisCancel();
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSpeechSynthesisCancel-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/speech_synthesis.h&quot;
+
+#if !SB_HAS(SPEECH_SYNTHESIS) &amp;&amp; SB_VERSION(3)
+#error If speech synthesis not enabled on this platform, please exclude it\
+       from the build
+#endif
+
+void SbSpeechSynthesisCancel() {}
 </code></pre></div>
+<p></div>
+</div></p>
+
+<h3 id="sbspeechsynthesissetlanguage">SbSpeechSynthesisSetLanguage</h3>
+
+<p><strong>Description</strong></p>
+
+<p>Sets a language for speech synthesis.<br>
+Must be called before any other function in this module,
+or subsequent calls are allowed to fail silently.<br>
+<code class="prettyprint">lang</code> should be a BCP 47 language string, eg &quot;en-US&quot;.
+Return true if language is supported, false if not.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSpeechSynthesisSetLanguage-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSpeechSynthesisSetLanguage-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSpeechSynthesisSetLanguage-declaration">
+<pre>
+SB_EXPORT bool SbSpeechSynthesisSetLanguage(const char* lang);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSpeechSynthesisSetLanguage-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/speech_synthesis.h&quot;
+
+#if !SB_HAS(SPEECH_SYNTHESIS) &amp;&amp; SB_VERSION(3)
+#error If speech synthesis not enabled on this platform, please exclude it\
+       from the build
+#endif
+
+bool SbSpeechSynthesisSetLanguage(const char* lang) {
+  return false;
+}
+</code></pre></div>
+<p></div>
+</div></p>
+
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
+    <td><code>const char*</code><br>
+        <code>lang</code></td>
     <td> </td>
   </tr>
 </table>
 
-<h3 id="ksbint16min">kSbInt16Min</h3>
+<h3 id="sbspeechsynthesisspeak">SbSpeechSynthesisSpeak</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Min = ((int16_t)0x8000);
+<p><strong>Description</strong></p>
+
+<p>Enqueues <code class="prettyprint">text</code>, a UTF-8 string, to be spoken the currently
+selected language. Returns immediately.<br>
+If audio from previous <code>SbSpeechSynthesisSpeak()</code> invocations is still
+processing, the current speaking should continue and this new
+text should be queued to play when the previous utterances are complete.</p>
+
+<p><strong>Declaration and definitions</strong></p>
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbSpeechSynthesisSpeak-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbSpeechSynthesisSpeak-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbSpeechSynthesisSpeak-declaration">
+<pre>
+SB_EXPORT void SbSpeechSynthesisSpeak(const char* text);
+</pre>
+</div>
+
+<p><div class="mdl-tabs__panel" id="SbSpeechSynthesisSpeak-stub"></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/speech_synthesis.h&quot;
+
+#if !SB_HAS(SPEECH_SYNTHESIS) &amp;&amp; SB_VERSION(3)
+#error If speech synthesis not enabled on this platform, please exclude it\
+       from the build
+#endif
+
+void SbSpeechSynthesisSpeak(const char* text) {}
 </code></pre></div>
+<p></div>
+</div></p>
+
 <p><strong>Parameters</strong></p>
 
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint32max">kSbInt32Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int32_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint64max">kSbInt64Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint64min">kSbInt64Min</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Min = ((int64_t)SB_INT64_C(0x8000000000000000));
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint8max">kSbInt8Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Max = ((int8_t)0x7F);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint8min">kSbInt8Min</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Min = ((int8_t)0x80);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint16max">kSbUInt16Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint16_t kSbUInt16Max = ((uint16_t)0xFFFF);
-#define kSbInt32Min ((int32_t)0x80000000)
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint16_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint32max">kSbUInt32Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint32_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint64max">kSbUInt64Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-// A value that represents an int that is probably invalid.
-#define kSbInvalidInt kSbInt32Min
-#if !SB_HAS(FLOAT_H)
-#endif
-// --- Standard Include Emulation Audits ---------------------------------------
-#if !defined(UINT_MAX) || !defined(INT_MIN) || !defined(INT_MAX) || \
-    !defined(LONG_MIN) || !defined(LONG_MAX)
-#error &quot;limits.h or emulation did not provide a needed limit macro.&quot;
-#endif
-#if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
-    (LONG_MIN + 1 == LONG_MAX - 1)
-// This should always evaluate to false, but ensures that the limits macros can
-// be used arithmetically in the preprocessor.
-#endif
-#if !defined(PRId32)
-#error &quot;inttypes.h should provide the portable formatting macros.&quot;
-#endif
-// --- Standard Type Audits ----------------------------------------------------
-#if SB_IS(WCHAR_T_UTF16)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
-                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_UTF32)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
-                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_SIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &lt; 0,
-                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
-#endif
-#if SB_IS(WCHAR_T_UNSIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &gt; 0,
-                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
-#endif
-#ifdef __cplusplus
-}  // extern &quot;C&quot;
-#endif
-#endif  // STARBOARD_TYPES_H_
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint8max">kSbUInt8Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint8_t kSbUInt8Max = ((uint8_t)0xFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint8_t</code></td>
+    <td><code>const char*</code><br>
+        <code>text</code></td>
     <td> </td>
   </tr>
 </table>

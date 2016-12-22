@@ -7,12 +7,15 @@
     <title>Cobalt / Starboard Module Reference: drm.h</title>
 
             <!-- Webfont -->
+    
     <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
+
+
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-
+    
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -45,15 +48,19 @@
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
+
     <!-- metadata -->
-    <meta name="og:title" content="Cobalt / "/>
+    <meta name="og:title" content="Cobalt / Starboard Module Reference: drm.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
     <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
-  <body class="" id="top_of_page">
+  <body class="docs" id="top_of_page">
 
     <span id="toc-depth" data-toc-depth="h2,h3"></span>
+
+
+
     <nav id="common-nav" class="navbar navbar-fixed-top inverse">
   <div class="container">
     <!-- Brand and toggle get grouped for better mobile display -->
@@ -74,95 +81,347 @@
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="navbar-collapse-1">
       <ul class="nav navbar-nav navbar-right" id="standard-menu-links">
-      <li><a href="/cobalt/starboard/porting.html">Porters</a></li>
-      <li><a href="/cobalt/development/setup-linux.html">Developers</a></li>
-      <li><a href="/cobalt/contributors/index.html">Contributors</a></li>
-      <li><a href="https://cobalt.googlesource.com/cobalt">Code Repo</a></li>
+        
+  
+    
+  
+  
+    
+      <li><a href="/starboard/porting.html">Porters</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      <li><a href="/development/setup-linux.html">Developers</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      <li><a href="/contributors/index.html">Contributors</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      
+        <li><a href="https://cobalt.googlesource.com/cobalt">Code Repo</a></li>
+      
+    
+  
+
+
       </ul>
       <ul class="nav nav-stacked mobile-left-nav-menu" id="collapsed-left-menu">
         
   
 <li class="expand-container" data-expander-target-search="relative">
-          <h4 class="submenu no-top-margin">Porters</h4>
-  <ul class="content">
-    <li><b>Guides</b>
-      <ul>
-        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
-        <li><a href="/cobalt/starboard/testing.html">Testing with NPLB</a></li>
-      </ul>
-    </li>
-    <li><b>Reference</b>
-      <ul>
-        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
-        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
-                <li><b>Starboard modules</b>
-          <ul>
-                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
-          </ul>
-      </ul>
-    </li>
-  </ul>
-</li>
-  
-<li class="expand-container" data-expander-target-search="relative">
-          <h4 class="submenu">Developers</h4>
-  <ul class="content">
-    <li><b>Guides</b>
-      <ul>
-        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
-        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
-      </ul>
-    </li>
-    <li><b>Reference</b>
-      <ul>
-        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
-      </ul>
-    </li>
-  </ul>
+    
+      
+      
+<h4 class="no-submenu no-top-margin"><a href="/overview.html">Overview</a></h4>
+      
+    
 </li>
   
 
+  
 <li class="expand-container" data-expander-target-search="relative">
-<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+    
+      
+        
+          <h4 class="submenu">Porters</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/starboard/porting.html">Port Cobalt to your platform</a></li>
+              
+            
+              
+        <li><a href="/starboard/testing.html">Testing with NPLB</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+              
+            
+              
+        <li><a href="/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+              
+            
+              
+                <li><b>Starboard modules</b>
+                
+          <ul>
+                  
+                    
+                      <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/character.html">character.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/decode_target.html">decode_target.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/directory.html">directory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/double.html">double.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/drm.html">drm.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/event.html">event.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/export.html">export.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/file.html">file.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/image.html">image.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/input.html">input.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/key.html">key.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/log.html">log.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/media.html">media.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory.html">memory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory_reporter.html">memory_reporter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/microphone.html">microphone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/once.html">once.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/player.html">player.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/queue.html">queue.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket.html">socket.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_synthesis.html">speech_synthesis.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/storage.html">storage.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/string.html">string.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/system.html">system.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread.html">thread.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time.html">time.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/types.html">types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/user.html">user.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/window.html">window.h</a></li>
+                    
+                  
+          </ul>
+                
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
 </li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Developers</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/setup-linux.html">Setup - Linux</a></li>
+              
+            
+              
+        <li><a href="/development/setup-raspi.html">Setup - RasPi</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/reference/supported-features.html">Cobalt support</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/contributors/index.html">Contributors</a></h4>
+      
+    
+</li>
+  
+
+
+
+        
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
 </nav>
+
+
     
 <div id="masthead">
   <div class="container">
@@ -180,98 +439,309 @@
     <div class="col-md-2" id="leftCol">
       <ul class="nav nav-stacked mobile-left-nav-menu" id="sidebar">
         
-<li class="expand-container" data-expander-target-search="relative">
-<h4 class="no-submenu no-top-margin"><a href="/cobalt/overview.html">Overview</a></h4>
-</li>
-        
   
 <li class="expand-container" data-expander-target-search="relative">
-          <h4 class="submenu no-top-margin">Porters</h4>
+    
+      
+      
+<h4 class="no-submenu no-top-margin"><a href="/overview.html">Overview</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Porters</h4>
+        
+      
   <ul class="content">
+      
+        
     <li><b>Guides</b>
+          
       <ul>
-        <li><a href="/cobalt/starboard/porting.html">Port Cobalt to your platform</a></li>
-        <li><a href="/cobalt/starboard/testing.html">Testing with NPLB</a></li>
+            
+              
+        <li><a href="/starboard/porting.html">Port Cobalt to your platform</a></li>
+              
+            
+              
+        <li><a href="/starboard/testing.html">Testing with NPLB</a></li>
+              
+            
       </ul>
     </li>
+          
+        
+      
+        
     <li><b>Reference</b>
+          
       <ul>
-        <li><a href="/cobalt/reference/starboard/configuration-public.html">configuration_public.h</a></li>
-        <li><a href="/cobalt/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+            
+              
+        <li><a href="/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+              
+            
+              
+        <li><a href="/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+              
+            
+              
                 <li><b>Starboard modules</b>
+                
           <ul>
-                      <li><a href="/cobalt/reference/starboard/modules/atomic.html">atomic.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/blitter.html">blitter.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/character.html">character.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/configuration.html">configuration.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/directory.html">directory.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/double.html">double.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/drm.html">drm.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/event.html">event.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/export.html">export.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/file.html">file.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/input.html">input.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/key.html">key.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/log.html">log.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/media.html">media.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/memory.html">memory.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/mutex.html">mutex.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/once.html">once.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/player.html">player.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/queue.html">queue.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/socket.html">socket.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/storage.html">storage.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/string.html">string.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/system.html">system.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/thread.html">thread.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/time.html">time.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/types.html">types.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/user.html">user.h</a></li>
-                      <li><a href="/cobalt/reference/starboard/modules/window.html">window.h</a></li>
+                  
+                    
+                      <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/character.html">character.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/decode_target.html">decode_target.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/directory.html">directory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/double.html">double.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/drm.html">drm.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/event.html">event.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/export.html">export.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/file.html">file.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/image.html">image.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/input.html">input.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/key.html">key.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/log.html">log.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/media.html">media.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory.html">memory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory_reporter.html">memory_reporter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/microphone.html">microphone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/once.html">once.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/player.html">player.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/queue.html">queue.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket.html">socket.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_synthesis.html">speech_synthesis.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/storage.html">storage.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/string.html">string.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/system.html">system.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread.html">thread.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time.html">time.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/types.html">types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/user.html">user.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/window.html">window.h</a></li>
+                    
+                  
           </ul>
+                
+              
+            
       </ul>
     </li>
+          
+        
+      
   </ul>
+    
 </li>
+  
+
+  
 <li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
           <h4 class="submenu">Developers</h4>
+        
+      
   <ul class="content">
+      
+        
     <li><b>Guides</b>
+          
       <ul>
-        <li><a href="/cobalt/development/setup-linux.html">Setup - Linux</a></li>
-        <li><a href="/cobalt/development/setup-raspi.html">Setup - RasPi</a></li>
+            
+              
+        <li><a href="/development/setup-linux.html">Setup - Linux</a></li>
+              
+            
+              
+        <li><a href="/development/setup-raspi.html">Setup - RasPi</a></li>
+              
+            
       </ul>
     </li>
+          
+        
+      
+        
     <li><b>Reference</b>
+          
       <ul>
-        <li><a href="/cobalt/development/reference/supported-features.html">Cobalt support</a></li>
+            
+              
+        <li><a href="/development/reference/supported-features.html">Cobalt support</a></li>
+              
+            
       </ul>
     </li>
+          
+        
+      
   </ul>
+    
 </li>
+  
+
+  
 <li class="expand-container" data-expander-target-search="relative">
-<h4 class="no-submenu"><a href="/cobalt/contributors/index.html">Contributors</a></h4>
+    
+      
+      
+<h4 class="no-submenu"><a href="/contributors/index.html">Contributors</a></h4>
+      
+    
 </li>
+  
+
+
+
       </ul>
     </div>
-    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
+    <div class="col-md-3 " id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
-        
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>This module provides definitions that allow for DRM support, which are common
+        <p>Provides definitions that allow for DRM support, which are common
 between Player and Decoder interfaces.</p>
 
 <h2 id="enums">Enums</h2>
@@ -379,16 +849,19 @@ void SbDrmCloseSession(SbDrmSystem drm_system,
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>SbDrmSystem</code><br>        <code>drm_system</code></td>
-    <td></td>
+    <td><code>SbDrmSystem</code><br>
+        <code>drm_system</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>const void*</code><br>        <code>session_id</code></td>
-    <td></td>
+    <td><code>const void*</code><br>
+        <code>session_id</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>int</code><br>        <code>session_id_size</code></td>
-    <td></td>
+    <td><code>int</code><br>
+        <code>session_id_size</code></td>
+    <td> </td>
   </tr>
 </table>
 
@@ -398,7 +871,7 @@ void SbDrmCloseSession(SbDrmSystem drm_system,
 
 <p>Creates a new DRM system that can be used when constructing an SbPlayer
 or an SbDecoder.<br>
-This function returns kSbDrmSystemInvalid if the <code class="prettyprint">key_system</code> is unsupported.<br>
+This function returns kSbDrmSystemInvalid if <code class="prettyprint">key_system</code> is unsupported.<br>
 Also see the documentation of <code><a href="#sbdrmgeneratesessionupdaterequest">SbDrmGenerateSessionUpdateRequest()</a></code> and
 SbDrmUpdateSession() for more details.</p>
 
@@ -439,25 +912,25 @@ SbDrmSystem SbDrmCreateSystem(
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
     <td><code>const char*</code><br>        <code>key_system</code></td>
-    <td>The system to be created. The value should be in the form of
-"com.example.somesystem" as suggested by
+    <td>The DRM key system to be created. The value should be in the
+form of "com.example.somesystem" as suggested by
 https://w3c.github.io/encrypted-media/#key-system. All letters in the value
 should be lowercase and will be matched exactly with known DRM key systems
 of the platform.</td>
   </tr>
   <tr>
     <td><code>void*</code><br>        <code>context</code></td>
-    <td>This value is passed when any of this function's callback
-parameters are called.</td>
+    <td>A value passed when any of this function's callback parameters
+are called.</td>
   </tr>
   <tr>
     <td><code>SbDrmSessionUpdateRequestFunc</code><br>        <code>update_request_callback</code></td>
-    <td>A callback that is called every time after
+    <td>A function that is called every time after
 SbDrmGenerateSessionUpdateRequest() is called.</td>
   </tr>
   <tr>
     <td><code>SbDrmSessionUpdatedFunc</code><br>        <code>session_updated_callback</code></td>
-    <td>A callback that is called every time after
+    <td>A function that is called every time after
 SbDrmUpdateSession() is called.</td>
   </tr>
 </table>
@@ -502,7 +975,7 @@ void SbDrmDestroySystem(SbDrmSystem drm_system) {
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
     <td><code>SbDrmSystem</code><br>        <code>drm_system</code></td>
-    <td>The system to be destroyed.</td>
+    <td>The DRM system to be destroyed.</td>
   </tr>
 </table>
 
@@ -513,12 +986,12 @@ void SbDrmDestroySystem(SbDrmSystem drm_system) {
 <p>Asynchronously generates a session update request payload for
 <code class="prettyprint">initialization_data</code>, of <code class="prettyprint">initialization_data_size</code>, in case sensitive
 <code class="prettyprint">type</code>, extracted from the media stream, in <code class="prettyprint">drm_system</code>&#39;s key system.<br>
-This function calls the <code class="prettyprint">drm_system</code>&#39;s <code class="prettyprint">update_request_callback</code> function,
-which is defined when the system is created by <code><a href="#sbdrmcreatesystem">SbDrmCreateSystem</a></code>. When
+This function calls <code class="prettyprint">drm_system</code>&#39;s <code class="prettyprint">update_request_callback</code> function,
+which is defined when the DRM system is created by <code><a href="#sbdrmcreatesystem">SbDrmCreateSystem</a></code>. When
 calling that function, this function either sends <code class="prettyprint">context</code> (also from
 <code class="prettyprint">SbDrmCreateSystem</code>) and a populated request, or it sends NULL <code class="prettyprint">session_id</code>
 if an error occurred.<br>
-The <code class="prettyprint">drm_system</code>&#39;s <code class="prettyprint">context</code> may be used to distinguish callbacks from
+<code class="prettyprint">drm_system</code>&#39;s <code class="prettyprint">context</code> may be used to distinguish callbacks from
 multiple concurrent calls to <code>SbDrmGenerateSessionUpdateRequest()</code>, and/or
 to route callbacks back to an object instance.<br>
 Callbacks may be called either from the current thread before this function
@@ -582,7 +1055,7 @@ is created.</td>
 
 <p><strong>Description</strong></p>
 
-<p>Returns the number of keys installed in the given <code class="prettyprint">drm_system</code>.</p>
+<p>Returns the number of keys installed in <code class="prettyprint">drm_system</code>.</p>
 
 <p><strong>Declaration</strong></p>
 <div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT int SbDrmGetKeyCount(SbDrmSystem drm_system);
@@ -601,8 +1074,8 @@ is created.</td>
 
 <p><strong>Description</strong></p>
 
-<p>Gets the <code class="prettyprint">out_key</code>, <code class="prettyprint">out_key_size</code>, and <code class="prettyprint">out_status</code> for key with <code class="prettyprint">index</code> in
-the given <code class="prettyprint">drm_system</code> system. Returns whether a key is installed at <code class="prettyprint">index</code>.
+<p>Gets <code class="prettyprint">out_key</code>, <code class="prettyprint">out_key_size</code>, and <code class="prettyprint">out_status</code> for the key with <code class="prettyprint">index</code>
+in <code class="prettyprint">drm_system</code>. Returns whether a key is installed at <code class="prettyprint">index</code>.
 If not, the output parameters, which all must not be NULL, will not be
 modified.</p>
 
@@ -620,32 +1093,39 @@ modified.</p>
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>SbDrmSystem</code><br>        <code>drm_system</code></td>
-    <td></td>
+    <td><code>SbDrmSystem</code><br>
+        <code>drm_system</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>const void*</code><br>        <code>session_id</code></td>
-    <td></td>
+    <td><code>const void*</code><br>
+        <code>session_id</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>int</code><br>        <code>session_id_size</code></td>
-    <td></td>
+    <td><code>int</code><br>
+        <code>session_id_size</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>int</code><br>        <code>index</code></td>
-    <td></td>
+    <td><code>int</code><br>
+        <code>index</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>void**</code><br>        <code>out_key</code></td>
-    <td></td>
+    <td><code>void**</code><br>
+        <code>out_key</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>int*</code><br>        <code>out_key_size</code></td>
-    <td></td>
+    <td><code>int*</code><br>
+        <code>out_key_size</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>SbDrmKeyStatus*</code><br>        <code>out_status</code></td>
-    <td></td>
+    <td><code>SbDrmKeyStatus*</code><br>
+        <code>out_status</code></td>
+    <td> </td>
   </tr>
 </table>
 
@@ -665,7 +1145,7 @@ requests are also invalidated.</p>
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
     <td><code>SbDrmSystem</code><br>        <code>drm_system</code></td>
-    <td>The system for which keys should be removed.</td>
+    <td>The DRM system for which keys should be removed.</td>
   </tr>
 </table>
 
@@ -673,7 +1153,7 @@ requests are also invalidated.</p>
 
 <p><strong>Description</strong></p>
 
-<p>Returns whether the <code class="prettyprint">drm_system</code> is a valid SbDrmSystem.</p>
+<p>Indicates whether <code class="prettyprint">drm_system</code> is a valid SbDrmSystem.</p>
 
 <p><strong>Declaration</strong></p>
 <div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbDrmSystemIsValid(SbDrmSystem drm) {
@@ -685,8 +1165,9 @@ requests are also invalidated.</p>
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>SbDrmSystem</code></td>
-    <td><code>drm</code></td>
+    <td><code>SbDrmSystem</code><br>
+        <code>drm</code></td>
+    <td> </td>
   </tr>
 </table>
 
@@ -701,8 +1182,8 @@ SbDrmGenerateSessionUpdateRequest(). Calls <code class="prettyprint">session_upd
 distinguish callbacks from multiple concurrent calls to <code>SbDrmUpdateSession()</code>,
 and/or to route callbacks back to an object instance.<br>
 Once the session is successfully updated, an SbPlayer or SbDecoder associated
-with that system will be able to decrypt samples encrypted.<br>
-The <code class="prettyprint">drm_system</code>&#39;s <code class="prettyprint">session_updated_callback</code> may called either from the
+with that DRM key system will be able to decrypt encrypted samples.<br>
+<code class="prettyprint">drm_system</code>&#39;s <code class="prettyprint">session_updated_callback</code> may called either from the
 current thread before this function returns or from another thread.</p>
 
 <p><strong>Declaration and definitions</strong></p>
@@ -740,30 +1221,33 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
 <table class="responsive">
   <tr><th colspan="2">Parameters</th></tr>
   <tr>
-    <td><code>SbDrmSystem</code><br>        <code>drm_system</code></td>
-    <td></td>
+    <td><code>SbDrmSystem</code><br>
+        <code>drm_system</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>const void*</code><br>        <code>key</code></td>
-    <td></td>
+    <td><code>const void*</code><br>
+        <code>key</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>int</code><br>        <code>key_size</code></td>
-    <td></td>
+    <td><code>int</code><br>
+        <code>key_size</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>const void*</code><br>        <code>session_id</code></td>
-    <td></td>
+    <td><code>const void*</code><br>
+        <code>session_id</code></td>
+    <td> </td>
   </tr>
   <tr>
-    <td><code>int</code><br>        <code>session_id_size</code></td>
-    <td></td>
+    <td><code>int</code><br>
+        <code>session_id_size</code></td>
+    <td> </td>
   </tr>
 </table>
 
         
-          
-            
           
         
       </div>
@@ -774,20 +1258,65 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
 
 
     
-
-<footer>
+      <footer>
 <div class="container">
     <div class="row">
+      
         <div class="col-md-5 column-left">
+          
+          
+            
+              
+  
     <span class="copyright-text">© Google 2016</span>
+  
+
+
+            
+            
+            
+            
+            
+            
+          
         </div>
+      
         <div class="col-md-2 column-middle">
+          
+          
+            
+            
+            
+            
+              
   <img class="footer-logo" src="/images/cobalt-logo.png" alt="Cobalt"/>
+
+
+            
+            
+            
+          
         </div>
-        <div class="col-md-5 column-right">&nbsp;</div>
-            </div>
+      
+        <div class="col-md-5 column-right">
+          
+          
+            
+            
+            
+            
+            
+            
+              &nbsp;
+            
+          
+        </div>
+      
+    </div>
 </div>
 </footer>
+
+    
 
     
   </body>
