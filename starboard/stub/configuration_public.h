@@ -174,6 +174,10 @@
 // functionality encountered.
 #undef SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT
 
+// On some compilers, the frontend has a quirk such that #ifdef cannot
+// correctly detect __has_feature is defined, and an example error you get is:
+#undef SB_HAS_QUIRK_HASFEATURE_NOT_DEFINED_BUT_IT_IS
+
 // --- Extensions Configuration ----------------------------------------------
 
 // GCC/Clang doesn't define a long long hash function, except for Android and
