@@ -327,6 +327,9 @@ class Document : public Node, public cssom::MutationObserver {
   // Invalidates the document's cached layout tree and associated data.
   void InvalidateLayout();
 
+  // Disable just-in-time compilation of JavaScript code.
+  void DisableJit();
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
