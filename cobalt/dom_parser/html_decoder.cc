@@ -54,6 +54,14 @@ loader::LoadResponseType HTMLDecoder::OnResponseStarted(
     document_->NotifyUrlChanged(url_fetcher->GetURL());
   }
 
+  if (headers->HasHeaderValue("cobalt-jit", "disable")) {
+    document_->DisableJit();
+  } else if (headers->HasHeader("cobalt-jit")) {
+    std::string value;
+    headers->GetNormalizedHeader("cobalt-jit", &value);
+    LOG(WARNING) << "Invalid value for \"cobalt-jit\" header: " << value;
+  }
+
   csp::ResponseHeaders csp_headers(headers);
   if (document_->csp_delegate()->OnReceiveHeaders(csp_headers)) {
     return loader::kLoadResponseContinue;
