@@ -42,7 +42,7 @@ class SavegameFile : public Savegame {
  public:
   explicit SavegameFile(const Options& options);
   ~SavegameFile() OVERRIDE;
-  bool PlatformRead(ByteVector* bytes) OVERRIDE;
+  bool PlatformRead(size_t max_to_read, ByteVector* bytes) OVERRIDE;
   bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
   bool PlatformDelete() OVERRIDE;
 
@@ -64,7 +64,7 @@ SavegameFile::~SavegameFile() {
   }
 }
 
-bool SavegameFile::PlatformRead(ByteVector* bytes_ptr) {
+bool SavegameFile::PlatformRead(ByteVector* bytes_ptr, size_t max_to_read) {
   if (!file_util::PathExists(savegame_path_)) {
     return false;
   }
@@ -74,6 +74,12 @@ bool SavegameFile::PlatformRead(ByteVector* bytes_ptr) {
     DLOG(WARNING) << "GetFileSize of " << savegame_path_.value() << " failed";
     return false;
   }
+
+  if (max_to_read < static_cast<size_t>(file_size) {
+    DLOG(WARNING) << "Savegame larger than max allowed size";
+    return false;
+  }
+
   ByteVector& bytes = *bytes_ptr;
   bytes.resize(static_cast<size_t>(file_size));
   if (!bytes.empty()) {

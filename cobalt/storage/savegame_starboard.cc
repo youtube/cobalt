@@ -33,7 +33,7 @@ class SavegameStarboard : public Savegame {
  public:
   explicit SavegameStarboard(const Options& options);
   ~SavegameStarboard() OVERRIDE;
-  bool PlatformRead(ByteVector* bytes) OVERRIDE;
+  bool PlatformRead(ByteVector* bytes, size_t max_to_read) OVERRIDE;
   bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
   bool PlatformDelete() OVERRIDE;
 
@@ -52,7 +52,8 @@ SavegameStarboard::~SavegameStarboard() {
   }
 }
 
-bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr) {
+bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr,
+                                     size_t max_to_read) {
   if (!record_->IsValid()) {
     DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord";
     return false;
@@ -61,6 +62,11 @@ bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr) {
   int64_t size = record_->GetSize();
   if (size < 0) {
     DLOG(WARNING) << "StorageRecord::GetSize failed";
+    return false;
+  }
+
+  if (static_cast<size_t>(size) > max_to_read) {
+    DLOG(WARNING) << "Savegame larger than max allowed size";
     return false;
   }
 
