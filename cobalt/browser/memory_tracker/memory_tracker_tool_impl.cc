@@ -20,14 +20,19 @@
 #include <cstring>
 #include <iomanip>
 #include <iterator>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "base/time.h"
-#include "build/build_config.h"  // defines OS_STARBOARD
+#include "cobalt/browser/memory_tracker/buffered_file_writer.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
+#include "starboard/configuration.h"
+#include "starboard/file.h"
+#include "starboard/string.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace browser {
@@ -163,6 +168,7 @@ class Timer {
   base::Time start_time_;
   base::TimeDelta time_before_expiration_;
 };
+
 }  // namespace
 
 class Params {
@@ -229,12 +235,16 @@ void MemoryTrackerToolThread::Run() {
 
 NoMemoryTracking::NoMemoryTracking(nb::analytics::MemoryTracker* owner)
     : owner_(owner) {
-  prev_val_ = owner_->IsMemoryTrackingEnabled();
-  owner_->SetMemoryTrackingEnabled(false);
+  if (owner_) {
+    prev_val_ = owner_->IsMemoryTrackingEnabled();
+    owner_->SetMemoryTrackingEnabled(false);
+  }
 }
 
 NoMemoryTracking::~NoMemoryTracking() {
-  owner_->SetMemoryTrackingEnabled(prev_val_);
+  if (owner_) {
+    owner_->SetMemoryTrackingEnabled(prev_val_);
+  }
 }
 
 void MemoryTrackerPrint::Run(Params* params) {
@@ -999,6 +1009,146 @@ bool FindTopSizes::PassesFilter(const AllocationRecord& alloc_record) const {
   if (alloc_record.size > maximum_size_) return false;
   if (!group_filter_) return true;  // No group filter when null.
   return group_filter_ == alloc_record.allocation_group;
+}
+
+MemoryTrackerLogWriter::MemoryTrackerLogWriter() : start_time_(NowTime()) {
+  buffered_file_writer_.reset(new BufferedFileWriter(MemoryLogPath()));
+  InitAndRegisterMemoryReporter();
+}
+
+MemoryTrackerLogWriter::~MemoryTrackerLogWriter() {
+  // No locks are used for the thread reporter, so when it's set to null
+  // we allow one second for any suspended threads to run through and finish
+  // their reporting.
+  SbMemorySetReporter(NULL);
+  SbThreadSleep(kSbTimeSecond);
+  buffered_file_writer_.reset(NULL);
+}
+
+std::string MemoryTrackerLogWriter::tool_name() const {
+  return "MemoryTrackerLogWriter";
+}
+
+void MemoryTrackerLogWriter::Run(Params* params) {
+  // Run function does almost nothing.
+  params->logger()->Output("MemoryTrackerLogWriter running...");
+}
+
+void MemoryTrackerLogWriter::OnMemoryAllocation(const void* memory_block,
+                                                size_t size) {
+  void* addresses[kMaxStackSize] = {};
+  // Though the SbSystemGetStack API documentation does not specify any possible
+  // negative return values, we take no chance.
+  const size_t count = std::max(SbSystemGetStack(addresses, kMaxStackSize), 0);
+
+  const size_t n = 256;
+  char buff[n] = {0};
+  size_t buff_pos = 0;
+
+  int time_since_start_ms = GetTimeSinceStartMs();
+  // Writes "+ <ALLOCATION ADDRESS> <size> <time>"
+  int bytes_written =
+      SbStringFormatF(buff, sizeof(buff), "+ %" PRIXPTR " %x %d",
+                      reinterpret_cast<uintptr_t>(memory_block),
+                      static_cast<unsigned int>(size), time_since_start_ms);
+
+  buff_pos += bytes_written;
+  const size_t end_index = std::min(count, kStartIndex + kNumAddressPrints);
+
+  // For each of the stack addresses that we care about, concat them to the
+  // buffer. This was originally written to do multiple stack addresses but
+  // this tends to overflow on some lower platforms so it's possible that
+  // this loop only iterates once.
+  for (size_t i = kStartIndex; i < end_index; ++i) {
+    void* p = addresses[i];
+    int bytes_written = SbStringFormatF(buff + buff_pos,
+                                        sizeof(buff) - buff_pos,
+                                        " %" PRIXPTR "",
+                                        reinterpret_cast<uintptr_t>(p));
+    DCHECK_GE(bytes_written, 0);
+
+    if (bytes_written < 0) {
+      DCHECK(false) << "Error occurred while writing string.";
+      continue;
+    }
+
+    buff_pos += static_cast<size_t>(bytes_written);
+  }
+  // Adds a "\n" at the end.
+  SbStringConcat(buff + buff_pos, "\n", static_cast<int>(n - buff_pos));
+  buffered_file_writer_->Append(buff, strlen(buff));
+}
+
+void MemoryTrackerLogWriter::OnMemoryDeallocation(const void* memory_block) {
+  const size_t n = 256;
+  char buff[n] = {0};
+  // Writes "- <ADDRESS OF ALLOCATION> \n"
+  SbStringFormatF(buff, sizeof(buff), "- %" PRIXPTR "\n",
+                  reinterpret_cast<uintptr_t>(memory_block));
+  buffered_file_writer_->Append(buff, strlen(buff));
+}
+
+void MemoryTrackerLogWriter::OnAlloc(void* context, const void* memory,
+                                     size_t size) {
+  MemoryTrackerLogWriter* self = static_cast<MemoryTrackerLogWriter*>(context);
+  self->OnMemoryAllocation(memory, size);
+}
+
+void MemoryTrackerLogWriter::OnDealloc(void* context, const void* memory) {
+  MemoryTrackerLogWriter* self = static_cast<MemoryTrackerLogWriter*>(context);
+  self->OnMemoryDeallocation(memory);
+}
+
+void MemoryTrackerLogWriter::OnMapMemory(void* context, const void* memory,
+                                         size_t size) {
+  MemoryTrackerLogWriter* self = static_cast<MemoryTrackerLogWriter*>(context);
+  self->OnMemoryAllocation(memory, size);
+}
+
+void MemoryTrackerLogWriter::OnUnMapMemory(void* context, const void* memory,
+                                           size_t size) {
+  SB_UNREFERENCED_PARAMETER(size);
+  MemoryTrackerLogWriter* self = static_cast<MemoryTrackerLogWriter*>(context);
+  self->OnMemoryDeallocation(memory);
+}
+
+std::string MemoryTrackerLogWriter::MemoryLogPath() {
+  char file_name_buff[2048] = {};
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, file_name_buff,
+                  arraysize(file_name_buff));
+  std::string path(file_name_buff);
+  if (!path.empty()) {  // Protect against a dangling "/" at end.
+    const int back_idx_signed = static_cast<int>(path.length()) - 1;
+    if (back_idx_signed >= 0) {
+      const size_t idx = back_idx_signed;
+      if (path[idx] == '/') {
+        path.erase(idx);
+      }
+    }
+  }
+  path.append("/memory_log.txt");
+  return path;
+}
+
+base::TimeTicks MemoryTrackerLogWriter::NowTime() {
+  // NowFromSystemTime() is slower but more accurate. However it might
+  // be useful to use the faster but less accurate version if there is
+  // a speedup.
+  return base::TimeTicks::Now();
+}
+
+int MemoryTrackerLogWriter::GetTimeSinceStartMs() const {
+  base::TimeDelta dt = NowTime() - start_time_;
+  return static_cast<int>(dt.InMilliseconds());
+}
+
+void MemoryTrackerLogWriter::InitAndRegisterMemoryReporter() {
+  DCHECK(!memory_reporter_.get()) << "Memory Reporter already registered.";
+
+  SbMemoryReporter mem_reporter = {OnAlloc, OnDealloc, OnMapMemory,
+                                   OnUnMapMemory, this};
+  memory_reporter_.reset(new SbMemoryReporter(mem_reporter));
+  SbMemorySetReporter(memory_reporter_.get());
 }
 
 }  // namespace memory_tracker
