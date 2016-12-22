@@ -60,8 +60,9 @@ class Savegame {
   virtual ~Savegame();
 
   // Load savegame and return its contents as a vector of bytes.
+  // If the savegame file is greater than max_to_read, fail.
   // Return true on success, false on failure.
-  bool Read(ByteVector* bytes);
+  bool Read(ByteVector* bytes, size_t max_to_read);
 
   // Write the given blob to the savegame.
   // Return true on success, false on failure.
@@ -74,7 +75,7 @@ class Savegame {
 
  protected:
   explicit Savegame(const Options& options);
-  virtual bool PlatformRead(ByteVector* bytes) = 0;
+  virtual bool PlatformRead(ByteVector* bytes, size_t max_to_read) = 0;
   virtual bool PlatformWrite(const ByteVector& bytes) = 0;
   virtual bool PlatformDelete() = 0;
   Options options_;
