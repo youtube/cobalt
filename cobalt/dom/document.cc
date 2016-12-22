@@ -53,6 +53,7 @@
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/script/global_environment.h"
 
 #include "nb/memory_scope.h"
 
@@ -662,6 +663,13 @@ void Document::InvalidateLayout() {
 
   // Finally, also destroy all cached layout boxes.
   InvalidateLayoutBoxesFromNodeAndDescendants();
+}
+
+void Document::DisableJit() {
+  window_->html_element_context()
+      ->script_runner()
+      ->GetGlobalEnvironment()
+      ->DisableJit();
 }
 
 void Document::DispatchOnLoadEvent() {
