@@ -508,6 +508,8 @@ class ResourceCache {
 
   base::CVal<base::cval::SizeInBytes, base::CValPublic> size_in_bytes_;
   base::CVal<base::cval::SizeInBytes, base::CValPublic> capacity_in_bytes_;
+  base::CVal<int> count_loading_resources_;
+  base::CVal<int> count_pending_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };
@@ -530,7 +532,14 @@ ResourceCache<CacheType>::ResourceCache(
                          cache_capacity_,
                          "The capacity, in bytes, of the resource cache.  "
                          "Exceeding this results in *unused* resources being "
-                         "purged.") {
+                         "purged."),
+      count_loading_resources_(
+          base::StringPrintf("%s.Count.LoadingResources", name_.c_str()), 0,
+          "The number of loading resources that are still outstanding."),
+      count_pending_callbacks_(
+          base::StringPrintf("%s.Count.PendingCallbacks", name_.c_str()), 0,
+          "The number of loading completed resources that have pending "
+          "callbacks.") {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
   DCHECK(!create_loader_function_.is_null());
 }
@@ -573,6 +582,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
   } else {
     non_callback_blocking_loading_resource_set_.insert(url.spec());
   }
+  ++count_loading_resources_;
 
   // Create the cached resource and fetch its resource based on the url.
   scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
@@ -621,6 +631,12 @@ void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
   pending_callback_map_.insert(std::make_pair(
       url, ResourceCallbackInfo(cached_resource, callback_type)));
 
+  // Update the loading resources and pending callbacks count. The callbacks are
+  // incremented first to ensure that the total of the two counts always remains
+  // above 0.
+  ++count_pending_callbacks_;
+  --count_loading_resources_;
+
   ProcessPendingCallbacksIfUnblocked();
   ReclaimMemoryAndMaybeProcessPendingCallbacks(cache_capacity_);
 }
@@ -650,10 +666,12 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
     DCHECK(non_callback_blocking_loading_resource_set_.find(url) ==
            non_callback_blocking_loading_resource_set_.end());
     DCHECK(pending_callback_map_.find(url) == pending_callback_map_.end());
+    --count_loading_resources_;
   } else if (non_callback_blocking_loading_resource_set_.erase(url)) {
     DCHECK(pending_callback_map_.find(url) == pending_callback_map_.end());
-  } else {
-    pending_callback_map_.erase(url);
+    --count_loading_resources_;
+  } else if (pending_callback_map_.erase(url)) {
+    --count_pending_callbacks_;
   }
 
   // Only process pending callbacks and attempt to reclaim memory if
@@ -741,6 +759,7 @@ void ResourceCache<CacheType>::ProcessPendingCallbacks() {
     pending_callback_map_.erase(pending_callback_map_.begin());
   }
   is_processing_pending_callbacks_ = false;
+  count_pending_callbacks_ = 0;
 }
 
 }  // namespace loader
