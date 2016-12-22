@@ -44,6 +44,7 @@ class VideoRenderer : private VideoDecoder::Host {
   void WriteEndOfStream();
 
   void Seek(SbMediaTime seek_to_pts);
+  void Update();
 
   scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time);
 
@@ -63,10 +64,6 @@ class VideoRenderer : private VideoDecoder::Host {
   // 2. Have the frame cache full to simulate the state that the renderer can
   //    no longer accept more data.
   static const size_t kMaxCachedFrames = 12;
-  // When there are more encoded frames inside the decoder than the following
-  // number, the render no longer sends more data to the decoder until some
-  // frames are decoded.
-  static const int kMaxDecodingFrames = 60;
 
   // VideoDecoder::Host method.
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
