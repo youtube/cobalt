@@ -68,6 +68,8 @@ class JSCGlobalEnvironment : public GlobalEnvironment,
 
   void EnableEval() OVERRIDE;
 
+  void DisableJit() OVERRIDE;
+
   void SetReportEvalCallback(const base::Closure& report_eval) OVERRIDE {
     DCHECK(thread_checker_.CalledOnValidThread());
     report_eval_cb_ = report_eval;
