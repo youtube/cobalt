@@ -49,6 +49,7 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
       const scoped_refptr<Wrappable>& /*wrappable*/) OVERRIDE {}
   void DisableEval(const std::string& /*message*/) OVERRIDE {}
   void EnableEval() OVERRIDE {}
+  void DisableJit() OVERRIDE {}
   void SetReportEvalCallback(const base::Closure& /*report_eval*/) OVERRIDE {}
   void Bind(const std::string& /*identifier*/,
             const scoped_refptr<Wrappable>& /*impl*/) OVERRIDE {}
