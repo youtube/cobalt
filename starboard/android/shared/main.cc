@@ -21,13 +21,50 @@
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
 
+namespace starboard {
+namespace android {
+namespace shared {
+
+// TODO: We may need more than this short-circuit of ApplicationAndroid
+class ApplicationAndroidStub : public ApplicationAndroid {
+ public:
+  ApplicationAndroidStub() : ApplicationAndroid(&app_) {
+    memset(&app_, 0, sizeof(app_));
+  }
+
+ protected:
+  Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE {
+    if (state() == kStateUnstarted) {
+      DispatchStart();
+    }
+    return NULL;
+  }
+
+  void WakeSystemEventWait() SB_OVERRIDE { }
+
+  Event* GetNextEvent() SB_OVERRIDE {
+    Event* event = ApplicationAndroid::GetNextEvent();
+    if (event && event->event->type == kSbEventTypeStop) {
+      app_.destroyRequested = true;
+    }
+    return event;
+  }
+
+ private:
+  struct android_app app_;
+};
+
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
-  starboard::android::ApplicationAndroid application;
+  starboard::android::shared::ApplicationAndroidStub application;
   int result = application.Run(argc, argv);
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
+
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard

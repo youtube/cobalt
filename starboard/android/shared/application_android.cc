@@ -14,51 +14,166 @@
 
 #include "starboard/android/shared/application_android.h"
 
+#include <android/log.h>
+#include <android_native_app_glue.h>
 #include <time.h>
 
 #include "starboard/event.h"
 #include "starboard/log.h"
 
+// TODO: Use Starboard logging
+#define LOGD(...) ((void)__android_log_print( \
+    ANDROID_LOG_DEBUG, "StarboardApplication", __VA_ARGS__))
+
 namespace starboard {
 namespace android {
+namespace shared {
 
-ApplicationAndroid::ApplicationAndroid() {
-  SB_NOTIMPLEMENTED();
-}
+// "using" doesn't work with class members, so make a local convienience type.
+typedef ::starboard::shared::starboard::Application::Event Event;
 
-ApplicationAndroid::~ApplicationAndroid() {
-  SB_NOTIMPLEMENTED();
-}
+ApplicationAndroid::ApplicationAndroid(struct android_app* state)
+  : android_state_(state), window_(kSbWindowInvalid) { }
+
+ApplicationAndroid::~ApplicationAndroid() { }
 
 void ApplicationAndroid::Initialize() {
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
 }
 
-void ApplicationAndroid::Teardown() {
-  SB_NOTIMPLEMENTED();
+SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
+  SB_UNREFERENCED_PARAMETER(options);
+  // Don't allow re-creation since we only have one window anyway.
+  if (SbWindowIsValid(window_)) {
+    return kSbWindowInvalid;
+  }
+
+  // SbWindow, EGLNativeWindowType, and ANativeWindow* are all the same.
+  window_ = reinterpret_cast<SbWindow>(android_state_->window);
+  return window_;
 }
 
-bool ApplicationAndroid::MayHaveSystemEvents() {
-  SB_NOTIMPLEMENTED();
+bool ApplicationAndroid::DestroyWindow(SbWindow window) {
+  if (!SbWindowIsValid(window)) {
+    return false;
+  }
+  window_ = kSbWindowInvalid;
+  return true;
+}
+
+bool ApplicationAndroid::DispatchNextEvent() {
+  // We already dispatched our own system events in OnAndroidCommand() and/or
+  // OnAndroidInput(), but we may have an injected event to dispatch.
+  DispatchAndDelete(GetNextEvent());
+
+  // Keep pumping events until Android is done with its lifecycle.
+  return !android_state_->destroyRequested;
+}
+
+Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
+  int ident;
+  int looper_events;
+  struct android_poll_source* source;
+  int timeMillis = time / 1000;
+
+  ident = ALooper_pollAll(timeMillis, NULL, &looper_events,
+                          reinterpret_cast<void**>(&source));
+  if (ident >= 0 && source != NULL) {
+    // This will end up calling OnAndroidCommand() or OnAndroidInput().
+    source->process(android_state_, source);
+  }
+
+  // Always return NULL since we already dispatched our own system events.
+  return NULL;
+}
+
+void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
+  LOGD("OnAndroidCommand %d", cmd);
+  Event *event = NULL;
+
+  // When an app first starts up the order of commands we get are:
+  // 1. APP_CMD_START
+  // 2. APP_CMD_RESUME
+  // 3. APP_CMD_INPUT_CHANGED
+  // 4. APP_CMD_INIT_WINDOW
+  switch (cmd) {
+    case APP_CMD_INIT_WINDOW:
+      DispatchStart();
+      break;
+    case APP_CMD_START:
+      LOGD("APP_CMD_START");
+      if (state() != kStateUnstarted) {
+        DispatchAndDelete(new Event(kSbEventTypeResume, NULL, NULL));
+      }
+      break;
+    case APP_CMD_RESUME:
+      LOGD("APP_CMD_RESUME");
+      if (state() != kStateUnstarted) {
+        DispatchAndDelete(new Event(kSbEventTypeUnpause, NULL, NULL));
+      }
+      break;
+    case APP_CMD_PAUSE:
+      LOGD("APP_CMD_PAUSE");
+      DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
+      break;
+    case APP_CMD_STOP:
+      LOGD("APP_CMD_STOP");
+      DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+      break;
+    case APP_CMD_DESTROY:
+      LOGD("APP_CMD_DESTROY");
+      DispatchAndDelete(new Event(kSbEventTypeStop, NULL, NULL));
+      break;
+  }
+}
+
+bool ApplicationAndroid::OnAndroidInput(AInputEvent* event) {
+  // TODO implement input events
   return false;
 }
 
-shared::starboard::Application::Event*
-    ApplicationAndroid::PollNextSystemEvent() {
-  SB_NOTIMPLEMENTED();
-  return NULL;
-}
-
-shared::starboard::Application::Event*
-ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
-  SB_NOTIMPLEMENTED();
-  return NULL;
-}
-
 void ApplicationAndroid::WakeSystemEventWait() {
-  SB_NOTIMPLEMENTED();
+  ALooper_wake(android_state_->looper);
 }
 
+/**
+ * This is the main entry point of a native application that is using
+ * android_native_app_glue.  It runs in its own thread, using the event
+ * loop in ApplicationAndroid.
+ */
+extern "C" void android_main(struct android_app* state) {
+  ApplicationAndroid application(state);
+  state->userData = &application;
+  state->onAppCmd = ApplicationAndroid::HandleCommand;
+  state->onInputEvent = ApplicationAndroid::HandleInput;
+  application.Run(0, NULL);
+}
+
+static SB_C_INLINE ApplicationAndroid* ToApplication(
+    struct android_app* app) {
+  return static_cast<ApplicationAndroid*>(app->userData);
+}
+
+// static
+void ApplicationAndroid::HandleCommand(struct android_app* app, int32_t cmd) {
+  LOGD("HandleCommand %d", cmd);
+  ToApplication(app)->OnAndroidCommand(cmd);
+}
+
+// static
+int32_t ApplicationAndroid::HandleInput(
+    struct android_app* app, AInputEvent* event) {
+  return ToApplication(app)->OnAndroidInput(event) ? 1 : 0;
+}
+
+// TODO: Figure out how to export ANativeActivity_onCreate()
+extern "C" SB_EXPORT_PLATFORM void CobaltActivity_onCreate(
+    ANativeActivity *activity, void *savedState, size_t savedStateSize) {
+  LOGD("CobaltActivity_onCreate");
+  ANativeActivity_onCreate(activity, savedState, savedStateSize);
+}
+
+}  // namespace shared
 }  // namespace android
 }  // namespace starboard
