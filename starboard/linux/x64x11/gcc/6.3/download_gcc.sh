@@ -13,16 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script downloads and compiles gcc version 4.2.4.
-
-# Note: This gcc version has a quadruplet 'x86_64-unknown-linux-gnu' instead
-# of the'x86_64-linux-gnu' triplet. As a result, the compiler flag
-# "-isystem /usr/include/x86_64-linux-gnu" must be used when any system
-# headers are needed.
+# This script downloads and compiles gcc version 6.3.0.
 
 set -e
 
-version="4.2.4"
+version="6.3.0"
 gcc_folder="gcc-${version}"
 
 # This command will fail and abort the script if the folder does not exist.
@@ -53,29 +48,15 @@ logfile=${gcc_path}/"build_log.txt"
 
 echo Downloading and compiling gcc version ${version} into ${gcc_path}
 echo Log file can be found at ${logfile}
-echo This may take about 10 minutes.
+echo This may take about 40 minutes.
 
 (
-  texinfo_install_folder=${PWD}/"texinfo"
-  # Download and compile texinfo
-  if [ ! -f texinfo/bin/info ]; then
-    texinfo_version="texinfo-4.13"
-    wget -c https://ftp.gnu.org/gnu/texinfo/${texinfo_version}a.tar.gz
-    rm -rf texinfo ${texinfo_version}
-    tar -xzf ${texinfo_version}a.tar.gz
-    cd ${texinfo_version}/
-    ./configure --prefix=${texinfo_install_folder}
-    make -j"$(nproc)" && make install
-    cd ${gcc_path}
-  fi
-  export PATH=${texinfo_install_folder}/bin:${PATH}
-
   # Download gcc
   if [ ! -e gcc-${version}/"README" ]; then
     file="gcc-${version}.tar.bz2"
-    wget -c https://ftp.gnu.org/gnu/gcc/gcc-${version}/${file}
-    wget -c https://ftp.gnu.org/gnu/gcc/gcc-${version}/${file}.sig
-    wget -c https://ftp.gnu.org/gnu/gnu-keyring.gpg
+    wget -c http://ftpmirror.gnu.org/gcc/gcc-${version}/${file}
+    wget -c http://ftpmirror.gnu.org/gcc/gcc-${version}/${file}.sig
+    wget -c http://ftp.gnu.org/gnu/gnu-keyring.gpg
     signature_invalid=`gpg --verify --no-default-keyring --keyring ./gnu-keyring.gpg ${file}.sig`
     if [ $signature_invalid ]; then echo "Invalid signature" ; exit 1 ; fi
     rm -rf gcc-${version}
@@ -86,14 +67,6 @@ echo This may take about 10 minutes.
       ./contrib/download_prerequisites
     fi
     cd ${gcc_path}
-
-    # Replace 'struct siginfo' with 'siginfo_t' in linux-unwind.h (compilation fix).
-    sed -i 's:struct siginfo:siginfo_t:g' gcc-${version}/gcc/config/i386/linux-unwind.h
-
-    # Apply patch for "Bug 21706 - MAXPATHLEN usage in [gcc]/gcc/tlink.c"
-    # from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=21706
-    wget -c -O maxpathlen.patch https://gcc.gnu.org/bugzilla/attachment.cgi?id=16643
-    patch -d gcc-${version} -p0 <maxpathlen.patch
   fi
 
   # Create clean build folder for gcc
@@ -111,11 +84,8 @@ echo This may take about 10 minutes.
     --disable-multilib \
     --enable-languages="c,c++"
 
-  LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib32
-  export LIBRARY_PATH
-
   # Build and 'install' gcc
-  make -j"$(nproc)" && make install
+  make -j"$(nproc)" && make install-strip
   cd ${gcc_path}
 
   ls -l gcc/bin
