@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
+#include <android_native_app_glue.h>
+
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
@@ -23,30 +25,51 @@
 
 namespace starboard {
 namespace android {
+namespace shared {
 
-// Stub application engine using the generic queue and a stub implementation.
-class ApplicationAndroid : public shared::starboard::QueueApplication {
+// Android application using android_native_app_glue and the generic queue.
+class ApplicationAndroid
+    : public ::starboard::shared::starboard::QueueApplication {
  public:
-  ApplicationAndroid();
+  explicit ApplicationAndroid(struct android_app* android_state);
   ~ApplicationAndroid() SB_OVERRIDE;
 
   static ApplicationAndroid* Get() {
-    return
-        static_cast<ApplicationAndroid*>(shared::starboard::Application::Get());
+    return static_cast<ApplicationAndroid*>(
+        ::starboard::shared::starboard::Application::Get());
   }
+
+  SbWindow CreateWindow(const SbWindowOptions* options);
+  bool DestroyWindow(SbWindow window);
 
  protected:
   // --- Application overrides ---
   void Initialize() SB_OVERRIDE;
-  void Teardown() SB_OVERRIDE;
+  bool DispatchNextEvent() SB_OVERRIDE;
+  bool IsStartImmediate() SB_OVERRIDE { return false; }
 
   // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() SB_OVERRIDE;
-  Event* PollNextSystemEvent() SB_OVERRIDE;
+  bool MayHaveSystemEvents() SB_OVERRIDE { return true; }
   Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
   void WakeSystemEventWait() SB_OVERRIDE;
+
+ private:
+  // Helpers to bind to android_native_app_glue
+  friend void ::android_main(struct android_app* state);
+  static void HandleCommand(struct android_app* app, int32_t cmd);
+  static int32_t HandleInput(struct android_app* app, AInputEvent* event);
+
+  void OnAndroidCommand(int32_t cmd);
+  bool OnAndroidInput(AInputEvent* event);
+
+  // The application state from android_native_app_glue.
+  struct android_app* android_state_;
+
+  // The single open window, if any.
+  SbWindow window_;
 };
 
+}  // namespace shared
 }  // namespace android
 }  // namespace starboard
 
