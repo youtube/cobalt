@@ -62,7 +62,7 @@ echo This may take about 15 minutes.
 
   cd llvm
   ./configure --enable-optimized --disable-doxygen --prefix=${PWD}/bin
-  make -j12
+  make -j"$(nproc)"
   cd ${clang_path}
 
   ls -l ${clang_install_folder}/bin/
