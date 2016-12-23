@@ -35,8 +35,7 @@ VALID_BUILD_CONFIGS = [Configs.DEBUG, Configs.DEVEL, Configs.QA, Configs.GOLD]
 
 
 # Represents all supported platforms, uniquified and sorted.
-VALID_PLATFORMS = sorted(list(set(['ps3', 'win'] +
-                                  gyp_utils.GetThirdPartyPlatforms().keys())))
+VALID_PLATFORMS = sorted(gyp_utils.GetThirdPartyPlatforms().keys())
 
 
 _CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))

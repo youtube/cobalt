@@ -230,10 +230,10 @@
     'platform_libraries%': [],
 
 
-    # Supported engine is currently only "javascriptcore".
+    # The only currently-supported Javascript engine is 'mozjs'.
     # TODO: Figure out how to massage gyp the right way to make this work
     # as expected, rather than requiring it to be set for each platform.
-    #'javascript_engine%': 'javascriptcore',
+    #'javascript_engine%': 'mozjs',
 
     # Enable jit by default. It can be set to 0 to run in interpreter-only mode.
     # Setting this to 1 on a platform or engine for which there is no JIT
