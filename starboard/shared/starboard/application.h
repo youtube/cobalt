@@ -235,6 +235,15 @@ class Application {
   // method to provide events for the platform. Gives ownership to the caller.
   virtual Event* GetNextEvent() = 0;
 
+  // Blocks until the next event is available, then dispatches the event to the
+  // system event handler. Derived classes that override this should still use
+  // |DispatchAndDelete| to maintain consistency of the application state.
+  // Returns whether to keep servicing the event queue, i.e. false means to
+  // abort the event queue.
+  virtual bool DispatchNextEvent() {
+    return DispatchAndDelete(GetNextEvent());
+  }
+
   // Injects an event into the queue, such that it will be returned from
   // GetNextEvent(), giving ownership of the event. NULL is valid, and will just
   // wake up the main loop. May be called from an external thread. Subclasses
@@ -270,12 +279,21 @@ class Application {
   // Returns the current application state.
   State state() const { return state_; }
 
- private:
+ protected:
+  // Returns true if the Start event should be sent in |Run| before entering the
+  // event loop. Derived classes that return false must call |DispatchStart|.
+  virtual bool IsStartImmediate() { return true; }
+
+  // Dispatches a Start event to the system event handler.
+  void DispatchStart();
+
   // Dispatches |event| to the system event handler, taking ownership of the
-  // event. Returns whether to keep servicing the event queue, i.e. false means
-  // to abort the event queue.
+  // event. Checks for consistency with the current application state when state
+  // events are dispatched. Returns whether to keep servicing the event queue,
+  // i.e. false means to abort the event queue.
   bool DispatchAndDelete(Application::Event* event);
 
+ private:
   // The single application instance.
   static Application* g_instance;
 
@@ -285,6 +303,10 @@ class Application {
   // The thread that this application was created on, which is assumed to be the
   // main thread.
   SbThread thread_;
+
+  // The command line arguments passed to |Run|.
+  int argument_count_;
+  char** argument_values_;
 
   // The deep link included in the Start event sent to Cobalt. Initially NULL,
   // derived classes may set it during initialization using |SetStartLink|.
