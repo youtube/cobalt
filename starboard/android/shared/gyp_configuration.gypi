@@ -20,8 +20,12 @@
     'target_os': 'android',
     'final_executable_type': 'shared_library',
 
-    'in_app_dial%': 0,
-    'gl_type%': 'system_gles3',
+    'in_app_dial': 0,
+
+    # TODO: use real GL
+    # 'gl_type': 'system_gles2',
+    'gl_type': 'none',
+    'rasterizer_type': 'stub',
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
@@ -59,8 +63,9 @@
     ],
     'platform_libraries': [
       '-lEGL',
-      '-lGLESv3',
-      '-landroid'
+      '-lGLESv2',
+      '-landroid',
+      '-llog',
     ],
     'conditions': [
       ['clang==1', {
@@ -146,6 +151,8 @@
     'cflags': [
       # Use the headers in the NDK
       '--sysroot=<(NDK_SYSROOT)',
+      # application_android uses the NDK glue
+      '-I<(NDK_HOME)/sources/android/native_app_glue',
       # libwebp uses the cpufeatures library to detect ARM NEON support
       '-I<(NDK_HOME)/sources/android/cpufeatures',
     ],
@@ -160,6 +167,10 @@
       # We do allow ourselves GNU extensions, which are assumed to exist
       # by Chromium code.
       '-std=gnu++98',
+    ],
+    'ldflags': [
+      # TODO: Figure out how to export ANativeActivity_onCreate()
+      '-Wl,-uCobaltActivity_onCreate',
     ],
     'target_conditions': [
       ['cobalt_code==1', {

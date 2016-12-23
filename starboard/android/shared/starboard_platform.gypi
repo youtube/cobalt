@@ -21,6 +21,20 @@
         '<(DEPTH)/base/third_party/symbolize/symbolize.cc',
       ],
     },
+    # Copy sources that we compile from the NDK so that we can reference them
+    # by a relative path. Otherwise, without GYP pathname relativization
+    # different configuration builds would clobber each other since they'd all
+    # generate their .o at the same path in the NDK sources directory.
+    {
+      'target_name': 'ndk_sources',
+      'type': 'none',
+      'copies': [{
+        'destination': '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/',
+        'files': [
+          '<(NDK_HOME)/sources/android/native_app_glue/android_native_app_glue.c',
+        ],
+      }],
+    },
     {
       'target_name': 'starboard_platform',
       'type': 'static_library',
@@ -32,9 +46,9 @@
         'main.cc',
         'sanitizer_options.cc',
         'socket_get_local_interface_address.cc',
-        'system_get_locale_id.cc',
         'system_get_connection_type.cc',
         'system_get_device_type.cc',
+        'system_get_locale_id.cc',
         'system_get_path.cc',
         'system_get_property.cc',
         'system_get_stack.cc',
@@ -42,6 +56,11 @@
         'thread_get_name.cc',
         'time_zone_get_dst_name.cc',
         'time_zone_get_name.cc',
+        'window_create.cc',
+        'window_destroy.cc',
+        'window_get_platform_handle.cc',
+        'window_get_size.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/android_native_app_glue.c',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
@@ -266,10 +285,6 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
-        '<(DEPTH)/starboard/shared/stub/window_create.cc',
-        '<(DEPTH)/starboard/shared/stub/window_destroy.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_platform_handle.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_size.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
