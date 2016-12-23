@@ -37,15 +37,18 @@
 ******************************************************************************
 */
 
-// Defines _XOPEN_SOURCE for access to POSIX functions.
-// Must be before any other #includes.
-#include "uposixdefs.h"
-
+// Starboard poems must be included before uposixdefs.h, or else they cause
+// compiler errors on some platforms.
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+
+// Defines _XOPEN_SOURCE for access to POSIX functions.
+// Must be before any other #includes.
+#include "uposixdefs.h"
+
 /* include ICU headers */
 #include "unicode/utypes.h"
 #include "unicode/platform.h"
