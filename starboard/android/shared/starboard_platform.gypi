@@ -56,6 +56,7 @@
         'file_truncate.cc',
         'file_write.cc',
         'get_home_directory.cc',
+        'input_event.cc',
         'log.cc',
         'log_flush.cc',
         'log_format.cc',
