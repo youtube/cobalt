@@ -14,11 +14,11 @@
 
 #include "starboard/android/shared/application_android.h"
 
-#include <android/log.h>
 #include <android_native_app_glue.h>
 #include <time.h>
 
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/android/shared/input_event.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 
@@ -90,6 +90,10 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
   return NULL;
 }
 
+void ApplicationAndroid::WakeSystemEventWait() {
+  ALooper_wake(android_state_->looper);
+}
+
 void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
   SB_LOG(INFO) << "OnAndroidCommand " << cmd;
   Event *event = NULL;
@@ -130,13 +134,13 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
   }
 }
 
-bool ApplicationAndroid::OnAndroidInput(AInputEvent* event) {
-  // TODO implement input events
-  return false;
-}
-
-void ApplicationAndroid::WakeSystemEventWait() {
-  ALooper_wake(android_state_->looper);
+bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
+  Event *event = CreateInputEvent(androidEvent, window_);
+  if (event == NULL) {
+    return false;
+  }
+  DispatchAndDelete(event);
+  return true;
 }
 
 /**
