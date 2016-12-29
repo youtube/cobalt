@@ -93,37 +93,25 @@ LoadResponseType ThreadedImageDecoderProxy::OnResponseStarted(
 }
 
 void ThreadedImageDecoderProxy::DecodeChunk(const char* data, size_t size) {
-  if (IsLoadMessageLoopCurrent()) {
-    image_decoder_->DecodeChunk(data, size);
-  } else {
-    scoped_ptr<std::string> scoped_data(new std::string(data, size));
-    load_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
-                              base::Unretained(image_decoder_.get()),
-                              base::Passed(&scoped_data)));
-  }
+  scoped_ptr<std::string> scoped_data(new std::string(data, size));
+  load_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
+                            base::Unretained(image_decoder_.get()),
+                            base::Passed(&scoped_data)));
 }
 
 void ThreadedImageDecoderProxy::DecodeChunkPassed(
     scoped_ptr<std::string> data) {
-  if (IsLoadMessageLoopCurrent()) {
-    image_decoder_->DecodeChunkPassed(data.Pass());
-  } else {
-    load_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
-                              base::Unretained(image_decoder_.get()),
-                              base::Passed(&data)));
-  }
+  load_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&Decoder::DecodeChunkPassed,
+                 base::Unretained(image_decoder_.get()), base::Passed(&data)));
 }
 
 void ThreadedImageDecoderProxy::Finish() {
-  if (IsLoadMessageLoopCurrent()) {
-    image_decoder_->Finish();
-  } else {
-    load_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&ImageDecoder::Finish,
-                              base::Unretained(image_decoder_.get())));
-  }
+  load_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&ImageDecoder::Finish,
+                            base::Unretained(image_decoder_.get())));
 }
 
 bool ThreadedImageDecoderProxy::Suspend() {
