@@ -56,10 +56,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   void OnURLFetchDownloadData(const net::URLFetcher* source,
                               scoped_ptr<std::string> download_data) OVERRIDE;
 
-  net::URLFetcher* url_fetcher() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
-    return url_fetcher_.get();
-  }
+  net::URLFetcher* url_fetcher() const { return url_fetcher_.get(); }
 
  private:
   void ProcessCSPReject();
