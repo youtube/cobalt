@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,31 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
-
-#include "starboard/file.h"
-
-#include <sys/stat.h>
-
 #include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/time_internal.h"
+
+#include "starboard/shared/posix/impl/file_get_info.h"
 
 bool SbFileGetInfo(SbFile file, SbFileInfo* out_info) {
-  if (!file || file->descriptor < 0 || !out_info) {
-    return false;
-  }
-
-  struct stat stat;
-  int result = fstat(file->descriptor, &stat);
-  if (result) {
-    return false;
-  }
-
-  out_info->creation_time = FromTimeT(stat.st_ctime);
-  out_info->is_directory = S_ISDIR(stat.st_mode);
-  out_info->is_symbolic_link = S_ISLNK(stat.st_mode);
-  out_info->last_accessed = FromTimeT(stat.st_atime);
-  out_info->last_modified = FromTimeT(stat.st_mtime);
-  out_info->size = stat.st_size;
-  return true;
+  return ::starboard::shared::posix::impl::FileGetInfo(file, out_info);
 }

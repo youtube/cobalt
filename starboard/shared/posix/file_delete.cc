@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,32 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+#include "starboard/shared/posix/file_internal.h"
 
-#include "starboard/file.h"
-
-#include <errno.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "starboard/shared/posix/impl/file_delete.h"
 
 bool SbFileDelete(const char* path) {
-  if (!path || *path == '\0') {
-    return false;
-  }
-
-  struct stat file_info;
-#if SB_HAS(SYMBOLIC_LINKS)
-  int result = lstat(path, &file_info);
-#else
-  int result = stat(path, &file_info);
-#endif
-  if (result) {
-    return (errno == ENOENT || errno == ENOTDIR);
-  }
-
-  if (S_ISDIR(file_info.st_mode)) {
-    return !rmdir(path);
-  }
-
-  return !unlink(path);
+  return ::starboard::shared::posix::impl::FileDelete(path);
 }
