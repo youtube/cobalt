@@ -21,10 +21,6 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 
-// TODO: Use Starboard logging
-#define LOGD(...) ((void)__android_log_print( \
-    ANDROID_LOG_DEBUG, "StarboardApplication", __VA_ARGS__))
-
 namespace starboard {
 namespace android {
 namespace shared {
@@ -89,7 +85,7 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
 }
 
 void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
-  LOGD("OnAndroidCommand %d", cmd);
+  SB_LOG(INFO) << "OnAndroidCommand " << cmd;
   Event *event = NULL;
 
   // When an app first starts up the order of commands we get are:
@@ -102,27 +98,27 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
       DispatchStart();
       break;
     case APP_CMD_START:
-      LOGD("APP_CMD_START");
+      SB_LOG(INFO) << "APP_CMD_START";
       if (state() != kStateUnstarted) {
         DispatchAndDelete(new Event(kSbEventTypeResume, NULL, NULL));
       }
       break;
     case APP_CMD_RESUME:
-      LOGD("APP_CMD_RESUME");
+      SB_LOG(INFO) << "APP_CMD_RESUME";
       if (state() != kStateUnstarted) {
         DispatchAndDelete(new Event(kSbEventTypeUnpause, NULL, NULL));
       }
       break;
     case APP_CMD_PAUSE:
-      LOGD("APP_CMD_PAUSE");
+      SB_LOG(INFO) << "APP_CMD_PAUSE";
       DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
       break;
     case APP_CMD_STOP:
-      LOGD("APP_CMD_STOP");
+      SB_LOG(INFO) << "APP_CMD_STOP";
       DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
       break;
     case APP_CMD_DESTROY:
-      LOGD("APP_CMD_DESTROY");
+      SB_LOG(INFO) << "APP_CMD_DESTROY";
       DispatchAndDelete(new Event(kSbEventTypeStop, NULL, NULL));
       break;
   }
@@ -157,7 +153,7 @@ static SB_C_INLINE ApplicationAndroid* ToApplication(
 
 // static
 void ApplicationAndroid::HandleCommand(struct android_app* app, int32_t cmd) {
-  LOGD("HandleCommand %d", cmd);
+  SB_LOG(INFO) << "HandleCommand " << cmd;
   ToApplication(app)->OnAndroidCommand(cmd);
 }
 
@@ -170,7 +166,7 @@ int32_t ApplicationAndroid::HandleInput(
 // TODO: Figure out how to export ANativeActivity_onCreate()
 extern "C" SB_EXPORT_PLATFORM void CobaltActivity_onCreate(
     ANativeActivity *activity, void *savedState, size_t savedStateSize) {
-  LOGD("CobaltActivity_onCreate");
+  SB_LOG(INFO) << "CobaltActivity_onCreate";
   ANativeActivity_onCreate(activity, savedState, savedStateSize);
 }
 
