@@ -20,8 +20,12 @@
 
 #include <cstring>
 
+#include "starboard/android/shared/file_internal.h"
 #include "starboard/directory.h"
 #include "starboard/string.h"
+
+using ::starboard::android::shared::g_app_assets_dir;
+using ::starboard::android::shared::g_app_cache_dir;
 
 namespace {
 // Places up to |path_size| - 1 characters of the path to the current
@@ -33,7 +37,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  // TODO this is basically irrelevent under android, where we
+  // TODO this is basically irrelevant under android, where we
   // will almost always be a .so that's loaded by the Android runtime.
   // We should remove it.
   char path[PATH_MAX + 1];
@@ -81,18 +85,13 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   path[0] = '\0';
 
   switch (path_id) {
-    // TODO should be funneled from Context.getDataDir()
     case kSbSystemPathContentDirectory: {
-      if (!GetExecutableDirectory(path, kPathSize)) {
-        return false;
-      }
-      if (SbStringConcat(path, "/content/data", kPathSize) >= kPathSize) {
+      if (SbStringConcat(path, g_app_assets_dir, kPathSize) >= kPathSize) {
         return false;
       }
       break;
     }
 
-    // TODO should be funneled from Context.getCacheDir()
     case kSbSystemPathCacheDirectory: {
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
@@ -105,7 +104,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
-    // TODO should be funneled from Context.getDir()
     case kSbSystemPathDebugOutputDirectory: {
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
@@ -130,9 +128,8 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
-    // TODO should be funneled from Context.getCacheDir() maybe in "temp"
     case kSbSystemPathTempDirectory: {
-      if (SbStringCopy(path, "/cache", kPathSize) >= kPathSize) {
+      if (SbStringCopy(path, g_app_cache_dir, kPathSize) >= kPathSize) {
         return false;
       }
 
