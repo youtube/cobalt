@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,34 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+#include "starboard/shared/posix/file_internal.h"
 
-#include "starboard/file.h"
-
-#include <errno.h>
-#include <sys/stat.h>
+#include "starboard/shared/posix/impl/file_can_open.h"
 
 bool SbFileCanOpen(const char* path, int flags) {
-  bool can_read = flags & kSbFileRead;
-  bool can_write = flags & kSbFileWrite;
-  if (!can_read && !can_write) {
-    return false;
-  }
-
-  struct stat file_info;
-  if (stat(path, &file_info) != 0) {
-    return false;
-  }
-
-  if (can_read && !(file_info.st_mode & S_IRUSR)) {
-    errno = EACCES;
-    return false;
-  }
-
-  if (can_write && !(file_info.st_mode & S_IWUSR)) {
-    errno = EACCES;
-    return false;
-  }
-
-  return true;
+  return ::starboard::shared::posix::impl::FileCanOpen(path, flags);
 }
