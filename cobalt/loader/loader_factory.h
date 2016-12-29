@@ -19,7 +19,6 @@
 
 #include <set>
 
-#include "base/memory/scoped_vector.h"
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -39,8 +38,7 @@ class LoaderFactory {
  public:
   LoaderFactory(FetcherFactory* fetcher_factory,
                 render_tree::ResourceProvider* resource_provider,
-                base::ThreadPriority decoder_thread_priority,
-                base::ThreadPriority fetcher_thread_priority);
+                base::ThreadPriority loader_thread_priority);
 
   // Creates a loader that fetches and decodes a render_tree::Image.
   scoped_ptr<Loader> CreateImageLoader(
@@ -69,8 +67,7 @@ class LoaderFactory {
   void OnLoaderDestroyed(Loader* loader);
 
   Loader::FetcherCreator MakeFetcherCreator(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
-      MessageLoop* message_loop);
+      const GURL& url, const csp::SecurityCallback& url_security_callback);
 
   // Ensures that the LoaderFactory methods are only called from the same
   // thread.
@@ -87,11 +84,9 @@ class LoaderFactory {
   typedef std::set<Loader*> LoaderSet;
   LoaderSet active_loaders_;
 
-  // Thread that runs asynchronous decoders.
-  scoped_ptr<base::Thread> decoder_thread_;
-
-  // Thread that runs creates and deletes NetFetchers fetchers.
-  scoped_ptr<base::Thread> fetcher_thread_;
+  // Thread to run asynchronous fetchers and decoders on.  At the moment,
+  // image decoding is the only thing done on this thread.
+  base::Thread load_thread_;
 };
 
 }  // namespace loader
