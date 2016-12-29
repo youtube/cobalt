@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pwd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <unistd.h>
+// Adapted from base/platform_file_posix.cc
 
-#include "starboard/android/shared/file_internal.h"
-#include "starboard/log.h"
-#include "starboard/shared/nouser/user_internal.h"
-#include "starboard/string.h"
+#ifndef STARBOARD_SHARED_POSIX_IMPL_FILE_EXISTS_H_
+#define STARBOARD_SHARED_POSIX_IMPL_FILE_EXISTS_H_
 
-using ::starboard::android::shared::g_app_files_dir;
+#include "starboard/file.h"
+
+#include <sys/stat.h>
+
+#include "starboard/shared/internal_only.h"
+#include "starboard/shared/posix/impl/file_impl.h"
 
 namespace starboard {
 namespace shared {
-namespace nouser {
+namespace posix {
+namespace impl {
 
-bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
-  int len = SbStringCopy(out_path, g_app_files_dir, path_size);
-  // TODO: Append the value of kSbUserPropertyUserId
-  return len < path_size;
+bool FileExists(const char* path) {
+  struct stat file_info;
+  return stat(path, &file_info) == 0;
 }
 
-}  // namespace nouser
+}  // namespace impl
+}  // namespace posix
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_POSIX_IMPL_FILE_EXISTS_H_

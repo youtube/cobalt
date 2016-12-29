@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
-
-#include "starboard/file.h"
-
-#include <unistd.h>
-
 #include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
+
+#include "starboard/shared/posix/impl/file_flush.h"
 
 bool SbFileFlush(SbFile file) {
-  if (!file || file->descriptor < 0) {
-    return false;
-  }
-
-  return !HANDLE_EINTR(fsync(file->descriptor));
+  return ::starboard::shared::posix::impl::FileFlush(file);
 }
