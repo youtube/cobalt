@@ -45,6 +45,7 @@ class ApplicationAndroid
  protected:
   // --- Application overrides ---
   void Initialize() SB_OVERRIDE;
+  void Teardown() SB_OVERRIDE;
   bool DispatchNextEvent() SB_OVERRIDE;
   bool IsStartImmediate() SB_OVERRIDE { return false; }
 
