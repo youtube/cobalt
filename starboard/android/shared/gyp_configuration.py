@@ -70,6 +70,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'use_asan': int(os.environ.get('USE_ASAN', use_asan_default)),
         'use_tsan': use_tsan,
         'enable_mtm': mtm_enabled,
+        'enable_remote_debugging': 0,
     })
 
     if variables.get('use_asan') == 1 and variables.get('use_tsan') == 1:

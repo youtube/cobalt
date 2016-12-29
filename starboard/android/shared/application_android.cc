@@ -18,6 +18,7 @@
 #include <android_native_app_glue.h>
 #include <time.h>
 
+#include "starboard/android/shared/file_internal.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 
@@ -36,6 +37,11 @@ ApplicationAndroid::~ApplicationAndroid() { }
 void ApplicationAndroid::Initialize() {
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
+  SbFileAndroidInitialize(android_state_->activity);
+}
+
+void ApplicationAndroid::Teardown() {
+  SbFileAndroidTeardown();
 }
 
 SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {

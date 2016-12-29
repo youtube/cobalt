@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pwd.h>
-#include <stdlib.h>
-#include <sys/types.h>
+// Adapted from base/platform_file_posix.cc
+
+#ifndef STARBOARD_SHARED_POSIX_IMPL_FILE_FLUSH_H_
+#define STARBOARD_SHARED_POSIX_IMPL_FILE_FLUSH_H_
+
+#include "starboard/file.h"
+
 #include <unistd.h>
 
-#include "starboard/android/shared/file_internal.h"
-#include "starboard/log.h"
-#include "starboard/shared/nouser/user_internal.h"
-#include "starboard/string.h"
+#include "starboard/shared/posix/handle_eintr.h"
 
-using ::starboard::android::shared::g_app_files_dir;
+#include "starboard/shared/internal_only.h"
+#include "starboard/shared/posix/impl/file_impl.h"
 
 namespace starboard {
 namespace shared {
-namespace nouser {
+namespace posix {
+namespace impl {
 
-bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
-  int len = SbStringCopy(out_path, g_app_files_dir, path_size);
-  // TODO: Append the value of kSbUserPropertyUserId
-  return len < path_size;
+bool FileFlush(SbFile file) {
+  if (!file || file->descriptor < 0) {
+    return false;
+  }
+
+  return !HANDLE_EINTR(fsync(file->descriptor));
 }
 
-}  // namespace nouser
+}  // namespace impl
+}  // namespace posix
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_POSIX_IMPL_FILE_FLUSH_H_
