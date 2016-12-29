@@ -60,8 +60,6 @@
         'loader_types.h',
         'net_fetcher.cc',
         'net_fetcher.h',
-        'threaded_net_fetcher_proxy.cc',
-        'threaded_net_fetcher_proxy.h',
         'resource_cache.h',
         'sync_loader.cc',
         'sync_loader.h',
