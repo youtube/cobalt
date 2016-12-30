@@ -36,6 +36,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "net/http/http_util.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace xhr {
@@ -193,6 +194,7 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
                           const base::optional<std::string>& username,
                           const base::optional<std::string>& password,
                           script::ExceptionState* exception_state) {
+  TRACK_MEMORY_SCOPE("XHR");
   UNREFERENCED_PARAMETER(username);
   UNREFERENCED_PARAMETER(password);
 
@@ -253,6 +255,7 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
 void XMLHttpRequest::SetRequestHeader(const std::string& header,
                                       const std::string& value,
                                       script::ExceptionState* exception_state) {
+  TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-setrequestheader
   if (state_ != kOpened || sent_) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
@@ -305,6 +308,7 @@ void XMLHttpRequest::Send(script::ExceptionState* exception_state) {
 
 void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
                           script::ExceptionState* exception_state) {
+  TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
   DCHECK(thread_checker_.CalledOnValidThread());
   // Step 1
@@ -607,6 +611,7 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
 
 void XMLHttpRequest::OnURLFetchDownloadData(
     const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
+  TRACK_MEMORY_SCOPE("XHR");
   UNREFERENCED_PARAMETER(source);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_NE(state_, kDone);
@@ -644,6 +649,7 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
 void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
                                               int64 current_val,
                                               int64 total_val) {
+  TRACK_MEMORY_SCOPE("XHR");
   UNREFERENCED_PARAMETER(source);
   DCHECK(thread_checker_.CalledOnValidThread());
   if (upload_complete_) {
@@ -761,6 +767,7 @@ void XMLHttpRequest::ChangeState(XMLHttpRequest::State new_state) {
 }
 
 scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
+  TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/XMLHttpRequest/#response-entity-body
   if (error_ || state_ != kDone) {
     return NULL;
@@ -834,6 +841,7 @@ void XMLHttpRequest::AllowGarbageCollection() {
 }
 
 void XMLHttpRequest::StartRequest(const std::string& request_body) {
+  TRACK_MEMORY_SCOPE("XHR");
   network::NetworkModule* network_module =
       settings_->fetcher_factory()->network_module();
   url_fetcher_.reset(net::URLFetcher::Create(request_url_, method_, this));
