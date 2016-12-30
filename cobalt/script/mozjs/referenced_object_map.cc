@@ -18,6 +18,8 @@
 
 #include <utility>
 
+#include "nb/memory_scope.h"
+
 namespace cobalt {
 namespace script {
 namespace mozjs {
@@ -28,6 +30,7 @@ ReferencedObjectMap::ReferencedObjectMap(JSContext* context)
 // Add/Remove a reference from a WrapperPrivate to a JSValue.
 void ReferencedObjectMap::AddReferencedObject(intptr_t key,
                                               JS::HandleObject referee) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(referee);
   referenced_objects_.insert(
