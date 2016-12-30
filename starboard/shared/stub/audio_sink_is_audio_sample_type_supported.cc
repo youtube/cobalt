@@ -15,6 +15,6 @@
 #include "starboard/audio_sink.h"
 
 bool SbAudioSinkIsAudioSampleTypeSupported(
-    SbMediaAudioSampleType /*audio_sample_type*/) {
-  return false;
+    SbMediaAudioSampleType audio_sample_type) {
+  return true;
 }
