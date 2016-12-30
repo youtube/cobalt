@@ -35,6 +35,7 @@
 #include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -82,6 +83,7 @@ HTMLElementFactory::~HTMLElementFactory() {}
 
 scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
     Document* document, base::Token tag_name) {
+  TRACK_MEMORY_SCOPE("DOM");
   TagNameToCreateHTMLElementTCallbackMap::const_iterator iter =
       tag_name_to_create_html_element_t_callback_map_.find(tag_name);
   if (iter != tag_name_to_create_html_element_t_callback_map_.end()) {
