@@ -32,6 +32,7 @@
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/union_type_conversion_forward.h"
+#include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
 #include "third_party/mozjs/js/src/jsstr.h"
@@ -68,6 +69,7 @@ enum ConversionFlags {
 // std::string -> JSValue
 inline void ToJSValue(JSContext* context, const std::string& in_string,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   size_t length = in_string.length();
   jschar* inflated_buffer =
       js::InflateUTF8String(context, in_string.c_str(), &length);
@@ -93,12 +95,14 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 // base::Token -> JSValue
 inline void ToJSValue(JSContext* context, const base::Token& token,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   ToJSValue(context, std::string(token.c_str()), out_value);
 }
 
 // bool -> JSValue
 inline void ToJSValue(JSContext* context, bool in_boolean,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(JS::BooleanValue(in_boolean));
 }
 
@@ -106,6 +110,7 @@ inline void ToJSValue(JSContext* context, bool in_boolean,
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         bool* out_boolean) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_boolean);
@@ -122,6 +127,7 @@ inline void ToJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(INT_TO_JSVAL(in_number));
 }
 
@@ -135,6 +141,7 @@ inline void FromJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_number);
@@ -158,6 +165,7 @@ inline void FromJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   double to_number;
   JS::ToNumber(context, value, &to_number);
 
@@ -186,6 +194,7 @@ inline void ToJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(JS_NumberValue(in_number));
 }
 
@@ -198,6 +207,7 @@ inline void ToJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(UINT_TO_JSVAL(in_number));
 }
 
@@ -211,6 +221,7 @@ inline void FromJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_number);
@@ -234,6 +245,7 @@ inline void FromJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_number);
@@ -258,6 +270,7 @@ inline void ToJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(JS_NumberValue(in_number));
 }
 
@@ -268,6 +281,7 @@ inline void ToJSValue(
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(DOUBLE_TO_JSVAL(in_number));
 }
 
@@ -279,6 +293,7 @@ inline void FromJSValue(
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsNumeric, 0)
       << "Unexpected conversion flags found.";
   DCHECK(out_number);
@@ -301,6 +316,7 @@ inline void FromJSValue(
 template <typename T>
 inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (!in_optional) {
     out_value.setNull();
     return;
@@ -313,6 +329,7 @@ template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         base::optional<T>* out_optional) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (value.isNull()) {
     *out_optional = base::nullopt;
   } else if (value.isUndefined()) {
@@ -329,6 +346,7 @@ template <>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         base::optional<std::string>* out_optional) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (value.isNull()) {
     *out_optional = base::nullopt;
   } else if (value.isUndefined() &&
@@ -357,6 +375,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 template <typename T>
 inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (!in_object) {
     out_value.setNull();
     return;
@@ -381,6 +400,7 @@ template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         scoped_refptr<T>* out_object) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
   JS::RootedObject js_object(context);
@@ -424,6 +444,7 @@ template <typename T>
 inline void ToJSValue(JSContext* context,
                       const ScriptObject<T>* callback_interface,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (!callback_interface) {
     out_value.set(JS::NullValue());
     return;
@@ -454,6 +475,7 @@ inline void FromJSValue(
     JSContext* context, JS::HandleValue value, int conversion_flags,
     ExceptionState* out_exception,
     MozjsCallbackInterfaceHolder<T>* out_callback_interface) {
+  TRACK_MEMORY_SCOPE("Javascript");
   typedef T MozjsCallbackInterfaceClass;
   DCHECK_EQ(conversion_flags & ~kConversionFlagsCallbackFunction, 0)
       << "No conversion flags supported.";

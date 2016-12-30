@@ -26,6 +26,8 @@
 #include "cobalt/script/script_object.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
+#include "nb/memory_scope.h"
+
 namespace cobalt {
 namespace script {
 namespace mozjs {
@@ -83,6 +85,7 @@ class MozjsUserObjectHolder
   }
 
   scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
+    TRACK_MEMORY_SCOPE("Javascript");
     DCHECK(object_handle_);
     JSAutoRequest auto_request(context_);
     JS::RootedObject rooted_object(context_, js_object());
