@@ -22,6 +22,7 @@
 #include "base/message_loop.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/global_stats.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -190,6 +191,8 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
 void EventTarget::AddEventListenerInternal(
     base::Token type, const EventListenerScriptObject& listener,
     bool use_capture, EventListener::Type listener_type) {
+  TRACK_MEMORY_SCOPE("DOM");
+
   DCHECK(!listener.IsNull());
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
