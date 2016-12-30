@@ -16,5 +16,5 @@
 
 bool SbAudioSinkIsAudioFrameStorageTypeSupported(
     SbMediaAudioFrameStorageType audio_frame_storage_type) {
-  return false;
+  return true;
 }
