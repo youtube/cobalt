@@ -14,6 +14,12 @@
 
 #include "starboard/audio_sink.h"
 
+struct SbAudioSinkPrivate {};
+
+namespace {
+struct SbAudioSinkPrivate g_singleton_stub;
+}
+
 SbAudioSink SbAudioSinkCreate(
     int channels,
     int sampling_frequency_hz,
@@ -24,5 +30,5 @@ SbAudioSink SbAudioSinkCreate(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
-  return kSbAudioSinkInvalid;
+  return &g_singleton_stub;
 }

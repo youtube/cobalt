@@ -22,10 +22,7 @@
 
     'in_app_dial': 0,
 
-    # TODO: use real GL
-    # 'gl_type': 'system_gles2',
-    'gl_type': 'none',
-    'rasterizer_type': 'stub',
+    'gl_type': 'system_gles2',
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
