@@ -22,6 +22,8 @@
 #include "cobalt/script/mozjs/weak_heap_object.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
+#include "nb/memory_scope.h"
+
 namespace cobalt {
 namespace script {
 namespace mozjs {
@@ -46,6 +48,7 @@ WeakHeapObjectManager::~WeakHeapObjectManager() {
 }
 
 void WeakHeapObjectManager::StartTracking(WeakHeapObject* weak_object) {
+  TRACK_MEMORY_SCOPE("Javascript");
   std::pair<WeakHeapObjects::iterator, bool> pib =
       weak_objects_.insert(weak_object);
   DCHECK(pib.second) << "WeakHeapObject was already being tracked.";
