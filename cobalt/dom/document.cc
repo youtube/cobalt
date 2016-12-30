@@ -54,6 +54,8 @@
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/window.h"
 
+#include "nb/memory_scope.h"
+
 namespace cobalt {
 namespace dom {
 
@@ -200,6 +202,7 @@ scoped_refptr<Comment> Document::CreateComment(const std::string& data) {
 scoped_refptr<Event> Document::CreateEvent(
     const std::string& interface_name,
     script::ExceptionState* exception_state) {
+  TRACK_MEMORY_SCOPE("DOM");
   // https://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
   // The match of interface name is case-insensitive.
   if (strcasecmp(interface_name.c_str(), "event") == 0 ||
