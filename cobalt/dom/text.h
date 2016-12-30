@@ -23,6 +23,7 @@
 #include "cobalt/dom/character_data.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/script/environment_settings.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -48,6 +49,7 @@ class Text : public CharacterData {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
+    TRACK_MEMORY_SCOPE("DOM");
     return new Text(node_document(), data());
   }
 

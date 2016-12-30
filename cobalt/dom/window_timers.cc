@@ -20,11 +20,13 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
 
 int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
+  TRACK_MEMORY_SCOPE("DOM");
   int handle = GetFreeTimerHandle();
   DCHECK(handle);
 
