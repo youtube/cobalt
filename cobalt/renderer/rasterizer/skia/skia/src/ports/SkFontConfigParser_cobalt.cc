@@ -520,7 +520,7 @@ void ParserFatal(void* context, const char* message, ...) {
 void ParseConfigFile(const char* directory, const char* filename,
                      SkTDArray<FontFamily*>* families) {
   SkString file_path = SkOSPath::Join(directory, filename);
-  FILE* file = fopen(file_path.c_str(), "r");
+  SkFILE* file = sk_fopen(file_path.c_str(), kRead_SkFILE_Flag);
 
   if (NULL == file) {
     SkDebugf("---- Failed to open %s", file_path.c_str());
@@ -540,9 +540,9 @@ void ParseConfigFile(const char* directory, const char* filename,
   char buffer[512];
   bool done = false;
   while (!done) {
-    fgets(buffer, sizeof(buffer), file);
+    sk_fgets(buffer, sizeof(buffer), file);
     size_t len = strlen(buffer);
-    if (feof(file) != 0) {
+    if (sk_feof(file) != 0) {
       done = true;
     }
     xmlParseChunk(xml_parser_context, buffer, static_cast<int>(len),
@@ -551,7 +551,7 @@ void ParseConfigFile(const char* directory, const char* filename,
   xmlParseChunk(xml_parser_context, NULL, 0, 1 /*terminate*/);
   xmlFreeParserCtxt(xml_parser_context);
 
-  fclose(file);
+  sk_fclose(file);
 }
 
 void GetSystemFontFamilies(const char* directory,
