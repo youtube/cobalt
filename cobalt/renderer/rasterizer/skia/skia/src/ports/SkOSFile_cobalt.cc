@@ -112,8 +112,25 @@ size_t sk_fwrite(const void* buffer, size_t byteCount, SkFILE* sk_file) {
 }
 
 char* sk_fgets(char* str, int size, SkFILE* sk_file) {
-  NOTREACHED() << __FUNCTION__;
-  return NULL;
+  SkASSERT(sk_file);
+  char* p = str;
+  size--;
+  while (size > 0) {
+    if (1 != sk_fread(p, 1, sk_file)) {
+      break;
+    }
+    size--;
+    char c = *p++;
+    if (c == '\n') {
+      break;
+    }
+  }
+  if (p == str) {
+    // Didn't read any characters.
+    return NULL;
+  }
+  *p = '\0';
+  return str;
 }
 
 void sk_fflush(SkFILE* sk_file) {
