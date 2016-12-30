@@ -169,6 +169,7 @@ scoped_refptr<NodeList> Node::child_nodes() const {
 // Algorithm for CloneNode:
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-clonenode
 scoped_refptr<Node> Node::CloneNode(bool deep) const {
+  TRACK_MEMORY_SCOPE("DOM");
   scoped_refptr<Node> new_node = Duplicate();
   DCHECK(new_node);
   if (deep) {
