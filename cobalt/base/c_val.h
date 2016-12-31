@@ -96,6 +96,7 @@ class CValImpl;
 // variable.
 enum CValType {
   kSize,
+  kBool,
   kU32,
   kU64,
   kS32,
@@ -154,6 +155,11 @@ struct Traits<cval::SizeInBytes> {
   static const bool kIsNumerical = true;
 };
 template <>
+struct Traits<bool> {
+  static const CValType kTypeVal = kBool;
+  static const bool kIsNumerical = false;
+};
+template <>
 struct Traits<uint32_t> {
   static const CValType kTypeVal = kU32;
   static const bool kIsNumerical = true;
@@ -201,6 +207,11 @@ std::string ValToString(const T& value) {
   std::ostringstream oss;
   oss << value;
   return oss.str();
+}
+
+template <>
+inline std::string ValToString<bool>(const bool& value) {
+  return value ? "true" : "false";
 }
 
 template <>
