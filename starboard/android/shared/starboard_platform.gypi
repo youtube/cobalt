@@ -72,6 +72,7 @@
         'system_get_property.cc',
         'system_get_stack.cc',
         'system_has_capability.cc',
+        'system_platform_error.cc',
         'thread_get_name.cc',
         'time_zone_get_dst_name.cc',
         'time_zone_get_name.cc',
@@ -282,11 +283,9 @@
         '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
-        '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
