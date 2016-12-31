@@ -44,6 +44,10 @@ void ApplicationAndroid::Teardown() {
   SbFileAndroidTeardown();
 }
 
+ANativeActivity* ApplicationAndroid::GetActivity() {
+  return android_state_->activity;
+}
+
 SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
   SB_UNREFERENCED_PARAMETER(options);
   // Don't allow re-creation since we only have one window anyway.
