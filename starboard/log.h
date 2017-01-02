@@ -26,6 +26,7 @@
 #include <string>
 #endif
 
+#include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/system.h"
 
@@ -243,12 +244,8 @@ class LogMessageVoidify {
 #define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_NOTREACHED() SB_DCHECK(false)
 
-#if SB_IS(COMPILER_GCC)
 #define SB_NOTIMPLEMENTED_MSG \
-  "Not implemented reached in " << __PRETTY_FUNCTION__
-#else
-#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " << __FUNCTION__
-#endif
+  "Not implemented reached in " << SB_FUNCTION
 
 #if !defined(SB_NOTIMPLEMENTED_POLICY)
 #if SB_LOGGING_IS_OFFICIAL_BUILD
@@ -281,11 +278,7 @@ class LogMessageVoidify {
 // We also provide a very small subset for straight-C users.
 
 #define SB_NOTIMPLEMENTED_IN(X) "Not implemented reached in " #X
-#if SB_IS(COMPILER_GCC)
-#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(__PRETTY_FUNCTION__)
-#else
-#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(__FUNCTION__)
-#endif
+#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(SB_FUNCTION)
 
 #define SB_CHECK(condition)                                        \
   do {                                                             \
