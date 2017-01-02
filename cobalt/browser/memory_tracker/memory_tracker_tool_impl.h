@@ -119,7 +119,6 @@ class MemoryTrackerPrintCSV : public AbstractMemoryTrackerTool {
   static const char* UntrackedMemoryKey();
   bool TimeExpiredYet(const Params& params);
 
-  nb::analytics::MemoryTracker* memory_tracker_;
   const int sample_interval_ms_;
   const int sampling_time_ms_;
 };
