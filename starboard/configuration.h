@@ -472,6 +472,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_64_BIT_ATOMICS 0
 #endif
 
+// Whether we use __PRETTY_FUNCTION__ or __FUNCTION__ for logging.
+#if SB_IS(COMPILER_GCC)
+#define SB_FUNCTION __PRETTY_FUNCTION__
+#else
+#define SB_FUNCTION __FUNCTION__
+#endif
+
 // --- Gyp Derived Configuration -----------------------------------------------
 
 // Specifies whether this platform has a performant OpenGL ES 2 implementation,
