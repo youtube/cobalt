@@ -50,7 +50,7 @@ enum SwitchEnum {
   kStartup,
   kContinuousPrinter,
   kCompressedTimeseries,
-  kJavascriptMemoryAnalytics,
+  kBinnerAnalytics,
 };
 
 struct SwitchVal {
@@ -73,6 +73,40 @@ class SbLogger : public AbstractLogger {
   virtual void Flush() OVERRIDE { SbLogFlush(); }
 };
 
+// Parses out the toolname for a tool command.
+// Example:
+//   INPUT:  "tool_name(arg)"
+//   OUTPUT: "tool_name"
+std::string ParseToolName(const std::string& command_arg) {
+  const size_t first_open_paren_idx = command_arg.find('(');
+  if (first_open_paren_idx == std::string::npos) {
+    return command_arg;
+  }
+  return command_arg.substr(0, first_open_paren_idx);
+}
+
+// Parses out the arguments for a tool.
+// Example:
+//   INPUT:  "tool_name(arg)"
+//   OUTPUT: "arg"
+std::string ParseToolArg(const std::string& command_arg) {
+  const size_t first_open_paren_idx = command_arg.find('(');
+  const size_t last_closing_paren_idx = command_arg.find_last_of(')');
+
+  if ((first_open_paren_idx == std::string::npos) ||
+     (last_closing_paren_idx == std::string::npos)) {
+    return "";
+  }
+
+  if (last_closing_paren_idx < first_open_paren_idx) {
+    return "";
+  }
+
+  const size_t begin_idx = first_open_paren_idx+1;
+  const size_t length = (last_closing_paren_idx-begin_idx);
+  std::string arg_str = command_arg.substr(begin_idx, length);
+  return arg_str;
+}
 }  // namespace.
 
 class MemoryTrackerThreadImpl : public MemoryTrackerTool {
@@ -116,21 +150,26 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       "old entries by an exponential decay scheme.",
       kCompressedTimeseries);
 
-  SwitchVal javascript_memory_tool(
-      "javascript",
-      "Dumps javascript memory statistics once a second in CSV format to "
-      "stdout.",
-      kJavascriptMemoryAnalytics);
+  SwitchVal binner_tool(
+      "binner",
+      "Dumps memory statistics once a second in CSV format to stdout. "
+      "The default memory region is all memory regions. Pass the "
+      "name of the memory region to specify that only that memory region "
+      "should be tracked. For example: binner(Javascript).",
+      kBinnerAnalytics);
 
   SwitchMap switch_map;
   switch_map[startup_tool.tool_name] = startup_tool;
   switch_map[continuous_printer_tool.tool_name] = continuous_printer_tool;
   switch_map[compressed_timeseries_tool.tool_name] = compressed_timeseries_tool;
-  switch_map[javascript_memory_tool.tool_name] = javascript_memory_tool;
+  switch_map[binner_tool.tool_name] = binner_tool;
+
+  std::string tool_name = ParseToolName(command_arg);
+  std::string tool_arg = ParseToolArg(command_arg);
 
   // FAST OUT - is a thread type not selected? Then print out a help menu
   // and request that the app should shut down.
-  SwitchMap::const_iterator found_it = switch_map.find(command_arg);
+  SwitchMap::const_iterator found_it = switch_map.find(tool_name);
   if (found_it == switch_map.end()) {
     // Error, tell the user what to do instead and then exit.
     std::stringstream ss;
@@ -191,7 +230,6 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     }
     case kContinuousPrinter: {
       // Create a thread that will continuously report memory use.
-      // thread_ptr.reset(new MemoryTrackerPrintThread(memory_tracker));
       tool_ptr.reset(new MemoryTrackerPrint);
       break;
     }
@@ -200,10 +238,10 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       tool_ptr.reset(new MemoryTrackerCompressedTimeSeries);
       break;
     }
-    case kJavascriptMemoryAnalytics: {
+    case kBinnerAnalytics: {
       // Create a thread that will continuously report javascript memory
       // analytics.
-      tool_ptr.reset(new MemorySizeBinner("Javascript"));
+      tool_ptr.reset(new MemorySizeBinner(tool_arg));
       break;
     }
     default: {

@@ -480,7 +480,7 @@ void MemoryTrackerPrintCSV::Run(Params* params) {
         mem_stats.used_cpu_memory + mem_stats.used_gpu_memory;
 
     std::vector<const AllocationGroup*> vector_output;
-    memory_tracker_->GetAllocationGroups(&vector_output);
+    params->memory_tracker()->GetAllocationGroups(&vector_output);
 
     // Sample all known memory scopes.
     for (size_t i = 0; i < vector_output.size(); ++i) {
@@ -740,14 +740,14 @@ void MemorySizeBinner::Run(Params* params) {
   const AllocationGroup* target_group = NULL;
 
   while (!params->finished()) {
-    if (target_group == NULL) {
+    if (target_group == NULL && !memory_scope_name_.empty()) {
       target_group =
           FindAllocationGroup(memory_scope_name_, params->memory_tracker());
     }
 
     std::stringstream ss;
     ss.precision(2);
-    if (target_group) {
+    if (target_group || memory_scope_name_.empty()) {
       AllocationSizeBinner visitor_binner = AllocationSizeBinner(target_group);
       params->memory_tracker()->Accept(&visitor_binner);
 
@@ -763,7 +763,11 @@ void MemorySizeBinner::Run(Params* params) {
       ss << NEW_LINE;
       ss << "TimeNow " << params->TimeInMinutesString() << " (minutes):";
       ss << NEW_LINE;
-      ss << "Tracking " << memory_scope_name_ << ", ";
+      if (!memory_scope_name_.empty()) {
+        ss << "Tracking Memory Scope \"" << memory_scope_name_ << "\", ";
+      } else {
+        ss << "Tracking whole program, ";
+      }
       ss << "first row is allocation size range, second row is number of "
          << NEW_LINE << "allocations in that range." << NEW_LINE;
       ss << visitor_binner.ToCSVString();
@@ -773,7 +777,7 @@ void MemorySizeBinner::Run(Params* params) {
       ss << "Printing out top allocations from this range: " << NEW_LINE;
       ss << top_size_visitor.ToString(5) << NEW_LINE;
     } else {
-      ss << "No allocations for javascript.";
+      ss << "No allocations for \"" << memory_scope_name_ << "\".";
     }
 
     params->logger()->Output(ss.str().c_str());
