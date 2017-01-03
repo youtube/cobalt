@@ -421,6 +421,8 @@ class ResourceCache {
 
   void Purge();
 
+  void DisableCallbacks();
+
  private:
   friend class CachedResource<CacheType>;
 
@@ -494,6 +496,8 @@ class ResourceCache {
   ResourceCallbackMap pending_callback_map_;
   // Whether or not ProcessPendingCallbacks() is running.
   bool is_processing_pending_callbacks_;
+  // Whether or not callbacks are currently disabled.
+  bool are_callbacks_disabled_;
 
   // |cached_resource_map_| stores the cached resources that are currently
   // referenced.
@@ -526,6 +530,7 @@ ResourceCache<CacheType>::ResourceCache(
       cache_capacity_(cache_capacity),
       create_loader_function_(create_loader_function),
       is_processing_pending_callbacks_(false),
+      are_callbacks_disabled_(false),
       size_in_bytes_(base::StringPrintf("%s.Size", name_.c_str()), 0,
                      "Total number of bytes currently used by the cache."),
       capacity_in_bytes_(base::StringPrintf("%s.Capacity", name_.c_str()),
@@ -603,7 +608,14 @@ void ResourceCache<CacheType>::SetCapacity(uint32 capacity) {
 template <typename CacheType>
 void ResourceCache<CacheType>::Purge() {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
-  ReclaimMemoryAndMaybeProcessPendingCallbacks(0);
+  ProcessPendingCallbacks();
+  ReclaimMemory(0, true);
+}
+
+template <typename CacheType>
+void ResourceCache<CacheType>::DisableCallbacks() {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  are_callbacks_disabled_ = true;
 }
 
 template <typename CacheType>
@@ -746,6 +758,11 @@ void ResourceCache<CacheType>::ProcessPendingCallbacksIfUnblocked() {
 template <typename CacheType>
 void ResourceCache<CacheType>::ProcessPendingCallbacks() {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+
+  // If callbacks are disabled, simply return.
+  if (are_callbacks_disabled_) {
+    return;
+  }
 
   is_processing_pending_callbacks_ = true;
   while (!pending_callback_map_.empty()) {

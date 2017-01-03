@@ -475,6 +475,13 @@ WebModule::Impl::~Impl() {
   debug_server_module_.reset();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Disable callbacks for the resource caches. Otherwise, it is possible for a
+  // callback to occur into a DOM object that is being kept alive by a JS engine
+  // reference even after the DOM tree has been destroyed. This can result in a
+  // crash when the callback attempts to access a stale Document pointer.
+  remote_typeface_cache_->DisableCallbacks();
+  image_cache_->DisableCallbacks();
+
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
