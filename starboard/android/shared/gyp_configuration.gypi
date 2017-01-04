@@ -19,6 +19,7 @@
   'variables': {
     'target_os': 'android',
     'final_executable_type': 'shared_library',
+    'gtest_target_type': 'shared_library',
 
     'in_app_dial': 0,
 
