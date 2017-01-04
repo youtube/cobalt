@@ -112,7 +112,7 @@ void TCPListenSocketTester::TearDown() {
 #elif defined(OS_POSIX)
   ASSERT_EQ(0, HANDLE_EINTR(close(test_socket_)));
 #elif defined(OS_STARBOARD)
-  ASSERT_EQ(0, SbSocketDestroy(test_socket_));
+  ASSERT_EQ(true, SbSocketDestroy(test_socket_));
 #endif
   NextAction();
   ASSERT_EQ(ACTION_CLOSE, last_action_.type());
