@@ -18,7 +18,6 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/message_pump_shell.h"
 #include "base/metrics/stats_counters.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/string_util.h"
