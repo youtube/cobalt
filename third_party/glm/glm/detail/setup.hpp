@@ -756,7 +756,7 @@ namespace glm
 #	define GLM_HAS_FEATURE(x) 0 // Compatibility with non-clang compilers.
 #endif
 
-#if GLM_HAS_CONSTEXPR_PARTIAL
+#if GLM_HAS_CONSTEXPR_PARTIAL && !defined(countof)
 	namespace glm
 	{
 		template <typename T, std::size_t N>
