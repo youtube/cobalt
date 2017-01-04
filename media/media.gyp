@@ -1129,13 +1129,6 @@
             'mp4/mp4_stream_parser_unittest.cc',
             'webm/webm_cluster_parser_unittest.cc',
           ],
-          'conditions': [
-            ['gtest_target_type == "shared_library"', {
-              'dependencies': [
-                '../testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
-          ],
         }],
         ['OS == "linux"', {
           'conditions': [

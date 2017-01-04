@@ -9,7 +9,9 @@
 #include "net/base/net_util.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_error_job.h"
+#if !defined(COBALT)
 #include "net/url_request/url_request_file_dir_job.h"
+#endif
 #include "net/url_request/url_request_file_job.h"
 
 namespace net {
