@@ -17,9 +17,9 @@
 #include "cobalt/h5vcc/h5vcc_system.h"
 
 #include "base/stringprintf.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -31,7 +31,7 @@ H5vccSystem::H5vccSystem(const media::MediaModule* media_module) {
 }
 
 bool H5vccSystem::are_keys_reversed() const {
-  return deprecated::PlatformDelegate::Get()->AreKeysReversed();
+  return SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
 }
 
 std::string H5vccSystem::build_id() const {
@@ -42,7 +42,17 @@ std::string H5vccSystem::build_id() const {
 }
 
 std::string H5vccSystem::platform() const {
-  return deprecated::PlatformDelegate::Get()->GetPlatformName();
+  char property[512];
+
+  std::string result;
+  if (!SbSystemGetProperty(kSbSystemPropertyPlatformName, property,
+                           SB_ARRAY_SIZE_INT(property))) {
+    DLOG(FATAL) << "Failed to get kSbSystemPropertyPlatformName.";
+  } else {
+    result = property;
+  }
+
+  return result;
 }
 
 std::string H5vccSystem::region() const {
