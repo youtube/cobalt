@@ -32,11 +32,11 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
@@ -276,9 +276,7 @@ dom::CspEnforcementType StringToCspMode(const std::string& mode) {
 #endif  // !defined(COBALT_FORCE_CSP)
 
 struct NonTrivialStaticFields {
-  NonTrivialStaticFields()
-      : system_language(
-            cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage()) {}
+  NonTrivialStaticFields() : system_language(base::GetSystemLanguage()) {}
 
   const std::string system_language;
   std::string user_agent;
@@ -349,8 +347,7 @@ Application::Application(const base::Closure& quit_closure)
   DLOG(INFO) << "Initial URL: " << initial_url;
 
   // Get the system language and initialize our localized strings.
-  std::string language =
-      cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage();
+  std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
   // Create the main components of our browser.

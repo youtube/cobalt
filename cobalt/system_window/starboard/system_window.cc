@@ -18,7 +18,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/event_dispatcher.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/system_window/keyboard_event.h"
 #include "cobalt/system_window/starboard/system_window.h"
 #include "starboard/system.h"
@@ -35,25 +34,6 @@ void StarboardDialogCallback(SbSystemPlatformErrorResponse response) {
   DCHECK(g_the_window);
   g_the_window->HandleDialogClose(response);
 }
-
-void UpdateVideoContainerSizeOverride(SbWindow window) {
-  SbWindowSize window_size;
-  if (!SbWindowGetSize(window, &window_size)) {
-    DLOG(WARNING) << "SbWindowGetSize() failed.";
-    return;
-  }
-  if (window_size.video_pixel_ratio == 1.0f) {
-    return;
-  }
-
-  deprecated::PlatformDelegate::Get()->SetVideoContainerSizeOverride(
-      base::StringPrintf(
-          "%dx%d",
-          static_cast<int>(window_size.width * window_size.video_pixel_ratio),
-          static_cast<int>(window_size.height *
-                           window_size.video_pixel_ratio)));
-}
-
 }  // namespace
 
 SystemWindowStarboard::SystemWindowStarboard(
@@ -64,7 +44,6 @@ SystemWindowStarboard::SystemWindowStarboard(
   window_ = SbWindowCreate(NULL);
   DCHECK(SbWindowIsValid(window_));
   DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
-  UpdateVideoContainerSizeOverride(window_);
   g_the_window = this;
 }
 
@@ -80,7 +59,6 @@ SystemWindowStarboard::SystemWindowStarboard(
   window_ = SbWindowCreate(&options);
   DCHECK(SbWindowIsValid(window_));
   DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
-  UpdateVideoContainerSizeOverride(window_);
   g_the_window = this;
 }
 
@@ -88,7 +66,6 @@ SystemWindowStarboard::~SystemWindowStarboard() {
   DCHECK_EQ(this, g_the_window);
 
   if (g_the_window == this) {
-    deprecated::PlatformDelegate::Get()->SetVideoContainerSizeOverride("");
     g_the_window = NULL;
   }
   SbWindowDestroy(window_);
