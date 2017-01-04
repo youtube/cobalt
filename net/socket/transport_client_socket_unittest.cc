@@ -15,7 +15,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/tcp_listen_socket.h"
 #include "net/base/test_completion_callback.h"
-#include "net/base/winsock_init.h"
 #include "net/socket/client_socket_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
