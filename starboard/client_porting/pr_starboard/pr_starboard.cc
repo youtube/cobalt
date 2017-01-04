@@ -14,6 +14,7 @@
 
 #include "starboard/client_porting/pr_starboard/pr_starboard.h"
 
+#include "nb/thread_local_object.h"
 #include "starboard/condition_variable.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -26,7 +27,8 @@
 
 namespace {
 
-typedef starboard::Queue<bool> SetupSignalQueue;
+typedef starboard::Queue<PRThread*> SetupSignalQueue;
+nb::ThreadLocalObject<PRThread> g_local_pr_thread;
 
 // Utility function to convert a PRInterval to signed 64 bit integer
 // microseconds.
@@ -39,38 +41,15 @@ int64_t PR_IntervalToMicrosecondsInt64(PRIntervalTime ticks) {
 // Struct to bundle up arguments to be passed into SbThreadCreate.
 struct ThreadEntryPointWrapperContext {
   ThreadEntryPointWrapperContext(void* pr_context,
-                                 PRThread* pr_thread,
                                  PRThreadEntryPoint pr_entry_point,
                                  SetupSignalQueue* setup_signal_queue)
       : pr_context(pr_context),
-        pr_thread(pr_thread),
         pr_entry_point(pr_entry_point),
         setup_signal_queue(setup_signal_queue) {}
   void* pr_context;
-  PRThread* pr_thread;
   PRThreadEntryPoint pr_entry_point;
   SetupSignalQueue* setup_signal_queue;
 };
-
-// The thread local key that corresponds to where local PRThread* data is held.
-SbThreadLocalKey g_pr_thread_local_key = kSbThreadLocalKeyInvalid;
-// The SbOnceControlStructure to to ensure that the local key is only created
-// once.
-SbOnceControl g_pr_thread_key_once_control = SB_ONCE_INITIALIZER;
-
-void PrThreadDtor(void* value) {
-  PRThread* pr_thread = reinterpret_cast<PRThread*>(value);
-  delete pr_thread;
-}
-
-void InitPrThreadKey() {
-  g_pr_thread_local_key = SbThreadCreateLocalKey(PrThreadDtor);
-}
-
-SbThreadLocalKey GetPrThreadKey() {
-  SB_CHECK(SbOnce(&g_pr_thread_key_once_control, InitPrThreadKey));
-  return g_pr_thread_local_key;
-}
 
 void* ThreadEntryPointWrapper(void* context_as_void_pointer) {
   ThreadEntryPointWrapperContext* context =
@@ -78,17 +57,14 @@ void* ThreadEntryPointWrapper(void* context_as_void_pointer) {
           context_as_void_pointer);
   void* pr_context = context->pr_context;
   PRThreadEntryPoint pr_entry_point = context->pr_entry_point;
-  PRThread* pr_thread = context->pr_thread;
   SetupSignalQueue* setup_signal_queue = context->setup_signal_queue;
 
   delete context;
 
-  pr_thread->sb_thread = SbThreadGetCurrent();
-  SbThreadLocalKey key = GetPrThreadKey();
-  SB_CHECK(SbThreadIsValidLocalKey(key));
-  SbThreadSetLocalValue(key, pr_thread);
-
-  setup_signal_queue->Put(true);
+  SB_DCHECK(g_local_pr_thread.GetIfExists() == NULL);
+  PRThread* pr_thread = g_local_pr_thread.GetOrCreate(SbThreadGetCurrent());
+  SB_DCHECK(pr_thread);
+  setup_signal_queue->Put(pr_thread);
   pr_entry_point(pr_context);
 
   return NULL;
@@ -143,20 +119,7 @@ PRStatus PR_WaitCondVar(PRCondVar* cvar, PRIntervalTime timeout) {
 }
 
 PRThread* PR_GetCurrentThread() {
-  SbThreadLocalKey key = GetPrThreadKey();
-  SB_CHECK(SbThreadIsValidLocalKey(key));
-
-  PRThread* value = static_cast<PRThread*>(SbThreadGetLocalValue(key));
-  // We could potentially be a thread that was not created through
-  // PR_CreateThread.  In this case, we must allocate a PRThread and do the
-  // setup that would normally have been done in PR_CreateThread.
-  if (!value) {
-    PRThread* pr_thread = new PRThread(SbThreadGetCurrent());
-    SbThreadSetLocalValue(key, pr_thread);
-    value = pr_thread;
-  }
-
-  return value;
+  return g_local_pr_thread.GetOrCreate(SbThreadGetCurrent());
 }
 
 uint32_t PR_snprintf(char* out, uint32_t outlen, const char* fmt, ...) {
@@ -199,40 +162,29 @@ PRThread* PR_CreateThread(PRThreadType type,
   SB_DCHECK(state == PR_JOINABLE_THREAD || state == PR_UNJOINABLE_THREAD);
   bool sb_joinable = (state == PR_JOINABLE_THREAD);
 
-  // This heap allocated PRThread object will have a pointer to it stored in
-  // the newly created child thread's thread local storage.  Once the newly
-  // created child thread finishes, it will be freed in the destructor
-  // associated with it through thread local storage.
-  PRThread* pr_thread = new PRThread(kSbThreadInvalid);
-
-  // Utility queue for the ThreadEntryWrapper to signal us once it's done
-  // running its initial setup and we can safely exit.
+  // A queue that serves two purposes.  The first is that it is a way for our
+  // child thread to signal to us that it is done with its wrapper level
+  // setup, and that we can safely return.  The second, is that it is a
+  // channel for it to pass us the address of the child thread's |PRThread|
+  // object.
   SetupSignalQueue setup_signal_queue;
 
-  // This heap allocated context object is freed after
-  // ThreadEntryPointWrapper's initial setup is complete, right before the
-  // nspr level entry point is run.
-  ThreadEntryPointWrapperContext* context = new ThreadEntryPointWrapperContext(
-      arg, pr_thread, start, &setup_signal_queue);
+  // This heap allocated context object is freed after the initial setup of
+  // |ThreadEntryPointWrapper| is complete, right before the nspr level entry
+  // point is run.
+  ThreadEntryPointWrapperContext* context =
+      new ThreadEntryPointWrapperContext(arg, start, &setup_signal_queue);
 
-  // Note that pr_thread->sb_thread will be set to the correct value in the
-  // setup section of ThreadEntryPointWrapper.  It is done there rather than
-  // here to account for the unlikely but possible case in which we enter the
-  // newly created child thread, and then the child thread passes references
-  // to itself off into its potential children or co-threads that interact
-  // with it before we can copy what SbThreadCreate returns into
-  // pr_thread->sb_thread from this current thread.
   SbThreadCreate(sb_stack_size, sb_priority, sb_affinity, sb_joinable, NULL,
                  ThreadEntryPointWrapper, context);
 
-  // Now we must wait for the setup section of ThreadEntryPointWrapper to run
-  // and initialize pr_thread (both the struct itself and the corresponding
-  // new thread's private data) before we can safely return.  We expect to
-  // receive true rather than false by convention.
-  bool setup_signal = setup_signal_queue.Get();
-  SB_DCHECK(setup_signal);
+  // Now we must wait for the setup section of |ThreadEntryPointWrapper| to
+  // run and pass us the initialized |pr_thread|.
+  PRThread* child_pr_thread = setup_signal_queue.Get();
+  SB_DCHECK(child_pr_thread);
+  SB_DCHECK(SbThreadIsValid(child_pr_thread->sb_thread));
 
-  return pr_thread;
+  return child_pr_thread;
 }
 
 PRStatus PR_CallOnceWithArg(PRCallOnceType* once,
