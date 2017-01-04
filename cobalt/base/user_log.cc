@@ -17,7 +17,6 @@
 #include "cobalt/base/user_log.h"
 
 #include "base/logging.h"
-#include "cobalt/deprecated/platform_delegate.h"
 
 namespace base {
 namespace {
@@ -29,20 +28,22 @@ const int kMaxLabelSize = 16;
 
 // static
 bool UserLog::IsRegistrationSupported() {
-  return cobalt::deprecated::PlatformDelegate::Get()
-      ->IsUserLogRegistrationSupported();
+  // TODO: Reimplement with starboard core dump
+  NOTIMPLEMENTED();
+  return false;
 }
 
 // static
 bool UserLog::Register(Index index, const char* label, const void* address,
                        size_t size) {
   DCHECK_LT(strlen(label), kMaxLabelSize);
-  return cobalt::deprecated::PlatformDelegate::Get()->RegisterUserLog(
-      index, label, address, size);
+  NOTIMPLEMENTED();
+  return true;
 }
 
 bool UserLog::Deregister(Index index) {
-  return cobalt::deprecated::PlatformDelegate::Get()->DeregisterUserLog(index);
+  NOTIMPLEMENTED();
+  return true;
 }
 
 }  // namespace base
