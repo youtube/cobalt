@@ -21,7 +21,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "cobalt/deprecated/platform_delegate.h"
+#include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
@@ -297,9 +297,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   if (!config.lang.empty()) {
     up_url = AppendQueryParameter(up_url, "lang", config.lang);
   } else {
-    up_url = AppendQueryParameter(
-        up_url, "lang",
-        cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage());
+    up_url = AppendQueryParameter(up_url, "lang", base::GetSystemLanguage());
   }
 
   if (config.max_alternatives) {

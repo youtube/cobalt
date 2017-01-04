@@ -41,6 +41,8 @@
         'event_dispatcher.h',
         'init_cobalt.cc',
         'init_cobalt.h',
+        'language.cc',
+        'language.h',
         'localized_strings.cc',
         'localized_strings.h',
         'log_message_handler.cc',
@@ -48,6 +50,8 @@
         'math.cc',
         'math.h',
         'message_queue.h',
+        'path_provider.cc',
+        'path_provider.h',
         'poller.h',
         'polymorphic_downcast.h',
         'polymorphic_equatable.h',
@@ -69,7 +73,6 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:base_i18n',
-        '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
       ],
@@ -87,7 +90,6 @@
         }],
       ],
     },
-
     {
       'target_name': 'base_test',
       'type': '<(gtest_target_type)',
