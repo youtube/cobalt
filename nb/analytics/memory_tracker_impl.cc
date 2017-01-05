@@ -101,7 +101,8 @@ void MemoryTrackerImpl::GetAllocationGroups(
 }
 
 void MemoryTrackerImpl::Accept(AllocationVisitor* visitor) {
-  DisableMemoryTrackingInScope no_mem_tracking(this);
+  DisableMemoryTrackingInScope no_mem_allocation_reporting(this);
+  DisableDeletionInScope no_mem_deletion_reporting(this);
   atomic_allocation_map_.Accept(visitor);
 }
 
@@ -300,6 +301,7 @@ bool MemoryTrackerImpl::AddMemoryTracking(const void* memory, size_t size) {
     // the developer may want to track certain allocations that meet a certain
     // criteria.
     if (debug_callback_) {
+      DisableDeletionInScope disable_deletion_tracking(this);
       debug_callback_->OnMemoryAllocation(memory, alloc_record);
     }
   } else {
