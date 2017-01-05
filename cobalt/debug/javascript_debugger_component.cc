@@ -410,7 +410,7 @@ void JavaScriptDebuggerComponent::HandleScriptEvent(
     DCHECK_EQ(method, kScriptFailedToParse);
     params->SetString(kErrorMessage, error_message.value());
   }
-  connector_->SendEvent(method, params.Pass());
+  connector_->SendEvent(method, params);
 
   // Store the raw pointer to the source provider in the map.
   // The values in the map will be deleted on destruction by
