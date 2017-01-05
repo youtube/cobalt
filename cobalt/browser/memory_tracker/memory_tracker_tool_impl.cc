@@ -29,9 +29,6 @@
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 
-// Only compile this file if OS_STARBOARD is defined.
-#if defined(OS_STARBOARD)
-
 namespace cobalt {
 namespace browser {
 namespace memory_tracker {
@@ -1007,5 +1004,3 @@ bool FindTopSizes::PassesFilter(const AllocationRecord& alloc_record) const {
 }  // namespace memory_tracker
 }  // namespace browser
 }  // namespace cobalt
-
-#endif  // defined(OS_STARBOARD)
