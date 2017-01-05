@@ -336,7 +336,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   loader_factory_.reset(
       new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
-                                data.options.loader_thread_priority));
+                                data.options.decoder_thread_priority,
+                                data.options.fetcher_lifetime_thread_priority));
 
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
@@ -703,7 +704,8 @@ WebModule::Options::Options()
       track_event_stats(false),
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
-      loader_thread_priority(base::kThreadPriority_Low) {}
+      decoder_thread_priority(base::kThreadPriority_Low),
+      fetcher_lifetime_thread_priority(base::kThreadPriority_High) {}
 
 WebModule::WebModule(
     const GURL& initial_url,
