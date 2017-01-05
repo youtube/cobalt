@@ -20,8 +20,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_STARBOARD)
-
 namespace cobalt {
 namespace browser {
 namespace memory_tracker {
@@ -116,5 +114,3 @@ TEST(MemoryTrackerToolTest, FindTopSizes) {
 }  // namespace memory_tracker
 }  // namespace browser
 }  // namespace cobalt
-
-#endif  // #if defined(OS_STARBOARD)
