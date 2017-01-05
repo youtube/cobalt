@@ -433,12 +433,16 @@ void MozjsGlobalEnvironment::ReportErrorHandler(JSContext* context,
     error_message = message;
   }
 
+  std::string message_with_location =
+      base::StringPrintf("%s:%u:%u: %s",
+                         (report->filename ? report->filename : "(none)"),
+                         report->lineno,
+                         report->column,
+                         error_message.c_str());
   if (global_object_proxy && global_object_proxy->last_error_message_) {
-    *(global_object_proxy->last_error_message_) = error_message;
+    *(global_object_proxy->last_error_message_) = message_with_location;
   } else {
-    const char *filename = report->filename ? report->filename : "(none)";
-    LOG(ERROR) << "JS Error: " << filename << ":" << report->lineno << ":"
-               << report->column << ": " << error_message;
+    LOG(ERROR) << "JS Error: " << message_with_location;
   }
 }
 
