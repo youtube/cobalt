@@ -74,7 +74,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // is checked at a regular interval (e.g. 60Hz) and if it is set to true,
   // a layout is initiated and it is set back to false.  Events such as
   // DOM mutations will set this flag back to true.
-  base::CVal<int> layout_dirty_;
+  base::CVal<bool> layout_dirty_;
 
   // Construction of |BreakIterator| requires a disk read, so we cache them
   // in the layout manager in order to reuse them with all layouts happening

@@ -75,7 +75,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   struct EventStats {
     explicit EventStats(const std::string& name);
 
-    base::CVal<int, base::CValPublic> produced_render_tree_;
+    base::CVal<bool, base::CValPublic> produced_render_tree_;
 
     // Count-related
     base::CVal<int, base::CValPublic> count_dom_html_elements_created;
@@ -125,7 +125,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   std::string name_;
 
-  base::CVal<int, base::CValPublic> event_is_processing_;
+  base::CVal<bool, base::CValPublic> event_is_processing_;
 };
 
 }  // namespace browser
