@@ -21,26 +21,13 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-
-// Conditional includes.
-#if defined(OS_STARBOARD)
 #include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
 #include "nb/analytics/memory_tracker.h"
 #include "starboard/log.h"
-#endif
 
 namespace cobalt {
 namespace browser {
 namespace memory_tracker {
-
-#if !defined(OS_STARBOARD)
-// A dummy implementation.
-scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(const std::string&) {
-  DLOG(INFO) << "Memory tracker tool is not enabled on non-starboard builds.";
-  return scoped_ptr<MemoryTrackerTool>();
-}
-
-#else  // defined(OS_STARBOARD)
 
 using nb::analytics::MemoryTracker;
 
@@ -258,8 +245,6 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     return scoped_ptr<MemoryTrackerTool>();
   }
 }
-
-#endif  // defined(OS_STARBOARD)
 
 }  // namespace memory_tracker
 }  // namespace browser
