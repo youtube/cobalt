@@ -38,8 +38,22 @@
     'compiler_flags': [
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
+      # See also build/cmake/android.toolchain.cmake in the Android NDK
+      # Note -DANDROID is an argument to some ifdefs in the NDK's eglplatform.h
+      '-DANDROID',
+      '-ffunction-sections',
+      '-funwind-tables',
+      '-fstack-protector-strong',
+      '-no-canonical-prefixes',
+      '-fno-limit-debug-info',
     ],
     'linker_flags': [
+      # See also build/cmake/android.toolchain.cmake in the Android NDK
+      '-Wl,--build-id',
+      '-Wl,--warn-shared-textrel',
+      '-Wl,--fatal-warnings',
+      '-Wl,--gc-sections',
+      '-Wl,-z,nocopyreloc',
     ],
     'compiler_flags_debug': [
       '-frtti',
