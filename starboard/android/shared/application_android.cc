@@ -17,10 +17,13 @@
 #include <android_native_app_glue.h>
 #include <time.h>
 
+#include <vector>
+
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_event.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
+#include "starboard/string.h"
 
 namespace starboard {
 namespace android {
@@ -147,17 +150,51 @@ bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
   return true;
 }
 
+static void GetArgs(struct android_app* state,
+                    std::vector<char *>* out_args) {
+  out_args->push_back(SbStringDuplicate("starboard"));
+
+  JNIEnv* env;
+  state->activity->vm->AttachCurrentThread(&env, 0);
+
+  jobject activity_obj = state->activity->clazz;
+  jclass activity_class = env->GetObjectClass(activity_obj);
+  jmethodID method = env->GetMethodID(activity_class,
+      "getArgs", "()[Ljava/lang/String;");
+  jobjectArray args_array = (jobjectArray)
+      env->CallObjectMethod(activity_obj, method);
+
+  jint argc = env->GetArrayLength(args_array);
+
+  for (jint i = 0; i < argc; i++) {
+    jstring element = (jstring)env->GetObjectArrayElement(args_array, i);
+    const char* utf_chars = env->GetStringUTFChars(element, NULL);
+    out_args->push_back(SbStringDuplicate(utf_chars));
+    env->ReleaseStringUTFChars(element, utf_chars);
+  }
+  state->activity->vm->DetachCurrentThread();
+}
+
 /**
  * This is the main entry point of a native application that is using
  * android_native_app_glue.  It runs in its own thread, using the event
  * loop in ApplicationAndroid.
  */
 extern "C" void android_main(struct android_app* state) {
+  std::vector<char *> args;
+  GetArgs(state, &args);
+
   ApplicationAndroid application(state);
   state->userData = &application;
   state->onAppCmd = ApplicationAndroid::HandleCommand;
   state->onInputEvent = ApplicationAndroid::HandleInput;
-  application.Run(0, NULL);
+  application.Run(args.size(), args.data());
+
+  for (std::vector<char *>::iterator it = args.begin();
+       it != args.end();
+       ++it) {
+    SbMemoryDeallocate(*it);
+  }
 }
 
 static SB_C_INLINE ApplicationAndroid* ToApplication(
