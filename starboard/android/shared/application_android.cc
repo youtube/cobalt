@@ -150,8 +150,7 @@ bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
   return true;
 }
 
-static void GetArgs(struct android_app* state,
-                    std::vector<char *>* out_args) {
+static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
   out_args->push_back(SbStringDuplicate("starboard"));
 
   JNIEnv* env;
@@ -159,10 +158,10 @@ static void GetArgs(struct android_app* state,
 
   jobject activity_obj = state->activity->clazz;
   jclass activity_class = env->GetObjectClass(activity_obj);
-  jmethodID method = env->GetMethodID(activity_class,
-      "getArgs", "()[Ljava/lang/String;");
-  jobjectArray args_array = (jobjectArray)
-      env->CallObjectMethod(activity_obj, method);
+  jmethodID method =
+      env->GetMethodID(activity_class, "getArgs", "()[Ljava/lang/String;");
+  jobjectArray args_array =
+      (jobjectArray)env->CallObjectMethod(activity_obj, method);
 
   jint argc = env->GetArrayLength(args_array);
 
@@ -181,7 +180,7 @@ static void GetArgs(struct android_app* state,
  * loop in ApplicationAndroid.
  */
 extern "C" void android_main(struct android_app* state) {
-  std::vector<char *> args;
+  std::vector<char*> args;
   GetArgs(state, &args);
 
   ApplicationAndroid application(state);
@@ -190,9 +189,7 @@ extern "C" void android_main(struct android_app* state) {
   state->onInputEvent = ApplicationAndroid::HandleInput;
   application.Run(args.size(), args.data());
 
-  for (std::vector<char *>::iterator it = args.begin();
-       it != args.end();
-       ++it) {
+  for (std::vector<char*>::iterator it = args.begin(); it != args.end(); ++it) {
     SbMemoryDeallocate(*it);
   }
 }
