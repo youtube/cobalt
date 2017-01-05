@@ -531,18 +531,19 @@ ResourceCache<CacheType>::ResourceCache(
       create_loader_function_(create_loader_function),
       is_processing_pending_callbacks_(false),
       are_callbacks_disabled_(false),
-      size_in_bytes_(base::StringPrintf("%s.Size", name_.c_str()), 0,
+      size_in_bytes_(base::StringPrintf("Memory.%s.Size", name_.c_str()), 0,
                      "Total number of bytes currently used by the cache."),
-      capacity_in_bytes_(base::StringPrintf("%s.Capacity", name_.c_str()),
-                         cache_capacity_,
-                         "The capacity, in bytes, of the resource cache.  "
-                         "Exceeding this results in *unused* resources being "
-                         "purged."),
+      capacity_in_bytes_(
+          base::StringPrintf("Memory.%s.Capacity", name_.c_str()),
+          cache_capacity_,
+          "The capacity, in bytes, of the resource cache.  "
+          "Exceeding this results in *unused* resources being "
+          "purged."),
       count_loading_resources_(
-          base::StringPrintf("%s.Count.LoadingResources", name_.c_str()), 0,
+          base::StringPrintf("Count.%s.LoadingResources", name_.c_str()), 0,
           "The number of loading resources that are still outstanding."),
       count_pending_callbacks_(
-          base::StringPrintf("%s.Count.PendingCallbacks", name_.c_str()), 0,
+          base::StringPrintf("Count.%s.PendingCallbacks", name_.c_str()), 0,
           "The number of loading completed resources that have pending "
           "callbacks.") {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
