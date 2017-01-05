@@ -35,6 +35,11 @@
         # TODO(jshin): Remove this when updating to a newer version with this
         # fixed.
         'U_NOEXCEPT=',
+        'UCONFIG_ONLY_HTML_CONVERSION',
+        'UCONFIG_NO_COLLATION',
+        'UCONFIG_NO_LEGACY_CONVERSION',
+        'UCONFIG_NO_TRANSLITERATION',
+        'UCONFIG_NO_REGULAR_EXPRESSIONS'
       ],
     },
     'defines': [
