@@ -148,11 +148,17 @@ class WebModule {
     // performing layouts.  The default value is base::kThreadPriority_Normal.
     base::ThreadPriority thread_priority;
 
-    // Specifies the priority that the web module's corresponding loader thread
+    // Specifies the priority that the web module's corresponding decoder thread
     // will be assigned.  This is the thread responsible for performing resource
     // decoding, such as image decoding.  The default value is
     // base::kThreadPriority_Low.
-    base::ThreadPriority loader_thread_priority;
+    base::ThreadPriority decoder_thread_priority;
+
+    // Specifies the priority that the web module's corresponding fetcher
+    // lifetime thread will be assigned.  This is the thread responsible for
+    // fetcher creation and handling callbacks from NetFetcher.
+    // The default value is base::kThreadPriority_High.
+    base::ThreadPriority fetcher_lifetime_thread_priority;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
