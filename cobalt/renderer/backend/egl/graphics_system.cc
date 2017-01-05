@@ -77,6 +77,8 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
                              8,
                              EGL_BIND_TO_TEXTURE_RGBA,
                              EGL_TRUE,
+                             EGL_RENDERABLE_TYPE,
+                             EGL_OPENGL_ES2_BIT,
                              EGL_NONE};
 
   // Try to allow preservation of the frame contents between swap calls --
