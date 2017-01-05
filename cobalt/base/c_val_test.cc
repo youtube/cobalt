@@ -65,7 +65,7 @@ TEST(CValTest, RegisterAndPrintBoolTrue) {
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
-  EXPECT_EQ(*result, "true");
+  EXPECT_EQ(*result, "1");
 }
 
 TEST(CValTest, RegisterAndPrintBoolFalse) {
@@ -75,7 +75,7 @@ TEST(CValTest, RegisterAndPrintBoolFalse) {
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
   EXPECT_TRUE(result);
-  EXPECT_EQ(*result, "false");
+  EXPECT_EQ(*result, "0");
 }
 
 TEST(CValTest, RegisterAndPrintU32) {
