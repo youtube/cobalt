@@ -233,6 +233,7 @@ static const struct {
    NULL},
 };
 
+#if !defined(UCONFIG_NO_LEGACY_CONVERSION)
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
   for (size_t i = 0; i < arraysize(kConvertCodepageCases); ++i) {
     SCOPED_TRACE(base::StringPrintf(
@@ -303,6 +304,7 @@ TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
     EXPECT_EQ(kConvertAndNormalizeCases[i].expected_value, result);
   }
 }
+#endif  // !defined(UCONFIG_NO_LEGACY_CONVERSION)
 
 
 }  // namespace base
