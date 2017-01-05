@@ -210,11 +210,6 @@ std::string ValToString(const T& value) {
 }
 
 template <>
-inline std::string ValToString<bool>(const bool& value) {
-  return value ? "true" : "false";
-}
-
-template <>
 inline std::string ValToString<std::string>(const std::string& value) {
   return value;
 }
