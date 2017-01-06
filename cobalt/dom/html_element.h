@@ -265,6 +265,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // associated with this html element in the image cache.
   void ReleaseImagesAndInvalidateComputedStyleIfNecessary() OVERRIDE;
 
+  // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
+  // make stat updates even after its weak pointer to its document has been
+  // deleted. This is protected because some derived classes need access to it.
+  DomStatTracker* const dom_stat_tracker_;
+
  private:
   // From Node.
   void OnMutation() OVERRIDE;
@@ -339,11 +344,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // We maintain it here to indicate to the resource caching system
   // that the images are currently in-use, and should not be purged.
   loader::image::CachedImageReferenceVector cached_background_images_;
-
-  // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
-  // make stat updates even after its weak pointer to its document has been
-  // deleted.
-  DomStatTracker* const dom_stat_tracker_;
 
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.

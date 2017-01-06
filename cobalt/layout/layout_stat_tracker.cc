@@ -24,9 +24,9 @@ namespace layout {
 LayoutStatTracker::LayoutStatTracker(const std::string& name)
     : total_boxes_(StringPrintf("Count.%s.Layout.Box", name.c_str()), 0,
                    "Total number of layout boxes."),
+      is_event_active_(false),
       boxes_created_count_(0),
-      boxes_destroyed_count_(0),
-      are_stop_watches_enabled_(false) {
+      boxes_destroyed_count_(0) {
   stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
@@ -37,30 +37,31 @@ LayoutStatTracker::~LayoutStatTracker() {
   DCHECK_EQ(total_boxes_, 0);
 }
 
-void LayoutStatTracker::FlushPeriodicTracking() {
-  // Update the CVals before clearing the periodic values.
-  total_boxes_ += boxes_created_count_ - boxes_destroyed_count_;
+void LayoutStatTracker::OnStartEvent() {
+  is_event_active_ = true;
 
-  // Now clear the values.
-  boxes_created_count_ = 0;
-  boxes_destroyed_count_ = 0;
+  // Flush the periodic tracking prior to starting the event. This ensures that
+  // an accurate count of the periodic counts is produced during the event.
+  FlushPeriodicTracking();
 
+  // Zero out the stop watch durations so that the numbers will only include the
+  // event.
   for (size_t i = 0; i < kNumStopWatchTypes; ++i) {
     stop_watch_durations_[i] = base::TimeDelta();
   }
 }
 
+void LayoutStatTracker::OnEndEvent() {
+  is_event_active_ = false;
+
+  // Flush the periodic tracking after the event. This updates the cval totals,
+  // providing an accurate picture of them at the moment the event ends
+  FlushPeriodicTracking();
+}
+
 void LayoutStatTracker::OnBoxCreated() { ++boxes_created_count_; }
 
 void LayoutStatTracker::OnBoxDestroyed() { ++boxes_destroyed_count_; }
-
-void LayoutStatTracker::EnableStopWatches() {
-  are_stop_watches_enabled_ = true;
-}
-
-void LayoutStatTracker::DisableStopWatches() {
-  are_stop_watches_enabled_ = false;
-}
 
 base::TimeDelta LayoutStatTracker::GetStopWatchTypeDuration(
     StopWatchType type) const {
@@ -68,12 +69,21 @@ base::TimeDelta LayoutStatTracker::GetStopWatchTypeDuration(
 }
 
 bool LayoutStatTracker::IsStopWatchEnabled(int /*id*/) const {
-  return are_stop_watches_enabled_;
+  return is_event_active_;
 }
 
 void LayoutStatTracker::OnStopWatchStopped(int id,
                                            base::TimeDelta time_elapsed) {
   stop_watch_durations_[static_cast<size_t>(id)] += time_elapsed;
+}
+
+void LayoutStatTracker::FlushPeriodicTracking() {
+  // Update the CVals before clearing the periodic values.
+  total_boxes_ += boxes_created_count_ - boxes_destroyed_count_;
+
+  // Now clear the values.
+  boxes_created_count_ = 0;
+  boxes_destroyed_count_ = 0;
 }
 
 }  // namespace layout
