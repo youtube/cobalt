@@ -16,11 +16,45 @@
 
 #include <android/asset_manager.h>
 
+#include "starboard/memory.h"
+#include "starboard/string.h"
+
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/shared/posix/impl/file_open.h"
 
 using starboard::android::shared::IsAndroidAssetPath;
 using starboard::android::shared::OpenAndroidAsset;
+
+namespace {
+
+// We don't package most font files in cobalt content and fallback to the system
+// font file of the same name.
+const char kFontsXml[] = "fonts.xml";
+const char kSystemFontsDir[] = "/system/fonts/";
+const char kCobaltFontsDir[] = "/cobalt/assets/fonts/";
+const size_t kSystemFontsDirLen = sizeof(kSystemFontsDir) - 1;
+const size_t kCobaltFontsDirLen = sizeof(kCobaltFontsDir) - 1;
+
+// Returns the fallback for the given asset path, or NULL if none. If not NULL
+// the result is in a buffer allocated by this function and that can be freed
+// with SbMemoryDeallocate.
+const char* FallbackPath(const char* path) {
+  // Fonts fallback to the system fonts.
+  if (path && strncmp(path, kCobaltFontsDir, kCobaltFontsDirLen) == 0) {
+    const char* file_name = path + kCobaltFontsDirLen;
+    // fonts.xml doesn't fallback.
+    if (strcmp(file_name, kFontsXml) != 0) {
+      size_t length = kSystemFontsDirLen + SbStringGetLength(file_name);
+      char* fallback_path = static_cast<char*>(SbMemoryAllocate(length + 1));
+      SbStringCopyUnsafe(fallback_path, kSystemFontsDir);
+      SbStringCopyUnsafe(fallback_path + kSystemFontsDirLen, file_name);
+      return fallback_path;
+    }
+  }
+  return NULL;
+}
+
+}  // namespace
 
 SbFile SbFileOpen(const char* path,
                   int flags,
@@ -31,6 +65,8 @@ SbFile SbFileOpen(const char* path,
         path, flags, out_created, out_error);
   }
 
+  // Assets are never created and are always read-only, whether it's actually an
+  // asset or we end up opening a fallback path.
   if (out_created) {
     *out_created = false;
   }
@@ -44,14 +80,22 @@ SbFile SbFileOpen(const char* path,
   }
 
   AAsset* asset = OpenAndroidAsset(path);
-  if (!asset) {
-    if (out_error) {
-      *out_error = kSbFileErrorFailed;
-    }
-    return kSbFileInvalid;
+  if (asset) {
+    SbFile result = new SbFilePrivate();
+    result->asset = asset;
+    return result;
   }
 
-  SbFile result = new SbFilePrivate();
-  result->asset = asset;
-  return result;
+  const char* fallback_path = FallbackPath(path);
+  if (fallback_path) {
+    SbFile result = ::starboard::shared::posix::impl::FileOpen(
+        fallback_path, flags, out_created, out_error);
+    SbMemoryDeallocate(const_cast<char*>(fallback_path));
+    return result;
+  }
+
+  if (out_error) {
+    *out_error = kSbFileErrorFailed;
+  }
+  return kSbFileInvalid;
 }

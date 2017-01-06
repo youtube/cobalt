@@ -27,14 +27,8 @@ bool SbFileCanOpen(const char* path, int flags) {
     return ::starboard::shared::posix::impl::FileCanOpen(path, flags);
   }
 
-  bool can_read = flags & kSbFileRead;
-  bool can_write = flags & kSbFileWrite;
-  if (can_read && !can_write) {
-    AAsset* asset = OpenAndroidAsset(path);
-    if (asset) {
-      AAsset_close(asset);
-      return true;
-    }
-  }
-  return false;
+  SbFile file = SbFileOpen(path, flags | kSbFileOpenOnly, NULL, NULL);
+  bool result = SbFileIsValid(file);
+  SbFileClose(file);
+  return result;
 }
