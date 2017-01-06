@@ -356,6 +356,7 @@
 %token kFormatFunctionToken             // format(
 %token kLinearGradientFunctionToken     // linear-gradient(
 %token kLocalFunctionToken              // local(
+%token kMapToMeshFunctionToken          // map-to-mesh(
 %token kMatrixFunctionToken             // matrix(
 %token kMatrix3dFunctionToken           // matrix3d(
 %token kNotFunctionToken                // not(
@@ -6541,7 +6542,7 @@ filter_function:
 
 cobalt_mtm_filter_function:
   // Encodes an mtm filter. Currently the only type of filter function supported.
-    kCobaltMtmFunctionToken maybe_whitespace url
+    cobalt_mtm_function_name maybe_whitespace url
         cobalt_mtm_resolution_matched_mesh_list comma angle angle comma
         cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
         ')' maybe_whitespace {
@@ -6557,6 +6558,11 @@ cobalt_mtm_filter_function:
         *transform,
         MakeScopedRefPtrAndRelease($10));
   }
+  ;
+
+cobalt_mtm_function_name:
+    kCobaltMtmFunctionToken
+  | kMapToMeshFunctionToken
   ;
 
 cobalt_mtm_resolution_matched_mesh_list:
