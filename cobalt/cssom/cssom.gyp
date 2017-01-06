@@ -55,6 +55,8 @@
         'compound_selector.h',
         'computed_style.cc',
         'computed_style.h',
+        'css.cc',
+        'css.h',
         'css_computed_style_data.cc',
         'css_computed_style_data.h',
         'css_computed_style_declaration.cc',
