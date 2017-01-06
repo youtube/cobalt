@@ -517,6 +517,16 @@ void CSSStyleDeclaration::set_display(const std::string& display,
   SetPropertyValueStringByKey(kDisplayProperty, display, exception_state);
 }
 
+std::string CSSStyleDeclaration::filter(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kFilterProperty);
+}
+
+void CSSStyleDeclaration::set_filter(const std::string& filter,
+                                     script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kFilterProperty, filter, exception_state);
+}
+
 std::string CSSStyleDeclaration::font(
     script::ExceptionState* /*exception_state*/) const {
   NOTIMPLEMENTED();

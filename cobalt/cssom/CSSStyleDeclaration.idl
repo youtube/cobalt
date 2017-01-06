@@ -58,6 +58,7 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString color;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString content;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString display;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString filter;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString font;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString fontFamily;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString fontSize;
