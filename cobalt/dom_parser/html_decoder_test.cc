@@ -512,7 +512,6 @@ TEST_F(HTMLDecoderTest, LibxmlDecodingErrorShouldTerminateParsing) {
   root_ = document_->first_element_child();
   ASSERT_TRUE(root_);
   EXPECT_EQ("html", root_->tag_name());
-  EXPECT_EQ(1, root_->children()->length());
 
   dom::Element* head = root_->first_element_child();
   ASSERT_TRUE(head);
