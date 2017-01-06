@@ -41,9 +41,9 @@ class LayoutStatTracker : public base::StopWatchOwner {
   explicit LayoutStatTracker(const std::string& name);
   ~LayoutStatTracker();
 
-  // This function updates the CVals from the periodic values and then clears
-  // those values.
-  void FlushPeriodicTracking();
+  // Event-related
+  void OnStartEvent();
+  void OnEndEvent();
 
   // Periodic count-related
   void OnBoxCreated();
@@ -52,10 +52,6 @@ class LayoutStatTracker : public base::StopWatchOwner {
   int boxes_created_count() const { return boxes_created_count_; }
   int boxes_destroyed_count() const { return boxes_destroyed_count_; }
 
-  // Stop watch-related
-  void EnableStopWatches();
-  void DisableStopWatches();
-
   base::TimeDelta GetStopWatchTypeDuration(StopWatchType type) const;
 
  private:
@@ -63,17 +59,22 @@ class LayoutStatTracker : public base::StopWatchOwner {
   bool IsStopWatchEnabled(int id) const OVERRIDE;
   void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) OVERRIDE;
 
-  // CVals. They are updated when the periodic counts are flushed.
+  // This function updates the CVals from the periodic values and then clears
+  // those values.
+  void FlushPeriodicTracking();
+
+  // Count cvals that are updated when the periodic tracking is flushed.
   base::CVal<int, base::CValPublic> total_boxes_;
 
-  // Periodic counts. The counts are cleared after the CVals are updated in
-  // |FlushPeriodicTracking|.
+  // Event-related
+  bool is_event_active_;
+
+  // Periodic counts. The counts are cleared after the count cvals are updated
+  // in |FlushPeriodicTracking|.
   int boxes_created_count_;
   int boxes_destroyed_count_;
 
-  // Stop watch-related. The durations are cleared after the CVals are updated
-  // in |FlushPeriodicTracking|.
-  bool are_stop_watches_enabled_;
+  // Stop watch-related.
   std::vector<base::TimeDelta> stop_watch_durations_;
 };
 
