@@ -32,6 +32,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_key_complete_event.h"
 #include "cobalt/dom/media_key_error_event.h"
 #include "cobalt/dom/media_key_message_event.h"
@@ -1240,7 +1241,9 @@ void HTMLMediaElement::UpdatePlayState() {
 
     StartPlaybackProgressTimer();
     playing_ = true;
-
+    if (AsHTMLVideoElement() != NULL) {
+      dom_stat_tracker_->OnHtmlVideoElementPlaying();
+    }
   } else {  // Should not be playing right now.
     if (!player_paused) {
       player_->Pause();
