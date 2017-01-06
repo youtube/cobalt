@@ -26,54 +26,7 @@
 
 using ::starboard::android::shared::g_app_assets_dir;
 using ::starboard::android::shared::g_app_cache_dir;
-
-namespace {
-// Places up to |path_size| - 1 characters of the path to the current
-// executable in |out_path|, ensuring it is NULL-terminated. Returns success
-// status. The result being greater than |path_size| - 1 characters is a
-// failure. |out_path| may be written to in unsuccessful cases.
-bool GetExecutablePath(char* out_path, int path_size) {
-  if (path_size < 1) {
-    return false;
-  }
-
-  // TODO this is basically irrelevant under android, where we
-  // will almost always be a .so that's loaded by the Android runtime.
-  // We should remove it.
-  char path[PATH_MAX + 1];
-  size_t bytes_read = readlink("/proc/self/exe", path, PATH_MAX);
-  if (bytes_read < 1) {
-    return false;
-  }
-
-  path[bytes_read] = '\0';
-  if (bytes_read > path_size) {
-    return false;
-  }
-
-  SbStringCopy(out_path, path, path_size);
-  return true;
-}
-
-// Places up to |path_size| - 1 characters of the path to the directory
-// containing the current executable in |out_path|, ensuring it is
-// NULL-terminated. Returns success status. The result being greater than
-// |path_size| - 1 characters is a failure. |out_path| may be written to in
-// unsuccessful cases.
-bool GetExecutableDirectory(char* out_path, int path_size) {
-  if (!GetExecutablePath(out_path, path_size)) {
-    return false;
-  }
-
-  char* last_slash = strrchr(out_path, '/');
-  if (!last_slash) {
-    return false;
-  }
-
-  *last_slash = '\0';
-  return true;
-}
-}  // namespace
+using ::starboard::android::shared::g_app_files_dir;
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   if (!out_path || !path_size) {
@@ -116,13 +69,14 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
-    // TODO probably irrelevent, maybe Context.getDataDir()
+    // dir_source_root is used only by automated tests.
+    // We will assign in to APP_HOME_DIR/files/dir_source_root and
+    // expect any test runner to copy files to that location.
     case kSbSystemPathSourceDirectory: {
-      if (!GetExecutableDirectory(path, kPathSize)) {
+      if (SbStringCopy(path, g_app_files_dir, kPathSize) >= kPathSize) {
         return false;
       }
-      if (SbStringConcat(path, "/content/dir_source_root", kPathSize) >=
-          kPathSize) {
+      if (SbStringConcat(path, "/dir_source_root", kPathSize) >= kPathSize) {
         return false;
       }
       break;
@@ -143,10 +97,13 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
                              path_size);
     }
 
-    // TODO not really applicable, but should it be the APK path?
-    // The jar file? The .so?
+    // TODO could theoretically be the path to the .so in
+    // the "lib" directory of the app home dir.
     case kSbSystemPathExecutableFile: {
-      return GetExecutablePath(out_path, path_size);
+      if (SbStringCopy(path, g_app_files_dir, kPathSize) >= kPathSize) {
+        return false;
+      }
+      break;
     }
   }
 
