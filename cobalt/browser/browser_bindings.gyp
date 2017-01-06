@@ -36,6 +36,7 @@
         '../audio/AudioDestinationNode.idl',
         '../audio/AudioNode.idl',
 
+        '../cssom/CSS.idl',
         '../cssom/CSSConditionRule.idl',
         '../cssom/CSSGroupingRule.idl',
         '../cssom/CSSFontFaceRule.idl',
