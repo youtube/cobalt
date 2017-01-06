@@ -128,6 +128,17 @@ TEST(CSSDeclaredStyleDataTest, DisplaySettersAndGettersAreConsistent) {
             style->GetPropertyValue(kDisplayProperty));
 }
 
+TEST(CSSDeclaredStyleDataTest, FilterSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
+
+  EXPECT_FALSE(style->GetPropertyValue(kFilterProperty));
+
+  style->SetPropertyValueAndImportance(kFilterProperty,
+                                       KeywordValue::GetInherit(), false);
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFilterProperty));
+}
+
 TEST(CSSDeclaredStyleDataTest, FontFamilySettersAndGettersAreConsistent) {
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
 
