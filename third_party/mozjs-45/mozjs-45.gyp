@@ -45,6 +45,11 @@
           'JS_TRACE_LOGGING=1',
         ],
       }],
+      ['cobalt_config == "debug" and cobalt_enable_jit == 1', {
+        'defines': [
+          'JS_JITSPEW=1',
+        ],
+      }],
     ],
     'defines': [
       'JS_DEFAULT_JITREPORT_GRANULARITY=3',
