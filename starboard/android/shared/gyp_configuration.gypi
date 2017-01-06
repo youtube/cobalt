@@ -25,6 +25,12 @@
 
     'gl_type': 'system_gles2',
 
+    # The 'android_system' font package installs only minimal fonts, with a
+    # fonts.xml referencing the superset of font files we expect to find on any
+    # Android platform. The Android SbFileOpen implementation falls back to
+    # system fonts when it can't find the font file in the cobalt content.
+    'cobalt_font_package': 'android_system',
+
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
