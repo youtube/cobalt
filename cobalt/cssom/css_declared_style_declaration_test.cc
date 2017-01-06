@@ -535,6 +535,23 @@ TEST(CSSDeclaredStyleDeclarationTest, DisplaySetter) {
   style->set_display(display, NULL);
 }
 
+TEST(CSSDeclaredStyleDeclarationTest, FilterSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string filter =
+      "-cobalt-mtm(url(p.msh), 1rad 1rad, "
+      "matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1))";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kFilterProperty), filter, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_filter(filter, NULL);
+}
+
 TEST(CSSDeclaredStyleDeclarationTest, FontSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
