@@ -22,12 +22,13 @@
 // should not be called directly. The Starboard platform wraps them with extra
 // accounting under certain circumstances.
 //
-// #### Porters and Cobalt developers
+// #### Porters and Application Developers
 //
 // Nobody should call the "Checked", "Unchecked" or "Free" functions directly
-// because that evades Starboard's memory tracking. In both port implementations
-// and Cobalt code, you should always call SbMemoryAllocate and
-// SbMemoryDeallocate rather than SbMemoryAllocateUnchecked and SbMemoryFree.
+// because that evades Starboard's memory tracking. In both port
+// implementations and Starboard client application code, you should always
+// call SbMemoryAllocate and SbMemoryDeallocate rather than
+// SbMemoryAllocateUnchecked and SbMemoryFree.
 //
 // - The "checked" functions are SbMemoryAllocateChecked(),
 //   SbMemoryReallocateChecked(), and SbMemoryAllocateAlignedChecked().
@@ -81,8 +82,8 @@ static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
 }
 
 // Allocates and returns a chunk of memory of at least |size| bytes. This
-// function should be called from the Cobalt codebase. It is intended to
-// be a drop-in replacement for |malloc|.
+// function should be called from the client codebase. It is intended to be a
+// drop-in replacement for |malloc|.
 //
 // Note that this function returns |NULL| if it is unable to allocate the
 // memory.
@@ -100,8 +101,8 @@ SB_EXPORT void* SbMemoryAllocate(size_t size);
 // - If the function cannot perform the slow resize, it returns |NULL|,
 //   leaving the given memory chunk unchanged.
 //
-// This function should be called from the Cobalt codebase. It is meant
-// to be a drop-in replacement for |realloc|.
+// This function should be called from the client codebase. It is meant to be a
+// drop-in replacement for |realloc|.
 //
 // |memory|: The chunk of memory to be resized. |memory| may be NULL, in which
 //   case it behaves exactly like SbMemoryAllocateUnchecked.
@@ -110,9 +111,9 @@ SB_EXPORT void* SbMemoryAllocate(size_t size);
 //   that can be passed to SbMemoryDeallocate.
 SB_EXPORT void* SbMemoryReallocate(void* memory, size_t size);
 
-// Allocates and returns a chunk of memory of at least |size| bytes, aligned
-// to |alignment|. This function should be called from the Cobalt codebase.
-// It is meant to be a drop-in replacement for |memalign|.
+// Allocates and returns a chunk of memory of at least |size| bytes, aligned to
+// |alignment|. This function should be called from the client codebase. It is
+// meant to be a drop-in replacement for |memalign|.
 //
 // The function returns |NULL| if it cannot allocate the memory. In addition,
 // the function's behavior is undefined if |alignment| is not a power of two.
@@ -125,14 +126,14 @@ SB_EXPORT void* SbMemoryReallocate(void* memory, size_t size);
 SB_EXPORT void* SbMemoryAllocateAligned(size_t alignment, size_t size);
 
 // Frees a previously allocated chunk of memory. If |memory| is NULL, then the
-// operation is a no-op. This function should be called from the Cobalt
+// operation is a no-op. This function should be called from the client
 // codebase. It is meant to be a drop-in replacement for |free|.
 //
 // |memory|: The chunk of memory to be freed.
 SB_EXPORT void SbMemoryDeallocate(void* memory);
 
 // Frees a previously allocated chunk of aligned memory. This function should
-// be called from the Cobalt codebase. It is meant to be a drop-in replacement
+// be called from the client codebase. It is meant to be a drop-in replacement
 // for |_aligned_free|.
 
 // |memory|: The chunk of memory to be freed. If |memory| is NULL, then the
