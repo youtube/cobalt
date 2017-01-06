@@ -8372,7 +8372,7 @@ TEST_F(ParserTest, ParsesFilterWithKeywordInherit) {
 TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(projection.msh),"
+          "filter: map-to-mesh(url(projection.msh),"
           "                        180deg 1.5rad,"
           "                        matrix3d(1, 0, 0, 0,"
           "                                 0, 1, 0, 0,"
@@ -8397,10 +8397,38 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
             cssom::KeywordValue::kMonoscopic);
 }
 
+TEST_F(ParserTest, ParsesMtmWIPFilterName) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(projection.msh),"
+          "                        180deg 1.2rad,"
+          "                        matrix3d(1, 0, 0, 0,"
+          "                                 0, 1, 0, 0,"
+          "                                 0, 0, 1, 0,"
+          "                                 0, 0, 0, 1));",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  ASSERT_EQ(1, filter_list->value().size());
+
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
+  EXPECT_EQ(1.2f, mtm_function->vertical_fov());
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::kMonoscopic);
+}
+
 TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(projection.msh)"
+          "filter: map-to-mesh(url(projection.msh)"
           "                     640 480 url(p2.msh)"
           "                     1920 1080 url(yeehaw.msh)"
           "                     33 22 url(yoda.msh),"
@@ -8437,7 +8465,7 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
 TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8470,7 +8498,7 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
 TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8496,7 +8524,7 @@ TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
 TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8522,7 +8550,7 @@ TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
 TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8551,7 +8579,7 @@ TEST_F(ParserTest, HandlesInvalidMtmStereoMode) {
 
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
