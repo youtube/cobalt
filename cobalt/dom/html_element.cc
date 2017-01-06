@@ -700,6 +700,7 @@ void HTMLElement::InvalidateRenderTreeNodesFromNode() {
 
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
+      dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
       directionality_(kNoExplicitDirectionality),
       style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
@@ -713,8 +714,7 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
       css_animations_(&animations_adapter_),
       old_matching_rules_(new cssom::RulesWithCascadePrecedence()),
       matching_rules_(new cssom::RulesWithCascadePrecedence()),
-      matching_rules_valid_(false),
-      dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()) {
+      matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
   ++(non_trivial_static_fields.Get().html_element_count_log.count);

@@ -76,15 +76,12 @@ void WebModuleStatTracker::OnStartInjectEvent(
   if (current_event_type_ != kEventTypeInvalid) {
     event_is_processing_ = true;
 
-    // Clear the counts and durations at the start of the event.
-    dom_stat_tracker_->FlushPeriodicTracking();
-    layout_stat_tracker_->FlushPeriodicTracking();
+    dom_stat_tracker_->OnStartEvent();
+    layout_stat_tracker_->OnStartEvent();
+
     stop_watch_durations_[kStopWatchTypeEvent] = base::TimeDelta();
     stop_watch_durations_[kStopWatchTypeInjectEvent] = base::TimeDelta();
 
-    // Start the event timers.
-    dom_stat_tracker_->EnableStopWatches();
-    layout_stat_tracker_->EnableStopWatches();
     stop_watches_[kStopWatchTypeEvent].Start();
     stop_watches_[kStopWatchTypeInjectEvent].Start();
   }
@@ -181,8 +178,6 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
 
   event_is_processing_ = false;
 
-  dom_stat_tracker_->DisableStopWatches();
-  layout_stat_tracker_->DisableStopWatches();
   stop_watches_[kStopWatchTypeEvent].Stop();
 
   EventStats* event_stats = event_stats_[current_event_type_];
@@ -223,6 +218,9 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
           layout::LayoutStatTracker::kStopWatchTypeRenderAndAnimate);
 
   current_event_type_ = kEventTypeInvalid;
+
+  dom_stat_tracker_->OnEndEvent();
+  layout_stat_tracker_->OnEndEvent();
 }
 
 std::string WebModuleStatTracker::GetEventTypeName(

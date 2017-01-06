@@ -31,15 +31,18 @@ class DomStatTracker : public base::StopWatchOwner {
  public:
   enum StopWatchType {
     kStopWatchTypeUpdateComputedStyle,
+    kStopWatchTypeEventVideoStartDelay,
     kNumStopWatchTypes,
   };
 
   explicit DomStatTracker(const std::string& name);
   ~DomStatTracker();
 
-  // This function updates the CVals from the periodic values and then clears
-  // those values.
-  void FlushPeriodicTracking();
+  // Event-related
+  void OnStartEvent();
+  void OnEndEvent();
+
+  void OnHtmlVideoElementPlaying();
 
   // Periodic count-related
   void OnHtmlElementCreated();
@@ -60,10 +63,6 @@ class DomStatTracker : public base::StopWatchOwner {
     return update_computed_style_count_;
   }
 
-  // Stop watch-related
-  void EnableStopWatches();
-  void DisableStopWatches();
-
   base::TimeDelta GetStopWatchTypeDuration(StopWatchType type) const;
 
  private:
@@ -71,8 +70,19 @@ class DomStatTracker : public base::StopWatchOwner {
   bool IsStopWatchEnabled(int id) const OVERRIDE;
   void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) OVERRIDE;
 
-  // CVals. They are updated when the periodic counts are flushed.
+  // This function updates the CVals from the periodic values and then clears
+  // those values.
+  void FlushPeriodicTracking();
+
+  // Count cvals that are updated when the periodic tracking is flushed.
   base::CVal<int, base::CValPublic> total_html_elements_;
+
+  // Event-related
+  bool is_event_active_;
+
+  // Tracking of videos produced by an event.
+  base::StopWatch event_video_start_delay_stop_watch_;
+  base::CVal<base::TimeDelta> event_video_start_delay_;
 
   // Periodic counts. The counts are cleared after the CVals are updated in
   // |FlushPeriodicTracking|.
@@ -81,9 +91,7 @@ class DomStatTracker : public base::StopWatchOwner {
   int update_matching_rules_count_;
   int update_computed_style_count_;
 
-  // Stop watch-related. The durations are cleared after the CVals are updated
-  // in |FlushPeriodicTracking|.
-  bool are_stop_watches_enabled_;
+  // Stop watch-related.
   std::vector<base::TimeDelta> stop_watch_durations_;
 };
 
