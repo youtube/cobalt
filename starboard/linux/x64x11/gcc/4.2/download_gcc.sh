@@ -26,11 +26,13 @@ version="4.2.4"
 gcc_folder="gcc-${version}"
 
 # This command will fail and abort the script if the folder does not exist.
-base_path=$(realpath ${PWD}/"../../../../../out")
+base_path=$(realpath ${PWD}/"../../../../..")
 
-gcc_path=${base_path}/${gcc_folder}
+out_path=${base_path}/out
+gcc_path=${out_path}/${gcc_folder}
 
-gcc_binary=${gcc_path}/gcc/bin/gcc
+gcc_install_folder=${gcc_path}/gcc
+gcc_binary=${gcc_install_folder}/bin/gcc
 if [ -x ${gcc_binary} ]; then
   # The gcc binary already exist.
   echo gcc ${version} already available.
@@ -38,22 +40,24 @@ if [ -x ${gcc_binary} ]; then
 fi
 
 if [ -d ${gcc_path} ]; then
-  cat <<EOF
+  cat <<EOF 1>&2
   ERROR: gcc ${version} folder ${gcc_path}
   already exists, but it does not contain a gcc binary.
   Perhaps a previous download was interrupted or failed?
 EOF
-  exit -1
+  rm -rf ${gcc_path}
 fi
 
-mkdir ${gcc_path}
+mkdir -p ${gcc_path}
 cd ${gcc_path}
 
 logfile=${gcc_path}/"build_log.txt"
 
-echo Downloading and compiling gcc version ${version} into ${gcc_path}
-echo Log file can be found at ${logfile}
-echo This may take about 10 minutes.
+cat <<EOF 1>&2
+Downloading and compiling gcc version ${version} into ${gcc_path}
+Log file can be found at ${logfile}
+This may take about 10 minutes.
+EOF
 
 (
   texinfo_install_folder=${PWD}/"texinfo"
