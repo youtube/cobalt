@@ -21,6 +21,7 @@
       '-O2',
     ],
     'linker_flags': [
+      '-Wl,-rpath=<@(toolchain_lib_path)',
     ],
     'compiler_flags_cc_debug': [
       '-frtti',
@@ -65,6 +66,8 @@
       '-Wno-extra',
       # Don't warn about inlining
       '-Wno-inline',
+      # Disable warning: 'typedef locally defined but not used'.
+      '-Wno-unused-local-typedefs',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
@@ -89,11 +92,7 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      # Limit to gnu++98. This allows Linux to be a canary build for any
-      # C++11 features that are not supported on some platforms' compilers.
-      # We do allow ourselves GNU extensions, which are assumed to exist
-      # by Chromium code.
-      '-std=gnu++98',
+      '-std=gnu++11',
       # Don't warn for invalid access to non-static data member of NULL object.
       '-Wno-invalid-offsetof',
       # Don't warn about deprecated use
