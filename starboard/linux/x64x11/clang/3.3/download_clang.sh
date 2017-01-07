@@ -22,9 +22,10 @@ clang_folder="clang-${version}"
 branch="release_33"
 
 # This command will fail and abort the script if the folder does not exist.
-base_path=$(realpath ${PWD}/"../../../../../out")
+base_path=$(realpath ${PWD}/"../../../../..")
 
-clang_path=${base_path}/${clang_folder}
+out_path=${base_path}/out
+clang_path=${out_path}/${clang_folder}
 
 clang_install_folder=${clang_path}/"llvm/Release+Asserts"
 clang_binary=${clang_install_folder}/"bin/clang++"
@@ -35,22 +36,24 @@ if [ -x ${clang_binary} ]; then
 fi
 
 if [ -d ${clang_path} ]; then
-  cat <<EOF
+  cat <<EOF 1>&2
   ERROR: clang ${version} folder ${clang_path}
   already exists, but it does not contain a clang binary.
   Perhaps a previous download was interrupted or failed?
 EOF
-  exit -1
+  rm -rf ${clang_path}
 fi
 
-mkdir ${clang_path}
+mkdir -p ${clang_path}
 cd ${clang_path}
 
 logfile=${clang_path}/"build_log.txt"
 
-echo Downloading and compiling clang version ${version} into ${clang_path}
-echo Log file can be found at ${logfile}
-echo This may take about 15 minutes.
+cat <<EOF 1>&2
+Downloading and compiling clang version ${version} into ${clang_path}
+Log file can be found at ${logfile}
+This may take about 15 minutes.
+EOF
 
 (
   git clone --branch ${branch} http://llvm.org/git/llvm.git
