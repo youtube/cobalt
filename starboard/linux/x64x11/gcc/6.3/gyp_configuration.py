@@ -37,19 +37,21 @@ class PlatformConfig(shared_configuration.PlatformConfig):
     script_path = os.path.dirname(os.path.realpath(__file__))
     subprocess.call(
         os.path.join(script_path, 'download_gcc.sh'), cwd=script_path)
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    base_path = os.path.realpath(
+        os.path.join(script_path, '..', '..', '..', '..', '..'))
+    self.toolchain = os.path.join(base_path, 'out', 'gcc-6.3.0', 'gcc')
 
   def GetVariables(self, configuration):
     variables = super(PlatformConfig, self).GetVariables(configuration)
     variables.update({'clang': 0,})
+    toolchain_lib_path = os.path.join(self.toolchain, 'lib64')
+    variables.update({'toolchain_lib_path': toolchain_lib_path,})
     return variables
 
   def GetEnvironmentVariables(self):
     env_variables = super(PlatformConfig, self).GetEnvironmentVariables()
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    base_path = os.path.realpath(
-        os.path.join(script_path, '..', '..', '..', '..', '..'))
-    toolchain = os.path.join(base_path, 'out', 'gcc-6.3.0', 'gcc')
-    toolchain_bin_dir = os.path.join(toolchain, 'bin')
+    toolchain_bin_dir = os.path.join(self.toolchain, 'bin')
     env_variables.update({
         'CC': os.path.join(toolchain_bin_dir, 'gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'g++'),
