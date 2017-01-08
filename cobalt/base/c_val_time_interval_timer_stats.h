@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef COBALT_BASE_C_VAL_TIME_INTERVAL_TIMER_H_
-#define COBALT_BASE_C_VAL_TIME_INTERVAL_TIMER_H_
+#ifndef COBALT_BASE_C_VAL_TIME_INTERVAL_TIMER_STATS_H_
+#define COBALT_BASE_C_VAL_TIME_INTERVAL_TIMER_STATS_H_
 
 #include <string>
 
@@ -24,16 +24,16 @@
 namespace base {
 
 // This class is a wrapper around |CValTimeIntervalEntryStats|.
-// |CValTimeIntervalTimer| calculates the time elapsed between calls to |Start|
-// and |Stop| and adds it as an entry to |CValTimeIntervalEntryStats|.
+// |CValTimeIntervalTimerStats| calculates the time elapsed between calls to
+// Start() and Stop() and adds it as an entry to |CValTimeIntervalEntryStats|.
 template <typename Visibility = CValDebug>
-class CValTimeIntervalTimer {
+class CValTimeIntervalTimerStats {
  public:
-  CValTimeIntervalTimer(const std::string& name, int64 time_interval_in_ms)
+  CValTimeIntervalTimerStats(const std::string& name, int64 time_interval_in_ms)
       : entry_stats_(name, time_interval_in_ms) {}
 
   // Start the timer. If the timer is currently running, it is stopped and
-  // re-started. If no time is provided, then |base::TimeTicks::Now()| is used.
+  // re-started. If no time is provided, then base::TimeTicks::Now() is used.
   void Start() {
     base::TimeTicks now = base::TimeTicks::Now();
     Start(now);
@@ -44,7 +44,7 @@ class CValTimeIntervalTimer {
   }
 
   // Stop the timer. If it is not already started, then nothing happens. if no
-  // time is provided, then |base::TimeTicks::Now()| is used.
+  // time is provided, then base::TimeTicks::Now() is used.
   void Stop() {
     base::TimeTicks now = base::TimeTicks::Now();
     Stop(now);
@@ -65,4 +65,4 @@ class CValTimeIntervalTimer {
 
 }  // namespace base
 
-#endif  // COBALT_BASE_C_VAL_TIME_INTERVAL_TIMER_H_
+#endif  // COBALT_BASE_C_VAL_TIME_INTERVAL_TIMER_STATS_H_
