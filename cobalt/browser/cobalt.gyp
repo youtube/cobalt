@@ -20,10 +20,12 @@
     {
       'target_name': 'cobalt',
       'type': '<(final_executable_type)',
-      'sources': [
-        'main.cc',
-      ],
       'conditions': [
+        ['cobalt_enable_lib == 1', {
+            'sources': ['lib/main.cc',],
+        }, {
+            'sources': ['main.cc',],
+        }],
         ['OS=="lb_shell"', {
           'dependencies': [
             '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',

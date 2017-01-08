@@ -33,6 +33,10 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
+    # Enables embedding Cobalt as a shared library within another app. This
+    # requires a 'lib' starboard implementation for the corresponding platform.
+    'cobalt_enable_lib%': 0,
+
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency with smaller font package size.
     # See content/fonts/README.md for more details.
@@ -594,8 +598,10 @@
 
   # For configurations other than Gold, set the flag that lets test data files
   # be copied and carried along with the build.
+  # Clients must copy over all content; to avoid having to copy over extra data, we
+  # omit the test data
   'conditions': [
-    ['cobalt_config != "gold"', {
+    ['cobalt_config != "gold" and cobalt_enable_lib == 0', {
       'variables' : {
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
