@@ -26,7 +26,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
-#include "cobalt/base/c_val_time_interval_timer.h"
+#include "cobalt/base/c_val_time_interval_timer_stats.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -187,7 +187,8 @@ class Pipeline {
 
   // Timer tracking the amount of time spent in |RasterizeCurrentTree| each
   // call.
-  base::CValTimeIntervalTimer<base::CValPublic> rasterize_current_tree_timer_;
+  base::CValTimeIntervalTimerStats<base::CValPublic>
+      rasterize_current_tree_timer_;
 
   // Tracks whether or not animations are currently playing.
   base::CVal<bool> has_active_animations_;

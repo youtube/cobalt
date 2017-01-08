@@ -18,7 +18,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <string>
 
 #include "base/logging.h"
@@ -28,48 +27,14 @@
 
 namespace base {
 
-namespace detail {
-template <typename T>
-double ToDouble(T value) {
-  return static_cast<double>(value);
-}
-template <>
-inline double ToDouble<base::TimeDelta>(base::TimeDelta value) {
-  return static_cast<double>(value.InMicroseconds());
-}
-
-template <typename T>
-T FromDouble(double value) {
-  return static_cast<T>(value);
-}
-template <>
-inline base::TimeDelta FromDouble<base::TimeDelta>(double value) {
-  return base::TimeDelta::FromMicroseconds(static_cast<int64>(value));
-}
-
-template <typename T>
-T Max() {
-  return std::numeric_limits<T>::max();
-}
-template <>
-inline base::TimeDelta Max<base::TimeDelta>() {
-  return base::TimeDelta::Max();
-}
-
-template <typename T>
-T Min() {
-  return std::numeric_limits<T>::min();
-}
-template <>
-inline base::TimeDelta Min<base::TimeDelta>() {
-  return -base::TimeDelta::Max();
-}
-}  // namespace detail
-
-// This class tracks entries over a specified time period. When the time period
-// has elapsed, the average, minimum, maximum, and standard deviation of that
-// time period are recorded with CVals, and the tracking resets for the next
-// time period.
+// This class tracks entries over a specified time period, which it does not
+// retain in memory. When the time period has elapsed, the average, minimum,
+// maximum, and standard deviation of that time period are recorded with CVals,
+// and the tracking resets for the next time period.
+// NOTE: In cases where the number of entries are small and stats for time
+//       periods are not needed, |CValCollectionEntryStats| may be more
+//       appropriate. It retains the entries for the collection in memory so
+//       that it can provide the collection's percentiles.
 template <typename EntryType, typename Visibility = CValDebug>
 class CValTimeIntervalEntryStats {
  public:
@@ -86,6 +51,7 @@ class CValTimeIntervalEntryStats {
   const int64 time_interval_in_ms_;
 
   // CVals of the stats for the previously completed time interval.
+  base::CVal<size_t, Visibility> count_;
   base::CVal<EntryType, Visibility> average_;
   base::CVal<EntryType, Visibility> minimum_;
   base::CVal<EntryType, Visibility> maximum_;
@@ -117,6 +83,7 @@ template <typename EntryType, typename Visibility>
 CValTimeIntervalEntryStats<EntryType, Visibility>::CValTimeIntervalEntryStats(
     const std::string& name, int64 time_interval_in_ms)
     : time_interval_in_ms_(time_interval_in_ms),
+      count_(StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
       average_(StringPrintf("%s.Avg", name.c_str()), EntryType(),
                "Average time."),
       minimum_(StringPrintf("%s.Min", name.c_str()), EntryType(),
@@ -144,7 +111,7 @@ void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
   // the estimated mean is set to the passed in value.
   if (active_start_time_.is_null()) {
     active_start_time_ = now;
-    active_estimated_mean_ = detail::ToDouble(value);
+    active_estimated_mean_ = CValDetail::ToDouble(value);
     // Otherwise, check for the time interval having ended. If it has, then the
     // CVals are updated using the active stats, the active stats are reset, and
     // the timer restarted.
@@ -153,10 +120,11 @@ void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
     // The active count can never be 0 when a time interval has ended. There
     // must always be at least one entry when the time is non-null.
     DCHECK_GT(active_count_, 0);
+    count_ = active_count_;
 
     double active_shifted_mean = active_shifted_sum_ / active_count_;
-    average_ = detail::FromDouble<EntryType>(active_estimated_mean_ +
-                                             active_shifted_mean);
+    average_ = CValDetail::FromDouble<EntryType>(active_estimated_mean_ +
+                                                 active_shifted_mean);
     // The equation comes from the following:
     // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Computing_shifted_data
     double variance =
@@ -164,7 +132,8 @@ void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
          ((active_shifted_sum_ * active_shifted_sum_) / active_count_)) /
         active_count_;
     variance = std::max(variance, 0.0);
-    standard_deviation_ = detail::FromDouble<EntryType>(std::sqrt(variance));
+    standard_deviation_ =
+        CValDetail::FromDouble<EntryType>(std::sqrt(variance));
     minimum_ = active_minimum_;
     maximum_ = active_maximum_;
 
@@ -185,7 +154,7 @@ void CValTimeIntervalEntryStats<EntryType, Visibility>::AddToActiveEntryStats(
   ++active_count_;
 
   double shifted_value_as_double =
-      detail::ToDouble(value) - active_estimated_mean_;
+      CValDetail::ToDouble(value) - active_estimated_mean_;
   active_shifted_sum_ += shifted_value_as_double;
   active_shifted_sum_squares_ +=
       shifted_value_as_double * shifted_value_as_double;
@@ -206,8 +175,8 @@ void CValTimeIntervalEntryStats<EntryType,
   active_shifted_sum_ = 0;
   active_shifted_sum_squares_ = 0;
 
-  active_minimum_ = detail::Max<EntryType>();
-  active_maximum_ = detail::Min<EntryType>();
+  active_minimum_ = CValDetail::Max<EntryType>();
+  active_maximum_ = CValDetail::Min<EntryType>();
 }
 
 }  // namespace base
