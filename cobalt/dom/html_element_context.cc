@@ -32,7 +32,8 @@ HTMLElementContext::HTMLElementContext(
     loader::image::ReducedCacheCapacityManager*
         reduced_image_cache_capacity_manager,
     loader::font::RemoteTypefaceCache* remote_typeface_cache,
-    DomStatTracker* dom_stat_tracker, const std::string& language)
+    loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
+    const std::string& language)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
@@ -45,6 +46,7 @@ HTMLElementContext::HTMLElementContext(
       reduced_image_cache_capacity_manager_(
           reduced_image_cache_capacity_manager),
       remote_typeface_cache_(remote_typeface_cache),
+      mesh_cache_(mesh_cache),
       dom_stat_tracker_(dom_stat_tracker),
       language_(language),
       sync_load_thread_("Synchronous Load"),
