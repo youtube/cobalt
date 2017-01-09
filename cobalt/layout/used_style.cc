@@ -40,6 +40,7 @@
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
+#include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -406,9 +407,14 @@ float GetFontSize(const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
 
 }  // namespace
 
-UsedStyleProvider::UsedStyleProvider(loader::image::ImageCache* image_cache,
-                                     dom::FontCache* font_cache)
-    : image_cache_(image_cache), font_cache_(font_cache) {}
+UsedStyleProvider::UsedStyleProvider(
+    dom::HTMLElementContext* html_element_context,
+    loader::image::ImageCache* image_cache, dom::FontCache* font_cache,
+    loader::mesh::MeshCache* mesh_cache)
+    : html_element_context_(html_element_context),
+      image_cache_(image_cache),
+      font_cache_(font_cache),
+      mesh_cache_(mesh_cache) {}
 
 scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -463,6 +469,12 @@ scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
 scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
     const GURL& url) {
   return image_cache_->CreateCachedResource(url)->TryGetResource();
+}
+
+scoped_refptr<render_tree::Mesh> UsedStyleProvider::ResolveURLToMesh(
+    const GURL& url) {
+  DCHECK(mesh_cache_);
+  return mesh_cache_->CreateCachedResource(url)->TryGetResource();
 }
 
 void UsedStyleProvider::CleanupAfterLayout() {

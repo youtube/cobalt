@@ -28,6 +28,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
@@ -53,6 +54,7 @@ class HTMLElementContext {
                      loader::image::ReducedCacheCapacityManager*
                          reduced_image_cache_capacity_manager,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
+                     loader::mesh::MeshCache* mesh_cache,
                      DomStatTracker* dom_stat_tracker,
                      const std::string& language);
   ~HTMLElementContext();
@@ -85,6 +87,8 @@ class HTMLElementContext {
     return remote_typeface_cache_;
   }
 
+  loader::mesh::MeshCache* mesh_cache() const { return mesh_cache_; }
+
   DomStatTracker* dom_stat_tracker() { return dom_stat_tracker_; }
 
   const std::string& language() const { return language_; }
@@ -113,6 +117,7 @@ class HTMLElementContext {
   loader::image::ReducedCacheCapacityManager* const
       reduced_image_cache_capacity_manager_;
   loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
+  loader::mesh::MeshCache* const mesh_cache_;
   DomStatTracker* const dom_stat_tracker_;
   const std::string language_;
 

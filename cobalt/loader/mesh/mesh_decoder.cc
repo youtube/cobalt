@@ -74,6 +74,7 @@ class MeshDecoderSink : public projection_codec::ProjectionDecoder::Sink {
   scoped_ptr<MeshCollection> mesh_collection_;
   std::vector<render_tree::Mesh::Vertex> mesh_vertices_;
   render_tree::Mesh::DrawMode mesh_draw_mode_;
+  uint32 crc_;
 
   DISALLOW_COPY_AND_ASSIGN(MeshDecoderSink);
 };
@@ -84,7 +85,7 @@ MeshDecoderSink::MeshDecoderSink(MeshCollectionList* dest_mesh_collection_list)
 MeshDecoderSink::~MeshDecoderSink() {}
 
 bool MeshDecoderSink::IsCached(uint32 crc) {
-  UNREFERENCED_PARAMETER(crc);
+  crc_ = crc;
   return false;
 }
 
@@ -140,7 +141,7 @@ void MeshDecoderSink::AddVertexIndex(size_t v_index) {
 
 void MeshDecoderSink::EndMeshInstance() {
   mesh_collection_->push_back(scoped_refptr<render_tree::Mesh>(
-      new render_tree::Mesh(mesh_vertices_, mesh_draw_mode_)));
+      new render_tree::Mesh(mesh_vertices_, mesh_draw_mode_, crc_)));
 }
 
 void MeshDecoderSink::EndMeshCollection() {
@@ -215,9 +216,9 @@ void MeshDecoder::Finish() {
     return;
   }
 
-  if (raw_data_->size() == 0) {
-    // Mesh projection boxes cannot be empty, since they are BMFF boxes and
-    // carry at least a size and type 4cc.
+  if (raw_data_->size() <= 4) {
+    // Mesh projection boxes cannot be empty, since they carry at least the
+    // version and flags.
     error_callback_.Run("MeshDecoder passed an empty buffer, cannot decode.");
     return;
   }
@@ -225,8 +226,9 @@ void MeshDecoder::Finish() {
   std::string error_string;
   MeshDecoderSink::MeshCollectionList mesh_collection_list;
 
-  if (MeshDecoderSink::Decode(&raw_data_->at(0), raw_data_->size(),
-                              &mesh_collection_list)) {
+  if (MeshDecoderSink::DecodeBoxContents(
+          0, 0, &raw_data_->at(4),  // Skip version and flags.
+          raw_data_->size(), &mesh_collection_list)) {
     scoped_refptr<render_tree::Mesh> mesh =
         MeshDecoderSink::ExtractSingleMesh(mesh_collection_list);
 
