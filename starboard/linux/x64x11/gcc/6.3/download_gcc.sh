@@ -17,42 +17,14 @@
 
 set -e
 
+toolchain_name="gcc"
 version="6.3.0"
-gcc_folder="gcc-${version}"
+toolchain_folder="x86_64-linux-gnu-${toolchain_name}-${version}"
 
-# This command will fail and abort the script if the folder does not exist.
-base_path=$(realpath ${PWD}/"../../../../..")
+binary_path="gcc/bin/g++"
+build_duration="about 40 minutes"
 
-out_path=${base_path}/out
-gcc_path=${out_path}/${gcc_folder}
-
-gcc_install_folder=${gcc_path}/gcc
-gcc_binary=${gcc_install_folder}/bin/gcc
-if [ -x ${gcc_binary} ]; then
-  # The gcc binary already exist.
-  echo gcc ${version} already available.
-  exit 0
-fi
-
-if [ -d ${gcc_path} ]; then
-  cat <<EOF 1>&2
-  ERROR: gcc ${version} folder ${gcc_path}
-  already exists, but it does not contain a gcc binary.
-  Perhaps a previous download was interrupted or failed?
-EOF
-  rm -rf ${gcc_path}
-fi
-
-mkdir ${gcc_path}
-cd ${gcc_path}
-
-logfile=${gcc_path}/"build_log.txt"
-
-cat <<EOF 1>&2
-Downloading and compiling gcc version ${version} into ${gcc_path}
-Log file can be found at ${logfile}
-This may take about 40 minutes.
-EOF
+source ../../toolchain_paths.sh
 
 (
   # Download gcc
@@ -70,7 +42,7 @@ EOF
     if [ -f ./contrib/download_prerequisites ]; then
       ./contrib/download_prerequisites
     fi
-    cd ${gcc_path}
+    cd ${toolchain_path}
   fi
 
   # Create clean build folder for gcc
@@ -83,15 +55,15 @@ EOF
 
   gcc_install_folder=$(realpath ${PWD}/"..")/"gcc"
   # Configure gcc for installation into ${gcc_install_folder}
-  ${gcc_path}/gcc-${version}/configure \
+  ${toolchain_path}/gcc-${version}/configure \
     --prefix=${gcc_install_folder} \
     --disable-multilib \
     --enable-languages="c,c++"
 
   # Build and 'install' gcc
   make -j"$(nproc)" && make install-strip
-  cd ${gcc_path}
+  cd ${toolchain_path}
 
-  ls -l gcc/bin
-  ./gcc/bin/g++ --version
+  ls -l ${toolchain_binary}
+  ${toolchain_binary} --version
 ) >${logfile} 2>&1
