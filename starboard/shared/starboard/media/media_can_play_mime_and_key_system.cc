@@ -21,6 +21,24 @@
 
 using starboard::shared::starboard::media::MimeType;
 
+namespace {
+bool HasMultiChannelOutput() {
+  int count = SbMediaGetAudioOutputCount();
+  for (int output_index = 0; output_index < count; ++output_index) {
+    SbMediaAudioConfiguration configuration;
+    if (!SbMediaGetAudioConfiguration(output_index, &configuration)) {
+      continue;
+    }
+
+    if (configuration.number_of_channels >= 6) {
+      return true;
+    }
+  }
+
+  return false;
+}
+}  // namespace
+
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
   if (mime == NULL) {
@@ -52,6 +70,12 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeProbably;
   }
   if (mime_type.type() == "audio" && mime_type.subtype() == "mp4") {
+    // TODO: Base this on the "channels" param, not the codecs param.
+    if (mime_type.GetParamStringValue("codecs", "") == "aac51") {
+      if (!HasMultiChannelOutput()) {
+        return kSbMediaSupportTypeNotSupported;
+      }
+    }
     return kSbMediaSupportTypeProbably;
   }
   if (mime_type.type() == "video" && mime_type.subtype() == "mp4") {

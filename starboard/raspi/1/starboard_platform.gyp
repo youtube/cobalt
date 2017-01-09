@@ -296,6 +296,8 @@
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/media_get_audio_configuration.cc',
+        '<(DEPTH)/starboard/shared/stub/media_get_audio_output_count.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
