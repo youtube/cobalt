@@ -17,6 +17,7 @@ import logging
 import os
 import subprocess
 import sys
+from config.base import GetToolchainsDir
 
 # Import the shared Linux platform configuration.
 sys.path.append(
@@ -37,21 +38,19 @@ class PlatformConfig(shared_configuration.PlatformConfig):
     script_path = os.path.dirname(os.path.realpath(__file__))
     subprocess.call(
         os.path.join(script_path, 'download_gcc.sh'), cwd=script_path)
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    base_path = os.path.realpath(
-        os.path.join(script_path, '..', '..', '..', '..', '..'))
-    self.toolchain = os.path.join(base_path, 'out', 'gcc-6.3.0', 'gcc')
+    self.toolchain_dir = os.path.join(GetToolchainsDir(),
+                                      'x86_64-linux-gnu-gcc-6.3.0', 'gcc')
 
   def GetVariables(self, configuration):
     variables = super(PlatformConfig, self).GetVariables(configuration)
     variables.update({'clang': 0,})
-    toolchain_lib_path = os.path.join(self.toolchain, 'lib64')
+    toolchain_lib_path = os.path.join(self.toolchain_dir, 'lib64')
     variables.update({'toolchain_lib_path': toolchain_lib_path,})
     return variables
 
   def GetEnvironmentVariables(self):
     env_variables = super(PlatformConfig, self).GetEnvironmentVariables()
-    toolchain_bin_dir = os.path.join(self.toolchain, 'bin')
+    toolchain_bin_dir = os.path.join(self.toolchain_dir, 'bin')
     env_variables.update({
         'CC': os.path.join(toolchain_bin_dir, 'gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'g++'),
