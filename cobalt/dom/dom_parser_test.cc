@@ -50,8 +50,8 @@ DOMParserTest::DOMParserTest()
           &stub_script_runner_, NULL /* media_source_registry */,
           NULL /* resource_provider */, NULL /* image_cache */,
           NULL /* reduced_image_cache_capacity_manager */,
-          NULL /* remote_typeface_cache */, NULL /* dom_stat_tracker */,
-          "" /* language */),
+          NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
+          NULL /* dom_stat_tracker */, "" /* language */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
 
 TEST_F(DOMParserTest, ParsesXML) {

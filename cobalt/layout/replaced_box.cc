@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/mtm_function.h"
@@ -284,13 +285,34 @@ void ReplacedBox::RenderAndAnimateContent(
   const cssom::MTMFunction* mtm_filter_function =
       cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
 
-  Node* content_node;
+  Node* content_node = NULL;
   if (mtm_filter_function) {
+    const cssom::MTMFunction::MeshSpec& spec = mtm_filter_function->mesh_spec();
     const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =
         mtm_filter_function->stereo_mode();
     render_tree::StereoMode stereo_mode =
         ReadStereoMode(stereo_mode_keyword_value);
-    content_node = new FilterNode(MapToMeshFilter(stereo_mode), frame_node);
+
+    if (spec.mesh_type() == cssom::MTMFunction::kUrls) {
+      // Custom mesh URLs.
+      cssom::URLValue* url_value =
+          base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
+      GURL url(url_value->value());
+      scoped_refptr<render_tree::Mesh> mesh(
+          used_style_provider()->ResolveURLToMesh(url));
+
+      DCHECK(mesh) << "Could not load mesh specified by map-to-mesh filter.";
+
+      content_node =
+          new FilterNode(MapToMeshFilter(stereo_mode, mesh), frame_node);
+    } else if (spec.mesh_type() == cssom::MTMFunction::kEquirectangular) {
+      // Default equirectangular mesh.
+      content_node = new FilterNode(MapToMeshFilter(stereo_mode), frame_node);
+    } else {
+      NOTREACHED() << "Invalid mesh specification type. Expected"
+                      "'equirectangular' keyword or list of URLs.";
+      content_node = frame_node;
+    }
   } else {
     content_node = frame_node;
   }
