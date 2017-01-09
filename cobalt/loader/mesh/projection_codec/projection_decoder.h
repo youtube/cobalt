@@ -131,26 +131,26 @@ class ProjectionDecoder {
     bool ok() const;
 
    private:
-    const uint8_t* data_begin_ = NULL;  // Unowned.
-    const uint8_t* data_end_ = NULL;    // Unowned.
+    const uint8_t* data_begin_;  // Unowned.
+    const uint8_t* data_end_;    // Unowned.
 
     // Cached bits, stored as big-endian. 7 or fewer bits may be cached between
     // method calls.
-    uint64_t cached_bits_ = 0;
+    uint64_t cached_bits_;
 
     // The number of cached bits in cached_bits_. Only fewer than 8 bits should
     // ever be cached between method calls.
-    int32_t cached_bit_count_ = 0;
+    int32_t cached_bit_count_;
 
-    bool ok_ = true;
+    bool ok_;
   };
 
-  bool error_ = false;
+  bool error_;
   Sink* sink_;  // Unowned.
   BitReader reader_;
-  uint8_t version_ = 0;
-  uint32_t flags_ = 0;
-  uint32_t crc_ = 0;
+  uint8_t version_;
+  uint32_t flags_;
+  uint32_t crc_;
   std::string compression_;
   std::vector<uint8_t> decompress_buffer_;
 
