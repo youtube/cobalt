@@ -119,13 +119,13 @@ void MeshDecoderSink::SetTextureId(uint8 texture_id) {
 void MeshDecoderSink::SetMeshGeometryType(
     projection_codec::MeshGeometryType geometry_type) {
   switch (geometry_type) {
-    case projection_codec::MeshGeometryType::kTriangles:
+    case projection_codec::kTriangles:
       mesh_draw_mode_ = render_tree::Mesh::kDrawModeTriangles;
       break;
-    case projection_codec::MeshGeometryType::kTriangleStrip:
+    case projection_codec::kTriangleStrip:
       mesh_draw_mode_ = render_tree::Mesh::kDrawModeTriangleStrip;
       break;
-    case projection_codec::MeshGeometryType::kTriangleFan:
+    case projection_codec::kTriangleFan:
       mesh_draw_mode_ = render_tree::Mesh::kDrawModeTriangleFan;
       break;
     default:
