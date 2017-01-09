@@ -25,11 +25,13 @@ namespace mesh {
 namespace projection_codec {
 
 struct IndexedVert {
-  int32_t x = 0;
-  int32_t y = 0;
-  int32_t z = 0;
-  int32_t u = 0;
-  int32_t v = 0;
+  int32_t x;
+  int32_t y;
+  int32_t z;
+  int32_t u;
+  int32_t v;
+
+  IndexedVert() : x(0), y(0), z(0), u(0), v(0) {}
 
   void operator+=(const IndexedVert& b);
   void operator-=(const IndexedVert& b);

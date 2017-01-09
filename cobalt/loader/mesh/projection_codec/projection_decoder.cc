@@ -79,7 +79,11 @@ const uint32_t ProjectionDecoder::kMaxTriangleIndexCount;
 ProjectionDecoder::Sink::~Sink() {}
 
 ProjectionDecoder::BitReader::BitReader(const uint8_t* data, size_t data_size)
-    : data_begin_(data), data_end_(data + data_size) {}
+    : data_begin_(data),
+      data_end_(data + data_size),
+      cached_bits_(0),
+      cached_bit_count_(0),
+      ok_(true) {}
 
 uint32_t ProjectionDecoder::BitReader::GetBits(int32_t num_bits) {
   if (!ok()) return kErrorBits;
@@ -210,7 +214,12 @@ bool ProjectionDecoder::DecodeMeshesToSink(uint8_t version, uint32_t flags,
 
 ProjectionDecoder::ProjectionDecoder(const uint8_t* data, size_t data_size,
                                      Sink* sink)
-    : sink_(sink), reader_(data, data_size) {}
+    : error_(false),
+      sink_(sink),
+      reader_(data, data_size),
+      version_(0),
+      flags_(0),
+      crc_(0) {}
 
 bool ProjectionDecoder::VerifyGreater(uint32_t a, uint32_t b) {
   if (a > b) {
