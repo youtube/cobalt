@@ -591,13 +591,13 @@ void ProjectionDecoder::DecodeMeshData() {
     uint8_t geometryType = GetUInt8();
     switch (geometryType) {
       case 0:
-        sink_->SetMeshGeometryType(MeshGeometryType::kTriangles);
+        sink_->SetMeshGeometryType(kTriangles);
         break;
       case 1:
-        sink_->SetMeshGeometryType(MeshGeometryType::kTriangleStrip);
+        sink_->SetMeshGeometryType(kTriangleStrip);
         break;
       case 2:
-        sink_->SetMeshGeometryType(MeshGeometryType::kTriangleFan);
+        sink_->SetMeshGeometryType(kTriangleFan);
         break;
       default:
         LOG(ERROR) << "Unknown mesh geometry type " << geometryType;
