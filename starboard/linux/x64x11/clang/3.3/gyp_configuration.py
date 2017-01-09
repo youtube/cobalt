@@ -17,6 +17,7 @@ import logging
 import os
 import subprocess
 import sys
+from config.base import GetToolchainsDir
 
 # Import the shared Linux platform configuration.
 sys.path.append(
@@ -40,13 +41,9 @@ class PlatformConfig(shared_configuration.PlatformConfig):
 
   def GetEnvironmentVariables(self):
     env_variables = super(PlatformConfig, self).GetEnvironmentVariables()
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    base_path = os.path.realpath(
-        os.path.join(script_path, os.pardir, os.pardir, os.pardir, os.pardir,
-                     os.pardir))
-    toolchain = os.path.join(base_path, 'out', 'clang-3.3', 'llvm',
-                             'Release+Asserts')
-    toolchain_bin_dir = os.path.join(toolchain, 'bin')
+    toolchain_bin_dir = os.path.join(GetToolchainsDir(),
+                                     'x86_64-linux-gnu-clang-3.3', 'llvm',
+                                     'Release+Asserts', 'bin')
     env_variables.update({
         'CC': os.path.join(toolchain_bin_dir, 'clang'),
         'CXX': os.path.join(toolchain_bin_dir, 'clang++'),
