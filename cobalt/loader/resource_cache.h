@@ -144,6 +144,8 @@ class CachedResource
 
   void RunCallbacks(CallbackType type);
 
+  void EnableCompletionCallbacks();
+
   const GURL url_;
 
   scoped_refptr<ResourceType> resource_;
@@ -153,6 +155,14 @@ class CachedResource
   CallbackList callback_lists[kCallbackTypeCount];
 
   base::ThreadChecker cached_resource_thread_checker_;
+
+  // In some cases (such as when the resource input data is stored in memory),
+  // completion callbacks (e.g. resource fetch success/failure) could be
+  // triggered from within the resource initialization callstack, and we are
+  // not prepared to handle that. These members let us ensure that we are fully
+  // initialized before we proceed with any completion callbacks.
+  bool completion_callbacks_enabled_;
+  base::Closure completion_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(CachedResource);
 };
@@ -207,7 +217,9 @@ CachedResource<CacheType>::CachedResource(
     const GURL& url, const csp::SecurityCallback& security_callback,
     const CreateLoaderFunction& create_loader_function,
     ResourceCacheType* resource_cache)
-    : url_(url), resource_cache_(resource_cache) {
+    : url_(url),
+      resource_cache_(resource_cache),
+      completion_callbacks_enabled_(false) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
   loader_ = create_loader_function.Run(
@@ -220,7 +232,10 @@ template <typename CacheType>
 CachedResource<CacheType>::CachedResource(const GURL& url,
                                           ResourceType* resource,
                                           ResourceCacheType* resource_cache)
-    : url_(url), resource_(resource), resource_cache_(resource_cache) {
+    : url_(url),
+      resource_(resource),
+      resource_cache_(resource_cache),
+      completion_callbacks_enabled_(false) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 }
 
@@ -256,8 +271,14 @@ void CachedResource<CacheType>::OnLoadingSuccess(
   resource_ = resource;
 
   loader_.reset();
-  resource_cache_->NotifyResourceLoadingComplete(this,
-                                                 kOnLoadingSuccessCallbackType);
+
+  completion_callback_ =
+      base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
+                 base::Unretained(resource_cache_), base::Unretained(this),
+                 kOnLoadingSuccessCallbackType);
+  if (completion_callbacks_enabled_) {
+    completion_callback_.Run();
+  }
 }
 
 template <typename CacheType>
@@ -267,8 +288,13 @@ void CachedResource<CacheType>::OnLoadingError(const std::string& error) {
   LOG(WARNING) << "Error while loading '" << url_ << "': " << error;
 
   loader_.reset();
-  resource_cache_->NotifyResourceLoadingComplete(this,
-                                                 kOnLoadingErrorCallbackType);
+  completion_callback_ =
+      base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
+                 base::Unretained(resource_cache_), base::Unretained(this),
+                 kOnLoadingErrorCallbackType);
+  if (completion_callbacks_enabled_) {
+    completion_callback_.Run();
+  }
 }
 
 template <typename CacheType>
@@ -301,6 +327,14 @@ void CachedResource<CacheType>::RunCallbacks(CallbackType type) {
   for (callback_iter = callback_list.begin();
        callback_iter != callback_list.end(); ++callback_iter) {
     callback_iter->Run();
+  }
+}
+
+template <typename CacheType>
+void CachedResource<CacheType>::EnableCompletionCallbacks() {
+  completion_callbacks_enabled_ = true;
+  if (!completion_callback_.is_null()) {
+    completion_callback_.Run();
   }
 }
 
@@ -563,6 +597,12 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
       url, security_callback_, create_loader_function_, this));
   cached_resource_map_.insert(
       std::make_pair(url.spec(), cached_resource.get()));
+
+  // Only now that we are finished initializing |cached_resource|, allow
+  // completion callbacks to proceed. This can be an issue for resources that
+  // load and decode synchronously and immediately.
+  cached_resource->EnableCompletionCallbacks();
+
   return cached_resource;
 }
 

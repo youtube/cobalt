@@ -122,11 +122,14 @@ class WebModule {
     // can't be changed from the whitelisted origins.
     std::string location_policy;
 
-    // Image cache capaticy in bytes.
+    // Image cache capacity in bytes.
     int image_cache_capacity;
 
     // Typeface cache capacity in bytes.
     int remote_typeface_cache_capacity;
+
+    // Mesh cache capacity in bytes.
+    int mesh_cache_capacity;
 
     // Content Security Policy enforcement mode for this web module.
     dom::CspEnforcementType csp_enforcement_mode;
