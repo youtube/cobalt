@@ -169,6 +169,11 @@
     # typefaces downloaded from a web page.
     'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
 
+    # Determines the capacity of the mesh cache. Each mesh is held compressed
+    # in main memory, to be inflated into a GPU buffer when needed for
+    # projection. Default to 0 and set by platforms that support map-to-mesh.
+    'mesh_cache_size_in_bytes%': 0,
+
     # Only relevant if you are using the Blitter API.
     # Determines the capacity of the software surface cache, which is used to
     # cache all surfaces that are rendered via a software rasterizer to avoid

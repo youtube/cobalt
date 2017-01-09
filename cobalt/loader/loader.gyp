@@ -58,6 +58,7 @@
         'loader_factory.cc',
         'loader_factory.h',
         'loader_types.h',
+        'mesh/mesh_cache.h',
         'mesh/mesh_decoder.cc',
         'mesh/mesh_decoder.h',
         'mesh/projection_codec/constants.h',
