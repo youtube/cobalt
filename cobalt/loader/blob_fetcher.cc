@@ -29,9 +29,8 @@ BlobFetcher::BlobFetcher(const GURL& url, Handler* handler,
       resolver_callback_(resolver_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   DCHECK(!resolver_callback_.is_null());
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&BlobFetcher::Fetch, weak_ptr_factory_.GetWeakPtr()));
+
+  Fetch();
 }
 
 void BlobFetcher::Fetch() {

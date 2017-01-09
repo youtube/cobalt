@@ -65,8 +65,8 @@ class DocumentLoader : public dom::DocumentObserver {
             NULL /* web_media_player_factory */, &script_runner_,
             NULL /* media_source_registry */, &resource_provider_,
             image_cache_.get(), NULL /* reduced_image_cache_capacity_manager */,
-            NULL /* remote_font_cache */, dom_stat_tracker_.get(),
-            "" /* language */) {}
+            NULL /* remote_font_cache */, NULL /* mesh_cache */,
+            dom_stat_tracker_.get(), "" /* language */) {}
   void Load(const GURL& url) {
     // Load the document in a nested message loop.
     dom::Document::Options options(url);
