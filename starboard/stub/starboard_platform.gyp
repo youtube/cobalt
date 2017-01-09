@@ -81,6 +81,8 @@
         '<(DEPTH)/starboard/shared/stub/log_raw_dump_stack.cc',
         '<(DEPTH)/starboard/shared/stub/log_raw_format.cc',
         '<(DEPTH)/starboard/shared/stub/media_can_play_mime_and_key_system.cc',
+        '<(DEPTH)/starboard/shared/stub/media_get_audio_configuration.cc',
+        '<(DEPTH)/starboard/shared/stub/media_get_audio_output_count.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_output_protected.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/media_set_output_protection.cc',
