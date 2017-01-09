@@ -229,6 +229,9 @@ class WebModule::Impl {
   // from URLs.
   scoped_ptr<loader::font::RemoteTypefaceCache> remote_typeface_cache_;
 
+  // MeshCache that is used to manage mesh cache logic.
+  scoped_ptr<loader::mesh::MeshCache> mesh_cache_;
+
   // Interface between LocalStorage and the Storage Manager.
   scoped_ptr<dom::LocalStorageDatabase> local_storage_database_;
 
@@ -386,6 +389,13 @@ WebModule::Impl::Impl(const ConstructionData& data)
       loader_factory_.get());
   DCHECK(remote_typeface_cache_);
 
+  DCHECK_LE(0, data.options.mesh_cache_capacity);
+  mesh_cache_ = loader::mesh::CreateMeshCache(
+      base::StringPrintf("%s.MeshCache", name_.c_str()),
+      static_cast<uint32>(data.options.mesh_cache_capacity),
+      loader_factory_.get());
+  DCHECK(mesh_cache_);
+
   local_storage_database_.reset(
       new dom::LocalStorageDatabase(data.network_module->storage_manager()));
   DCHECK(local_storage_database_);
@@ -420,8 +430,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
       &resource_provider_, image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
-      local_storage_database_.get(), data.media_module, data.media_module,
-      execution_state_.get(), script_runner_.get(),
+      mesh_cache_.get(), local_storage_database_.get(), data.media_module,
+      data.media_module, execution_state_.get(), script_runner_.get(),
       media_source_registry_.get(),
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
@@ -543,6 +553,7 @@ WebModule::Impl::~Impl() {
   javascript_engine_.reset();
   web_module_stat_tracker_.reset();
   local_storage_database_.reset();
+  mesh_cache_.reset();
   remote_typeface_cache_.reset();
   image_cache_.reset();
   fetcher_factory_.reset();
@@ -746,6 +757,7 @@ WebModule::Options::Options()
       image_cache_capacity(COBALT_IMAGE_CACHE_SIZE_IN_BYTES),
       remote_typeface_cache_capacity(
           COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
+      mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
       csp_enforcement_mode(dom::kCspEnforcementEnable),
       csp_insecure_allowed_token(0),
       track_event_stats(false),

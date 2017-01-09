@@ -19,6 +19,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/render_tree/mesh.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -26,16 +27,21 @@ namespace render_tree {
 enum StereoMode { kMono, kLeftRight, kTopBottom };
 
 // A MapToMeshFilter can be used to map source content onto a 3D mesh, within a
-// specified well-defined viewport.
+// specified well-defined viewport. A null mesh indicates the equirectangular
+// mesh should be used.
 class MapToMeshFilter {
  public:
-  explicit MapToMeshFilter(const StereoMode stereo_mode)
-      : stereo_mode_(stereo_mode) {}
+  explicit MapToMeshFilter(const StereoMode stereo_mode,
+                           scoped_refptr<render_tree::Mesh> mesh = NULL)
+      : stereo_mode_(stereo_mode), mesh_(mesh) {}
 
   StereoMode GetStereoMode() const { return stereo_mode_; }
 
+  scoped_refptr<render_tree::Mesh> mesh() const { return mesh_; }
+
  private:
   StereoMode stereo_mode_;
+  scoped_refptr<render_tree::Mesh> mesh_;
 };
 
 }  // namespace render_tree

@@ -22,6 +22,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "starboard/types.h"
 #include "third_party/glm/glm/vec2.hpp"
 #include "third_party/glm/glm/vec3.hpp"
@@ -52,16 +53,23 @@ class Mesh : public base::RefCountedThreadSafe<Mesh> {
     kDrawModeTriangleFan = 6
   };
 
-  Mesh(const std::vector<Vertex>& vertices, const DrawMode mode)
-      : vertices_(vertices), draw_mode_(CheckDrawMode(mode)) {}
+  Mesh(const std::vector<Vertex>& vertices, const DrawMode mode,
+       base::optional<uint32> crc = base::nullopt)
+      : vertices_(vertices), draw_mode_(CheckDrawMode(mode)), crc_(crc) {}
 
   const std::vector<Vertex>& vertices() const { return vertices_; }
 
   DrawMode draw_mode() const { return draw_mode_; }
 
+  const base::optional<uint32>& crc() const { return crc_; }
+
   uint32 GetEstimatedSizeInBytes() const {
     return static_cast<uint32>(vertices().size() * sizeof(Vertex) +
                                sizeof(DrawMode));
+  }
+
+  bool HasSameCrcAs(scoped_refptr<Mesh> other_mesh) const {
+    return other_mesh && other_mesh->crc() == crc_;
   }
 
  protected:
@@ -86,6 +94,9 @@ class Mesh : public base::RefCountedThreadSafe<Mesh> {
 
   const std::vector<Vertex> vertices_;
   const DrawMode draw_mode_;
+  // Cyclic Redundancy Check code of the mesh projection box that contains this
+  // mesh.
+  const base::optional<uint32> crc_;
 };
 
 }  // namespace render_tree
