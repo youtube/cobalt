@@ -17,6 +17,7 @@ import logging
 import os
 import subprocess
 import sys
+from config.base import GetToolchainsDir
 
 # Import the shared Linux platform configuration.
 sys.path.append(
@@ -45,11 +46,8 @@ class PlatformConfig(shared_configuration.PlatformConfig):
 
   def GetEnvironmentVariables(self):
     env_variables = super(PlatformConfig, self).GetEnvironmentVariables()
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    base_path = os.path.realpath(
-        os.path.join(script_path, '..', '..', '..', '..', '..'))
-    toolchain = os.path.join(base_path, 'out', 'gcc-4.2.4', 'gcc')
-    toolchain_bin_dir = os.path.join(toolchain, 'bin')
+    toolchain_bin_dir = os.path.join(GetToolchainsDir(),
+                                     'x86_64-linux-gnu-gcc-4.2.4', 'gcc', 'bin')
     env_variables.update({
         'LIBRARY_PATH':
             '/usr/lib/x86_64-linux-gnu',
