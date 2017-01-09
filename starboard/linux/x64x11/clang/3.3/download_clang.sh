@@ -17,43 +17,15 @@
 
 set -e
 
+toolchain_name="clang"
 version="3.3"
-clang_folder="clang-${version}"
+toolchain_folder="x86_64-linux-gnu-${toolchain_name}-${version}"
 branch="release_33"
 
-# This command will fail and abort the script if the folder does not exist.
-base_path=$(realpath ${PWD}/"../../../../..")
+binary_path="llvm/Release+Asserts/bin/clang++"
+build_duration="about 15 minutes"
 
-out_path=${base_path}/out
-clang_path=${out_path}/${clang_folder}
-
-clang_install_folder=${clang_path}/"llvm/Release+Asserts"
-clang_binary=${clang_install_folder}/"bin/clang++"
-if [ -x ${clang_binary} ]; then
-  # The clang binary already exist.
-  echo clang ${version} already available.
-  exit 0
-fi
-
-if [ -d ${clang_path} ]; then
-  cat <<EOF 1>&2
-  ERROR: clang ${version} folder ${clang_path}
-  already exists, but it does not contain a clang binary.
-  Perhaps a previous download was interrupted or failed?
-EOF
-  rm -rf ${clang_path}
-fi
-
-mkdir -p ${clang_path}
-cd ${clang_path}
-
-logfile=${clang_path}/"build_log.txt"
-
-cat <<EOF 1>&2
-Downloading and compiling clang version ${version} into ${clang_path}
-Log file can be found at ${logfile}
-This may take about 15 minutes.
-EOF
+source ../../toolchain_paths.sh
 
 (
   git clone --branch ${branch} http://llvm.org/git/llvm.git
@@ -61,14 +33,13 @@ EOF
   git clone --branch ${branch} http://llvm.org/git/clang.git
   cd ../projects/
   git clone --branch ${branch} http://llvm.org/git/compiler-rt.git
-  cd ${clang_path}
+  cd ${toolchain_path}
 
   cd llvm
   ./configure --enable-optimized --disable-doxygen --prefix=${PWD}/bin
   make -j"$(nproc)"
-  cd ${clang_path}
+  cd ${toolchain_path}
 
-  ls -l ${clang_install_folder}/bin/
-  ${clang_install_folder}/bin/clang++ --version
+  ls -l ${toolchain_binary}
+  ${toolchain_binary} --version
 ) >${logfile} 2>&1
-
