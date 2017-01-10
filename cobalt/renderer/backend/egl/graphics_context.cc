@@ -406,7 +406,14 @@ void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
 void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::SwapBuffers()");
 
-  EGL_CALL(eglSwapBuffers(display_, surface->GetSurface()));
+  eglSwapBuffers(display_, surface->GetSurface());
+  EGLint swap_err = eglGetError();
+  if (swap_err != EGL_SUCCESS) {
+    LOG(WARNING) << "Marking surface bad after swap error "
+                 << std::hex << swap_err;
+    surface->set_surface_bad();
+    return;
+  }
 
   surface->increment_swap_count();
   if (surface->IsWindowRenderTarget() && surface->swap_count() <= 2) {
