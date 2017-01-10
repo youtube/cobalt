@@ -17,13 +17,45 @@
 #include <android_native_app_glue.h>
 #include <time.h>
 
+#include <map>
 #include <vector>
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_event.h"
+#include "starboard/android/shared/window_internal.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/string.h"
+
+namespace {
+
+#ifndef NDEBUG
+std::map<int, const char*> CreateAppCmdNamesMap() {
+  std::map<int, const char*> m;
+#define X(cmd) m[cmd] = #cmd
+  X(APP_CMD_INPUT_CHANGED);
+  X(APP_CMD_INIT_WINDOW);
+  X(APP_CMD_TERM_WINDOW);
+  X(APP_CMD_WINDOW_RESIZED);
+  X(APP_CMD_WINDOW_REDRAW_NEEDED);
+  X(APP_CMD_CONTENT_RECT_CHANGED);
+  X(APP_CMD_GAINED_FOCUS);
+  X(APP_CMD_LOST_FOCUS);
+  X(APP_CMD_CONFIG_CHANGED);
+  X(APP_CMD_LOW_MEMORY);
+  X(APP_CMD_START);
+  X(APP_CMD_RESUME);
+  X(APP_CMD_SAVE_STATE);
+  X(APP_CMD_PAUSE);
+  X(APP_CMD_STOP);
+  X(APP_CMD_DESTROY);
+#undef X
+  return m;
+}
+std::map<int, const char*> kAppCmdNames = CreateAppCmdNamesMap();
+#endif  // NDEBUG
+
+}  // namespace
 
 namespace starboard {
 namespace android {
@@ -53,13 +85,11 @@ ANativeActivity* ApplicationAndroid::GetActivity() {
 
 SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
   SB_UNREFERENCED_PARAMETER(options);
-  // Don't allow re-creation since we only have one window anyway.
   if (SbWindowIsValid(window_)) {
     return kSbWindowInvalid;
   }
-
-  // SbWindow, EGLNativeWindowType, and ANativeWindow* are all the same.
-  window_ = reinterpret_cast<SbWindow>(android_state_->window);
+  window_ = new SbWindowPrivate;
+  window_->native_window = android_state_->window;
   return window_;
 }
 
@@ -67,6 +97,7 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
   if (!SbWindowIsValid(window)) {
     return false;
   }
+  delete window_;
   window_ = kSbWindowInvalid;
   return true;
 }
@@ -102,42 +133,69 @@ void ApplicationAndroid::WakeSystemEventWait() {
 }
 
 void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
-  SB_LOG(INFO) << "OnAndroidCommand " << cmd;
-  Event *event = NULL;
+#ifndef NDEBUG
+  const char* cmd_name = kAppCmdNames[cmd];
+  if (cmd_name) {
+    SB_LOG(INFO) << cmd_name;
+  } else {
+    SB_LOG(INFO) << "APP_CMD_[unknown  " << cmd << "]";
+  }
+#endif
 
-  // When an app first starts up the order of commands we get are:
-  // 1. APP_CMD_START
-  // 2. APP_CMD_RESUME
-  // 3. APP_CMD_INPUT_CHANGED
-  // 4. APP_CMD_INIT_WINDOW
+  // The window surface being created/destroyed is more significant than the
+  // Activity lifecycle since Cobalt can't do anything at all if it doesn't have
+  // a window surface to draw on.
   switch (cmd) {
     case APP_CMD_INIT_WINDOW:
-      DispatchStart();
-      break;
-    case APP_CMD_START:
-      SB_LOG(INFO) << "APP_CMD_START";
-      if (state() != kStateUnstarted) {
-        DispatchAndDelete(new Event(kSbEventTypeResume, NULL, NULL));
+      if (window_) {
+        window_->native_window = android_state_->window;
+      }
+      if (state() == kStateUnstarted) {
+        // This is the initial launch, so we have to start Cobalt now that we
+        // have a window.
+        DispatchStart();
+      } else {
+        // Now that we got a window back, change the command for the switch
+        // below to sync up with the current activity lifecycle.
+        cmd = android_state_->activityState;
       }
       break;
-    case APP_CMD_RESUME:
-      SB_LOG(INFO) << "APP_CMD_RESUME";
-      if (state() != kStateUnstarted) {
-        DispatchAndDelete(new Event(kSbEventTypeUnpause, NULL, NULL));
-      }
-      break;
-    case APP_CMD_PAUSE:
-      SB_LOG(INFO) << "APP_CMD_PAUSE";
-      DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
-      break;
-    case APP_CMD_STOP:
-      SB_LOG(INFO) << "APP_CMD_STOP";
+    case APP_CMD_TERM_WINDOW:
+      // Cobalt can't keep running without a window, even if the Activity hasn't
+      // stopped yet. DispatchAndDelete() will inject events as needed if we're
+      // not already paused.
       DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+      if (window_) {
+        window_->native_window = NULL;
+      }
       break;
     case APP_CMD_DESTROY:
-      SB_LOG(INFO) << "APP_CMD_DESTROY";
+      // The window is already gone before we get destroyed, so this must be in
+      // this switch. In practice we don't ever get destroyed, and the process
+      // is just killed instead.
       DispatchAndDelete(new Event(kSbEventTypeStop, NULL, NULL));
       break;
+  }
+
+  // If there's a window, sync the app state to the Activity lifecycle, letting
+  // DispatchAndDelete() inject events as needed if we missed a state.
+  if (android_state_->window) {
+    switch (cmd) {
+      case APP_CMD_START:
+        DispatchAndDelete(new Event(kSbEventTypeResume, NULL, NULL));
+        break;
+      case APP_CMD_RESUME:
+        DispatchAndDelete(new Event(kSbEventTypeUnpause, NULL, NULL));
+        break;
+      case APP_CMD_PAUSE:
+        DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
+        break;
+      case APP_CMD_STOP:
+        // In practice we've already suspended in APP_CMD_TERM_WINDOW above,
+        // and DispatchAndDelete() will squelch this event.
+        DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+        break;
+    }
   }
 }
 
