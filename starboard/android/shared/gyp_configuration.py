@@ -15,7 +15,6 @@
 
 import os
 
-from config.base import Configs
 import config.starboard
 import gyp_utils
 import ndk_utils
@@ -26,20 +25,13 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
   # TODO: make ASAN work with NDK tools and enable it by default
   def __init__(self, platform, android_abi, asan_enabled_by_default=False):
-    super(PlatformConfig, self).__init__(platform)
+    super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
 
     self.android_abi = android_abi
     self.ndk_tools = ndk_utils.GetToolsPath(android_abi)
     ndk_utils.CheckNdkVersion(android_abi)
 
-    gyp_utils.CheckClangVersion()
-
-    # Check if goma is installed and initialize if needed.
-    # There's no need to modify the compiler binary names if goma is set up
-    # correctly in the PATH.
-    gyp_utils.FindAndInitGoma()
-
-    self.asan_default = 1 if asan_enabled_by_default else 0
+    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -49,32 +41,14 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     return 'ninja,qtcreator_ninja'
 
   def GetVariables(self, configuration):
-    variables = super(PlatformConfig, self).GetVariables(configuration)
-    use_tsan = int(os.environ.get('USE_TSAN', 0))
-    # Enable ASAN by default for debug and devel builds only if USE_TSAN was not
-    # set to 1 in the environment.
-    use_asan_default = self.asan_default if not use_tsan and configuration in (
-        Configs.DEBUG, Configs.DEVEL) else 0
-
-    # Set environmental variable to enable_mtm: 'USE_MTM'
-    # Terminal: `export {varname}={value}`
-    # Note: must also edit gyp_configuration.gypi per internal instructions.
-    mtm_on_by_default = 0
-    mtm_enabled = int(os.environ.get('USE_MTM', mtm_on_by_default))
-
+    variables = super(PlatformConfig, self).GetVariables(
+        configuration, use_clang=1)
     variables.update({
         'NDK_HOME': ndk_utils.NDK_PATH,
         'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'ANDROID_ABI': self.android_abi,
-        'clang': 1,
-        'use_asan': int(os.environ.get('USE_ASAN', use_asan_default)),
-        'use_tsan': use_tsan,
-        'enable_mtm': mtm_enabled,
         'enable_remote_debugging': 0,
     })
-
-    if variables.get('use_asan') == 1 and variables.get('use_tsan') == 1:
-      raise RuntimeError('ASAN and TSAN are mutually exclusive')
     return variables
 
   def GetGeneratorVariables(self, configuration):
@@ -84,11 +58,5 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
   def GetEnvironmentVariables(self):
     env_variables = ndk_utils.GetEnvironmentVariables(self.android_abi)
-    env_variables.update({
-        'CC_host': 'clang',
-        'CXX_host': 'clang++',
-        'LD_host': 'clang++',
-        'ARFLAGS_host': 'rcs',
-        'ARTHINFLAGS_host': 'rcsT',
-        })
+    env_variables.update(self.host_compiler_environment)
     return env_variables
