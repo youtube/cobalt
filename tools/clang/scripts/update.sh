@@ -3,15 +3,23 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# This script will check out llvm and clang into third_party/llvm and build it.
+# This script will check out llvm and clang into BASE_DIR/llvm and build it.
 
-# Do NOT CHANGE this if you don't know what you're doing -- see
-# https://code.google.com/p/chromium/wiki/UpdatingClang
-# Reverting problematic clang rolls is safe, though.
-CLANG_REVISION=264915-1
+CLANG_REVISION="${1}"
+BASE_DIR="${2}"
+
+if [ -z "${CLANG_REVISION}" ]; then
+ echo "Error: Clang revision not specified."
+ exit -1
+fi
+
+if [ -z "${BASE_DIR}" ]; then
+ echo "Error: BASE_DIR not specified."
+ exit -1
+fi
 
 THIS_DIR="$(dirname "${0}")"
-LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
+LLVM_DIR="${BASE_DIR}/llvm"
 LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
 LLVM_BOOTSTRAP_DIR="${LLVM_DIR}/../llvm-bootstrap"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
