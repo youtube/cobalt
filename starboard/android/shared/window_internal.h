@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_ANDROID_SHARED_WINDOW_INTERNAL_H_
+#define STARBOARD_ANDROID_SHARED_WINDOW_INTERNAL_H_
+
+#include <android/native_window.h>
+
 #include "starboard/window.h"
 
-#include "starboard/android/shared/window_internal.h"
+struct SbWindowPrivate {
+  ANativeWindow* native_window;
+};
 
-void* SbWindowGetPlatformHandle(SbWindow window) {
-  // EGLNativeWindowType and ANativeWindow* are the same.
-  return window->native_window;
-}
+#endif  // STARBOARD_ANDROID_SHARED_WINDOW_INTERNAL_H_
