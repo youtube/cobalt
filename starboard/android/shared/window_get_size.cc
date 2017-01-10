@@ -14,6 +14,7 @@
 
 #include <android/native_window.h>
 
+#include "starboard/android/shared/window_internal.h"
 #include "starboard/log.h"
 #include "starboard/window.h"
 
@@ -23,10 +24,8 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
     return false;
   }
 
-  // SbWindow, EGLNativeWindowType, and ANativeWindow* are all the same.
-  ANativeWindow* native_window = reinterpret_cast<ANativeWindow*>(window);
-  size->width = ANativeWindow_getWidth(native_window);
-  size->height = ANativeWindow_getHeight(native_window);
+  size->width = ANativeWindow_getWidth(window->native_window);
+  size->height = ANativeWindow_getHeight(window->native_window);
 
   // TODO: Read Android property sys.display-size and compare to window size
   size->video_pixel_ratio = 1.0f;
