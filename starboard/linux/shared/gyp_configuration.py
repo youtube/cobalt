@@ -13,9 +13,6 @@
 # limitations under the License.
 """Starboard Linux shared platform configuration for gyp_cobalt."""
 
-import os
-
-from config.base import Configs
 import config.starboard
 import gyp_utils
 
@@ -24,16 +21,9 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
   """Starboard Linux platform configuration."""
 
   def __init__(self, platform, asan_enabled_by_default=True):
-    super(PlatformConfig, self).__init__(platform)
+    super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
 
-    gyp_utils.CheckClangVersion()
-
-    # Check if goma is installed and initialize if needed.
-    # There's no need to modify the compiler binary names if goma is set up
-    # correctly in the PATH.
-    gyp_utils.FindAndInitGoma()
-
-    self.asan_default = 1 if asan_enabled_by_default else 0
+    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -43,29 +33,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     return 'ninja,qtcreator_ninja'
 
   def GetVariables(self, configuration):
-    variables = super(PlatformConfig, self).GetVariables(configuration)
-    use_tsan = int(os.environ.get('USE_TSAN', 0))
-    # Enable ASAN by default for debug and devel builds only if USE_TSAN was not
-    # set to 1 in the environment.
-    use_asan_default = self.asan_default if not use_tsan and configuration in (
-        Configs.DEBUG, Configs.DEVEL) else 0
-
-    # Set environmental variable to enable_mtm: 'USE_MTM'
-    # Terminal: `export {varname}={value}`
-    # Note: must also edit gyp_configuration.gypi per internal instructions.
-    mtm_on_by_default = 0
-    mtm_enabled = int(os.environ.get('USE_MTM', mtm_on_by_default))
-
-    variables.update({
-        'clang': 1,
-        'use_asan': int(os.environ.get('USE_ASAN', use_asan_default)),
-        'use_tsan': use_tsan,
-        'enable_mtm': mtm_enabled
-    })
-
-    if variables.get('use_asan') == 1 and variables.get('use_tsan') == 1:
-      raise RuntimeError('ASAN and TSAN are mutually exclusive')
-    return variables
+    return super(PlatformConfig, self).GetVariables(configuration, use_clang=1)
 
   def GetGeneratorVariables(self, configuration):
     _ = configuration
@@ -73,20 +41,9 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     return generator_variables
 
   def GetEnvironmentVariables(self):
-    # Explicitly use the clang that is in third_party/llvm-build.
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    base_path = os.path.realpath(
-        os.path.join(script_path, os.pardir, os.pardir, os.pardir))
-    toolchain = os.path.join(base_path, 'third_party', 'llvm-build',
-                             'Release+Asserts')
-    toolchain_bin_dir = os.path.join(toolchain, 'bin')
-    env_variables = {
-        'CC': os.path.join(toolchain_bin_dir, 'clang'),
-        'CXX': os.path.join(toolchain_bin_dir, 'clang++'),
-        'CC_host': os.path.join(toolchain_bin_dir, 'clang'),
-        'CXX_host': os.path.join(toolchain_bin_dir, 'clang++'),
-        'LD_host': os.path.join(toolchain_bin_dir, 'clang++'),
-        'ARFLAGS_host': 'rcs',
-        'ARTHINFLAGS_host': 'rcsT',
-    }
+    env_variables = self.host_compiler_environment
+    env_variables.update({
+        'CC': self.host_compiler_environment['CC_host'],
+        'CXX': self.host_compiler_environment['CXX_host'],
+    })
     return env_variables
