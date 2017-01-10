@@ -31,6 +31,7 @@ class RenderTargetEGL : public RenderTarget {
       : swap_count_(0)
       , has_been_made_current_(false)
       , content_preserved_on_swap_(false)
+      , is_surface_bad_(false)
   {}
 
   // An EGLSurface is needed for the EGL function eglMakeCurrent() which
@@ -54,12 +55,16 @@ class RenderTargetEGL : public RenderTarget {
   bool has_been_made_current() const { return has_been_made_current_; }
   void set_has_been_made_current() { has_been_made_current_ = true; }
 
+  bool is_surface_bad() const { return is_surface_bad_; }
+  void set_surface_bad() { is_surface_bad_ = true; }
+
  protected:
   virtual ~RenderTargetEGL() {}
 
   int64 swap_count_;
   bool has_been_made_current_;
   bool content_preserved_on_swap_;
+  bool is_surface_bad_;
 };
 
 }  // namespace backend
