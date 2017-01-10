@@ -23,16 +23,20 @@ import subprocess
 import sys
 import urllib
 import urllib2
+import config.base
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-_SOURCE_TREE_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir,
-                                                os.pardir))
+_SOURCE_TREE_DIR = os.path.abspath(
+    os.path.join(_SCRIPT_DIR, os.pardir, os.pardir))
 
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
 
 # The list of directories, relative to "src/", to search through for ports.
-_PORT_SEARCH_PATH = ['third_party/starboard', 'starboard',]
+_PORT_SEARCH_PATH = [
+    'third_party/starboard',
+    'starboard',
+]
 
 # The list of files that must be present in a directory to allow it to be
 # considered a valid port.
@@ -56,8 +60,8 @@ BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
 def GetGyp():
   if 'gyp' not in sys.modules:
     # Add directory to path to make sure that cygpath can be imported.
-    sys.path.insert(0, os.path.join(_SOURCE_TREE_DIR, 'lbshell', 'build',
-                                    'pylib'))
+    sys.path.insert(0,
+                    os.path.join(_SOURCE_TREE_DIR, 'lbshell', 'build', 'pylib'))
     sys.path.insert(0, os.path.join(_SOURCE_TREE_DIR, 'tools', 'gyp', 'pylib'))
     importlib.import_module('gyp')
   return sys.modules['gyp']
@@ -159,47 +163,36 @@ def _EnsureGomaRunning():
     return False
 
 
-def _GetClangVersion(clang_path):
-  """Return clang version string."""
-
-  output = subprocess.check_output([clang_path, '--version']).splitlines()[0]
-  return output
+CLANG_REVISION = '264915-1'
 
 
-def CheckClangVersion():
-  """Ensure the expected version of clang is in the path."""
+def GetClangBasePath():
+  return os.path.join(config.base.GetToolchainsDir(),
+                      'x86_64-linux-gnu-clang-chromium-' + CLANG_REVISION)
+
+
+def GetClangBinPath():
+  return os.path.join('llvm-build', 'Release+Asserts', 'bin')
+
+
+def EnsureClangAvailable(base_dir, bin_path):
+  """Ensure the expected version of clang is available."""
 
   # Run the clang update script to get the correct version of clang.
   # Then check that clang is in the path.
   source_tree_dir = GetSourceTreeDir()
   update_script = os.path.join(source_tree_dir, 'tools', 'clang', 'scripts',
                                'update.sh')
-  update_proc = subprocess.Popen(update_script)
+  update_proc = subprocess.Popen([update_script, CLANG_REVISION, base_dir])
   rc = update_proc.wait()
   if rc != 0:
     raise RuntimeError('%s failed.' % update_script)
 
   # update.sh downloads clang to this path.
-  clang_bin_path = os.path.join(source_tree_dir, 'third_party', 'llvm-build',
-                                'Release+Asserts', 'bin')
-  clang_bin = os.path.join(clang_bin_path, 'clang')
+  clang_bin = os.path.join(base_dir, bin_path, 'clang')
 
   if not os.path.exists(clang_bin):
     raise RuntimeError('Clang not found.')
-
-  clang_in_path = Which('clang')
-  if not clang_in_path:
-    raise RuntimeError('clang not found in PATH. Add %s to your PATH' %
-                       clang_bin_path)
-
-  # The first clang in PATH may be goma's version, which is OK.
-  # It forwards to the real one. Just make sure the version strings
-  # are the same.
-  expected_version = _GetClangVersion(clang_bin)
-  detected_version = _GetClangVersion(clang_in_path)
-  if expected_version != detected_version:
-    raise RuntimeError('Invalid clang version found in PATH: (%s != %s)' %
-                       (expected_version, detected_version))
 
 
 def FindAndInitGoma():
@@ -227,6 +220,33 @@ def FindAndInitGoma():
   if use_goma:
     use_goma = _EnsureGomaRunning()
   return use_goma
+
+
+def GetHostCompilerEnvironment():
+  """Return the host compiler toolchain environment."""
+
+  base_dir = GetClangBasePath()
+  bin_path = GetClangBinPath()
+  toolchain_bin_dir = os.path.join(base_dir, bin_path)
+  EnsureClangAvailable(base_dir, bin_path)
+
+  cc_clang = os.path.join(toolchain_bin_dir, 'clang')
+  cxx_clang = os.path.join(toolchain_bin_dir, 'clang++')
+  # Check if goma is installed and initialize if needed.
+  host_clang_environment = {
+      'CC_host': cc_clang,
+      'CXX_host': cxx_clang,
+      'LD_host': cxx_clang,
+      'ARFLAGS_host': 'rcs',
+      'ARTHINFLAGS_host': 'rcsT',
+  }
+  if FindAndInitGoma():
+    logging.info('Using Goma')
+    host_clang_environment.update({
+        'CC_host': 'gomacc ' + cc_clang,
+        'CXX_host': 'gomacc ' + cxx_clang,
+    })
+  return host_clang_environment
 
 
 def GetConstantValue(file_path, constant_name):
@@ -328,6 +348,7 @@ def _FindThirdPartyPlatforms():
     _FindValidPorts(root, result)
 
   return result
+
 
 # Global cache of TPP so the filesystem walk is only done once, and the values
 # are always consistent.
