@@ -26,7 +26,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
-#include "cobalt/base/c_val_time_interval_timer_stats.h"
+#include "cobalt/base/c_val_collection_timer_stats.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -167,11 +167,6 @@ class Pipeline {
   // the future.
   base::optional<SubmissionQueue> submission_queue_;
 
-  // Keep track of the last render tree we rendered whose animations have
-  // expired so that if we see that we are asked to rasterize that render tree
-  // again, we know that we do not have to do anything.
-  scoped_refptr<render_tree::Node> last_rendered_expired_render_tree_;
-
   // If true, we will submit the current render tree to the rasterizer every
   // frame, even if it hasn't changed.
   const bool submit_even_if_render_tree_is_unchanged_;
@@ -184,14 +179,22 @@ class Pipeline {
   base::optional<math::Rect> previous_animated_area_;
   // The submission time used during the last render tree render.
   base::optional<base::TimeDelta> last_render_time_;
-
-  // Timer tracking the amount of time spent in |RasterizeCurrentTree| each
-  // call.
-  base::CValTimeIntervalTimerStats<base::CValPublic>
-      rasterize_current_tree_timer_;
+  // Keep track of whether the last rendered tree had active animations. This
+  // allows us to skip rasterizing that render tree if we see it again and it
+  // did not have active animations.
+  bool last_render_animations_active_;
 
   // Tracks whether or not animations are currently playing.
-  base::CVal<bool> has_active_animations_;
+  base::CVal<bool> has_active_animations_c_val_;
+
+  // Timer tracking the amount of time spent in
+  // |RasterizeSubmissionToRenderTarget| when the render tree has changed.
+  // The tracking is flushed when the max count is hit.
+  base::CValCollectionTimerStats<base::CValPublic> rasterize_periodic_timer_;
+  // Timer tracking the amount of time spent in
+  // |RasterizeSubmissionToRenderTarget| while animations are active. The
+  // tracking is flushed when the animations expire.
+  base::CValCollectionTimerStats<base::CValDebug> rasterize_animations_timer_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.
