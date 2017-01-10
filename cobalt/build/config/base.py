@@ -14,7 +14,6 @@
 # limitations under the License.
 """Base platform configuration for GYP."""
 
-
 import imp
 import importlib
 import logging
@@ -30,15 +29,20 @@ class Configs(object):
   GOLD = 'gold'
   QA = 'qa'
 
+
 # Represents all valid build configurations.
 VALID_BUILD_CONFIGS = [Configs.DEBUG, Configs.DEVEL, Configs.QA, Configs.GOLD]
-
 
 # Represents all supported platforms, uniquified and sorted.
 VALID_PLATFORMS = sorted(gyp_utils.GetThirdPartyPlatforms().keys())
 
-
 _CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))
+
+
+def GetToolchainsDir():
+  return os.path.realpath(
+      os.getenv('COBALT_TOOLCHAINS_DIR',
+                os.path.join(os.environ.get('HOME'), 'cobalt-toolchains')))
 
 
 class PlatformConfigBase(object):
