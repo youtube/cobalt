@@ -59,7 +59,7 @@ def calculate_jsc_lookup_size_mask(num_properties):
 
 
 class ExpressionGeneratorJsc(ExpressionGenerator):
-  """Implementation  of ExpressionGenerator for JavaScriptCore."""
+  """Implementation of ExpressionGenerator for JavaScriptCore."""
 
   def is_undefined(self, arg):
     return '%s.isUndefined()' % arg
@@ -75,7 +75,7 @@ class ExpressionGeneratorJsc(ExpressionGenerator):
 
 
 class CodeGeneratorJsc(CodeGeneratorCobalt):
-  """Code generator class for JavaScriptCore binidings."""
+  """Code generator class for JavaScriptCore bindings."""
 
   _expression_generator = ExpressionGeneratorJsc()
 
