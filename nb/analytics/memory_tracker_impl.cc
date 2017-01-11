@@ -179,12 +179,21 @@ void MemoryTrackerImpl::OnPushAllocationGroup(
     }
   }
 
+  DisableMemoryTrackingInScope no_memory_tracking_in_scope(t);
   t->PushAllocationGroup(group);
+  CallStack* callstack = t->callstack_tls_.GetOrCreate();
+  callstack->push_back(memory_scope_info);
 }
 
 void MemoryTrackerImpl::OnPopAllocationGroup(void* context) {
   MemoryTrackerImpl* t = static_cast<MemoryTrackerImpl*>(context);
   t->PopAllocationGroup();
+  CallStack* callstack = t->callstack_tls_.GetOrCreate();
+  // Callstack can be empty when the memory tracker binds to the callback
+  // system while the program is in the middle of the execution.
+  if (!callstack->empty()) {
+    callstack->pop_back();
+  }
 }
 
 void MemoryTrackerImpl::Initialize(
@@ -218,11 +227,7 @@ bool MemoryTrackerImpl::IsCurrentThreadAllowedToReport() const {
 
 void MemoryTrackerImpl::SetMemoryTrackerDebugCallback(
     MemoryTrackerDebugCallback* cb) {
-  if (debug_callback_.get()) {
-    SB_DCHECK(false) << "Can only set MemoryTrackerDebugCallback once.";
-    return;
-  }
-  debug_callback_.reset(cb);
+  debug_callback_ = cb;
 }
 
 MemoryTrackerImpl::DisableDeletionInScope::DisableDeletionInScope(
@@ -301,8 +306,9 @@ bool MemoryTrackerImpl::AddMemoryTracking(const void* memory, size_t size) {
     // the developer may want to track certain allocations that meet a certain
     // criteria.
     if (debug_callback_) {
+      const CallStack& callstack = *(callstack_tls_.GetOrCreate());
       DisableDeletionInScope disable_deletion_tracking(this);
-      debug_callback_->OnMemoryAllocation(memory, alloc_record);
+      debug_callback_->OnMemoryAllocation(memory, alloc_record, callstack);
     }
   } else {
     // Handles the case where the memory hasn't been properly been reported
@@ -348,7 +354,9 @@ size_t MemoryTrackerImpl::RemoveMemoryTracking(const void* memory) {
   if (debug_callback_) {
     if (atomic_allocation_map_.Get(memory, &alloc_record)) {
       DisableMemoryTrackingInScope no_memory_tracking(this);
-      debug_callback_->OnMemoryDeallocation(memory, alloc_record);
+      const CallStack& callstack = (*callstack_tls_.GetOrCreate());
+      debug_callback_->OnMemoryDeallocation(memory, alloc_record,
+                                            callstack);
     }
   }
 
