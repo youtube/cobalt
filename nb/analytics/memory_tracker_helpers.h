@@ -139,6 +139,7 @@ class AllocationGroupStack {
   void Push(AllocationGroup* group);
   void Pop();
   AllocationGroup* Peek();
+  const AllocationGroup* Peek() const;
 
   void Push_DebugBreak(AllocationGroup* ag) { debug_stack_.push_back(ag); }
   void Pop_DebugBreak() { debug_stack_.pop_back(); }
@@ -148,10 +149,10 @@ class AllocationGroupStack {
     }
     return debug_stack_.back();
   }
+  const AllocationGroupPtrVec& data() const { return alloc_group_stack_; }
 
  private:
   SB_DISALLOW_COPY_AND_ASSIGN(AllocationGroupStack);
-  typedef std::vector<AllocationGroup*> AllocationGroupPtrVec;
   AllocationGroupPtrVec alloc_group_stack_, debug_stack_;
 };
 

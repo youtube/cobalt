@@ -118,6 +118,13 @@ AllocationGroup* AllocationGroupStack::Peek() {
   return alloc_group_stack_.back();
 }
 
+const AllocationGroup* AllocationGroupStack::Peek() const {
+  if (alloc_group_stack_.empty()) {
+    return NULL;
+  }
+  return alloc_group_stack_.back();
+}
+
 AtomicAllocationMap::AtomicAllocationMap() {}
 
 AtomicAllocationMap::~AtomicAllocationMap() {}
