@@ -20,7 +20,8 @@
 #include <vector>
 #include "starboard/configuration.h"
 #include "starboard/types.h"
-#include "nb/scoped_ptr.h"
+
+struct NbMemoryScopeInfo;
 
 namespace nb {
 namespace analytics {
@@ -29,7 +30,6 @@ class MemoryTracker;
 class MemoryTrackerDebugCallback;
 class AllocationVisitor;
 class AllocationGroup;
-class AllocationRecord;
 
 struct MemoryStats {
   MemoryStats() : total_cpu_memory(0), used_cpu_memory(0),
@@ -41,6 +41,23 @@ struct MemoryStats {
 };
 
 MemoryStats GetProcessMemoryStats();
+
+typedef std::vector<AllocationGroup*> AllocationGroupPtrVec;
+typedef std::vector<const NbMemoryScopeInfo*> CallStack;
+
+// Contains an allocation record for a pointer including it's size and what
+// AllocationGroup it was constructed under.
+class AllocationRecord {
+ public:
+  AllocationRecord() : size(0), allocation_group(NULL) {}
+  AllocationRecord(size_t sz, AllocationGroup* group)
+      : size(sz), allocation_group(group) {}
+
+  static AllocationRecord Empty() { return AllocationRecord(); }
+  bool IsEmpty() const { return !size && !allocation_group; }
+  size_t size;
+  AllocationGroup* allocation_group;
+};
 
 // Creates a MemoryTracker instance that implements the
 //  MemoryTracker. Once the instance is created it can begin tracking
@@ -146,24 +163,14 @@ class AllocationVisitor {
 class MemoryTrackerDebugCallback {
  public:
   virtual ~MemoryTrackerDebugCallback() {}
+
   virtual void OnMemoryAllocation(const void* memory_block,
-                                  const AllocationRecord& record) = 0;
+                                  const AllocationRecord& record,
+                                  const CallStack& callstack) = 0;
+
   virtual void OnMemoryDeallocation(const void* memory_block,
-                                    const AllocationRecord& record) = 0;
-};
-
-// Contains an allocation record for a pointer including it's size and what
-// AllocationGroup it was constructed under.
-class AllocationRecord {
- public:
-  AllocationRecord() : size(0), allocation_group(NULL) {}
-  AllocationRecord(size_t sz, AllocationGroup* group)
-      : size(sz), allocation_group(group) {}
-
-  static AllocationRecord Empty() { return AllocationRecord(); }
-  bool IsEmpty() const { return !size && !allocation_group; }
-  size_t size;
-  AllocationGroup* allocation_group;
+                                    const AllocationRecord& record,
+                                    const CallStack& callstack) = 0;
 };
 
 }  // namespace analytics
