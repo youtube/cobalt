@@ -171,13 +171,13 @@ class MemoryTrackerImpl : public MemoryTracker {
   AtomicStringAllocationGroupMap alloc_group_map_;
 
   atomic_int64_t total_bytes_allocated_;
-
-  scoped_ptr<MemoryTrackerDebugCallback> debug_callback_;
+  MemoryTrackerDebugCallback* debug_callback_;
 
   // THREAD LOCAL SECTION.
   ThreadLocalBoolean memory_deletion_enabled_tls_;
   ThreadLocalBoolean memory_tracking_disabled_tls_;
   ThreadLocalObject<AllocationGroupStack> allocation_group_stack_tls_;
+  ThreadLocalObject<CallStack> callstack_tls_;
   bool global_hooks_installed_;
 };
 
