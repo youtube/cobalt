@@ -16,12 +16,11 @@
 import logging
 import os
 
-import base
-
 from config.base import Configs
+from config.base import PlatformConfigBase
 
 
-class PlatformConfigStarboard(base.PlatformConfigBase):
+class PlatformConfigStarboard(PlatformConfigBase):
   """Starboard platform configuration."""
 
   def __init__(self, platform, asan_enabled_by_default=False):
@@ -34,6 +33,7 @@ class PlatformConfigStarboard(base.PlatformConfigBase):
   def GetVariables(self, config, use_clang=0):
     use_asan = 0
     use_tsan = 0
+    mtm_enabled = 0
     if use_clang:
       use_tsan = int(os.environ.get('USE_TSAN', 0))
       # Enable ASAN by default for debug and devel builds only if USE_TSAN was
