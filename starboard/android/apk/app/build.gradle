@@ -40,16 +40,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    externalNativeBuild {
-        cmake {
-            path 'CMakeLists.txt'
-        }
-    }
 }
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:leanback-v17:25.0.1'
 
     // http://www.akaita.com/post/android-native-library-module-debug/
     releaseCompile project(path: ':cobalt', configuration: 'release')

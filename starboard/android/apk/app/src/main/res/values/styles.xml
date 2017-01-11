@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-  <style name="AppTheme" parent="@style/Theme.Leanback">
+  <style name="AppTheme" parent="@style/android:Theme.Material.NoActionBar">
+    <item name="android:colorPrimary">@color/cobalt_blue</item>
+    <item name="android:windowOverscan">true</item>
   </style>
 </resources>
