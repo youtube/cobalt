@@ -17,7 +17,6 @@ import logging
 import os
 import subprocess
 import sys
-from config.base import GetToolchainsDir
 
 # Import the shared Linux platform configuration.
 sys.path.append(
@@ -25,7 +24,9 @@ sys.path.append(
         os.path.join(
             os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
             'shared')))
+# pylint: disable=import-self,g-import-not-at-top
 import gyp_configuration as shared_configuration
+import gyp_utils
 
 
 class PlatformConfig(shared_configuration.PlatformConfig):
@@ -38,7 +39,7 @@ class PlatformConfig(shared_configuration.PlatformConfig):
     script_path = os.path.dirname(os.path.realpath(__file__))
     subprocess.call(
         os.path.join(script_path, 'download_gcc.sh'), cwd=script_path)
-    self.toolchain_dir = os.path.join(GetToolchainsDir(),
+    self.toolchain_dir = os.path.join(gyp_utils.GetToolchainsDir(),
                                       'x86_64-linux-gnu-gcc-6.3.0', 'gcc')
 
   def GetVariables(self, configuration):
