@@ -741,15 +741,13 @@
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <h2 id="variables">variables</h2>
-
-<table><thead>
+        <table><thead>
 <tr>
 <th style="text-align: left">Variables</th>
 </tr>
 </thead><tbody>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">abort_on_allocation_failure%</code></strong><br><br> Halt execution on failure to allocate memory.<br><br>The default value is <code class="prettyprint">1</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">abort_on_allocation_failure</code></strong><br><br> Halt execution on failure to allocate memory.<br><br>The default value is <code class="prettyprint">1</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">actual_target_arch</code></strong><br><br> The &quot;real&quot; target_arch that is used to select the correct delegate source. other than Windows<br><br>The default value is <code class="prettyprint">&#39;&lt;(target_arch)&#39;</code>.</td>
@@ -758,259 +756,127 @@
 <td style="text-align: left"><strong><code class="prettyprint">clang_use_chrome_plugins</code></strong><br><br> Prevents common.gypi from running a bash script which is not required to compile Cobalt.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt</code></strong><br><br> Copyright 2014 Google Inc. All Rights Reserved.<br><br> Licensed under the Apache License, Version 2.0 (the &quot;License&quot;); you may not use this file except in compliance with the License. You may obtain a copy of the License at<br><br> <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a><br><br> Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License. This file should be included in all .gyp files used by Cobalt. Normally, this should be done automatically by gyp_cobalt. Cobalt variables. Whether Cobalt is being built.<br><br>The default value is <code class="prettyprint">1</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt</code></strong><br><br> Whether Cobalt is being built.<br><br>The default value is <code class="prettyprint">1</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_code%</code></strong><br><br> Similarly to chromium_code, marks the projects that are created by the Cobalt team and thus are held to the highest standards of code health.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_code</code></strong><br><br> Similarly to chromium_code, marks the projects that are created by the Cobalt team and thus are held to the highest standards of code health.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_config%</code></strong><br><br> Contains the current build configuration.<br><br>The default value is <code class="prettyprint">&#39;gold&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_config</code></strong><br><br> Contains the current build configuration.<br><br>The default value is <code class="prettyprint">&#39;gold&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_enable_jit%</code></strong><br><br> Supported engine is currently only &quot;javascriptcore&quot;. as expected, rather than requiring it to be set for each platform. &#39;javascript_engine%&#39;: &#39;javascriptcore&#39;, Enable jit by default. It can be set to 0 to run in interpreter-only mode. Setting this to 1 on a platform or engine for which there is no JIT implementation is a no-op.<br><br>The default value is <code class="prettyprint">1</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_enable_jit</code></strong><br><br> Enable jit by default. It can be set to 0 to run in interpreter-only mode. Setting this to 1 on a platform or engine for which there is no JIT implementation is a no-op.<br><br>The default value is <code class="prettyprint">1</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_fastbuild%</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_fastbuild</code></strong><br><br> Contains the current build configuration.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package%</code></strong><br><br> Contains the current font package selection.  This can be used to trade font quality, coverage, and latency with smaller font package size. See content/fonts/README.md for more details.<br><br>The default value is <code class="prettyprint">&#39;unlimited&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package</code></strong><br><br> Contains the current font package selection.  This can be used to trade font quality, coverage, and latency with smaller font package size. See content/fonts/README.md for more details.<br><br>The default value is <code class="prettyprint">&#39;unlimited&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_minimum_frame_time_in_milliseconds%</code></strong><br><br> Allow throttling of the frame rate. This is expressed in terms of milliseconds and can be a floating point number. Keep in mind that swapping frames may take some additional processing time, so it may be better to specify a lower delay. For example, &#39;33&#39; instead of &#39;33.33&#39; for 30 Hz refresh.<br><br>The default value is <code class="prettyprint">&#39;0&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_minimum_frame_time_in_milliseconds</code></strong><br><br> Allow throttling of the frame rate. This is expressed in terms of milliseconds and can be a floating point number. Keep in mind that swapping frames may take some additional processing time, so it may be better to specify a lower delay. For example, &#39;33&#39; instead of &#39;33.33&#39; for 30 Hz refresh.<br><br>The default value is <code class="prettyprint">&#39;0&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_version%</code></strong><br><br> Build version number.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_version</code></strong><br><br> Build version number.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags%</code></strong><br><br> Compiler configuration. The following variables are used to specify compiler and linker flags by build configuration. Platform specific .gypi includes and .gyp targets can use them to add additional flags.<br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_&lt;config&gt;</code></strong><br><br> Specifies compiler or linker flags by build configuration. Platform-specific .gypi includes and .gyp targets can use them to add additional flags.The following configurations are supported: <ul><li><code>[default]</code></li><li><code>c_debug</code></li><li><code>c_devel</code></li><li><code>c_gold</code></li><li><code>c_host</code></li><li><code>c_qa</code></li><li><code>cc_debug</code></li><li><code>cc_devel</code></li><li><code>cc_gold</code></li><li><code>cc_host</code></li><li><code>cc_qa</code></li><li><code>debug</code></li><li><code>devel</code></li><li><code>gold</code></li><li><code>host</code></li><li><code>qa</ul></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_c_debug%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">default_renderer_options_dependency</code></strong><br><br> Modify this value to adjust the default rasterizer setting for your platform.<br><br>The default value is <code class="prettyprint">&#39;&lt;(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_c_devel%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">enable_account_manager</code></strong><br><br> Set to 1 to enable H5vccAccountManager.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_c_gold%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">enable_spdy</code></strong><br><br> Set to 1 to compile with SPDY support.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_c_host%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">final_executable_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_c_qa%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">gl_type</code></strong><br><br> The source of EGL and GLES headers and libraries. Valid values (case and everything sensitive!):<ul><li><code>none</code> - No EGL + GLES implementation is available on this platform.<li><code>system_gles3</code> - Use the system implementation of EGL + GLES3. The headers and libraries must be on the system include and link paths.<li><code>system_gles2</code> - Use the system implementation of EGL + GLES2. The headers and libraries must be on the system include and link paths.<li><code>glimp</code> - Cobalt&#39;s own EGL + GLES2 implementation. This requires a valid Glimp implementation for the platform.<li><code>angle</code> - A DirectX-to-OpenGL adaptation layer. This requires a valid ANGLE implementation for the platform.</li></ul> Choosing an unsupported value will result in a GYP error: &quot;cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found&quot;<br><br>The default value is <code class="prettyprint">&#39;system_gles2&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_cc_debug%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">gtest_target_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_cc_devel%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">host_os</code></strong><br><br> Contains the name of the hosting OS. The value is defined by gyp_cobalt.<br><br>The default value is <code class="prettyprint">&#39;win&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_cc_gold%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">image_cache_capacity_multiplier_when_playing_video</code></strong><br><br> Modifying this value to be non-1.0f will result in the image cache capacity being cleared and then temporarily reduced for the duration that a video is playing.  This can be useful for some platforms if they are particularly constrained for (GPU) memory during video playback.  When playing a video, the image cache is reduced to: image_cache_size_in_bytes * image_cache_capacity_multiplier_when_playing_video.<br><br>The default value is <code class="prettyprint">&#39;1.0f&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_cc_host%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">image_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the image cache which manages image surfaces downloaded from a web page.  While it depends on the platform, often (and ideally) these images are cached within GPU memory.<br><br>The default value is <code class="prettyprint">64 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_cc_qa%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">in_app_dial</code></strong><br><br> Set to 1 to build with DIAL support.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_debug%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">lbshell_root</code></strong><br><br> Needed for backwards compatibility with lbshell code.<br><br>The default value is <code class="prettyprint">&#39;&lt;(DEPTH)/lbshell&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_devel%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_gold%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_host%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_qa%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">default_renderer_options_dependency%</code></strong><br><br> Modify this value to adjust the default rasterizer setting for your platform.<br><br>The default value is <code class="prettyprint">&#39;&lt;(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_account_manager%</code></strong><br><br> Set to 1 to enable H5vccAccountManager.<br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_spdy%</code></strong><br><br> Set to 1 to compile with SPDY support.<br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">final_executable_type%</code></strong><br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">gl_type%</code></strong><br><br> The source of EGL and GLES headers and libraries. Valid values (case and everything sensitive!):<ul><li><code>none</code> - No EGL + GLES implementation is available on this platform.<li><code>system_gles3</code> - Use the system implementation of EGL + GLES3. The headers and libraries must be on the system include and link paths.<li><code>system_gles2</code> - Use the system implementation of EGL + GLES2. The headers and libraries must be on the system include and link paths.<li><code>glimp</code> - Cobalt&#39;s own EGL + GLES2 implementation. This requires a valid Glimp implementation for the platform.<li><code>angle</code> - A DirectX-to-OpenGL adaptation layer. This requires a valid ANGLE implementation for the platform.</li></ul> Choosing an unsupported value will result in a GYP error: &quot;cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found&quot;<br><br>The default value is <code class="prettyprint">&#39;system_gles2&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">gtest_target_type%</code></strong><br><br> The variables allow changing the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">host_os%</code></strong><br><br> Contains the name of the hosting OS. The value is defined by gyp_cobalt.<br><br>The default value is <code class="prettyprint">&#39;win&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">image_cache_capacity_multiplier_when_playing_video%</code></strong><br><br> Modifying this value to be non-1.0f will result in the image cache capacity being cleared and then temporarily reduced for the duration that a video is playing.  This can be useful for some platforms if they are particularly constrained for (GPU) memory during video playback.  When playing a video, the image cache is reduced to: image_cache_size_in_bytes * image_cache_capacity_multiplier_when_playing_video.<br><br>The default value is <code class="prettyprint">&#39;1.0f&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">image_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the image cache which manages image surfaces downloaded from a web page.  While it depends on the platform, often (and ideally) these images are cached within GPU memory.<br><br>The default value is <code class="prettyprint">64 * 1024 * 1024</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">in_app_dial%</code></strong><br><br> Set to 1 to build with DIAL support.<br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">lbshell_root%</code></strong><br><br> Needed for backwards compatibility with lbshell code.<br><br>The default value is <code class="prettyprint">&#39;&lt;(DEPTH)/lbshell&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">linker_flags%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">linker_flags_debug%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">linker_flags_devel%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">linker_flags_gold%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">linker_flags_host%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">linker_flags_qa%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">linker_flags_&lt;config&gt;</code></strong><br><br> Specifies compiler or linker flags by build configuration. Platform-specific .gypi includes and .gyp targets can use them to add additional flags.The following configurations are supported: <ul><li><code>[default]</code></li><li><code>debug</code></li><li><code>devel</code></li><li><code>gold</code></li><li><code>host</code></li><li><code>qa</ul></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">linux_use_tcmalloc</code></strong><br><br> Cobalt doesn&#39;t currently support tcmalloc.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">platform_libraries%</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">platform_libraries</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">posix_emulation_target_type%</code></strong><br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">posix_emulation_target_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">rasterizer_type%</code></strong><br><br> Defines what kind of rasterizer will be used.  This can be adjusted to force a stub graphics implementation or software graphics implementation. It can be one of the following options:<ul><li><code>hardware</code> - As much hardware acceleration of graphics commands as possible. Required for 360 rendering.<li><code>software</code> - Perform most rasterization using the CPU and only interact with the GPU to send the final image to the output window.<li><code>stub</code> - Stub graphics rasterization.  A rasterizer object will still be available and valid, but it will do nothing.<br><br>The default value is <code class="prettyprint">&#39;hardware&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">rasterizer_type</code></strong><br><br> Defines what kind of rasterizer will be used.  This can be adjusted to force a stub graphics implementation or software graphics implementation. It can be one of the following options:<ul><li><code>hardware</code> - As much hardware acceleration of graphics commands as possible. Required for 360 rendering.<li><code>software</code> - Perform most rasterization using the CPU and only interact with the GPU to send the final image to the output window.<li><code>stub</code> - Stub graphics rasterization.  A rasterizer object will still be available and valid, but it will do nothing.<br><br>The default value is <code class="prettyprint">&#39;hardware&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">remote_typeface_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the remote typefaces cache which manages all typefaces downloaded from a web page.<br><br>The default value is <code class="prettyprint">5 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">remote_typeface_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the remote typefaces cache which manages all typefaces downloaded from a web page.<br><br>The default value is <code class="prettyprint">5 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">sb_has_deploy_step%</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">sb_has_deploy_step</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">sb_libevent_method%</code></strong><br><br> The event polling mechanism available on this platform to support libevent. Platforms may redefine to &#39;poll&#39; if necessary. Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.<br><br>The default value is <code class="prettyprint">&#39;epoll&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">sb_libevent_method</code></strong><br><br> The event polling mechanism available on this platform to support libevent. Platforms may redefine to &#39;poll&#39; if necessary. Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.<br><br>The default value is <code class="prettyprint">&#39;epoll&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">sb_media_platform%</code></strong><br><br> Used by cobalt/media/media.gyp to pick a proper media platform.<br><br>The default value is <code class="prettyprint">&#39;starboard&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">sb_media_platform</code></strong><br><br> Used by cobalt/media/media.gyp to pick a proper media platform.<br><br>The default value is <code class="prettyprint">&#39;starboard&#39;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">sb_target_platform</code></strong><br><br> The target platform id as a string, like &#39;ps3&#39;, &#39;ps4&#39;, etc..<br><br>The default value is <code class="prettyprint">&#39;&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">scratch_surface_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the scratch surface cache.  The scratch surface cache facilitates the reuse of temporary offscreen surfaces within a single frame.  This setting is only relevant when using the hardware-accelerated Skia rasterizer.<br><br>The default value is <code class="prettyprint">7 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">scratch_surface_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the scratch surface cache.  The scratch surface cache facilitates the reuse of temporary offscreen surfaces within a single frame.  This setting is only relevant when using the hardware-accelerated Skia rasterizer.<br><br>The default value is <code class="prettyprint">7 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">skia_cache_size_in_bytes%</code></strong><br><br>Determines the capacity of the skia cache.  The Skia cache is maintained within Skia and is used to cache the results of complicated effects such as shadows, so that Skia draw calls that are used repeatedly across frames can be cached into surfaces.  This setting is only relevant when using the hardware-accelerated Skia rasterizer (e.g. as opposed to the Blitter API).<br><br>The default value is <code class="prettyprint">4 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">skia_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the skia cache.  The Skia cache is maintained within Skia and is used to cache the results of complicated effects such as shadows, so that Skia draw calls that are used repeatedly across frames can be cached into surfaces.  This setting is only relevant when using the hardware-accelerated Skia rasterizer (e.g. as opposed to the Blitter API).<br><br>The default value is <code class="prettyprint">4 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_height%</code></strong><br><br>The default value is <code class="prettyprint">&#39;2048&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_height</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays.<br><br>The default value is <code class="prettyprint">&#39;2048&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_width%</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays.<br><br>The default value is <code class="prettyprint">&#39;2048&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_width</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays.<br><br>The default value is <code class="prettyprint">&#39;2048&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">software_surface_cache_size_in_bytes%</code></strong><br><br> Only relevant if you are using the Blitter API. Determines the capacity of the software surface cache, which is used to cache all surfaces that are rendered via a software rasterizer to avoid re-rendering them.<br><br>The default value is <code class="prettyprint">10 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">software_surface_cache_size_in_bytes</code></strong><br><br> Only relevant if you are using the Blitter API. Determines the capacity of the software surface cache, which is used to cache all surfaces that are rendered via a software rasterizer to avoid re-rendering them.<br><br>The default value is <code class="prettyprint">10 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">starboard_path%</code></strong><br><br> The relative path from src/ to the directory containing the starboard_platform.gyp file.  It is currently set to &#39;starboard/&lt;(target_arch)&#39; to make semi-starboard platforms work.<br><br>The default value is <code class="prettyprint">&#39;starboard/&lt;(target_arch)&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">starboard_path</code></strong><br><br> The relative path from src/ to the directory containing the starboard_platform.gyp file.  It is currently set to &#39;starboard/&lt;(target_arch)&#39; to make semi-starboard platforms work.<br><br>The default value is <code class="prettyprint">&#39;starboard/&lt;(target_arch)&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">surface_cache_size_in_bytes%</code></strong><br><br> Determines the capacity of the surface cache.  The surface cache tracks which render tree nodes are being re-used across frames and stores the nodes that are most CPU-expensive to render into surfaces.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">surface_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the surface cache.  The surface cache tracks which render tree nodes are being re-used across frames and stores the nodes that are most CPU-expensive to render into surfaces.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">target_os%</code></strong><br><br> The operating system of the target, separate from the target_arch. In many cases, an &#39;unknown&#39; value is fine, but, if set to &#39;linux&#39;, then we can assume some things, and it&#39;ll save us some configuration time.<br><br>The default value is <code class="prettyprint">&#39;unknown&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">target_os</code></strong><br><br> The operating system of the target, separate from the target_arch. In many cases, an &#39;unknown&#39; value is fine, but, if set to &#39;linux&#39;, then we can assume some things, and it&#39;ll save us some configuration time.<br><br>The default value is <code class="prettyprint">&#39;unknown&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">use_official_google_api_keys</code></strong><br><br> Customize variables used by Chromium&#39;s build/common.gypi. Disable a check that looks for an official google api key.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">use_official_google_api_keys</code></strong><br><br> Disable a check that looks for an official google api key.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">webkit_target_type%</code></strong><br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">webkit_target_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">werror</code></strong><br><br> Disables treat warnings as errors.<br><br>The default value is <code class="prettyprint">&#39;&#39;</code>.</td>
-</tr>
-</tbody></table>
-
-<h2 id="target_defaults">target_defaults</h2>
-
-<table><thead>
-<tr>
-<th style="text-align: left">Target defaults</th>
-</tr>
-</thead><tbody>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">abstract</code></strong><br><br>The default value is <code class="prettyprint">1</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">cflags</code></strong><br><br> optimize:<br><br>The default value is <code class="prettyprint">[ &#39;&lt;@(compiler_flags_gold)&#39; ]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">cflags_c</code></strong><br><br>The default value is <code class="prettyprint">[ &#39;&lt;@(compiler_flags_c_gold)&#39; ]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">cflags_cc</code></strong><br><br>The default value is <code class="prettyprint">[ &#39;&lt;@(compiler_flags_cc_gold)&#39; ]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_code%</code></strong><br><br> The condition that operates on cobalt_code is in a target_conditions section, and will not have access to the default fallback value of cobalt_code at the top of this file, or to the cobalt_code variable placed at the root variables scope of .gyp files, because those variables are not set at target scope.  As a workaround, if cobalt_code is not set at target scope, define it in target scope to contain whatever value it has during early variable expansion. That&#39;s enough to make it available during target conditional processing.<br><br>The default value is <code class="prettyprint">&#39;&lt;(cobalt_code)&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_copy_debug_console</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_copy_test_data</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_about_scheme</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_fake_microphone</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_file_scheme</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_network_logging</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_remote_debugging%</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_screenshot</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_webdriver</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">enable_webdriver%</code></strong><br><br>The default value is <code class="prettyprint">1</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">include_dirs</code></strong><br><br> Allows any source file to include files relative to the source tree.<br><br>The default value is <code class="prettyprint">[ &#39;&lt;(DEPTH)&#39; ]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">ldflags</code></strong><br><br>The default value is <code class="prettyprint">[ &#39;&lt;@(linker_flags_gold)&#39; ]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">ldflags_host</code></strong><br><br>The default value is <code class="prettyprint">[ &#39;&lt;@(linker_flags_host)&#39; ]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">libraries</code></strong><br><br>The default value is <code class="prettyprint">[ &#39;&lt;@(platform_libraries)&#39; ]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">msvs_cygwin_dirs</code></strong><br><br> Location of Cygwin which is used by the build system when running on a Windows platform.<br><br>The default value is <code class="prettyprint">[&#39;&lt;(DEPTH)/third_party/cygwin&#39;]</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">sb_allows_memory_tracking</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 </tbody></table>
 
