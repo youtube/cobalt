@@ -40,9 +40,13 @@ _CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))
 
 
 def GetToolchainsDir():
-  return os.path.realpath(
+  toolchains_dir = os.path.realpath(
       os.getenv('COBALT_TOOLCHAINS_DIR',
                 os.path.join(os.environ.get('HOME'), 'cobalt-toolchains')))
+  # Ensure the toolchains directory exists.
+  if not os.path.exists(toolchains_dir):
+    os.mkdir(toolchains_dir)
+  return toolchains_dir
 
 
 class PlatformConfigBase(object):
