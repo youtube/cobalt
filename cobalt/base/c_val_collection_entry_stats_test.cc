@@ -178,7 +178,7 @@ TEST(CValCollectionEntryStatsTest, ManualFlush) {
   const std::string name = "CollectionEntryStats";
   const size_t max_size = 5;
 
-  base::CValCollectionEntryStats<int> cval(name, max_size);
+  base::CValCollectionEntryStats<int, CValPublic> cval(name, max_size);
   cval.AddEntry(3);
   cval.AddEntry(9);
   cval.AddEntry(1);
@@ -230,7 +230,7 @@ TEST(CValCollectionEntryStatsTest, TwoManualFlushes) {
   const std::string name = "CollectionEntryStats";
   const size_t max_size = 5;
 
-  base::CValCollectionEntryStats<int> cval(name, max_size);
+  base::CValCollectionEntryStats<int, CValDebug> cval(name, max_size);
   cval.AddEntry(3);
   cval.AddEntry(9);
   cval.AddEntry(1);
