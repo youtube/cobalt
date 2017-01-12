@@ -100,9 +100,9 @@ class RendererPipelineTest : public ::testing::Test {
   // that is meant to act as a dummy/placeholder.  It is animated to ensure that
   // it changes every frame and so the Pipeline must rasterize it each frame.
   scoped_refptr<cobalt::render_tree::Node> MakeDummyAnimatedRenderTree() {
+    cobalt::render_tree::CompositionNode::Builder builder;
     scoped_refptr<cobalt::render_tree::CompositionNode> dummy_node(
-        new cobalt::render_tree::CompositionNode(
-            cobalt::render_tree::CompositionNode::Builder()));
+        new cobalt::render_tree::CompositionNode(builder));
 
     cobalt::render_tree::animations::AnimateNode::Builder animate_builder;
     animate_builder.Add(dummy_node, base::Bind(&DummyAnimateFunction));

@@ -240,7 +240,6 @@ def GetHostCompilerEnvironment():
 
   cc_clang = os.path.join(toolchain_bin_dir, 'clang')
   cxx_clang = os.path.join(toolchain_bin_dir, 'clang++')
-  # Check if goma is installed and initialize if needed.
   host_clang_environment = {
       'CC_host': cc_clang,
       'CXX_host': cxx_clang,
@@ -248,6 +247,7 @@ def GetHostCompilerEnvironment():
       'ARFLAGS_host': 'rcs',
       'ARTHINFLAGS_host': 'rcsT',
   }
+  # Check if goma is installed. Initialize if needed and use if possible.
   if FindAndInitGoma():
     logging.info('Using Goma')
     host_clang_environment.update({
