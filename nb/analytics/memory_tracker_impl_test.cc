@@ -502,13 +502,15 @@ TEST_F(MemoryTrackerImplTest, MemoryTrackerDebugCallback) {
     MemoryTrackerDebugCallbackTest() { Reset(); }
     virtual void OnMemoryAllocation(
         const void* memory_block,
-        const AllocationRecord& record) SB_OVERRIDE {
+        const AllocationRecord& record,
+        const CallStack& callstack) SB_OVERRIDE {
       last_memory_block_allocated_ = memory_block;
       last_allocation_record_allocated_ = record;
     }
     virtual void OnMemoryDeallocation(
         const void* memory_block,
-        const AllocationRecord& record) SB_OVERRIDE {
+        const AllocationRecord& record,
+        const CallStack& callstack) SB_OVERRIDE {
       last_memory_block_deallocated_ = memory_block;
       last_allocation_record_deallocated_ = record;
     }
