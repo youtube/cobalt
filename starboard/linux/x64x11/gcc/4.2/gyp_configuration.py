@@ -17,7 +17,6 @@ import logging
 import os
 import subprocess
 import sys
-from config.base import GetToolchainsDir
 
 # Import the shared Linux platform configuration.
 sys.path.append(
@@ -25,7 +24,9 @@ sys.path.append(
         os.path.join(
             os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
             'shared')))
+# pylint: disable=import-self,g-import-not-at-top
 import gyp_configuration as shared_configuration
+import gyp_utils
 
 
 class PlatformConfig(shared_configuration.PlatformConfig):
@@ -46,7 +47,7 @@ class PlatformConfig(shared_configuration.PlatformConfig):
 
   def GetEnvironmentVariables(self):
     env_variables = super(PlatformConfig, self).GetEnvironmentVariables()
-    toolchain_bin_dir = os.path.join(GetToolchainsDir(),
+    toolchain_bin_dir = os.path.join(gyp_utils.GetToolchainsDir(),
                                      'x86_64-linux-gnu-gcc-4.2.4', 'gcc', 'bin')
     env_variables.update({
         'LIBRARY_PATH':
