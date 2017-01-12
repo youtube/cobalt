@@ -29,8 +29,8 @@ const int kMaxQueueSize = 4;
 Submission MakeSubmissionWithUniqueRenderTree(
     const base::TimeDelta& time_offset) {
   // Create a dummy, but unique, render tree.
-  Submission submission(new cobalt::render_tree::CompositionNode(
-      cobalt::render_tree::CompositionNode::Builder()));
+  cobalt::render_tree::CompositionNode::Builder builder;
+  Submission submission(new cobalt::render_tree::CompositionNode(builder));
   submission.time_offset = time_offset;
 
   return submission;
