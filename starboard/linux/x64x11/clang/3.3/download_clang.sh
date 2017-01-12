@@ -36,6 +36,8 @@ source ../../toolchain_paths.sh
   cd ${toolchain_path}
 
   cd llvm
+  # Specify a bootstrap compiler that is known to be available.
+  CC=clang-3.6 CXX=clang++-3.6 \
   ./configure --enable-optimized --disable-doxygen --prefix=${PWD}/bin
   make -j"$(nproc)"
   cd ${toolchain_path}
