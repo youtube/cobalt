@@ -95,7 +95,8 @@ TEST(CValTimeIntervalEntryStatsTest, OneTimeout) {
   const std::string name = "TimeIntervalEntryStats";
   const size_t time_interval_in_ms = 50;
 
-  base::CValTimeIntervalEntryStats<int> cval(name, time_interval_in_ms);
+  base::CValTimeIntervalEntryStats<int, CValPublic> cval(name,
+                                                         time_interval_in_ms);
   cval.AddEntry(3, base::TimeTicks::FromInternalValue(1000));
   cval.AddEntry(9, base::TimeTicks::FromInternalValue(2000));
   cval.AddEntry(1, base::TimeTicks::FromInternalValue(3000));
@@ -131,7 +132,8 @@ TEST(CValTimeIntervalEntryStatsTest, TwoTimeouts) {
   const std::string name = "TimeIntervalEntryStats";
   const size_t time_interval_in_ms = 50;
 
-  base::CValTimeIntervalEntryStats<int> cval(name, time_interval_in_ms);
+  base::CValTimeIntervalEntryStats<int, CValDebug> cval(name,
+                                                        time_interval_in_ms);
   cval.AddEntry(3, base::TimeTicks::FromInternalValue(1000));
   cval.AddEntry(9, base::TimeTicks::FromInternalValue(2000));
   cval.AddEntry(1, base::TimeTicks::FromInternalValue(3000));

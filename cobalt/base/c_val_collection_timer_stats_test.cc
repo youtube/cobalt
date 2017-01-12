@@ -189,7 +189,7 @@ TEST(CValCollectionTimerStatsTest, ManualFlush) {
   const std::string name = "CollectionTimerStats";
   const size_t max_size = 5;
 
-  base::CValCollectionTimerStats<> cval(name, max_size);
+  base::CValCollectionTimerStats<CValPublic> cval(name, max_size);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));
@@ -246,7 +246,7 @@ TEST(CValCollectionTimerStatsTest, TwoManualFlushes) {
   const std::string name = "CollectionTimer";
   const size_t max_size = 5;
 
-  base::CValCollectionTimerStats<> cval(name, max_size);
+  base::CValCollectionTimerStats<CValDebug> cval(name, max_size);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));

@@ -28,6 +28,7 @@
 #include "cobalt/base/c_val.h"
 
 namespace base {
+namespace CValDetail {
 
 // This class tracks a collection of entries, which it retains in memory. When
 // either the max size of the collection is reached or Flush() is manually
@@ -43,12 +44,12 @@ namespace base {
 //        appropriate, as it does its tracking without keeping entries in memory
 //        (at the cost of not being able to provide percentiles);
 template <typename EntryType, typename Visibility = CValDebug>
-class CValCollectionEntryStats {
+class CValCollectionEntryStatsImpl {
  public:
   static const size_t kNoMaxSize = 0;
 
-  CValCollectionEntryStats(const std::string& name,
-                           size_t max_size = kNoMaxSize);
+  CValCollectionEntryStatsImpl(const std::string& name,
+                               size_t max_size = kNoMaxSize);
 
   // Add an entry to the collection. This may trigger a Flush() if adding the
   // entry causes the max size to be reached.
@@ -84,8 +85,9 @@ class CValCollectionEntryStats {
 };
 
 template <typename EntryType, typename Visibility>
-CValCollectionEntryStats<EntryType, Visibility>::CValCollectionEntryStats(
-    const std::string& name, size_t max_size /*=kNoMaxSize*/)
+CValCollectionEntryStatsImpl<EntryType, Visibility>::
+    CValCollectionEntryStatsImpl(const std::string& name,
+                                 size_t max_size /*=kNoMaxSize*/)
     : max_size_(max_size),
       count_(StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
       average_(StringPrintf("%s.Avg", name.c_str()), EntryType(),
@@ -106,7 +108,7 @@ CValCollectionEntryStats<EntryType, Visibility>::CValCollectionEntryStats(
                           "Standard deviation of values.") {}
 
 template <typename EntryType, typename Visibility>
-void CValCollectionEntryStats<EntryType, Visibility>::AddEntry(
+void CValCollectionEntryStatsImpl<EntryType, Visibility>::AddEntry(
     const EntryType& value) {
   collection_.push_back(value);
   if (collection_.size() == max_size_) {
@@ -115,7 +117,7 @@ void CValCollectionEntryStats<EntryType, Visibility>::AddEntry(
 }
 
 template <typename EntryType, typename Visibility>
-void CValCollectionEntryStats<EntryType, Visibility>::Flush() {
+void CValCollectionEntryStatsImpl<EntryType, Visibility>::Flush() {
   if (collection_.size() == 0) {
     return;
   }
@@ -145,7 +147,8 @@ void CValCollectionEntryStats<EntryType, Visibility>::Flush() {
 }
 
 template <typename EntryType, typename Visibility>
-EntryType CValCollectionEntryStats<EntryType, Visibility>::CalculatePercentile(
+EntryType
+CValCollectionEntryStatsImpl<EntryType, Visibility>::CalculatePercentile(
     const CollectionType& sorted_collection, int percentile) {
   DCHECK_GT(sorted_collection.size(), 0);
   DCHECK(percentile >= 0 && percentile <= 100);
@@ -182,7 +185,7 @@ EntryType CValCollectionEntryStats<EntryType, Visibility>::CalculatePercentile(
 
 template <typename EntryType, typename Visibility>
 double
-CValCollectionEntryStats<EntryType, Visibility>::CalculateStandardDeviation(
+CValCollectionEntryStatsImpl<EntryType, Visibility>::CalculateStandardDeviation(
     const CollectionType& collection, double mean) {
   if (collection.size() <= 1) {
     return 0;
@@ -200,6 +203,69 @@ CValCollectionEntryStats<EntryType, Visibility>::CalculateStandardDeviation(
 
   return std::sqrt(variance);
 }
+
+#if !defined(ENABLE_DEBUG_C_VAL)
+// This is a stub class that disables CValCollectionEntryStats when
+// ENABLE_DEBUG_C_VAL is not defined.
+template <typename EntryType>
+class CValCollectionEntryStatsStub {
+ public:
+  explicit CValCollectionEntryStatsStub(const std::string& name) {
+    UNREFERENCED_PARAMETER(name);
+  }
+  CValCollectionEntryStatsStub(const std::string& name, size_t max_size) {
+    UNREFERENCED_PARAMETER(name);
+    UNREFERENCED_PARAMETER(max_size);
+  }
+
+  void AddEntry(const EntryType& value) { UNREFERENCED_PARAMETER(value); }
+  void Flush() {}
+};
+#endif  // ENABLE_DEBUG_C_VAL
+
+}  // namespace CValDetail
+
+template <typename EntryType, typename Visibility = CValDebug>
+class CValCollectionEntryStats {};
+
+template <typename EntryType>
+#if defined(ENABLE_DEBUG_C_VAL)
+// When ENABLE_DEBUG_C_VAL is defined, CVals with Visibility set to CValDebug
+// are tracked through the CVal system.
+class CValCollectionEntryStats<EntryType, CValDebug>
+    : public CValDetail::CValCollectionEntryStatsImpl<EntryType, CValDebug> {
+  typedef CValDetail::CValCollectionEntryStatsImpl<EntryType, CValDebug>
+      CValParent;
+#else   // ENABLE_DEBUG_C_VAL
+// When ENABLE_DEBUG_C_VAL is not defined, CVals with Visibility set to
+// CValDebug are not tracked though the CVal system and
+// CValCollectionEntryStats can be stubbed out.
+class CValCollectionEntryStats<EntryType, CValDebug>
+    : public CValDetail::CValCollectionEntryStatsStub<EntryType> {
+  typedef CValDetail::CValCollectionEntryStatsStub<EntryType> CValParent;
+#endif  // ENABLE_DEBUG_C_VAL
+
+ public:
+  explicit CValCollectionEntryStats(const std::string& name)
+      : CValParent(name) {}
+  CValCollectionEntryStats(const std::string& name, size_t max_size)
+      : CValParent(name, max_size) {}
+};
+
+// CVals with visibility set to CValPublic are always tracked though the CVal
+// system, regardless of the ENABLE_DEBUG_C_VAL state.
+template <typename EntryType>
+class CValCollectionEntryStats<EntryType, CValPublic>
+    : public CValDetail::CValCollectionEntryStatsImpl<EntryType, CValPublic> {
+  typedef CValDetail::CValCollectionEntryStatsImpl<EntryType, CValPublic>
+      CValParent;
+
+ public:
+  explicit CValCollectionEntryStats(const std::string& name)
+      : CValParent(name) {}
+  CValCollectionEntryStats(const std::string& name, size_t max_size)
+      : CValParent(name, max_size) {}
+};
 
 }  // namespace base
 
