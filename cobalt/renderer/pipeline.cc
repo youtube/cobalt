@@ -236,9 +236,8 @@ void Pipeline::RasterizeCurrentTree() {
   base::TimeTicks now = base::TimeTicks::Now();
   Submission submission = submission_queue_->GetCurrentSubmission(now);
 
-  bool has_render_tree_changed =
-      last_render_animations_active_ ||
-      submission.render_tree != last_render_tree_;
+  bool has_render_tree_changed = last_render_animations_active_ ||
+                                 submission.render_tree != last_render_tree_;
 
   // If our render tree hasn't changed from the one that was previously
   // rendered and it's okay on this system to not flip the display buffer
