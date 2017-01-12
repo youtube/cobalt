@@ -1988,21 +1988,19 @@ namespace {
 scoped_refptr<Node> CreateRoundedBorderRect(const SizeF& size,
                                             float border_width,
                                             const ColorRGBA& color) {
-  return new RectNode(
-      RectF(size), make_scoped_ptr(new Border(BorderSide(
-                       border_width, render_tree::kBorderStyleSolid, color))),
-      make_scoped_ptr(
-          new RoundedCorners(size.width() / 4.0f, size.height() / 4.0f)));
+  BorderSide border_side(border_width, render_tree::kBorderStyleSolid, color);
+  return new RectNode(RectF(size), make_scoped_ptr(new Border(border_side)),
+                      make_scoped_ptr(new RoundedCorners(
+                          size.width() / 4.0f, size.height() / 4.0f)));
 }
 
 scoped_refptr<Node> CreateEllipticalBorderRect(const SizeF& size,
                                                float border_width,
                                                const ColorRGBA& color) {
-  return new RectNode(
-      RectF(size), make_scoped_ptr(new Border(BorderSide(
-                       border_width, render_tree::kBorderStyleSolid, color))),
-      make_scoped_ptr(
-          new RoundedCorners(size.width() / 2.0f, size.height() / 2.0f)));
+  BorderSide border_side(border_width, render_tree::kBorderStyleSolid, color);
+  return new RectNode(RectF(size), make_scoped_ptr(new Border(border_side)),
+                      make_scoped_ptr(new RoundedCorners(
+                          size.width() / 2.0f, size.height() / 2.0f)));
 }
 
 }  // namespace
@@ -2018,11 +2016,10 @@ TEST_F(PixelTest, RoundedCornersEachDifferentThickBorder) {
   RoundedCorners rounded_corners(
       RoundedCorner(10.0f, 20.0f), RoundedCorner(20.0f, 30.0f),
       RoundedCorner(30.0f, 40.0f), RoundedCorner(50.0f, 40.0f));
-
+  BorderSide border_side(20.0f, render_tree::kBorderStyleSolid,
+                         ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f));
   TestTree(new RectNode(RectF(30, 30, 100, 100),
-                        make_scoped_ptr(new Border(
-                            BorderSide(20.0f, render_tree::kBorderStyleSolid,
-                                       ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f)))),
+                        make_scoped_ptr(new Border(border_side)),
                         make_scoped_ptr(new RoundedCorners(rounded_corners))));
 }
 
