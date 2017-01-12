@@ -23,6 +23,7 @@ sys.path.append(
         os.path.join(
             os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
             'shared')))
+# pylint: disable=import-self,g-import-not-at-top
 import gyp_configuration as shared_configuration
 
 
