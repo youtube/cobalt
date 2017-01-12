@@ -100,7 +100,7 @@ TEST(CValTimeIntervalTimerStatsTest, OneTimeout) {
   const std::string name = "TimeIntervalTimerStats";
   const size_t time_interval_in_ms = 50;
 
-  base::CValTimeIntervalTimerStats<> cval(name, time_interval_in_ms);
+  base::CValTimeIntervalTimerStats<CValPublic> cval(name, time_interval_in_ms);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));
@@ -142,7 +142,7 @@ TEST(CValTimeIntervalTimerStatsTest, TwoTimeouts) {
   const std::string name = "TimeIntervalTimerStats";
   const size_t time_interval_in_ms = 50;
 
-  base::CValTimeIntervalTimerStats<> cval(name, time_interval_in_ms);
+  base::CValTimeIntervalTimerStats<CValDebug> cval(name, time_interval_in_ms);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));
