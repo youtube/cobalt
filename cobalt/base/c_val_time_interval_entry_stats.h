@@ -26,6 +26,7 @@
 #include "cobalt/base/c_val.h"
 
 namespace base {
+namespace CValDetail {
 
 // This class tracks entries over a specified time period, which it does not
 // retain in memory. When the time period has elapsed, the average, minimum,
@@ -35,11 +36,11 @@ namespace base {
 //       periods are not needed, |CValCollectionEntryStats| may be more
 //       appropriate. It retains the entries for the collection in memory so
 //       that it can provide the collection's percentiles.
-template <typename EntryType, typename Visibility = CValDebug>
-class CValTimeIntervalEntryStats {
+template <typename EntryType, typename Visibility>
+class CValTimeIntervalEntryStatsImpl {
  public:
-  CValTimeIntervalEntryStats(const std::string& name,
-                             int64 time_interval_in_ms);
+  CValTimeIntervalEntryStatsImpl(const std::string& name,
+                                 int64 time_interval_in_ms);
 
   void AddEntry(const EntryType& value);
   void AddEntry(const EntryType& value, const base::TimeTicks& now);
@@ -80,8 +81,9 @@ class CValTimeIntervalEntryStats {
 };
 
 template <typename EntryType, typename Visibility>
-CValTimeIntervalEntryStats<EntryType, Visibility>::CValTimeIntervalEntryStats(
-    const std::string& name, int64 time_interval_in_ms)
+CValTimeIntervalEntryStatsImpl<EntryType, Visibility>::
+    CValTimeIntervalEntryStatsImpl(const std::string& name,
+                                   int64 time_interval_in_ms)
     : time_interval_in_ms_(time_interval_in_ms),
       count_(StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
       average_(StringPrintf("%s.Avg", name.c_str()), EntryType(),
@@ -97,14 +99,14 @@ CValTimeIntervalEntryStats<EntryType, Visibility>::CValTimeIntervalEntryStats(
 }
 
 template <typename EntryType, typename Visibility>
-void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
+void CValTimeIntervalEntryStatsImpl<EntryType, Visibility>::AddEntry(
     const EntryType& value) {
   base::TimeTicks now = base::TimeTicks::Now();
   AddEntry(value, now);
 }
 
 template <typename EntryType, typename Visibility>
-void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
+void CValTimeIntervalEntryStatsImpl<EntryType, Visibility>::AddEntry(
     const EntryType& value, const base::TimeTicks& now) {
   // Check to see if the timer hasn't started yet. This happens when this is
   // the first entry ever added. In this case, the timer is simply started and
@@ -149,8 +151,8 @@ void CValTimeIntervalEntryStats<EntryType, Visibility>::AddEntry(
 }
 
 template <typename EntryType, typename Visibility>
-void CValTimeIntervalEntryStats<EntryType, Visibility>::AddToActiveEntryStats(
-    const EntryType& value) {
+void CValTimeIntervalEntryStatsImpl<
+    EntryType, Visibility>::AddToActiveEntryStats(const EntryType& value) {
   ++active_count_;
 
   double shifted_value_as_double =
@@ -168,8 +170,8 @@ void CValTimeIntervalEntryStats<EntryType, Visibility>::AddToActiveEntryStats(
 }
 
 template <typename EntryType, typename Visibility>
-void CValTimeIntervalEntryStats<EntryType,
-                                Visibility>::ResetActiveEntryStats() {
+void CValTimeIntervalEntryStatsImpl<EntryType,
+                                    Visibility>::ResetActiveEntryStats() {
   active_count_ = 0;
 
   active_shifted_sum_ = 0;
@@ -178,6 +180,63 @@ void CValTimeIntervalEntryStats<EntryType,
   active_minimum_ = CValDetail::Max<EntryType>();
   active_maximum_ = CValDetail::Min<EntryType>();
 }
+
+#if !defined(ENABLE_DEBUG_C_VAL)
+// This is a stub class that disables CValTimeIntervalEntryStats when
+// ENABLE_DEBUG_C_VAL is not defined.
+template <typename EntryType>
+class CValTimeIntervalEntryStatsStub {
+ public:
+  CValTimeIntervalEntryStatsStub(const std::string& name,
+                                 int64 time_interval_in_ms) {
+    UNREFERENCED_PARAMETER(name);
+    UNREFERENCED_PARAMETER(time_interval_in_ms);
+  }
+
+  void AddEntry(const EntryType& value) {}
+  void AddEntry(const EntryType& value, const base::TimeTicks& now) {}
+};
+#endif  // ENABLE_DEBUG_C_VAL
+
+}  // namespace CValDetail
+
+template <typename EntryType, typename Visibility = CValDebug>
+class CValTimeIntervalEntryStats {};
+
+template <typename EntryType>
+#if defined(ENABLE_DEBUG_C_VAL)
+// When ENABLE_DEBUG_C_VAL is defined, CVals with Visibility set to CValDebug
+// are tracked through the CVal system.
+class CValTimeIntervalEntryStats<EntryType, CValDebug>
+    : public CValDetail::CValTimeIntervalEntryStatsImpl<EntryType, CValDebug> {
+  typedef CValDetail::CValTimeIntervalEntryStatsImpl<EntryType, CValDebug>
+      CValParent;
+#else   // ENABLE_DEBUG_C_VAL
+// When ENABLE_DEBUG_C_VAL is not defined, CVals with Visibility set to
+// CValDebug are not tracked though the CVal system and
+// CValTimeIntervalEntryStats can be stubbed out.
+class CValTimeIntervalEntryStats<EntryType, CValDebug>
+    : public CValDetail::CValTimeIntervalEntryStatsStub<EntryType> {
+  typedef CValDetail::CValTimeIntervalEntryStatsStub<EntryType> CValParent;
+#endif  // ENABLE_DEBUG_C_VAL
+
+ public:
+  CValTimeIntervalEntryStats(const std::string& name, int64 time_interval_in_ms)
+      : CValParent(name, time_interval_in_ms) {}
+};
+
+// CVals with visibility set to CValPublic are always tracked though the CVal
+// system, regardless of the ENABLE_DEBUG_C_VAL state.
+template <typename EntryType>
+class CValTimeIntervalEntryStats<EntryType, CValPublic>
+    : public CValDetail::CValTimeIntervalEntryStatsImpl<EntryType, CValPublic> {
+  typedef CValDetail::CValTimeIntervalEntryStatsImpl<EntryType, CValPublic>
+      CValParent;
+
+ public:
+  CValTimeIntervalEntryStats(const std::string& name, int64 time_interval_in_ms)
+      : CValParent(name, time_interval_in_ms) {}
+};
 
 }  // namespace base
 
