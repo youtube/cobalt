@@ -23,7 +23,8 @@ import subprocess
 import sys
 import urllib
 import urllib2
-import config.base
+
+_CLANG_REVISION = '264915-1'
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 _SOURCE_TREE_DIR = os.path.abspath(
@@ -163,12 +164,19 @@ def _EnsureGomaRunning():
     return False
 
 
-CLANG_REVISION = '264915-1'
+def GetToolchainsDir():
+  toolchains_dir = os.path.realpath(
+      os.getenv('COBALT_TOOLCHAINS_DIR',
+                os.path.join(os.environ.get('HOME'), 'cobalt-toolchains')))
+  # Ensure the toolchains directory exists.
+  if not os.path.exists(toolchains_dir):
+    os.mkdir(toolchains_dir)
+  return toolchains_dir
 
 
 def GetClangBasePath():
-  return os.path.join(config.base.GetToolchainsDir(),
-                      'x86_64-linux-gnu-clang-chromium-' + CLANG_REVISION)
+  return os.path.join(GetToolchainsDir(),
+                      'x86_64-linux-gnu-clang-chromium-' + _CLANG_REVISION)
 
 
 def GetClangBinPath():
@@ -183,7 +191,7 @@ def EnsureClangAvailable(base_dir, bin_path):
   source_tree_dir = GetSourceTreeDir()
   update_script = os.path.join(source_tree_dir, 'tools', 'clang', 'scripts',
                                'update.sh')
-  update_proc = subprocess.Popen([update_script, CLANG_REVISION, base_dir])
+  update_proc = subprocess.Popen([update_script, _CLANG_REVISION, base_dir])
   rc = update_proc.wait()
   if rc != 0:
     raise RuntimeError('%s failed.' % update_script)
