@@ -14,9 +14,35 @@
 
 apply plugin: 'com.android.application'
 
+// This is which native app to build on top of our Starboard implementation.
+final STARBOARD_APP = 'cobalt'
+//final STARBOARD_APP = 'starboard_blitter_example'
+//final STARBOARD_APP = 'starboard_glclear_example'
+//final STARBOARD_APP = 'starboard_window_example'
+
+// These are the ABIs that we target. It affects which architectures of Cobalt get built,
+// as well as which ABIs are expected for the split APKs.
+final COBALT_ABIS = (String[]) ['x86']
+// Maps the Android build type to the Cobalt build configuration type
+final COBALT_BUILD_TYPE_MAP = [
+        debug  : 'debug',
+        release: 'gold',
+]
+// Maps the Android ABI to the Cobalt target architecture
+// (Configure which are actually built in apk/build.gradle)
+final COBALT_ARCH_MAP = [
+        'x86'        : 'x86',
+        'x86_64'     : 'x64',
+        'armeabi'    : 'arm',
+        'armeabi-v7a': 'arm7',
+        'arm64-v8a'  : 'arm64',
+]
+
 android {
     compileSdkVersion 25
     buildToolsVersion "25.0.1"
+    publishNonDefault true
+
     defaultConfig {
         applicationId "foo.cobalt.coat"
         minSdkVersion 21
@@ -24,28 +50,80 @@ android {
         versionCode 1
         versionName "1.0"
         ndk {
-          abiFilters cobaltABIs
+            abiFilters COBALT_ABIS
         }
     }
     splits {
-      abi {
-        enable true
-        reset()
-        include cobaltABIs
-      }
+        abi {
+            enable true
+            reset()
+            include COBALT_ABIS
+        }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        debug {
+            debuggable true
+            jniDebuggable true
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path 'CMakeLists.txt'
+        }
+    }
+}
+
+// Rollup tasks for each build type, which will depend on copy tasks for each ABI.
+task copyCobaltDebug
+task copyCobaltRelease
+// NDK build depends on Cobalt libraries being built and copied into the build directory.
+// (NDK tasks are created during evaluation, so hook dependencies late)
+afterEvaluate {
+    externalNativeBuildDebug.dependsOn copyCobaltDebug
+    externalNativeBuildRelease.dependsOn copyCobaltRelease
+}
+
+COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
+    // Add a build directory for each buildType to the Android JNI sourceSets for libstarboard.so
+    // so that it can be included in the APK (the assemble task will pick up all the ABIs it holds).
+    // This is also the IMPORTED_LOCATION for the shared library during the CMake build of the
+    // native JNI code that calls into it. The capitalized buildType matches CMAKE_BUILD_TYPE.
+    def cobaltBuildDir = "build/cobalt/${buildType.capitalize()}"
+    android.sourceSets.getByName(buildType).jniLibs.srcDir cobaltBuildDir
+
+    // Include the Cobalt content directory as assets in the APK.
+    // Uses the x86 build for all architectures since we only need one and they're all the same.
+    def cobaltContentDir = "../../../../out/android-x86_${configType}/content/data"
+    android.sourceSets.getByName(buildType).assets.srcDir cobaltContentDir
+
+    // Add build/copy tasks for each (buildType, abi) tuple to produce the Cobalt native library.
+    COBALT_ABIS.each { abi ->
+        def arch = COBALT_ARCH_MAP[abi]
+        def cobaltNinjaDir = "../../../../out/android-${arch}_${configType}"
+
+        def buildTaskName = "buildCobalt${abi.capitalize()}${buildType.capitalize()}"
+        task(buildTaskName, type: Exec) {
+            commandLine 'sh', 'cobalt-ninja.sh', '-C', cobaltNinjaDir, STARBOARD_APP
+        }
+
+        def copyTaskName = "copyCobalt${abi.capitalize()}${buildType.capitalize()}"
+        task(copyTaskName, type: Copy, dependsOn: buildTaskName) {
+            from "${cobaltNinjaDir}/lib"
+            into "${cobaltBuildDir}/${abi}"
+            include "lib${STARBOARD_APP}.so"
+            rename("lib${STARBOARD_APP}.so", 'libstarboard.so')
+        }
+
+        // The rollup copy task depends on each abi copy task.
+        tasks.getByName("copyCobalt${buildType.capitalize()}").dependsOn copyTaskName
     }
 }
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-
-    // http://www.akaita.com/post/android-native-library-module-debug/
-    releaseCompile project(path: ':cobalt', configuration: 'release')
-    debugCompile project(path: ':cobalt', configuration: 'debug')
+    compile 'com.android.support:support-annotations:25.0.1'
 }
