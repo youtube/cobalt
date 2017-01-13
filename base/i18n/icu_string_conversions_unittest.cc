@@ -269,6 +269,31 @@ TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
 }
 
 
+// Note: "HTML Encoding spec treats US-ASCII as synonymous with windows-1252"
+// Technically, the above statement is true. See:
+// https: encoding.spec.whatwg.org/#names-and-labels
+// However, since we do not need to work with potentially broken webpages
+// or cover.
+// Wikipedia's entry for Windows-1252 has some additional background:
+// "This character encoding is a superset of ISO 8859-1 in terms of printable
+// characters, but differs from the IANA's ISO-8859-1 by using displayable
+// characters rather than control characters in the 80 to 9F (hex) range.
+// Notable additional characters include curly quotation marks and all the
+// printable characters that are in ISO 8859-15. It is known to Windows by the
+// code page number 1252, and by the IANA-approved name "windows-1252".
+//
+// It is very common to mislabel Windows-1252 text with the charset label
+// ISO-8859-1. A common result was that all the quotes and apostrophes (produced
+// by "smart quotes" in word-processing software) were replaced with question
+// marks or boxes on non-Windows operating systems, making text difficult to
+// read. Most modern web browsers and e-mail clients treat the media type
+// charset ISO-8859-1 as Windows-1252 to accommodate such mislabeling. This is
+// now standard behavior in the HTML5 specification, which requires that
+// documents advertised as ISO-8859-1 actually be parsed with the Windows-1252
+// encoding.[1] As of November 2016, 0.9% of all web sites used
+// Windows-1252,[2][3] but at the same time 5.7% used ISO 8859-1,[2] which by
+// HTML5 standards should be considered the same encoding, so that 6.6% of web
+// sites effectively used Windows-1252."
 static const struct {
   const char* encoded;
   const char* codepage_name;
@@ -279,8 +304,8 @@ static const struct {
   {"foo-\xe4.html", "iso-8859-7", true, "foo-\xce\xb4.html"},
   {"foo-\xe4.html", "foo-bar", false, ""},
   // HTML Encoding spec treats US-ASCII as synonymous with windows-1252
-  {"foo-\xff.html", "ascii", true, "foo-\xc3\xbf.html"},
-  {"foo.html", "ascii", true, "foo.html"},
+  {"foo-\xff.html", "iso-8859-1", true, "foo-\xc3\xbf.html"},
+  {"foo.html", "usascii", true, "foo.html"},
   {"foo-a\xcc\x88.html", "utf-8", true, "foo-\xc3\xa4.html"},
   {"\x95\x32\x82\x36\xD2\xBB", "gb18030", true, "\xF0\xA0\x80\x80\xE4\xB8\x80"},
   {"\xA7\x41\xA6\x6E", "big5", true, "\xE4\xBD\xA0\xE5\xA5\xBD"},
