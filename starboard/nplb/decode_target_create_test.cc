@@ -24,6 +24,9 @@
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
 #include "starboard/nplb/blitter_helpers.h"
+#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
 #endif
 
 namespace starboard {
