@@ -22,9 +22,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::ContainsRegex;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::StartsWith;
 using ::testing::StrictMock;
 
 namespace cobalt {
@@ -239,38 +239,38 @@ TEST_F(UserObjectBindingsTest, NullObject) {
 TEST_F(UserObjectBindingsTest, NonObjectType) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.objectProperty = 5;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.objectProperty = false;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.objectProperty = \"string\";", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.objectProperty = undefined;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, SetNonObject) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.objectProperty = 5", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, SetUndefinedObject) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.arbitraryObject = undefined;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, SetWrongObjectType) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.arbitraryObject = new Object()", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(
       EvaluateScript("test.derivedInterface = new BaseInterface()", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, CallWrongObjectType) {
@@ -282,7 +282,7 @@ TEST_F(UserObjectBindingsTest, CallWrongObjectType) {
   EXPECT_FALSE(
       EvaluateScript("obj.arbitraryFunction = arb.arbitraryFunction;\n"
                      "obj.arbitraryFunction();", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 }  // namespace testing
