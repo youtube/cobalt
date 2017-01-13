@@ -22,9 +22,9 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::ContainsRegex;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::StartsWith;
 using ::testing::_;
 
 namespace cobalt {
@@ -165,7 +165,7 @@ TEST_F(CallbackInterfaceTest, NotAnObjectOrFunction) {
   // TypeError should occur.
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.registerCallback(\"foo\");", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(CallbackInterfaceTest, ExceptionInCallback) {

@@ -20,11 +20,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::ContainsRegex;
 using ::testing::Invoke;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SaveArg;
-using ::testing::StartsWith;
 using ::testing::_;
 
 namespace cobalt {
@@ -279,13 +279,13 @@ TEST_F(CallbackFunctionTest, GetNullableCallbackAttribute) {
 TEST_F(CallbackFunctionTest, SetNonFunction) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.callbackAttribute = 5;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(CallbackFunctionTest, SetNullToNonNullable) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.callbackAttribute = null;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 }  // namespace testing
