@@ -1,15 +1,11 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-// These are the ABIs that we target. It affects which architectures of Cobalt get built,
-// as well as which ABIs are expected for the split APKs.
-ext.cobaltABIs = (String[]) [ 'x86' ]
-
 buildscript {
     repositories {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.2.2'
+        classpath 'com.android.tools.build:gradle:2.2.3'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -17,9 +13,6 @@ buildscript {
 }
 
 allprojects {
-    ext {
-        cobaltABIs = cobaltABIs
-    }
     repositories {
         jcenter()
     }
