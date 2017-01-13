@@ -126,6 +126,14 @@ MimeType::MimeType(const std::string& content_type) : is_valid_(false) {
   is_valid_ = true;
 }
 
+std::vector<std::string> MimeType::GetCodecs() const {
+  int codecs_index = GetParamIndexByName("codecs");
+  if (codecs_index != 0) {
+    return std::vector<std::string>();
+  }
+  return SplitAndTrim(params_[0].value, ',');
+}
+
 int MimeType::GetParamCount() const {
   SB_DCHECK(is_valid());
 

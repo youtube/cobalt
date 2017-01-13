@@ -60,14 +60,11 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     SB_DLOG(WARNING) << mime << " is not a valid mime type";
     return kSbMediaSupportTypeNotSupported;
   }
-  int codecs_index = mime_type.GetParamIndexByName("codecs");
-  if (codecs_index != MimeType::kInvalidParamIndex && codecs_index != 0) {
+
+  std::vector<std::string> codecs = mime_type.GetCodecs();
+  if (codecs.empty()) {
     SB_DLOG(WARNING) << mime << " is not a valid mime type";
     return kSbMediaSupportTypeNotSupported;
-  }
-  if (mime_type.type() == "application" &&
-      mime_type.subtype() == "octet-stream") {
-    return kSbMediaSupportTypeProbably;
   }
   if (mime_type.type() == "audio" && mime_type.subtype() == "mp4") {
     // TODO: Base this on the "channels" param, not the codecs param.
