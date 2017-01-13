@@ -14,13 +14,6 @@
 
 {
   'target_defaults': {
-    # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
-    # nasty macros (|Status|, for example) that conflict with Chromium base.
-    # Since certain Cobalt headers now depend on EGL through SbDecodeTarget,
-    # we define this macro to configure EGL to not pull in these headers.
-    'defines': [
-      'MESA_EGL_NO_X11_HEADERS'
-    ],
     'default_configuration': 'linux-x64x11-future_debug',
     'configurations': {
       'linux-x64x11-future_debug': {

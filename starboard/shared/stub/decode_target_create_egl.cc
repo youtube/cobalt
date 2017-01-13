@@ -14,9 +14,18 @@
 
 #include "starboard/decode_target.h"
 
+#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
 SbDecodeTarget SbDecodeTargetCreate(EGLDisplay /*display*/,
                                     EGLContext /*context*/,
                                     SbDecodeTargetFormat /*format*/,
                                     GLuint* /*planes*/) {
   return kSbDecodeTargetInvalid;
 }
+#else  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+SbDecodeTarget SbDecodeTargetCreate(void* /*display*/,
+                                    void* /*context*/,
+                                    SbDecodeTargetFormat /*format*/,
+                                    uint32_t* /*planes*/) {
+  return kSbDecodeTargetInvalid;
+}
+#endif  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
