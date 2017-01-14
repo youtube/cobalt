@@ -89,6 +89,11 @@ class HardwareFrontendImage : public SinglePlaneImage {
                         backend::GraphicsContextEGL* cobalt_context,
                         GrContext* gr_context,
                         MessageLoop* rasterizer_message_loop);
+  HardwareFrontendImage(scoped_ptr<backend::TextureEGL> texture,
+                        render_tree::AlphaFormat alpha_format,
+                        backend::GraphicsContextEGL* cobalt_context,
+                        GrContext* gr_context,
+                        MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
@@ -117,6 +122,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
           raw_texture_memory,
       intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
+  void InitializeBackendImageFromTexture(GrContext* gr_context);
 
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.
