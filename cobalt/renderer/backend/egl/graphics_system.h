@@ -42,6 +42,8 @@ class GraphicsSystemEGL : public GraphicsSystem {
   GraphicsSystemEGL();
   ~GraphicsSystemEGL() OVERRIDE;
 
+  EGLDisplay GetDisplay() { return display_; }
+
   scoped_ptr<Display> CreateDisplay(
       system_window::SystemWindow* system_window) OVERRIDE;
 

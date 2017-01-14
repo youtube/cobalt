@@ -48,6 +48,15 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                                    pitch_in_bytes, bgra_supported);
 }
 
+TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
+                       GLuint gl_handle, const math::Size& size,
+                       GLenum format)
+    : graphics_context_(graphics_context)
+    , size_(size)
+    , format_(format)
+    , gl_handle_(gl_handle) {
+}
+
 TextureEGL::TextureEGL(
     GraphicsContextEGL* graphics_context,
     const scoped_refptr<PBufferRenderTargetEGL>& render_target)
