@@ -51,8 +51,22 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> CreateImage(
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
+#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE;
+
+  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
+  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE {
+    return &decode_target_provider_;
+  }
+
+  // Whether SbDecodeTargetIsSupported or not.
+  bool SupportsSbDecodeTarget() OVERRIDE { return true; }
+
+#elif SB_VERSION(3)  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
@@ -69,8 +83,8 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
+#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+#endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) OVERRIDE;
@@ -117,6 +131,14 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   GrContext* gr_context_;
 
   TextShaper text_shaper_;
+
+#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+  static SbDecodeTarget DecodeTargetAcquire(void* context,
+                                            SbDecodeTargetFormat format,
+                                            int width, int height);
+  static void DecodeTargetRelease(void* context, SbDecodeTarget decode_target);
+  SbDecodeTargetProvider decode_target_provider_;
+#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was
   // created on.  This message loop is used whenever we need to issue graphics
