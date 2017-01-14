@@ -45,6 +45,8 @@ class GraphicsContextEGL : public GraphicsContext {
 
   GraphicsSystemEGL* system_egl();
 
+  EGLContext GetContext() { return context_; }
+
   scoped_ptr<TextureEGL> CreateTexture(scoped_ptr<TextureDataEGL> texture_data);
 
   scoped_ptr<TextureEGL> CreateTextureFromRawMemory(

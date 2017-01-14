@@ -46,6 +46,9 @@ class TextureEGL {
              const RawTextureMemoryEGL* data, intptr_t offset,
              const math::Size& size, GLenum format, int pitch_in_bytes,
              bool bgra_supported);
+  // Wrap and take ownership of a pre-existing OpenGL texture.
+  TextureEGL(GraphicsContextEGL* graphics_context,
+             GLuint gl_handle, const math::Size& size, GLenum format);
 
   // Create a texture from a pre-existing offscreen PBuffer render target.
   explicit TextureEGL(
