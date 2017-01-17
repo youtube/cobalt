@@ -13,6 +13,13 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'linker_flags!': [
+            '-Wl,--wrap=malloc',
+            '-Wl,--wrap=free',
+    ],
+  },
+
   'target_defaults': {
     'default_configuration': 'linux-x64x11-clang-3-6_debug',
     'configurations': {
