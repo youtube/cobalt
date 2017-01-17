@@ -63,10 +63,6 @@ class MediaModule : public CanPlayTypeHandler,
   typedef ::media::WebMediaPlayer WebMediaPlayer;
   typedef render_tree::Image Image;
 
-  MediaModule() : thread_("media_module") {
-    thread_.Start();
-    message_loop_ = thread_.message_loop_proxy();
-  }
   virtual ~MediaModule() {}
 
   // Returns true when the setting is set successfully or if the setting has
@@ -93,12 +89,21 @@ class MediaModule : public CanPlayTypeHandler,
   void RegisterPlayer(WebMediaPlayer* player) OVERRIDE;
   void UnregisterPlayer(WebMediaPlayer* player) OVERRIDE;
 
+  const math::Size& output_size() const { return output_size_; }
+
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
       system_window::SystemWindow* system_window, const math::Size& output_size,
       render_tree::ResourceProvider* resource_provider,
       const Options& options = Options());
+
+ protected:
+  explicit MediaModule(const math::Size& output_size)
+      : thread_("media_module"), output_size_(output_size) {
+    thread_.Start();
+    message_loop_ = thread_.message_loop_proxy();
+  }
 
  private:
   void RegisterDebugState(WebMediaPlayer* player);
@@ -116,6 +121,7 @@ class MediaModule : public CanPlayTypeHandler,
   base::Thread thread_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   Players players_;
+  math::Size output_size_;
 };
 
 }  // namespace media

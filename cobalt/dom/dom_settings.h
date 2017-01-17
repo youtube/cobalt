@@ -24,6 +24,7 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/media/can_play_type_handler.h"
+#include "cobalt/media/media_module.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/speech/microphone.h"
 
@@ -65,6 +66,7 @@ class DOMSettings : public script::EnvironmentSettings {
   DOMSettings(const int max_dom_element_depth,
               loader::FetcherFactory* fetcher_factory,
               network::NetworkModule* network_module,
+              media::MediaModule* media_module,
               const scoped_refptr<Window>& window,
               MediaSource::Registry* media_source_registry,
               Blob::Registry* blob_registry,
@@ -96,6 +98,7 @@ class DOMSettings : public script::EnvironmentSettings {
     network_module_ = network_module;
   }
   network::NetworkModule* network_module() const { return network_module_; }
+  media::MediaModule* media_module() const { return media_module_; }
   script::JavaScriptEngine* javascript_engine() const {
     return javascript_engine_;
   }
@@ -118,6 +121,7 @@ class DOMSettings : public script::EnvironmentSettings {
   const speech::Microphone::Options microphone_options_;
   loader::FetcherFactory* fetcher_factory_;
   network::NetworkModule* network_module_;
+  media::MediaModule* media_module_;
   scoped_refptr<Window> window_;
   ArrayBuffer::Allocator* array_buffer_allocator_;
   ArrayBuffer::Cache* array_buffer_cache_;
