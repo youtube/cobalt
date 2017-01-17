@@ -11,6 +11,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_types.h"
 #include "media/base/video_util.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/box_reader.h"
@@ -253,6 +254,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       video_config.Initialize(kCodecH264,
                               H264PROFILE_MAIN,
                               VideoFrame::NATIVE_TEXTURE,
+                              COLOR_SPACE_HD_REC709,
                               coded_size,
                               visible_rect,
                               natural_size,
@@ -262,7 +264,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                               true);
 #else
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
-                              coded_size, visible_rect, natural_size,
+                              COLOR_SPACE_HD_REC709, coded_size, visible_rect,
+                              natural_size,
                               // No decoder-specific buffer needed for AVC;
                               // SPS/PPS are embedded in the video stream
                               NULL, 0, is_video_track_encrypted_, true);
