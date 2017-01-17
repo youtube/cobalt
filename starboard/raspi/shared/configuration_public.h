@@ -18,7 +18,7 @@
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 
 // The API version implemented by this platform.
-#define SB_API_VERSION 3
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- System Header Configuration -------------------------------------------
 
