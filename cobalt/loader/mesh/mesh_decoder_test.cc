@@ -39,7 +39,6 @@ struct MockMeshDecoderCallback {
     mesh = value;
   }
 
-  MOCK_METHOD1(FailureCallback, void(const std::string& message));
   MOCK_METHOD1(ErrorCallback, void(const std::string& message));
 
   scoped_refptr<render_tree::Mesh> mesh;
@@ -58,7 +57,6 @@ class MockMeshDecoder : public Decoder {
 
   scoped_refptr<render_tree::Mesh> Mesh();
 
-  void ExpectCallWithFailure(const std::string& message);
   void ExpectCallWithError(const std::string& message);
 
  protected:
@@ -71,8 +69,6 @@ MockMeshDecoder::MockMeshDecoder() {
   mesh_decoder_.reset(new mesh::MeshDecoder(
       &resource_provider_,
       base::Bind(&MockMeshDecoderCallback::SuccessCallback,
-                 base::Unretained(&mesh_decoder_callback_)),
-      base::Bind(&MockMeshDecoderCallback::FailureCallback,
                  base::Unretained(&mesh_decoder_callback_)),
       base::Bind(&MockMeshDecoderCallback::ErrorCallback,
                  base::Unretained(&mesh_decoder_callback_))));
@@ -92,10 +88,6 @@ void MockMeshDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
 
 scoped_refptr<render_tree::Mesh> MockMeshDecoder::Mesh() {
   return mesh_decoder_callback_.mesh;
-}
-
-void MockMeshDecoder::ExpectCallWithFailure(const std::string& message) {
-  EXPECT_CALL(mesh_decoder_callback_, FailureCallback(message));
 }
 
 void MockMeshDecoder::ExpectCallWithError(const std::string& message) {
