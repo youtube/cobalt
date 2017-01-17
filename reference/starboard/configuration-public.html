@@ -741,7 +741,7 @@
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <h2 id="architecture-configuration">API Configuration</h2>
+        <h2 id="api-configuration">API Configuration</h2>
 
 <table><thead>
 <tr>
@@ -752,7 +752,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_API_VERSION</code></strong><br><br>The API version implemented by this platform.</td>
   </tr>
   </tbody></table>
-  
+
         <h2 id="architecture-configuration">Architecture Configuration</h2>
 
 <table><thead>
@@ -806,7 +806,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_64_BIT_LONG</code></strong><br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_MANY_CORES</code></strong><br><br>Configuration parameters that allow the application to make some general compile-time decisions with respect to the the number of cores likely to be available on this platform. For a definitive measure, the application should still call SbSystemGetNumberOfProcessors at runtime.<br><br> Whether the current platform is expected to have many cores (&gt; 6), or a wildly varying number of cores.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_MANY_CORES</code></strong><br><br> Whether the current platform is expected to have many cores (&gt; 6), or a wildly varying number of cores.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_1_CORE</code></strong><br><br>Whether the current platform is expected to have exactly 1 core.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
@@ -836,7 +836,7 @@
 </tr>
 </thead><tbody>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_C_FORCE_INLINE</code></strong><br><br>The platform&#39;s annotation for forcing a C function to be inlined.<br><br>The default value in the Stub implementation is <code class="prettyprint">__inline__ __attribute__((always_inline))</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_C_FORCE_INLINE</code></strong><br><br>The platform&#39;s annotation for forcing a C function to be inlined.<br><br>The default value in the Stub implementation is <br><code class="prettyprint">__inline__ __attribute__((always_inline))</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_C_INLINE</code></strong><br><br>The platform&#39;s annotation for marking a C function as suggested to be inlined.<br><br>The default value in the Stub implementation is <code class="prettyprint">inline</code></td>
@@ -845,10 +845,13 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_C_NOINLINE</code></strong><br><br>The platform&#39;s annotation for marking a C function as forcibly not inlined.<br><br>The default value in the Stub implementation is <code class="prettyprint">__attribute__((noinline))</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_EXPORT_PLATFORM</code></strong><br><br>The platform&#39;s annotation for marking a symbol as exported outside of the current shared library.<br><br>The default value in the Stub implementation is <code class="prettyprint">__attribute__((visibility(&quot;default&quot;)))</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_EXPORT_PLATFORM</code></strong><br><br>The platform&#39;s annotation for marking a symbol as exported outside of the current shared library.<br><br>The default value in the Stub implementation is <br><code class="prettyprint">__attribute__((visibility(&quot;default&quot;)))</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_IMPORT_PLATFORM</code></strong><br><br>The platform&#39;s annotation for marking a symbol as imported from outside of the current linking unit.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT</code></strong><br><br>On some platforms the &#95;&#95;GNUC&#95;&#95; is defined even though parts of the functionality are missing. Setting this to non-zero allows disabling missing functionality encountered.<br><br>By default, this property is undefined.</td>
 </tr>
 </tbody></table>
 
@@ -881,7 +884,7 @@
 </tr>
 </thead><tbody>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_LONG_LONG_HASH</code></strong><br><br>On some platforms the <strong>GNUC</strong> is defined even though parts of the functionality are missing. Setting this to non-zero allows disabling missing functionality encountered.<br><br> GCC/Clang doesn&#39;t define a long long hash function, except for Android and Game consoles.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_LONG_LONG_HASH</code></strong><br><br>GCC/Clang doesn&#39;t define a long long hash function, except for Android and Game consoles.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_STRING_HASH</code></strong><br><br>GCC/Clang doesn&#39;t define a string hash function, except for Game Consoles.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
@@ -905,7 +908,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_HASH_SET_INCLUDE</code></strong><br><br>The location to include hash_set on this platform.<br><br>The default value in the Stub implementation is <code class="prettyprint">&lt;ext/hash_set&gt;</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_VA_COPY(dest,</code></strong><br><br>Define this to how this platform copies varargs blocks.<br><br>The default value in the Stub implementation is <code class="prettyprint">source) va_copy(dest, source)</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_VA_COPY(dest, source)</code></strong><br><br>Define this to how this platform copies varargs blocks.<br><br>The default value in the Stub implementation is <code class="prettyprint">va_copy(dest, source)</code></td>
 </tr>
 </tbody></table>
 
@@ -943,6 +946,9 @@
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_PATH_SEP_STRING</code></strong><br><br>The string form of SB_PATH_SEP_CHAR.<br><br>The default value in the Stub implementation is <code class="prettyprint">&quot;:&quot;</code></td>
 </tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME</code></strong><br><br>On some platforms the file system stores access times at a coarser granularity than other times. When this quirk is defined, we assume the access time is of 1 day precision.<br><br>By default, this property is undefined.</td>
+</tr>
 </tbody></table>
 
 <h2 id="graphics-configuration">Graphics Configuration</h2>
@@ -956,7 +962,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_BLITTER</code></strong><br><br>Specifies whether this platform supports a performant accelerated blitter API. The basic requirement is a scaled, clipped, alpha-blended blit.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_PREFERRED_RGBA_BYTE_ORDER</code></strong><br><br>Specifies the preferred byte order of color channels in a pixel. Refer to starboard/configuration.h for the possible values. EGL/GLES platforms should generally prefer a byte order of RGBA, regardless of endianness.<br><br>The default value in the Stub implementation is <code class="prettyprint">SB_PREFERRED_RGBA_BYTE_ORDER_RGBA</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_PREFERRED_RGBA_BYTE_ORDER</code></strong><br><br>Specifies the preferred byte order of color channels in a pixel. Refer to starboard/configuration.h for the possible values. EGL/GLES platforms should generally prefer a byte order of RGBA, regardless of endianness.<br><br>The default value in the Stub implementation is <br><code class="prettyprint">SB_PREFERRED_RGBA_BYTE_ORDER_RGBA</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_BILINEAR_FILTERING_SUPPORT</code></strong><br><br>Indicates whether or not the given platform supports bilinear filtering. This can be checked to enable/disable renderer tests that verify that this is working properly.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
@@ -989,13 +995,16 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_IS_PLAYER_PUNCHED_OUT</code></strong><br><br>Specifies whether this platform&#39;s player uses a &quot;punch-out&quot; model, where video is rendered to the far background, and the graphics plane is automatically composited on top of the video by the platform. The client must punch an alpha hole out of the graphics plane for video to show through.  In this case, changing the video bounds must be tightly synchronized between the player and the graphics plane.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT</code></strong><br><br>After a seek is triggerred, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.<br><br> Specifies the maximum amount of memory used by audio buffers of media source before triggering a garbage collection.  A large value will cause more memory being used by audio buffers but will also make JavaScript app less likely to re-download audio data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value in the Stub implementation is <code class="prettyprint">(3U * 1024U * 1024U)</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_SEEK_TO_KEYFRAME</code></strong><br><br>After a seek is triggered, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.<br><br>By default, this property is undefined.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT</code></strong><br><br>Specifies the maximum amount of memory used by audio buffers of media source before triggering a garbage collection.  A large value will cause more memory being used by audio buffers but will also make JavaScript app less likely to re-download audio data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value in the Stub implementation is <code class="prettyprint">(3U * 1024U * 1024U)</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT</code></strong><br><br>Specifies the maximum amount of memory used by video buffers of media source before triggering a garbage collection.  A large value will cause more memory being used by video buffers but will also make JavaScript app less likely to re-download video data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value in the Stub implementation is <code class="prettyprint">(16U * 1024U * 1024U)</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAIN_BUFFER_BUDGET</code></strong><br><br>Specifies how much memory to reserve up-front for the main media buffer (usually resides inside the CPU memory) used by media source and demuxers. The main media buffer can work in one of the following two ways: 1. If GPU buffer is used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is non-zero), the main buffer will be used as a cache so a media buffer will be copied from GPU memory to main memory before sending to the decoder for further processing.  In this case this macro should be set to a value that is large enough to hold all media buffers being decoded. 2. If GPU buffer is not used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is zero) all media buffers will reside in the main memory buffer.  In this case the macro should be set to a value that is greater than the sum of the above source buffer stream memory limits with extra room to take account of fragmentations and memory used by demuxers.<br><br>The default value in the Stub implementation is <code class="prettyprint">(32U * 1024U * 1024U)</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAIN_BUFFER_BUDGET</code></strong><br><br>Specifies how much memory to reserve up-front for the main media buffer (usually resides inside the CPU memory) used by media source and demuxers. The main media buffer can work in one of the following two ways: <ol><li>If GPU buffer is used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is non-zero), the main buffer will be used as a cache so a media buffer will be copied from GPU memory to main memory before sending to the decoder for further processing.  In this case this macro should be set to a value that is large enough to hold all media buffers being decoded. </li><li>If GPU buffer is not used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is zero) all media buffers will reside in the main memory buffer.  In this case the macro should be set to a value that is greater than the sum of the above source buffer stream memory limits with extra room to take account of fragmentations and memory used by demuxers.</li></ol><br><br>The default value in the Stub implementation is <code class="prettyprint">(32U * 1024U * 1024U)</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_GPU_BUFFER_BUDGET</code></strong><br><br>Specifies how much GPU memory to reserve up-front for media source buffers. This should only be set to non-zero on system with limited CPU memory and excess GPU memory so the app can store media buffer in GPU memory. SB_MEDIA_MAIN_BUFFER_BUDGET has to be set to a non-zero value to avoid media buffers being decoded when being stored in GPU.<br><br>The default value in the Stub implementation is <code class="prettyprint">0U</code></td>
@@ -1016,7 +1025,7 @@
 </tr>
 </thead><tbody>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEMORY_PAGE_SIZE</code></strong><br><br>On some platforms the file system stores access times at a coarser granularity than other times. When this quirk is defined, we assume the access time is of 1 day precision.<br><br> The memory page size, which controls the size of chunks on memory that allocators deal with, and the alignment of those chunks. This doesn&#39;t have to be the hardware-defined physical page size, but it should be a multiple of it.<br><br>The default value in the Stub implementation is <code class="prettyprint">4096</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MEMORY_PAGE_SIZE</code></strong><br><br>The memory page size, which controls the size of chunks on memory that allocators deal with, and the alignment of those chunks. This doesn&#39;t have to be the hardware-defined physical page size, but it should be a multiple of it.<br><br>The default value in the Stub implementation is <code class="prettyprint">4096</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_MMAP</code></strong><br><br>Whether this platform has and should use an MMAP function to map physical memory to the virtual address space.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
@@ -1056,24 +1065,17 @@
 </tr>
 </tbody></table>
 
-<h2 id="platform-specific-audits">Platform Specific Audits</h2>
-
-<table><thead>
-<tr>
-<th style="text-align: left">Properties</th>
-</tr>
-</thead><tbody>
-</tbody></table>
-
 <h2 id="system-header-configuration">System Header Configuration</h2>
 
+<p>Any system headers listed here that are not provided by the platform will be emulated in starboard/types.h.</p>
+
 <table><thead>
 <tr>
 <th style="text-align: left">Properties</th>
 </tr>
 </thead><tbody>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_STDARG_H</code></strong><br><br>Any system headers listed here that are not provided by the platform will be emulated in starboard/types.h.<br><br> Whether the current platform provides the standard header stdarg.h.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_STDARG_H</code></strong><br><br> Whether the current platform provides the standard header stdarg.h.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_STDBOOL_H</code></strong><br><br>Whether the current platform provides the standard header stdbool.h.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
