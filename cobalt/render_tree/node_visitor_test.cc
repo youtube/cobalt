@@ -68,8 +68,8 @@ class MockNodeVisitor : public NodeVisitor {
 };
 
 TEST(NodeVisitorTest, VisitsComposition) {
-  scoped_refptr<CompositionNode> composition(
-      new CompositionNode(CompositionNode::Builder()));
+  CompositionNode::Builder builder;
+  scoped_refptr<CompositionNode> composition(new CompositionNode(builder));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(composition.get()));
   composition->Accept(&mock_visitor);
