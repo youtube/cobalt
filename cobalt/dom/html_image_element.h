@@ -64,7 +64,6 @@ class HTMLImageElement : public HTMLElement {
   void UpdateImageData();
 
   void OnLoadingSuccess();
-  void OnLoadingFailure();
   void OnLoadingError();
 
   void PreventGarbageCollectionUntilEventIsDispatched(base::Token event_name);

@@ -35,12 +35,10 @@ class MeshDecoder : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Mesh>&)>
       SuccessCallback;
-  typedef base::Callback<void(const std::string&)> FailureCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   MeshDecoder(render_tree::ResourceProvider* resource_provider,
               const SuccessCallback& success_callback,
-              const FailureCallback& failure_callback,
               const ErrorCallback& error_callback);
 
   // From Decoder.
