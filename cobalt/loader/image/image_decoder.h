@@ -38,12 +38,10 @@ class ImageDecoder : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
       SuccessCallback;
-  typedef base::Callback<void(const std::string&)> FailureCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ImageDecoder(render_tree::ResourceProvider* resource_provider,
                const SuccessCallback& success_callback,
-               const FailureCallback& failure_callback,
                const ErrorCallback& error_callback);
 
   // From Decoder.
@@ -83,12 +81,11 @@ class ImageDecoder : public Decoder {
 
   render_tree::ResourceProvider* resource_provider_;
   const SuccessCallback success_callback_;
-  const FailureCallback failure_callback_;
   const ErrorCallback error_callback_;
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
-  std::string failure_message_;
+  std::string error_message_;
   std::string mime_type_;
 };
 
