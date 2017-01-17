@@ -258,6 +258,8 @@ SB_EXPORT GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
 // the provided planes, or NULL if a context is not required.
 // |format|: The format of the decode target being created, which implies how
 // many |planes| are expected, and what format they are expected to be in.
+// |width|: The width of the decode target being created.
+// |height|: The height of the decode target being created.
 // |planes|: An array of GLES texture names to be bundled into an
 // SbDecodeTarget.  Must not be NULL. Is expected to have the same number of
 // entries as the number of planes for |format|, in the order, size, and format
@@ -265,6 +267,8 @@ SB_EXPORT GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
 SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(void* display,
                                               void* context,
                                               SbDecodeTargetFormat format,
+                                              int width,
+                                              int height,
                                               uint32_t* planes);
 
 // Gets the texture that represents the given plane.
@@ -315,6 +319,17 @@ SbDecodeTargetGetFormat(SbDecodeTarget decode_target);
 // format that has alpha values.  If |decode_target| is of a format that does
 // not have alpha values, then this function should return |true|.
 SB_EXPORT bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target);
+
+#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+// Gets the dimensions of the decode target.
+// |out_width|: Non-null pointer to an integer that will get the
+// target's width. Undefined if the decode target is invalid.
+// |out_height|: Non-null pointer to an integer that will get the
+// target's height. Undefined if the decode target is invalid.
+SB_EXPORT void SbDecodeTargetGetSize(SbDecodeTarget decode_target,
+                                     int* out_width,
+                                     int* out_height);
+#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
 
 // Inline convenience function to acquire an SbDecodeTarget of type |format|,
 // |width|, and |height| from |provider|.
