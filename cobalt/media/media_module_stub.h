@@ -26,7 +26,7 @@ namespace media {
 
 class MediaModuleStub : public MediaModule {
  public:
-  MediaModuleStub() {}
+  MediaModuleStub() : MediaModule(math::Size(1920, 1080)) {}
 
   std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system) OVERRIDE;

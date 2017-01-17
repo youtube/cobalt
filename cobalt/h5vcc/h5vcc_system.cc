@@ -24,7 +24,11 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSystem::H5vccSystem() {}
+H5vccSystem::H5vccSystem(const media::MediaModule* media_module) {
+  video_container_size_ =
+      base::StringPrintf("%dx%d", media_module->output_size().width(),
+                         media_module->output_size().height());
+}
 
 bool H5vccSystem::are_keys_reversed() const {
   return deprecated::PlatformDelegate::Get()->AreKeysReversed();
@@ -56,7 +60,7 @@ bool H5vccSystem::TriggerHelp() const { return false; }
 // returned resolution instead of the window size as the maximum resolution of
 // video being played.
 std::string H5vccSystem::GetVideoContainerSizeOverride() const {
-  return deprecated::PlatformDelegate::Get()->GetVideoContainerSizeOverride();
+  return video_container_size_;
 }
 
 }  // namespace h5vcc

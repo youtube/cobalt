@@ -41,9 +41,11 @@ using system_window::SystemWindowStarboard;
 class MediaModuleStarboard : public MediaModule {
  public:
   MediaModuleStarboard(system_window::SystemWindow* system_window,
+                       const math::Size& output_size,
                        render_tree::ResourceProvider* resource_provider,
                        const Options& options)
-      : options_(options),
+      : MediaModule(output_size),
+        options_(options),
         system_window_(system_window),
         media_platform_(resource_provider) {}
 
@@ -91,9 +93,8 @@ class MediaModuleStarboard : public MediaModule {
 scoped_ptr<MediaModule> MediaModule::Create(
     system_window::SystemWindow* system_window, const math::Size& output_size,
     render_tree::ResourceProvider* resource_provider, const Options& options) {
-  UNREFERENCED_PARAMETER(output_size);
-  return make_scoped_ptr<MediaModule>(
-      new MediaModuleStarboard(system_window, resource_provider, options));
+  return make_scoped_ptr<MediaModule>(new MediaModuleStarboard(
+      system_window, output_size, resource_provider, options));
 }
 
 }  // namespace media
