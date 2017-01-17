@@ -40,7 +40,6 @@ struct MockTypefaceDecoderCallback {
     typeface = value;
   }
 
-  MOCK_METHOD1(FailureCallback, void(const std::string& message));
   MOCK_METHOD1(ErrorCallback, void(const std::string& message));
 
   scoped_refptr<render_tree::Typeface> typeface;
@@ -59,7 +58,6 @@ class MockTypefaceDecoder : public Decoder {
 
   scoped_refptr<render_tree::Typeface> Typeface();
 
-  void ExpectCallWithFailure(const std::string& message);
   void ExpectCallWithError(const std::string& message);
 
  protected:
@@ -72,8 +70,6 @@ MockTypefaceDecoder::MockTypefaceDecoder() {
   typeface_decoder_.reset(new TypefaceDecoder(
       &resource_provider_,
       base::Bind(&MockTypefaceDecoderCallback::SuccessCallback,
-                 base::Unretained(&typeface_decoder_callback_)),
-      base::Bind(&MockTypefaceDecoderCallback::FailureCallback,
                  base::Unretained(&typeface_decoder_callback_)),
       base::Bind(&MockTypefaceDecoderCallback::ErrorCallback,
                  base::Unretained(&typeface_decoder_callback_))));
@@ -94,10 +90,6 @@ void MockTypefaceDecoder::Resume(
 
 scoped_refptr<render_tree::Typeface> MockTypefaceDecoder::Typeface() {
   return typeface_decoder_callback_.typeface;
-}
-
-void MockTypefaceDecoder::ExpectCallWithFailure(const std::string& message) {
-  EXPECT_CALL(typeface_decoder_callback_, FailureCallback(message));
 }
 
 void MockTypefaceDecoder::ExpectCallWithError(const std::string& message) {
