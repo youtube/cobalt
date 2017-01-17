@@ -38,6 +38,15 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
 
   explicit OpenMaxComponent(const char* name);
 
+  // Create a tunnel from this component's output to the specified component's
+  // input port.
+  void SetOutputComponent(OpenMaxComponent* component);
+
+  // Flush and close the tunnel to the output component(s) (if any). This will
+  // close all tunnels for components in the output chain. It must only be
+  // called for the first component in the output chain.
+  void CloseTunnel();
+
   void Start();
   void Flush();
 
@@ -54,11 +63,11 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   // internally if the output port has never been enabled or if the output
   // format has been changed.  In both case it enables the output port in
   // response to an output setting change.
+  // If an output tunnel has been established, then this will GetOutputBuffer()
+  // from the output component.
   OMX_BUFFERHEADERTYPE* GetOutputBuffer();
   void DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer);
 
- protected:
-  ~OpenMaxComponent();
   // Callbacks available to children.
   void OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
                     OMX_PTR event_data) SB_OVERRIDE;
@@ -69,11 +78,20 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
     return false;
   }
 
+ protected:
+  ~OpenMaxComponent();
+
+  // Allow control of buffer allocation.
+  virtual OMX_BUFFERHEADERTYPE* AllocateBuffer(int port,
+                                               int index,
+                                               OMX_U32 size);
+
  private:
   void DisableOutputPort();
 
   void EnableInputPortAndAllocateBuffers();
   void EnableOutputPortAndAllocateBuffer();
+  void EnableOutputTunnelling(const OMXParamPortDefinition& port_definition);
   OMX_BUFFERHEADERTYPE* GetUnusedInputBuffer();
 
   // Callbacks not intended to be overridden by children.
@@ -88,6 +106,8 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   std::vector<OMX_BUFFERHEADERTYPE*> output_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_output_buffers_;
   int outstanding_output_buffers_;
+
+  OpenMaxComponent* output_component_;
 };
 
 }  // namespace open_max

@@ -26,6 +26,7 @@
         '<(DEPTH)/starboard/shared/stub/decode_target_destroy.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_get_format.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_get_plane_egl.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_get_size.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_is_opaque.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
