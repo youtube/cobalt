@@ -25,6 +25,8 @@ SbDecodeTarget SbDecodeTargetCreate(EGLDisplay /*display*/,
 SbDecodeTarget SbDecodeTargetCreate(void* /*display*/,
                                     void* /*context*/,
                                     SbDecodeTargetFormat /*format*/,
+                                    int /*width*/,
+                                    int /*height*/,
                                     uint32_t* /*planes*/) {
   return kSbDecodeTargetInvalid;
 }
