@@ -411,10 +411,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(window_weak_);
 
   environment_settings_.reset(new dom::DOMSettings(
-      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), blob_registry_.get(), data.media_module,
-      javascript_engine_.get(), global_environment_.get(),
-      data.options.dom_settings_options));
+      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
+      data.media_module, window_, media_source_registry_.get(),
+      blob_registry_.get(), data.media_module, javascript_engine_.get(),
+      global_environment_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());

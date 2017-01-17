@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/media/media_module.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -26,7 +27,7 @@ namespace h5vcc {
 
 class H5vccSystem : public script::Wrappable {
  public:
-  H5vccSystem();
+  explicit H5vccSystem(const media::MediaModule* media_module);
 
   bool are_keys_reversed() const;
   std::string build_id() const;
@@ -40,6 +41,7 @@ class H5vccSystem : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccSystem);
 
  private:
+  std::string video_container_size_;
   DISALLOW_COPY_AND_ASSIGN(H5vccSystem);
 };
 
