@@ -5,8 +5,8 @@
 #ifndef MEDIA_BASE_HDR_METADATA_H_
 #define MEDIA_BASE_HDR_METADATA_H_
 
+#include "media/base/color_space.h"
 #include "media/base/media_export.h"
-#include "ui/gfx/color_space.h"
 
 namespace media {
 

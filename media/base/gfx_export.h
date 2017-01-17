@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GFX_EXPORT_H_
-#define UI_GFX_GFX_EXPORT_H_
+#ifndef COBALT_MEDIA_BASE_GFX_EXPORT_H_
+#define COBALT_MEDIA_BASE_GFX_EXPORT_H_
 
 #if defined(COMPONENT_BUILD)
 #if defined(WIN32)
@@ -26,4 +26,4 @@
 #define GFX_EXPORT
 #endif
 
-#endif  // UI_GFX_GFX_EXPORT_H_
+#endif  // COBALT_MEDIA_BASE_GFX_EXPORT_H_

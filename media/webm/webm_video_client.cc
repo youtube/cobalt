@@ -5,6 +5,7 @@
 #include "media/webm/webm_video_client.h"
 
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_types.h"
 #include "media/webm/webm_constants.h"
 
 namespace media {
@@ -29,6 +30,7 @@ void WebMVideoClient::Reset() {
   display_unit_ = -1;
   alpha_mode_ = -1;
   inside_projection_list_ = false;
+  colour_parsed_ = false;
 }
 
 bool WebMVideoClient::InitializeConfig(
@@ -100,8 +102,14 @@ bool WebMVideoClient::InitializeConfig(
   }
 
   config->Initialize(
-      video_codec, profile, format, coded_size, visible_rect, natural_size,
-      extra_data, extra_data_size, is_encrypted, true);
+      video_codec, profile, format, COLOR_SPACE_HD_REC709, coded_size,
+      visible_rect, natural_size, extra_data, extra_data_size, is_encrypted,
+      true);
+  if (colour_parsed_) {
+    WebMColorMetadata color_metadata = colour_parser_.GetWebMColorMetadata();
+    config->set_color_space_info(color_metadata.color_space);
+    config->set_hdr_metadata(color_metadata.hdr_metadata);
+  }
   return config->IsValidConfig();
 }
 
@@ -185,6 +193,9 @@ WebMParserClient* WebMVideoClient::OnListStart(int id) {
   if (id == kWebMIdProjection && !inside_projection_list_) {
     inside_projection_list_ = true;
     return this;
+  } else if (id == kWebMIdColour) {
+    colour_parsed_ = false;
+    return &colour_parser_;
   } else {
     return WebMParserClient::OnListStart(id);
   }
@@ -193,6 +204,9 @@ WebMParserClient* WebMVideoClient::OnListStart(int id) {
 bool WebMVideoClient::OnListEnd(int id) {
   if (id == kWebMIdProjection && inside_projection_list_) {
     inside_projection_list_ = false;
+    return true;
+  } else if (id == kWebMIdColour) {
+    colour_parsed_ = true;
     return true;
   } else {
     return WebMParserClient::OnListEnd(id);

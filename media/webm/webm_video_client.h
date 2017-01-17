@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "media/base/media_log.h"
+#include "media/webm/webm_colour_parser.h"
 #include "media/webm/webm_parser.h"
 
 namespace media {
@@ -57,6 +58,9 @@ class WebMVideoClient : public WebMParserClient {
   int64 display_unit_;
   int64 alpha_mode_;
   bool inside_projection_list_;
+
+  WebMColourParser colour_parser_;
+  bool colour_parsed_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMVideoClient);
 };
