@@ -331,10 +331,6 @@
       'target_name': 'test_support_base',
       'type': 'static_library',
       'dependencies': [
-        # Platform delegate is used to perform system specific
-        # initialization logic. This is a temporary solution and the code
-        # should eventually move into the chromium/base code.
-        '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'base',
