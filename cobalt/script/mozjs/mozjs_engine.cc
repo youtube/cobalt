@@ -31,9 +31,6 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace {
-// After this many bytes have been allocated, the garbage collector will run.
-const uint32_t kGarbageCollectionThresholdBytes = 8 * 1024 * 1024;
-
 // Trigger garbage collection this many seconds after the last one.
 const int kGarbageCollectionIntervalSeconds = 60;
 
@@ -109,8 +106,8 @@ MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
-  runtime_ =
-      JS_NewRuntime(kGarbageCollectionThresholdBytes, JS_NO_HELPER_THREADS);
+  runtime_ = JS_NewRuntime(MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES,
+                           JS_NO_HELPER_THREADS);
   CHECK(runtime_);
 
   // Sets the size of the native stack that should not be exceeded.
@@ -173,7 +170,8 @@ void MozjsEngine::CollectGarbage() {
 void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
   accumulated_extra_memory_cost_ += bytes;
-  if (accumulated_extra_memory_cost_ > kGarbageCollectionThresholdBytes) {
+  if (accumulated_extra_memory_cost_ >
+      MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES) {
     accumulated_extra_memory_cost_ = 0;
     CollectGarbage();
   }

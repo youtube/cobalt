@@ -193,6 +193,14 @@
     'skia_glyph_atlas_width%': '2048',
     'skia_glyph_atlas_height%': '2048',
 
+    # Determines the size of garbage collection threshold. After this many bytes
+    # have been allocated, the mozjs garbage collector will run. Lowering this
+    # has been found to reduce performance and decrease JavaScript memory usage.
+    # For example, we have measured on at least one platform that performance
+    # becomes 7% worse on average in certain cases when adjusting this number
+    # from 8MB to 1MB.
+    'mozjs_garbage_collection_threshold_in_bytes%': 8 * 1024 * 1024,
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker
