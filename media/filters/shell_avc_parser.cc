@@ -21,6 +21,7 @@
 #include "base/stringprintf.h"
 #include "media/base/endian_util.h"
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/video_types.h"
 #include "media/filters/shell_au.h"
 #include "media/filters/shell_rbsp_stream.h"
 #include "media/mp4/aac.h"
@@ -396,6 +397,7 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       kCodecH264,
       H264PROFILE_MAIN,            // profile is ignored currently
       VideoFrame::NATIVE_TEXTURE,  // we always decode directly to texture
+      COLOR_SPACE_HD_REC709,
       sps_record.coded_size, sps_record.visible_rect, sps_record.natural_size,
       // no extra data needed
       NULL, 0,

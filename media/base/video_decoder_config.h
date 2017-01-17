@@ -9,8 +9,11 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/color_space.h"
+#include "media/base/hdr_metadata.h"
 #include "media/base/media_export.h"
 #include "media/base/video_frame.h"
+#include "media/base/video_types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -76,6 +79,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   VideoDecoderConfig(VideoCodec codec,
                      VideoCodecProfile profile,
                      VideoFrame::Format format,
+                     ColorSpace color_space,
                      const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
                      const gfx::Size& natural_size,
@@ -88,6 +92,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   void Initialize(VideoCodec codec,
                   VideoCodecProfile profile,
                   VideoFrame::Format format,
+                  ColorSpace color_space,
                   const gfx::Size& coded_size,
                   const gfx::Rect& visible_rect,
                   const gfx::Size& natural_size,
@@ -137,11 +142,22 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // can be encrypted or not encrypted.
   bool is_encrypted() const;
 
+  void set_color_space_info(const gfx::ColorSpace& color_space_info);
+  gfx::ColorSpace color_space_info() const;
+
+  ColorSpace color_space() const;
+
+  void set_hdr_metadata(const HDRMetadata& hdr_metadata);
+  HDRMetadata hdr_metadata() const;
+
  private:
   VideoCodec codec_;
   VideoCodecProfile profile_;
 
   VideoFrame::Format format_;
+
+  // TODO(servolk): Deprecated, use color_space_info_ instead.
+  ColorSpace color_space_;
 
   gfx::Size coded_size_;
   gfx::Rect visible_rect_;
@@ -151,6 +167,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
   size_t extra_data_size_;
 
   bool is_encrypted_;
+
+  gfx::ColorSpace color_space_info_;
+  HDRMetadata hdr_metadata_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoDecoderConfig);
 };

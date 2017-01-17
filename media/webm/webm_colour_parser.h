@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_WEBM_WEBM_COLOUR_PARSER_H_
-#define MEDIA_FORMATS_WEBM_WEBM_COLOUR_PARSER_H_
+#ifndef MEDIA_WEBM_WEBM_COLOUR_PARSER_H_
+#define MEDIA_WEBM_WEBM_COLOUR_PARSER_H_
 
-#include "base/macros.h"
+#include "media/base/color_space.h"
 #include "media/base/hdr_metadata.h"
-#include "media/formats/webm/webm_parser.h"
+#include "media/webm/webm_parser.h"
 
 namespace media {
 
@@ -86,4 +86,4 @@ class WebMColourParser : public WebMParserClient {
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_WEBM_WEBM_COLOUR_PARSER_H_
+#endif  // MEDIA_WEBM_WEBM_COLOUR_PARSER_H_

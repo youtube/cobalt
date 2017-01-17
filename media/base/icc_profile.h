@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "ui/gfx/color_space.h"
+#include "media/base/color_space.h"
 
 #if defined(OS_MACOSX)
 #include <CoreGraphics/CGColorSpace.h>
@@ -18,7 +18,8 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
 
 namespace mojo {
-template <typename, typename> struct StructTraits;
+template <typename, typename>
+struct StructTraits;
 }
 
 namespace gfx {
@@ -40,7 +41,6 @@ class GFX_EXPORT ICCProfile {
   ICCProfile& operator=(const ICCProfile& other);
   ~ICCProfile();
   bool operator==(const ICCProfile& other) const;
-  bool operator!=(const ICCProfile& other) const;
 
   // Returns the color profile of the monitor that can best represent color.
   // This profile should be used for creating content that does not know on
@@ -54,7 +54,6 @@ class GFX_EXPORT ICCProfile {
   // Internally, this will make an effort to create an identical ICCProfile
   // to the one that created |color_space|, but this is not guaranteed.
   static ICCProfile FromColorSpace(const gfx::ColorSpace& color_space);
-  static ICCProfile FromSkColorSpace(sk_sp<SkColorSpace> color_space);
 
   // Create directly from profile data.
   static ICCProfile FromData(const char* icc_profile, size_t size);

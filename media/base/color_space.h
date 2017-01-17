@@ -2,138 +2,138 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_COLOR_SPACE_H_
-#define UI_GFX_COLOR_SPACE_H_
+#ifndef COBALT_MEDIA_BASE_COLOR_SPACE_H_
+#define COBALT_MEDIA_BASE_COLOR_SPACE_H_
 
 #include <stdint.h>
 
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
 #include "build/build_config.h"
-#include "third_party/skia/include/core/SkColorSpace.h"
-#include "ui/gfx/gfx_export.h"
+#include "media/base/gfx_export.h"
 
 namespace IPC {
 template <class P>
 struct ParamTraits;
 }  // namespace IPC
 
-namespace gfx {
 
-class ICCProfile;
-class ColorSpaceToColorSpaceTransform;
+// This is a modified version of gfx::ColorSpace with Skia dependency removed.
+// It is tentatively put inside media2 to avoid introducing new code into
+// ui/gfx.  It will be further simplified and merged into media in follow up
+// refactors.
+namespace gfx {
 
 // Used to represet a color space for the purpose of color conversion.
 // This is designed to be safe and compact enough to send over IPC
 // between any processes.
-class GFX_EXPORT ColorSpace {
+class ColorSpace {
  public:
-  enum class PrimaryID : uint16_t {
+  enum PrimaryID {
     // The first 0-255 values should match the H264 specification (see Table E-3
     // Colour Primaries in https://www.itu.int/rec/T-REC-H.264/en).
-    RESERVED0 = 0,
-    BT709 = 1,
-    UNSPECIFIED = 2,
-    RESERVED = 3,
-    BT470M = 4,
-    BT470BG = 5,
-    SMPTE170M = 6,
-    SMPTE240M = 7,
-    FILM = 8,
-    BT2020 = 9,
-    SMPTEST428_1 = 10,
-    SMPTEST431_2 = 11,
-    SMPTEST432_1 = 12,
+    kPrimaryIdReserved0 = 0,
+    kPrimaryIdBt709 = 1,
+    kPrimaryIdUnspecified = 2,
+    kPrimaryIdReserved = 3,
+    kPrimaryIdBt470M = 4,
+    kPrimaryIdBt470Bg = 5,
+    kPrimaryIdSmpte170M = 6,
+    kPrimaryIdSmpte240M = 7,
+    kPrimaryIdFilm = 8,
+    kPrimaryIdBt2020 = 9,
+    kPrimaryIdSmpteSt4281 = 10,
+    kPrimaryIdSmpteSt4312 = 11,
+    kPrimaryIdSmpteSt4321 = 12,
 
-    LAST_STANDARD_VALUE = SMPTEST432_1,
+    kPrimaryIdLastStandardValue = kPrimaryIdSmpteSt4321,
 
     // Chrome-specific values start at 1000.
-    UNKNOWN = 1000,
-    XYZ_D50,
-    CUSTOM,
-    LAST = CUSTOM
+    kPrimaryIdUnknown = 1000,
+    kPrimaryIdXyzD50,
+    kPrimaryIdCustom,
+    kPrimaryIdLast = kPrimaryIdCustom
   };
 
-  enum class TransferID : uint16_t {
+  enum TransferID {
     // The first 0-255 values should match the H264 specification (see Table E-4
     // Transfer Characteristics in https://www.itu.int/rec/T-REC-H.264/en).
-    RESERVED0 = 0,
-    BT709 = 1,
-    UNSPECIFIED = 2,
-    RESERVED = 3,
-    GAMMA22 = 4,
-    GAMMA28 = 5,
-    SMPTE170M = 6,
-    SMPTE240M = 7,
-    LINEAR = 8,
-    LOG = 9,
-    LOG_SQRT = 10,
-    IEC61966_2_4 = 11,
-    BT1361_ECG = 12,
-    IEC61966_2_1 = 13,
-    BT2020_10 = 14,
-    BT2020_12 = 15,
-    SMPTEST2084 = 16,
-    SMPTEST428_1 = 17,
-    ARIB_STD_B67 = 18,  // AKA hybrid-log gamma, HLG.
+    kTransferIdReserved0 = 0,
+    kTransferIdBt709 = 1,
+    kTransferIdUnspecified = 2,
+    kTransferIdReserved = 3,
+    kTransferIdGamma22 = 4,
+    kTransferIdGamma28 = 5,
+    kTransferIdSmpte170M = 6,
+    kTransferIdSmpte240M = 7,
+    kTransferIdLinear = 8,
+    kTransferIdLog = 9,
+    kTransferIdLogSqrt = 10,
+    kTransferIdIec6196624 = 11,
+    kTransferIdBt1361Ecg = 12,
+    kTransferIdIec6196621 = 13,
+    kTransferId10BitBt2020 = 14,
+    kTransferId12BitBt2020 = 15,
+    kTransferIdSmpteSt2084 = 16,
+    kTransferIdSmpteSt4281 = 17,
+    kTransferIdAribStdB67 = 18,  // AKA hybrid-log gamma, HLG.
 
-    LAST_STANDARD_VALUE = SMPTEST428_1,
+    kTransferIdLastStandardValue = kTransferIdSmpteSt4281,
 
     // Chrome-specific values start at 1000.
-    UNKNOWN = 1000,
-    GAMMA24,
+    kTransferIdUnknown = 1000,
+    kTransferIdGamma24,
 
     // This is an ad-hoc transfer function that decodes SMPTE 2084 content
     // into a 0-1 range more or less suitable for viewing on a non-hdr
     // display.
-    SMPTEST2084_NON_HDR,
+    kTransferIdSmpteSt2084NonHdr,
 
     // TODO(hubbe): Need to store an approximation of the gamma function(s).
-    CUSTOM,
-    LAST = CUSTOM,
+    kTransferIdCustom,
+    kTransferIdLast = kTransferIdCustom,
   };
 
-  enum class MatrixID : int16_t {
+  enum MatrixID {
     // The first 0-255 values should match the H264 specification (see Table E-5
     // Matrix Coefficients in https://www.itu.int/rec/T-REC-H.264/en).
-    RGB = 0,
-    BT709 = 1,
-    UNSPECIFIED = 2,
-    RESERVED = 3,
-    FCC = 4,
-    BT470BG = 5,
-    SMPTE170M = 6,
-    SMPTE240M = 7,
-    YCOCG = 8,
-    BT2020_NCL = 9,
-    BT2020_CL = 10,
-    YDZDX = 11,
+    kMatrixIdRgb = 0,
+    kMatrixIdBt709 = 1,
+    kMatrixIdUnspecified = 2,
+    kMatrixIdReserved = 3,
+    kMatrixIdFcc = 4,
+    kMatrixIdBt470Bg = 5,
+    kMatrixIdSmpte170M = 6,
+    kMatrixIdSmpte240M = 7,
+    kMatrixIdYCgCo = 8,
+    kMatrixIdBt2020NonconstantLuminance = 9,
+    kMatrixIdBT2020ConstantLuminance = 10,
+    kMatrixIdYDzDx = 11,
 
-    LAST_STANDARD_VALUE = YDZDX,
+    kMatrixIdLastStandardValue = kMatrixIdYDzDx,
 
     // Chrome-specific values start at 1000
-    UNKNOWN = 1000,
-    LAST = UNKNOWN,
+    kMatrixIdUnknown = 1000,
+    kMatrixIdLast = kMatrixIdUnknown,
   };
 
   // This corresponds to the WebM Range enum which is part of WebM color data
   // (see http://www.webmproject.org/docs/container/#Range).
   // H.264 only uses a bool, which corresponds to the LIMITED/FULL values.
   // Chrome-specific values start at 1000.
-  enum class RangeID : int8_t {
+  enum RangeID {
     // Range is not explicitly specified / unknown.
-    UNSPECIFIED = 0,
+    kRangeIdUnspecified = 0,
 
     // Limited Rec. 709 color range with RGB values ranging from 16 to 235.
-    LIMITED = 1,
+    kRangeIdLimited = 1,
 
     // Full RGB color range with RGB valees from 0 to 255.
-    FULL = 2,
+    kRangeIdFull = 2,
 
     // Range is defined by TransferID/MatrixID.
-    DERIVED = 3,
+    kRangeIdDerived = 3,
 
-    LAST = DERIVED
+    kRangeIdLast = kRangeIdDerived
   };
 
   ColorSpace();
@@ -149,10 +149,6 @@ class GFX_EXPORT ColorSpace {
   static TransferID TransferIDFromInt(int transfer_id);
   static MatrixID MatrixIDFromInt(int matrix_id);
 
-  static ColorSpace CreateSRGB();
-  // scRGB is like RGB, but linear and values outside of 0-1 are allowed.
-  // scRGB is normally used with fp16 textures.
-  static ColorSpace CreateSCRGBLinear();
   static ColorSpace CreateXYZD50();
 
   // TODO: Remove these, and replace with more generic constructors.
@@ -164,34 +160,16 @@ class GFX_EXPORT ColorSpace {
   bool operator!=(const ColorSpace& other) const;
   bool operator<(const ColorSpace& other) const;
 
-  bool IsHDR() const;
-
-  // Note that this may return nullptr.
-  const sk_sp<SkColorSpace>& ToSkColorSpace() const { return sk_color_space_; }
-  static ColorSpace FromSkColorSpace(const sk_sp<SkColorSpace>& sk_color_space);
-
  private:
-  PrimaryID primaries_ = PrimaryID::UNSPECIFIED;
-  TransferID transfer_ = TransferID::UNSPECIFIED;
-  MatrixID matrix_ = MatrixID::UNSPECIFIED;
-  RangeID range_ = RangeID::LIMITED;
+  PrimaryID primaries_;
+  TransferID transfer_;
+  MatrixID matrix_;
+  RangeID range_;
 
   // Only used if primaries_ == PrimaryID::CUSTOM
   float custom_primary_matrix_[12];
-
-  // This is used to look up the ICCProfile from which this ColorSpace was
-  // created, if possible.
-  uint64_t icc_profile_id_ = 0;
-
-  sk_sp<SkColorSpace> sk_color_space_;
-
-  friend class ICCProfile;
-  friend class ColorSpaceToColorSpaceTransform;
-  friend class ColorSpaceWin;
-  friend struct IPC::ParamTraits<gfx::ColorSpace>;
-  FRIEND_TEST_ALL_PREFIXES(SimpleColorSpace, GetColorSpace);
 };
 
 }  // namespace gfx
 
-#endif  // UI_GFX_COLOR_SPACE_H_
+#endif  // COBALT_MEDIA_BASE_COLOR_SPACE_H_
