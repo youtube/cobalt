@@ -85,13 +85,29 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
-      state_(kWaitingForHeader) {
+      state_(kWaitingForHeader),
+      data_consumed_size(0) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::ImageDecoder()");
   signature_cache_.position = 0;
 
   if (!resource_provider_) {
     state_ = kNoResourceProvider;
   }
+}
+
+bool ImageDecoder::EnsureDecoderIsInitialized(const char* data, size_t size) {
+  if (state_ == kWaitingForHeader) {
+    if (InitializeInternalDecoder(reinterpret_cast<const uint8*>(data),
+                                  size, &data_consumed_size)) {
+      DCHECK(decoder_);
+      state_ = kDecoding;
+    }
+  }
+  return state_ == kDecoding;
+}
+
+bool ImageDecoder::IsHardwareDecoder() const {
+  return decoder_ ? decoder_->IsHardwareDecoder() : false;
 }
 
 LoadResponseType ImageDecoder::OnResponseStarted(
@@ -221,25 +237,32 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::DecodeChunkInternal()");
   switch (state_) {
     case kWaitingForHeader: {
-      size_t consumed_size = 0;
-      if (InitializeInternalDecoder(input_bytes, size, &consumed_size)) {
+      if (!InitializeInternalDecoder(input_bytes, size, &data_consumed_size)) {
+        break;
+      } else {
         state_ = kDecoding;
-        DCHECK(decoder_);
-        if (consumed_size == kLengthOfLongestSignature) {
-          // This case means the first chunk is large enough for matching
-          // signature.
-          decoder_->DecodeChunk(input_bytes, size);
-        } else {
-          decoder_->DecodeChunk(signature_cache_.data,
-                                kLengthOfLongestSignature);
-          input_bytes += consumed_size;
-          decoder_->DecodeChunk(input_bytes, size - consumed_size);
-        }
+        // Intentional fall-through to decode the chunk.
       }
-    } break;
+    }
     case kDecoding: {
       DCHECK(decoder_);
-      decoder_->DecodeChunk(input_bytes, size);
+      // Handle special cases in which the initial input chunks were too
+      // small to determine the image type (signature), so they had to be
+      // cached.
+      if (data_consumed_size == kLengthOfLongestSignature) {
+        // This case means the first chunk is large enough for matching
+        // signature.
+        decoder_->DecodeChunk(input_bytes, size);
+        data_consumed_size = 0;
+      } else if (data_consumed_size > 0) {
+        decoder_->DecodeChunk(signature_cache_.data,
+                              kLengthOfLongestSignature);
+        input_bytes += data_consumed_size;
+        decoder_->DecodeChunk(input_bytes, size - data_consumed_size);
+        data_consumed_size = 0;
+      } else {
+        decoder_->DecodeChunk(input_bytes, size);
+      }
     } break;
     case kNotApplicable:
     case kUnsupportedImageFormat:
