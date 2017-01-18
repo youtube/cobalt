@@ -36,14 +36,19 @@ void StartThreadWithPriority(base::Thread* thread,
 }  // namespace
 
 LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
-                             render_tree::ResourceProvider* resource_provider,
-                             base::ThreadPriority decoder_thread_priority,
-                             base::ThreadPriority fetcher_thread_priority)
+    render_tree::ResourceProvider* resource_provider,
+    base::ThreadPriority software_decoder_thread_priority,
+    base::ThreadPriority hardware_decoder_thread_priority,
+    base::ThreadPriority fetcher_thread_priority)
     : fetcher_factory_(fetcher_factory),
       resource_provider_(resource_provider),
-      decoder_thread_(new base::Thread("DecoderThread")),
+      software_decoder_thread_(new base::Thread("SoftwareDecoderThread")),
+      hardware_decoder_thread_(new base::Thread("HardwareDecoderThread")),
       fetcher_thread_(new base::Thread("FetcherThread")) {
-  StartThreadWithPriority(decoder_thread_.get(), decoder_thread_priority);
+  StartThreadWithPriority(software_decoder_thread_.get(),
+                          software_decoder_thread_priority);
+  StartThreadWithPriority(hardware_decoder_thread_.get(),
+                          hardware_decoder_thread_priority);
   StartThreadWithPriority(fetcher_thread_.get(), fetcher_thread_priority);
 }
 
@@ -53,14 +58,16 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
     const image::ImageDecoder::ErrorCallback& error_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(fetcher_thread_);
-  DCHECK(decoder_thread_);
+  DCHECK(software_decoder_thread_);
+  DCHECK(hardware_decoder_thread_);
 
   scoped_ptr<Loader> loader(new Loader(
       MakeFetcherCreator(url, url_security_callback,
                          fetcher_thread_->message_loop()),
       scoped_ptr<Decoder>(new image::ThreadedImageDecoderProxy(
-          resource_provider_, success_callback,
-          error_callback, decoder_thread_->message_loop())),
+          resource_provider_, success_callback, error_callback,
+          software_decoder_thread_->message_loop(),
+          hardware_decoder_thread_->message_loop())),
       error_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
   OnLoaderCreated(loader.get());
@@ -116,7 +123,8 @@ void LoaderFactory::Suspend() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(resource_provider_);
   DCHECK(fetcher_thread_);
-  DCHECK(decoder_thread_);
+  DCHECK(software_decoder_thread_);
+  DCHECK(hardware_decoder_thread_);
 
   resource_provider_ = NULL;
   for (LoaderSet::const_iterator iter = active_loaders_.begin();
@@ -135,9 +143,16 @@ void LoaderFactory::Suspend() {
   }
 
   // Wait for all decoder thread messages to be flushed before returning.
-  if (decoder_thread_) {
+  if (hardware_decoder_thread_) {
     messages_flushed.Reset();
-    decoder_thread_->message_loop()->PostTask(
+    hardware_decoder_thread_->message_loop()->PostTask(
+        FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
+                              base::Unretained(&messages_flushed)));
+    messages_flushed.Wait();
+  }
+  if (software_decoder_thread_) {
+    messages_flushed.Reset();
+    software_decoder_thread_->message_loop()->PostTask(
         FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
                               base::Unretained(&messages_flushed)));
     messages_flushed.Wait();
