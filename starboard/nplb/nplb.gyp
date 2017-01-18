@@ -139,6 +139,8 @@
         'once_test.cc',
         'player_create_test.cc',
         'random_helpers.cc',
+        'rwlock_test.cc',
+        'semaphore_test.cc',
         'socket_accept_test.cc',
         'socket_bind_test.cc',
         'socket_clear_last_error_test.cc',
