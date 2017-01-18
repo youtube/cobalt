@@ -111,17 +111,29 @@ namespace starboard {
 class ConditionVariable {
  public:
   explicit ConditionVariable(const Mutex& mutex)
-      : mutex_(mutex.mutex()), condition_() {
-    SbConditionVariableCreate(&condition_, mutex_);
+      : mutex_(&mutex), condition_() {
+    SbConditionVariableCreate(&condition_, mutex_->mutex());
   }
 
   ~ConditionVariable() { SbConditionVariableDestroy(&condition_); }
 
-  void Wait() const { SbConditionVariableWait(&condition_, mutex_); }
+  // Releases the mutex and waits for the condition to become true. When this
+  // function returns the mutex will have been re-acquired.
+  void Wait() const {
+    mutex_->debugSetReleased();
+    SbConditionVariableWait(&condition_, mutex_->mutex());
+    mutex_->debugSetAcquired();
+  }
 
+  // Returns |true| if this condition variable was signaled. Otherwise |false|
+  // means that the condition variable timed out. In either case the
+  // mutex has been re-acquired once this function returns.
   bool WaitTimed(SbTime duration) const {
-    return SbConditionVariableIsSignaled(
-        SbConditionVariableWaitTimed(&condition_, mutex_, duration));
+    mutex_->debugSetReleased();
+    bool was_signaled = SbConditionVariableIsSignaled(
+        SbConditionVariableWaitTimed(&condition_, mutex_->mutex(), duration));
+    mutex_->debugSetAcquired();
+    return was_signaled;
   }
 
   void Broadcast() const { SbConditionVariableBroadcast(&condition_); }
@@ -129,7 +141,7 @@ class ConditionVariable {
   void Signal() const { SbConditionVariableSignal(&condition_); }
 
  private:
-  mutable SbMutex* mutex_;
+  const Mutex* mutex_;
   mutable SbConditionVariable condition_;
 };
 
