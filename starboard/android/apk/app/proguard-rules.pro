@@ -7,11 +7,18 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Add any project specific keep options here:
+# JNI is an entry point that's hard to keep track of, so the @UsedByNative
+# annotation marks fields and methods used by native code.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep the annotations that proguard needs to process.
+-keep class foo.cobalt.UsedByNative
+
+# Just because native code accesses members of a class, does not mean that the
+# class itself needs to be annotated - only classes that are explicitly
+# referenced in native code should be annotated.
+-keep @foo.cobalt.UsedByNative class *
+
+# Methods and fields that are referenced in native code should be annotated.
+-keepclassmembers class * {
+    @foo.cobalt.UsedByNative *;
+}
