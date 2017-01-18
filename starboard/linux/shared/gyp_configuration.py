@@ -20,10 +20,14 @@ import gyp_utils
 class PlatformConfig(config.starboard.PlatformConfigStarboard):
   """Starboard Linux platform configuration."""
 
-  def __init__(self, platform, asan_enabled_by_default=True):
+  def __init__(self,
+               platform,
+               asan_enabled_by_default=True,
+               goma_supports_compiler=True):
     super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
 
-    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
+    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment(
+        goma_supports_compiler)
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
