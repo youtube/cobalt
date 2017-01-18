@@ -33,7 +33,8 @@ class PlatformConfig(shared_configuration.PlatformConfig):
   """Starboard Linux platform configuration."""
 
   def __init__(self, platform, asan_enabled_by_default=False):
-    super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
+    super(PlatformConfig, self).__init__(
+        platform, asan_enabled_by_default, goma_supports_compiler=False)
 
     # Run the script that ensures gcc 4.2.4 is installed.
     script_path = os.path.dirname(os.path.realpath(__file__))
