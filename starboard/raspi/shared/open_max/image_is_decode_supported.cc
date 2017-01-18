@@ -23,11 +23,5 @@ bool SbImageIsDecodeSupported(const char* mime_type,
   bool type_supported =
       OMX_IMAGE_CodingMax !=
       open_max::OpenMaxImageDecodeComponent::GetCompressionFormat(mime_type);
-  // It appears that the open max interface is single-threaded but thread-safe.
-  // If multiple threads access it at the same time, one will appear to acquire
-  // a mutex for the interface and block the other. This can result in the
-  // image decoder (which runs on a low priority thread) to block the video
-  // decoder. So disable the image decoding until the issue with thread
-  // priorities is worked out.
-  return false && type_supported && format == kSbDecodeTargetFormat1PlaneRGBA;
+  return type_supported && format == kSbDecodeTargetFormat1PlaneRGBA;
 }
