@@ -88,37 +88,5 @@ void WaiterContext::WaitForReturnSignal() {
   EXPECT_TRUE(SbMutexRelease(&mutex));
 }
 
-Semaphore::Semaphore() : count(0) {
-  EXPECT_TRUE(SbMutexCreate(&mutex));
-  EXPECT_TRUE(SbConditionVariableCreate(&condition, &mutex));
-}
-
-Semaphore::Semaphore(int initial_value) : count(0) {
-  EXPECT_TRUE(SbMutexCreate(&mutex));
-  EXPECT_TRUE(SbConditionVariableCreate(&condition, &mutex));
-}
-
-Semaphore::~Semaphore() {
-  EXPECT_TRUE(SbConditionVariableDestroy(&condition));
-  EXPECT_TRUE(SbMutexDestroy(&mutex));
-}
-
-void Semaphore::Put() {
-  EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&mutex)));
-  ++count;
-  EXPECT_TRUE(SbConditionVariableSignal(&condition));
-  EXPECT_TRUE(SbMutexRelease(&mutex));
-}
-
-void Semaphore::Take() {
-  EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&mutex)));
-  while (count <= 0) {
-    EXPECT_TRUE(SbConditionVariableIsSignaled(
-        SbConditionVariableWait(&condition, &mutex)));
-  }
-  --count;
-  EXPECT_TRUE(SbMutexRelease(&mutex));
-}
-
 }  // namespace nplb
 }  // namespace starboard
