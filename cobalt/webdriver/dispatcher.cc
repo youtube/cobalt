@@ -187,7 +187,9 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
         std::mismatch(components.rbegin(), components.rend(),
                       it->second.path_components.rbegin(), predicate);
     if (result_pair.first == components.rend()) {
-      DCHECK(result_pair.second == it->second.path_components.rend());
+      DCHECK(
+          result_pair.second ==
+          static_cast<const CommandMapping>(it->second).path_components.rend());
       return &it->second;
     }
   }
@@ -233,7 +235,6 @@ void WebDriverDispatcher::HandleWebDriverServerRequest(
   command_it->second.Run(request_value.get(), &path_variable_map,
                          result_handler.Pass());
 }
-
 
 }  // namespace webdriver
 }  // namespace cobalt
