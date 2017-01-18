@@ -371,6 +371,10 @@
 // timestamp that is before the timestamp of the video key frame being appended.
 #undef SB_HAS_QUIRK_SEEK_TO_KEYFRAME
 
+// dlmalloc will use the ffs intrinsic if available.  Platforms on which this is
+// not available should define the following quirk.
+#undef SB_HAS_QUIRK_NO_FFS
+
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
 // being used by audio buffers but will also make JavaScript app less likely to
