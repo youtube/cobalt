@@ -47,8 +47,9 @@ BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
 
 def GetGyp():
   if 'gyp' not in sys.modules:
-    sys.path.insert(0, os.path.join(paths.REPOSITORY_ROOT, 'tools', 'gyp',
-                                    'pylib'))
+    sys.path.insert(0,
+                    os.path.join(paths.REPOSITORY_ROOT, 'tools', 'gyp',
+                                 'pylib'))
     importlib.import_module('gyp')
   return sys.modules['gyp']
 
@@ -210,7 +211,7 @@ def FindAndInitGoma():
   return use_goma
 
 
-def GetHostCompilerEnvironment():
+def GetHostCompilerEnvironment(goma_supports_compiler=False):
   """Return the host compiler toolchain environment."""
 
   base_dir = GetClangBasePath()
@@ -228,7 +229,7 @@ def GetHostCompilerEnvironment():
       'ARTHINFLAGS_host': 'rcsT',
   }
   # Check if goma is installed. Initialize if needed and use if possible.
-  if FindAndInitGoma():
+  if goma_supports_compiler and FindAndInitGoma():
     logging.info('Using Goma')
     host_clang_environment.update({
         'CC_host': 'gomacc ' + cc_clang,
