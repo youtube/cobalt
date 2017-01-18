@@ -20,7 +20,10 @@
 #ifndef STARBOARD_MUTEX_H_
 #define STARBOARD_MUTEX_H_
 
+#include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/log.h"
+#include "starboard/thread.h"
 #include "starboard/thread_types.h"
 #include "starboard/types.h"
 
@@ -91,22 +94,55 @@ namespace starboard {
 // Inline class wrapper for SbMutex.
 class Mutex {
  public:
-  Mutex() : mutex_() { SbMutexCreate(&mutex_); }
+  Mutex() : mutex_() {
+    SbMutexCreate(&mutex_);
+    debugInit();
+  }
 
   ~Mutex() { SbMutexDestroy(&mutex_); }
 
-  void Acquire() const { SbMutexAcquire(&mutex_); }
+  void Acquire() const {
+    SbMutexAcquire(&mutex_);
+    debugSetAcquired();
+  }
   bool AcquireTry() const {
-    return SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+    bool ok = SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+    if (ok) {
+      debugSetAcquired();
+    }
+    return ok;
   }
 
-  void Release() const { SbMutexRelease(&mutex_); }
+  void Release() const {
+    debugSetReleased();
+    SbMutexRelease(&mutex_);
+  }
 
  private:
+#ifdef _DEBUG
+  void debugInit() { currrent_thread_acquired_ = kSbThreadInvalid; }
+  void debugSetReleased() const {
+    SbThread current_thread = SbThreadGetCurrent();
+    SB_DCHECK(currrent_thread_acquired_ == current_thread);
+    currrent_thread_acquired_ = kSbThreadInvalid;
+  }
+  void debugSetAcquired() const {
+    // Check that the thread has already not been held.
+    SB_DCHECK(currrent_thread_acquired_ == kSbThreadInvalid);
+    currrent_thread_acquired_ = SbThreadGetCurrent();
+  }
+  mutable SbThread currrent_thread_acquired_;
+#else
+  void debugInit() {}
+  void debugSetReleased() const {}
+  void debugSetAcquired() const {}
+#endif
+
   friend class ConditionVariable;
   SbMutex* mutex() const { return &mutex_; }
-
   mutable SbMutex mutex_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 
 // Scoped lock holder that works on starboard::Mutex.
@@ -118,6 +154,7 @@ class ScopedLock {
 
  private:
   const Mutex& mutex_;
+  SB_DISALLOW_COPY_AND_ASSIGN(ScopedLock);
 };
 
 // Scoped lock holder that works on starboard::Mutex which uses AcquireTry()
@@ -139,6 +176,7 @@ class ScopedTryLock {
  private:
   const Mutex& mutex_;
   bool is_locked_;
+  SB_DISALLOW_COPY_AND_ASSIGN(ScopedTryLock);
 };
 
 }  // namespace starboard

@@ -31,6 +31,8 @@
         'ref_counted.cc',
         'ref_counted.h',
         'reset_and_return.h',
+        'rwlock.h',
+        'semaphore.h',
         'scoped_ptr.h',
         'thread_collision_warner.cc',
         'thread_collision_warner.h',
