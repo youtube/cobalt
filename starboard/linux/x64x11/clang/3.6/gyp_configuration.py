@@ -30,6 +30,10 @@ import gyp_configuration as shared_configuration
 class PlatformConfig(shared_configuration.PlatformConfig):
   """Starboard Linux platform configuration."""
 
+  def __init__(self, platform, asan_enabled_by_default=True):
+    super(PlatformConfig, self).__init__(
+        platform, asan_enabled_by_default, goma_supports_compiler=False)
+
   def GetEnvironmentVariables(self):
     env_variables = {
         'CC': 'clang-3.6',
