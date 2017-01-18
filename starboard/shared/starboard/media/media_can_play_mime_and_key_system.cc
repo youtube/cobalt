@@ -61,11 +61,6 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeNotSupported;
   }
 
-  std::vector<std::string> codecs = mime_type.GetCodecs();
-  if (codecs.empty()) {
-    SB_DLOG(WARNING) << mime << " is not a valid mime type";
-    return kSbMediaSupportTypeNotSupported;
-  }
   if (mime_type.type() == "audio" && mime_type.subtype() == "mp4") {
     // TODO: Base this on the "channels" param, not the codecs param.
     if (mime_type.GetParamStringValue("codecs", "") == "aac51") {
@@ -80,7 +75,7 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
   }
 #if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
   if (mime_type.type() == "video" && mime_type.subtype() == "webm") {
-    if (codecs_index == MimeType::kInvalidParamIndex) {
+    if (mime_type.GetCodecs().empty()) {
       return kSbMediaSupportTypeMaybe;
     }
     if (mime_type.GetParamStringValue(0) == "vp9") {
