@@ -56,11 +56,14 @@ void PostToMessageLoopChecked(
 ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
     render_tree::ResourceProvider* resource_provider,
     const SuccessCallback& success_callback,
-    const ErrorCallback& error_callback, MessageLoop* load_message_loop)
+    const ErrorCallback& error_callback,
+    MessageLoop* software_decode_loop,
+    MessageLoop* hardware_decode_loop)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
-      load_message_loop_(load_message_loop),
+      software_decode_loop_(software_decode_loop),
+      hardware_decode_loop_(hardware_decode_loop),
       result_message_loop_(MessageLoop::current()),
       image_decoder_(new ImageDecoder(
           resource_provider,
@@ -70,7 +73,8 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
               weak_this_, success_callback, result_message_loop_),
           base::Bind(&PostToMessageLoopChecked<ErrorCallback, std::string>,
                      weak_this_, error_callback, result_message_loop_))) {
-  DCHECK(load_message_loop_);
+  DCHECK(software_decode_loop_);
+  DCHECK(hardware_decode_loop_);
   DCHECK(result_message_loop_);
   DCHECK(image_decoder_);
 }
@@ -80,7 +84,7 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
 // loop, where it will be deleted after any pending tasks involving it are
 // done.
 ThreadedImageDecoderProxy::~ThreadedImageDecoderProxy() {
-  load_message_loop_->DeleteSoon(FROM_HERE, image_decoder_.release());
+  GetDecodeLoop()->DeleteSoon(FROM_HERE, image_decoder_.release());
 }
 
 LoadResponseType ThreadedImageDecoderProxy::OnResponseStarted(
@@ -90,26 +94,30 @@ LoadResponseType ThreadedImageDecoderProxy::OnResponseStarted(
 }
 
 void ThreadedImageDecoderProxy::DecodeChunk(const char* data, size_t size) {
-  if (IsLoadMessageLoopCurrent()) {
-    image_decoder_->DecodeChunk(data, size);
-  } else {
-    scoped_ptr<std::string> scoped_data(new std::string(data, size));
-    load_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
-                              base::Unretained(image_decoder_.get()),
-                              base::Passed(&scoped_data)));
+  if (image_decoder_->EnsureDecoderIsInitialized(data, size)) {
+    if (IsLoadMessageLoopCurrent()) {
+      image_decoder_->DecodeChunk(data, size);
+    } else {
+      scoped_ptr<std::string> scoped_data(new std::string(data, size));
+      GetDecodeLoop()->PostTask(
+          FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
+                                base::Unretained(image_decoder_.get()),
+                                base::Passed(&scoped_data)));
+    }
   }
 }
 
 void ThreadedImageDecoderProxy::DecodeChunkPassed(
     scoped_ptr<std::string> data) {
-  if (IsLoadMessageLoopCurrent()) {
-    image_decoder_->DecodeChunkPassed(data.Pass());
-  } else {
-    load_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
-                              base::Unretained(image_decoder_.get()),
-                              base::Passed(&data)));
+  if (image_decoder_->EnsureDecoderIsInitialized(data->data(), data->size())) {
+    if (IsLoadMessageLoopCurrent()) {
+      image_decoder_->DecodeChunkPassed(data.Pass());
+    } else {
+      GetDecodeLoop()->PostTask(
+          FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
+                                base::Unretained(image_decoder_.get()),
+                                base::Passed(&data)));
+    }
   }
 }
 
@@ -117,14 +125,14 @@ void ThreadedImageDecoderProxy::Finish() {
   if (IsLoadMessageLoopCurrent()) {
     image_decoder_->Finish();
   } else {
-    load_message_loop_->PostTask(
+    GetDecodeLoop()->PostTask(
         FROM_HERE, base::Bind(&ImageDecoder::Finish,
                               base::Unretained(image_decoder_.get())));
   }
 }
 
 bool ThreadedImageDecoderProxy::Suspend() {
-  load_message_loop_->PostTask(
+  GetDecodeLoop()->PostTask(
       FROM_HERE, base::Bind(base::IgnoreResult(&ImageDecoder::Suspend),
                             base::Unretained(image_decoder_.get())));
   return true;
@@ -132,10 +140,16 @@ bool ThreadedImageDecoderProxy::Suspend() {
 
 void ThreadedImageDecoderProxy::Resume(
     render_tree::ResourceProvider* resource_provider) {
-  load_message_loop_->PostTask(
+  GetDecodeLoop()->PostTask(
       FROM_HERE,
       base::Bind(&ImageDecoder::Resume, base::Unretained(image_decoder_.get()),
                  resource_provider));
+}
+
+MessageLoop* ThreadedImageDecoderProxy::GetDecodeLoop() const {
+  DCHECK(image_decoder_);
+  return image_decoder_->IsHardwareDecoder() ? hardware_decode_loop_ :
+                                               software_decode_loop_;
 }
 
 }  // namespace image
