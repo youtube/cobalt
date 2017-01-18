@@ -14,6 +14,17 @@
  * limitations under the License.
  */
 
+// Note to Cobalt porters: To use the v1 speech-api API, you must provide an API
+// key with v1 speech-api quota. The code is provided here, but not an API key.
+//
+// This is similar to how Chromium handles API keys:
+// https://www.chromium.org/developers/how-tos/api-keys
+//
+// The API key is provided by SbSystemGetProperty:
+// http://cobalt.foo/reference/starboard/modules/system.html#sbsystemgetproperty
+//
+// Talk with your Google representative about how to get speech-api quota.
+
 #include "cobalt/speech/speech_recognizer.h"
 
 #include "base/bind.h"
