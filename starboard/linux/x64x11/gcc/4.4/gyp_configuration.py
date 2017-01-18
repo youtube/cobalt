@@ -31,7 +31,8 @@ class PlatformConfig(shared_configuration.PlatformConfig):
   """Starboard Linux platform configuration."""
 
   def __init__(self, platform, asan_enabled_by_default=False):
-    super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
+    super(PlatformConfig, self).__init__(
+        platform, asan_enabled_by_default, goma_supports_compiler=False)
 
   def GetVariables(self, configuration):
     variables = super(PlatformConfig, self).GetVariables(configuration)
