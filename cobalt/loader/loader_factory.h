@@ -40,7 +40,8 @@ class LoaderFactory {
  public:
   LoaderFactory(FetcherFactory* fetcher_factory,
                 render_tree::ResourceProvider* resource_provider,
-                base::ThreadPriority decoder_thread_priority,
+                base::ThreadPriority software_decoder_thread_priority,
+                base::ThreadPriority hardware_decoder_thread_priority,
                 base::ThreadPriority fetcher_thread_priority);
 
   // Creates a loader that fetches and decodes a render_tree::Image.
@@ -92,8 +93,9 @@ class LoaderFactory {
   typedef std::set<Loader*> LoaderSet;
   LoaderSet active_loaders_;
 
-  // Thread that runs asynchronous decoders.
-  scoped_ptr<base::Thread> decoder_thread_;
+  // Threads that run asynchronous decoders.
+  scoped_ptr<base::Thread> software_decoder_thread_;
+  scoped_ptr<base::Thread> hardware_decoder_thread_;
 
   // Thread that runs creates and deletes NetFetchers fetchers.
   scoped_ptr<base::Thread> fetcher_thread_;
