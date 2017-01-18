@@ -58,6 +58,17 @@ TEST(MimeTypeTest, InvalidType) {
     MimeType mime_type("video / mp4");
     EXPECT_FALSE(mime_type.is_valid());
   }
+
+  {  // "codecs" parameter isn't the first parameter.
+    MimeType mime_type("audio/mp4;param1=\" value1 \";codecs=\"abc, def\"");
+    EXPECT_FALSE(mime_type.is_valid());
+  }
+
+  {  // More than one "codecs" paramters.
+    MimeType mime_type("audio/mp4;codecs=\"abc, def\";"
+                       "param1=\" value1 \";codecs=\"abc, def\"");
+    EXPECT_FALSE(mime_type.is_valid());
+  }
 }
 
 TEST(MimeTypeTest, ValidContentTypeWithTypeAndSubtypeOnly) {
@@ -140,8 +151,8 @@ TEST(MimeTypeTest, GetCodecs) {
   }
 
   {
-    MimeType mime_type("audio/mp4;param1=\" value1 \";codecs=\"abc, def\"");
-    EXPECT_EQ(0, mime_type.GetCodecs().size());
+    MimeType mime_type("audio/mp4;codecs=\"abc, def\";param1=\" value1 \"");
+    EXPECT_EQ(2, mime_type.GetCodecs().size());
   }
 }
 
