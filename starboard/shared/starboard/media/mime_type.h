@@ -35,7 +35,7 @@ namespace media {
 //   framerate: 59.96
 //
 // Note that "codecs" is a special case because:
-// 1. It has to be the first parameter.
+// 1. It has to be the first parameter when available.
 // 2. It may contain multiple values separated by comma.
 //
 // The following are the restrictions on the components:
