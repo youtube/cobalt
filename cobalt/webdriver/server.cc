@@ -53,6 +53,7 @@ std::string HttpMethodToString(WebDriverServer::HttpMethod method) {
     case WebDriverServer::kDelete:
       return "DELETE";
     case WebDriverServer::kUnknownMethod:
+    default:
       NOTREACHED();
       return "UNKNOWN";
   }
