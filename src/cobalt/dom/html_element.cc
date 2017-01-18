@@ -1060,8 +1060,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
             &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
         cached_images.push_back(
             new loader::image::CachedImageReferenceWithCallbacks(
-                cached_image, loaded_callback, base::Closure(),
-                base::Closure()));
+                cached_image, loaded_callback, base::Closure()));
       }
     }
 

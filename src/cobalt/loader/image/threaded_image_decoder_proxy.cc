@@ -56,7 +56,6 @@ void PostToMessageLoopChecked(
 ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
     render_tree::ResourceProvider* resource_provider,
     const SuccessCallback& success_callback,
-    const FailureCallback& failure_callback,
     const ErrorCallback& error_callback, MessageLoop* load_message_loop)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -69,8 +68,6 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
               &PostToMessageLoopChecked<SuccessCallback,
                                         scoped_refptr<render_tree::Image> >,
               weak_this_, success_callback, result_message_loop_),
-          base::Bind(&PostToMessageLoopChecked<FailureCallback, std::string>,
-                     weak_this_, failure_callback, result_message_loop_),
           base::Bind(&PostToMessageLoopChecked<ErrorCallback, std::string>,
                      weak_this_, error_callback, result_message_loop_))) {
   DCHECK(load_message_loop_);

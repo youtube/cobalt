@@ -43,14 +43,13 @@ LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
 scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     const image::ImageDecoder::SuccessCallback& success_callback,
-    const image::ImageDecoder::FailureCallback& failure_callback,
     const image::ImageDecoder::ErrorCallback& error_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
       MakeFetcherCreator(url, url_security_callback),
       scoped_ptr<Decoder>(new image::ThreadedImageDecoderProxy(
-          resource_provider_, success_callback, failure_callback,
+          resource_provider_, success_callback,
           error_callback, load_thread_.message_loop())),
       error_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
@@ -61,7 +60,6 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
 scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     const font::TypefaceDecoder::SuccessCallback& success_callback,
-    const font::TypefaceDecoder::FailureCallback& failure_callback,
     const font::TypefaceDecoder::ErrorCallback& error_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -69,7 +67,7 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
       MakeFetcherCreator(url, url_security_callback),
       scoped_ptr<Decoder>(
           new font::TypefaceDecoder(resource_provider_, success_callback,
-                                    failure_callback, error_callback)),
+                                    error_callback)),
       error_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
   OnLoaderCreated(loader.get());

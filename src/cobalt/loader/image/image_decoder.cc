@@ -81,11 +81,9 @@ ImageType DetermineImageType(const uint8* header) {
 
 ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
                            const SuccessCallback& success_callback,
-                           const FailureCallback& failure_callback,
                            const ErrorCallback& error_callback)
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
-      failure_callback_(failure_callback),
       error_callback_(error_callback),
       state_(kWaitingForHeader) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::ImageDecoder()");
@@ -111,20 +109,20 @@ LoadResponseType ImageDecoder::OnResponseStarted(
     // The server successfully processed the request and expected some contents,
     // but it is not returning any content.
     state_ = kNotApplicable;
-    CacheMessage(&failure_message_, "No content returned, but expected some.");
+    CacheMessage(&error_message_, "No content returned, but expected some.");
   }
 
   if (headers->response_code() == net::HTTP_NO_CONTENT) {
     // The server successfully processed the request, but is not returning any
     // content.
     state_ = kNotApplicable;
-    CacheMessage(&failure_message_, "No content returned.");
+    CacheMessage(&error_message_, "No content returned.");
   }
 
   bool success = headers->GetMimeType(&mime_type_);
   if (!success || !net::IsSupportedImageMimeType(mime_type_)) {
     state_ = kNotApplicable;
-    CacheMessage(&failure_message_, "Not an image mime type.");
+    CacheMessage(&error_message_, "Not an image mime type.");
   }
 
   return kLoadResponseContinue;
@@ -171,7 +169,7 @@ void ImageDecoder::Finish() {
     case kWaitingForHeader:
       if (signature_cache_.position == 0) {
         // no image is available.
-        failure_callback_.Run(failure_message_);
+        error_callback_.Run(error_message_);
       } else {
         error_callback_.Run("No enough image data for header.");
       }
@@ -180,14 +178,14 @@ void ImageDecoder::Finish() {
       error_callback_.Run("Unsupported image format.");
       break;
     case kNoResourceProvider:
-      failure_callback_.Run("No resource provider was passed to the decoder.");
+      error_callback_.Run("No resource provider was passed to the decoder.");
       break;
     case kSuspended:
       DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
       break;
     case kNotApplicable:
       // no image is available.
-      failure_callback_.Run(failure_message_);
+      error_callback_.Run(error_message_);
       break;
   }
 }

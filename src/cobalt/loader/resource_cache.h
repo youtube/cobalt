@@ -49,7 +49,6 @@ class ResourceCache;
 
 enum CallbackType {
   kOnLoadingSuccessCallbackType,
-  kOnLoadingFailureCallbackType,
   kOnLoadingErrorCallbackType,
   kCallbackTypeCount,
 };
@@ -71,10 +70,9 @@ class CachedResource
   typedef base::Callback<scoped_ptr<Loader>(
       const GURL&, const csp::SecurityCallback&,
       const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const std::string&)>&,
       const base::Callback<void(const std::string&)>&)> CreateLoaderFunction;
 
-  // This class can be used to attach success, failure, or error callbacks to
+  // This class can be used to attach success or error callbacks to
   // CachedResource objects that are executed when the resource finishes
   // loading.
   // The callbacks are removed when the object is destroyed. If the resource has
@@ -84,7 +82,6 @@ class CachedResource
     OnLoadedCallbackHandler(
         const scoped_refptr<CachedResource>& cached_resource,
         const base::Closure& success_callback,
-        const base::Closure& failure_callback,
         const base::Closure& error_callback);
     ~OnLoadedCallbackHandler();
 
@@ -93,11 +90,9 @@ class CachedResource
 
     scoped_refptr<CachedResource> cached_resource_;
     base::Closure success_callback_;
-    base::Closure failure_callback_;
     base::Closure error_callback_;
 
     CallbackListIterator success_callback_list_iterator_;
-    CallbackListIterator failure_callback_list_iterator_;
     CallbackListIterator error_callback_list_iterator_;
 
     DISALLOW_COPY_AND_ASSIGN(OnLoadedCallbackHandler);
@@ -139,8 +134,6 @@ class CachedResource
   //
   // Notify that the resource is loaded successfully.
   void OnLoadingSuccess(const scoped_refptr<ResourceType>& resource);
-  // Notify the loading failure and could be treated differently than error.
-  void OnLoadingFailure(const std::string& warning);
   // Notify the loading error.
   void OnLoadingError(const std::string& error);
 
@@ -172,10 +165,9 @@ template <typename CacheType>
 CachedResource<CacheType>::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     const scoped_refptr<CachedResource>& cached_resource,
     const base::Closure& success_callback,
-    const base::Closure& failure_callback, const base::Closure& error_callback)
+    const base::Closure& error_callback)
     : cached_resource_(cached_resource),
       success_callback_(success_callback),
-      failure_callback_(failure_callback),
       error_callback_(error_callback) {
   DCHECK(cached_resource_);
 
@@ -185,11 +177,6 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     if (cached_resource_->TryGetResource()) {
       success_callback_.Run();
     }
-  }
-
-  if (!failure_callback_.is_null()) {
-    failure_callback_list_iterator_ = cached_resource_->AddCallback(
-        kOnLoadingFailureCallbackType, failure_callback_);
   }
 
   if (!error_callback_.is_null()) {
@@ -203,11 +190,6 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
   if (!success_callback_.is_null()) {
     cached_resource_->RemoveCallback(kOnLoadingSuccessCallbackType,
                                      success_callback_list_iterator_);
-  }
-
-  if (!failure_callback_.is_null()) {
-    cached_resource_->RemoveCallback(kOnLoadingFailureCallbackType,
-                                     failure_callback_list_iterator_);
   }
 
   if (!error_callback_.is_null()) {
@@ -231,7 +213,6 @@ CachedResource<CacheType>::CachedResource(
   loader_ = create_loader_function.Run(
       url, security_callback,
       base::Bind(&CachedResource::OnLoadingSuccess, base::Unretained(this)),
-      base::Bind(&CachedResource::OnLoadingFailure, base::Unretained(this)),
       base::Bind(&CachedResource::OnLoadingError, base::Unretained(this)));
 }
 
@@ -280,21 +261,10 @@ void CachedResource<CacheType>::OnLoadingSuccess(
 }
 
 template <typename CacheType>
-void CachedResource<CacheType>::OnLoadingFailure(const std::string& message) {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
-
-  LOG(WARNING) << "Warning while loading '" << url_ << "': " << message;
-
-  loader_.reset();
-  resource_cache_->NotifyResourceLoadingComplete(this,
-                                                 kOnLoadingFailureCallbackType);
-}
-
-template <typename CacheType>
 void CachedResource<CacheType>::OnLoadingError(const std::string& error) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
-  LOG(ERROR) << "Error while loading '" << url_ << "': " << error;
+  LOG(WARNING) << "Error while loading '" << url_ << "': " << error;
 
   loader_.reset();
   resource_cache_->NotifyResourceLoadingComplete(this,
@@ -351,13 +321,11 @@ class CachedResourceReferenceWithCallbacks {
   CachedResourceReferenceWithCallbacks(
       const scoped_refptr<CachedResourceType>& cached_resource,
       const base::Closure& success_callback,
-      const base::Closure& failure_callback,
       const base::Closure& error_callback)
       : cached_resource_(cached_resource),
         cached_resource_loaded_callback_handler_(
             new CachedResourceTypeOnLoadedCallbackHandler(
-                cached_resource, success_callback, failure_callback,
-                error_callback)) {}
+                cached_resource, success_callback, error_callback)) {}
 
   scoped_refptr<CachedResourceType> cached_resource() {
     return cached_resource_;

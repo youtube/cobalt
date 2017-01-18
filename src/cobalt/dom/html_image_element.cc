@@ -143,8 +143,6 @@ void HTMLImageElement::UpdateImageData() {
       new loader::image::CachedImage::OnLoadedCallbackHandler(
           cached_image, base::Bind(&HTMLImageElement::OnLoadingSuccess,
                                    base::Unretained(this)),
-          base::Bind(&HTMLImageElement::OnLoadingFailure,
-                     base::Unretained(this)),
           base::Bind(&HTMLImageElement::OnLoadingError,
                      base::Unretained(this))));
   node_document()->IncreaseLoadingCounter();
@@ -153,14 +151,6 @@ void HTMLImageElement::UpdateImageData() {
 void HTMLImageElement::OnLoadingSuccess() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingSuccess()");
   AllowGarbageCollectionAfterEventIsDispatched(base::Tokens::load());
-  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
-  cached_image_loaded_callback_handler_.reset();
-}
-
-void HTMLImageElement::OnLoadingFailure() {
-  TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingFailure()");
-  // No event is dispatched.
-  AllowGarbageCollection();
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   cached_image_loaded_callback_handler_.reset();
 }
