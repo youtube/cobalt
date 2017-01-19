@@ -9,12 +9,15 @@
 
 #if !UCONFIG_NO_CONVERSION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "inputext.h"
 
 #include "cmemory.h"
 #include "cstring.h"
 
+#if !defined(STARBOARD)
 #include <string.h>
+#endif
 
 U_NAMESPACE_BEGIN
 

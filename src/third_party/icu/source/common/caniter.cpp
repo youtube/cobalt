@@ -1,12 +1,13 @@
 /*
  *****************************************************************************
- * Copyright (C) 1996-2010, International Business Machines Corporation and  *
- * others. All Rights Reserved.                                              *
+ * Copyright (C) 1996-2015, International Business Machines Corporation and
+ * others. All Rights Reserved.
  *****************************************************************************
  */
 
 #include "unicode/utypes.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/caniter.h"
@@ -15,6 +16,7 @@
 #include "unicode/uniset.h"
 #include "unicode/usetiter.h"
 #include "unicode/ustring.h"
+#include "unicode/utf16.h"
 #include "cmemory.h"
 #include "hash.h"
 #include "normalizer2impl.h"
@@ -70,7 +72,7 @@ CanonicalIterator::CanonicalIterator(const UnicodeString &sourceStr, UErrorCode 
     pieces_lengths(NULL),
     current(NULL),
     current_length(0),
-    nfd(*Normalizer2Factory::getNFDInstance(status)),
+    nfd(*Normalizer2::getNFDInstance(status)),
     nfcImpl(*Normalizer2Factory::getNFCImpl(status))
 {
     if(U_SUCCESS(status) && nfcImpl.ensureCanonIterData(status)) {
@@ -207,14 +209,14 @@ void CanonicalIterator::setSource(const UnicodeString &newSource, UErrorCode &st
 
     // i should initialy be the number of code units at the 
     // start of the string
-    i = UTF16_CHAR_LENGTH(source.char32At(0));
+    i = U16_LENGTH(source.char32At(0));
     //int32_t i = 1;
     // find the segments
     // This code iterates through the source string and 
     // extracts segments that end up on a codepoint that
     // doesn't start any decompositions. (Analysis is done
     // on the NFD form - see above).
-    for (; i < source.length(); i += UTF16_CHAR_LENGTH(cp)) {
+    for (; i < source.length(); i += U16_LENGTH(cp)) {
         cp = source.char32At(i);
         if (nfcImpl.isCanonSegmentStarter(cp)) {
             source.extract(start, i-start, list[list_length++]); // add up to i
@@ -288,12 +290,12 @@ void U_EXPORT2 CanonicalIterator::permute(UnicodeString &source, UBool skipZeros
     if(U_FAILURE(status)) {
         return;
     }
-    subpermute.setValueDeleter(uhash_deleteUnicodeString);
+    subpermute.setValueDeleter(uprv_deleteUObject);
 
-    for (i = 0; i < source.length(); i += UTF16_CHAR_LENGTH(cp)) {
+    for (i = 0; i < source.length(); i += U16_LENGTH(cp)) {
         cp = source.char32At(i);
         const UHashElement *ne = NULL;
-        int32_t el = -1;
+        int32_t el = UHASH_FIRST;
         UnicodeString subPermuteString = source;
 
         // optimization:
@@ -308,7 +310,7 @@ void U_EXPORT2 CanonicalIterator::permute(UnicodeString &source, UBool skipZeros
 
         // see what the permutations of the characters before and after this one are
         //Hashtable *subpermute = permute(source.substring(0,i) + source.substring(i + UTF16.getCharCount(cp)));
-        permute(subPermuteString.replace(i, UTF16_CHAR_LENGTH(cp), NULL, 0), skipZeros, &subpermute, status);
+        permute(subPermuteString.replace(i, U16_LENGTH(cp), NULL, 0), skipZeros, &subpermute, status);
         /* Test for buffer overflows */
         if(U_FAILURE(status)) {
             return;
@@ -345,9 +347,9 @@ UnicodeString* CanonicalIterator::getEquivalents(const UnicodeString &segment, i
     if (U_FAILURE(status)) {
         return 0;
     }
-    result.setValueDeleter(uhash_deleteUnicodeString);
-    permutations.setValueDeleter(uhash_deleteUnicodeString);
-    basic.setValueDeleter(uhash_deleteUnicodeString);
+    result.setValueDeleter(uprv_deleteUObject);
+    permutations.setValueDeleter(uprv_deleteUObject);
+    basic.setValueDeleter(uprv_deleteUObject);
 
     UChar USeg[256];
     int32_t segLen = segment.extract(USeg, 256, status);
@@ -358,7 +360,7 @@ UnicodeString* CanonicalIterator::getEquivalents(const UnicodeString &segment, i
     // TODO: optimize by not permuting any class zero.
 
     const UHashElement *ne = NULL;
-    int32_t el = -1;
+    int32_t el = UHASH_FIRST;
     //Iterator it = basic.iterator();
     ne = basic.nextElement(el);
     //while (it.hasNext())
@@ -369,7 +371,7 @@ UnicodeString* CanonicalIterator::getEquivalents(const UnicodeString &segment, i
         permutations.removeAll();
         permute(item, CANITER_SKIP_ZEROES, &permutations, status);
         const UHashElement *ne2 = NULL;
-        int32_t el2 = -1;
+        int32_t el2 = UHASH_FIRST;
         //Iterator it2 = permutations.iterator();
         ne2 = permutations.nextElement(el2);
         //while (it2.hasNext())
@@ -415,7 +417,7 @@ UnicodeString* CanonicalIterator::getEquivalents(const UnicodeString &segment, i
     }
     //result.toArray(finalResult);
     result_len = 0;
-    el = -1;
+    el = UHASH_FIRST;
     ne = result.nextElement(el);
     while(ne != NULL) {
         finalResult[result_len++] = *((UnicodeString *)(ne->value.pointer));
@@ -442,9 +444,9 @@ Hashtable *CanonicalIterator::getEquivalents2(Hashtable *fillinResult, const UCh
 
     // cycle through all the characters
     UChar32 cp;
-    for (int32_t i = 0; i < segLen; i += UTF16_CHAR_LENGTH(cp)) {
+    for (int32_t i = 0; i < segLen; i += U16_LENGTH(cp)) {
         // see if any character is at the start of some decomposition
-        UTF_GET_CHAR(segment, 0, i, segLen, cp);
+        U16_GET(segment, 0, i, segLen, cp);
         if (!nfcImpl.getCanonStartSet(cp, starts)) {
             continue;
         }
@@ -453,7 +455,7 @@ Hashtable *CanonicalIterator::getEquivalents2(Hashtable *fillinResult, const UCh
         while (iter.next()) {
             UChar32 cp2 = iter.getCodepoint();
             Hashtable remainder(status);
-            remainder.setValueDeleter(uhash_deleteUnicodeString);
+            remainder.setValueDeleter(uprv_deleteUObject);
             if (extract(&remainder, cp2, segment, segLen, i, status) == NULL) {
                 continue;
             }
@@ -462,7 +464,7 @@ Hashtable *CanonicalIterator::getEquivalents2(Hashtable *fillinResult, const UCh
             UnicodeString prefix(segment, i);
             prefix += cp2;
 
-            int32_t el = -1;
+            int32_t el = UHASH_FIRST;
             const UHashElement *ne = remainder.nextElement(el);
             while (ne != NULL) {
                 UnicodeString item = *((UnicodeString *)(ne->value.pointer));
@@ -507,6 +509,13 @@ Hashtable *CanonicalIterator::extract(Hashtable *fillinResult, UChar32 comp, con
     int32_t inputLen=temp.length();
     UnicodeString decompString;
     nfd.normalize(temp, decompString, status);
+    if (U_FAILURE(status)) {
+        return NULL;
+    }
+    if (decompString.isBogus()) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return NULL;
+    }
     const UChar *decomp=decompString.getBuffer();
     int32_t decompLen=decompString.length();
 

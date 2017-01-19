@@ -258,6 +258,8 @@
       '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
       '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
       '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_configuration_stereo_only.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_stereo_only.cc',
       '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_close.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_create.cc',

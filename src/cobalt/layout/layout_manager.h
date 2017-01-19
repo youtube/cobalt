@@ -61,7 +61,8 @@ class LayoutManager {
 #endif  // ENABLE_TEST_RUNNER
   };
 
-  LayoutManager(const scoped_refptr<dom::Window>& window,
+  LayoutManager(const std::string& name,
+                const scoped_refptr<dom::Window>& window,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
                 LayoutTrigger layout_trigger, const int dom_max_element_depth,
                 const float layout_refresh_rate, const std::string& language,
@@ -70,6 +71,8 @@ class LayoutManager {
 
   void Suspend();
   void Resume();
+
+  bool IsNewRenderTreePending() const;
 
  private:
   class Impl;

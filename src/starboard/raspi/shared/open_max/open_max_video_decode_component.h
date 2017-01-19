@@ -27,52 +27,27 @@ namespace raspi {
 namespace shared {
 namespace open_max {
 
-class VideoFrameResourcePool
-    : public RefCountedThreadSafe<VideoFrameResourcePool> {
- public:
-  explicit VideoFrameResourcePool(size_t max_number_of_resources);
-  ~VideoFrameResourcePool();
-
-  DispmanxYUV420Resource* Alloc(int width,
-                                int height,
-                                int visible_width,
-                                int visible_height);
-  void Free(DispmanxYUV420Resource* resource);
-
-  static void DisposeDispmanxYUV420Resource(void* context,
-                                            void* dispmanx_resource);
-
- private:
-  typedef std::queue<DispmanxYUV420Resource*> ResourceQueue;
-  // Map frame height to resource handles.
-  typedef std::map<int, ResourceQueue> ResourceMap;
-
-  const size_t max_number_of_resources_;
-
-  Mutex mutex_;
-  size_t number_of_resources_;
-  int last_frame_height_;
-  ResourceMap resource_map_;
-};
-
 // Encapsulate a "OMX.broadcom.video_decode" component.  Note that member
 // functions of this class is expected to be called from ANY threads as this
 // class works with the VideoDecoder filter, the OpenMAX component, and also
 // manages the disposition of Dispmanx resource.
-class OpenMaxVideoDecodeComponent : public OpenMaxComponent {
+class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
  public:
   typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
 
+  using OpenMaxComponent::Start;
+  using OpenMaxComponent::Flush;
+  using OpenMaxComponent::WriteData;
+  using OpenMaxComponent::WriteEOS;
+
   OpenMaxVideoDecodeComponent();
 
-  scoped_refptr<VideoFrame> ReadVideoFrame();
+  OMX_BUFFERHEADERTYPE* GetOutputBuffer();
+  void DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer);
 
  private:
-  scoped_refptr<VideoFrame> CreateVideoFrame(OMX_BUFFERHEADERTYPE* buffer);
-
   bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) SB_OVERRIDE;
 
-  scoped_refptr<VideoFrameResourcePool> resource_pool_;
   OMXParamPortDefinition output_port_definition_;
 };
 

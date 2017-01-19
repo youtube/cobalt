@@ -65,7 +65,7 @@ class MemoryTrackerImpl : public MemoryTracker {
       return true;
     global_hooks_installed_ = true;
     bool ok = SbMemorySetReporter(GetMemoryReporter());
-    ok |= NbSetMemoryScopeReporter(GetMemoryScopeReporter());
+    ok &= NbSetMemoryScopeReporter(GetMemoryScopeReporter());
     return ok;
   }
   void RemoveGlobalTrackingHooks() SB_OVERRIDE {
@@ -127,6 +127,9 @@ class MemoryTrackerImpl : public MemoryTracker {
   void SetThreadFilter(SbThreadId tid);
   bool IsCurrentThreadAllowedToReport() const;
 
+  virtual void SetMemoryTrackerDebugCallback(MemoryTrackerDebugCallback* cb)
+      SB_OVERRIDE;
+
  private:
   struct DisableMemoryTrackingInScope {
     DisableMemoryTrackingInScope(MemoryTrackerImpl* t);
@@ -168,135 +171,14 @@ class MemoryTrackerImpl : public MemoryTracker {
   AtomicStringAllocationGroupMap alloc_group_map_;
 
   atomic_int64_t total_bytes_allocated_;
+  MemoryTrackerDebugCallback* debug_callback_;
 
   // THREAD LOCAL SECTION.
   ThreadLocalBoolean memory_deletion_enabled_tls_;
   ThreadLocalBoolean memory_tracking_disabled_tls_;
   ThreadLocalObject<AllocationGroupStack> allocation_group_stack_tls_;
+  ThreadLocalObject<CallStack> callstack_tls_;
   bool global_hooks_installed_;
-};
-
-// Start() is called when this object is created, and Cancel() & Join() are
-// called during destruction.
-class MemoryTrackerPrintThread : public SimpleThread {
- public:
-  MemoryTrackerPrintThread(MemoryTracker* memory_tracker);
-  virtual ~MemoryTrackerPrintThread() SB_OVERRIDE;
-
-  // Overridden so that the thread can exit gracefully.
-  virtual void Cancel() SB_OVERRIDE;
-  virtual void Run() SB_OVERRIDE;
-
- private:
-  atomic_bool finished_;
-  MemoryTracker* memory_tracker_;
-};
-
-// Generates CSV values of the engine.
-// There are three sections of data including:
-//   1. average bytes / alloc
-//   2. # Bytes allocated per memory scope.
-//   3. # Allocations per memory scope.
-// This data can be pasted directly into a Google spreadsheet and visualized.
-// Note that this thread will implicitly call Start() is called during
-// construction and Cancel() & Join() during destruction.
-class MemoryTrackerPrintCSVThread : public SimpleThread {
- public:
-  MemoryTrackerPrintCSVThread(MemoryTracker* memory_tracker,
-                              int sampling_interval_ms,
-                              int sampling_time_ms);
-  virtual ~MemoryTrackerPrintCSVThread() SB_OVERRIDE;
-
-  // Overridden so that the thread can exit gracefully.
-  virtual void Cancel() SB_OVERRIDE;
-  virtual void Run() SB_OVERRIDE;
- private:
-  struct AllocationSamples {
-    std::vector<int32_t> number_allocations_;
-    std::vector<int64_t> allocated_bytes_;
-  };
-  typedef std::map<std::string, AllocationSamples> MapAllocationSamples;
-  static std::string ToCsvString(const MapAllocationSamples& samples);
-  static const char* UntrackedMemoryKey();
-  bool TimeExpiredYet();
-
-  MemoryTracker* memory_tracker_;
-  const int sample_interval_ms_;
-  const int sampling_time_ms_;
-  SbTime start_time_;
-  atomic_bool canceled_;
-};
-
-struct AllocationSamples {
-  std::vector<int32_t> number_allocations_;
-  std::vector<int64_t> allocated_bytes_;
-};
-typedef std::map<std::string, AllocationSamples> MapAllocationSamples;
-typedef std::vector<SbTime> TimeStamps;
-
-struct TimeSeries {
-  MapAllocationSamples samples_;
-  TimeStamps time_stamps_;
-};
-
-// Generates CSV values of the engine of a compressed-scale TimeSeries.
-//
-// A compressed-scale TimeSeries is defined as a time series which has
-// higher resolution at the most recent sampling and becomes progressively
-// lower resolution as time goes backward.
-//
-// For example, here is a compressed-histogram of order 2, which loses
-// 50% resolution on each section going back.
-//
-// Startup +------->  +--------+ ..% Resolution
-//                    +--------+
-//                    |        | 12% Resolution
-//                    +--------+
-//                    |        |
-//                    |        | 25% Resolution
-//                    +--------+
-//                    |        |
-//                    |        |
-//                    |        | 50% Resolution
-//                    |        |
-//                    |        |
-//                    +--------+
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        | 100% Resolution
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-// End Time +------>  +--------+
-//
-// The the compressed histogram is dumped out as a CSV string periodically to
-// the output stream.
-class MemoryTrackerCompressedTimeSeriesThread : public SimpleThread {
- public:
-  MemoryTrackerCompressedTimeSeriesThread(
-      MemoryTracker* memory_tracker);
-  virtual ~MemoryTrackerCompressedTimeSeriesThread() SB_OVERRIDE;
-
-  // Overridden so that the thread can exit gracefully.
-  virtual void Cancel() SB_OVERRIDE;
-  virtual void Run() SB_OVERRIDE;
- private:
-  static std::string ToCsvString(const TimeSeries& histogram);
-  static void AcquireSample(MemoryTracker* memory_tracker,
-                            TimeSeries* histogram, SbTime now_time);
-  static bool IsFull(const TimeSeries& histogram, int num_samples);
-  static void Compress(TimeSeries* histogram);
-  static void Print(const std::string& str);
-
-  MemoryTracker* memory_tracker_;
-  const int sample_interval_ms_;
-  const int number_samples_;
-  atomic_bool canceled_;
 };
 
 }  // namespace analytics

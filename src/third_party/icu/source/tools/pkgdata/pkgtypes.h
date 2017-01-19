@@ -1,6 +1,6 @@
 /**************************************************************************
 *
-*   Copyright (C) 2000-2009, International Business Machines
+*   Copyright (C) 2000-2012, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ***************************************************************************
@@ -125,6 +125,8 @@ typedef struct UPKGOptions_
   UBool      rebuild;
   UBool      verbose;
   UBool      quiet;
+  UBool      withoutAssembly;
+  UBool      pdsbuild;     /* for building PDS in z/OS */
 } UPKGOptions;
 
 char * convertToNativePathSeparators(char *path);
@@ -132,7 +134,7 @@ char * convertToNativePathSeparators(char *path);
 
 /* set up common defines for library naming */
 
-#ifdef U_WINDOWS
+#if U_PLATFORM_HAS_WIN32_API
 # ifndef UDATA_SO_SUFFIX
 #  define UDATA_SO_SUFFIX ".dll"
 # endif
@@ -141,7 +143,7 @@ char * convertToNativePathSeparators(char *path);
 # define OBJ_SUFFIX ".obj"
 # define UDATA_LIB_SUFFIX ".lib"
 
-#elif defined(U_CYGWIN)
+#elif U_PLATFORM == U_PF_CYGWIN
 # define LIB_PREFIX "cyg"
 # define LIB_STATIC_PREFIX "lib"
 # define OBJ_SUFFIX ".o"

@@ -94,8 +94,10 @@
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
 #elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
+#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
+#endif  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
 #endif  // SB_HAS(BLITTER)
 
 #ifdef __cplusplus
@@ -202,6 +204,7 @@ static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
 }
 
 #if SB_HAS(BLITTER)
+
 // Creates a new SbBlitter-compatible SbDecodeTarget from one or more |planes|
 // created from |display|.
 //
@@ -216,7 +219,10 @@ SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(SbDecodeTargetFormat format,
 // Gets the surface that represents the given plane.
 SB_EXPORT SbBlitterSurface SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                                                   SbDecodeTargetPlane plane);
+
 #elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
+
+#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
 // Creates a new EGL/GLES2-compatible SbDecodeTarget from one or more |planes|
 // owned by |context|, created from |display|. Must be called from a thread
 // where |context| is current.
@@ -237,11 +243,44 @@ SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(EGLDisplay display,
 // Gets the texture that represents the given plane.
 SB_EXPORT GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                                         SbDecodeTargetPlane plane);
+#else  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+// Creates a new EGL/GLES2-compatible SbDecodeTarget from one or more |planes|
+// owned by |context|, created from |display|. Must be called from a thread
+// where |context| is current. Returns kSbDecodeTargetInvalid on failure.
+//
+// void* is used in place of the EGL types so as to avoid including EGL headers,
+// which may transitively include unexpected platform-specific headers. You must
+// call reinterpret_cast<void*>(my_egl_context).
+//
+// |display|: The platform-specific graphics display (e.g. EGLDisplay) being
+// targeted.
+// |context|: The platform-specific graphics context (e.g. EGLContext) that owns
+// the provided planes, or NULL if a context is not required.
+// |format|: The format of the decode target being created, which implies how
+// many |planes| are expected, and what format they are expected to be in.
+// |width|: The width of the decode target being created.
+// |height|: The height of the decode target being created.
+// |planes|: An array of GLES texture names to be bundled into an
+// SbDecodeTarget.  Must not be NULL. Is expected to have the same number of
+// entries as the number of planes for |format|, in the order, size, and format
+// expected by that |format|.
+SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(void* display,
+                                              void* context,
+                                              SbDecodeTargetFormat format,
+                                              int width,
+                                              int height,
+                                              uint32_t* planes);
+
+// Gets the texture that represents the given plane.
+SB_EXPORT uint32_t SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
+                                          SbDecodeTargetPlane plane);
+#endif  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
 
 #else  // SB_HAS(BLITTER)
 
 // Stub function for when graphics aren't enabled.  Always creates
 // kSbDecodeTargetInvalid.
+// TODO: Who is calling this when graphics aren't enabled?
 static SB_C_INLINE SbDecodeTarget
 SbDecodeTargetCreate(SbDecodeTargetFormat format) {
   SB_UNREFERENCED_PARAMETER(format);
@@ -280,6 +319,17 @@ SbDecodeTargetGetFormat(SbDecodeTarget decode_target);
 // format that has alpha values.  If |decode_target| is of a format that does
 // not have alpha values, then this function should return |true|.
 SB_EXPORT bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target);
+
+#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+// Gets the dimensions of the decode target.
+// |out_width|: Non-null pointer to an integer that will get the
+// target's width. Undefined if the decode target is invalid.
+// |out_height|: Non-null pointer to an integer that will get the
+// target's height. Undefined if the decode target is invalid.
+SB_EXPORT void SbDecodeTargetGetSize(SbDecodeTarget decode_target,
+                                     int* out_width,
+                                     int* out_height);
+#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
 
 // Inline convenience function to acquire an SbDecodeTarget of type |format|,
 // |width|, and |height| from |provider|.

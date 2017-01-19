@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ff.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ff.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/ff.xml
- */
 ff{
     Countries{
         AD{"Anndoora"}
@@ -26,7 +23,7 @@ ff{
         AU{"Ostaraalii"}
         AW{"Aruuba"}
         AZ{"Ajerbayjaan"}
-        BA{"Bosnii  Hersegowiin"}
+        BA{"Bosnii Hersegowiin"}
         BB{"Barbadoos"}
         BD{"Banglaadees"}
         BE{"Beljik"}
@@ -56,7 +53,6 @@ ff{
         CN{"Siin"}
         CO{"Kolombiya"}
         CR{"Kosta Rikaa"}
-        CS{"Serbii e Montenegoroo"}
         CU{"Kubaa"}
         CV{"Duuɗe Kap Weer"}
         CY{"Siipar"}
@@ -101,7 +97,7 @@ ff{
         HU{"Onngiri"}
         ID{"Enndonesii"}
         IE{"Irlannda"}
-        IL{"Israa'iila"}
+        IL{"Israa’iila"}
         IN{"Enndo"}
         IO{"Keeriindi britaani to maayo enndo"}
         IQ{"Iraak"}
@@ -238,5 +234,5 @@ ff{
         ZM{"Sammbi"}
         ZW{"Simbaabuwe"}
     }
-    Version{"2.0.46.85"}
+    Version{"2.1.19.14"}
 }

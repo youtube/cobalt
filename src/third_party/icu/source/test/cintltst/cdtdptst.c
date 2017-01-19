@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * Copyright (c) 1997-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /********************************************************************************
@@ -38,6 +38,8 @@ void addDtFrDepTest(TestNode** root)
     addTest(root, &TestRunTogetherPattern985, "tsformat/cdtdptst/TestRunTogetherPattern985");
     addTest(root, &TestCzechMonths459, "tsformat/cdtdptst/TestCzechMonths459");
     addTest(root, &TestQuotePattern161, "tsformat/cdtdptst/TestQuotePattern161");
+    addTest(root, &TestBooleanAttributes, "tsformat/cdtdptst/TestBooleanAttributes");
+
     
 }
 
@@ -57,7 +59,7 @@ void TestTwoDigitYearDSTParse()
 
     pattern=(UChar*)malloc(sizeof(UChar) * (strlen("EEE MMM dd HH:mm:ss.SSS zzz yyyy G")+1 ));
     u_uastrcpy(pattern, "EEE MMM dd HH:mm:ss.SSS zzz yyyy G");
-    fullFmt= udat_open(UDAT_IGNORE, UDAT_IGNORE,"en_US",NULL,0,pattern, u_strlen(pattern),&status);
+    fullFmt= udat_open(UDAT_PATTERN, UDAT_PATTERN,"en_US",NULL,0,pattern, u_strlen(pattern),&status);
     if(U_FAILURE(status))    {
         log_data_err("FAIL: Error in creating a date format using udat_openPattern %s - (Are you missing data?)\n", 
             myErrorName(status) );
@@ -66,7 +68,7 @@ void TestTwoDigitYearDSTParse()
         log_verbose("PASS: creating dateformat using udat_openPattern() succesful\n");
     
         u_uastrcpy(pattern, "dd-MMM-yy h:mm:ss 'o''clock' a z");
-        fmt= udat_open(UDAT_IGNORE,UDAT_IGNORE,"en_US", NULL, 0,pattern, u_strlen(pattern), &status);
+        fmt= udat_open(UDAT_PATTERN,UDAT_PATTERN,"en_US", NULL, 0,pattern, u_strlen(pattern), &status);
         
         
         s=(UChar*)malloc(sizeof(UChar) * (strlen("03-Apr-04 2:20:47 o'clock AM PST")+1) );
@@ -200,7 +202,7 @@ void TestRunTogetherPattern985()
     UErrorCode status = U_ZERO_ERROR;
     pattern=(UChar*)malloc(sizeof(UChar) * (strlen("yyyyMMddHHmmssSSS")+1) );
     u_uastrcpy(pattern, "yyyyMMddHHmmssSSS");
-    format = udat_open(UDAT_IGNORE, UDAT_IGNORE, NULL, NULL, 0,pattern, u_strlen(pattern), &status);
+    format = udat_open(UDAT_PATTERN, UDAT_PATTERN, NULL, NULL, 0,pattern, u_strlen(pattern), &status);
     if(U_FAILURE(status)){
         log_data_err("FAIL: Error in date format construction with pattern: %s - (Are you missing data?)\n", myErrorName(status));
         return;
@@ -316,7 +318,7 @@ void TestQuotePattern161()
     /* this is supposed to open default date format, but later on it treats it like it is "en_US" 
        - very bad if you try to run the tests on machine where default locale is NOT "en_US" */
     /* format= udat_openPattern(pattern, u_strlen(pattern), NULL, &status); */
-    format= udat_open(UDAT_IGNORE, UDAT_IGNORE,"en_US", NULL, 0,pattern, u_strlen(pattern), &status);
+    format= udat_open(UDAT_PATTERN, UDAT_PATTERN,"en_US", NULL, 0,pattern, u_strlen(pattern), &status);
     if(U_FAILURE(status)){
         log_data_err("error in udat_open: %s - (Are you missing data?)\n", myErrorName(status));
         return;
@@ -347,6 +349,37 @@ void TestQuotePattern161()
     free(pattern);
     
     ctest_resetTimeZone();
+}
+
+/*
+ * Testing udat_getBooleanAttribute and  unum_setBooleanAttribute() to make sure basic C wrapper functionality is present
+ */
+void TestBooleanAttributes(void)
+{
+    UDateFormat *en;
+    UErrorCode status=U_ZERO_ERROR;
+    UBool initialState = TRUE;
+    UBool switchedState = FALSE;
+        
+    log_verbose("\ncreating a date format with english locale\n");
+    en = udat_open(UDAT_FULL, UDAT_DEFAULT, "en_US", NULL, 0, NULL, 0, &status);
+    if(U_FAILURE(status)) {
+        log_data_err("error in creating the dateformat -> %s (Are you missing data?)\n", 
+            myErrorName(status) );
+        return;
+    }
+    
+    
+    initialState = udat_getBooleanAttribute(en, UDAT_PARSE_ALLOW_NUMERIC, &status);
+    if(initialState != TRUE) switchedState = TRUE;  // if it wasn't the default of TRUE, then flip what we expect
+
+    udat_setBooleanAttribute(en, UDAT_PARSE_ALLOW_NUMERIC, switchedState, &status);
+    if(switchedState != udat_getBooleanAttribute(en, UDAT_PARSE_ALLOW_NUMERIC, &status)) {
+        log_err("unable to switch states!");
+        return;
+    }
+
+    udat_close(en);
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

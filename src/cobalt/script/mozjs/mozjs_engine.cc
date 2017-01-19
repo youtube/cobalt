@@ -20,6 +20,7 @@
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
@@ -30,8 +31,8 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace {
-// After this many bytes have been allocated, the garbage collector will run.
-const uint32_t kGarbageCollectionThresholdBytes = 8 * 1024 * 1024;
+// Trigger garbage collection this many seconds after the last one.
+const int kGarbageCollectionIntervalSeconds = 60;
 
 JSBool CheckAccessStub(JSContext*, JS::Handle<JSObject*>, JS::Handle<jsid>,
                        JSAccessMode, JS::MutableHandle<JS::Value>) {
@@ -105,8 +106,8 @@ MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
-  runtime_ =
-      JS_NewRuntime(kGarbageCollectionThresholdBytes, JS_NO_HELPER_THREADS);
+  runtime_ = JS_NewRuntime(MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES,
+                           JS_NO_HELPER_THREADS);
   CHECK(runtime_);
 
   // Sets the size of the native stack that should not be exceeded.
@@ -140,6 +141,12 @@ MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
   js::SetPreserveWrapperCallback(runtime_, DummyPreserveWrapperCallback);
 
   EngineStats::GetInstance()->EngineCreated();
+
+  if (MessageLoop::current()) {
+    gc_timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(
+                                   kGarbageCollectionIntervalSeconds),
+                    this, &MozjsEngine::TimerGarbageCollect);
+  }
 }
 
 MozjsEngine::~MozjsEngine() {
@@ -163,7 +170,8 @@ void MozjsEngine::CollectGarbage() {
 void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
   accumulated_extra_memory_cost_ += bytes;
-  if (accumulated_extra_memory_cost_ > kGarbageCollectionThresholdBytes) {
+  if (accumulated_extra_memory_cost_ >
+      MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES) {
     accumulated_extra_memory_cost_ = 0;
     CollectGarbage();
   }
@@ -171,6 +179,11 @@ void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
 
 size_t MozjsEngine::UpdateMemoryStatsAndReturnReserved() {
   return EngineStats::GetInstance()->UpdateMemoryStatsAndReturnReserved();
+}
+
+void MozjsEngine::TimerGarbageCollect() {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::TimerGarbageCollect()");
+  CollectGarbage();
 }
 
 JSBool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op) {
@@ -195,6 +208,10 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(runtime));
   if (status == JSGC_END) {
     engine->accumulated_extra_memory_cost_ = 0;
+    // Reset the GC timer to avoid having the timed GC come soon after this one.
+    if (engine->gc_timer_.IsRunning()) {
+      engine->gc_timer_.Reset();
+    }
   }
   for (int i = 0; i < engine->contexts_.size(); ++i) {
     MozjsGlobalEnvironment* global_environment =

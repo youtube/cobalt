@@ -46,6 +46,8 @@
 #include "jit/IonFrameIterator-inl.h"
 #endif
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -57,6 +59,7 @@ using mozilla::PodCopy;
 static JSBool
 fun_getProperty(JSContext *cx, HandleObject obj_, HandleId id, MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, obj_);
     while (!obj->is<JSFunction>()) {
         if (!JSObject::getProto(cx, obj, &obj))
@@ -159,6 +162,7 @@ static const uint16_t poisonPillProps[] = {
 static JSBool
 fun_enumerate(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(obj->is<JSFunction>());
 
     RootedId id(cx);
@@ -191,6 +195,7 @@ fun_enumerate(JSContext *cx, HandleObject obj)
 static JSObject *
 ResolveInterpretedFunctionPrototype(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #ifdef DEBUG
     JSFunction *fun = &obj->as<JSFunction>();
     JS_ASSERT(fun->isInterpreted());
@@ -240,6 +245,7 @@ static JSBool
 fun_resolve(JSContext *cx, HandleObject obj, HandleId id, unsigned flags,
             MutableHandleObject objp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!JSID_IS_ATOM(id))
         return true;
 
@@ -328,6 +334,7 @@ bool
 js::XDRInterpretedFunction(XDRState<mode> *xdr, HandleObject enclosingScope, HandleScript enclosingScript,
                            MutableHandleObject objp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* NB: Keep this in sync with CloneFunctionAndScript. */
     RootedAtom atom(xdr->cx());
     uint32_t firstword;           /* flag telling whether fun->atom is non-null,
@@ -571,6 +578,7 @@ FindBody(JSContext *cx, HandleFunction fun, StableCharPtr chars, size_t length,
 JSString *
 js::FunctionToString(JSContext *cx, HandleFunction fun, bool bodyOnly, bool lambdaParen)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (fun->isInterpretedLazy() && !fun->getOrCreateScript(cx))
         return NULL;
 
@@ -740,6 +748,7 @@ js::FunctionToString(JSContext *cx, HandleFunction fun, bool bodyOnly, bool lamb
 JSString *
 fun_toStringHelper(JSContext *cx, HandleObject obj, unsigned indent)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!obj->is<JSFunction>()) {
         if (IsFunctionProxy(obj))
             return Proxy::fun_toString(cx, obj, indent);
@@ -757,6 +766,7 @@ fun_toStringHelper(JSContext *cx, HandleObject obj, unsigned indent)
 static JSBool
 fun_toString(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     JS_ASSERT(IsFunctionObject(args.calleev()));
 
@@ -781,6 +791,7 @@ fun_toString(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 fun_toSource(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     JS_ASSERT(IsFunctionObject(args.calleev()));
 
@@ -800,6 +811,7 @@ fun_toSource(JSContext *cx, unsigned argc, Value *vp)
 JSBool
 js_fun_call(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue fval(cx, vp[1]);
 
     if (!js_IsCallable(fval)) {
@@ -856,6 +868,7 @@ PushBaselineFunApplyArguments(JSContext *cx, jit::IonFrameIterator &frame, Invok
 JSBool
 js_fun_apply(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Step 1. */
     RootedValue fval(cx, vp[1]);
     if (!js_IsCallable(fval)) {
@@ -1047,6 +1060,7 @@ JSFunction::getBoundFunctionArgumentCount() const
 /* static */ bool
 JSFunction::createScriptForLazilyInterpretedFunction(JSContext *cx, HandleFunction fun)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(fun->isInterpretedLazy());
 
     LazyScript *lazy = fun->lazyScriptOrNull();
@@ -1336,6 +1350,7 @@ const JSFunctionSpec js::function_methods[] = {
 JSBool
 js::Function(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     RootedString arg(cx);   // used multiple times below
 
@@ -1589,6 +1604,7 @@ JSFunction *
 js::CloneFunctionObject(JSContext *cx, HandleFunction fun, HandleObject parent, gc::AllocKind allocKind,
                         NewObjectKind newKindArg /* = GenericObject */)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(parent);
     JS_ASSERT(!fun->isBoundFunction());
 
@@ -1659,6 +1675,7 @@ js::DefineFunction(JSContext *cx, HandleObject obj, HandleId id, Native native,
                    unsigned nargs, unsigned flags, AllocKind allocKind /* = FinalizeKind */,
                    NewObjectKind newKind /* = GenericObject */)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     PropertyOp gop;
     StrictPropertyOp sop;
 

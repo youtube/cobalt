@@ -32,11 +32,11 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
-#include "cobalt/browser/memory_tracker_tool.h"
+#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
@@ -276,9 +276,7 @@ dom::CspEnforcementType StringToCspMode(const std::string& mode) {
 #endif  // !defined(COBALT_FORCE_CSP)
 
 struct NonTrivialStaticFields {
-  NonTrivialStaticFields()
-      : system_language(
-            cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage()) {}
+  NonTrivialStaticFields() : system_language(base::GetSystemLanguage()) {}
 
   const std::string system_language;
   std::string user_agent;
@@ -349,8 +347,7 @@ Application::Application(const base::Closure& quit_closure)
   DLOG(INFO) << "Initial URL: " << initial_url;
 
   // Get the system language and initialize our localized strings.
-  std::string language =
-      cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage();
+  std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
   // Create the main components of our browser.
@@ -427,14 +424,6 @@ Application::Application(const base::Closure& quit_closure)
     DLOG(INFO) << "Use null audio";
     options.media_module_options.use_null_audio_streamer = true;
   }
-  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
-    std::string size_override = command_line->GetSwitchValueASCII(
-        browser::switches::kVideoContainerSizeOverride);
-    DLOG(INFO) << "Set video container size override from command line to "
-               << size_override;
-    deprecated::PlatformDelegate::Get()->SetVideoContainerSizeOverride(
-        size_override);
-  }
   if (command_line->HasSwitch(switches::kVideoDecoderStub)) {
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
@@ -442,7 +431,8 @@ Application::Application(const base::Closure& quit_closure)
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);
-    memory_tracker_tool_ = CreateMemoryTrackerTool(command_arg);
+    memory_tracker_tool_ =
+        memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
@@ -769,7 +759,8 @@ void Application::UpdatePeriodicStats() {
   }
 #elif defined(OS_STARBOARD)
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
-  available_memory_ = SbSystemGetTotalCPUMemory() - used_cpu_memory;
+  available_memory_ =
+      static_cast<ssize_t>(SbSystemGetTotalCPUMemory() - used_cpu_memory);
   c_val_stats_.free_cpu_memory = available_memory_;
   c_val_stats_.used_cpu_memory = used_cpu_memory;
 

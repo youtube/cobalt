@@ -50,7 +50,6 @@ PlayerWorker::PlayerWorker(Host* host,
   pending_audio_sample_.input_buffer = NULL;
   pending_video_sample_.input_buffer = NULL;
 
-  SB_DCHECK(!SbThreadIsValid(thread_));
   thread_ =
       SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
                      "player_worker", &PlayerWorker::ThreadEntryPoint, this);
@@ -145,6 +144,7 @@ void PlayerWorker::RunLoop() {
       SB_NOTREACHED() << "event type " << event->type;
     }
     delete event;
+    running &= DoUpdate(bounds);
   }
 }
 
@@ -189,11 +189,9 @@ bool PlayerWorker::DoSeek(const SeekEventData& data) {
 }
 
 bool PlayerWorker::DoWriteSample(const WriteSampleEventData& data) {
-  SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
-  SB_DCHECK(player_state_ != kSbPlayerStateError);
-
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream ||
+      player_state_ == kSbPlayerStateDestroyed ||
       player_state_ == kSbPlayerStateError) {
     SB_LOG(ERROR) << "Try to write sample when |player_state_| is "
                   << player_state_;

@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/ref_counted.h"
 #include "starboard/types.h"
 #include "third_party/glm/glm/vec2.hpp"
 #include "third_party/glm/glm/vec3.hpp"
@@ -30,7 +31,7 @@ namespace render_tree {
 
 // Represents a mesh to which render_trees can be mapped for 3D projection
 // by being applied a filter.
-class Mesh {
+class Mesh : public base::RefCountedThreadSafe<Mesh> {
  public:
   // Vertices interleave position (x, y, z) and texture (u, v) coordinates.
   struct Vertex {
@@ -54,14 +55,23 @@ class Mesh {
   Mesh(const std::vector<Vertex>& vertices, const DrawMode mode)
       : vertices_(vertices), draw_mode_(CheckDrawMode(mode)) {}
 
-  ~Mesh() {}
-
   const std::vector<Vertex>& vertices() const { return vertices_; }
 
   DrawMode draw_mode() const { return draw_mode_; }
 
+  uint32 GetEstimatedSizeInBytes() const {
+    return static_cast<uint32>(vertices().size() * sizeof(Vertex) +
+                               sizeof(DrawMode));
+  }
+
+ protected:
+  virtual ~Mesh() {}
+
+  // Allow the reference counting system access to our destructor.
+  friend class base::RefCountedThreadSafe<Mesh>;
+
  private:
-  static const DrawMode CheckDrawMode(DrawMode mode) {
+  static DrawMode CheckDrawMode(DrawMode mode) {
     switch (mode) {
       case kDrawModeTriangles:
       case kDrawModeTriangleStrip:

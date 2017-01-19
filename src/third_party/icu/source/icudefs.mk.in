@@ -2,12 +2,12 @@
 #
 # Yves Arrouye.
 #
-# Copyright (C) 2000-2010, International Business Machines Corporation and others.
+# Copyright (C) 2000-2014, International Business Machines Corporation and others.
 # All Rights Reserved.
 
 #
 # Some of these variables are overridden in the config/mh-* files.
-# 
+#
 # Please be sure to update config/Makefile.inc.in  if you add something here.
 #
 
@@ -77,8 +77,6 @@ ICUPKGDATA_DIR = $(ICUDATA_DIR)
 endif
 endif
 endif
-# This is needed so that make -j2 doesn't complain when invoking pkgdata's make
-PKGDATA_INVOKE_OPTS = MAKEFLAGS=
 
 # These are defined here because mh-cygwin-msvc needs to override these values.
 ICUPKGDATA_INSTALL_DIR = $(DESTDIR)$(ICUPKGDATA_DIR)
@@ -124,7 +122,8 @@ UCLN_NO_AUTO_CLEANUP = @UCLN_NO_AUTO_CLEANUP@
 # DEFS is for common macro definitions.
 # configure prevents user defined DEFS, and configure's DEFS is not needed
 # So we ignore the DEFS that comes from configure
-DEFS =
+# U_ATTRIBUTE_DEPRECATED is defined to hide warnings about deprecated API warnings.
+DEFS = -DU_ATTRIBUTE_DEPRECATED=
 # CFLAGS is for C only flags
 CFLAGS = @CFLAGS@
 # CXXFLAGS is for C++ only flags
@@ -173,6 +172,25 @@ LINK.cc=      $(CXX) $(CXXFLAGS) $(LDFLAGS)
 SHLIB.c=      $(CC) $(CFLAGS) $(LDFLAGS) -shared $(LD_SOOPTIONS)
 SHLIB.cc=     $(CXX) $(CXXFLAGS) $(LDFLAGS) -shared $(LD_SOOPTIONS)
 
+# ICU_MSG
+ICU_MSG=@echo "   $(1)	"
+
+# Do not show the large compiling arguments by default.
+# To use:
+# change
+#    $(CC) -o foo
+# to
+#    $(call SILENT_COMPILE,$(CC) -o foo)
+ifndef VERBOSE
+    SILENT_COMPILE=$(call ICU_MSG,$(notdir $(firstword $(1)))) "... " $< && $(1) || \
+			( echo "*** Failed compilation command follows: ----------------------------------------------------------" ; \
+			  echo "$(1)" ; \
+		          echo "--- ( rebuild with \"$(MAKE) VERBOSE=1 $(MAKECMDGOALS)\" to show all parameters ) --------" ; \
+			false )
+else
+    SILENT_COMPILE=$(1)
+endif
+
 # Environment variable to set a runtime search path
 LDLIBRARYPATH_ENVVAR = LD_LIBRARY_PATH
 
@@ -220,11 +238,6 @@ BINDIR=$(top_builddir)/bin
 TOOLBINDIR=$(BINDIR)
 TOOLLIBDIR=$(LIBDIR)
 
-# Current full path directory.
-CURR_FULL_DIR=$(shell pwd | sed 's/ /\\ /g')
-# Current full path directory for use in source code in a -D compiler option.
-CURR_SRCCODE_FULL_DIR=$(shell pwd | sed 's/ /\\ /')
-
 # Name flexibility for the library naming scheme.  Any modifications should
 # be made in the mh- file for the specific platform.
 DATA_STUBNAME = data
@@ -236,11 +249,27 @@ IO_STUBNAME = io
 TOOLUTIL_STUBNAME = tu
 CTESTFW_STUBNAME = test
 
+# get these from pkg-config, if available
+ICULEHB_CFLAGS=@ICULEHB_CFLAGS@
+ICULEHB_LIBS=@ICULEHB_LIBS@
+ifneq ($(ICULEHB_CFLAGS),)
+USING_ICULEHB=yes
+ICULEHB_TRUE=
+ICULEHB_FALSE=#
+ICULIBS_LE=$(ICULEHB_LIBS)
+ICULE_CFLAGS=$(ICULEHB_CFLAGS) -DUSING_ICULEHB
+else
+USING_ICULEHB=no
+ICULEHB_TRUE=#
+ICULEHB_FALSE=
+ICULIBS_LE	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(LAYOUT_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
+ICULE_CFLAGS=-I$(top_srcdir)
+endif
+
 # Just the libs.
 ICULIBS_DT	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(DATA_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
 ICULIBS_UC	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(COMMON_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
 ICULIBS_I18N	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(I18N_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
-ICULIBS_LE	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(LAYOUT_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
 ICULIBS_LX	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(LAYOUTEX_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
 ICULIBS_IO	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(IO_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
 ICULIBS_CTESTFW	= -l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)$(CTESTFW_STUBNAME)$(ICULIBSUFFIX)$(SO_TARGET_VERSION_SUFFIX)
@@ -253,7 +282,7 @@ LCTESTFW	= -L$(top_builddir)/tools/ctestfw
 LIBICUDT	= $(LLIBDIR) $(LSTUBDIR) $(ICULIBS_DT)
 LIBICUUC	= $(LLIBDIR) $(ICULIBS_UC) $(LSTUBDIR) $(ICULIBS_DT)
 LIBICUI18N	= $(LLIBDIR) $(ICULIBS_I18N)
-LIBICULE	= $(LLIBDIR) $(ICULIBS_LE)
+LIBICULE	= $(ICULEHB_CFLAGS) $(LLIBDIR) $(ICULIBS_LE)
 LIBICULX	= $(LLIBDIR) $(ICULIBS_LX)
 LIBCTESTFW	= $(LCTESTFW) $(ICULIBS_CTESTFW)
 LIBICUTOOLUTIL	= $(LLIBDIR) $(ICULIBS_TOOLUTIL)
@@ -263,10 +292,21 @@ LIBICUIO	= $(LLIBDIR) $(ICULIBS_IO)
 # overridden by icucross.mk
 INVOKE = $(LDLIBRARYPATH_ENVVAR)=$(LIBRARY_PATH_PREFIX)$(LIBDIR):$(top_builddir)/stubdata:$(top_builddir)/tools/ctestfw:$$$(LDLIBRARYPATH_ENVVAR) $(LEAK_CHECKER)
 # prefer stubdata
-PKGDATA_INVOKE = $(LDLIBRARYPATH_ENVVAR)=$(top_builddir)/stubdata:$(top_builddir)/tools/ctestfw:$(LIBRARY_PATH_PREFIX)$(LIBDIR):$$$(LDLIBRARYPATH_ENVVAR) $(LEAK_CHECKER) $(PKGDATA_INVOKE_OPTS)
+PKGDATA_INVOKE = $(LDLIBRARYPATH_ENVVAR)=$(top_builddir)/stubdata:$(top_builddir)/tools/ctestfw:$(LIBRARY_PATH_PREFIX)$(LIBDIR):$$$(LDLIBRARYPATH_ENVVAR) $(LEAK_CHECKER)
+INSTALLED_INVOKE = $(LDLIBRARYPATH_ENVVAR)=$(libdir):$$$(LDLIBRARYPATH_ENVVAR)
+
+# Current full path directory for cross compilation
+ifneq ($(strip $(cross_buildroot)),)
+include $(cross_buildroot)/config/icucross.inc
+endif
 
 # Platform-specific setup
 include @platform_make_fragment@
+
+# Current full path directory.
+CURR_FULL_DIR?=$(shell pwd | sed 's/ /\\ /g')
+# Current full path directory for use in source code in a -D compiler option.
+CURR_SRCCODE_FULL_DIR?=$(shell pwd | sed 's/ /\\ /')
 
 # When shared libraries are disabled and static libraries are enabled,
 # the C++ compiler must be used to link in the libraries for the tools.
@@ -280,6 +320,11 @@ ifneq ($(strip $(cross_buildroot)),)
 include $(cross_buildroot)/config/icucross.mk
 else
 cross_buildroot = $(top_builddir)
+endif
+
+# for tests
+ifneq ($(TEST_STATUS_FILE),)
+TEST_OUTPUT_OPTS="-E$(TEST_STATUS_FILE)"
 endif
 
 # optional include at top

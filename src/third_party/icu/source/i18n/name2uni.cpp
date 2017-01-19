@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (C) 2001-2008, International Business Machines
+*   Copyright (C) 2001-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   Date        Name        Description
@@ -12,11 +12,14 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unifilt.h"
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"
-#include "name2uni.h"
+#include "unicode/utf16.h"
 #include "cmemory.h"
+#include "name2uni.h"
+#include "patternprops.h"
 #include "uprops.h"
 #include "uinvchar.h"
 #include "util.h"
@@ -162,7 +165,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
 
             // Convert \s+ => SPACE.  This assumes there are no
             // runs of >1 space characters in names.
-            if (uprv_isRuleWhiteSpace(c)) {
+            if (PatternProps::isWhiteSpace(c)) {
                 // Ignore leading whitespace
                 if (name.length() > 0 &&
                     name.charAt(name.length()-1) != SPACE) {
@@ -193,7 +196,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
                     if (U_SUCCESS(status)) {
                         // Lookup succeeded
 
-                        // assert(UTF_CHAR_LENGTH(CLOSE_DELIM) == 1);
+                        // assert(U16_LENGTH(CLOSE_DELIM) == 1);
                         cursor++; // advance over CLOSE_DELIM
 
                         str.truncate(0);
@@ -237,7 +240,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
             break;
         }
 
-        cursor += UTF_CHAR_LENGTH(c);
+        cursor += U16_LENGTH(c);
     }
         
     offsets.contextLimit += limit - offsets.limit;

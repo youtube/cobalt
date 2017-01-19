@@ -88,6 +88,8 @@ void JSCGlobalEnvironment::EnableEval() {
   global_object_->setEvalEnabled(true);
 }
 
+void JSCGlobalEnvironment::DisableJit() {}
+
 void JSCGlobalEnvironment::Bind(const std::string& identifier,
                                 const scoped_refptr<Wrappable>& impl) {
   DCHECK(thread_checker_.CalledOnValidThread());

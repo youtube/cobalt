@@ -22,6 +22,8 @@
 
 #include "vm/Shape-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 
@@ -31,6 +33,7 @@ using mozilla::PodZero;
 bool
 ShapeTable::init(JSRuntime *rt, Shape *lastProp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * Either we're creating a table for a large scope that was populated
      * via property cache hit logic under JSOP_INITPROP, JSOP_SETNAME, or
@@ -106,6 +109,7 @@ Shape::handoffTableTo(Shape *shape)
 /* static */ bool
 Shape::hashify(JSContext *cx, Shape *shape)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(!shape->hasTable());
 
     if (!shape->ensureOwnBaseShape(cx))

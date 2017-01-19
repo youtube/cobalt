@@ -1,17 +1,41 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/mt.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/mt.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/mt.xml
- */
 mt{
     Countries{
-        419{"Amerika Latina u l-Karibew"}
+        001{"Dinja"}
+        002{"Affrika"}
+        005{"Amerika t’Isfel"}
+        009{"Oċejanja"}
+        011{"Affrika tal-Punent"}
+        013{"Amerika Ċentrali"}
+        014{"Affrika tal-Lvant"}
+        015{"Affrika ta’ Fuq"}
+        017{"Affrika Nofsani"}
+        018{"Affrika t’Isfel"}
+        019{"Amerika"}
+        029{"Karibew"}
+        030{"Asja tal-Lvant"}
+        034{"Asja t’Isfel Ċentrali"}
+        035{"Asja tax-Xlokk"}
+        039{"Ewropa t’Isfel"}
+        053{"Awstralja u New Zealand"}
+        054{"Melanesja"}
+        057{"Reġjun ta’ Mikroneżja"}
+        061{"Polinesja"}
+        142{"Asja"}
+        143{"Asja Ċentrali"}
+        145{"Asja tal-Punent"}
+        150{"Ewropa"}
+        151{"Ewropa tal-Lvant"}
+        154{"Ewropa ta’ Fuq"}
+        155{"Ewropa tal-Punent"}
+        419{"Amerika Latina"}
         AD{"Andorra"}
         AE{"Emirati Għarab Maqgħuda"}
         AF{"Afganistan"}
@@ -41,7 +65,7 @@ mt{
         BM{"Bermuda"}
         BN{"Brunej"}
         BO{"Bolivja"}
-        BR{"Brażil"}
+        BR{"Il-Brażil"}
         BS{"Baħamas"}
         BT{"Butan"}
         BV{"Bouvet Island"}
@@ -58,16 +82,15 @@ mt{
         CK{"Cook Islands"}
         CL{"Ċili"}
         CM{"Kamerun"}
-        CN{"Ċina"}
-        CO{"Kolumbja"}
+        CN{"Iċ-Ċina"}
+        CO{"Kolombja"}
         CR{"Kosta Rika"}
-        CS{"Serbja u Montenegro"}
         CU{"Kuba"}
         CV{"Kape Verde"}
         CX{"Christmas Island"}
         CY{"Ċipru"}
         CZ{"Repubblika Ċeka"}
-        DE{"Ġermanja"}
+        DE{"Il-Ġermanja"}
         DJ{"Ġibuti"}
         DK{"Danimarka"}
         DM{"Dominika"}
@@ -77,7 +100,7 @@ mt{
         EE{"Estonja"}
         EG{"Eġittu"}
         EH{"Sahara tal-Punent"}
-        ER{"Eritreja"}
+        ER{"Eritrea"}
         ES{"Spanja"}
         ET{"Etijopja"}
         EU{"Unjoni Ewropea"}
@@ -88,15 +111,15 @@ mt{
         FO{"Gżejjer Faroe"}
         FR{"Franza"}
         GA{"Gabon"}
-        GB{"Ingilterra"}
+        GB{"L-Ingilterra"}
         GD{"Grenada"}
-        GE{"Ġorġja"}
+        GE{"Ġeorġja"}
         GF{"Gujana Franċiża"}
         GH{"Gana"}
         GI{"Gibraltar"}
         GL{"Grinlandja"}
         GM{"Gambja"}
-        GN{"Gineja"}
+        GN{"Ginea"}
         GP{"Gwadelupe"}
         GQ{"Ginea Ekwatorjali"}
         GR{"Greċja"}
@@ -105,7 +128,7 @@ mt{
         GU{"Gwam"}
         GW{"Ginea-Bissaw"}
         GY{"Gujana"}
-        HK{"Ħong Kong S.A.R., Ċina"}
+        HK{"Ħong Kong S.A.R. Ċina"}
         HM{"Heard Island and McDonald Islands"}
         HN{"Ħonduras"}
         HR{"Kroazja"}
@@ -115,15 +138,15 @@ mt{
         IE{"Irlanda"}
         IL{"Iżrael"}
         IM{"Isle of Man"}
-        IN{"Indja"}
+        IN{"L-Indja"}
         IO{"British Indian Ocean Territory"}
         IQ{"Iraq"}
         IR{"Iran"}
         IS{"Islanda"}
-        IT{"Italja"}
+        IT{"L-Italja"}
         JM{"Ġamajka"}
         JO{"Ġordan"}
-        JP{"Ġappun"}
+        JP{"Il-Ġappun"}
         KE{"Kenja"}
         KG{"Kirgistan"}
         KH{"Kambodja"}
@@ -148,7 +171,7 @@ mt{
         LY{"Libja"}
         MA{"Marokk"}
         MC{"Monako"}
-        MD{"Maldova"}
+        MD{"Moldova"}
         MG{"Madagaskar"}
         MH{"Gżejjer ta’ Marshall"}
         MK{"Maċedonja"}
@@ -190,14 +213,14 @@ mt{
         PM{"Saint Pierre and Miquelon"}
         PN{"Pitcairn"}
         PR{"Puerto Rico"}
-        PS{"Palestinian Territory"}
+        PS{"Territorju Palestinjan"}
         PT{"Portugall"}
         PW{"Palau"}
         PY{"Paragwaj"}
         QA{"Qatar"}
         RE{"Réunion"}
         RO{"Rumanija"}
-        RU{"Russja"}
+        RU{"Ir-Russja"}
         RW{"Rwanda"}
         SA{"Għarabja Sawdita"}
         SB{"Solomon Islands"}
@@ -237,7 +260,7 @@ mt{
         UA{"Ukraina"}
         UG{"Uganda"}
         UM{"United States Minor Outlying Islands"}
-        US{"Stati Uniti"}
+        US{"L-Istati Uniti"}
         UY{"Urugwaj"}
         UZ{"Użbekistan"}
         VA{"Vatikan"}
@@ -254,7 +277,7 @@ mt{
         ZA{"Afrika t’Isfel"}
         ZM{"Żambja"}
         ZW{"Żimbabwe"}
-        ZZ{"Reġjun Mhux Magħruf jew Mhux Validu"}
+        ZZ{"Reġjun Mhux Magħruf"}
     }
-    Version{"2.0.47.67"}
+    Version{"2.1.19.94"}
 }

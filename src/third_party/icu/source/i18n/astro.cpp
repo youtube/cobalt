@@ -1,6 +1,6 @@
 /************************************************************************
- * Copyright (C) 1996-2008, International Business Machines Corporation *
- * and others. All Rights Reserved.                                     *
+ * Copyright (C) 1996-2012, International Business Machines Corporation
+ * and others. All Rights Reserved.
  ************************************************************************
  *  2003-nov-07   srl       Port from Java
  */
@@ -9,15 +9,22 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/math_poem.h"
 #include "unicode/calendar.h"
+#if !defined(STARBOARD)
 #include <math.h>
 #include <float.h>
+#endif
 #include "unicode/putil.h"
 #include "uhash.h"
 #include "umutex.h"
 #include "ucln_in.h"
 #include "putilimp.h"
+#if !defined(STARBOARD)
 #include <stdio.h>  // for toString()
+#endif
 
 #if defined (PI) 
 #undef PI
@@ -63,11 +70,10 @@ static inline UBool isINVALID(double d) {
   return(uprv_isNaN(d));
 }
 
-static UMTX ccLock = NULL;
+static UMutex ccLock = U_MUTEX_INITIALIZER;
 
 U_CDECL_BEGIN
 static UBool calendar_astro_cleanup(void) {
-  umtx_destroy(&ccLock);
   return TRUE;
 }
 U_CDECL_END
@@ -721,8 +727,11 @@ CalendarAstronomer::AngleFunc::~AngleFunc() {}
  */
 class SunTimeAngleFunc : public CalendarAstronomer::AngleFunc {
 public:
+    virtual ~SunTimeAngleFunc();
     virtual double eval(CalendarAstronomer& a) { return a.getSunLongitude(); }
 };
+
+SunTimeAngleFunc::~SunTimeAngleFunc() {}
 
 UDate CalendarAstronomer::getSunTime(double desired, UBool next)
 {
@@ -738,8 +747,11 @@ CalendarAstronomer::CoordFunc::~CoordFunc() {}
 
 class RiseSetCoordFunc : public CalendarAstronomer::CoordFunc {
 public:
+    virtual ~RiseSetCoordFunc();
     virtual void eval(CalendarAstronomer::Equatorial& result, CalendarAstronomer&a) {  a.getSunPosition(result); }
 };
+
+RiseSetCoordFunc::~RiseSetCoordFunc() {}
 
 UDate CalendarAstronomer::getSunRiseSet(UBool rise)
 {
@@ -1217,8 +1229,11 @@ const CalendarAstronomer::MoonAge CalendarAstronomer::FULL_MOON() {
 
 class MoonTimeAngleFunc : public CalendarAstronomer::AngleFunc {
 public:
+    virtual ~MoonTimeAngleFunc();
     virtual double eval(CalendarAstronomer&a) { return a.getMoonAge(); }
 };
+
+MoonTimeAngleFunc::~MoonTimeAngleFunc() {}
 
 /*const CalendarAstronomer::MoonAge CalendarAstronomer::LAST_QUARTER() {
   return  CalendarAstronomer::MoonAge((CalendarAstronomer::PI*3)/2);
@@ -1260,8 +1275,11 @@ UDate CalendarAstronomer::getMoonTime(const CalendarAstronomer::MoonAge& desired
 
 class MoonRiseSetCoordFunc : public CalendarAstronomer::CoordFunc {
 public:
+    virtual ~MoonRiseSetCoordFunc();
     virtual void eval(CalendarAstronomer::Equatorial& result, CalendarAstronomer&a) { result = a.getMoonPosition(); }
 };
+
+MoonRiseSetCoordFunc::~MoonRiseSetCoordFunc() {}
 
 /**
  * Returns the time (GMT) of sunrise or sunset on the local date to which

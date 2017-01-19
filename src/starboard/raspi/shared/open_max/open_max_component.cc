@@ -25,72 +25,174 @@ namespace raspi {
 namespace shared {
 namespace open_max {
 
-namespace {
-
-const int kInvalidPort = -1;
-
-OMX_INDEXTYPE kPortTypes[] = {OMX_IndexParamAudioInit, OMX_IndexParamVideoInit,
-                              OMX_IndexParamImageInit, OMX_IndexParamOtherInit};
-
-SbOnceControl s_open_max_initialization_once = SB_ONCE_INITIALIZER;
-
-void DoInitializeOpenMax() {
-  OMX_ERRORTYPE error = OMX_Init();
-  SB_DCHECK(error == OMX_ErrorNone);
-}
-
-void InitializeOpenMax() {
-  bool initialized =
-      SbOnce(&s_open_max_initialization_once, DoInitializeOpenMax);
-  SB_DCHECK(initialized);
-}
-
-}  // namespace
-
 OpenMaxComponent::OpenMaxComponent(const char* name)
-    : condition_variable_(mutex_),
-      handle_(NULL),
-      input_port_(kInvalidPort),
-      output_port_(kInvalidPort),
+    : OpenMaxComponentBase(name),
       output_setting_changed_(false),
-      output_port_enabled_(false) {
-  InitializeOpenMax();
+      outstanding_output_buffers_(0),
+      output_component_(NULL) {}
 
-  OMX_CALLBACKTYPE callbacks;
-  callbacks.EventHandler = OpenMaxComponent::EventHandler;
-  callbacks.EmptyBufferDone = OpenMaxComponent::EmptyBufferDone;
-  callbacks.FillBufferDone = OpenMaxComponent::FillBufferDone;
+void OpenMaxComponent::SetOutputComponent(OpenMaxComponent* component) {
+  SB_DCHECK(component != NULL);
+  SB_DCHECK(component->input_buffers_.empty());
+  SB_DCHECK(output_component_ == NULL);
+  SB_DCHECK(output_buffers_.empty());
+  output_component_ = component;
+}
 
-  OMX_ERRORTYPE error =
-      OMX_GetHandle(&handle_, const_cast<char*>(name), this, &callbacks);
+void OpenMaxComponent::CloseTunnel() {
+  OMX_ERRORTYPE error;
+
+  Flush();
+  OpenMaxComponent* prev = this;
+  OpenMaxComponent* current = output_component_;
+  while (current != NULL) {
+    current->Flush();
+
+    prev->SendCommand(OMX_CommandPortDisable, prev->output_port_);
+    current->SendCommand(OMX_CommandPortDisable, current->input_port_);
+    prev->WaitForCommandCompletion();
+    current->WaitForCommandCompletion();
+
+    error = OMX_SetupTunnel(prev->handle_, prev->output_port_, NULL, 0);
+    SB_DCHECK(error == OMX_ErrorNone)
+        << "OMX_SetupTunnel " << prev->output_port_
+        << " to 0 failed with error " << std::hex << error;
+    error = OMX_SetupTunnel(current->handle_, current->input_port_, NULL, 0);
+    SB_DCHECK(error == OMX_ErrorNone)
+        << "OMX_SetupTunnel " << current->input_port_
+        << " to 0 failed with error " << std::hex << error;
+
+    prev->output_component_ = NULL;
+    prev = current;
+    current = current->output_component_;
+  }
+}
+
+void OpenMaxComponent::Start() {
+  SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateIdle);
+  EnableInputPortAndAllocateBuffers();
+  SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateExecuting);
+}
+
+void OpenMaxComponent::Flush() {
+  DisableOutputPort();
+  SendCommandAndWaitForCompletion(OMX_CommandFlush, input_port_);
+  SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
+}
+
+int OpenMaxComponent::WriteData(const void* data, int size, DataType type,
+                                SbTime timestamp) {
+  int offset = 0;
+
+  while (offset < size) {
+    OMX_BUFFERHEADERTYPE* buffer_header = GetUnusedInputBuffer();
+    if (buffer_header == NULL) {
+      return offset;
+    }
+
+    int size_to_append = size - offset;
+    if (size_to_append > buffer_header->nAllocLen) {
+      size_to_append = buffer_header->nAllocLen;
+      buffer_header->nFlags = 0;
+    } else if (type == kDataEOS) {
+      buffer_header->nFlags = OMX_BUFFERFLAG_EOS;
+    } else {
+      buffer_header->nFlags = 0;
+    }
+    buffer_header->nOffset = 0;
+    buffer_header->nFilledLen = size_to_append;
+
+    buffer_header->nTimeStamp.nLowPart = timestamp;
+    buffer_header->nTimeStamp.nHighPart = timestamp >> 32;
+
+    memcpy(buffer_header->pBuffer, reinterpret_cast<const char*>(data) + offset,
+           size_to_append);
+    offset += size_to_append;
+
+    OMX_ERRORTYPE error = OMX_EmptyThisBuffer(handle_, buffer_header);
+    SB_DCHECK(error == OMX_ErrorNone);
+  }
+
+  return offset;
+}
+
+bool OpenMaxComponent::WriteEOS() {
+  OMX_BUFFERHEADERTYPE* buffer_header;
+  if ((buffer_header = GetUnusedInputBuffer()) == NULL) {
+    return false;
+  }
+
+  buffer_header->nOffset = 0;
+  buffer_header->nFilledLen = 0;
+  buffer_header->nFlags = OMX_BUFFERFLAG_EOS;
+
+  OMX_ERRORTYPE error = OMX_EmptyThisBuffer(handle_, buffer_header);
   SB_DCHECK(error == OMX_ErrorNone);
+  return true;
+}
 
-  for (size_t i = 0; i < SB_ARRAY_SIZE(kPortTypes); ++i) {
-    OMX_PORT_PARAM_TYPE port;
-    port.nSize = sizeof(OMX_PORT_PARAM_TYPE);
-    port.nVersion.nVersion = OMX_VERSION;
+OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetOutputBuffer() {
+  bool enable_output_port = false;
 
-    error = OMX_GetParameter(handle_, kPortTypes[i], &port);
-    if (error == OMX_ErrorNone && port.nPorts == 2) {
-      input_port_ = port.nStartPortNumber;
-      output_port_ = input_port_ + 1;
-      SendCommandAndWaitForCompletion(OMX_CommandPortDisable, input_port_);
-      SendCommandAndWaitForCompletion(OMX_CommandPortDisable, output_port_);
-      break;
+  {
+    mutex_.Acquire();
+    if (!output_setting_changed_ && output_buffers_.empty()) {
+      mutex_.Release();
+      if (output_component_ == NULL) {
+        return NULL;
+      } else {
+        return output_component_->GetOutputBuffer();
+      }
+    }
+
+    enable_output_port = output_setting_changed_ &&
+                         filled_output_buffers_.empty() &&
+                         outstanding_output_buffers_ == 0;
+    mutex_.Release();
+  }
+
+  if (enable_output_port) {
+    EnableOutputPortAndAllocateBuffer();
+    output_setting_changed_ = false;
+  }
+
+  ScopedLock scoped_lock(mutex_);
+  if (filled_output_buffers_.empty()) {
+    return NULL;
+  }
+
+  SB_DCHECK(output_component_ == NULL);
+  OMX_BUFFERHEADERTYPE* buffer = filled_output_buffers_.front();
+  filled_output_buffers_.pop();
+  ++outstanding_output_buffers_;
+  return buffer;
+}
+
+void OpenMaxComponent::DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer) {
+  if (output_component_ != NULL) {
+    output_component_->DropOutputBuffer(buffer);
+    return;
+  }
+
+  {
+    ScopedLock scoped_lock(mutex_);
+    SB_DCHECK(outstanding_output_buffers_ > 0);
+    --outstanding_output_buffers_;
+
+    if (output_setting_changed_) {
+      return;
     }
   }
-  SB_CHECK(input_port_ != kInvalidPort);
-  SB_CHECK(output_port_ != kInvalidPort);
-  SB_DLOG(INFO) << "Opened \"" << name << "\" with port " << input_port_
-                << " and " << output_port_;
-
-  SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateIdle);
+  buffer->nFilledLen = 0;
+  OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, buffer);
+  SB_DCHECK(error == OMX_ErrorNone);
 }
 
 OpenMaxComponent::~OpenMaxComponent() {
   if (!handle_) {
     return;
   }
+
   SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateIdle);
 
   SendCommandAndWaitForCompletion(OMX_CommandFlush, input_port_);
@@ -104,122 +206,43 @@ OpenMaxComponent::~OpenMaxComponent() {
   }
   WaitForCommandCompletion();
 
-  SendCommand(OMX_CommandPortDisable, output_port_);
-  for (size_t i = 0; i < output_buffers_.size(); ++i) {
-    OMX_ERRORTYPE error =
-        OMX_FreeBuffer(handle_, output_port_, output_buffers_[i]);
-    SB_DCHECK(error == OMX_ErrorNone);
-  }
-  output_buffers_.clear();
-  WaitForCommandCompletion();
+  DisableOutputPort();
 
   SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateLoaded);
-  OMX_FreeHandle(handle_);
 }
 
-void OpenMaxComponent::Start() {
-  EnableInputPortAndAllocateBuffers();
-  SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateExecuting);
+void OpenMaxComponent::OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
+                                    OMX_PTR /* event_data */) {
+  SB_NOTREACHED() << "OMX_EventError received with " << std::hex << data1
+                  << " " << data2;
 }
 
-void OpenMaxComponent::Flush() {
-  SendCommandAndWaitForCompletion(OMX_CommandFlush, input_port_);
-  SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
-}
-
-void OpenMaxComponent::WriteData(const void* data,
-                                 size_t size,
-                                 SbTime timestamp) {
-  size_t offset = 0;
-
-  while (offset != size) {
-    OMX_BUFFERHEADERTYPE* buffer_header = GetUnusedInputBuffer();
-
-    int size_to_append = std::min(size - offset, buffer_header->nAllocLen);
-    buffer_header->nOffset = 0;
-    buffer_header->nFilledLen = size_to_append;
-    buffer_header->nFlags = 0;
-
-    buffer_header->nTimeStamp.nLowPart = timestamp;
-    buffer_header->nTimeStamp.nHighPart = timestamp >> 32;
-
-    memcpy(buffer_header->pBuffer, (const char*)data + offset, size_to_append);
-    offset += size_to_append;
-
-    OMX_ERRORTYPE error = OMX_EmptyThisBuffer(handle_, buffer_header);
-    SB_DCHECK(error == OMX_ErrorNone);
-  }
-}
-
-void OpenMaxComponent::WriteEOS() {
-  OMX_BUFFERHEADERTYPE* buffer_header = GetUnusedInputBuffer();
-
-  buffer_header->nOffset = 0;
-  buffer_header->nFilledLen = 0;
-  buffer_header->nFlags = OMX_BUFFERFLAG_EOS;
-
-  OMX_ERRORTYPE error = OMX_EmptyThisBuffer(handle_, buffer_header);
+OMX_BUFFERHEADERTYPE* OpenMaxComponent::AllocateBuffer(int port,
+                                                       int index,
+                                                       OMX_U32 size) {
+  OMX_BUFFERHEADERTYPE* buffer;
+  OMX_ERRORTYPE error = OMX_AllocateBuffer(handle_, &buffer, port, NULL, size);
   SB_DCHECK(error == OMX_ErrorNone);
+  return buffer;
 }
 
-OMX_BUFFERHEADERTYPE* OpenMaxComponent::PeekNextOutputBuffer() {
-  {
-    ScopedLock scoped_lock(mutex_);
+void OpenMaxComponent::DisableOutputPort() {
+  if (!output_buffers_.empty()) {
+    SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
 
-    if (!output_setting_changed_) {
-      return NULL;
+    SendCommand(OMX_CommandPortDisable, output_port_);
+    for (size_t i = 0; i < output_buffers_.size(); ++i) {
+      OMX_ERRORTYPE error =
+          OMX_FreeBuffer(handle_, output_port_, output_buffers_[i]);
+      SB_DCHECK(error == OMX_ErrorNone);
+    }
+    output_buffers_.clear();
+    WaitForCommandCompletion();
+    while (!filled_output_buffers_.empty()) {
+      filled_output_buffers_.pop();
     }
   }
-
-  if (!output_port_enabled_) {
-    EnableOutputPortAndAllocateBuffer();
-  }
-
-  ScopedLock scoped_lock(mutex_);
-  return filled_output_buffers_.empty() ? NULL : filled_output_buffers_.front();
-}
-
-void OpenMaxComponent::DropNextOutputBuffer() {
-  OMX_BUFFERHEADERTYPE* buffer = NULL;
-  {
-    ScopedLock scoped_lock(mutex_);
-    SB_DCHECK(!filled_output_buffers_.empty());
-    buffer = filled_output_buffers_.front();
-    filled_output_buffers_.pop();
-  }
-  buffer->nFilledLen = 0;
-  OMX_ERRORTYPE error = OMX_FillThisBuffer(handle_, buffer);
-  SB_DCHECK(error == OMX_ErrorNone);
-}
-
-void OpenMaxComponent::SendCommand(OMX_COMMANDTYPE command, int param) {
-  OMX_ERRORTYPE error = OMX_SendCommand(handle_, command, param, NULL);
-  SB_DCHECK(error == OMX_ErrorNone);
-}
-
-void OpenMaxComponent::WaitForCommandCompletion() {
-  for (;;) {
-    ScopedLock scoped_lock(mutex_);
-    for (EventDescriptions::iterator iter = event_descriptions_.begin();
-         iter != event_descriptions_.end(); ++iter) {
-      if (iter->event == OMX_EventCmdComplete) {
-        event_descriptions_.erase(iter);
-        return;
-      }
-      // Special case for OMX_CommandStateSet.
-      if (iter->event == OMX_EventError && iter->data1 == OMX_ErrorSameState) {
-        event_descriptions_.erase(iter);
-        return;
-      }
-    }
-    condition_variable_.Wait();
-  }
-}
-
-void OpenMaxComponent::SendCommandAndWaitForCompletion(OMX_COMMANDTYPE command,
-                                                       int param) {
-  SendCommand(command, param);
-  WaitForCommandCompletion();
+  outstanding_output_buffers_ = 0;
 }
 
 void OpenMaxComponent::EnableInputPortAndAllocateBuffers() {
@@ -234,40 +257,52 @@ void OpenMaxComponent::EnableInputPortAndAllocateBuffers() {
   SendCommand(OMX_CommandPortEnable, input_port_);
 
   for (int i = 0; i < port_definition.nBufferCountActual; ++i) {
-    OMX_BUFFERHEADERTYPE* buffer;
-    OMX_ERRORTYPE error = OMX_AllocateBuffer(handle_, &buffer, input_port_,
-                                             NULL, port_definition.nBufferSize);
-    SB_DCHECK(error == OMX_ErrorNone);
+    OMX_BUFFERHEADERTYPE* buffer =
+        AllocateBuffer(input_port_, i, port_definition.nBufferSize);
     input_buffers_.push_back(buffer);
-    unused_input_buffers_.push(buffer);
+    free_input_buffers_.push(buffer);
   }
 
   WaitForCommandCompletion();
 }
 
 void OpenMaxComponent::EnableOutputPortAndAllocateBuffer() {
-  SB_DCHECK(!output_port_enabled_);
+  DisableOutputPort();
 
-  GetOutputPortParam(&output_port_definition_);
-  if (OnEnableOutputPort(&output_port_definition_)) {
-    SetPortParam(output_port_definition_);
+  OMXParamPortDefinition output_port_definition;
+
+  GetOutputPortParam(&output_port_definition);
+  if (OnEnableOutputPort(&output_port_definition)) {
+    SetPortParam(output_port_definition);
+  }
+
+  if (output_component_ != NULL) {
+    EnableOutputTunnelling(output_port_definition);
+    return;
+  }
+
+  // Finish Start() for tunnel components.
+  if (input_buffers_.empty()) {
+    // Call OnEnableOutputPort() again with the final port settings.
+    // This is only meant to notify the component of the settings -- any
+    // changes should have been made on the first call.
+    GetOutputPortParam(&output_port_definition);
+    if (OnEnableOutputPort(&output_port_definition)) {
+      SB_NOTREACHED() << "Tunnel port parameters cannot be changed now";
+    }
+    SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateExecuting);
   }
 
   SendCommand(OMX_CommandPortEnable, output_port_);
 
-  output_buffers_.reserve(output_port_definition_.nBufferCountActual);
-  for (int i = 0; i < output_port_definition_.nBufferCountActual; ++i) {
-    OMX_BUFFERHEADERTYPE* buffer;
-    OMX_ERRORTYPE error =
-        OMX_AllocateBuffer(handle_, &buffer, output_port_, NULL,
-                           output_port_definition_.nBufferSize);
-    SB_DCHECK(error == OMX_ErrorNone);
+  output_buffers_.reserve(output_port_definition.nBufferCountActual);
+  for (int i = 0; i < output_port_definition.nBufferCountActual; ++i) {
+    OMX_BUFFERHEADERTYPE* buffer =
+        AllocateBuffer(output_port_, i, output_port_definition.nBufferSize);
     output_buffers_.push_back(buffer);
   }
 
   WaitForCommandCompletion();
-
-  output_port_enabled_ = true;
 
   for (size_t i = 0; i < output_buffers_.size(); ++i) {
     output_buffers_[i]->nFilledLen = 0;
@@ -276,95 +311,59 @@ void OpenMaxComponent::EnableOutputPortAndAllocateBuffer() {
   }
 }
 
+void OpenMaxComponent::EnableOutputTunnelling(
+    const OMXParamPortDefinition& port_definition) {
+  // Setup tunnelling to output component. Set the output component's
+  // input port to look exactly like our output.
+  OMXParamPortDefinition input_port = port_definition;
+  input_port.nPortIndex = output_component_->input_port_;
+  output_component_->OnEnableInputPort(&input_port);
+  output_component_->SetPortParam(input_port);
+
+  OMX_ERRORTYPE error =
+      OMX_SetupTunnel(handle_, output_port_, output_component_->handle_,
+                      output_component_->input_port_);
+  SB_DCHECK(error == OMX_ErrorNone) << "OMX_SetupTunnel " << output_port_
+                                    << " to " << output_component_->input_port_
+                                    << " failed with error " << std::hex
+                                    << error;
+
+  // Enable the tunnel. This takes place of output_component_->Start(), but
+  // the component will still need to be put into the executing state when
+  // its output port is enabled.
+  SendCommand(OMX_CommandPortEnable, output_port_);
+  output_component_->SendCommand(OMX_CommandPortEnable,
+                                 output_component_->input_port_);
+  output_component_->WaitForCommandCompletion();
+  output_component_->SendCommandAndWaitForCompletion(OMX_CommandStateSet,
+                                                     OMX_StateIdle);
+  WaitForCommandCompletion();
+}
+
 OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetUnusedInputBuffer() {
-  for (;;) {
-    {
-      ScopedLock scoped_lock(mutex_);
-      if (!unused_input_buffers_.empty()) {
-        OMX_BUFFERHEADERTYPE* buffer_header = unused_input_buffers_.front();
-        unused_input_buffers_.pop();
-        return buffer_header;
-      }
-    }
-    SbThreadSleep(kSbTimeMillisecond);
+  ScopedLock scoped_lock(mutex_);
+  if (!free_input_buffers_.empty()) {
+    OMX_BUFFERHEADERTYPE* buffer_header = free_input_buffers_.front();
+    free_input_buffers_.pop();
+    return buffer_header;
   }
-  SB_NOTREACHED();
   return NULL;
 }
 
-OMX_ERRORTYPE OpenMaxComponent::OnEvent(OMX_EVENTTYPE event,
-                                        OMX_U32 data1,
-                                        OMX_U32 data2,
-                                        OMX_PTR event_data) {
-  if (event == OMX_EventError && data1 != OMX_ErrorSameState) {
-    SB_NOTREACHED() << "OMX_EventError received with " << std::hex << data1
-                    << " " << data2;
-    return OMX_ErrorNone;
-  }
-
+void OpenMaxComponent::OnOutputSettingChanged() {
   ScopedLock scoped_lock(mutex_);
-  if (event == OMX_EventPortSettingsChanged && data1 == output_port_) {
-    output_setting_changed_ = true;
-    return OMX_ErrorNone;
-  }
-  EventDescription event_desc;
-  event_desc.event = event;
-  event_desc.data1 = data1;
-  event_desc.data2 = data2;
-  event_desc.event_data = event_data;
-  event_descriptions_.push_back(event_desc);
-  condition_variable_.Signal();
-
-  return OMX_ErrorNone;
+  output_setting_changed_ = true;
 }
 
 OMX_ERRORTYPE OpenMaxComponent::OnEmptyBufferDone(
     OMX_BUFFERHEADERTYPE* buffer) {
   ScopedLock scoped_lock(mutex_);
-  unused_input_buffers_.push(buffer);
+  free_input_buffers_.push(buffer);
 }
 
 void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
   ScopedLock scoped_lock(mutex_);
   filled_output_buffers_.push(buffer);
-}
-
-// static
-OMX_ERRORTYPE OpenMaxComponent::EventHandler(OMX_HANDLETYPE handle,
-                                             OMX_PTR app_data,
-                                             OMX_EVENTTYPE event,
-                                             OMX_U32 data1,
-                                             OMX_U32 data2,
-                                             OMX_PTR event_data) {
-  SB_DCHECK(app_data != NULL);
-  OpenMaxComponent* component = reinterpret_cast<OpenMaxComponent*>(app_data);
-  SB_DCHECK(handle == component->handle_);
-
-  return component->OnEvent(event, data1, data2, event_data);
-}
-
-// static
-OMX_ERRORTYPE OpenMaxComponent::EmptyBufferDone(OMX_HANDLETYPE handle,
-                                                OMX_PTR app_data,
-                                                OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
-  OpenMaxComponent* component = reinterpret_cast<OpenMaxComponent*>(app_data);
-  SB_DCHECK(handle == component->handle_);
-
-  return component->OnEmptyBufferDone(buffer);
-}
-
-// static
-OMX_ERRORTYPE OpenMaxComponent::FillBufferDone(OMX_HANDLETYPE handle,
-                                               OMX_PTR app_data,
-                                               OMX_BUFFERHEADERTYPE* buffer) {
-  SB_DCHECK(app_data != NULL);
-  OpenMaxComponent* component = reinterpret_cast<OpenMaxComponent*>(app_data);
-  SB_DCHECK(handle == component->handle_);
-
-  component->OnFillBufferDone(buffer);
-
-  return OMX_ErrorNone;
 }
 
 }  // namespace open_max

@@ -118,6 +118,9 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Called to inject a keyboard event into the web module.
+  // Event is directed at a specific element if the element is non-null.
+  // Otherwise, the currently focused element receives the event.
+  // If element is specified, we must be on the WebModule's message loop
   void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
                            const dom::KeyboardEvent::Data& event);
 
@@ -332,11 +335,14 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(fetcher_factory_);
 
   loader_factory_.reset(
-      new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_));
+      new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
+                                data.options.software_decoder_thread_priority,
+                                data.options.hardware_decoder_thread_priority,
+                                data.options.fetcher_lifetime_thread_priority));
 
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
-      base::StringPrintf("Memory.%s.ImageCache", name_.c_str()),
+      base::StringPrintf("%s.ImageCache", name_.c_str()),
       static_cast<uint32>(data.options.image_cache_capacity),
       loader_factory_.get());
   DCHECK(image_cache_);
@@ -348,7 +354,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   DCHECK_LE(0, data.options.remote_typeface_cache_capacity);
   remote_typeface_cache_ = loader::font::CreateRemoteTypefaceCache(
-      base::StringPrintf("Memory.%s.RemoteTypefaceCache", name_.c_str()),
+      base::StringPrintf("%s.RemoteTypefaceCache", name_.c_str()),
       static_cast<uint32>(data.options.remote_typeface_cache_capacity),
       loader_factory_.get());
   DCHECK(remote_typeface_cache_);
@@ -398,17 +404,18 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
       data.options.location_policy, data.options.csp_enforcement_mode,
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
-      data.window_close_callback, data.options.csp_insecure_allowed_token);
+      data.window_close_callback, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
   DCHECK(window_weak_);
 
   environment_settings_.reset(new dom::DOMSettings(
-      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), blob_registry_.get(), data.media_module,
-      javascript_engine_.get(), global_environment_.get(),
-      data.options.dom_settings_options));
+      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
+      data.media_module, window_, media_source_registry_.get(),
+      blob_registry_.get(), data.media_module, javascript_engine_.get(),
+      global_environment_.get(), data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
@@ -420,8 +427,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(!error_callback_.is_null());
 
   layout_manager_.reset(new layout::LayoutManager(
-      window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
-                                base::Unretained(this)),
+      name_, window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
+                                       base::Unretained(this)),
       data.options.layout_trigger, data.dom_max_element_depth,
       data.layout_refresh_rate, data.network_module->preferred_language(),
       web_module_stat_tracker_->layout_stat_tracker()));
@@ -470,6 +477,13 @@ WebModule::Impl::~Impl() {
   debug_server_module_.reset();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Disable callbacks for the resource caches. Otherwise, it is possible for a
+  // callback to occur into a DOM object that is being kept alive by a JS engine
+  // reference even after the DOM tree has been destroyed. This can result in a
+  // crash when the callback attempts to access a stale Document pointer.
+  remote_typeface_cache_->DisableCallbacks();
+  image_cache_->DisableCallbacks();
+
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
@@ -502,15 +516,16 @@ void WebModule::Impl::InjectKeyboardEvent(
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event));
 
-  // Give the stat tracker a chance to start tracking the event before it is
-  // injected.
-  web_module_stat_tracker_->OnInjectEvent(keyboard_event);
+  web_module_stat_tracker_->OnStartInjectEvent(keyboard_event);
 
   if (element) {
     element->DispatchEvent(keyboard_event);
   } else {
     window_->InjectEvent(keyboard_event);
   }
+
+  web_module_stat_tracker_->OnEndInjectEvent(
+      layout_manager_->IsNewRenderTreePending());
 }
 
 void WebModule::Impl::ExecuteJavascript(
@@ -531,11 +546,6 @@ void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
 
 void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
-  // Notify the stat tracker that a render tree has been produced. This signals
-  // the end of previous event tracking, and triggers flushing of periodic
-  // counts.
-  web_module_stat_tracker_->OnRenderTreeProduced();
-
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -543,6 +553,11 @@ void WebModule::Impl::OnRenderTreeProduced(
 #else  // ENABLE_DEBUG_CONSOLE
   render_tree_produced_callback_.Run(layout_results);
 #endif  // ENABLE_DEBUG_CONSOLE
+
+  // Notify the stat tracker that a render tree has been produced. This signals
+  // the end of previous event tracking, and triggers flushing of periodic
+  // counts.
+  web_module_stat_tracker_->OnRenderTreeProduced();
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -688,7 +703,11 @@ WebModule::Options::Options()
       csp_enforcement_mode(dom::kCspEnforcementEnable),
       csp_insecure_allowed_token(0),
       track_event_stats(false),
-      image_cache_capacity_multiplier_when_playing_video(1.0f) {}
+      image_cache_capacity_multiplier_when_playing_video(1.0f),
+      thread_priority(base::kThreadPriority_Normal),
+      software_decoder_thread_priority(base::kThreadPriority_Low),
+      hardware_decoder_thread_priority(base::kThreadPriority_High),
+      fetcher_lifetime_thread_priority(base::kThreadPriority_High) {}
 
 WebModule::WebModule(
     const GURL& initial_url,
@@ -707,9 +726,9 @@ WebModule::WebModule(
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_DEFAULT,
-        cobalt::browser::kWebModuleStackSize));
+  thread_.StartWithOptions(base::Thread::Options(
+      MessageLoop::TYPE_DEFAULT, cobalt::browser::kWebModuleStackSize,
+      options.thread_priority));
   DCHECK(message_loop());
 
   message_loop()->PostTask(
@@ -781,23 +800,14 @@ void WebModule::Initialize(const ConstructionData& data) {
 }
 
 void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
+               event.type);
   DCHECK(message_loop());
   DCHECK(impl_);
   message_loop()->PostTask(FROM_HERE,
                            base::Bind(&WebModule::Impl::InjectKeyboardEvent,
                                       base::Unretained(impl_.get()),
                                       scoped_refptr<dom::Element>(), event));
-}
-
-void WebModule::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
-                                    const dom::KeyboardEvent::Data& event) {
-  TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
-               event.type);
-  DCHECK(message_loop());
-  DCHECK(impl_);
-  DCHECK_EQ(MessageLoop::current(), message_loop());
-
-  impl_->InjectKeyboardEvent(element, event);
 }
 
 std::string WebModule::ExecuteJavascript(

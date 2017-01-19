@@ -93,10 +93,9 @@ class HardwareFrontendImage::HardwareBackendImage {
                        GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::HardwareBackendImage()");
-    scoped_ptr<backend::TextureEGL> texture =
-        cobalt_context->CreateTexture(image_data->PassTextureData());
+    texture_ = cobalt_context->CreateTexture(image_data->PassTextureData());
 
-    CommonInitialize(texture.Pass(), gr_context);
+    CommonInitialize(gr_context);
   }
 
   HardwareBackendImage(const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
@@ -107,13 +106,22 @@ class HardwareFrontendImage::HardwareBackendImage {
                        GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::HardwareBackendImage()");
-    scoped_ptr<backend::TextureEGL> texture =
-        cobalt_context->CreateTextureFromRawMemory(
-            raw_texture_memory, offset, descriptor.size,
-            ConvertRenderTreeFormatToGL(descriptor.pixel_format),
-            descriptor.pitch_in_bytes);
+    texture_ = cobalt_context->CreateTextureFromRawMemory(
+        raw_texture_memory, offset, descriptor.size,
+        ConvertRenderTreeFormatToGL(descriptor.pixel_format),
+        descriptor.pitch_in_bytes);
 
-    CommonInitialize(texture.Pass(), gr_context);
+    CommonInitialize(gr_context);
+  }
+
+  explicit HardwareBackendImage(scoped_ptr<backend::TextureEGL> texture) {
+    TRACE_EVENT0("cobalt::renderer",
+                 "HardwareBackendImage::HardwareBackendImage()");
+    // This constructor can be called from any thread. However,
+    // CommonInitialize() must then be called manually from the rasterizer
+    // thread.
+    texture_ = texture.Pass();
+    thread_checker_.DetachFromThread();
   }
 
   ~HardwareBackendImage() {
@@ -126,13 +134,11 @@ class HardwareFrontendImage::HardwareBackendImage {
 
   // Initiate all texture initialization code here, which should be executed
   // on the rasterizer thread.
-  void CommonInitialize(scoped_ptr<backend::TextureEGL> texture,
-                        GrContext* gr_context) {
+  void CommonInitialize(GrContext* gr_context) {
     DCHECK(thread_checker_.CalledOnValidThread());
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::CommonInitialize()");
 
-    texture_ = texture.Pass();
     gr_texture_.reset(
         WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
     DCHECK(gr_texture_);
@@ -145,9 +151,9 @@ class HardwareFrontendImage::HardwareBackendImage {
         ->unref();
   }
 
-  const SkBitmap& GetBitmap() const {
+  const SkBitmap* GetBitmap() const {
     DCHECK(thread_checker_.CalledOnValidThread());
-    return bitmap_;
+    return &bitmap_;
   }
 
  private:
@@ -193,6 +199,22 @@ HardwareFrontendImage::HardwareFrontendImage(
                  cobalt_context, gr_context);
 }
 
+HardwareFrontendImage::HardwareFrontendImage(
+    scoped_ptr<backend::TextureEGL> texture,
+    render_tree::AlphaFormat alpha_format,
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+    MessageLoop* rasterizer_message_loop)
+    : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
+      size_(texture->GetSize()),
+      rasterizer_message_loop_(rasterizer_message_loop) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareFrontendImage::HardwareFrontendImage()");
+  backend_image_.reset(new HardwareBackendImage(texture.Pass()));
+  initialize_backend_image_ =
+      base::Bind(&HardwareFrontendImage::InitializeBackendImageFromTexture,
+                 base::Unretained(this), gr_context);
+}
+
 HardwareFrontendImage::~HardwareFrontendImage() {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::~HardwareFrontendImage()");
@@ -205,7 +227,7 @@ HardwareFrontendImage::~HardwareFrontendImage() {
   }  // else let the scoped pointer clean it up immediately.
 }
 
-const SkBitmap& HardwareFrontendImage::GetBitmap() const {
+const SkBitmap* HardwareFrontendImage::GetBitmap() const {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   // Forward this call to the backend image.  This method must be called from
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
@@ -238,6 +260,12 @@ void HardwareFrontendImage::InitializeBackendImageFromRawImageData(
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   backend_image_.reset(new HardwareBackendImage(
       raw_texture_memory, offset, descriptor, cobalt_context, gr_context));
+}
+
+void HardwareFrontendImage::InitializeBackendImageFromTexture(
+    GrContext* gr_context) {
+  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  backend_image_->CommonInitialize(gr_context);
 }
 
 HardwareMultiPlaneImage::HardwareMultiPlaneImage(

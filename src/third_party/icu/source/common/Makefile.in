@@ -1,6 +1,6 @@
 #******************************************************************************
 #
-#   Copyright (C) 1999-2010, International Business Machines
+#   Copyright (C) 1999-2015, International Business Machines
 #   Corporation and others.  All Rights Reserved.
 #
 #******************************************************************************
@@ -56,13 +56,14 @@ DYNAMICCFLAGS = $(SHAREDLIBCFLAGS)
 DYNAMICCXXFLAGS = $(SHAREDLIBCXXFLAGS)
 CFLAGS += $(LIBCFLAGS)
 CXXFLAGS += $(LIBCXXFLAGS)
-
-ifneq ($(top_builddir),$(top_srcdir))
-CPPFLAGS += -I$(top_builddir)/common
+ifeq ($(OS390BATCH),1)
+CFLAGS += -WI
+CXXFLAGS += -WI
 endif
-CPPFLAGS += -I$(srcdir) -I$(top_srcdir)/i18n $(LIBCPPFLAGS) $(CPPFLAGSICUUC)
-# we want DEFS here, because we want icucfg.h
-DEFS += -DU_COMMON_IMPLEMENTATION @DEFS@ 
+
+CPPFLAGS += -I$(srcdir) $(LIBCPPFLAGS) $(CPPFLAGSICUUC)
+# we want DEFS here
+DEFS += -DU_COMMON_IMPLEMENTATION 
 LDFLAGS += $(LDFLAGSICUUC)
 
 # for plugin configuration
@@ -82,26 +83,33 @@ udata.o ucmndata.o udatamem.o umapfile.o udataswp.o ucol_swp.o utrace.o \
 uhash.o uhash_us.o uenum.o ustrenum.o uvector.o ustack.o uvectr32.o uvectr64.o \
 ucnv.o ucnv_bld.o ucnv_cnv.o ucnv_io.o ucnv_cb.o ucnv_err.o ucnvlat1.o \
 ucnv_u7.o ucnv_u8.o ucnv_u16.o ucnv_u32.o ucnvscsu.o ucnvbocu.o \
-ucnv_ext.o ucnvmbcs.o ucnv2022.o ucnvhz.o ucnv_lmb.o ucnvisci.o ucnvdisp.o ucnv_set.o \
-uresbund.o ures_cnv.o uresdata.o resbund.o resbund_cnv.o \
-ucat.o locmap.o uloc.o locid.o locutil.o locavailable.o locdispnames.o loclikely.o locresdata.o \
+ucnv_ext.o ucnvmbcs.o ucnv2022.o ucnvhz.o ucnv_lmb.o ucnvisci.o ucnvdisp.o ucnv_set.o ucnv_ct.o \
+resource.o uresbund.o ures_cnv.o uresdata.o resbund.o resbund_cnv.o \
+messagepattern.o ucat.o locmap.o uloc.o locid.o locutil.o locavailable.o locdispnames.o loclikely.o locresdata.o \
 bytestream.o stringpiece.o \
-ustr_cnv.o unistr_cnv.o unistr.o unistr_case.o unistr_props.o \
-utf_impl.o ustring.o ustrcase.o ucasemap.o cstring.o ustrfmt.o ustrtrns.o ustr_wcs.o utext.o \
-normalizer2impl.o normalizer2.o filterednormalizer2.o normlzr.o unorm.o unormcmp.o unorm_it.o \
+stringtriebuilder.o bytestriebuilder.o \
+bytestrie.o bytestrieiterator.o \
+ucharstrie.o ucharstriebuilder.o ucharstrieiterator.o \
+dictionarydata.o \
+appendable.o ustr_cnv.o unistr_cnv.o unistr.o unistr_case.o unistr_props.o \
+utf_impl.o ustring.o ustrcase.o ucasemap.o ucasemap_titlecase_brkiter.o cstring.o ustrfmt.o ustrtrns.o ustr_wcs.o utext.o \
+unistr_case_locale.o ustrcase_locale.o unistr_titlecase_brkiter.o ustr_titlecase_brkiter.o \
+normalizer2impl.o normalizer2.o filterednormalizer2.o normlzr.o unorm.o unormcmp.o loadednormalizer2impl.o \
 chariter.o schriter.o uchriter.o uiter.o \
-uchar.o uprops.o ucase.o propname.o ubidi_props.o ubidi.o ubidiwrt.o ubidiln.o ushape.o \
-uscript.o usc_impl.o unames.o \
-utrie.o utrie2.o utrie2_builder.o bmpset.o unisetspan.o uset_props.o uniset_props.o uset.o uniset.o usetiter.o ruleiter.o caniter.o unifilt.o unifunct.o \
-uarrsort.o brkiter.o ubrk.o brkeng.o dictbe.o triedict.o \
+patternprops.o uchar.o uprops.o ucase.o propname.o ubidi_props.o ubidi.o ubidiwrt.o ubidiln.o ushape.o \
+uscript.o uscript_props.o usc_impl.o unames.o \
+utrie.o utrie2.o utrie2_builder.o bmpset.o unisetspan.o uset_props.o uniset_props.o uniset_closure.o uset.o uniset.o usetiter.o ruleiter.o caniter.o unifilt.o unifunct.o \
+uarrsort.o brkiter.o ubrk.o brkeng.o dictbe.o filteredbrk.o \
 rbbi.o rbbidata.o rbbinode.o rbbirb.o rbbiscan.o rbbisetb.o rbbistbl.o rbbitblb.o \
 serv.o servnotf.o servls.o servlk.o servlkf.o servrbf.o servslkf.o \
 uidna.o usprep.o uts46.o punycode.o \
-util.o util_props.o parsepos.o locbased.o cwchar.o wintz.o mutex.o dtintrv.o ucnvsel.o propsvec.o \
-ulist.o uloc_tag.o icudataver.o icuplug.o
+util.o util_props.o parsepos.o locbased.o cwchar.o wintz.o dtintrv.o ucnvsel.o propsvec.o \
+ulist.o uloc_tag.o icudataver.o icuplug.o listformatter.o ulistformatter.o \
+sharedobject.o simplepatternformatter.o unifiedcache.o uloc_keytype.o \
+pluralmap.o
 
 ## Header files to install
-HEADERS = $(srcdir)/unicode/*.h unicode/*.h
+HEADERS = $(srcdir)/unicode/*.h
 
 STATIC_OBJECTS = $(OBJECTS:.o=.$(STATIC_O))
 
@@ -115,7 +123,7 @@ DEPS = $(OBJECTS:.o=.d)
 ## List of phony targets
 .PHONY : all all-local install install-local clean clean-local	\
 distclean distclean-local install-library install-headers dist	\
-dist-local check check-local
+dist-local check check-local check-exhaustive
 
 ## Clear suffix list
 .SUFFIXES :
@@ -128,7 +136,9 @@ distclean : distclean-local
 dist: dist-local
 check: all check-local
 
-all-local: $(ALL_TARGETS) unicode/platform.h
+check-exhaustive: check
+
+all-local: $(ALL_TARGETS)
 
 install-local: install-headers install-library
 
@@ -178,15 +188,11 @@ clean-local:
 	$(RMV) $(OBJECTS) $(STATIC_OBJECTS) $(ALL_TARGETS) $(SO_VERSION_DATA)
 
 distclean-local: clean-local
-	$(RMV) Makefile icucfg.h unicode/platform.h $(SVC_HOOK_INC)
+	$(RMV) Makefile icucfg.h $(SVC_HOOK_INC)
 
 check-local:
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(SVC_HOOK_INC)
-	cd $(top_builddir) \
-	 && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
-
-unicode/platform.h: $(srcdir)/unicode/platform.h.in $(top_builddir)/config.status
 	cd $(top_builddir) \
 	 && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
@@ -199,6 +205,11 @@ endif
 ifneq ($(ENABLE_SHARED),)
 $(SHARED_OBJECT): $(OBJECTS) $(SO_VERSION_DATA)
 	$(SHLIB.cc) $(LD_SONAME) $(OUTOPT)$@ $^ $(LIBS)
+ifeq ($(ENABLE_RPATH),YES)
+ifneq ($(wildcard $(libdir)/$(MIDDLE_SO_TARGET)),)
+	$(warning RPATH warning: --enable-rpath means test programs may use existing $(libdir)/$(MIDDLE_SO_TARGET))
+endif
+endif
 
 ifeq ($(OS390BATCH),1)
 $(BATCH_TARGET):$(OBJECTS)

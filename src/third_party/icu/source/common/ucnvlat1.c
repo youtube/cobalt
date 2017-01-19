@@ -1,6 +1,6 @@
 /* 
 **********************************************************************
-*   Copyright (C) 2000-2007, International Business Machines
+*   Copyright (C) 2000-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   file name:  ucnvlat1.cpp
@@ -18,6 +18,7 @@
 
 #include "unicode/ucnv.h"
 #include "unicode/uset.h"
+#include "unicode/utf8.h"
 #include "ucnv_bld.h"
 #include "ucnv_cnv.h"
 
@@ -405,7 +406,7 @@ ucnv_Latin1FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     if(U_SUCCESS(*pErrorCode) && source<(sourceLimit=(uint8_t *)pToUArgs->sourceLimit)) {
         utf8->toUnicodeStatus=utf8->toUBytes[0]=b=*source++;
         utf8->toULength=1;
-        utf8->mode=utf8_countTrailBytes[b]+1;
+        utf8->mode=U8_COUNT_TRAIL_BYTES(b)+1;
     }
 
     /* write back the updated pointers */
@@ -457,11 +458,8 @@ static const UConverterStaticData _Latin1StaticData={
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
 };
 
-const UConverterSharedData _Latin1Data={
-    sizeof(UConverterSharedData), ~((uint32_t) 0),
-    NULL, NULL, &_Latin1StaticData, FALSE, &_Latin1Impl, 
-    0
-};
+const UConverterSharedData _Latin1Data=
+        UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(&_Latin1StaticData, &_Latin1Impl);
 
 /* US-ASCII ----------------------------------------------------------------- */
 
@@ -734,10 +732,7 @@ static const UConverterStaticData _ASCIIStaticData={
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
 };
 
-const UConverterSharedData _ASCIIData={
-    sizeof(UConverterSharedData), ~((uint32_t) 0),
-    NULL, NULL, &_ASCIIStaticData, FALSE, &_ASCIIImpl, 
-    0
-};
+const UConverterSharedData _ASCIIData=
+        UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(&_ASCIIStaticData, &_ASCIIImpl);
 
 #endif

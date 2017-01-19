@@ -54,7 +54,10 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
         dom_parser_(new dom_parser::Parser()),
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
         loader_factory_(new loader::LoaderFactory(
-            &fetcher_factory_, resource_provider_stub_.get())),
+            &fetcher_factory_, resource_provider_stub_.get(),
+            base::kThreadPriority_Low /* software decoder thread priority */,
+            base::kThreadPriority_High /* hardware decoder thread priority */,
+            base::kThreadPriority_Low)),
         image_cache_(loader::image::CreateImageCache("WebdriverTest.ImageCache",
                                                      kImageCacheCapacity,
                                                      loader_factory_.get())),

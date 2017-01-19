@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * Copyright (c) 1997-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /*******************************************************************************
@@ -27,10 +27,6 @@
 #include "unicode/ures.h"
 #include "crestst.h"
 #include "unicode/ctest.h"
-
-#include "ucol_imp.h" /* collation */
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 
 static void TestOpenDirect(void);
 static void TestFallback(void);
@@ -438,6 +434,7 @@ static void TestFallback()
 
     /* clear it out..  just do some calls to get the gears turning */
     junk = ures_getStringByKey(fr_FR, "LocaleID", &resultLen, &status);
+    (void)junk;    /* Suppress set but not used warning. */
     status = U_ZERO_ERROR;
     junk = ures_getStringByKey(fr_FR, "LocaleString", &resultLen, &status);
     status = U_ZERO_ERROR;
@@ -445,10 +442,10 @@ static void TestFallback()
     status = U_ZERO_ERROR;
 
     /* OK first one. This should be a Default value. */
-    subResource = ures_getByKey(fr_FR, "MeasurementSystem", NULL, &status);
+    subResource = ures_getByKey(fr_FR, "layout", NULL, &status);
     if(status != U_USING_DEFAULT_WARNING)
     {
-        log_data_err("Expected U_USING_DEFAULT_ERROR when trying to get CurrencyMap from fr_FR, got %s\n",
+        log_data_err("Expected U_USING_DEFAULT_ERROR when trying to get layout from fr_FR, got %s\n",
             u_errorName(status));
     }
     ures_close(subResource);
@@ -715,7 +712,7 @@ TestTable32(void) {
     }
 
     /* search for some items by key */
-    for(i=0; i<LENGTHOF(testcases); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(testcases); ++i) {
         item=ures_getByKey(res, testcases[i].key, item, &errorCode);
         if(U_FAILURE(errorCode)) {
             log_err("unable to find the key \"%s\" in testdata/testtable32.res - %s\n",
@@ -997,11 +994,12 @@ static void TestGetLocaleByType(void) {
             status = U_ZERO_ERROR;
             continue;
         }
-        
+
         locale = ures_getLocaleByType(res, ULOC_REQUESTED_LOCALE, &status);
-        if(locale) {
+        if(U_SUCCESS(status) && locale != NULL) {
             log_err("Requested locale should return NULL\n");
         }
+        status = U_ZERO_ERROR;
         locale = ures_getLocaleByType(res, ULOC_VALID_LOCALE, &status);
         if(!locale || strcmp(locale, test[i].validLocale) != 0) {
             log_err("Expected valid locale to be %s. Got %s\n", test[i].requestedLocale, locale);
@@ -1014,4 +1012,3 @@ static void TestGetLocaleByType(void) {
     }
     ures_close(res);
 }
-

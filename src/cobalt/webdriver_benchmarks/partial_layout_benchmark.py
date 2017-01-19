@@ -47,7 +47,7 @@ arg_parser.add_argument(
 
 # Pattern to match Cobalt log line for when the WebDriver port has been
 # opened.
-RE_WEBDRIVER_LISTEN = re.compile(r"Starting WebDriver server on port (\d+)$")
+RE_WEBDRIVER_LISTEN = re.compile(r"Starting WebDriver server on port (\d+)")
 
 STARTUP_TIMEOUT_SECONDS = 2 * 60
 

@@ -108,6 +108,30 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+void GetVideoContainerSizeOverride(math::Size* output_size) {
+  DCHECK(output_size);
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
+    std::string size_override = command_line->GetSwitchValueASCII(
+        browser::switches::kVideoContainerSizeOverride);
+    DLOG(INFO) << "Set video container size override from command line to "
+               << size_override;
+    // Override string should be something like "1920x1080".
+    int32 width, height;
+    std::vector<std::string> tokens;
+    base::SplitString(size_override, 'x', &tokens);
+    if (tokens.size() == 2 && base::StringToInt32(tokens[0], &width) &&
+        base::StringToInt32(tokens[1], &height)) {
+      *output_size = math::Size(width, height);
+    } else {
+      DLOG(WARNING) << "Invalid size specified for video container: "
+                    << size_override;
+    }
+  }
+}
+#endif
+
 scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings) {
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
@@ -181,6 +205,10 @@ BrowserModule::BrowserModule(const GURL& url,
           static_cast<int>(static_cast<float>(output_size.height()) *
                            system_window->GetVideoPixelRatio()));
     }
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+    GetVideoContainerSizeOverride(&output_size);
+#endif
+
     media_module_ = (media::MediaModule::Create(
         system_window, output_size,
         renderer_module_.pipeline()->GetResourceProvider(),
@@ -276,15 +304,6 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                        &network_module_, viewport_size,
                        renderer_module_.pipeline()->GetResourceProvider(),
                        kLayoutMaxRefreshFrequencyInHz));
-
-#if defined(OS_STARBOARD)
-#if SB_HAS(1_CORE)
-  // Wait until the splash screen is ready before loading the main web module.
-  // This prevents starvation of the splash screen module and decoding of the
-  // splash screen image(s).
-  splash_screen_->WaitUntilReady();
-#endif
-#endif
 
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)

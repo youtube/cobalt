@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ebu.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ebu.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/ebu.xml
- */
 ebu{
     Currencies{
         AED{
@@ -16,19 +13,19 @@ ebu{
             "Dirham ya Falme za Kiarabu",
         }
         AOA{
-            "Kz",
+            "AOA",
             "Kwanza ya Angola",
         }
         AUD{
-            "AU$",
+            "A$",
             "Dora ya Australia",
         }
         BHD{
-            "BD",
+            "BHD",
             "Dinari ya Bahareni",
         }
         BIF{
-            "FBu",
+            "BIF",
             "Faranga ya Burundi",
         }
         BWP{
@@ -52,15 +49,15 @@ ebu{
             "Yuan Renminbi ya China",
         }
         CVE{
-            "CV$",
+            "CVE",
             "Eskudo ya Kepuvede",
         }
         DJF{
-            "Fdj",
+            "DJF",
             "Faranga ya Jibuti",
         }
         DZD{
-            "DA",
+            "DZD",
             "Dinari ya Aljeria",
         }
         EGP{
@@ -68,11 +65,11 @@ ebu{
             "Pauni ya Misri",
         }
         ERN{
-            "Nfk",
+            "ERN",
             "Nakfa ya Eritrea",
         }
         ETB{
-            "Br",
+            "ETB",
             "Bir ya Uhabeshi",
         }
         EUR{
@@ -84,7 +81,7 @@ ebu{
             "Pauni ya Uingereza",
         }
         GHC{
-            "₵",
+            "GHC",
             "Sedi ya Ghana",
         }
         GMD{
@@ -92,11 +89,11 @@ ebu{
             "Dalasi ya Gambia",
         }
         GNS{
-            "GNS" /** ===  */,
+            "GNS",
             "Faranga ya Gine",
         }
         INR{
-            "Rs",
+            "₹",
             "Rupia ya India",
         }
         JPY{
@@ -108,11 +105,11 @@ ebu{
             "Shilingi ya Kenya",
         }
         KMF{
-            "CF",
+            "KMF",
             "Faranga ya Komoro",
         }
         LRD{
-            "L$",
+            "LRD",
             "Dola ya Liberia",
         }
         LSL{
@@ -120,7 +117,7 @@ ebu{
             "Loti ya Lesoto",
         }
         LYD{
-            "LD",
+            "LYD",
             "Dinari ya Libya",
         }
         MAD{
@@ -132,11 +129,11 @@ ebu{
             "Ariary ya Bukini",
         }
         MRO{
-            "UM",
+            "MRO",
             "Ugwiya ya Moritania",
         }
         MUR{
-            "MURs",
+            "MUR",
             "Rupia ya Morisi",
         }
         MWK{
@@ -144,15 +141,15 @@ ebu{
             "Kwacha ya Malawi",
         }
         MZM{
-            "Mt",
+            "MZM",
             "Metikali ya Msumbiji",
         }
         NAD{
-            "N$",
+            "NAD",
             "Dola ya Namibia",
         }
         NGN{
-            "₦",
+            "NGN",
             "Naira ya Nijeria",
         }
         RWF{
@@ -160,11 +157,11 @@ ebu{
             "Faranga ya Rwanda",
         }
         SAR{
-            "SR",
+            "SAR",
             "Riyal ya Saudia",
         }
         SCR{
-            "SRe",
+            "SCR",
             "Rupia ya Shelisheli",
         }
         SDG{
@@ -172,19 +169,19 @@ ebu{
             "Pauni ya Sudani",
         }
         SHP{
-            "SH£",
+            "SHP",
             "Pauni ya Santahelena",
         }
         SLL{
-            "Le",
+            "SLL",
             "Leoni",
         }
         SOS{
-            "Ssh",
+            "SOS",
             "Shilingi ya Somalia",
         }
         STD{
-            "Db",
+            "STD",
             "Dobra ya Sao Tome na Principe",
         }
         SZL{
@@ -192,15 +189,15 @@ ebu{
             "Lilangeni",
         }
         TND{
-            "DT",
+            "TND",
             "Dinari ya Tunisia",
         }
         TZS{
-            "TSh",
+            "TZS",
             "Shilingi ya Tanzania",
         }
         UGX{
-            "USh",
+            "UGX",
             "Shilingi ya Uganda",
         }
         USD{
@@ -216,17 +213,21 @@ ebu{
             "Faranga CFA BCEAO",
         }
         ZAR{
-            "R",
+            "ZAR",
             "Randi ya Afrika Kusini",
         }
         ZMK{
-            "ZK",
+            "ZMK",
+            "Kwacha ya Zambia (1968–2012)",
+        }
+        ZMW{
+            "ZMW",
             "Kwacha ya Zambia",
         }
         ZWD{
-            "Z$",
+            "ZWD",
             "Dola ya Zimbabwe",
         }
     }
-    Version{"2.0.45.90"}
+    Version{"2.1.19.14"}
 }

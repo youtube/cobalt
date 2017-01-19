@@ -1,10 +1,12 @@
 /*
 ******************************************************************************
-* Copyright (C) 1999-2010, International Business Machines Corporation and   *
-* others. All Rights Reserved.                                               *
+* Copyright (C) 1999-2015, International Business Machines Corporation and
+* others. All Rights Reserved.
 ******************************************************************************
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "uvectr64.h"
 #include "cmemory.h"
 #include "putilimp.h"
@@ -114,6 +116,9 @@ void UVector64::removeAllElements(void) {
 }
 
 UBool UVector64::expandCapacity(int32_t minimumCapacity, UErrorCode &status) {
+    if (U_FAILURE(status)) {
+        return FALSE;
+    }
     if (minimumCapacity < 0) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return FALSE;

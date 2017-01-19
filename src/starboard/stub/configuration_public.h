@@ -22,7 +22,8 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
-// The API version implemented by this platform.
+// The API version implemented by this platform. This will generally be set to
+// the current value of SB_MAXIMUM_API_VERSION at the time of implementation.
 #define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Architecture Configuration --------------------------------------------
@@ -174,6 +175,10 @@
 // functionality encountered.
 #undef SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT
 
+// On some compilers, the frontend has a quirk such that #ifdef cannot
+// correctly detect __has_feature is defined, and an example error you get is:
+#undef SB_HAS_QUIRK_HASFEATURE_NOT_DEFINED_BUT_IT_IS
+
 // --- Extensions Configuration ----------------------------------------------
 
 // GCC/Clang doesn't define a long long hash function, except for Android and
@@ -322,10 +327,10 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 0
 
-// Whether the current platform should frequently flip their display buffer.
-// If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set
-// to 0), then optimizations where the display buffer is not flipped if the
-// scene hasn't changed are enabled.
+// Whether the current platform should frequently flip its display buffer.  If
+// this is not required (i.e. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set to
+// 0), then optimizations are enabled so the display buffer is not flipped if
+// the scene hasn't changed.
 #define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
 
 // --- Media Configuration ---------------------------------------------------
@@ -421,14 +426,15 @@
 // Specifies how video frame buffers must be aligned on this platform.
 #define SB_MEDIA_VIDEO_FRAME_ALIGNMENT 256U
 
-// The encoded video frames are compressed in different ways, their decoding
+// The encoded video frames are compressed in different ways, so their decoding
 // time can vary a lot.  Occasionally a single frame can take longer time to
 // decode than the average time per frame.  The player has to cache some frames
 // to account for such inconsistency.  The number of frames being cached are
-// controlled by the following two macros.
+// controlled by SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES and
+// SB_MEDIA_MAXIMUM_VIDEO_FRAMES.
 //
 // Specify the number of video frames to be cached before the playback starts.
-// Note that set this value too large may increase the playback start delay.
+// Note that setting this value too large may increase the playback start delay.
 #define SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES 4
 
 // Specify the number of video frames to be cached during playback.  A large

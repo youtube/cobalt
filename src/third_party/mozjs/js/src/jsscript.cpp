@@ -40,6 +40,8 @@
 #include "vm/RegExpObject-inl.h"
 #include "vm/ScopeObject-inl.h"
 
+#include "nb/memory_scope.h"
+
 #ifdef USE_ZLIB
 #include "zlib.h"
 #endif
@@ -68,6 +70,7 @@ Bindings::initWithTemporaryStorage(JSContext *cx, InternalBindingsHandle self,
                                    unsigned numArgs, unsigned numVars,
                                    Binding *bindingArray)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(!self->callObjShape_);
     JS_ASSERT(self->bindingArrayAndFlag_ == TEMPORARY_STORAGE_BIT);
 
@@ -149,6 +152,7 @@ Bindings::initWithTemporaryStorage(JSContext *cx, InternalBindingsHandle self,
 uint8_t *
 Bindings::switchToScriptStorage(Binding *newBindingArray)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(bindingArrayUsingTemporaryStorage());
     JS_ASSERT(!(uintptr_t(newBindingArray) & TEMPORARY_STORAGE_BIT));
 
@@ -161,6 +165,7 @@ bool
 Bindings::clone(JSContext *cx, InternalBindingsHandle self,
                 uint8_t *dstScriptData, HandleScript srcScript)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* The clone has the same bindingArray_ offset as 'src'. */
     Bindings &src = srcScript->bindings;
     ptrdiff_t off = (uint8_t *)src.bindingArray() - srcScript->data;
@@ -189,6 +194,7 @@ static bool
 XDRScriptBindings(XDRState<mode> *xdr, LifoAllocScope &las, unsigned numArgs, unsigned numVars,
                   HandleScript script)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSContext *cx = xdr->cx();
 
     if (mode == XDR_ENCODE) {
@@ -249,6 +255,7 @@ Bindings::bindingIsAliased(unsigned bindingIndex)
 void
 Bindings::trace(JSTracer *trc)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (callObjShape_)
         MarkShape(trc, &callObjShape_, "callObjShape");
 
@@ -269,6 +276,7 @@ Bindings::trace(JSTracer *trc)
 bool
 js::FillBindingVector(HandleScript fromScript, BindingVector *vec)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     for (BindingIter bi(fromScript); bi; bi++) {
         if (!vec->append(*bi))
             return false;
@@ -281,6 +289,7 @@ template<XDRMode mode>
 static bool
 XDRScriptConst(XDRState<mode> *xdr, HeapValue *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSContext *cx = xdr->cx();
 
     /*
@@ -392,6 +401,7 @@ bool
 js::XDRScript(XDRState<mode> *xdr, HandleObject enclosingScope, HandleScript enclosingScript,
               HandleFunction fun, MutableHandleScript scriptp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* NB: Keep this in sync with CloneScript. */
 
     enum ScriptBits {
@@ -808,6 +818,7 @@ JSScript::sourceObject() const
 bool
 JSScript::initScriptCounts(JSContext *cx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(!hasScriptCounts);
 
     size_t n = 0;
@@ -887,6 +898,7 @@ JSScript::getPCCounts(jsbytecode *pc) {
 void
 JSScript::addIonCounts(jit::IonScriptCounts *ionCounts)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     ScriptCountsMap::Ptr p = GetScriptCountsMapEntry(this);
     if (p->value.ionCounts)
         ionCounts->setPrevious(p->value.ionCounts);
@@ -922,6 +934,7 @@ JSScript::destroyScriptCounts(FreeOp *fop)
 void
 ScriptSourceObject::setSource(ScriptSource *source)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (source)
         source->incref();
     if (this->source())
@@ -952,6 +965,7 @@ Class ScriptSourceObject::class_ = {
 ScriptSourceObject *
 ScriptSourceObject::create(JSContext *cx, ScriptSource *source)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject object(cx, NewObjectWithGivenProto(cx, &class_, NULL, cx->global()));
     if (!object)
         return NULL;
@@ -1166,6 +1180,7 @@ static const unsigned char emptySource[] = "";
 bool
 ScriptSource::adjustDataSize(size_t nbytes)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     // Allocating 0 bytes has undefined behavior, so special-case it.
     if (nbytes == 0) {
         if (data.compressed != emptySource)
@@ -1504,6 +1519,7 @@ SharedScriptData *
 js::SharedScriptData::new_(JSContext *cx, uint32_t codeLength,
                            uint32_t srcnotesLength, uint32_t natoms)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     uint32_t baseLength = codeLength + srcnotesLength;
     uint32_t padding = sizeof(JSAtom *) - baseLength % sizeof(JSAtom *);
     uint32_t length = baseLength + padding + sizeof(JSAtom *) * natoms;
@@ -1699,6 +1715,7 @@ JSScript::Create(JSContext *cx, HandleObject enclosingScope, bool savedCallerFun
                  const CompileOptions &options, unsigned staticLevel,
                  JS::HandleScriptSource sourceObject, uint32_t bufStart, uint32_t bufEnd)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(bufStart <= bufEnd);
 
     RootedScript script(cx, js_NewGCScript(cx));
@@ -1750,6 +1767,7 @@ JSScript::Create(JSContext *cx, HandleObject enclosingScope, bool savedCallerFun
 static inline uint8_t *
 AllocScriptData(JSContext *cx, size_t size)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     uint8_t *data = static_cast<uint8_t *>(cx->calloc_(JS_ROUNDUP(size, sizeof(Value))));
     if (!data)
         return NULL;
@@ -1763,6 +1781,7 @@ AllocScriptData(JSContext *cx, size_t size)
 JSScript::partiallyInit(JSContext *cx, Handle<JSScript*> script, uint32_t nobjects,
                         uint32_t nregexps, uint32_t ntrynotes, uint32_t nconsts, uint32_t nTypeSets)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t size = ScriptDataSize(script->bindings.count(), nobjects, nregexps, ntrynotes, nconsts);
     script->data = AllocScriptData(cx, size);
     if (!script->data)
@@ -1833,6 +1852,7 @@ JSScript::partiallyInit(JSContext *cx, Handle<JSScript*> script, uint32_t nobjec
 /* static */ bool
 JSScript::fullyInitTrivial(JSContext *cx, Handle<JSScript*> script)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!partiallyInit(cx, script, 0, 0, 0, 0, 0))
         return false;
 
@@ -1849,6 +1869,7 @@ JSScript::fullyInitTrivial(JSContext *cx, Handle<JSScript*> script)
 /* static */ bool
 JSScript::fullyInitFromEmitter(JSContext *cx, Handle<JSScript*> script, BytecodeEmitter *bce)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* The counts of indexed things must be checked during code generation. */
     JS_ASSERT(bce->atomIndices->count() <= INDEX_LIMIT);
     JS_ASSERT(bce->objectList.length <= INDEX_LIMIT);

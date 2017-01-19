@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (C) 1999-2009, International Business Machines
+*   Copyright (C) 1999-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   Date        Name        Description
@@ -8,20 +8,23 @@
 **********************************************************************
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
-#include "unicode/uniset.h"
 #include "unicode/parsepos.h"
 #include "unicode/symtable.h"
+#include "unicode/uniset.h"
+#include "unicode/utf8.h"
+#include "unicode/utf16.h"
 #include "ruleiter.h"
 #include "cmemory.h"
 #include "cstring.h"
-#include "uhash.h"
+#include "patternprops.h"
+#include "uelement.h"
 #include "util.h"
 #include "uvector.h"
 #include "charstr.h"
 #include "ustrfmt.h"
 #include "uassert.h"
-#include "hash.h"
 #include "bmpset.h"
 #include "unisetspan.h"
 
@@ -123,11 +126,11 @@ static inline void _dbgdt(UnicodeSet* set) {
 // UnicodeString in UVector support
 //----------------------------------------------------------------
 
-static void U_CALLCONV cloneUnicodeString(UHashTok *dst, UHashTok *src) {
+static void U_CALLCONV cloneUnicodeString(UElement *dst, UElement *src) {
     dst->pointer = new UnicodeString(*(UnicodeString*)src->pointer);
 }
 
-static int8_t U_CALLCONV compareUnicodeString(UHashTok t1, UHashTok t2) {
+static int8_t U_CALLCONV compareUnicodeString(UElement t1, UElement t2) {
     const UnicodeString &a = *(const UnicodeString*)t1.pointer;
     const UnicodeString &b = *(const UnicodeString*)t2.pointer;
     return a.compare(b);
@@ -1059,7 +1062,7 @@ int32_t UnicodeSet::getSingleCP(const UnicodeString& s) {
  */
 UnicodeSet& UnicodeSet::addAll(const UnicodeString& s) {
     UChar32 cp;
-    for (int32_t i = 0; i < s.length(); i += UTF_CHAR_LENGTH(cp)) {
+    for (int32_t i = 0; i < s.length(); i += U16_LENGTH(cp)) {
         cp = s.char32At(i);
         add(cp);
     }
@@ -1466,6 +1469,72 @@ UnicodeSet& UnicodeSet::compact() {
     return *this;
 }
 
+#ifdef DEBUG_SERIALIZE
+#include <stdio.h>
+#endif
+
+/**
+ * Deserialize constructor.
+ */
+UnicodeSet::UnicodeSet(const uint16_t data[], int32_t dataLen, ESerialization serialization, UErrorCode &ec)
+  : len(1), capacity(1+START_EXTRA), list(0), bmpSet(0), buffer(0),
+    bufferCapacity(0), patLen(0), pat(NULL), strings(NULL), stringSpan(NULL),
+    fFlags(0) {
+
+  if(U_FAILURE(ec)) {
+    setToBogus();
+    return;
+  }
+
+  if( (serialization != kSerialized)
+      || (data==NULL)
+      || (dataLen < 1)) {
+    ec = U_ILLEGAL_ARGUMENT_ERROR;
+    setToBogus();
+    return;
+  }
+
+  allocateStrings(ec);
+  if (U_FAILURE(ec)) {
+    setToBogus();
+    return;
+  }
+
+  // bmp?
+  int32_t headerSize = ((data[0]&0x8000)) ?2:1;
+  int32_t bmpLength = (headerSize==1)?data[0]:data[1];
+
+  len = (((data[0]&0x7FFF)-bmpLength)/2)+bmpLength;
+#ifdef DEBUG_SERIALIZE
+  printf("dataLen %d headerSize %d bmpLen %d len %d. data[0]=%X/%X/%X/%X\n", dataLen,headerSize,bmpLength,len, data[0],data[1],data[2],data[3]);
+#endif
+  capacity = len+1;
+  list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
+  if(!list || U_FAILURE(ec)) {
+    setToBogus();
+    return;
+  }
+  // copy bmp
+  int32_t i;
+  for(i = 0; i< bmpLength;i++) {
+    list[i] = data[i+headerSize];
+#ifdef DEBUG_SERIALIZE
+    printf("<<16@%d[%d] %X\n", i+headerSize, i, list[i]);
+#endif
+  }
+  // copy smp
+  for(i=bmpLength;i<len;i++) {
+    list[i] = ((UChar32)data[headerSize+bmpLength+(i-bmpLength)*2+0] << 16) +
+              ((UChar32)data[headerSize+bmpLength+(i-bmpLength)*2+1]);
+#ifdef DEBUG_SERIALIZE
+    printf("<<32@%d+[%d] %lX\n", headerSize+bmpLength+i, i, list[i]);
+#endif
+  }
+  // terminator
+  list[len++]=UNICODESET_HIGH;
+}
+
+
 int32_t UnicodeSet::serialize(uint16_t *dest, int32_t destCapacity, UErrorCode& ec) const {
     int32_t bmpLength, length, destLength;
 
@@ -1504,7 +1573,9 @@ int32_t UnicodeSet::serialize(uint16_t *dest, int32_t destCapacity, UErrorCode& 
         for (bmpLength=0; bmpLength<length && this->list[bmpLength]<=0xffff; ++bmpLength) {}
         length=bmpLength+2*(length-bmpLength);
     }
-
+#ifdef DEBUG_SERIALIZE
+    printf(">> bmpLength%d length%d len%d\n", bmpLength, length, len);
+#endif
     /* length: number of 16-bit array units */
     if (length>0x7fff) {
         /* there are only 15 bits for the length in the first serialized word */
@@ -1523,6 +1594,9 @@ int32_t UnicodeSet::serialize(uint16_t *dest, int32_t destCapacity, UErrorCode& 
         const UChar32 *p;
         int32_t i;
 
+#ifdef DEBUG_SERIALIZE
+        printf("writeHdr\n");
+#endif
         *dest=(uint16_t)length;
         if (length>bmpLength) {
             *dest|=0x8000;
@@ -1533,11 +1607,17 @@ int32_t UnicodeSet::serialize(uint16_t *dest, int32_t destCapacity, UErrorCode& 
         /* write the BMP part of the array */
         p=this->list;
         for (i=0; i<bmpLength; ++i) {
+#ifdef DEBUG_SERIALIZE
+          printf("writebmp: %x\n", (int)*p);
+#endif
             *dest++=(uint16_t)*p++;
         }
 
         /* write the supplementary part of the array */
         for (; i<length; i+=2) {
+#ifdef DEBUG_SERIALIZE
+          printf("write32: %x\n", (int)*p);
+#endif
             *dest++=(uint16_t)(*p>>16);
             *dest++=(uint16_t)*p++;
         }
@@ -1558,7 +1638,7 @@ UBool UnicodeSet::allocateStrings(UErrorCode &status) {
     if (U_FAILURE(status)) {
         return FALSE;
     }
-    strings = new UVector(uhash_deleteUnicodeString,
+    strings = new UVector(uprv_deleteUObject,
                           uhash_compareUnicodeString, 1, status);
     if (strings == NULL) { // Check for memory allocation error.
         status = U_MEMORY_ALLOCATION_ERROR;
@@ -1892,7 +1972,7 @@ void UnicodeSet::retain(const UChar32* other, int32_t otherLen, int8_t polarity)
 void UnicodeSet::_appendToPat(UnicodeString& buf, const UnicodeString& s, UBool
 escapeUnprintable) {
     UChar32 cp;
-    for (int32_t i = 0; i < s.length(); i += UTF_CHAR_LENGTH(cp)) {
+    for (int32_t i = 0; i < s.length(); i += U16_LENGTH(cp)) {
         _appendToPat(buf, cp = s.char32At(i), escapeUnprintable);
     }
 }
@@ -1926,7 +2006,7 @@ escapeUnprintable) {
         break;
     default:
         // Escape whitespace
-        if (uprv_isRuleWhiteSpace(c)) {
+        if (PatternProps::isWhiteSpace(c)) {
             buf.append(BACKSLASH);
         }
         break;
@@ -2232,10 +2312,7 @@ int32_t UnicodeSet::spanUTF8(const char *s, int32_t length, USetSpanCondition sp
     UChar32 c;
     int32_t start=0, prev=0;
     do {
-        U8_NEXT(s, start, length, c);
-        if(c<0) {
-            c=0xfffd;
-        }
+        U8_NEXT_OR_FFFD(s, start, length, c);
         if(spanCondition!=contains(c)) {
             break;
         }
@@ -2273,10 +2350,7 @@ int32_t UnicodeSet::spanBackUTF8(const char *s, int32_t length, USetSpanConditio
     UChar32 c;
     int32_t prev=length;
     do {
-        U8_PREV(s, 0, length, c);
-        if(c<0) {
-            c=0xfffd;
-        }
+        U8_PREV_OR_FFFD(s, 0, length, c);
         if(spanCondition!=contains(c)) {
             break;
         }

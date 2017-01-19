@@ -18,8 +18,8 @@
 #  define MOZ_GCC_VERSION_AT_LEAST(major, minor, patchlevel)          \
      ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) \
       >= ((major) * 10000 + (minor) * 100 + (patchlevel)))
-#if !MOZ_GCC_VERSION_AT_LEAST(4, 4, 0)
-#  error "mfbt (and Gecko) require at least gcc 4.4 to build."
+#if !MOZ_GCC_VERSION_AT_LEAST(4, 2, 0)
+#  error "mfbt (and Gecko) require at least gcc 4.2 to build."
 #endif
 
 #else

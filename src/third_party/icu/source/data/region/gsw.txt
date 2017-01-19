@@ -1,19 +1,45 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/gsw.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/gsw.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/gsw.xml
- */
 gsw{
     Countries{
-        419{"Latiinameerika und Karibik"}
+        001{"Wält"}
+        002{"Afrika"}
+        003{"Nordameerika"}
+        005{"Süüdameerika"}
+        009{"Ozeaanie"}
+        011{"Weschtafrika"}
+        013{"Mittelameerika"}
+        014{"Oschtafrika"}
+        015{"Nordafrika"}
+        017{"Zentraalafrika"}
+        018{"Süüdlichs Afrika"}
+        019{"Nord-, Mittel- und Süüdameerika"}
+        021{"Nördlichs Ameerika"}
+        029{"Karibik"}
+        030{"Oschtaasie"}
+        034{"Süüdaasie"}
+        035{"Süüdoschtaasie"}
+        039{"Süüdeuropa"}
+        053{"Auschtraalie und Nöiseeland"}
+        054{"Melaneesie"}
+        057{"Mikroneesischs Inselgebiet"}
+        061{"Polineesie"}
+        142{"Aasie"}
+        143{"Zentraalaasie"}
+        145{"Weschtaasie"}
+        150{"Euroopa"}
+        151{"Oschteuroopa"}
+        154{"Nordeuroopa"}
+        155{"Weschteuroopa"}
+        419{"Latiinameerika"}
         AD{"Andorra"}
-        AE{"Veräinigti Arabischi Emiräät"}
+        AE{"Veräinigti Arabischi Emirate"}
         AF{"Afganischtan"}
         AG{"Antigua und Barbuda"}
         AI{"Anguilla"}
@@ -62,11 +88,10 @@ gsw{
         CN{"Chiina"}
         CO{"Kolumbie"}
         CR{"Coschta Rica"}
-        CS{"Särbie und Monteneegro"}
         CU{"Kuba"}
         CV{"Kap Verde"}
         CX{"Wienachts-Insle"}
-        CY{"Tsüpere"}
+        CY{"Zypere"}
         CZ{"Tschechischi Republik"}
         DE{"Tüütschland"}
         DJ{"Tschibuuti"}
@@ -80,7 +105,7 @@ gsw{
         EH{"Weschtsahara"}
         ER{"Äritreea"}
         ES{"Schpanie"}
-        ET{"Äzioopie"}
+        ET{"Äthiopie"}
         EU{"Europääischi Unioon"}
         FI{"Finnland"}
         FJ{"Fitschi"}
@@ -107,7 +132,7 @@ gsw{
         GU{"Guam"}
         GW{"Gineea-Bissau"}
         GY{"Guäjaana"}
-        HK{"Sonderverwaltigszone Hongkong"}
+        HK{"Hongkong"}
         HM{"Höörd- und MäcDonald-Insle"}
         HN{"Honduras"}
         HR{"Kroaazie"}
@@ -140,7 +165,7 @@ gsw{
         KZ{"Kasachschtan"}
         LA{"Laaos"}
         LB{"Libanon"}
-        LC{"Sankta Lutschiia"}
+        LC{"St. Lutschiia"}
         LI{"Liächteschtäi"}
         LK{"Schri Lanka"}
         LR{"Libeeria"}
@@ -158,9 +183,9 @@ gsw{
         MH{"Marshallinsle"}
         MK{"Mazedoonie"}
         ML{"Maali"}
-        MM{"Müanmar"}
+        MM{"Myanmar (Burma)"}
         MN{"Mongolei"}
-        MO{"Sonderverwaltigszone Macao"}
+        MO{"Macao"}
         MP{"Nördlichi Mariaane"}
         MQ{"Martinigg"}
         MR{"Mauretaanie"}
@@ -170,7 +195,7 @@ gsw{
         MV{"Malediiwe"}
         MW{"Malaawi"}
         MX{"Mexiko"}
-        MY{"Malaisia"}
+        MY{"Maläisia"}
         MZ{"Mosambik"}
         NA{"Namiibia"}
         NC{"Nöikaledoonie"}
@@ -178,7 +203,7 @@ gsw{
         NF{"Norfolk-Insle"}
         NG{"Nigeeria"}
         NI{"Nicaraagua"}
-        NL{"Niderland"}
+        NL{"Holland"}
         NO{"Norweege"}
         NP{"Neepal"}
         NR{"Nauru"}
@@ -204,7 +229,7 @@ gsw{
         RE{"Reünioon"}
         RO{"Rumäänie"}
         RS{"Särbie"}
-        RU{"Russischi Föderazioon"}
+        RU{"Russland"}
         RW{"Ruanda"}
         SA{"Saudi-Araabie"}
         SB{"Salomoone"}
@@ -219,7 +244,7 @@ gsw{
         SL{"Sierra Leoone"}
         SM{"San Mariino"}
         SN{"Senegal"}
-        SO{"Somaalia"}
+        SO{"Somaalie"}
         SR{"Surinam"}
         ST{"Sao Tome und Prinssipe"}
         SV{"El Salvador"}
@@ -248,7 +273,7 @@ gsw{
         UY{"Uruguay"}
         UZ{"Uschbeekischtan"}
         VA{"Vatikanstadt"}
-        VC{"Sankt Wässä und d’Grönadiine"}
+        VC{"St. Vincent und d’Grönadiine"}
         VE{"Venezueela"}
         VG{"Britischi Jungfere-Insle"}
         VI{"Amerikaanischi Jungfere-Insle"}
@@ -263,5 +288,8 @@ gsw{
         ZW{"Simbabwe"}
         ZZ{"Unbekannti oder ungültigi Regioon"}
     }
-    Version{"2.0.50.94"}
+    Countries%variant{
+        MK{"Mazedoonie (EJRM)"}
+    }
+    Version{"2.1.19.74"}
 }

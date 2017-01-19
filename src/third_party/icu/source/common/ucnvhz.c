@@ -1,6 +1,6 @@
 /*  
 **********************************************************************
-*   Copyright (C) 2000-2009, International Business Machines
+*   Copyright (C) 2000-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   file name:  ucnvhz.c
@@ -16,12 +16,13 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION
+#if !UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION && !UCONFIG_ONLY_HTML_CONVERSION
 
 #include "cmemory.h"
 #include "unicode/ucnv.h"
 #include "unicode/ucnv_cb.h"
 #include "unicode/uset.h"
+#include "unicode/utf16.h"
 #include "ucnv_bld.h"
 #include "ucnv_cnv.h"
 #include "ucnv_imp.h"
@@ -80,9 +81,8 @@ _HZOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
     cnv->fromUnicodeStatus= 0;
     cnv->mode=0;
     cnv->fromUChar32=0x0000;
-    cnv->extraInfo = uprv_malloc(sizeof(UConverterDataHZ));
+    cnv->extraInfo = uprv_calloc(1, sizeof(UConverterDataHZ));
     if(cnv->extraInfo != NULL){
-        uprv_memset(cnv->extraInfo, 0, sizeof(UConverterDataHZ));
         ((UConverterDataHZ*)cnv->extraInfo)->gbConverter = gbConverter;
     }
     else {
@@ -340,12 +340,11 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
     int32_t myTargetIndex = 0;
     int32_t targetLength = (int32_t)(args->targetLimit - myTarget);
     int32_t mySourceLength = (int32_t)(args->sourceLimit - args->source);
-    int32_t length=0;
     uint32_t targetUniChar = 0x0000;
     UChar32 mySourceChar = 0x0000;
     UConverterDataHZ *myConverterData=(UConverterDataHZ*)args->converter->extraInfo;
     UBool isTargetUCharDBCS = (UBool) myConverterData->isTargetUCharDBCS;
-    UBool oldIsTargetUCharDBCS = isTargetUCharDBCS;
+    UBool oldIsTargetUCharDBCS;
     int len =0;
     const char* escSeq=NULL;
     
@@ -373,10 +372,9 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                 CONCAT_ESCAPE_MACRO(args, myTargetIndex, targetLength, escSeq,err,len,mySourceIndex);
                 continue;
             } else if(mySourceChar <= 0x7f) {
-                length = 1;
                 targetUniChar = mySourceChar;
             } else {
-                length= ucnv_MBCSFromUChar32(myConverterData->gbConverter->sharedData,
+                int32_t length= ucnv_MBCSFromUChar32(myConverterData->gbConverter->sharedData,
                     mySourceChar,&targetUniChar,args->converter->useFallback);
                 /* we can only use lead bytes 21..7D and trail bytes 21..7E */
                 if( length == 2 &&
@@ -446,17 +444,17 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                 /* oops.. the code point is unassigned */
                 /*Handle surrogates */
                 /*check if the char is a First surrogate*/
-                if(UTF_IS_SURROGATE(mySourceChar)) {
-                    if(UTF_IS_SURROGATE_FIRST(mySourceChar)) {
+                if(U16_IS_SURROGATE(mySourceChar)) {
+                    if(U16_IS_SURROGATE_LEAD(mySourceChar)) {
                         args->converter->fromUChar32=mySourceChar;
 getTrail:
                         /*look ahead to find the trail surrogate*/
                         if(mySourceIndex <  mySourceLength) {
                             /* test the following code unit */
                             UChar trail=(UChar) args->source[mySourceIndex];
-                            if(UTF_IS_SECOND_SURROGATE(trail)) {
+                            if(U16_IS_TRAIL(trail)) {
                                 ++mySourceIndex;
-                                mySourceChar=UTF16_GET_PAIR_VALUE(args->converter->fromUChar32, trail);
+                                mySourceChar=U16_GET_SUPPLEMENTARY(args->converter->fromUChar32, trail);
                                 args->converter->fromUChar32=0x00;
                                 /* there are no surrogates in GB2312*/
                                 *err = U_INVALID_CHAR_FOUND;
@@ -624,17 +622,8 @@ static const UConverterStaticData _HZStaticData={
         { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }, /* reserved */
 
 };
-            
-            
-const UConverterSharedData _HZData={
-    sizeof(UConverterSharedData),
-        ~((uint32_t) 0),
-        NULL, 
-        NULL, 
-        &_HZStaticData, 
-        FALSE, 
-        &_HZImpl, 
-        0
-};
 
-#endif /* #if !UCONFIG_NO_LEGACY_CONVERSION */
+const UConverterSharedData _HZData=
+        UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(&_HZStaticData, &_HZImpl);
+
+#endif /* #if !UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION && !UCONFIG_ONLY_HTML_CONVERSION */

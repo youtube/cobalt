@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/bo.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/bo.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/bo.xml
- */
 bo{
     AuxExemplarCharacters{"[ༀ]"}
     ExemplarCharacters{
@@ -18,16 +15,13 @@ bo{
         "\u0FA1 {\u0FA1\u0FB7} ན \u0FA3 པ \u0FA4 ཕ \u0FA5 བ {བ\u0FB7} \u0FA6 {\u0FA6"
         "\u0FB7} མ \u0FA8 ཙ \u0FA9 ཚ \u0FAA ཛ {ཛ\u0FB7} \u0FAB {\u0FAB\u0FB7} ཝ "
         "\u0FAD \u0FBA ཞ \u0FAE ཟ \u0FAF འ \u0FB0 ཡ \u0FB1 \u0FBB ར ཪ \u0FB2 \u0FBC ལ"
-        " \u0FB3 ཤ \u0FB4 ཥ \u0FB5 ས \u0FB6 ཧ \u0FB7 ཨ \u0FB8 \u0F71 \u0F72 {\u0F71"
-        "\u0F72} \u0F80 {\u0F71\u0F80} \u0F74 {\u0F71\u0F74} {\u0FB2\u0F80} \u0F77 {"
-        "\u0FB3\u0F80} \u0F79-\u0F7D \u0F84]"
+        " \u0FB3 ཤ \u0FB4 ཥ \u0FB5 ས \u0FB6 ཧ \u0FB7 ཨ \u0FB8 \u0F72 {\u0F71\u0F72} "
+        "\u0F80 {\u0F71\u0F80} \u0F74 {\u0F71\u0F74} {\u0FB2\u0F80} \u0F77 {\u0FB3"
+        "\u0F80} \u0F79 \u0F7A \u0F7B \u0F7C \u0F7D \u0F84]"
     }
     ExemplarCharactersIndex{"[ཀ ཁ ག ང ཅ ཆ ཇ ཉ ཏ ཐ ད ན པ ཕ བ མ ཙ ཚ ཛ ཝ ཞ ཟ འ ཡ ར ལ ཤ ས ཧ ཨ]"}
-    LocaleScript{
-        "Tibt",
-    }
     NumberElements{
-        default{"tibt"}
+        default{"latn"}
         latn{
             patterns{
                 percentFormat{"#,##0%"}
@@ -37,33 +31,65 @@ bo{
                 nan{"NaN"}
             }
         }
+        native{"tibt"}
         tibt{
             symbols{
                 nan{"ཨང་མེན་"}
             }
         }
     }
-    Version{"2.0.50.30"}
+    Version{"2.1.19.14"}
     calendar{
+        generic{
+            DateTimePatterns{
+                "h:mm:ss a zzzz",
+                "h:mm:ss a z",
+                "h:mm:ss a",
+                "h:mm a",
+                "G y MMMM d, EEEE",
+                "G སྤྱི་ལོ་y MMMMའི་ཚེས་d",
+                "G y ལོའི་MMMཚེས་d",
+                "GGGGG y-MM-dd",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
+            availableFormats{
+                yMMMMd{"G སྤྱི་ལོ་y MMMMའི་ཚེས་d"}
+                yMMMd{"G y ལོའི་MMMཚེས་d"}
+                yyyyMMMd{"G y ལོའི་MMMཚེས་d"}
+            }
+        }
         gregorian{
             AmPmMarkers{
                 "སྔ་དྲོ་",
                 "ཕྱི་དྲོ་",
             }
             DateTimePatterns{
-                "HH:mm:ss zzzz",
-                "HH:mm:ss z",
-                "HH:mm:ss",
-                "HH:mm",
-                "EEEE, y MMMM dd",
-                "སྦྱི་ལོ་y MMMMའི་ཙེས་dད",
-                "y ལོ་འི་MMMཙེས་d",
-                "yyyy-MM-dd",
+                "h:mm:ss a zzzz",
+                "h:mm:ss a z",
+                "h:mm:ss a",
+                "h:mm a",
+                "y MMMMའི་ཚེས་d, EEEE",
+                "སྤྱི་ལོ་y MMMMའི་ཚེས་d",
+                "y ལོའི་MMMཚེས་d",
+                "y-MM-dd",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
+            }
+            availableFormats{
+                GyMMM{"G y LLLL"}
+                MMMEd{"MMMཚེས་d, E"}
+                MMMMd{"MMMMའི་ཚེས་d"}
+                MMMd{"MMMཚེས་d"}
+                yMMM{"y LLL"}
+                yMMMMd{"སྤྱི་ལོ་y MMMMའི་ཚེས་d"}
+                yMMMd{"y ལོའི་MMMཚེས་d"}
             }
             dayNames{
                 format{
@@ -71,67 +97,64 @@ bo{
                         "ཉི་མ་",
                         "ཟླ་བ་",
                         "མིག་དམར་",
-                        "ཧླག་པ་",
+                        "ལྷག་པ་",
                         "ཕུར་བུ་",
-                        "སངས་",
+                        "པ་སངས་",
                         "སྤེན་པ་",
+                    }
+                    narrow{
+                        "ཉི",
+                        "ཟླ",
+                        "མིག",
+                        "ལྷག",
+                        "ཕུར",
+                        "སངས",
+                        "སྤེན",
                     }
                     wide{
                         "གཟའ་ཉི་མ་",
                         "གཟའ་ཟླ་བ་",
                         "གཟའ་མིག་དམར་",
-                        "གཟའ་ཧླག་པ་",
+                        "གཟའ་ལྷག་པ་",
                         "གཟའ་ཕུར་བུ་",
-                        "གཟའ་སངས་",
+                        "གཟའ་པ་སངས་",
                         "གཟའ་སྤེན་པ་",
                     }
                 }
                 stand-alone{
+                    abbreviated{
+                        "ཉི་མ་",
+                        "ཟླ་བ་",
+                        "མིག་དམར་",
+                        "ལྷག་པ་",
+                        "ཕུར་བུ་",
+                        "པ་སངས་",
+                        "སྤེན་པ་",
+                    }
                     narrow{
                         "ཉི",
                         "ཟླ",
-                        "མི",
-                        "ཧླ",
-                        "ཕུ",
-                        "ས",
-                        "སྤེ",
+                        "མིག",
+                        "ལྷག",
+                        "ཕུར",
+                        "སངས",
+                        "སྤེན",
+                    }
+                    wide{
+                        "གཟའ་ཉི་མ་",
+                        "གཟའ་ཟླ་བ་",
+                        "གཟའ་མིག་དམར་",
+                        "གཟའ་ལྷག་པ་",
+                        "གཟའ་ཕུར་བུ་",
+                        "གཟའ་པ་སངས་",
+                        "གཟའ་སྤེན་པ་",
                     }
                 }
             }
             eras{
                 abbreviated{
-                    "སྤྱི་ལོ་སྔོན།",
-                    "སྤྱི་ལོ།",
-                }
-            }
-            fields{
-                day{
-                    dn{"ཉིན།"}
-                    relative{
-                        "-1"{"ཁས་ས་"}
-                        "-2"{"ཁས་ཉིན་ཀ་"}
-                        "0"{"དེ་རིང་"}
-                        "1"{"སང་ཉིན་"}
-                        "2"{"གནངས་ཉིན་ཀ་"}
-                    }
-                }
-                hour{
-                    dn{"ཆུ་ཙོ་"}
-                }
-                minute{
-                    dn{"སྐར་མ།"}
-                }
-                month{
-                    dn{"ཟླ་བ་"}
-                }
-                second{
-                    dn{"སྐར་ཆ།"}
-                }
-                year{
-                    dn{"ལོ།"}
-                }
-                zone{
-                    dn{"དུས་ཚོད།"}
+                    "སྤྱི་ལོ་སྔོན་",
+                    "སྤྱི་ལོ་",
                 }
             }
             monthNames{
@@ -151,9 +174,25 @@ bo{
                         "ཟླ་༡༢",
                     }
                     wide{
+                        "ཟླ་བ་དང་པོ",
+                        "ཟླ་བ་གཉིས་པ",
+                        "ཟླ་བ་གསུམ་པ",
+                        "ཟླ་བ་བཞི་པ",
+                        "ཟླ་བ་ལྔ་པ",
+                        "ཟླ་བ་དྲུག་པ",
+                        "ཟླ་བ་བདུན་པ",
+                        "ཟླ་བ་བརྒྱད་པ",
+                        "ཟླ་བ་དགུ་པ",
+                        "ཟླ་བ་བཅུ་པ",
+                        "ཟླ་བ་བཅུ་གཅིག་པ",
+                        "ཟླ་བ་བཅུ་གཉིས་པ",
+                    }
+                }
+                stand-alone{
+                    wide{
                         "ཟླ་བ་དང་པོ་",
                         "ཟླ་བ་གཉིས་པ་",
-                        "ཟླ་བ་སུམ་པ་",
+                        "ཟླ་བ་གསུམ་པ་",
                         "ཟླ་བ་བཞི་པ་",
                         "ཟླ་བ་ལྔ་པ་",
                         "ཟླ་བ་དྲུག་པ་",
@@ -166,6 +205,66 @@ bo{
                     }
                 }
             }
+            quarters{
+                format{
+                    abbreviated{
+                        "དུས་ཚིགས་དང་པོ།",
+                        "དུས་ཚིགས་གཉིས་པ།",
+                        "དུས་ཚིགས་གསུམ་པ།",
+                        "དུས་ཚིགས་བཞི་པ།",
+                    }
+                    wide{
+                        "དུས་ཚིགས་དང་པོ།",
+                        "དུས་ཚིགས་གཉིས་པ།",
+                        "དུས་ཚིགས་གསུམ་པ།",
+                        "དུས་ཚིགས་བཞི་པ།",
+                    }
+                }
+                stand-alone{
+                    abbreviated{
+                        "དུས་ཚིགས་དང་པོ།",
+                        "དུས་ཚིགས་གཉིས་པ།",
+                        "དུས་ཚིགས་གསུམ་པ།",
+                        "དུས་ཚིགས་བཞི་པ།",
+                    }
+                    wide{
+                        "དུས་ཚིགས་དང་པོ།",
+                        "དུས་ཚིགས་གཉིས་པ།",
+                        "དུས་ཚིགས་གསུམ་པ།",
+                        "དུས་ཚིགས་བཞི་པ།",
+                    }
+                }
+            }
+        }
+    }
+    fields{
+        day{
+            dn{"ཉིན།"}
+            relative{
+                "-1"{"ཁས་ས་"}
+                "-2"{"ཁས་ཉིན་"}
+                "0"{"དེ་རིང་"}
+                "1"{"སང་ཉིན་"}
+                "2"{"གནངས་ཉིན་"}
+            }
+        }
+        hour{
+            dn{"ཆུ་ཚོད་"}
+        }
+        minute{
+            dn{"སྐར་མ།"}
+        }
+        month{
+            dn{"ཟླ་བ་"}
+        }
+        second{
+            dn{"སྐར་ཆ།"}
+        }
+        year{
+            dn{"ལོ།"}
+        }
+        zone{
+            dn{"དུས་ཚོད།"}
         }
     }
 }

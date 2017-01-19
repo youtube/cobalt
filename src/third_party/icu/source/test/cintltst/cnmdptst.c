@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT:
- * Copyright (c) 1997-2010, International Business Machines Corporation
+ * Copyright (c) 1997-2014, International Business Machines Corporation
  * and others. All Rights Reserved.
  ********************************************************************/
 /*******************************************************************************
@@ -196,7 +196,7 @@ static void TestExponential(void)
     char tempMsgBug[256];
     double a;
     UErrorCode status = U_ZERO_ERROR;
-#ifdef OS390
+#if U_PLATFORM == U_PF_OS390
     static const double val[] = { 0.01234, 123456789, 1.23e75, -3.141592653e-78 };
 #else
     static const double val[] = { 0.01234, 123456789, 1.23e300, -3.141592653e-271 };
@@ -220,7 +220,7 @@ static void TestExponential(void)
     };
     static const double valParse[] =
     {
-#ifdef OS390
+#if U_PLATFORM == U_PF_OS390
         0.01234, 123460000, 1.23E75, -3.1416E-78,
         0.01234, 123460000, 1.23E75, -3.1416E-78,
         0.01234, 123456800, 1.23E75, -3.141593E-78,
@@ -470,10 +470,10 @@ static void TestCurrencyPreEuro(void)
     };
 
     const char* result[]={
-        "2\\u00A0\\u20A7", "2\\u00A0F",            "IR\\u00A31.50",                      "1,50\\u00A0mk",   "2\\u00A0F",         "IT\\u20A4\\u00A02",
-        "1$50\\u00A0Esc.", "\\u00F6S\\u00A01,50",  "1,50\\u00A0\\u0394\\u03C1\\u03C7", "\\u20A7\\u00A02", "1,50\\u00A0FB",     "IR\\u00a31.50",
-        "1,50\\u00A0BF",   "1,50\\u00A0DM",        "1,50\\u00A0BF",                    "2\\u00A0\\u20A7", "1,50\\u00A0F",      "2\\u00A0\\u20A7",
-        "fl\\u00A01,50"
+        "\\u20A7\\u00A02", "2\\u00A0F",            "IEP1.50",                      "1,50\\u00A0mk",   "2\\u00A0F",         "ITL\\u00A02",
+        "1$50\\u00A0\\u200B", "\\u00F6S\\u00A01,50",  "1,50\\u00A0\\u0394\\u03C1\\u03C7", "2\\u00A0\\u20A7", "1,50\\u00A0FB",     "IEP1.50",
+        "1,50\\u00A0BEF",   "1,50\\u00A0DM",        "1,50\\u00A0BEF",                    "\\u20A7\\u00A02", "1,50\\u00A0F",      "2\\u00A0\\u20A7",
+        "NLG\\u00A01,50"
     };
 
     log_verbose("\nTesting the number format with different currency patterns\n");
@@ -544,7 +544,7 @@ static void TestCurrencyObject(void)
 
     const char* result[]={
         "1\\u00A0234,56\\u00A0\\u20AC",
-        "1\\u00A0235\\u00A0\\u00A5JP",
+        "1\\u00A0235\\u00A0JPY",
     };
 
     log_verbose("\nTesting the number format with different currency codes\n");
@@ -868,25 +868,25 @@ static void TestCurrencyKeywords(void)
 }
 
 static void TestGetKeywordValuesForLocale(void) {
-#define PREFERRED_SIZE 13
-#define MAX_NUMBER_OF_KEYWORDS 3
+#define PREFERRED_SIZE 12
+#define MAX_NUMBER_OF_KEYWORDS 4
     const char *PREFERRED[PREFERRED_SIZE][MAX_NUMBER_OF_KEYWORDS] = {
-            { "root",               "USD", NULL },
-            { "und",                "USD", NULL },
-            { "und_ZZ",             "USD", NULL },
-            { "en_US",              "USD", NULL },
-            { "en_029",             "USD", NULL },
-            { "en_TH",              "THB", NULL },
-            { "de",                 "EUR", NULL },
-            { "de_DE",              "EUR", NULL },
-            { "ar",                 "EGP", NULL },
-            { "ar_PS",              "JOD", "ILS" },
-            { "en@currency=CAD",    "USD", NULL },
-            { "fr@currency=zzz",    "EUR", NULL },
-            { "de_DE@currency=DEM", "EUR", NULL },
+            { "root",               "USD", "USN", NULL },
+            { "und",                "USD", "USN", NULL },
+ /*           { "und_ZZ",             "USD", NULL, NULL },  -- temporarily remove as this locale now has 15 entries */
+            { "en_US",              "USD", "USN", NULL },
+            { "en_029",             "USD", "USN", NULL },
+            { "en_TH",              "THB", NULL, NULL },
+            { "de",                 "EUR", NULL, NULL },
+            { "de_DE",              "EUR", NULL, NULL },
+            { "ar",                 "EGP", NULL, NULL },
+            { "ar_PS",              "ILS", "JOD", NULL },
+            { "en@currency=CAD",    "USD", "USN", NULL },
+            { "fr@currency=zzz",    "EUR", NULL, NULL },
+            { "de_DE@currency=DEM", "EUR", NULL, NULL },
     };
     const int32_t EXPECTED_SIZE[PREFERRED_SIZE] = {
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1
+            2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1
     };
     UErrorCode status = U_ZERO_ERROR;
     int32_t i, j, size;

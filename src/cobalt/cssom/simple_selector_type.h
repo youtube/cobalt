@@ -27,6 +27,7 @@ namespace cssom {
 enum SimpleSelectorType {
   kUniversalSelector,
   kTypeSelector,
+  kAttributeSelector,
   kClassSelector,
   kIdSelector,
   kPseudoClass,

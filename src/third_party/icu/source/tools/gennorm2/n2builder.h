@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2009-2010, International Business Machines
+*   Copyright (C) 2009-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -64,6 +64,7 @@ public:
     void setUnicodeVersion(const char *v);
 
     void writeBinaryFile(const char *filename);
+    void writeCSourceFile(const char *filename);
 
 private:
     friend class CompositionBuilder;
@@ -90,7 +91,7 @@ private:
     void reorder(Norm *p, BuilderReorderingBuffer &buffer);
     UBool hasNoCompBoundaryAfter(BuilderReorderingBuffer &buffer);
     void setHangulData();
-    void writeMapping(UChar32 c, const Norm *p, UnicodeString &dataString);
+    int32_t writeMapping(UChar32 c, const Norm *p, UnicodeString &dataString);
     void writeCompositions(UChar32 c, const Norm *p, UnicodeString &dataString);
     void writeExtraData(UChar32 c, uint32_t value, ExtraDataWriter &writer);
     int32_t getCenterNoNoDelta() {
@@ -110,7 +111,9 @@ private:
 
     int32_t indexes[Normalizer2Impl::IX_COUNT];
     UTrie2 *norm16Trie;
+    int32_t norm16TrieLength;
     UnicodeString extraData;
+    uint8_t smallFCD[0x100];
 
     UVersionInfo unicodeVersion;
 };

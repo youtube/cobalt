@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1999-2010, International Business Machines
+*   Copyright (C) 1999-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -41,8 +41,6 @@
 static const int32_t kItemsChunk = 256; /* How much to increase the filesarray by each time */
 
 // general definitions ----------------------------------------------------- ***
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 
 /* UDataInfo cf. udata.h */
 static const UDataInfo dataInfo={
@@ -306,7 +304,6 @@ static uint8_t *
 readFile(const char *path, const char *name, int32_t &length, char &type) {
     char filename[1024];
     FILE *file;
-    uint8_t *data;
     UErrorCode errorCode;
     int32_t fileLength, typeEnum;
 
@@ -329,33 +326,32 @@ readFile(const char *path, const char *name, int32_t &length, char &type) {
 
     /* allocate the buffer, pad to multiple of 16 */
     length=(fileLength+0xf)&~0xf;
-    data=(uint8_t *)malloc(length);
-    if(data==NULL) {
+    icu::LocalMemory<uint8_t> data((uint8_t *)uprv_malloc(length));
+    if(data.isNull()) {
         fclose(file);
+        fprintf(stderr, "icupkg: malloc error allocating %d bytes.\n", (int)length);
         exit(U_MEMORY_ALLOCATION_ERROR);
     }
 
     /* read the file */
-    if(fileLength!=(int32_t)fread(data, 1, fileLength, file)) {
+    if(fileLength!=(int32_t)fread(data.getAlias(), 1, fileLength, file)) {
         fprintf(stderr, "icupkg: error reading \"%s\"\n", filename);
         fclose(file);
-        free(data);
         exit(U_FILE_ACCESS_ERROR);
     }
 
     /* pad the file to a multiple of 16 using the usual padding byte */
     if(fileLength<length) {
-        memset(data+fileLength, 0xaa, length-fileLength);
+        memset(data.getAlias()+fileLength, 0xaa, length-fileLength);
     }
 
     fclose(file);
 
     // minimum check for ICU-format data
     errorCode=U_ZERO_ERROR;
-    typeEnum=getTypeEnumForInputData(data, length, &errorCode);
+    typeEnum=getTypeEnumForInputData(data.getAlias(), length, &errorCode);
     if(typeEnum<0 || U_FAILURE(errorCode)) {
         fprintf(stderr, "icupkg: not an ICU data file: \"%s\"\n", filename);
-        free(data);
 #if !UCONFIG_NO_LEGACY_CONVERSION
         exit(U_INVALID_FORMAT_ERROR);
 #else
@@ -365,7 +361,7 @@ readFile(const char *path, const char *name, int32_t &length, char &type) {
     }
     type=makeTypeLetter(typeEnum);
 
-    return data;
+    return data.orphan();
 }
 
 // .dat package file representation ---------------------------------------- ***
@@ -383,8 +379,10 @@ U_CDECL_END
 
 U_NAMESPACE_BEGIN
 
-Package::Package() {
+Package::Package() 
+        : doAutoPrefix(FALSE), prefixEndsWithType(FALSE) {
     inPkgName[0]=0;
+    pkgPrefix[0]=0;
     inData=NULL;
     inLength=0;
     inCharset=U_CHARSET_FAMILY;
@@ -420,15 +418,24 @@ Package::Package() {
 Package::~Package() {
     int32_t idx;
 
-    free(inData);
+    uprv_free(inData);
 
     for(idx=0; idx<itemCount; ++idx) {
         if(items[idx].isDataOwned) {
-            free(items[idx].data);
+            uprv_free(items[idx].data);
         }
     }
 
     uprv_free((void*)items);
+}
+
+void
+Package::setPrefix(const char *p) {
+    if(strlen(p)>=sizeof(pkgPrefix)) {
+        fprintf(stderr, "icupkg: --toc_prefix %s too long\n", p);
+        exit(U_ILLEGAL_ARGUMENT_ERROR);
+    }
+    strcpy(pkgPrefix, p);
 }
 
 void
@@ -522,10 +529,14 @@ Package::readPackage(const char *filename) {
     }
     /* do not modify the package length variable until the last item's length is set */
 
-    if(itemCount>0) {
+    if(itemCount<=0) {
+        if(doAutoPrefix) {
+            fprintf(stderr, "icupkg: --auto_toc_prefix[_with_type] but the input package is empty\n");
+            exit(U_INVALID_FORMAT_ERROR);
+        }
+    } else {
         char prefix[MAX_PKG_NAME_LENGTH+4];
         char *s, *inItemStrings;
-        int32_t inPkgNameLength, prefixLength, stringsOffset;
 
         if(itemCount>itemMax) {
             fprintf(stderr, "icupkg: too many items, maximum is %d\n", itemMax);
@@ -533,7 +544,7 @@ Package::readPackage(const char *filename) {
         }
 
         /* swap the item name strings */
-        stringsOffset=4+8*itemCount;
+        int32_t stringsOffset=4+8*itemCount;
         itemLength=(int32_t)(ds->readUInt32(inEntries[0].dataOffset))-stringsOffset;
 
         // don't include padding bytes at the end of the item names
@@ -557,10 +568,6 @@ Package::readPackage(const char *filename) {
         // reset the Item entries
         memset(items, 0, itemCount*sizeof(Item));
 
-        inPkgNameLength=strlen(inPkgName);
-        memcpy(prefix, inPkgName, inPkgNameLength);
-        prefixLength=inPkgNameLength;
-
         /*
          * Get the common prefix of the items.
          * New-style ICU .dat packages use tree separators ('/') between package names,
@@ -569,18 +576,54 @@ Package::readPackage(const char *filename) {
          * use an underscore ('_') between package and item names.
          */
         offset=(int32_t)ds->readUInt32(inEntries[0].nameOffset)-stringsOffset;
-        s=inItemStrings+offset;
-        if( (int32_t)strlen(s)>=(inPkgNameLength+2) &&
-            0==memcmp(s, inPkgName, inPkgNameLength) &&
-            s[inPkgNameLength]=='_'
-        ) {
-            // old-style .dat package
-            prefix[prefixLength++]='_';
+        s=inItemStrings+offset;  // name of the first entry
+        int32_t prefixLength;
+        if(doAutoPrefix) {
+            // Use the first entry's prefix. Must be a new-style package.
+            const char *prefixLimit=strchr(s, U_TREE_ENTRY_SEP_CHAR);
+            if(prefixLimit==NULL) {
+                fprintf(stderr,
+                        "icupkg: --auto_toc_prefix[_with_type] but "
+                        "the first entry \"%s\" does not contain a '%c'\n",
+                        s, U_TREE_ENTRY_SEP_CHAR);
+                exit(U_INVALID_FORMAT_ERROR);
+            }
+            prefixLength=(int32_t)(prefixLimit-s);
+            if(prefixLength==0 || prefixLength>=UPRV_LENGTHOF(pkgPrefix)) {
+                fprintf(stderr,
+                        "icupkg: --auto_toc_prefix[_with_type] but "
+                        "the prefix of the first entry \"%s\" is empty or too long\n",
+                        s);
+                exit(U_INVALID_FORMAT_ERROR);
+            }
+            if(prefixEndsWithType && s[prefixLength-1]!=type) {
+                fprintf(stderr,
+                        "icupkg: --auto_toc_prefix_with_type but "
+                        "the prefix of the first entry \"%s\" does not end with '%c'\n",
+                        s, type);
+                exit(U_INVALID_FORMAT_ERROR);
+            }
+            memcpy(pkgPrefix, s, prefixLength);
+            pkgPrefix[prefixLength]=0;
+            memcpy(prefix, s, ++prefixLength);  // include the /
         } else {
-            // new-style .dat package
-            prefix[prefixLength++]=U_TREE_ENTRY_SEP_CHAR;
-            // if it turns out to not contain U_TREE_ENTRY_SEP_CHAR
-            // then the test in the loop below will fail
+            // Use the package basename as prefix.
+            int32_t inPkgNameLength=strlen(inPkgName);
+            memcpy(prefix, inPkgName, inPkgNameLength);
+            prefixLength=inPkgNameLength;
+
+            if( (int32_t)strlen(s)>=(inPkgNameLength+2) &&
+                0==memcmp(s, inPkgName, inPkgNameLength) &&
+                s[inPkgNameLength]=='_'
+            ) {
+                // old-style .dat package
+                prefix[prefixLength++]='_';
+            } else {
+                // new-style .dat package
+                prefix[prefixLength++]=U_TREE_ENTRY_SEP_CHAR;
+                // if it turns out to not contain U_TREE_ENTRY_SEP_CHAR
+                // then the test in the loop below will fail
+            }
         }
         prefix[prefixLength]=0;
 
@@ -593,7 +636,7 @@ Package::readPackage(const char *filename) {
             if(0!=strncmp(s, prefix, prefixLength) || s[prefixLength]==0) {
                 fprintf(stderr, "icupkg: input .dat item name \"%s\" does not start with \"%s\"\n",
                         s, prefix);
-                exit(U_UNSUPPORTED_ERROR);
+                exit(U_INVALID_FORMAT_ERROR);
             }
             items[i].name=s+prefixLength;
 
@@ -723,8 +766,17 @@ Package::writePackage(const char *filename, char outType, const char *comment) {
 
     // prepare and swap the package name with a tree separator
     // for prepending to item names
-    strcat(prefix, U_TREE_ENTRY_SEP_STRING);
-    prefixLength=(int32_t)strlen(prefix);
+    if(pkgPrefix[0]==0) {
+        prefixLength=(int32_t)strlen(prefix);
+    } else {
+        prefixLength=(int32_t)strlen(pkgPrefix);
+        memcpy(prefix, pkgPrefix, prefixLength);
+        if(prefixEndsWithType) {
+            prefix[prefixLength-1]=outType;
+        }
+    }
+    prefix[prefixLength++]=U_TREE_ENTRY_SEP_CHAR;
+    prefix[prefixLength]=0;
     if(dsLocalToOut!=NULL) {
         dsLocalToOut->swapInvChars(dsLocalToOut, prefix, prefixLength, prefix, &errorCode);
         if(U_FAILURE(errorCode)) {
@@ -995,7 +1047,7 @@ Package::addItem(const char *name, uint8_t *data, int32_t length, UBool isDataOw
     } else {
         // same-name item found, replace it
         if(items[idx].isDataOwned) {
-            free(items[idx].data);
+            uprv_free(items[idx].data);
         }
 
         // keep the item's name since it is the same
@@ -1034,7 +1086,7 @@ Package::removeItem(int32_t idx) {
     if(idx>=0) {
         // remove the item
         if(items[idx].isDataOwned) {
-            free(items[idx].data);
+            uprv_free(items[idx].data);
         }
 
         // move the following items up
@@ -1235,7 +1287,8 @@ void Package::setItemCapacity(int32_t max)
   Item *newItems = (Item*)uprv_malloc(max * sizeof(items[0]));
   Item *oldItems = items;
   if(newItems == NULL) {
-    fprintf(stderr, "icupkg: Out of memory trying to allocate %ld bytes for %d items\n", max*sizeof(items[0]), max);
+    fprintf(stderr, "icupkg: Out of memory trying to allocate %lu bytes for %d items\n", 
+        (unsigned long)max*sizeof(items[0]), max);
     exit(U_MEMORY_ALLOCATION_ERROR);
   }
   if(items && itemCount>0) {

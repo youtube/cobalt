@@ -1,6 +1,6 @@
 #******************************************************************************
 #
-#   Copyright (C) 1999-2010, International Business Machines
+#   Copyright (C) 1999-2014, International Business Machines
 #   Corporation and others.  All Rights Reserved.
 #
 #******************************************************************************
@@ -32,10 +32,8 @@ BUILDDIR := $(BUILDDIR:test\\iotest/../../=)
 # Simplify the path for Windows 98
 BUILDDIR := $(BUILDDIR:TEST\\IOTEST/../../=)
 
-ifneq ($(top_builddir),$(top_srcdir))
-CPPFLAGS += -I$(top_builddir)/common
-endif
 CPPFLAGS += -I$(top_srcdir)/common -I$(top_srcdir)/i18n -I$(top_srcdir)/tools/ctestfw -I$(top_srcdir)/io
+CPPFLAGS += -DUNISTR_FROM_CHAR_EXPLICIT= -DUNISTR_FROM_STRING_EXPLICIT=
 DEFS += -D'U_TOPSRCDIR="$(top_srcdir)/"' -D'U_TOPBUILDDIR="$(BUILDDIR)"'
 LIBS = $(LIBCTESTFW) $(LIBICUTOOLUTIL) $(LIBICUIO) $(LIBICUI18N) $(LIBICUUC) $(DEFAULT_LIBS) $(LIB_M)
 
@@ -47,7 +45,8 @@ DEPS = $(OBJECTS:.o=.d)
 
 ## List of phony targets
 .PHONY : all all-local install install-local clean clean-local	\
-distclean distclean-local dist dist-local check check-local xcheck
+distclean distclean-local dist dist-local check check-local xcheck	\
+check-exhaustive check-exhaustive-local
 
 ## Clear suffix list
 .SUFFIXES :
@@ -60,6 +59,7 @@ distclean : distclean-local
 dist: dist-local
 check: all check-local
 xcheck: all xcheck-local
+check-exhaustive: all check-exhaustive-local
 
 all-local: $(TARGET)
 
@@ -75,11 +75,14 @@ distclean-local: clean-local
 	$(RMV) Makefile
 
 check-local: all-local
-	$(INVOKE) ./$(TARGET) $(IOTEST_OPTS) 
+	$(INVOKE) ./$(TARGET) $(TEST_OUTPUT_OPTS) $(IOTEST_OPTS)
+
+check-exhaustive-local: all-local
+	$(INVOKE) ./$(TARGET) $(TEST_OUTPUT_OPTS) -e
 
 TESTXML=$(top_builddir)/test-$(TARGET).xml
 xcheck-local: all-local
-	$(INVOKE) ./$(TARGET) $(IOTEST_OPTS) -x $(TESTXML)
+	$(INVOKE) ./$(TARGET) $(TEST_OUTPUT_OPTS) $(IOTEST_OPTS) -x $(TESTXML)
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \

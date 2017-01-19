@@ -103,7 +103,7 @@ class Document : public Node, public cssom::MutationObserver {
             const std::string& location_policy,
             CspEnforcementType csp_enforcement_mode,
             const base::Closure& csp_policy_changed_callback,
-            int csp_insecure_allowed_token = 0)
+            int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0)
         : url(url_value),
           window(window),
           hashchange_callback(hashchange_callback),
@@ -116,7 +116,8 @@ class Document : public Node, public cssom::MutationObserver {
           location_policy(location_policy),
           csp_enforcement_mode(csp_enforcement_mode),
           csp_policy_changed_callback(csp_policy_changed_callback),
-          csp_insecure_allowed_token(csp_insecure_allowed_token) {}
+          csp_insecure_allowed_token(csp_insecure_allowed_token),
+          dom_max_element_depth(dom_max_element_depth) {}
 
     GURL url;
     Window* window;
@@ -131,6 +132,7 @@ class Document : public Node, public cssom::MutationObserver {
     CspEnforcementType csp_enforcement_mode;
     base::Closure csp_policy_changed_callback;
     int csp_insecure_allowed_token;
+    int dom_max_element_depth;
   };
 
   Document(HTMLElementContext* html_element_context,
@@ -314,6 +316,8 @@ class Document : public Node, public cssom::MutationObserver {
     return initial_computed_style_data_;
   }
 
+  int dom_max_element_depth() const { return dom_max_element_depth_; }
+
   void NotifyUrlChanged(const GURL& url);
 
   // Updates the selector tree using all the style sheets in the document.
@@ -322,6 +326,9 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Invalidates the document's cached layout tree and associated data.
   void InvalidateLayout();
+
+  // Disable just-in-time compilation of JavaScript code.
+  void DisableJit();
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
@@ -402,6 +409,9 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       initial_computed_style_declaration_;
   scoped_refptr<cssom::CSSComputedStyleData> initial_computed_style_data_;
+
+  // The max depth of elements that are guaranteed to be rendered.
+  int dom_max_element_depth_;
 };
 
 }  // namespace dom

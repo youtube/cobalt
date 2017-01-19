@@ -17,6 +17,7 @@
 #include "cobalt/browser/splash_screen.h"
 
 #include "base/bind.h"
+#include "base/threading/platform_thread.h"
 
 namespace cobalt {
 namespace browser {
@@ -36,6 +37,14 @@ SplashScreen::SplashScreen(
   WebModule::Options web_module_options;
   web_module_options.name = "SplashScreenWebModule";
 
+  // We want the splash screen to load and appear as quickly as possible, so
+  // we set it and its image decoding thread to be high priority.
+  web_module_options.thread_priority = base::kThreadPriority_High;
+  web_module_options.software_decoder_thread_priority =
+      base::kThreadPriority_High;
+  web_module_options.hardware_decoder_thread_priority =
+      base::kThreadPriority_High;
+
   web_module_.reset(new WebModule(
       options.url,
       base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
@@ -43,6 +52,12 @@ SplashScreen::SplashScreen(
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
       &stub_media_module_, network_module, window_dimensions, resource_provider,
       layout_refresh_rate, web_module_options));
+}
+
+SplashScreen::~SplashScreen() {
+  // Destroy the web module first to prevent our callbacks from being called
+  // (from another thread) while member objects are being destroyed.
+  web_module_.reset();
 }
 
 void SplashScreen::Suspend() { web_module_->Suspend(); }

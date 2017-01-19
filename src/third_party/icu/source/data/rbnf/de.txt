@@ -1,13 +1,13 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/rbnf/de.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/rbnf/de.xml
 // *
 // ***************************************************************************
 /**
- *  ICU <specials> source: <path>/xml/rbnf/de.xml
+ * ICU <specials> source: <path>/xml/rbnf/de.xml
  */
 de{
     RBNFRules{
@@ -59,7 +59,7 @@ de{
             "1000000000000000: eine Billiarde[ >>];",
             "2000000000000000: <%spellout-cardinal-feminine< Billiarden[ >>];",
             "1000000000000000000: =#,##0=;",
-            "%spellout-cardinal-neutre:",
+            "%spellout-cardinal-neuter:",
             "0: =%spellout-cardinal-masculine=;",
             "%spellout-cardinal-masculine:",
             "-x: minus >>;",
@@ -83,6 +83,57 @@ de{
             "x.x: << Komma >>;",
             "0: null;",
             "1: eine;",
+            "2: =%spellout-numbering=;",
+            "100: <%spellout-cardinal-masculine<\u00ADhundert[\u00AD>>];",
+            "1000: <%spellout-cardinal-masculine<\u00ADtausend[\u00AD>>];",
+            "1000000: eine Million[ >>];",
+            "2000000: <%spellout-cardinal-feminine< Millionen[ >>];",
+            "1000000000: eine Milliarde[ >>];",
+            "2000000000: <%spellout-cardinal-feminine< Milliarden[ >>];",
+            "1000000000000: eine Billion[ >>];",
+            "2000000000000: <%spellout-cardinal-feminine< Billionen[ >>];",
+            "1000000000000000: eine Billiarde[ >>];",
+            "2000000000000000: <%spellout-cardinal-feminine< Billiarden[ >>];",
+            "1000000000000000000: =#,##0=;",
+            "%spellout-cardinal-n:",
+            "-x: minus >>;",
+            "x.x: << Komma >>;",
+            "0: null;",
+            "1: einen;",
+            "2: =%spellout-numbering=;",
+            "100: <%spellout-cardinal-masculine<\u00ADhundert[\u00AD>>];",
+            "1000: <%spellout-cardinal-masculine<\u00ADtausend[\u00AD>>];",
+            "1000000: eine Million[ >>];",
+            "2000000: <%spellout-cardinal-feminine< Millionen[ >>];",
+            "1000000000: eine Milliarde[ >>];",
+            "2000000000: <%spellout-cardinal-feminine< Milliarden[ >>];",
+            "1000000000000: eine Billion[ >>];",
+            "2000000000000: <%spellout-cardinal-feminine< Billionen[ >>];",
+            "1000000000000000: eine Billiarde[ >>];",
+            "2000000000000000: <%spellout-cardinal-feminine< Billiarden[ >>];",
+            "1000000000000000000: =#,##0=;",
+            "%spellout-cardinal-r:",
+            "-x: minus >>;",
+            "x.x: << Komma >>;",
+            "0: null;",
+            "1: einer;",
+            "2: =%spellout-numbering=;",
+            "100: <%spellout-cardinal-masculine<\u00ADhundert[\u00AD>>];",
+            "1000: <%spellout-cardinal-masculine<\u00ADtausend[\u00AD>>];",
+            "1000000: eine Million[ >>];",
+            "2000000: <%spellout-cardinal-feminine< Millionen[ >>];",
+            "1000000000: eine Milliarde[ >>];",
+            "2000000000: <%spellout-cardinal-feminine< Milliarden[ >>];",
+            "1000000000000: eine Billion[ >>];",
+            "2000000000000: <%spellout-cardinal-feminine< Billionen[ >>];",
+            "1000000000000000: eine Billiarde[ >>];",
+            "2000000000000000: <%spellout-cardinal-feminine< Billiarden[ >>];",
+            "1000000000000000000: =#,##0=;",
+            "%spellout-cardinal-s:",
+            "-x: minus >>;",
+            "x.x: << Komma >>;",
+            "0: null;",
+            "1: eines;",
             "2: =%spellout-numbering=;",
             "100: <%spellout-cardinal-masculine<\u00ADhundert[\u00AD>>];",
             "1000: <%spellout-cardinal-masculine<\u00ADtausend[\u00AD>>];",
@@ -126,7 +177,19 @@ de{
             "1000000000000000: eine Billiarde>%%ste2>;",
             "2000000000000000: <%spellout-cardinal-feminine< Billiarden>%%ste2>;",
             "1000000000000000000: =#,##0=.;",
+            "%spellout-ordinal-n:",
+            "-x: minus >>;",
+            "x.x: =#,##0.#=;",
+            "0: =%spellout-ordinal=n;",
+            "%spellout-ordinal-r:",
+            "-x: minus >>;",
+            "x.x: =#,##0.#=;",
+            "0: =%spellout-ordinal=r;",
+            "%spellout-ordinal-s:",
+            "-x: minus >>;",
+            "x.x: =#,##0.#=;",
+            "0: =%spellout-ordinal=s;",
         }
     }
-    Version{"2.0.48.39"}
+    Version{"2.1.19.14"}
 }

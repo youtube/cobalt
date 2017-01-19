@@ -422,6 +422,17 @@ TEST(URLCanonTest, Host) {
       // ...%00 in fullwidth should fail (also as escaped UTF-8 input)
     {"\xef\xbc\x85\xef\xbc\x90\xef\xbc\x90.com", L"\xff05\xff10\xff10.com", "%00.com", url_parse::Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
     {"%ef%bc%85%ef%bc%90%ef%bc%90.com", L"%ef%bc%85%ef%bc%90%ef%bc%90.com", "%00.com", url_parse::Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
+      // ICU will convert weird percents into ASCII percents, but not unescape
+      // further. A weird percent is U+FE6A (EF B9 AA in UTF-8) which is a
+      // "small percent". At this point we should be within our rights to mark
+      // anything as invalid since the URL is corrupt or malicious. The code
+      // happens to allow ASCII characters (%41 = "A" -> 'a') to be unescaped
+      // and kept as valid, so we validate that behavior here, but this level
+      // of fixing the input shouldn't be seen as required. "%81" is invalid.
+    {"\xef\xb9\xaa" "41.com", L"\xfe6a" L"41.com", "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
+    {"%ef%b9%aa" "41.com", L"\xfe6a" L"41.com", "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
+    {"\xef\xb9\xaa" "81.com", L"\xfe6a" L"81.com", "%81.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
+    {"%ef%b9%aa" "81.com", L"\xfe6a" L"81.com", "%81.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
       // Basic IDN support, UTF-8 and UTF-16 input should be converted to IDN
     {"\xe4\xbd\xa0\xe5\xa5\xbd\xe4\xbd\xa0\xe5\xa5\xbd", L"\x4f60\x597d\x4f60\x597d", "xn--6qqa088eba", url_parse::Component(0, 14), CanonHostInfo::NEUTRAL, -1, ""},
       // Mixed UTF-8 and escaped UTF-8 (narrow case) and UTF-16 and escaped
@@ -1302,6 +1313,13 @@ TEST(URLCanonTest, CanonicalizeStandardURL) {
     {"wss://foo:81/", "wss://foo:81/", true},
     {"wss://foo:443/", "wss://foo/", true},
     {"wss://foo:815/", "wss://foo:815/", true},
+
+      // This particular code path ends up "backing up" to replace an invalid
+      // host ICU generated with an escaped version. Test that in the context
+      // of a full URL to make sure the backing up doesn't mess up the non-host
+      // parts of the URL. "EF B9 AA" is U+FE6A which is a type of percent that
+      // ICU will convert to an ASCII one, generating "%81".
+    {"ws:)W\x1eW\xef\xb9\xaa""81:80/", "ws://%29w%1ew%81/", false},
   };
 
   for (size_t i = 0; i < ARRAYSIZE(cases); i++) {

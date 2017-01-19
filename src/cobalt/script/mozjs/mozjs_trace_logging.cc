@@ -93,7 +93,7 @@ void TraceLogging::releaseDefaultLogger() {
 void TraceLogging::log(Type type, const char* filename, unsigned int line) {
   // Unfortunately, we don't have access to the enum, so can't declare a
   // "count"-type enum. Instead, INFO is assumed to be the last enumeration.
-  COMPILE_ASSERT(ARRAYSIZE_UNSAFE(type_name)-1 == Type::INFO, array_mismatch);
+  COMPILE_ASSERT(ARRAYSIZE_UNSAFE(type_name) - 1 == INFO, array_mismatch);
 
   switch (type) {
     // "Start" types

@@ -1,15 +1,15 @@
 #
-# Copyright (C) 2002-2010, International Business Machines Corporation 
+# Copyright (C) 2002-2013, International Business Machines Corporation 
 # and others. All Rights Reserved.
 #
 # file:  word.txt
 #
 # ICU Word Break Rules
 #      See Unicode Standard Annex #29.
-#      These rules are based on UAX-29 Revision 16 for Unicode 6.0
+#      These rules are based on UAX #29 Revision 22 for Unicode Version 6.3
 #
 # Note:  Updates to word.txt will usually need to be merged into
-#        word_POSIX.txt and word_ja.txt also.
+#        word_POSIX.txt also.
 
 ##############################################################################
 #
@@ -24,15 +24,17 @@
 #  Character Class Definitions.
 #
 
-$CR           = [\p{Word_Break = CR}];
-$LF           = [\p{Word_Break = LF}];
-$Newline      = [\p{Word_Break = Newline}];
-$Extend       = [\p{Word_Break = Extend}];
-$Format       = [\p{Word_Break = Format}];
-$Hiragana     = [:Hiragana:];
-$Katakana     = [\p{Word_Break = Katakana}];
-$Han          = [:Han:];
-$ALetter      = [\p{Word_Break = ALetter}];
+$CR                 = [\p{Word_Break = CR}];
+$LF                 = [\p{Word_Break = LF}];
+$Newline            = [\p{Word_Break = Newline}];
+$Extend             = [\p{Word_Break = Extend}];
+$Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
+$Format             = [\p{Word_Break = Format}];
+$Katakana           = [\p{Word_Break = Katakana}];
+$Hebrew_Letter      = [\p{Word_Break = Hebrew_Letter}];
+$ALetter            = [\p{Word_Break = ALetter}];
+$Single_Quote       = [\p{Word_Break = Single_Quote}];
+$Double_Quote       = [\p{Word_Break = Double_Quote}];
 # Remove two full stop characters from $MidNumLet and add them to $MidNum
 # to break a hostname into its components at the cost of breaking
 # 'e.g.' and 'i.e.' as well.
@@ -40,20 +42,18 @@ $ALetter      = [\p{Word_Break = ALetter}];
 # Because it's OR'd with $MidNum in rules 11/12, rules 11/12 are not affected
 # while rules 6/7 are reverted to the old behavior we want.
 $MidNumLet    = [[\p{Word_Break = MidNumLet}] - [\u002E \uFF0E]];
-$MidLetter    = [\p{Word_Break = MidLetter}];
+$MidLetter          = [\p{Word_Break = MidLetter}];
 $MidNum       = [\p{Word_Break = MidNum}[\u002E \uFF0E]];
 $Numeric      = [\p{Word_Break = Numeric}[\uff10-\uff19]]; #includes fullwidth digits
-$ExtendNumLet = [\p{Word_Break = ExtendNumLet}];
+$ExtendNumLet       = [\p{Word_Break = ExtendNumLet}];
 
-# Extra sets not to break 'HebrewLetter U+0022 HebrewLetter'.
-$HebrewLet    = [\p{Word_Break = ALetter} & \p{Script = Hebrew} - [\u05F3]];
-# U+05F3 is ALetter and U+05F4 is MidLetter so that they're covered by
-# the current rule 6/7.
-$HebrewMidLet = [\u0022];
+$Han                = [:Han:];
+$Hiragana           = [:Hiragana:];
+
 
 #   Dictionary character set, for triggering language-based break engines. Currently
-#   limited to LineBreak=Complex_Context and CJK. Note that this set only works
-#   in Unicode 5.0 or later as the definition of Complex_Context was corrected to include all
+#   limited to LineBreak=Complex_Context. Note that this set only works in Unicode
+#   5.0 or later as the definition of Complex_Context was corrected to include all
 #   characters requiring dictionary break.
 
 $Control        = [\p{Grapheme_Cluster_Break = Control}]; 
@@ -71,15 +71,18 @@ $ALetterPlus  = [$ALetter-$dictionaryCJK [$ComplexContext-$Extend-$Control]];
 #  Rules 4    Ignore Format and Extend characters, 
 #             except when they appear at the beginning of a region of text.
 #
-# TODO: check if handling of katakana in dictionary makes rules incorrect/void.
-$KatakanaEx     = $Katakana     ($Extend |  $Format)*;
-$ALetterEx      = $ALetterPlus  ($Extend |  $Format)*;
-$MidNumLetEx    = $MidNumLet    ($Extend |  $Format)*;
-$MidLetterEx    = $MidLetter    ($Extend |  $Format)*;
-$MidNumEx       = $MidNum       ($Extend |  $Format)*;
-$NumericEx      = $Numeric      ($Extend |  $Format)*;
-$ExtendNumLetEx = $ExtendNumLet ($Extend |  $Format)*;
-$HebrewLetEx    = $HebrewLet    ($Extend |  $Format)*;
+# TODO: check if handling of katakana in dictionary makes rules incorrect/void
+$KatakanaEx           = $Katakana           ($Extend |  $Format)*;
+$Hebrew_LetterEx      = $Hebrew_Letter      ($Extend |  $Format)*;
+$ALetterEx            = $ALetterPlus        ($Extend |  $Format)*;
+$Single_QuoteEx       = $Single_Quote       ($Extend |  $Format)*;
+$Double_QuoteEx       = $Double_Quote       ($Extend |  $Format)*;
+$MidNumLetEx          = $MidNumLet          ($Extend |  $Format)*;
+$MidLetterEx          = $MidLetter          ($Extend |  $Format)*;
+$MidNumEx             = $MidNum             ($Extend |  $Format)*;
+$NumericEx            = $Numeric            ($Extend |  $Format)*;
+$ExtendNumLetEx       = $ExtendNumLet       ($Extend |  $Format)*;
+$Regional_IndicatorEx = $Regional_Indicator ($Extend |  $Format)*;
 
 $Ideographic    = [\p{Ideographic}];
 $HiraganaEx     = $Hiragana     ($Extend |  $Format)*;
@@ -98,28 +101,31 @@ $CR $LF;
 #          of a region of Text.   The rule here comes into play when the start of text
 #          begins with a group of Format chars, or with a "word" consisting of a single
 #          char that is not in any of the listed word break categories followed by
-#          format char(s).
- #          format char(s), or is not a CJK dictionary character.
-[^$CR $LF $Newline $dictionaryCJK]? ($Extend |  $Format)+;
+#          format char(s), or is not a CJK dictionary character.
+[^$CR $LF $Newline]? ($Extend |  $Format)+;
 
 $NumericEx {100};
 $ALetterEx {200};
 $HangulSyllable {200};
-$KatakanaEx {400}; #originally 300
-$HiraganaEx {400}; #originally 300
+$Hebrew_LetterEx{200};
+$KatakanaEx {400};       # note:  these status values override those from rule 5
+$HiraganaEx {400};       #        by virtue of being numerically larger.
 $IdeographicEx {400};    #
 
 #
 # rule 5
 #    Do not break between most letters.
 #
-$ALetterEx $ALetterEx {200};
+($ALetterEx | $Hebrew_LetterEx)  ($ALetterEx | $Hebrew_LetterEx) {200};
 
 # rule 6 and 7
-$ALetterEx ($MidLetterEx | $MidNumLetEx) $ALetterEx {200};
+($ALetterEx | $Hebrew_LetterEx) ($MidLetterEx | $MidNumLetEx | $Single_QuoteEx) ($ALetterEx | $Hebrew_LetterEx) {200};
 
-# Chrome addition
-$HebrewLetEx $HebrewMidLet $HebrewLetEx {200};
+# rule 7a
+$Hebrew_LetterEx $Single_QuoteEx {200};
+
+# rule 7b and 7c
+$Hebrew_LetterEx $Double_QuoteEx $Hebrew_LetterEx {200};
 
 # rule 8
 
@@ -127,70 +133,80 @@ $NumericEx $NumericEx {100};
 
 # rule 9
 
-$ALetterEx $NumericEx {200};
+($ALetterEx | $Hebrew_LetterEx) $NumericEx {200};
 
 # rule 10
 
-$NumericEx $ALetterEx {200};
+$NumericEx ($ALetterEx | $Hebrew_LetterEx) {200};
 
 # rule 11 and 12 
 
-$NumericEx ($MidNumEx | $MidNumLetEx) $NumericEx {100};
+$NumericEx ($MidNumEx | $MidNumLetEx | $Single_QuoteEx) $NumericEx {100};
 
 # rule 13
-
-# To be consistent with '$KanaKanji $KanaKanji', changed 
+# to be consistent with $KanaKanji $KanaKanhi, changed
 # from 300 to 400.
 # See also TestRuleStatus in intltest/rbbiapts.cpp
 $KatakanaEx  $KatakanaEx {400};
 
 # rule 13a/b
 
-$ALetterEx      $ExtendNumLetEx {200};    #  (13a)
-$NumericEx      $ExtendNumLetEx {100};    #  (13a)
-$KatakanaEx     $ExtendNumLetEx {400};    #  (13a)
-$ExtendNumLetEx $ExtendNumLetEx {200};    #  (13a)
+$ALetterEx       $ExtendNumLetEx {200};    #  (13a)
+$Hebrew_LetterEx $ExtendNumLetEx {200};    #  (13a)
+$NumericEx       $ExtendNumLetEx {100};    #  (13a)
+$KatakanaEx      $ExtendNumLetEx {400};    #  (13a)
+$ExtendNumLetEx  $ExtendNumLetEx {200};    #  (13a)
 
-$ExtendNumLetEx $ALetterEx  {200};    #  (13b)
-$ExtendNumLetEx $NumericEx  {100};    #  (13b)
-$ExtendNumLetEx $KatakanaEx {400};    #  (13b)
+$ExtendNumLetEx  $ALetterEx      {200};    #  (13b)
+$ExtendNumLetEx  $Hebrew_Letter  {200};    #  (13b)
+$ExtendNumLetEx  $NumericEx      {100};    #  (13b)
+$ExtendNumLetEx  $KatakanaEx     {400};    #  (13b)
+
+# rule 13c
+
+$Regional_IndicatorEx $Regional_IndicatorEx;
 
 # special handling for CJK characters: chain for later dictionary segmentation
 $HangulSyllable $HangulSyllable {200};
-$KanaKanji $KanaKanji {400}; #different rule status if both kanji and kana found
+$KanaKanji $KanaKanji {400}; # different rule status if both kana and kanji found 
 
 
 ## -------------------------------------------------
 
 !!reverse;
 
-$BackALetterEx     = ($Format | $Extend)* $ALetterPlus;
-$BackMidNumLetEx   = ($Format | $Extend)* $MidNumLet;
-$BackNumericEx     = ($Format | $Extend)* $Numeric;
-$BackMidNumEx      = ($Format | $Extend)* $MidNum;
-$BackMidLetterEx   = ($Format | $Extend)* $MidLetter;
-$BackKatakanaEx    = ($Format | $Extend)* $Katakana;
-$BackHiraganaEx    = ($Extend | $Format)* $Hiragana;
-$BackExtendNumLetEx= ($Format | $Extend)* $ExtendNumLet;
-$BackHebrewLetEx   = ($Format | $Extend)* $HebrewLet;
-
+$BackHebrew_LetterEx      = ($Format | $Extend)* $Hebrew_Letter;
+$BackALetterEx            = ($Format | $Extend)* $ALetterPlus;
+$BackSingle_QuoteEx       = ($Format | $Extend)* $Single_Quote;
+$BackDouble_QuoteEx       = ($Format | $Extend)* $Double_Quote;
+$BackMidNumLetEx          = ($Format | $Extend)* $MidNumLet;
+$BackNumericEx            = ($Format | $Extend)* $Numeric;
+$BackMidNumEx             = ($Format | $Extend)* $MidNum;
+$BackMidLetterEx          = ($Format | $Extend)* $MidLetter;
+$BackKatakanaEx           = ($Format | $Extend)* $Katakana;
+$BackHiraganaEx           = ($Format | $Extend)* $Hiragana;
+$BackExtendNumLetEx       = ($Format | $Extend)* $ExtendNumLet;
+$BackRegional_IndicatorEx = ($Format | $Extend)* $Regional_Indicator;
 
 # rule 3
 $LF $CR;
 
 # rule 4
-($Format | $Extend)*  [^$CR $LF $Newline $dictionaryCJK]?;
+($Format | $Extend)*  [^$CR $LF $Newline]?;
 
 # rule 5
 
-$BackALetterEx $BackALetterEx;
+($BackALetterEx | $BackHebrew_LetterEx) ($BackALetterEx | $BackHebrew_LetterEx);
 
 # rule 6 and 7
 
-$BackALetterEx ($BackMidLetterEx | $BackMidNumLetEx) $BackALetterEx;
+($BackALetterEx | $BackHebrew_LetterEx) ($BackMidLetterEx | $BackMidNumLetEx | $BackSingle_QuoteEx) ($BackALetterEx | $BackHebrew_LetterEx);
 
-# Chrome addition
-$BackHebrewLetEx $HebrewMidLet $BackHebrewLetEx;
+# rule 7a
+$BackSingle_QuoteEx $BackHebrew_LetterEx;
+
+# Rule 7b and 7c
+$BackHebrew_LetterEx $BackDouble_QuoteEx $BackHebrew_LetterEx;
 
 # rule 8
 
@@ -198,15 +214,15 @@ $BackNumericEx $BackNumericEx;
 
 # rule 9
 
-$BackNumericEx $BackALetterEx;
+$BackNumericEx ($BackALetterEx | $BackHebrew_LetterEx);
 
 # rule 10
 
-$BackALetterEx $BackNumericEx;
+($BackALetterEx | $BackHebrew_LetterEx) $BackNumericEx;
 
 # rule 11 and 12
 
-$BackNumericEx ($BackMidNumEx | $BackMidNumLetEx) $BackNumericEx;
+$BackNumericEx ($BackMidNumEx | $BackMidNumLetEx | $BackSingle_QuoteEx) $BackNumericEx;
 
 # rule 13
 
@@ -214,8 +230,12 @@ $BackKatakanaEx $BackKatakanaEx;
 
 # rules 13 a/b
 #
-$BackExtendNumLetEx ($BackALetterEx | $BackNumericEx | $BackKatakanaEx | $BackExtendNumLetEx);
-($BackALetterEx | $BackNumericEx | $BackKatakanaEx) $BackExtendNumLetEx; 
+$BackExtendNumLetEx ($BackALetterEx | $BackHebrew_LetterEx | $BackNumericEx | $BackKatakanaEx | $BackExtendNumLetEx);
+($BackALetterEx | $BackHebrew_LetterEx | $BackNumericEx | $BackKatakanaEx) $BackExtendNumLetEx; 
+
+# rule 13c
+
+$BackRegional_IndicatorEx $BackRegional_IndicatorEx;
 
 # special handling for CJK characters: chain for later dictionary segmentation
 $HangulSyllable $HangulSyllable;
@@ -229,10 +249,14 @@ $KanaKanji $KanaKanji; #different rule status if both kanji and kana found
 ($Extend | $Format)+ .?;
 
 # rule 6
-($MidLetter | $MidNumLet) $BackALetterEx;
+($MidLetter | $MidNumLet | $Single_Quote) ($BackALetterEx | $BackHebrew_LetterEx);
+
+# rule 7b
+$Double_Quote $BackHebrew_LetterEx;
+
 
 # rule 11
-($MidNum | $MidNumLet) $BackNumericEx;
+($MidNum | $MidNumLet | $Single_Quote) $BackNumericEx;
 
 # For dictionary-based break
 $dictionary $dictionary;
@@ -245,10 +269,13 @@ $dictionary $dictionary;
 ($Extend | $Format)+ .?;
 
 # rule 6
-($MidLetterEx | $MidNumLetEx) $ALetterEx;
+($MidLetterEx | $MidNumLetEx | $Single_QuoteEx) ($ALetterEx | $Hebrew_LetterEx);
+
+# rule 7b
+$Double_QuoteEx $Hebrew_LetterEx;
 
 # rule 11
-($MidNumEx | $MidNumLetEx) $NumericEx;
+($MidNumEx | $MidNumLetEx | $Single_QuoteEx) $NumericEx;
 
 # For dictionary-based break
 $dictionary $dictionary;

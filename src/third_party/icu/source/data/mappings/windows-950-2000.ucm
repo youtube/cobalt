@@ -37,8 +37,7 @@
 
 # build an extension-only (delta) .cnv file
 # requires the base .cnv file at runtime
-# CHROME : we don't want to include ibm-1373
-#<icu:base>                    "ibm-1373_P100-2002"
+<icu:base>                    "ibm-1373_P100-2002"
 
 # The following was the generated state table.
 # This does not account for unassigned characters

@@ -1,6 +1,6 @@
 /*
 ******************************************************************************
-* Copyright (C) 2009-2010, International Business Machines Corporation and
+* Copyright (C) 2009-2012, International Business Machines Corporation and
 * others. All Rights Reserved.
 ******************************************************************************
 *   Date        Name        Description
@@ -12,13 +12,13 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/fpositer.h"
 #include "cmemory.h"
 #include "uvectr32.h"
 
 U_NAMESPACE_BEGIN
-
-UOBJECT_DEFINE_NO_RTTI_IMPLEMENTATION(FieldPositionIterator)
 
 FieldPositionIterator::~FieldPositionIterator() {
   delete data;

@@ -1,6 +1,6 @@
 ## -*-makefile-*-
 ## HP/UX-specific setup using aCC
-## Copyright (c) 1999-2010, International Business Machines Corporation and
+## Copyright (c) 1999-2012, International Business Machines Corporation and
 ## others. All Rights Reserved.
 
 ## Commands to generate dependency files
@@ -25,7 +25,7 @@ THREADSCPPFLAGS = -D_REENTRANT -D_THREAD_SAFE
 #        preprocessing tokens. This comes from INT64_C in <inttypes.h>
 #   4232 conversion to a more strictly aligned type may cause misaligned access.
 CFLAGS += -Ae +Olit=all
-CXXFLAGS += -Wc,-ansi_for_scope,on +W740 +W749 +W823 +W4232
+CXXFLAGS += -AA -Wc,-ansi_for_scope,on +W740 +W749 +W823 +W4232
 
 ifeq ($(UCLN_NO_AUTO_CLEANUP),0)
 # set up init point.
@@ -69,9 +69,9 @@ LINK.cc=	$(CXX) $(CXXFLAGS) $(LDFLAGS)
 ## HPUX PA-risc does not recognize -Bprotected_def aC++ option.
 ## Use linker option -Wl,-B,symbolic instead.
 ifeq ($(shell uname -m),ia64)
-    LD_SOOPTIONS= -Bprotected_def
+LD_SOOPTIONS= -Bprotected_def
 else
-    LD_SOOPTIONS= -Wl,-B,symbolic
+LD_SOOPTIONS= -Wl,-B,symbolic
 endif
 
 ## Commands to make a shared library

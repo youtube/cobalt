@@ -212,6 +212,10 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_display(const std::string& display,
                    script::ExceptionState* exception_state);
 
+  std::string filter(script::ExceptionState* exception_state) const;
+  void set_filter(const std::string& filter,
+                  script::ExceptionState* exception_state);
+
   std::string font(script::ExceptionState* exception_state) const;
   void set_font(const std::string& font,
                 script::ExceptionState* exception_state);

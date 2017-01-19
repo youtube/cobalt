@@ -58,6 +58,8 @@ class DOMException : public script::ScriptException {
   // Helper function to raise a DOMException in the ExceptionState passed in.
   static void Raise(ExceptionCode code,
                     script::ExceptionState* exception_state);
+  static void Raise(ExceptionCode code, const std::string& message,
+                    script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(DOMException);
 

@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 2009-2010, International Business Machines Corporation and
+ * Copyright (c) 2009-2015, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /********************************************************************************
@@ -62,7 +62,7 @@ log_err("Test Failure at file %s, line %d: \"%s\" is false.\n", __FILE__, __LINE
     uspoof_close(sc);  \
 }
 
-
+static void TestOpenFromSource(void);
 static void TestUSpoofCAPI(void);
 
 void addUSpoofTest(TestNode** root);
@@ -70,8 +70,9 @@ void addUSpoofTest(TestNode** root);
 void addUSpoofTest(TestNode** root)
 {
 #if !UCONFIG_NO_FILE_IO
-    addTest(root, &TestUSpoofCAPI, "uspoof/TestUSpoofCAPI");
+    addTest(root, &TestOpenFromSource, "uspoof/TestOpenFromSource");
 #endif
+    addTest(root, &TestUSpoofCAPI, "uspoof/TestUSpoofCAPI");
 }
 
 /*
@@ -98,10 +99,70 @@ const UChar lll_Cyrl[]    = {(UChar)0x0406, (UChar)0x04C0, (UChar)0x31, 0};
 /* The skeleton transform for all of thes 'lll' lookalikes is all lower case l. */
 const UChar lll_Skel[]    = {(UChar)0x6c, (UChar)0x6c, (UChar)0x6c, 0};  
 
+const UChar han_Hiragana[] = {(UChar)0x3086, (UChar)0x308A, (UChar)0x0020, (UChar)0x77F3, (UChar)0x7530, 0};
+
 /* Provide better code coverage */
 const char goodLatinUTF8[]    = {0x75, 0x77, 0};
+
+// Test open from source rules.
+// Run this in isolation to verify initialization.
+static void TestOpenFromSource() {
+    // No TEST_SETUP because that calls uspoof_open().
+    UErrorCode status = U_ZERO_ERROR;
+    const char *dataSrcDir;
+    char       *fileName;
+    char       *confusables;
+    int         confusablesLength = 0;
+    char       *confusablesWholeScript;
+    int         confusablesWholeScriptLength = 0;
+    FILE       *f;
+    UParseError pe;
+    int32_t     errType;
+    int32_t     checkResults;
+    USpoofChecker *rsc;
+
+    dataSrcDir = ctest_dataSrcDir();
+    fileName = malloc(strlen(dataSrcDir) + 100);
+    strcpy(fileName, dataSrcDir);
+    strcat(fileName, U_FILE_SEP_STRING "unidata" U_FILE_SEP_STRING "confusables.txt");
+    f = fopen(fileName, "rb");
+    TEST_ASSERT_NE(f, NULL);
+    confusables = malloc(3000000);
+    if (f != NULL) {
+        confusablesLength = fread(confusables, 1, 3000000, f);
+        fclose(f);
+    }
+
+    strcpy(fileName, dataSrcDir);
+    strcat(fileName, U_FILE_SEP_STRING "unidata" U_FILE_SEP_STRING "confusablesWholeScript.txt");
+    f = fopen(fileName, "rb");
+    TEST_ASSERT_NE(f, NULL);
+    confusablesWholeScript = malloc(1000000);
+    if (f != NULL) {
+        confusablesWholeScriptLength = fread(confusablesWholeScript, 1, 1000000, f);
+        fclose(f);
+    }
+
+    rsc = uspoof_openFromSource(confusables, confusablesLength,
+                                confusablesWholeScript, confusablesWholeScriptLength,
+                                &errType, &pe, &status);
+    TEST_ASSERT_SUCCESS(status);
+
+    // Ticket #11860: uspoof_openFromSource() did not initialize for use.
+    // Verify that the spoof checker does not crash.
+    checkResults = uspoof_check(rsc, goodLatin, -1, NULL, &status);
+    TEST_ASSERT_SUCCESS(status);
+    TEST_ASSERT_EQ(0, checkResults);
+
+    free(confusablesWholeScript);
+    free(confusables);
+    free(fileName);
+    uspoof_close(rsc);
+    /*  printf("ParseError Line is %d\n", pe.line);  */
+}
+
 /*
- *   Spoof Detction C API Tests
+ *   Spoof Detection C API Tests
  */
 static void TestUSpoofCAPI(void) {
 
@@ -120,55 +181,6 @@ static void TestUSpoofCAPI(void) {
         }
         uspoof_close(sc);
     }
-
-    
-        
-    /*
-     *  Test Open from source rules.
-    */
-    TEST_SETUP
-    const char *dataSrcDir;
-    char       *fileName;
-    char       *confusables;
-    int         confusablesLength;
-    char       *confusablesWholeScript;
-    int         confusablesWholeScriptLength;
-    FILE       *f;
-    UParseError pe;
-    int32_t     errType;
-    USpoofChecker *rsc;
-    
-    dataSrcDir = ctest_dataSrcDir();
-    fileName = malloc(strlen(dataSrcDir) + 100);
-    strcpy(fileName, dataSrcDir);
-    strcat(fileName, U_FILE_SEP_STRING "unidata" U_FILE_SEP_STRING "confusables.txt");
-    f = fopen(fileName, "r");
-    TEST_ASSERT_NE(f, NULL);
-    confusables = malloc(3000000);
-    confusablesLength = fread(confusables, 1, 3000000, f);
-    fclose(f);
-
-    
-    strcpy(fileName, dataSrcDir);
-    strcat(fileName, U_FILE_SEP_STRING "unidata" U_FILE_SEP_STRING "confusablesWholeScript.txt");
-    f = fopen(fileName, "r");
-    TEST_ASSERT_NE(f, NULL);
-    confusablesWholeScript = malloc(1000000);
-    confusablesWholeScriptLength = fread(confusablesWholeScript, 1, 1000000, f);
-    fclose(f);
-
-    rsc = uspoof_openFromSource(confusables, confusablesLength,
-                                              confusablesWholeScript, confusablesWholeScriptLength,
-                                              &errType, &pe, &status);
-    TEST_ASSERT_SUCCESS(status);
-
-    free(confusablesWholeScript);
-    free(confusables);
-    free(fileName);
-    uspoof_close(rsc);
-    /*  printf("ParseError Line is %d\n", pe.line);  */
-    TEST_TEARDOWN;
-
 
     /*
      * openFromSerialized and serialize
@@ -288,6 +300,25 @@ static void TestUSpoofCAPI(void) {
         uspoof_close(clone2);
     TEST_TEARDOWN;
 
+     /*
+     *  basic uspoof_check()
+     */
+     TEST_SETUP
+         int32_t result;
+         result = uspoof_check(sc, goodLatin, -1, NULL, &status);
+         TEST_ASSERT_SUCCESS(status);
+         TEST_ASSERT_EQ(0, result);
+
+         result = uspoof_check(sc, han_Hiragana, -1, NULL, &status);
+         TEST_ASSERT_SUCCESS(status);
+         TEST_ASSERT_EQ(0, result);
+
+         result = uspoof_check(sc, scMixed, -1, NULL, &status);
+         TEST_ASSERT_SUCCESS(status);
+         TEST_ASSERT_EQ(USPOOF_SINGLE_SCRIPT | USPOOF_MIXED_SCRIPT_CONFUSABLE, result);
+     TEST_TEARDOWN
+
+
     /*
      *  get & set Checks
     */
@@ -384,10 +415,13 @@ static void TestUSpoofCAPI(void) {
         TEST_ASSERT_SUCCESS(status);
         uset_close(tmpSet);
 
-        /* Latin Identifier should now fail; other non-latin test cases should still be OK */
+        /* Latin Identifier should now fail; other non-latin test cases should still be OK
+         *  Note: fail of CHAR_LIMIT also causes the restriction level to be USPOOF_UNRESTRICTIVE
+         *        which will give us a USPOOF_RESTRICTION_LEVEL failure.
+         */
         checkResults = uspoof_check(sc, goodLatin, -1, NULL, &status);
         TEST_ASSERT_SUCCESS(status);
-        TEST_ASSERT_EQ(USPOOF_CHAR_LIMIT, checkResults);
+        TEST_ASSERT_EQ(USPOOF_CHAR_LIMIT | USPOOF_RESTRICTION_LEVEL, checkResults);
 
         checkResults = uspoof_check(sc, goodGreek, -1, NULL, &status);
         TEST_ASSERT_SUCCESS(status);
@@ -408,7 +442,7 @@ static void TestUSpoofCAPI(void) {
         checkResults = uspoof_checkUTF8(sc, utf8buf, -1, &position, &status);
         TEST_ASSERT_SUCCESS(status);
         TEST_ASSERT_EQ(0, checkResults);
-        TEST_ASSERT_EQ(666, position);
+        TEST_ASSERT_EQ(0, position);
 
         u_strToUTF8(utf8buf, sizeof(utf8buf), NULL, goodCyrl, -1, &status);
         TEST_ASSERT_SUCCESS(status);
@@ -422,7 +456,7 @@ static void TestUSpoofCAPI(void) {
         checkResults = uspoof_checkUTF8(sc, utf8buf, -1, &position, &status);
         TEST_ASSERT_SUCCESS(status);
         TEST_ASSERT_EQ(USPOOF_MIXED_SCRIPT_CONFUSABLE | USPOOF_SINGLE_SCRIPT , checkResults);
-        TEST_ASSERT_EQ(2, position);
+        TEST_ASSERT_EQ(0, position);
 
     TEST_TEARDOWN;
 
@@ -502,6 +536,24 @@ static void TestUSpoofCAPI(void) {
         status = U_ZERO_ERROR;
 
     TEST_TEARDOWN;
+
+    /*
+     * get Inclusion and Recommended sets
+     */
+    TEST_SETUP
+        const USet *inclusions = NULL;
+        const USet *recommended = NULL;
+
+        inclusions = uspoof_getInclusionSet(&status);
+        TEST_ASSERT_SUCCESS(status);
+        TEST_ASSERT_EQ(TRUE, uset_isFrozen(inclusions));
+
+        status = U_ZERO_ERROR;
+        recommended = uspoof_getRecommendedSet(&status);
+        TEST_ASSERT_SUCCESS(status);
+        TEST_ASSERT_EQ(TRUE, uset_isFrozen(recommended));
+    TEST_TEARDOWN;
+
 }
 
 #endif  /* UCONFIG_NO_REGULAR_EXPRESSIONS */

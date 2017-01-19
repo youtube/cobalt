@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #include <iomanip>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <string>
@@ -96,6 +97,7 @@ class CValImpl;
 // variable.
 enum CValType {
   kSize,
+  kBool,
   kU32,
   kU64,
   kS32,
@@ -152,6 +154,11 @@ template <>
 struct Traits<cval::SizeInBytes> {
   static const CValType kTypeVal = kSize;
   static const bool kIsNumerical = true;
+};
+template <>
+struct Traits<bool> {
+  static const CValType kTypeVal = kBool;
+  static const bool kIsNumerical = false;
 };
 template <>
 struct Traits<uint32_t> {
@@ -337,6 +344,44 @@ class ValToPrettyStringHelper<T, false> {
 template <typename T>
 std::string ValToPrettyString(const T& value) {
   return ValToPrettyStringHelper<T, Traits<T>::kIsNumerical>::Call(value);
+}
+
+// Provides methods for converting the type to and from a double.
+template <typename T>
+double ToDouble(T value) {
+  return static_cast<double>(value);
+}
+template <>
+inline double ToDouble<base::TimeDelta>(base::TimeDelta value) {
+  return static_cast<double>(value.InMicroseconds());
+}
+
+template <typename T>
+T FromDouble(double value) {
+  return static_cast<T>(value);
+}
+template <>
+inline base::TimeDelta FromDouble<base::TimeDelta>(double value) {
+  return base::TimeDelta::FromMicroseconds(static_cast<int64>(value));
+}
+
+// Provides methods for retrieving the max and min value for the type.
+template <typename T>
+T Max() {
+  return std::numeric_limits<T>::max();
+}
+template <>
+inline base::TimeDelta Max<base::TimeDelta>() {
+  return base::TimeDelta::Max();
+}
+
+template <typename T>
+T Min() {
+  return std::numeric_limits<T>::min();
+}
+template <>
+inline base::TimeDelta Min<base::TimeDelta>() {
+  return -base::TimeDelta::Max();
 }
 
 }  // namespace CValDetail

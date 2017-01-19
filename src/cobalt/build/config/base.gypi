@@ -193,6 +193,14 @@
     'skia_glyph_atlas_width%': '2048',
     'skia_glyph_atlas_height%': '2048',
 
+    # Determines the size of garbage collection threshold. After this many bytes
+    # have been allocated, the mozjs garbage collector will run. Lowering this
+    # has been found to reduce performance and decrease JavaScript memory usage.
+    # For example, we have measured on at least one platform that performance
+    # becomes 7% worse on average in certain cases when adjusting this number
+    # from 8MB to 1MB.
+    'mozjs_garbage_collection_threshold_in_bytes%': 8 * 1024 * 1024,
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker
@@ -230,10 +238,10 @@
     'platform_libraries%': [],
 
 
-    # Supported engine is currently only "javascriptcore".
+    # The only currently-supported Javascript engine is 'mozjs'.
     # TODO: Figure out how to massage gyp the right way to make this work
     # as expected, rather than requiring it to be set for each platform.
-    #'javascript_engine%': 'javascriptcore',
+    #'javascript_engine%': 'mozjs',
 
     # Enable jit by default. It can be set to 0 to run in interpreter-only mode.
     # Setting this to 1 on a platform or engine for which there is no JIT
@@ -340,9 +348,13 @@
         ],
       }],  # OS == "lb_shell"
       ['OS == "starboard"', {
-        # Keeps common Starboard target changes in the starboard project.
-        'includes': [
-          '../../../starboard/starboard_base_target.gypi',
+        'target_conditions': [
+          ['_toolset=="target"', {
+            # Keeps common Starboard target changes in the starboard project.
+            'includes': [
+              '../../../starboard/starboard_base_target.gypi',
+            ],
+          }],
         ],
       }],  # OS == "starboard"
       ['target_arch in ["xb1", "xb360"]', {

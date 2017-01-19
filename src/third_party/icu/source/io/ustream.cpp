@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (C) 2001-2010, International Business Machines
+*   Copyright (C) 2001-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *  FILE NAME : ustream.cpp
@@ -12,25 +12,24 @@
 ******************************************************************************
 */
 
-
 #include "unicode/utypes.h"
+
+#if !UCONFIG_NO_CONVERSION
+
 #include "unicode/uobject.h"
 #include "unicode/ustream.h"
 #include "unicode/ucnv.h"
 #include "unicode/uchar.h"
+#include "unicode/utf16.h"
 #include "ustr_cnv.h"
 #include "cmemory.h"
 #include <string.h>
 
 // console IO
 
-#if U_IOSTREAM_SOURCE >= 198506
-
 #if U_IOSTREAM_SOURCE >= 199711
+
 #define STD_NAMESPACE std::
-#else
-#define STD_NAMESPACE
-#endif
 
 #define STD_OSTREAM STD_NAMESPACE ostream
 #define STD_ISTREAM STD_NAMESPACE istream
@@ -169,4 +168,4 @@ STOP_READING:
 U_NAMESPACE_END
 
 #endif
-
+#endif

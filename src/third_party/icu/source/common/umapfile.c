@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1999-2010, International Business Machines
+*   Copyright (C) 1999-2013, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************/
@@ -15,6 +15,9 @@
  *         wrapper functions.
  *
  *----------------------------------------------------------------------------*/
+/* Defines _XOPEN_SOURCE for access to POSIX functions.
+ * Must be before any other #includes. */
+#include "uposixdefs.h"
 
 #include "unicode/putil.h"
 #include "udatamem.h"
@@ -59,10 +62,6 @@
 #       define LIB_SUFFIX ".dll"
         /* This is inconvienient until we figure out what to do with U_ICUDATA_NAME in utypes.h */
 #       define U_ICUDATA_ENTRY_NAME "icudt" U_ICU_VERSION_SHORT U_LIB_SUFFIX_C_NAME_STRING "_dat"
-#   else
-#       if defined(U_DARWIN)
-#           include <TargetConditionals.h>
-#       endif
 #   endif
 #elif MAP_IMPLEMENTATION==MAP_STDIO
 #   include <stdio.h>
@@ -79,7 +78,6 @@
 
 #   define IS_MAP(map) ((map)!=NULL)
 #endif
-
 /*----------------------------------------------------------------------------*
  *                                                                            *
  *   Memory Mapped File support.  Platform dependent implementation of        *
@@ -188,7 +186,7 @@
         }
 
         /* get a view of the mapping */
-#ifndef U_HPUX
+#if U_PLATFORM != U_PF_HPUX
         data=mmap(0, length, PROT_READ, MAP_SHARED,  fd, 0);
 #else
         data=mmap(0, length, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -201,7 +199,7 @@
         pData->map = (char *)data + length;
         pData->pHeader=(const DataHeader *)data;
         pData->mapAddr = data;
-#if defined(U_DARWIN) && TARGET_OS_IPHONE
+#if U_PLATFORM == U_PF_IPHONE
         posix_madvise(data, length, POSIX_MADV_RANDOM);
 #endif
         return TRUE;

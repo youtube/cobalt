@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1999-2010, International Business Machines
+*   Copyright (C) 1999-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -40,9 +40,10 @@ static UOption options[]={
   /*1*/ UOPTION_HELP_QUESTION_MARK,
   /*2*/ UOPTION_ICUDATADIR,
   /*3*/ UOPTION_VERBOSE,
-  /*4*/ UOPTION_DEF("list-plugins", 'L', UOPT_NO_ARG),
+  /*4*/ UOPTION_DEF("list-plugins", 'L', UOPT_NO_ARG), // may be a no-op if disabled
   /*5*/ UOPTION_DEF("milisecond-time", 'm', UOPT_NO_ARG),
   /*6*/ UOPTION_DEF("cleanup", 'K', UOPT_NO_ARG),
+  /*7*/ UOPTION_DEF("xml", 'x', UOPT_REQUIRES_ARG),
 };
 
 static UErrorCode initStatus = U_ZERO_ERROR;
@@ -55,126 +56,80 @@ static void do_init() {
     }
 }
 
-/** 
- * Print the current platform 
- */
-static const char *getPlatform()
-{
-#if defined(U_PLATFORM)
-	return U_PLATFORM;
-#elif defined(U_WINDOWS)
-	return "Windows";
-#elif defined(U_PALMOS)
-	return "PalmOS";
-#elif defined(_PLATFORM_H)
-	return "Other (POSIX-like)";
-#else
-	return "unknown"
-#endif
-}
 
 void cmd_millis()
 {
   printf("Milliseconds since Epoch: %.0f\n", uprv_getUTCtime());
 }
 
-void cmd_version(UBool noLoad)
+void cmd_version(UBool /* noLoad */, UErrorCode &errorCode)
 {
-    UVersionInfo icu;
-    char str[200];
-    printf("<ICUINFO>\n");
-    printf("International Components for Unicode for C/C++\n");
-    printf("%s\n", U_COPYRIGHT_STRING);
-    printf("Compiled-Version: %s\n", U_ICU_VERSION);
-    u_getVersion(icu);
-    u_versionToString(icu, str);
-    printf("Runtime-Version: %s\n", str);
-    printf("Compiled-Unicode-Version: %s\n", U_UNICODE_VERSION);
-    u_getUnicodeVersion(icu);
-    u_versionToString(icu, str);
-    printf("Runtime-Unicode-Version: %s\n", U_UNICODE_VERSION);
-    printf("Platform: %s\n", getPlatform());
-#if defined(U_BUILD)
-    printf("Build: %s\n", U_BUILD);
-#if defined(U_HOST)
-    if(strcmp(U_BUILD,U_HOST)) {
-      printf("Host: %s\n", U_HOST);
-    }
-#endif
-#endif
-#if defined(U_CC)
-    printf("C compiler: %s\n", U_CC);
-#endif
-#if defined(U_CXX)
-    printf("C++ compiler: %s\n", U_CXX);
-#endif
-#if defined(CYGWINMSVC)
-    printf("Cygwin: CYGWINMSVC\n");
-#endif
-    printf("ICUDATA: %s\n", U_ICUDATA_NAME);
-    do_init();
-    printf("Data Directory: %s\n", u_getDataDirectory());
-    printf("ICU Initialization returned: %s\n", u_errorName(initStatus));
-    printf( "Default locale: %s\n", uloc_getDefault());
-    {
-      UErrorCode subStatus = U_ZERO_ERROR;
-      ulocdata_getCLDRVersion(icu, &subStatus);
-      if(U_SUCCESS(subStatus)) {
-	u_versionToString(icu, str);
-	printf("CLDR-Version: %s\n", str);
-      } else {
-	printf("CLDR-Version: %s\n", u_errorName(subStatus));
-      }
-    }
-    
-#if !UCONFIG_NO_CONVERSION
-    if(noLoad == FALSE)
-    {
-      printf("Default converter: %s\n", ucnv_getDefaultName());
-    }
-#endif
-#if !UCONFIG_NO_FORMATTING
-    {
-      UChar buf[100];
-      char buf2[100];
-      UErrorCode subsubStatus= U_ZERO_ERROR;
-      int32_t len;
 
-      len = ucal_getDefaultTimeZone(buf, 100, &subsubStatus);
-      if(U_SUCCESS(subsubStatus)&&len>0) {
-	u_UCharsToChars(buf, buf2, len+1);
-	printf("Default TZ: %s\n", buf2);
-      } else {
-	printf("Default TZ: %s\n", u_errorName(subsubStatus));
-      }
-    }
-    {
-      UErrorCode subStatus = U_ZERO_ERROR;
-      const char *tzVer = ucal_getTZDataVersion(&subStatus);
-      if(U_FAILURE(subStatus)) {
-	tzVer = u_errorName(subStatus);
-      }
-      printf("TZ data version: %s\n", tzVer);
-    }
-#endif
+    do_init();
+
+    udbg_writeIcuInfo(stdout); /* print the XML format */
     
+    union {
+        uint8_t byte;
+        uint16_t word;
+    } u;
+    u.word=0x0100;
+    if(U_IS_BIG_ENDIAN==u.byte) {
+      //printf("U_IS_BIG_ENDIAN: %d\n", U_IS_BIG_ENDIAN);
+    } else {
+        fprintf(stderr, "  error: U_IS_BIG_ENDIAN=%d != %d=actual 'is big endian'\n",
+                U_IS_BIG_ENDIAN, u.byte);
+        errorCode=U_INTERNAL_PROGRAM_ERROR;
+    }
+
+    if(U_SIZEOF_WCHAR_T==sizeof(wchar_t)) {
+      //printf("U_SIZEOF_WCHAR_T: %d\n", U_SIZEOF_WCHAR_T);
+    } else {
+        fprintf(stderr, "  error: U_SIZEOF_WCHAR_T=%d != %d=sizeof(wchar_t)\n",
+                U_SIZEOF_WCHAR_T, (int)sizeof(wchar_t));
+        errorCode=U_INTERNAL_PROGRAM_ERROR;
+    }
+
+    int charsetFamily;
+    if('A'==0x41) {
+        charsetFamily=U_ASCII_FAMILY;
+    } else if('A'==0xc1) {
+        charsetFamily=U_EBCDIC_FAMILY;
+    } else {
+        charsetFamily=-1;  // unknown
+    }
+    if(U_CHARSET_FAMILY==charsetFamily) {
+      //printf("U_CHARSET_FAMILY: %d\n", U_CHARSET_FAMILY);
+    } else {
+        fprintf(stderr, "  error: U_CHARSET_FAMILY=%d != %d=actual charset family\n",
+                U_CHARSET_FAMILY, charsetFamily);
+        errorCode=U_INTERNAL_PROGRAM_ERROR;
+    }
+
+    printf("\n\nICU Initialization returned: %s\n", u_errorName(initStatus));
+    
+
+#if UCONFIG_ENABLE_PLUGINS    
 #if U_ENABLE_DYLOAD
     const char *pluginFile = uplug_getPluginFile();
     printf("Plugin file is: %s\n", (pluginFile&&*pluginFile)?pluginFile:"(not set. try setting ICU_PLUGINS to a directory.)");
 #else
     fprintf(stderr, "Dynamic Loading: is disabled. No plugins will be loaded at start-up.\n");
 #endif
-    printf("</ICUINFO>\n\n");
+#else
+    fprintf(stderr, "Plugins are disabled.\n");
+#endif    
 }
 
 void cmd_cleanup()
 {
     u_cleanup();
-    fprintf(stderr,"ICU u_cleanup() called.\n");
+    fprintf(stdout, "ICU u_cleanup() called.\n");
 }
 
 
 void cmd_listplugins() {
+#if UCONFIG_ENABLE_PLUGINS
     int32_t i;
     UPlugData *plug;
 
@@ -251,7 +206,7 @@ void cmd_listplugins() {
 	if(i==0) {
 		printf("No plugins loaded.\n");
 	}
-
+#endif
 }
 
 
@@ -277,7 +232,9 @@ main(int argc, char* argv[]) {
               " -m     or  --millisecond-time     - Print the current UTC time in milliseconds.\n"
               " -d <dir>   or  --icudatadir <dir> - Set the ICU Data Directory\n"
               " -v                                - Print version and configuration information about ICU\n"
+#if UCONFIG_ENABLE_PLUGINS
               " -L         or  --list-plugins     - List and diagnose issues with ICU Plugins\n"
+#endif
               " -K         or  --cleanup          - Call u_cleanup() before exitting (will attempt to unload plugins)\n"
               "\n"
               "If no arguments are given, the tool will print ICU version and configuration information.\n"
@@ -298,19 +255,32 @@ main(int argc, char* argv[]) {
       cmd_listplugins();
       didSomething = TRUE;
     }
-    
+
     if(options[3].doesOccur) {
-      cmd_version(FALSE);
+      cmd_version(FALSE, errorCode);
       didSomething = TRUE;
     }
-        
+
+    if(options[7].doesOccur) {  /* 2nd part of version: cleanup */
+      FILE *out = fopen(options[7].value, "w");
+      if(out==NULL) {
+        fprintf(stderr,"ERR: can't write to XML file %s\n", options[7].value);
+        return 1;
+      }
+      /* todo: API for writing DTD? */
+      fprintf(out, "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
+      udbg_writeIcuInfo(out);
+      fclose(out);
+      didSomething = TRUE;
+    }
+
     if(options[6].doesOccur) {  /* 2nd part of version: cleanup */
       cmd_cleanup();
       didSomething = TRUE;
     }
-        
+
     if(!didSomething) {
-      cmd_version(FALSE);  /* at least print the version # */
+      cmd_version(FALSE, errorCode);  /* at least print the version # */
     }
 
     return U_FAILURE(errorCode);

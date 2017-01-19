@@ -53,6 +53,9 @@
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/script/global_environment.h"
+
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -79,7 +82,8 @@ Document::Document(HTMLElementContext* html_element_context,
           default_timeline_(new DocumentTimeline(this, 0))),
       user_agent_style_sheet_(options.user_agent_style_sheet),
       initial_computed_style_declaration_(
-          new cssom::CSSComputedStyleDeclaration()) {
+          new cssom::CSSComputedStyleDeclaration()),
+      dom_max_element_depth_(options.dom_max_element_depth) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
@@ -199,6 +203,7 @@ scoped_refptr<Comment> Document::CreateComment(const std::string& data) {
 scoped_refptr<Event> Document::CreateEvent(
     const std::string& interface_name,
     script::ExceptionState* exception_state) {
+  TRACK_MEMORY_SCOPE("DOM");
   // https://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
   // The match of interface name is case-insensitive.
   if (strcasecmp(interface_name.c_str(), "event") == 0 ||
@@ -209,7 +214,11 @@ scoped_refptr<Event> Document::CreateEvent(
     return new UIEvent(Event::Uninitialized);
   }
 
-  DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+  DOMException::Raise(DOMException::kNotSupportedErr,
+                      "document.createEvent does not support \""
+                        + interface_name + "\".",
+                      exception_state);
+
   // Return value will be ignored.
   return NULL;
 }
@@ -555,7 +564,7 @@ void Document::UpdateComputedStyles() {
       // Then update the computed styles for the other elements.
       root->UpdateComputedStyleRecursively(
           root->css_computed_style_declaration(), root->computed_style(),
-          style_change_event_time, true);
+          style_change_event_time, true, 0 /* current_element_depth */);
     }
 
     is_computed_style_dirty_ = false;
@@ -654,6 +663,13 @@ void Document::InvalidateLayout() {
 
   // Finally, also destroy all cached layout boxes.
   InvalidateLayoutBoxesFromNodeAndDescendants();
+}
+
+void Document::DisableJit() {
+  window_->html_element_context()
+      ->script_runner()
+      ->GetGlobalEnvironment()
+      ->DisableJit();
 }
 
 void Document::DispatchOnLoadEvent() {

@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * Copyright (c) 1997-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -22,6 +22,11 @@ class DateFormatTest: public CalendarTimeZoneTest {
     // IntlTest override
     void runIndexedTest( int32_t index, UBool exec, const char* &name, char* par );
 public:
+    /**
+     * Verify that patterns have the correct values and could produce
+     * the DateFormat instances that contain the correct localized patterns.
+     */
+    void TestPatterns();
     /**
      *  "Test written by Wally Wedel and emailed to me."
      *  Test handling of timezone offsets
@@ -145,6 +150,8 @@ public: // package
      */
     virtual void TestLocaleDateFormat(void);
 
+    virtual void TestFormattingLocaleTimeSeparator(void);
+
     virtual void TestDateFormatCalendar(void);
 
     virtual void TestSpaceParsing(void);
@@ -171,6 +178,16 @@ public: // package
 
     void TestFormalChineseDate(void);
 
+    void TestStandAloneGMTParse(void);
+
+    void TestParsePosition(void);
+
+    void TestMonthPatterns(void);
+
+    void TestContext(void);
+
+    void TestNonGregoFmtParse(void);
+
 public:
     /**
      * Test host-specific formatting.
@@ -179,11 +196,13 @@ public:
 
 public:
     /**
-     * Test patterns added in CLDR 1.4
+     * Test patterns added in CLDR 1.4, CLDR 23
      */
     void TestEras(void);
 
     void TestNarrowNames(void);
+
+    void TestShortDays(void);
 
     void TestStandAloneDays(void);
 
@@ -197,6 +216,10 @@ public:
     
     void TestHostClone(void);
 
+    void TestHebrewClone(void);
+
+    void TestDateFormatSymbolsClone(void);
+
     void TestTimeZoneDisplayName(void);
 
     void TestRoundtripWithCalendar(void);
@@ -209,6 +232,32 @@ public:
 /*   void TestRelativeError(void);
      void TestRelativeOther(void);
 */
+
+    void TestDotAndAtLeniency();
+
+    void TestDateFormatLeniency();
+
+    void TestParseMultiPatternMatch();
+
+    void TestParseLeniencyAPIs();
+
+    // test override NumberFormat
+    void TestNumberFormatOverride();
+    void TestCreateInstanceForSkeleton();
+    void TestCreateInstanceForSkeletonDefault();
+    void TestCreateInstanceForSkeletonWithCalendar();
+    void TestDFSCreateForLocaleNonGregorianLocale();
+    void TestDFSCreateForLocaleWithCalendarInLocale();
+    void TestChangeCalendar();
+
+private:
+    UBool showParse(DateFormat &format, const UnicodeString &formattedString);
+
+public:
+    /**
+     * Test parsing a number as a string
+     */
+    void TestNumberAsStringParsing(void);
 
  private:
       void TestRelative(int daysdelta, 

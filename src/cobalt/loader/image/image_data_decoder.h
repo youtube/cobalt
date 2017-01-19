@@ -43,6 +43,10 @@ class ImageDataDecoder {
 
   virtual std::string GetTypeString() const = 0;
 
+  // Hardware and software decoders run on seperate threads -- allowing them
+  // to use different thread priorities for decoding.
+  virtual bool IsHardwareDecoder() const { return false; }
+
   scoped_ptr<render_tree::ImageData> RetrieveImageData() {
     return image_data_.Pass();
   }
@@ -83,7 +87,7 @@ class ImageDataDecoder {
   // Subclass can override this function to get a last chance to do some work.
   virtual void FinishInternal() {}
 
-  void AllocateImageData(const math::Size& size, bool has_alpha);
+  bool AllocateImageData(const math::Size& size, bool has_alpha);
 
   render_tree::ImageData* image_data() const { return image_data_.get(); }
 

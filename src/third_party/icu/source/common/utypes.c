@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1997-2010, International Business Machines
+*   Copyright (C) 1997-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -122,7 +122,8 @@ _uFmtErrorName[U_FMT_PARSE_ERROR_LIMIT - U_FMT_PARSE_ERROR_START] = {
     "U_DUPLICATE_KEYWORD",
     "U_UNDEFINED_KEYWORD",
     "U_DEFAULT_KEYWORD_MISSING",
-    "U_DECIMAL_NUMBER_SYNTAX_ERROR"
+    "U_DECIMAL_NUMBER_SYNTAX_ERROR",
+    "U_FORMAT_INEXACT_ERROR"
 };
 
 static const char * const
@@ -164,7 +165,9 @@ _uRegexErrorName[U_REGEX_ERROR_LIMIT - U_REGEX_ERROR_START] = {
     "U_REGEX_INVALID_RANGE",
     "U_REGEX_STACK_OVERFLOW",
     "U_REGEX_TIME_OUT",
-    "U_REGEX_STOPPED_BY_CALLER"
+    "U_REGEX_STOPPED_BY_CALLER",
+    "U_REGEX_PATTERN_TOO_BIG",
+    "U_REGEX_INVALID_CAPTURE_GROUP_NAME"
 };
 
 static const char * const

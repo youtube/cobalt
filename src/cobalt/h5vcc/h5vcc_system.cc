@@ -17,17 +17,21 @@
 #include "cobalt/h5vcc/h5vcc_system.h"
 
 #include "base/stringprintf.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSystem::H5vccSystem() {}
+H5vccSystem::H5vccSystem(const media::MediaModule* media_module) {
+  video_container_size_ =
+      base::StringPrintf("%dx%d", media_module->output_size().width(),
+                         media_module->output_size().height());
+}
 
 bool H5vccSystem::are_keys_reversed() const {
-  return deprecated::PlatformDelegate::Get()->AreKeysReversed();
+  return SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
 }
 
 std::string H5vccSystem::build_id() const {
@@ -38,7 +42,17 @@ std::string H5vccSystem::build_id() const {
 }
 
 std::string H5vccSystem::platform() const {
-  return deprecated::PlatformDelegate::Get()->GetPlatformName();
+  char property[512];
+
+  std::string result;
+  if (!SbSystemGetProperty(kSbSystemPropertyPlatformName, property,
+                           SB_ARRAY_SIZE_INT(property))) {
+    DLOG(FATAL) << "Failed to get kSbSystemPropertyPlatformName.";
+  } else {
+    result = property;
+  }
+
+  return result;
 }
 
 std::string H5vccSystem::region() const {
@@ -56,7 +70,7 @@ bool H5vccSystem::TriggerHelp() const { return false; }
 // returned resolution instead of the window size as the maximum resolution of
 // video being played.
 std::string H5vccSystem::GetVideoContainerSizeOverride() const {
-  return deprecated::PlatformDelegate::Get()->GetVideoContainerSizeOverride();
+  return video_container_size_;
 }
 
 }  // namespace h5vcc

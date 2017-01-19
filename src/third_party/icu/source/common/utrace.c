@@ -1,6 +1,6 @@
 /*
 *******************************************************************************
-*   Copyright (C) 2003-2008, International Business Machines
+*   Copyright (C) 2003-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  utrace.c
@@ -10,6 +10,7 @@
 */
 
 #define   UTRACE_IMPL
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/utrace.h"
 #include "utracimp.h"
 #include "cstring.h"
@@ -467,6 +468,8 @@ trCollNames[] = {
     "ucol_getLocale",
     "ucol_nextSortKeyPart",
     "ucol_strcollIter",
+    "ucol_openFromShortString",
+    "ucol_strcollUTF8",
     NULL
 };
 

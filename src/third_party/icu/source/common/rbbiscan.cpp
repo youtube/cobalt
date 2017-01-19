@@ -1,8 +1,7 @@
-
 //
 //  file:  rbbiscan.cpp
 //
-//  Copyright (C) 2002-2010, International Business Machines Corporation and others.
+//  Copyright (C) 2002-2015, International Business Machines Corporation and others.
 //  All Rights Reserved.
 //
 //  This file contains the Rule Based Break Iterator Rule Builder functions for
@@ -17,13 +16,14 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unistr.h"
 #include "unicode/uniset.h"
 #include "unicode/uchar.h"
 #include "unicode/uchriter.h"
 #include "unicode/parsepos.h"
 #include "unicode/parseerr.h"
-#include "util.h"
 #include "cmemory.h"
 #include "cstring.h"
 
@@ -35,7 +35,6 @@
 #include "rbbitblb.h"
 
 #include "uassert.h"
-
 
 //------------------------------------------------------------------------------
 //
@@ -72,7 +71,7 @@ static const UChar kAny[] = {0x61, 0x6e, 0x79, 0x00};  // "any"
 
 U_CDECL_BEGIN
 static void U_CALLCONV RBBISetTable_deleter(void *p) {
-    U_NAMESPACE_QUALIFIER RBBISetTableEl *px = (U_NAMESPACE_QUALIFIER RBBISetTableEl *)p;
+    icu::RBBISetTableEl *px = (icu::RBBISetTableEl *)p;
     delete px->key;
     // Note:  px->val is owned by the linked list "fSetsListHead" in scanner.
     //        Don't delete the value nodes here.
@@ -121,19 +120,20 @@ RBBIRuleScanner::RBBIRuleScanner(RBBIRuleBuilder *rb)
     //            all instances of RBBIRuleScanners.  BUT this is quite a bit simpler,
     //            and the time to build these few sets should be small compared to a
     //            full break iterator build.
-    fRuleSets[kRuleSet_rule_char-128]       = UnicodeSet(gRuleSet_rule_char_pattern,       *rb->fStatus);
-    UnicodeSet *whitespaceSet = uprv_openRuleWhiteSpaceSet(rb->fStatus);
-    if (U_FAILURE(*rb->fStatus)) {
-        return;
-    }
-    fRuleSets[kRuleSet_white_space-128]     = *whitespaceSet;
-    delete whitespaceSet;
-    fRuleSets[kRuleSet_name_char-128]       = UnicodeSet(gRuleSet_name_char_pattern,       *rb->fStatus);
-    fRuleSets[kRuleSet_name_start_char-128] = UnicodeSet(gRuleSet_name_start_char_pattern, *rb->fStatus);
-    fRuleSets[kRuleSet_digit_char-128]      = UnicodeSet(gRuleSet_digit_char_pattern,      *rb->fStatus);
+    fRuleSets[kRuleSet_rule_char-128]
+        = UnicodeSet(UnicodeString(gRuleSet_rule_char_pattern),       *rb->fStatus);
+    // fRuleSets[kRuleSet_white_space-128] = [:Pattern_White_Space:]
+    fRuleSets[kRuleSet_white_space-128].
+        add(9, 0xd).add(0x20).add(0x85).add(0x200e, 0x200f).add(0x2028, 0x2029);
+    fRuleSets[kRuleSet_name_char-128]
+        = UnicodeSet(UnicodeString(gRuleSet_name_char_pattern),       *rb->fStatus);
+    fRuleSets[kRuleSet_name_start_char-128]
+        = UnicodeSet(UnicodeString(gRuleSet_name_start_char_pattern), *rb->fStatus);
+    fRuleSets[kRuleSet_digit_char-128]
+        = UnicodeSet(UnicodeString(gRuleSet_digit_char_pattern),      *rb->fStatus);
     if (*rb->fStatus == U_ILLEGAL_ARGUMENT_ERROR) {
         // This case happens if ICU's data is missing.  UnicodeSet tries to look up property
-        //   names from the init string, can't find them, and claims an illegal arguement.
+        //   names from the init string, can't find them, and claims an illegal argument.
         //   Change the error so that the actual problem will be clearer to users.
         *rb->fStatus = U_BRK_INIT_ERROR;
     }
@@ -212,6 +212,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             fixOpStack(RBBINode::precOpCat);
             RBBINode  *operandNode = fNodeStack[fNodeStackPtr--];
             RBBINode  *orNode      = pushNewNode(RBBINode::opOr);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
             orNode->fLeftChild     = operandNode;
             operandNode->fParent   = orNode;
         }
@@ -226,6 +229,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             fixOpStack(RBBINode::precOpCat);
             RBBINode  *operandNode = fNodeStack[fNodeStackPtr--];
             RBBINode  *catNode     = pushNewNode(RBBINode::opCat);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
             catNode->fLeftChild    = operandNode;
             operandNode->fParent   = catNode;
         }
@@ -321,6 +327,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             RBBINode  *thisRule       = fNodeStack[fNodeStackPtr];
             RBBINode  *endNode        = pushNewNode(RBBINode::endMark);
             RBBINode  *catNode        = pushNewNode(RBBINode::opCat);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
             fNodeStackPtr -= 2;
             catNode->fLeftChild       = thisRule;
             catNode->fRightChild      = endNode;
@@ -348,6 +357,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             RBBINode  *thisRule    = fNodeStack[fNodeStackPtr];
             RBBINode  *prevRules   = *destRules;
             RBBINode  *orNode      = pushNewNode(RBBINode::opOr);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
             orNode->fLeftChild     = prevRules;
             prevRules->fParent     = orNode;
             orNode->fRightChild    = thisRule;
@@ -388,6 +400,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         {
             RBBINode  *operandNode = fNodeStack[fNodeStackPtr--];
             RBBINode  *plusNode    = pushNewNode(RBBINode::opPlus);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
             plusNode->fLeftChild   = operandNode;
             operandNode->fParent   = plusNode;
         }
@@ -397,6 +412,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         {
             RBBINode  *operandNode = fNodeStack[fNodeStackPtr--];
             RBBINode  *qNode       = pushNewNode(RBBINode::opQuestion);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
             qNode->fLeftChild      = operandNode;
             operandNode->fParent   = qNode;
         }
@@ -406,6 +424,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         {
             RBBINode  *operandNode = fNodeStack[fNodeStackPtr--];
             RBBINode  *starNode    = pushNewNode(RBBINode::opStar);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
             starNode->fLeftChild   = operandNode;
             operandNode->fParent   = starNode;
         }
@@ -419,7 +440,10 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         // sets that just happen to contain only one character.
         {
             n = pushNewNode(RBBINode::setRef);
-            findSetFor(fC.fChar, n);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
+            findSetFor(UnicodeString(fC.fChar), n);
             n->fFirstPos = fScanIndex;
             n->fLastPos  = fNextIndex;
             fRB->fRules.extractBetween(n->fFirstPos, n->fLastPos, n->fText);
@@ -430,7 +454,10 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         // scanned a ".", meaning match any single character.
         {
             n = pushNewNode(RBBINode::setRef);
-            findSetFor(kAny, n);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
+            findSetFor(UnicodeString(TRUE, kAny, 3), n);
             n->fFirstPos = fScanIndex;
             n->fLastPos  = fNextIndex;
             fRB->fRules.extractBetween(n->fFirstPos, n->fLastPos, n->fText);
@@ -440,6 +467,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
     case doSlash:
         // Scanned a '/', which identifies a look-ahead break position in a rule.
         n = pushNewNode(RBBINode::lookAhead);
+        if (U_FAILURE(*fRB->fStatus)) {
+            break;
+        }
         n->fVal      = fRuleNum;
         n->fFirstPos = fScanIndex;
         n->fLastPos  = fNextIndex;
@@ -451,6 +481,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
     case doStartTagValue:
         // Scanned a '{', the opening delimiter for a tag value within a rule.
         n = pushNewNode(RBBINode::tag);
+        if (U_FAILURE(*fRB->fStatus)) {
+            break;
+        }
         n->fVal      = 0;
         n->fFirstPos = fScanIndex;
         n->fLastPos  = fNextIndex;
@@ -561,7 +594,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         returnVal = FALSE;
         break;
     }
-    return returnVal;
+    return returnVal && U_SUCCESS(*fRB->fStatus);
 }
 
 
@@ -580,7 +613,7 @@ void RBBIRuleScanner::error(UErrorCode e) {
             fRB->fParseError->line  = fLineNum;
             fRB->fParseError->offset = fCharNum;
             fRB->fParseError->preContext[0] = 0;
-            fRB->fParseError->preContext[0] = 0;
+            fRB->fParseError->postContext[0] = 0;
         }
     }
 }
@@ -992,6 +1025,7 @@ void RBBIRuleScanner::parse() {
             if (tableEl->fCharClass >= 128 && tableEl->fCharClass < 240 &&   // Table specs a char class &&
                 fC.fEscaped == FALSE &&                                      //   char is not escaped &&
                 fC.fChar != (UChar32)-1) {                                   //   char is not EOF
+                U_ASSERT((tableEl->fCharClass-128) < UPRV_LENGTHOF(fRuleSets));
                 if (fRuleSets[tableEl->fCharClass-128].contains(fC.fChar)) {
                     // Table row specified a character class, or set of characters,
                     //   and the current char matches it.
@@ -1051,7 +1085,10 @@ void RBBIRuleScanner::parse() {
     if (fRB->fReverseTree == NULL) {
         fRB->fReverseTree  = pushNewNode(RBBINode::opStar);
         RBBINode  *operand = pushNewNode(RBBINode::setRef);
-        findSetFor(kAny, operand);
+        if (U_FAILURE(*fRB->fStatus)) {
+            return;
+        }
+        findSetFor(UnicodeString(TRUE, kAny, 3), operand);
         fRB->fReverseTree->fLeftChild = operand;
         operand->fParent              = fRB->fReverseTree;
         fNodeStackPtr -= 2;
@@ -1103,6 +1140,9 @@ void RBBIRuleScanner::printNodeStack(const char *title) {
 //
 //------------------------------------------------------------------------------
 RBBINode  *RBBIRuleScanner::pushNewNode(RBBINode::NodeType  t) {
+    if (U_FAILURE(*fRB->fStatus)) {
+        return NULL;
+    }
     fNodeStackPtr++;
     if (fNodeStackPtr >= kStackSize) {
         error(U_BRK_INTERNAL_ERROR);
@@ -1146,11 +1186,11 @@ void RBBIRuleScanner::scanSet() {
     pos.setIndex(fScanIndex);
     startPos = fScanIndex;
     UErrorCode localStatus = U_ZERO_ERROR;
-    uset = new UnicodeSet(fRB->fRules, pos, USET_IGNORE_SPACE,
-                         fSymbolTable,
-                         localStatus);
+    uset = new UnicodeSet();
     if (uset == NULL) {
         localStatus = U_MEMORY_ALLOCATION_ERROR;
+    } else {
+        uset->applyPatternIgnoreSpace(fRB->fRules, pos, fSymbolTable, localStatus);
     }
     if (U_FAILURE(localStatus)) {
         //  TODO:  Get more accurate position of the error from UnicodeSet's return info.
@@ -1165,6 +1205,7 @@ void RBBIRuleScanner::scanSet() {
 
     // Verify that the set contains at least one code point.
     //
+    U_ASSERT(uset!=NULL);
     if (uset->isEmpty()) {
         // This set is empty.
         //  Make it an error, because it almost certainly is not what the user wanted.
@@ -1191,6 +1232,9 @@ void RBBIRuleScanner::scanSet() {
         RBBINode         *n;
 
         n = pushNewNode(RBBINode::setRef);
+        if (U_FAILURE(*fRB->fStatus)) {
+            return;
+        }
         n->fFirstPos = startPos;
         n->fLastPos  = fNextIndex;
         fRB->fRules.extractBetween(n->fFirstPos, n->fLastPos, n->fText);

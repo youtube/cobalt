@@ -15,20 +15,12 @@
 #ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_COMPONENT_H_
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_COMPONENT_H_
 
-// OMX_SKIP64BIT is required for using VC GPU code.
-#define OMX_SKIP64BIT 1
-
-#include <IL/OMX_Broadcom.h>
-#include <interface/vcos/vcos.h>
-#include <interface/vcos/vcos_logging.h>
-#include <interface/vmcs_host/vchost.h>
-
 #include <queue>
 #include <vector>
 
-#include "starboard/condition_variable.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
+#include "starboard/raspi/shared/open_max/open_max_component_base.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/time.h"
 
@@ -37,72 +29,48 @@ namespace raspi {
 namespace shared {
 namespace open_max {
 
-template <typename ParamType, OMX_INDEXTYPE index>
-struct OMXParam : public ParamType {
-  static const OMX_INDEXTYPE Index = index;
-
-  OMXParam() : ParamType() {
-    ParamType::nSize = sizeof(ParamType);
-    ParamType::nVersion.nVersion = OMX_VERSION;
-  }
-};
-
-typedef OMXParam<OMX_PARAM_PORTDEFINITIONTYPE, OMX_IndexParamPortDefinition>
-    OMXParamPortDefinition;
-typedef OMXParam<OMX_VIDEO_PARAM_PORTFORMATTYPE, OMX_IndexParamVideoPortFormat>
-    OMXVideoParamPortFormat;
-
-class OpenMaxComponent {
+class OpenMaxComponent : protected OpenMaxComponentBase {
  public:
+  enum DataType {
+    kDataNonEOS,    // Do not flag any buffer as end of stream.
+    kDataEOS,       // Flag the last buffer written as end of stream.
+  };
+
   explicit OpenMaxComponent(const char* name);
-  virtual ~OpenMaxComponent();
+
+  // Create a tunnel from this component's output to the specified component's
+  // input port.
+  void SetOutputComponent(OpenMaxComponent* component);
+
+  // Flush and close the tunnel to the output component(s) (if any). This will
+  // close all tunnels for components in the output chain. It must only be
+  // called for the first component in the output chain.
+  void CloseTunnel();
 
   void Start();
   void Flush();
 
-  void WriteData(const void* data, size_t size, SbTime timestamp);
-  void WriteEOS();
+  // Write data to the input buffer. Returns the number of bytes written or
+  // -1 if an error occurred.
+  // This will return immediately once no more buffers are available.
+  int WriteData(const void* data, int size, DataType type, SbTime timestamp);
 
-  OMX_BUFFERHEADERTYPE* PeekNextOutputBuffer();
-  void DropNextOutputBuffer();
+  // Write an empty buffer that is flagged as the end of the input stream.
+  // This will block until a buffer is available.
+  bool WriteEOS();
 
-  template <typename ParamType>
-  void GetInputPortParam(ParamType* param) const {
-    param->nPortIndex = input_port_;
-    OMX_ERRORTYPE error = OMX_GetParameter(handle_, ParamType::Index, param);
-    SB_DCHECK(error == OMX_ErrorNone) << std::hex << "OMX_GetParameter("
-                                      << ParamType::Index
-                                      << ") failed with error " << error;
-  }
+  // Try to get the next output buffer.  The function may enable the output port
+  // internally if the output port has never been enabled or if the output
+  // format has been changed.  In both case it enables the output port in
+  // response to an output setting change.
+  // If an output tunnel has been established, then this will GetOutputBuffer()
+  // from the output component.
+  OMX_BUFFERHEADERTYPE* GetOutputBuffer();
+  void DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer);
 
-  template <typename ParamType>
-  void GetOutputPortParam(ParamType* param) const {
-    param->nPortIndex = output_port_;
-    OMX_ERRORTYPE error = OMX_GetParameter(handle_, ParamType::Index, param);
-    SB_DCHECK(error == OMX_ErrorNone) << std::hex << "OMX_GetParameter("
-                                      << ParamType::Index
-                                      << ") failed with error " << error;
-  }
-
-  template <typename ParamType>
-  void SetPortParam(const ParamType& param) const {
-    OMX_ERRORTYPE error = OMX_SetParameter(handle_, ParamType::Index,
-                                           const_cast<ParamType*>(&param));
-    SB_DCHECK(error == OMX_ErrorNone) << std::hex << "OMX_SetParameter("
-                                      << ParamType::Index
-                                      << ") failed with error " << error;
-  }
-
- private:
-  struct EventDescription {
-    OMX_EVENTTYPE event;
-    OMX_U32 data1;
-    OMX_U32 data2;
-    OMX_PTR event_data;
-  };
-
-  typedef std::vector<EventDescription> EventDescriptions;
-
+  // Callbacks available to children.
+  void OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
+                    OMX_PTR event_data) SB_OVERRIDE;
   virtual bool OnEnableInputPort(OMXParamPortDefinition* port_definition) {
     return false;
   }
@@ -110,47 +78,36 @@ class OpenMaxComponent {
     return false;
   }
 
-  void SendCommand(OMX_COMMANDTYPE command, int param);
-  void WaitForCommandCompletion();
-  void SendCommandAndWaitForCompletion(OMX_COMMANDTYPE command, int param);
+ protected:
+  ~OpenMaxComponent();
+
+  // Allow control of buffer allocation.
+  virtual OMX_BUFFERHEADERTYPE* AllocateBuffer(int port,
+                                               int index,
+                                               OMX_U32 size);
+
+ private:
+  void DisableOutputPort();
+
   void EnableInputPortAndAllocateBuffers();
   void EnableOutputPortAndAllocateBuffer();
+  void EnableOutputTunnelling(const OMXParamPortDefinition& port_definition);
   OMX_BUFFERHEADERTYPE* GetUnusedInputBuffer();
 
-  OMX_ERRORTYPE OnEvent(OMX_EVENTTYPE event,
-                        OMX_U32 data1,
-                        OMX_U32 data2,
-                        OMX_PTR event_data);
-  OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer);
-  void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer);
-
-  static OMX_ERRORTYPE EventHandler(OMX_HANDLETYPE handle,
-                                    OMX_PTR app_data,
-                                    OMX_EVENTTYPE event,
-                                    OMX_U32 data1,
-                                    OMX_U32 data2,
-                                    OMX_PTR event_data);
-  static OMX_ERRORTYPE EmptyBufferDone(OMX_HANDLETYPE handle,
-                                       OMX_PTR app_data,
-                                       OMX_BUFFERHEADERTYPE* buffer);
-  static OMX_ERRORTYPE FillBufferDone(OMX_HANDLETYPE handle,
-                                      OMX_PTR app_data,
-                                      OMX_BUFFERHEADERTYPE* buffer);
+  // Callbacks not intended to be overridden by children.
+  void OnOutputSettingChanged() SB_OVERRIDE;
+  OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer) SB_OVERRIDE;
+  void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) SB_OVERRIDE;
 
   Mutex mutex_;
-  ConditionVariable condition_variable_;
-  OMX_HANDLETYPE handle_;
-  int input_port_;
-  int output_port_;
   bool output_setting_changed_;
-  EventDescriptions event_descriptions_;
   std::vector<OMX_BUFFERHEADERTYPE*> input_buffers_;
-  std::queue<OMX_BUFFERHEADERTYPE*> unused_input_buffers_;
+  std::queue<OMX_BUFFERHEADERTYPE*> free_input_buffers_;
   std::vector<OMX_BUFFERHEADERTYPE*> output_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_output_buffers_;
+  int outstanding_output_buffers_;
 
-  OMXParamPortDefinition output_port_definition_;
-  bool output_port_enabled_;
+  OpenMaxComponent* output_component_;
 };
 
 }  // namespace open_max

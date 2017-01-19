@@ -49,7 +49,6 @@ class ResourceCache;
 
 enum CallbackType {
   kOnLoadingSuccessCallbackType,
-  kOnLoadingFailureCallbackType,
   kOnLoadingErrorCallbackType,
   kCallbackTypeCount,
 };
@@ -71,10 +70,9 @@ class CachedResource
   typedef base::Callback<scoped_ptr<Loader>(
       const GURL&, const csp::SecurityCallback&,
       const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const std::string&)>&,
       const base::Callback<void(const std::string&)>&)> CreateLoaderFunction;
 
-  // This class can be used to attach success, failure, or error callbacks to
+  // This class can be used to attach success or error callbacks to
   // CachedResource objects that are executed when the resource finishes
   // loading.
   // The callbacks are removed when the object is destroyed. If the resource has
@@ -84,7 +82,6 @@ class CachedResource
     OnLoadedCallbackHandler(
         const scoped_refptr<CachedResource>& cached_resource,
         const base::Closure& success_callback,
-        const base::Closure& failure_callback,
         const base::Closure& error_callback);
     ~OnLoadedCallbackHandler();
 
@@ -93,11 +90,9 @@ class CachedResource
 
     scoped_refptr<CachedResource> cached_resource_;
     base::Closure success_callback_;
-    base::Closure failure_callback_;
     base::Closure error_callback_;
 
     CallbackListIterator success_callback_list_iterator_;
-    CallbackListIterator failure_callback_list_iterator_;
     CallbackListIterator error_callback_list_iterator_;
 
     DISALLOW_COPY_AND_ASSIGN(OnLoadedCallbackHandler);
@@ -139,8 +134,6 @@ class CachedResource
   //
   // Notify that the resource is loaded successfully.
   void OnLoadingSuccess(const scoped_refptr<ResourceType>& resource);
-  // Notify the loading failure and could be treated differently than error.
-  void OnLoadingFailure(const std::string& warning);
   // Notify the loading error.
   void OnLoadingError(const std::string& error);
 
@@ -172,10 +165,9 @@ template <typename CacheType>
 CachedResource<CacheType>::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     const scoped_refptr<CachedResource>& cached_resource,
     const base::Closure& success_callback,
-    const base::Closure& failure_callback, const base::Closure& error_callback)
+    const base::Closure& error_callback)
     : cached_resource_(cached_resource),
       success_callback_(success_callback),
-      failure_callback_(failure_callback),
       error_callback_(error_callback) {
   DCHECK(cached_resource_);
 
@@ -185,11 +177,6 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     if (cached_resource_->TryGetResource()) {
       success_callback_.Run();
     }
-  }
-
-  if (!failure_callback_.is_null()) {
-    failure_callback_list_iterator_ = cached_resource_->AddCallback(
-        kOnLoadingFailureCallbackType, failure_callback_);
   }
 
   if (!error_callback_.is_null()) {
@@ -203,11 +190,6 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
   if (!success_callback_.is_null()) {
     cached_resource_->RemoveCallback(kOnLoadingSuccessCallbackType,
                                      success_callback_list_iterator_);
-  }
-
-  if (!failure_callback_.is_null()) {
-    cached_resource_->RemoveCallback(kOnLoadingFailureCallbackType,
-                                     failure_callback_list_iterator_);
   }
 
   if (!error_callback_.is_null()) {
@@ -231,7 +213,6 @@ CachedResource<CacheType>::CachedResource(
   loader_ = create_loader_function.Run(
       url, security_callback,
       base::Bind(&CachedResource::OnLoadingSuccess, base::Unretained(this)),
-      base::Bind(&CachedResource::OnLoadingFailure, base::Unretained(this)),
       base::Bind(&CachedResource::OnLoadingError, base::Unretained(this)));
 }
 
@@ -280,21 +261,10 @@ void CachedResource<CacheType>::OnLoadingSuccess(
 }
 
 template <typename CacheType>
-void CachedResource<CacheType>::OnLoadingFailure(const std::string& message) {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
-
-  LOG(WARNING) << "Warning while loading '" << url_ << "': " << message;
-
-  loader_.reset();
-  resource_cache_->NotifyResourceLoadingComplete(this,
-                                                 kOnLoadingFailureCallbackType);
-}
-
-template <typename CacheType>
 void CachedResource<CacheType>::OnLoadingError(const std::string& error) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
-  LOG(ERROR) << "Error while loading '" << url_ << "': " << error;
+  LOG(WARNING) << "Error while loading '" << url_ << "': " << error;
 
   loader_.reset();
   resource_cache_->NotifyResourceLoadingComplete(this,
@@ -351,13 +321,11 @@ class CachedResourceReferenceWithCallbacks {
   CachedResourceReferenceWithCallbacks(
       const scoped_refptr<CachedResourceType>& cached_resource,
       const base::Closure& success_callback,
-      const base::Closure& failure_callback,
       const base::Closure& error_callback)
       : cached_resource_(cached_resource),
         cached_resource_loaded_callback_handler_(
             new CachedResourceTypeOnLoadedCallbackHandler(
-                cached_resource, success_callback, failure_callback,
-                error_callback)) {}
+                cached_resource, success_callback, error_callback)) {}
 
   scoped_refptr<CachedResourceType> cached_resource() {
     return cached_resource_;
@@ -420,6 +388,8 @@ class ResourceCache {
   void SetCapacity(uint32 capacity);
 
   void Purge();
+
+  void DisableCallbacks();
 
  private:
   friend class CachedResource<CacheType>;
@@ -494,6 +464,8 @@ class ResourceCache {
   ResourceCallbackMap pending_callback_map_;
   // Whether or not ProcessPendingCallbacks() is running.
   bool is_processing_pending_callbacks_;
+  // Whether or not callbacks are currently disabled.
+  bool are_callbacks_disabled_;
 
   // |cached_resource_map_| stores the cached resources that are currently
   // referenced.
@@ -508,6 +480,8 @@ class ResourceCache {
 
   base::CVal<base::cval::SizeInBytes, base::CValPublic> size_in_bytes_;
   base::CVal<base::cval::SizeInBytes, base::CValPublic> capacity_in_bytes_;
+  base::CVal<int> count_loading_resources_;
+  base::CVal<int> count_pending_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };
@@ -524,13 +498,22 @@ ResourceCache<CacheType>::ResourceCache(
       cache_capacity_(cache_capacity),
       create_loader_function_(create_loader_function),
       is_processing_pending_callbacks_(false),
-      size_in_bytes_(base::StringPrintf("%s.Size", name_.c_str()), 0,
+      are_callbacks_disabled_(false),
+      size_in_bytes_(base::StringPrintf("Memory.%s.Size", name_.c_str()), 0,
                      "Total number of bytes currently used by the cache."),
-      capacity_in_bytes_(base::StringPrintf("%s.Capacity", name_.c_str()),
-                         cache_capacity_,
-                         "The capacity, in bytes, of the resource cache.  "
-                         "Exceeding this results in *unused* resources being "
-                         "purged.") {
+      capacity_in_bytes_(
+          base::StringPrintf("Memory.%s.Capacity", name_.c_str()),
+          cache_capacity_,
+          "The capacity, in bytes, of the resource cache.  "
+          "Exceeding this results in *unused* resources being "
+          "purged."),
+      count_loading_resources_(
+          base::StringPrintf("Count.%s.LoadingResources", name_.c_str()), 0,
+          "The number of loading resources that are still outstanding."),
+      count_pending_callbacks_(
+          base::StringPrintf("Count.%s.PendingCallbacks", name_.c_str()), 0,
+          "The number of loading completed resources that have pending "
+          "callbacks.") {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
   DCHECK(!create_loader_function_.is_null());
 }
@@ -573,6 +556,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
   } else {
     non_callback_blocking_loading_resource_set_.insert(url.spec());
   }
+  ++count_loading_resources_;
 
   // Create the cached resource and fetch its resource based on the url.
   scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
@@ -593,7 +577,14 @@ void ResourceCache<CacheType>::SetCapacity(uint32 capacity) {
 template <typename CacheType>
 void ResourceCache<CacheType>::Purge() {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
-  ReclaimMemoryAndMaybeProcessPendingCallbacks(0);
+  ProcessPendingCallbacks();
+  ReclaimMemory(0, true);
+}
+
+template <typename CacheType>
+void ResourceCache<CacheType>::DisableCallbacks() {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  are_callbacks_disabled_ = true;
 }
 
 template <typename CacheType>
@@ -620,6 +611,12 @@ void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
   // callbacks.
   pending_callback_map_.insert(std::make_pair(
       url, ResourceCallbackInfo(cached_resource, callback_type)));
+
+  // Update the loading resources and pending callbacks count. The callbacks are
+  // incremented first to ensure that the total of the two counts always remains
+  // above 0.
+  ++count_pending_callbacks_;
+  --count_loading_resources_;
 
   ProcessPendingCallbacksIfUnblocked();
   ReclaimMemoryAndMaybeProcessPendingCallbacks(cache_capacity_);
@@ -650,10 +647,12 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
     DCHECK(non_callback_blocking_loading_resource_set_.find(url) ==
            non_callback_blocking_loading_resource_set_.end());
     DCHECK(pending_callback_map_.find(url) == pending_callback_map_.end());
+    --count_loading_resources_;
   } else if (non_callback_blocking_loading_resource_set_.erase(url)) {
     DCHECK(pending_callback_map_.find(url) == pending_callback_map_.end());
-  } else {
-    pending_callback_map_.erase(url);
+    --count_loading_resources_;
+  } else if (pending_callback_map_.erase(url)) {
+    --count_pending_callbacks_;
   }
 
   // Only process pending callbacks and attempt to reclaim memory if
@@ -729,6 +728,11 @@ template <typename CacheType>
 void ResourceCache<CacheType>::ProcessPendingCallbacks() {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
 
+  // If callbacks are disabled, simply return.
+  if (are_callbacks_disabled_) {
+    return;
+  }
+
   is_processing_pending_callbacks_ = true;
   while (!pending_callback_map_.empty()) {
     ResourceCallbackInfo& callback_info = pending_callback_map_.front().second;
@@ -741,6 +745,7 @@ void ResourceCache<CacheType>::ProcessPendingCallbacks() {
     pending_callback_map_.erase(pending_callback_map_.begin());
   }
   is_processing_pending_callbacks_ = false;
+  count_pending_callbacks_ = 0;
 }
 
 }  // namespace loader

@@ -47,7 +47,8 @@ class StubImageDecoder : public ImageDataDecoder {
     UNREFERENCED_PARAMETER(data);
     UNREFERENCED_PARAMETER(input_byte);
     if (!image_data()) {
-      AllocateImageData(math::Size(4, 4), true);
+      bool results = AllocateImageData(math::Size(4, 4), true);
+      DCHECK(results);
     }
     set_state(kDone);
     return input_byte;

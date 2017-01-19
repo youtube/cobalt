@@ -23,6 +23,7 @@
 #include "base/bind.h"
 #include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/attribute_selector.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
@@ -232,6 +233,86 @@ TEST_F(ParserTest, SemicolonsDonotEndQualifiedRules) {
       parser_.ParseStyleSheet("foo; bar {} div {}", source_location_);
   ASSERT_TRUE(style_sheet);
   EXPECT_EQ(1, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, ParsesAttributeSelectorNoValue) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("[attr] {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::AttributeSelector* attribute_selector =
+      dynamic_cast<cssom::AttributeSelector*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(attribute_selector);
+  EXPECT_EQ("attr", attribute_selector->attribute_name());
+}
+
+TEST_F(ParserTest, ParsesAttributeSelectorValueWithQuotes) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("[attr=\"value\"] {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::AttributeSelector* attribute_selector =
+      dynamic_cast<cssom::AttributeSelector*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(attribute_selector);
+  EXPECT_EQ("attr", attribute_selector->attribute_name());
+  EXPECT_EQ("value", attribute_selector->attribute_value());
+}
+
+TEST_F(ParserTest, ParsesAttributeSelectorValueWithoutQuotes) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("[attr=value] {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::AttributeSelector* attribute_selector =
+      dynamic_cast<cssom::AttributeSelector*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(attribute_selector);
+  EXPECT_EQ("attr", attribute_selector->attribute_name());
+  EXPECT_EQ("value", attribute_selector->attribute_value());
 }
 
 TEST_F(ParserTest, ParsesClassSelector) {
@@ -8291,7 +8372,7 @@ TEST_F(ParserTest, ParsesFilterWithKeywordInherit) {
 TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(projection.msh),"
+          "filter: map-to-mesh(url(projection.msh),"
           "                        180deg 1.5rad,"
           "                        matrix3d(1, 0, 0, 0,"
           "                                 0, 1, 0, 0,"
@@ -8313,13 +8394,41 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   EXPECT_EQ(1.5f, mtm_function->vertical_fov());
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
+}
+
+TEST_F(ParserTest, ParsesMtmWIPFilterName) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(projection.msh),"
+          "                        180deg 1.2rad,"
+          "                        matrix3d(1, 0, 0, 0,"
+          "                                 0, 1, 0, 0,"
+          "                                 0, 0, 1, 0,"
+          "                                 0, 0, 0, 1));",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  ASSERT_EQ(1, filter_list->value().size());
+
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
+  EXPECT_EQ(1.2f, mtm_function->vertical_fov());
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(projection.msh)"
+          "filter: map-to-mesh(url(projection.msh)"
           "                     640 480 url(p2.msh)"
           "                     1920 1080 url(yeehaw.msh)"
           "                     33 22 url(yoda.msh),"
@@ -8350,13 +8459,13 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
       dynamic_cast<cssom::URLValue*>(meshes[1]->mesh_url().get())->value());
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8383,13 +8492,13 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
   EXPECT_EQ(4.0f, actual[3][3]);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8409,13 +8518,13 @@ TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kMonoscopic);
+            cssom::KeywordValue::kMonoscopic);
 }
 
 TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8435,13 +8544,13 @@ TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kStereoscopicLeftRight);
+            cssom::KeywordValue::kStereoscopicLeftRight);
 }
 
 TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"
@@ -8461,7 +8570,7 @@ TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
-            cssom::KeywordValue::Value::kStereoscopicTopBottom);
+            cssom::KeywordValue::kStereoscopicTopBottom);
 }
 
 TEST_F(ParserTest, HandlesInvalidMtmStereoMode) {
@@ -8470,7 +8579,7 @@ TEST_F(ParserTest, HandlesInvalidMtmStereoMode) {
 
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "filter: -cobalt-mtm(url(p.msh),"
+          "filter: map-to-mesh(url(p.msh),"
           "                    100deg 60deg,"
           "                    matrix3d(1, 0, 0, 5,"
           "                             0, 2, 0, 0,"

@@ -29,6 +29,7 @@
 #include "cobalt/script/mozjs/referenced_object_map.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "nb/memory_scope.h"
+#include "third_party/mozjs/js/public/RootingAPI.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 #include "third_party/mozjs/js/src/jsfun.h"
 #include "third_party/mozjs/js/src/jsobj.h"
@@ -291,8 +292,9 @@ void MozjsGlobalEnvironment::PreventGarbageCollection(
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrappable(wrappable, context_, wrapper_factory());
   JS::RootedObject proxy(context_, wrapper_private->js_object_proxy());
+  JS::Heap<JSObject*> proxy_heap(proxy);
   kept_alive_objects_.insert(CachedWrapperMultiMap::value_type(
-      wrappable.get(), JS::Heap<JSObject*>(proxy)));
+      wrappable.get(), proxy_heap));
 }
 
 void MozjsGlobalEnvironment::AllowGarbageCollection(
@@ -317,6 +319,13 @@ void MozjsGlobalEnvironment::EnableEval() {
   DCHECK(thread_checker_.CalledOnValidThread());
   eval_disabled_message_ = base::nullopt;
   eval_enabled_ = true;
+}
+
+void MozjsGlobalEnvironment::DisableJit() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  uint32 current_options = JS_GetOptions(context_);
+  uint32 new_options = current_options & ~(JSOPTION_BASELINE | JSOPTION_ION);
+  JS_SetOptions(context_, new_options);
 }
 
 void MozjsGlobalEnvironment::SetReportEvalCallback(
@@ -431,12 +440,16 @@ void MozjsGlobalEnvironment::ReportErrorHandler(JSContext* context,
     error_message = message;
   }
 
+  std::string message_with_location =
+      base::StringPrintf("%s:%u:%u: %s",
+                         (report->filename ? report->filename : "(none)"),
+                         report->lineno,
+                         report->column,
+                         error_message.c_str());
   if (global_object_proxy && global_object_proxy->last_error_message_) {
-    *(global_object_proxy->last_error_message_) = error_message;
+    *(global_object_proxy->last_error_message_) = message_with_location;
   } else {
-    const char *filename = report->filename ? report->filename : "(none)";
-    LOG(ERROR) << "JS Error: " << filename << ":" << report->lineno << ":"
-               << report->column << ": " << error_message;
+    LOG(ERROR) << "JS Error: " << message_with_location;
   }
 }
 

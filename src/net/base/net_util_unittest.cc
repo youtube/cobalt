@@ -807,7 +807,8 @@ TEST(NetUtilTest, GetSpecificHeader) {
   }
 }
 
-TEST(NetUtilTest, IDNToUnicodeFast) {
+// Cobalt does not support this feature.
+TEST(NetUtilTest, DISABLED_IDNToUnicodeFast) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(idn_cases); i++) {
     for (size_t j = 0; j < arraysize(kLanguages); j++) {
       // ja || zh-TW,en || ko,ja -> IDNToUnicodeSlow
@@ -824,7 +825,8 @@ TEST(NetUtilTest, IDNToUnicodeFast) {
   }
 }
 
-TEST(NetUtilTest, IDNToUnicodeSlow) {
+// Cobalt does not support this feature.
+TEST(NetUtilTest, DISABLED_IDNToUnicodeSlow) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(idn_cases); i++) {
     for (size_t j = 0; j < arraysize(kLanguages); j++) {
       // !(ja || zh-TW,en || ko,ja) -> IDNToUnicodeFast
@@ -2615,7 +2617,17 @@ TEST(NetUtilTest, FormatUrl) {
 
   size_t exceptions[] = {
 #if defined(COBALT)
+    // Cobalt does not support IDN, so we skip these tests.
+    2,
+    3,
+    4,
+    5,
+    7,
+    8,
+    14,
+    15,
     27,
+    28,
 #endif
   };
 

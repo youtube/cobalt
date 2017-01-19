@@ -32,6 +32,7 @@
 #include "js/Vector.h"
 
 #include "starboard/file.h"
+#include "nb/memory_scope.h"
 
 /************************************************************************/
 
@@ -255,6 +256,7 @@ class AutoVectorRooter : protected AutoGCRooter
     }
 
     bool resize(size_t newLength) {
+        TRACK_MEMORY_SCOPE("Javascript");
         size_t oldLength = vector.length();
         if (newLength <= oldLength) {
             vector.shrinkBy(oldLength - newLength);
@@ -705,6 +707,7 @@ CallNonGenericMethod(JSContext *cx, CallArgs args)
 JS_ALWAYS_INLINE bool
 CallNonGenericMethod(JSContext *cx, IsAcceptableThis Test, NativeImpl Impl, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     const Value &thisv = args.thisv();
     if (Test(thisv))
         return Impl(cx, args);

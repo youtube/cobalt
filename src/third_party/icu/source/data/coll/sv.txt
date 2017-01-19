@@ -1,16 +1,13 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/collation/sv.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/collation/sv.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/collation/sv.xml
- */
 sv{
-    Version{"2.0.51.25"}
+    Version{"2.1.19.14"}
     collations{
         default{"reformed"}
         reformed{
@@ -19,68 +16,16 @@ sv{
                 "&t<<<þ/h"
                 "&T<<<Þ/H"
                 "&Y<<ü<<<Ü<<ű<<<Ű"
-                "&[before 1]ǀ<å<<<Å<ä<<<Ä<<æ<<<Æ<<ę<<<Ę<ö<<<Ö<<ø<<<Ø<<ő<<<Ő<<œ<<<Œ<"
-                "<ô<<<Ô"
+                "&[before 1]ǀ<å<<<Å<ä<<<Ä<<æ<<<Æ<<ę<<<Ę<ö<<<Ö<<ø<<<Ø<<ő<<<Ő<<œ<<<Œ<<ô<<<Ô"
             }
-            Version{"1.9"}
+            Version{"28"}
         }
         search{
             Sequence{
-                " [normalization on ][suppressContractions [เ-ไ ເ-ໄ] ]"
-                "&ا<<آ<<أ<<إ"
-                "&و<<ؤ"
-                "&ي<<ئ<<ى"
-                "&ه<<ة"
-                "&[last primary ignorable ]<<׳<<״<<ـ<<ٌ<<ٍ<<َ<<ُ<<ِ<<ّ<<ْ<<ฺ"
-                "&ᄀ=ᆨ"
-                "&ᄀᄀ=ᄁ=ᆩ"
-                "&ᄀᄉ=ᆪ"
-                "&ᄂ=ᆫ"
-                "&ᄂᄌ=ᆬ"
-                "&ᄂᄒ=ᆭ"
-                "&ᄃ=ᆮ"
-                "&ᄃᄃ=ᄄ"
-                "&ᄅ=ᆯ"
-                "&ᄅᄀ=ᆰ"
-                "&ᄅᄆ=ᆱ"
-                "&ᄅᄇ=ᆲ"
-                "&ᄅᄉ=ᆳ"
-                "&ᄅᄐ=ᆴ"
-                "&ᄅᄑ=ᆵ"
-                "&ᄅᄒ=ᆶ"
-                "&ᄆ=ᆷ"
-                "&ᄇ=ᆸ"
-                "&ᄇᄇ=ᄈ"
-                "&ᄇᄉ=ᆹ"
-                "&ᄉ=ᆺ"
-                "&ᄉᄉ=ᄊ=ᆻ"
-                "&ᄋ=ᆼ"
-                "&ᄌ=ᆽ"
-                "&ᄌᄌ=ᄍ"
-                "&ᄎ=ᆾ"
-                "&ᄏ=ᆿ"
-                "&ᄐ=ᇀ"
-                "&ᄑ=ᇁ"
-                "&ᄒ=ᇂ"
-                "&ᅡᅵ=ᅢ"
-                "&ᅣᅵ=ᅤ"
-                "&ᅥᅵ=ᅦ"
-                "&ᅧᅵ=ᅨ"
-                "&ᅩᅡ=ᅪ"
-                "&ᅩᅡᅵ=ᅫ"
-                "&ᅩᅵ=ᅬ"
-                "&ᅮᅴ=ᅯ"
-                "&ᅮᅴᅵ=ᅰ"
-                "&ᅮᅵ=ᅱ"
-                "&D<<đ<<<Đ<<ð<<<Ð"
-                "&t<<<þ/h"
-                "&T<<<Þ/H"
-                "&v<<<V<<w<<<W"
-                "&Y<<ü<<<Ü<<ű<<<Ű"
-                "&[before 1]ǀ<å<<<Å<ä<<<Ä<<æ<<<Æ<<ę<<<Ę<ö<<<Ö<<ø<<<Ø<<ő<<<Ő<<œ<<<Œ<"
-                "<ô<<<Ô"
+                "[import und-u-co-search]"
+                "[import sv-u-co-standard]"
             }
-            Version{"1.9"}
+            Version{"28"}
         }
         standard{
             Sequence{
@@ -89,10 +34,9 @@ sv{
                 "&T<<<Þ/H"
                 "&v<<<V<<w<<<W"
                 "&Y<<ü<<<Ü<<ű<<<Ű"
-                "&[before 1]ǀ<å<<<Å<ä<<<Ä<<æ<<<Æ<<ę<<<Ę<ö<<<Ö<<ø<<<Ø<<ő<<<Ő<<œ<<<Œ<"
-                "<ô<<<Ô"
+                "&[before 1]ǀ<å<<<Å<ä<<<Ä<<æ<<<Æ<<ę<<<Ę<ö<<<Ö<<ø<<<Ø<<ő<<<Ő<<œ<<<Œ<<ô<<<Ô"
             }
-            Version{"1.9"}
+            Version{"28"}
         }
     }
 }

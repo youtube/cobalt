@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/nd.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/nd.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/nd.xml
- */
 nd{
     Countries{
         AD{"Andora"}
@@ -56,7 +53,6 @@ nd{
         CN{"China"}
         CO{"Kholombiya"}
         CR{"Khosta Rikha"}
-        CS{"Serbia and Montenegro"}
         CU{"Cuba"}
         CV{"Cape Verde Islands"}
         CY{"Cyprus"}
@@ -238,5 +234,5 @@ nd{
         ZM{"Zambiya"}
         ZW{"Zimbabwe"}
     }
-    Version{"2.0.47.63"}
+    Version{"2.1.19.14"}
 }

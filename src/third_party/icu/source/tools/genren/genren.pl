@@ -1,7 +1,7 @@
 #!/usr/bin/perl 
 #*
 #*******************************************************************************
-#*   Copyright (C) 2001-2010, International Business Machines
+#*   Copyright (C) 2001-2012, International Business Machines
 #*   Corporation and others.  All Rights Reserved.
 #*******************************************************************************
 #*
@@ -82,7 +82,7 @@ print HEADER <<"EndOfHeaderComment";
 *   tab size:   8 (not used)
 *   indentation:4
 *
-*   Created by: Perl script written by Vladimir Weinstein
+*   Created by: Perl script tools/genren.pl written by Vladimir Weinstein
 *
 *  Contains data for renaming ICU exports.
 *  Gets included by umachine.h
@@ -94,9 +94,13 @@ print HEADER <<"EndOfHeaderComment";
 #ifndef $HEADERDEF
 #define $HEADERDEF
 
-/* Uncomment the following line to disable renaming on platforms
-   that do not use Autoconf. */
-/* #define U_DISABLE_RENAMING 1 */
+/* U_DISABLE_RENAMING can be defined in the following ways:
+ *   - when running configure, e.g.
+ *        runConfigureICU Linux --disable-renaming
+ *   - by changing the default setting of U_DISABLE_RENAMING in uconfig.h
+ */
+
+#include "unicode/uconfig.h"
 
 #if !U_DISABLE_RENAMING
 
@@ -104,6 +108,7 @@ print HEADER <<"EndOfHeaderComment";
    the platform a chance to define it first.
    Normally (if utypes.h or umachine.h was included first) this will not be necessary as it will already be defined.
  */
+
 #ifndef U_ICU_ENTRY_POINT_RENAME
 #include "unicode/umachine.h"
 #endif
@@ -139,10 +144,13 @@ for(;@ARGV; shift(@ARGV)) {
     foreach (@NMRESULT) { # Process every line of result and stuff it in $_
         $itemCount++;
         if($mode =~ /POSIX/) {
+            &verbose("  $_");
             ($_, $address, $type) = split(/\|/);
+            chop $qtype;
         } elsif ($mode =~ /Mach-O/) {
-            if(/^(?:[0-9a-fA-F]){8} ([A-Z]) (?:_)?(.*)$/) {
-                ($_, $type) = ($2, $1);
+            ($address, $type, $_) = split(/ /);
+            if(/^_(.*)$/) {
+                $_ = $1;
             } else {
                 next;
             }
@@ -156,10 +164,17 @@ for(;@ARGV; shift(@ARGV)) {
                 &verbose( "C++ method: $_\n");
             } elsif (/^[^\(]*::/) { # C++ methods, stuff class name in associative array
 	        ##  DON'T match    ...  (   foo::bar ...   want :: to be to the left of paren
-                ## icu_2_0::CharString::~CharString(void) -> CharString
+                ## icu::CharString::~CharString(void) -> CharString
                 @CppName = split(/::/); ## remove scope stuff
+                
                 if(@CppName>1) {
                     ## MessageFormat virtual table -> MessageFormat
+                    if(! ($CppName[0] =~ /icu/ )) {
+                        # *** WARNING Bad namespace (not 'icu') on ShoeSize::ShoeSize()
+                        warn "*** WARNING Bad namespace (not 'icu') on $_\n";
+                        next;
+                    }
+                    &verbose ( "(Chopping scope $CppName[0] )");
                     @CppName = split(/ /, $CppName[1]); ## remove debug stuff
                 }
                 ## ures_getUnicodeStringByIndex(UResourceBundle -> ures_getUnicodeStringByIndex
@@ -169,9 +184,9 @@ for(;@ARGV; shift(@ARGV)) {
                 } elsif($CppName[0] =~ /^~/) {
                     &verbose ("Skipping C++ destructor: $_\n");
                 } else {
-		    &verbose( " Class: '$CppName[0]': $_ \n");
-                    $CppClasses{$CppName[0]}++;
-		    $symbolCount++;
+                    &verbose( "Skipping C++ class: '$CppName[0]': $_ \n");
+                    # $CppClasses{$CppName[0]}++;
+                    # $symbolCount++;
                 }
 	    } elsif ( my ($cfn) = m/^([A-Za-z0-9_]*)\(.*/ ) {
 		&verbose ( "$ARGV[0]:  got global C++ function  $cfn with '$_'\n" );
@@ -187,7 +202,7 @@ for(;@ARGV; shift(@ARGV)) {
                 print STDERR "$ARGV[0]: Skipped strange mangled function $_\n";
             } elsif ( /^vtable for /) {
                 print STDERR "$ARGV[0]: Skipped vtable $_\n";
-            } elsif ( /^typeinfo for /) {
+            } elsif ( /^typeinfo/) {
                 print STDERR "$ARGV[0]: Skipped typeinfo $_\n";
             } elsif ( /operator\+/ ) {
                 print STDERR "$ARGV[0]: Skipped ignored function $_\n";
@@ -219,15 +234,6 @@ foreach(sort keys(%CFuncs)) {
 #    print HEADER "#define $_ $_$U_ICU_VERSION_SUFFIX\n";
 }
 
-print HEADER "\n\n";
-print HEADER "/* C++ class names renaming defines */\n\n";
-print HEADER "#ifdef XP_CPLUSPLUS\n";
-print HEADER "#if !U_HAVE_NAMESPACE\n\n";
-foreach(sort keys(%CppClasses)) {
-    print HEADER "#define $_ U_ICU_ENTRY_POINT_RENAME($_)\n";
-}
-print HEADER "\n#endif\n";
-print HEADER "#endif\n";
 print HEADER "\n#endif\n";
 print HEADER "\n#endif\n";
 
@@ -255,4 +261,3 @@ EndHelpText
     exit 0;
 
 }
-

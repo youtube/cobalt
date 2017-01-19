@@ -29,8 +29,12 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
-        'memory_tracker_tool.cc',
-        'memory_tracker_tool.h',
+        'memory_tracker/buffered_file_writer.cc',
+        'memory_tracker/buffered_file_writer.h',
+        'memory_tracker/memory_tracker_tool.cc',
+        'memory_tracker/memory_tracker_tool.h',
+        'memory_tracker/memory_tracker_tool_impl.cc',
+        'memory_tracker/memory_tracker_tool_impl.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
         'resource_provider_array_buffer_allocator.cc',
@@ -121,6 +125,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'storage_upgrade_handler_test.cc',
+        'memory_tracker/memory_tracker_tool_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
@@ -133,6 +138,18 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'browser',
       ],
+    },
+
+    {
+      'target_name': 'browser_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'browser_test',
+      ],
+      'variables': {
+        'executable_name': 'browser_test',
+      },
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
 
     {

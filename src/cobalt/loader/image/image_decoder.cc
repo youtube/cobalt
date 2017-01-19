@@ -81,19 +81,33 @@ ImageType DetermineImageType(const uint8* header) {
 
 ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
                            const SuccessCallback& success_callback,
-                           const FailureCallback& failure_callback,
                            const ErrorCallback& error_callback)
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
-      failure_callback_(failure_callback),
       error_callback_(error_callback),
-      state_(kWaitingForHeader) {
+      state_(kWaitingForHeader),
+      data_consumed_size(0) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::ImageDecoder()");
   signature_cache_.position = 0;
 
   if (!resource_provider_) {
     state_ = kNoResourceProvider;
   }
+}
+
+bool ImageDecoder::EnsureDecoderIsInitialized(const char* data, size_t size) {
+  if (state_ == kWaitingForHeader) {
+    if (InitializeInternalDecoder(reinterpret_cast<const uint8*>(data),
+                                  size, &data_consumed_size)) {
+      DCHECK(decoder_);
+      state_ = kDecoding;
+    }
+  }
+  return state_ == kDecoding;
+}
+
+bool ImageDecoder::IsHardwareDecoder() const {
+  return decoder_ ? decoder_->IsHardwareDecoder() : false;
 }
 
 LoadResponseType ImageDecoder::OnResponseStarted(
@@ -111,20 +125,20 @@ LoadResponseType ImageDecoder::OnResponseStarted(
     // The server successfully processed the request and expected some contents,
     // but it is not returning any content.
     state_ = kNotApplicable;
-    CacheMessage(&failure_message_, "No content returned, but expected some.");
+    CacheMessage(&error_message_, "No content returned, but expected some.");
   }
 
   if (headers->response_code() == net::HTTP_NO_CONTENT) {
     // The server successfully processed the request, but is not returning any
     // content.
     state_ = kNotApplicable;
-    CacheMessage(&failure_message_, "No content returned.");
+    CacheMessage(&error_message_, "No content returned.");
   }
 
   bool success = headers->GetMimeType(&mime_type_);
   if (!success || !net::IsSupportedImageMimeType(mime_type_)) {
     state_ = kNotApplicable;
-    CacheMessage(&failure_message_, "Not an image mime type.");
+    CacheMessage(&error_message_, "Not an image mime type.");
   }
 
   return kLoadResponseContinue;
@@ -171,7 +185,7 @@ void ImageDecoder::Finish() {
     case kWaitingForHeader:
       if (signature_cache_.position == 0) {
         // no image is available.
-        failure_callback_.Run(failure_message_);
+        error_callback_.Run(error_message_);
       } else {
         error_callback_.Run("No enough image data for header.");
       }
@@ -180,14 +194,14 @@ void ImageDecoder::Finish() {
       error_callback_.Run("Unsupported image format.");
       break;
     case kNoResourceProvider:
-      failure_callback_.Run("No resource provider was passed to the decoder.");
+      error_callback_.Run("No resource provider was passed to the decoder.");
       break;
     case kSuspended:
       DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
       break;
     case kNotApplicable:
       // no image is available.
-      failure_callback_.Run(failure_message_);
+      error_callback_.Run(error_message_);
       break;
   }
 }
@@ -223,25 +237,32 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::DecodeChunkInternal()");
   switch (state_) {
     case kWaitingForHeader: {
-      size_t consumed_size = 0;
-      if (InitializeInternalDecoder(input_bytes, size, &consumed_size)) {
+      if (!InitializeInternalDecoder(input_bytes, size, &data_consumed_size)) {
+        break;
+      } else {
         state_ = kDecoding;
-        DCHECK(decoder_);
-        if (consumed_size == kLengthOfLongestSignature) {
-          // This case means the first chunk is large enough for matching
-          // signature.
-          decoder_->DecodeChunk(input_bytes, size);
-        } else {
-          decoder_->DecodeChunk(signature_cache_.data,
-                                kLengthOfLongestSignature);
-          input_bytes += consumed_size;
-          decoder_->DecodeChunk(input_bytes, size - consumed_size);
-        }
+        // Intentional fall-through to decode the chunk.
       }
-    } break;
+    }
     case kDecoding: {
       DCHECK(decoder_);
-      decoder_->DecodeChunk(input_bytes, size);
+      // Handle special cases in which the initial input chunks were too
+      // small to determine the image type (signature), so they had to be
+      // cached.
+      if (data_consumed_size == kLengthOfLongestSignature) {
+        // This case means the first chunk is large enough for matching
+        // signature.
+        decoder_->DecodeChunk(input_bytes, size);
+        data_consumed_size = 0;
+      } else if (data_consumed_size > 0) {
+        decoder_->DecodeChunk(signature_cache_.data,
+                              kLengthOfLongestSignature);
+        input_bytes += data_consumed_size;
+        decoder_->DecodeChunk(input_bytes, size - data_consumed_size);
+        data_consumed_size = 0;
+      } else {
+        decoder_->DecodeChunk(input_bytes, size);
+      }
     } break;
     case kNotApplicable:
     case kUnsupportedImageFormat:

@@ -30,7 +30,7 @@
 
 #include "third_party/harfbuzz-ng/src/hb.h"
 #include "third_party/harfbuzz-ng/src/hb-icu.h"
-#include "third_party/icu/public/common/unicode/uscript.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/skia/include/core/SkTextBlob.h"
 
 namespace cobalt {

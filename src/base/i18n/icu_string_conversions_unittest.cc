@@ -186,13 +186,6 @@ static const struct {
    true,
    L"\x05E9\x05C1\x05B8\x05DC\x05D5\x05B9\x05DD",
    NULL},
-  // Hindi Devanagari (ISCII)
-  {"iscii-dev",
-   "\xEF\x42" "\xC6\xCC\xD7\xE8\xB3\xDA\xCF",
-   OnStringConversionError::FAIL,
-   true,
-   L"\x0928\x092E\x0938\x094D\x0915\x093E\x0930",
-   NULL},
   // Korean (EUC)
   {"euc-kr",
    "\xBE\xC8\xB3\xE7\xC7\xCF\xBC\xBC\xBF\xE4",
@@ -238,84 +231,11 @@ static const struct {
    L"\x0E2A\x0E27\x0E31\x0E2A\x0E14\x0E35"
    L"\x0E04\x0E23\x0e31\x0E1A",
    NULL},
-  // Empty text
-  {"iscii-dev",
-   "",
-   OnStringConversionError::FAIL,
-   true,
-   L"",
-   NULL},
 };
 
-TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndWide) {
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kConvertCodepageCases); ++i) {
-    SCOPED_TRACE(base::StringPrintf(
-                     "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
-                     kConvertCodepageCases[i].encoded,
-                     kConvertCodepageCases[i].codepage_name));
-
-    std::wstring wide;
-    bool success = CodepageToWide(kConvertCodepageCases[i].encoded,
-                                  kConvertCodepageCases[i].codepage_name,
-                                  kConvertCodepageCases[i].on_error,
-                                  &wide);
-    EXPECT_EQ(kConvertCodepageCases[i].success, success);
-    EXPECT_EQ(kConvertCodepageCases[i].wide, wide);
-
-    // When decoding was successful and nothing was skipped, we also check the
-    // reverse conversion. Not all conversions are round-trippable, but
-    // kConverterCodepageCases does not have any one-way conversion at the
-    // moment.
-    if (success &&
-        kConvertCodepageCases[i].on_error ==
-            OnStringConversionError::FAIL) {
-      std::string encoded;
-      success = WideToCodepage(wide, kConvertCodepageCases[i].codepage_name,
-                               kConvertCodepageCases[i].on_error, &encoded);
-      EXPECT_EQ(kConvertCodepageCases[i].success, success);
-      EXPECT_EQ(kConvertCodepageCases[i].encoded, encoded);
-    }
-  }
-
-  // The above cases handled codepage->wide errors, but not wide->codepage.
-  // Test that here.
-  std::string encoded("Temp data");  // Make sure the string gets cleared.
-
-  // First test going to an encoding that can not represent that character.
-  EXPECT_FALSE(WideToCodepage(L"Chinese\xff27", "iso-8859-1",
-                              OnStringConversionError::FAIL, &encoded));
-  EXPECT_TRUE(encoded.empty());
-  EXPECT_TRUE(WideToCodepage(L"Chinese\xff27", "iso-8859-1",
-                             OnStringConversionError::SKIP, &encoded));
-  EXPECT_STREQ("Chinese", encoded.c_str());
-  // From Unicode, SUBSTITUTE is the same as SKIP for now.
-  EXPECT_TRUE(WideToCodepage(L"Chinese\xff27", "iso-8859-1",
-                             OnStringConversionError::SUBSTITUTE,
-                             &encoded));
-  EXPECT_STREQ("Chinese", encoded.c_str());
-
-#if defined(WCHAR_T_IS_UTF16)
-  // When we're in UTF-16 mode, test an invalid UTF-16 character in the input.
-  EXPECT_FALSE(WideToCodepage(L"a\xd800z", "iso-8859-1",
-                              OnStringConversionError::FAIL, &encoded));
-  EXPECT_TRUE(encoded.empty());
-  EXPECT_TRUE(WideToCodepage(L"a\xd800z", "iso-8859-1",
-                             OnStringConversionError::SKIP, &encoded));
-  EXPECT_STREQ("az", encoded.c_str());
-#endif  // WCHAR_T_IS_UTF16
-
-  // Invalid characters should fail.
-  EXPECT_TRUE(WideToCodepage(L"a\xffffz", "iso-8859-1",
-                             OnStringConversionError::SKIP, &encoded));
-  EXPECT_STREQ("az", encoded.c_str());
-
-  // Invalid codepages should fail.
-  EXPECT_FALSE(WideToCodepage(L"Hello, world", "awesome-8571-2",
-                              OnStringConversionError::SKIP, &encoded));
-}
-
+#if !defined(UCONFIG_NO_LEGACY_CONVERSION)
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kConvertCodepageCases); ++i) {
+  for (size_t i = 0; i < arraysize(kConvertCodepageCases); ++i) {
     SCOPED_TRACE(base::StringPrintf(
                      "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
                      kConvertCodepageCases[i].encoded,
@@ -348,6 +268,32 @@ TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
   }
 }
 
+
+// Note: "HTML Encoding spec treats US-ASCII as synonymous with windows-1252"
+// Technically, the above statement is true. See:
+// https: encoding.spec.whatwg.org/#names-and-labels
+// However, since we do not need to work with potentially broken webpages
+// or cover.
+// Wikipedia's entry for Windows-1252 has some additional background:
+// "This character encoding is a superset of ISO 8859-1 in terms of printable
+// characters, but differs from the IANA's ISO-8859-1 by using displayable
+// characters rather than control characters in the 80 to 9F (hex) range.
+// Notable additional characters include curly quotation marks and all the
+// printable characters that are in ISO 8859-15. It is known to Windows by the
+// code page number 1252, and by the IANA-approved name "windows-1252".
+//
+// It is very common to mislabel Windows-1252 text with the charset label
+// ISO-8859-1. A common result was that all the quotes and apostrophes (produced
+// by "smart quotes" in word-processing software) were replaced with question
+// marks or boxes on non-Windows operating systems, making text difficult to
+// read. Most modern web browsers and e-mail clients treat the media type
+// charset ISO-8859-1 as Windows-1252 to accommodate such mislabeling. This is
+// now standard behavior in the HTML5 specification, which requires that
+// documents advertised as ISO-8859-1 actually be parsed with the Windows-1252
+// encoding.[1] As of November 2016, 0.9% of all web sites used
+// Windows-1252,[2][3] but at the same time 5.7% used ISO 8859-1,[2] which by
+// HTML5 standards should be considered the same encoding, so that 6.6% of web
+// sites effectively used Windows-1252."
 static const struct {
   const char* encoded;
   const char* codepage_name;
@@ -357,8 +303,9 @@ static const struct {
   {"foo-\xe4.html", "iso-8859-1", true, "foo-\xc3\xa4.html"},
   {"foo-\xe4.html", "iso-8859-7", true, "foo-\xce\xb4.html"},
   {"foo-\xe4.html", "foo-bar", false, ""},
-  {"foo-\xff.html", "ascii", false, ""},
-  {"foo.html", "ascii", true, "foo.html"},
+  // HTML Encoding spec treats US-ASCII as synonymous with windows-1252
+  {"foo-\xff.html", "iso-8859-1", true, "foo-\xc3\xbf.html"},
+  {"foo.html", "usascii", true, "foo.html"},
   {"foo-a\xcc\x88.html", "utf-8", true, "foo-\xc3\xa4.html"},
   {"\x95\x32\x82\x36\xD2\xBB", "gb18030", true, "\xF0\xA0\x80\x80\xE4\xB8\x80"},
   {"\xA7\x41\xA6\x6E", "big5", true, "\xE4\xBD\xA0\xE5\xA5\xBD"},
@@ -369,7 +316,7 @@ static const struct {
 };
 TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
   std::string result;
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kConvertAndNormalizeCases); ++i) {
+  for (size_t i = 0; i < arraysize(kConvertAndNormalizeCases); ++i) {
     SCOPED_TRACE(base::StringPrintf(
                      "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
                      kConvertAndNormalizeCases[i].encoded,
@@ -382,5 +329,7 @@ TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
     EXPECT_EQ(kConvertAndNormalizeCases[i].expected_value, result);
   }
 }
+#endif  // !defined(UCONFIG_NO_LEGACY_CONVERSION)
+
 
 }  // namespace base

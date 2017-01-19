@@ -346,6 +346,7 @@ STATIC_PRECONDITION(ubound(args.argv_) >= argc)
 JS_ALWAYS_INLINE bool
 CallJSNativeConstructor(JSContext *cx, Native native, const CallArgs &args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #ifdef DEBUG
     RootedObject callee(cx, &args.callee());
 #endif

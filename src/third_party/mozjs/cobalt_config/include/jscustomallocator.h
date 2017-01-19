@@ -19,6 +19,7 @@
 
 #include "jstypes.h"
 #include "memory_allocator_reporter.h"
+#include "nb/memory_scope.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -26,6 +27,7 @@
 #define JS_OOM_POSSIBLY_FAIL_REPORT(cx) do {} while(0)
 
 static JS_INLINE void* js_malloc(size_t bytes) {
+  TRACK_MEMORY_SCOPE("Javascript");
   size_t reservation_bytes = AllocationMetadata::GetReservationBytes(bytes);
   MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(reservation_bytes);
   void* metadata = SbMemoryAllocate(reservation_bytes);
@@ -59,6 +61,7 @@ static JS_INLINE void js_free(void* p) {
 }
 
 static JS_INLINE void* js_realloc(void* p, size_t bytes) {
+  TRACK_MEMORY_SCOPE("Javascript");
   AllocationMetadata* metadata =
       AllocationMetadata::GetMetadataFromUserAddress(p);
   size_t current_size =
@@ -73,6 +76,7 @@ static JS_INLINE void* js_realloc(void* p, size_t bytes) {
 }
 
 static JS_INLINE char* js_strdup(char* s) {
+  TRACK_MEMORY_SCOPE("Javascript");
   size_t length = SbStringGetLength(s) + 1;
 
   char* new_ptr = reinterpret_cast<char*>(js_malloc(length));

@@ -23,7 +23,8 @@ namespace dom {
 
 DOMSettings::DOMSettings(
     const int max_dom_element_depth, loader::FetcherFactory* fetcher_factory,
-    network::NetworkModule* network_module, const scoped_refptr<Window>& window,
+    network::NetworkModule* network_module, media::MediaModule* media_module,
+    const scoped_refptr<Window>& window,
     MediaSource::Registry* media_source_registry, Blob::Registry* blob_registry,
     media::CanPlayTypeHandler* can_play_type_handler,
     script::JavaScriptEngine* engine,
@@ -32,6 +33,7 @@ DOMSettings::DOMSettings(
       microphone_options_(options.microphone_options),
       fetcher_factory_(fetcher_factory),
       network_module_(network_module),
+      media_module_(media_module),
       window_(window),
       array_buffer_allocator_(options.array_buffer_allocator),
       array_buffer_cache_(options.array_buffer_cache),

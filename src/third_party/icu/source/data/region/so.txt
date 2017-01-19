@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/so.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/so.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/so.xml
- */
 so{
     Countries{
         AD{"Andora"}
@@ -56,7 +53,6 @@ so{
         CN{"Shiinaha"}
         CO{"Kolombiya"}
         CR{"Kosta Riika"}
-        CS{"serbiya iyo Monteneegro"}
         CU{"Kuuba"}
         CV{"Cape Verde Islands"}
         CY{"Qubrus"}
@@ -65,7 +61,7 @@ so{
         DJ{"Jabuuti"}
         DK{"Denmark"}
         DM{"Domeenika"}
-        DO{"Jamhuuriyadda  Domeenika"}
+        DO{"Jamhuuriyadda Domeenika"}
         DZ{"Aljeeriya"}
         EC{"Ikuwadoor"}
         EE{"Estooniya"}
@@ -239,5 +235,5 @@ so{
         ZW{"Simbaabwe"}
         ZZ{"Far aan la aqoon amase aan saxnayn"}
     }
-    Version{"2.0.47.68"}
+    Version{"2.1.19.14"}
 }

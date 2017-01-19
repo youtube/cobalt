@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2008-2010, International Business Machines
+*   Copyright (C) 2008-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -21,6 +21,8 @@
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS
 #if !UCONFIG_NO_NORMALIZATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unorm.h"
 #include "unicode/uregex.h"
 #include "unicode/ustring.h"
@@ -219,6 +221,7 @@ void ConfusabledataBuilder::build(const char * confusables, int32_t confusablesL
     fInput = static_cast<UChar *>(uprv_malloc((inputLen+1) * sizeof(UChar)));
     if (fInput == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
+        return;
     }
     u_strFromUTF8(fInput, inputLen+1, NULL, confusables, confusablesLen, &status);
 
@@ -232,19 +235,21 @@ void ConfusabledataBuilder::build(const char * confusables, int32_t confusablesL
     //   Capture Group 8:  A syntactically invalid line.  Anything that didn't match before.
     // Example Line from the confusables.txt source file:
     //   "1D702 ;	006E 0329 ;	SL	# MATHEMATICAL ITALIC SMALL ETA ... "
-    fParseLine = uregex_openC(
+    UnicodeString pattern(
         "(?m)^[ \\t]*([0-9A-Fa-f]+)[ \\t]+;"      // Match the source char
         "[ \\t]*([0-9A-Fa-f]+"                    // Match the replacement char(s)
            "(?:[ \\t]+[0-9A-Fa-f]+)*)[ \\t]*;"    //     (continued)
         "\\s*(?:(SL)|(SA)|(ML)|(MA))"             // Match the table type
         "[ \\t]*(?:#.*?)?$"                       // Match any trailing #comment
         "|^([ \\t]*(?:#.*?)?)$"       // OR match empty lines or lines with only a #comment
-        "|^(.*?)$",                   // OR match any line, which catches illegal lines.
-        0, NULL, &status);
+        "|^(.*?)$", -1, US_INV);      // OR match any line, which catches illegal lines.
+    // TODO: Why are we using the regex C API here? C++ would just take UnicodeString...
+    fParseLine = uregex_open(pattern.getBuffer(), pattern.length(), 0, NULL, &status);
 
     // Regular expression for parsing a hex number out of a space-separated list of them.
     //   Capture group 1 gets the number, with spaces removed.
-    fParseHexNum = uregex_openC("\\s*([0-9A-F]+)", 0, NULL, &status);
+    pattern = UNICODE_STRING_SIMPLE("\\s*([0-9A-F]+)");
+    fParseHexNum = uregex_open(pattern.getBuffer(), pattern.length(), 0, NULL, &status);
 
     // Zap any Byte Order Mark at the start of input.  Changing it to a space is benign
     //   given the syntax of the input.
@@ -297,8 +302,31 @@ void ConfusabledataBuilder::build(const char * confusables, int32_t confusablesL
                             uregex_start(fParseLine, 5, &status) >= 0 ? fMLTable :
                             uregex_start(fParseLine, 6, &status) >= 0 ? fMATable :
                             NULL;
-        U_ASSERT(table != NULL);
-        uhash_iput(table, keyChar, smapString, &status);
+        if (U_SUCCESS(status) && table == NULL) {
+            status = U_PARSE_ERROR;
+        }
+        if (U_FAILURE(status)) {
+            return;
+        }
+
+        // For Unicode 8, the SL, SA and ML tables have been discontinued.
+        //                All input data from confusables.txt is tagged MA.
+        //                ICU spoof check functions should ignore the specified table and always
+        //                use this MA Data.
+        //                For now, implement by populating the MA data into all four tables, and
+        //                keep the multiple table implementation in place, in case it comes back
+        //                at some time in the future.
+        //                There is no run time size penalty to keeping the four table implementation -
+        //                the data is shared when it's the same betweeen tables.
+        if (table != fMATable) {
+            status = U_PARSE_ERROR;
+            return;
+        };
+        //  uhash_iput(table, keyChar, smapString, &status);
+        uhash_iput(fSLTable, keyChar, smapString, &status);
+        uhash_iput(fSATable, keyChar, smapString, &status);
+        uhash_iput(fMLTable, keyChar, smapString, &status);
+        uhash_iput(fMATable, keyChar, smapString, &status);
         fKeySet->add(keyChar);
         if (U_FAILURE(status)) {
             return;
@@ -412,6 +440,7 @@ void ConfusabledataBuilder::outputData(UErrorCode &status) {
     int32_t previousKey = 0;
     for (i=0; i<numKeys; i++) {
         int32_t key =  fKeyVec->elementAti(i);
+        (void)previousKey;         // Suppress unused variable warning on gcc.
         U_ASSERT((key & 0x00ffffff) >= (previousKey & 0x00ffffff));
         U_ASSERT((key & 0xff000000) != 0);
         keys[i] = key;
@@ -476,6 +505,7 @@ void ConfusabledataBuilder::outputData(UErrorCode &status) {
         uint32_t length = static_cast<uint32_t>(fStringLengthsTable->elementAti(i+1));
         U_ASSERT(offset < stringsLength);
         U_ASSERT(length < 40);
+        (void)previousLength;  // Suppress unused variable warning on gcc.
         U_ASSERT(length > previousLength);
         stringLengths[destIndex++] = static_cast<uint16_t>(offset);
         stringLengths[destIndex++] = static_cast<uint16_t>(length);

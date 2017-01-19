@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (c) 2001-2010, International Business Machines
+*   Copyright (c) 2001-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   Date        Name        Description
@@ -21,7 +21,7 @@ U_NAMESPACE_BEGIN
 
 // Windows needs us to DLL-export the MaybeStackArray template specialization,
 // but MacOS X cannot handle it. Same as in digitlst.h.
-#if !defined(U_DARWIN)
+#if !U_PLATFORM_IS_DARWIN_BASED
 template class U_COMMON_API MaybeStackArray<char, 40>;
 #endif
 
@@ -61,13 +61,16 @@ public:
      */
     CharString &copyFrom(const CharString &other, UErrorCode &errorCode);
 
-    UBool isEmpty() { return len==0; }
+    UBool isEmpty() const { return len==0; }
     int32_t length() const { return len; }
-    char operator[] (int32_t index) const { return buffer[index]; }
+    char operator[](int32_t index) const { return buffer[index]; }
     StringPiece toStringPiece() const { return StringPiece(buffer.getAlias(), len); }
 
     const char *data() const { return buffer.getAlias(); }
     char *data() { return buffer.getAlias(); }
+
+    /** @return last index of c, or -1 if c is not in this string */
+    int32_t lastIndexOf(char c) const;
 
     CharString &clear() { len=0; buffer[0]=0; return *this; }
     CharString &truncate(int32_t newLength);
@@ -106,6 +109,19 @@ public:
                           UErrorCode &errorCode);
 
     CharString &appendInvariantChars(const UnicodeString &s, UErrorCode &errorCode);
+
+    /**
+     * Appends a filename/path part, e.g., a directory name.
+     * First appends a U_FILE_SEP_CHAR if necessary.
+     * Does nothing if s is empty.
+     */
+    CharString &appendPathPart(const StringPiece &s, UErrorCode &errorCode);
+
+    /**
+     * Appends a U_FILE_SEP_CHAR if this string is not empty
+     * and does not already end with a U_FILE_SEP_CHAR or U_FILE_ALT_SEP_CHAR.
+     */
+    CharString &ensureEndsWithFileSeparator(UErrorCode &errorCode);
 
 private:
     MaybeStackArray<char, 40> buffer;

@@ -46,6 +46,8 @@ class InputBuffer {
 
   InputBuffer& operator=(const InputBuffer& that);
 
+  bool valid() const { return buffer_ != NULL; }
+
   const uint8_t* data() const;
   int size() const;
   SbMediaTime pts() const;

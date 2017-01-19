@@ -1,11 +1,11 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * Copyright (c) 1997-2015, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /*****************************************************************************
 *
-* File CCONVTST.C
+* File ncnvtst.c
 *
 * Modification History:
 *        Name                     Description
@@ -21,6 +21,7 @@
 #include "unicode/ustring.h"
 #include "unicode/uset.h"
 #include "cintltst.h"
+#include "cmemory.h"
 
 #define MAX_LENGTH 999
 
@@ -33,7 +34,6 @@ static int32_t  gOutBufferSize = 0;
 static char     gNuConvTestName[1024];
 
 #define nct_min(x,y)  ((x<y) ? x : y)
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 
 static void printSeq(const unsigned char* a, int len);
 static void printSeqErr(const unsigned char* a, int len);
@@ -390,14 +390,14 @@ static void TestErrorBehaviour(){
                 expectedSUB, sizeof(expectedSUB), "ibm-1363", 0, TRUE, U_ZERO_ERROR))
             log_err("u-> ibm-1363 [UCNV_DBCS portion] is supposed to fail\n");
         if(!convertFromU(sampleText, sizeof(sampleText)/sizeof(sampleText[0]),
-                expected, sizeof(expected), "ibm-1363", 0, FALSE, U_ZERO_ERROR))
+                expected, sizeof(expected), "ibm-1363", 0, FALSE, U_AMBIGUOUS_ALIAS_WARNING))
             log_err("u-> ibm-1363 [UCNV_DBCS portion] is supposed to fail\n");
 
         if(!convertFromU(sampleText, sizeof(sampleText)/sizeof(sampleText[0]),
                 expectedSUB, sizeof(expectedSUB), "ibm-1363", offsetsSUB, TRUE, U_ZERO_ERROR))
             log_err("u-> ibm-1363 [UCNV_DBCS portion] is supposed to fail\n");
         if(!convertFromU(sampleText, sizeof(sampleText)/sizeof(sampleText[0]),
-                expected, sizeof(expected), "ibm-1363", offsets, FALSE, U_ZERO_ERROR))
+                expected, sizeof(expected), "ibm-1363", offsets, FALSE, U_AMBIGUOUS_ALIAS_WARNING))
             log_err("u-> ibm-1363 [UCNV_DBCS portion] is supposed to fail\n");
 
         
@@ -413,7 +413,7 @@ static void TestErrorBehaviour(){
                 expectedSUB, sizeof(expectedSUB), "ibm-1363", 0, TRUE, U_ZERO_ERROR))
             log_err("u-> ibm-1363 [UCNV_MBCS] \n");
         if(!convertFromU(sampleText, sizeof(sampleText)/sizeof(sampleText[0]),
-                expected, sizeof(expected), "ibm-1363", 0, FALSE, U_ZERO_ERROR))
+                expected, sizeof(expected), "ibm-1363", 0, FALSE, U_AMBIGUOUS_ALIAS_WARNING))
             log_err("u-> ibm-1363 [UCNV_MBCS] \n");
 
         if(!convertFromU(sampleText2, sizeof(sampleText2)/sizeof(sampleText2[0]),
@@ -434,10 +434,10 @@ static void TestErrorBehaviour(){
             log_err("u-> ibm-1363 [UCNV_MBCS] \n");
 
         if(!convertFromU(sampleText4MBCS, sizeof(sampleText4MBCS)/sizeof(sampleText4MBCS[0]),
-                expected4MBCS, sizeof(expected4MBCS), "euc-jp", offsets4MBCS, TRUE, U_ZERO_ERROR))
+                expected4MBCS, sizeof(expected4MBCS), "IBM-eucJP", offsets4MBCS, TRUE, U_ZERO_ERROR))
             log_err("u-> euc-jp [UCNV_MBCS] \n");
         if(!convertFromU(sampleText4MBCS, sizeof(sampleText4MBCS)/sizeof(sampleText4MBCS[0]),
-                expected4MBCS, sizeof(expected4MBCS), "euc-jp", offsets4MBCS, FALSE, U_ZERO_ERROR))
+                expected4MBCS, sizeof(expected4MBCS), "IBM-eucJP", offsets4MBCS, FALSE, U_ZERO_ERROR))
             log_err("u-> euc-jp [UCNV_MBCS] \n");
     }
 
@@ -460,8 +460,8 @@ static void TestErrorBehaviour(){
                 expectedSUB, sizeof(expectedSUB), "iso-2022-jp", offsets, TRUE, U_ZERO_ERROR))
             log_err("u-> iso-2022-jp [UCNV_MBCS] \n");
         if(!convertFromU(sampleText, sizeof(sampleText)/sizeof(sampleText[0]),
-                expected, sizeof(expected), "iso-2022-jp", offsets, FALSE, U_ZERO_ERROR))
-            log_err("u-> ibm-1363 [UCNV_MBCS] \n");
+                expected, sizeof(expected), "iso-2022-jp", offsets, FALSE, U_AMBIGUOUS_ALIAS_WARNING))
+            log_err("u-> iso-2022-jp [UCNV_MBCS] \n");
 
         if(!convertFromU(sampleText2, sizeof(sampleText2)/sizeof(sampleText2[0]),
                 expected2, sizeof(expected2), "iso-2022-jp", offsets2, TRUE, U_ZERO_ERROR))
@@ -636,10 +636,10 @@ static void TestToUnicodeErrorBehaviour()
         const UChar expected[] = { 0x00a1 };
         
         if(!convertToU(sampleText, sizeof(sampleText), 
-                expected, sizeof(expected)/sizeof(expected[0]), "ibm-1363", 0, TRUE, U_ZERO_ERROR ))
+                expected, sizeof(expected)/sizeof(expected[0]), "ibm-1363", 0, TRUE, U_AMBIGUOUS_ALIAS_WARNING ))
             log_err("DBCS (ibm-1363)->Unicode  did not match.\n");
         if(!convertToU(sampleText, sizeof(sampleText), 
-                expected, sizeof(expected)/sizeof(expected[0]), "ibm-1363", 0, FALSE, U_ZERO_ERROR ))
+                expected, sizeof(expected)/sizeof(expected[0]), "ibm-1363", 0, FALSE, U_AMBIGUOUS_ALIAS_WARNING ))
             log_err("DBCS (ibm-1363)->Unicode  with flush = false did not match.\n");
     }
     log_verbose("Testing error conditions for SBCS\n");
@@ -755,6 +755,7 @@ static void TestRegressionUTF8(){
 #define MAX_UTF32_LEN 1
 
 static void TestRegressionUTF32(){
+#if !UCONFIG_ONLY_HTML_CONVERSION
     UChar32 currCh = 0;
     int32_t offset32;
     int32_t offset16;
@@ -886,6 +887,7 @@ static void TestRegressionUTF32(){
         }
         ucnv_close(convLE);
     }
+#endif
 }
 
 /*Walk through the available converters*/
@@ -1792,7 +1794,7 @@ doTestTruncated(const char *cnvName, const uint8_t *bytes, int32_t length) {
     source=(const char *)bytes;
     sourceLimit=source+length;
     target=buffer;
-    targetLimit=buffer+LENGTHOF(buffer);
+    targetLimit=buffer+UPRV_LENGTHOF(buffer);
 
     /* 1. input bytes with flush=FALSE, then input nothing with flush=TRUE */
     ucnv_toUnicode(cnv, &target, targetLimit, &source, sourceLimit, NULL, FALSE, &errorCode);
@@ -1866,7 +1868,7 @@ TestTruncated() {
     };
     int32_t i;
 
-    for(i=0; i<LENGTHOF(testCases); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(testCases); ++i) {
         doTestTruncated(testCases[i].cnvName, testCases[i].bytes, testCases[i].length);
     }
 }
@@ -1961,7 +1963,7 @@ TestUnicodeSet() {
     }
 
     /* test converters that are known to convert all of Unicode (except maybe for surrogates) */
-    for(i=0; i<LENGTHOF(completeSetNames); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(completeSetNames); ++i) {
         errorCode=U_ZERO_ERROR;
         name=completeSetNames[i];
         cnv=ucnv_open(name, &errorCode);
@@ -1985,7 +1987,7 @@ TestUnicodeSet() {
 
 #if !UCONFIG_NO_LEGACY_CONVERSION
     /* test LMBCS variants which convert all of Unicode except for U+F6xx */
-    for(i=0; i<LENGTHOF(lmbcsNames); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(lmbcsNames); ++i) {
         errorCode=U_ZERO_ERROR;
         name=lmbcsNames[i];
         cnv=ucnv_open(name, &errorCode);
@@ -2009,7 +2011,7 @@ TestUnicodeSet() {
 #endif
 
     /* test specific sets */
-    for(i=0; i<LENGTHOF(nameRanges); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(nameRanges); ++i) {
         errorCode=U_ZERO_ERROR;
         name=nameRanges[i].name;
         cnv=ucnv_open(name, &errorCode);

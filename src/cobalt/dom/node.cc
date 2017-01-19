@@ -100,6 +100,9 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
     return false;
   }
 
+  // The event is now being dispatched. Track it in the global stats.
+  GlobalStats::GetInstance()->StartDispatchEvent();
+
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;
   for (scoped_refptr<Node> current = this->parent_node(); current != NULL;
@@ -135,6 +138,10 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
 
   event->set_event_phase(Event::kNone);
 
+  // The event has completed being dispatched. Stop tracking it in the global
+  // stats.
+  GlobalStats::GetInstance()->StopDispatchEvent();
+
   return !event->default_prevented();
 }
 
@@ -162,6 +169,7 @@ scoped_refptr<NodeList> Node::child_nodes() const {
 // Algorithm for CloneNode:
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-clonenode
 scoped_refptr<Node> Node::CloneNode(bool deep) const {
+  TRACK_MEMORY_SCOPE("DOM");
   scoped_refptr<Node> new_node = Duplicate();
   DCHECK(new_node);
   if (deep) {

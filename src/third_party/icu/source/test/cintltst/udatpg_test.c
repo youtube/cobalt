@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2007-2010, International Business Machines
+*   Copyright (C) 2007-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -111,9 +111,24 @@ static void TestOpenClose() {
     udatpg_close(dtpg2);
 }
 
+typedef struct {
+    UDateTimePatternField field;
+    UChar name[12];
+} AppendItemNameData;
+
+static const AppendItemNameData appendItemNameData[] = { /* for Finnish */
+    { UDATPG_YEAR_FIELD,    {0x0076,0x0075,0x006F,0x0073,0x0069,0} }, /* "vuosi" */
+    { UDATPG_MONTH_FIELD,   {0x006B,0x0075,0x0075,0x006B,0x0061,0x0075,0x0073,0x0069,0} }, /* "kuukausi" */
+    { UDATPG_WEEKDAY_FIELD, {0x0076,0x0069,0x0069,0x006B,0x006F,0x006E,0x0070,0x00E4,0x0069,0x0076,0x00E4,0} },
+    { UDATPG_DAY_FIELD,     {0x0070,0x00E4,0x0069,0x0076,0x00E4,0} },
+    { UDATPG_HOUR_FIELD,    {0x0074,0x0075,0x006E,0x0074,0x0069,0} }, /* "tunti" */
+    { UDATPG_FIELD_COUNT,   {0}        }  /* terminator */
+};
+
 static void TestUsage() {
     UErrorCode errorCode=U_ZERO_ERROR;
     UDateTimePatternGenerator *dtpg;
+    const AppendItemNameData * appItemNameDataPtr;
     UChar bestPattern[20];
     UChar result[20];
     int32_t length;    
@@ -193,11 +208,19 @@ static void TestUsage() {
         return;
     }
     
+    for (appItemNameDataPtr = appendItemNameData; appItemNameDataPtr->field <  UDATPG_FIELD_COUNT; appItemNameDataPtr++) {
+        int32_t nameLength;
+        const UChar * namePtr = udatpg_getAppendItemName(dtpg, appItemNameDataPtr->field, &nameLength);
+        if ( namePtr == NULL || u_strncmp(appItemNameDataPtr->name, namePtr, nameLength) != 0 ) {
+            log_err("udatpg_getAppendItemName returns invalid name for field %d\n", (int)appItemNameDataPtr->field);
+        }
+    }
+    
     /* set append name to hr */
-    udatpg_setAppendItemName( dtpg, UDATPG_HOUR_FIELD, appendItemName, 7 );
+    udatpg_setAppendItemName(dtpg, UDATPG_HOUR_FIELD, appendItemName, 2);
     r = udatpg_getAppendItemName(dtpg, UDATPG_HOUR_FIELD, &length);
     
-    if(length!=7 || 0!=u_memcmp(r, appendItemName, length) || r[length]!=0) { 
+    if(length!=2 || 0!=u_memcmp(r, appendItemName, length) || r[length]!=0) { 
         log_err("udatpg_setAppendItemName did not return the expected string\n");
         return;
     }
@@ -325,7 +348,7 @@ static void TestBuilder() {
     /* get a pattern for an abbreviated month and day */
     length = udatpg_getBestPattern(generator, skeleton, 4,
                                    pattern, patternCapacity, &status);
-    formatter = udat_open(UDAT_IGNORE, UDAT_DEFAULT, locale, timeZoneGMT, -1,
+    formatter = udat_open(UDAT_PATTERN, UDAT_PATTERN, locale, timeZoneGMT, -1,
                           pattern, length, &status);
     if (formatter==NULL) {
         log_err("Failed to initialize the UDateFormat of the sample code in Userguide.\n");
@@ -360,7 +383,6 @@ enum { kTestOptionsPatLenMax = 32 };
 static const UChar skel_Hmm[]     = { 0x0048, 0x006D, 0x006D, 0 };
 static const UChar skel_HHmm[]    = { 0x0048, 0x0048, 0x006D, 0x006D, 0 };
 static const UChar skel_hhmm[]    = { 0x0068, 0x0068, 0x006D, 0x006D, 0 };
-static const UChar patn_Hcmm[]    = { 0x0048, 0x003A, 0x006D, 0x006D, 0 }; /* H:mm */
 static const UChar patn_hcmm_a[]  = { 0x0068, 0x003A, 0x006D, 0x006D, 0x0020, 0x0061, 0 }; /* h:mm a */
 static const UChar patn_HHcmm[]   = { 0x0048, 0x0048, 0x003A, 0x006D, 0x006D, 0 }; /* HH:mm */
 static const UChar patn_hhcmm_a[] = { 0x0068, 0x0068, 0x003A, 0x006D, 0x006D, 0x0020, 0x0061, 0 }; /* hh:mm a */
@@ -378,12 +400,12 @@ static void TestOptions() {
         { "en", skel_Hmm,  UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_HHcmm   },
         { "en", skel_HHmm, UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_HHcmm   },
         { "en", skel_hhmm, UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_hhcmm_a },
-        { "be", skel_Hmm,  UDATPG_MATCH_NO_OPTIONS,        patn_HHpmm   },
-        { "be", skel_HHmm, UDATPG_MATCH_NO_OPTIONS,        patn_HHpmm   },
-        { "be", skel_hhmm, UDATPG_MATCH_NO_OPTIONS,        patn_hpmm_a  },
-        { "be", skel_Hmm,  UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_Hpmm    },
-        { "be", skel_HHmm, UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_HHpmm   },
-        { "be", skel_hhmm, UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_hhpmm_a },
+        { "da", skel_Hmm,  UDATPG_MATCH_NO_OPTIONS,        patn_HHpmm   },
+        { "da", skel_HHmm, UDATPG_MATCH_NO_OPTIONS,        patn_HHpmm   },
+        { "da", skel_hhmm, UDATPG_MATCH_NO_OPTIONS,        patn_hpmm_a  },
+        { "da", skel_Hmm,  UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_Hpmm    },
+        { "da", skel_HHmm, UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_HHpmm   },
+        { "da", skel_hhmm, UDATPG_MATCH_HOUR_FIELD_LENGTH, patn_hhpmm_a },
     };
 
     int count = sizeof(testData) / sizeof(testData[0]);

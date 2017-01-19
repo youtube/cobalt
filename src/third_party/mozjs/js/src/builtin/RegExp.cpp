@@ -15,6 +15,8 @@
 #include "vm/RegExpObject-inl.h"
 #include "vm/RegExpStatics-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::types;
 
@@ -23,6 +25,7 @@ using mozilla::ArrayLength;
 static inline bool
 DefinePropertyHelper(JSContext *cx, HandleObject obj, Handle<PropertyName*> name, HandleValue v)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return !!baseops::DefineProperty(cx, obj, name, v,
                                      JS_PropertyStub, JS_StrictPropertyStub, JSPROP_ENUMERATE);
 }
@@ -31,6 +34,7 @@ bool
 js::CreateRegExpMatchResult(JSContext *cx, HandleString input_, const jschar *chars, size_t length,
                             MatchPairs &matches, MutableHandleValue rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedString input(cx, input_);
     RootedValue undefinedValue(cx, UndefinedValue());
 
@@ -94,6 +98,7 @@ bool
 js::CreateRegExpMatchResult(JSContext *cx, HandleString string, MatchPairs &matches,
                             MutableHandleValue rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<JSLinearString*> input(cx, string->ensureLinear(cx));
     if (!input)
         return false;
@@ -105,6 +110,7 @@ ExecuteRegExpImpl(JSContext *cx, RegExpStatics *res, RegExpShared &re,
                   Handle<JSLinearString*> input, const jschar *chars, size_t length,
                   size_t *lastIndex, MatchConduit &matches)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RegExpRunStatus status;
 
     /* Switch between MatchOnly and IncludeSubpatterns modes. */
@@ -130,6 +136,7 @@ js::ExecuteRegExpLegacy(JSContext *cx, RegExpStatics *res, RegExpObject &reobj,
                         Handle<JSLinearString*> input, const jschar *chars, size_t length,
                         size_t *lastIndex, bool test, MutableHandleValue rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RegExpGuard shared(cx);
     if (!reobj.getShared(cx, &shared))
         return false;
@@ -162,6 +169,7 @@ js::ExecuteRegExpLegacy(JSContext *cx, RegExpStatics *res, RegExpObject &reobj,
 static JSAtom *
 EscapeNakedForwardSlashes(JSContext *cx, HandleAtom unescaped)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t oldLen = unescaped->length();
     const jschar *oldChars = unescaped->chars();
 
@@ -204,6 +212,7 @@ EscapeNakedForwardSlashes(JSContext *cx, HandleAtom unescaped)
 static bool
 CompileRegExpObject(JSContext *cx, RegExpObjectBuilder &builder, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (args.length() == 0) {
         RegExpStatics *res = cx->regExpStatics();
         Rooted<JSAtom*> empty(cx, cx->runtime()->emptyString);
@@ -312,6 +321,7 @@ IsRegExp(const Value &v)
 JS_ALWAYS_INLINE bool
 regexp_compile_impl(JSContext *cx, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(IsRegExp(args.thisv()));
     RegExpObjectBuilder builder(cx, &args.thisv().toObject().as<RegExpObject>());
     return CompileRegExpObject(cx, builder, args);
@@ -320,6 +330,7 @@ regexp_compile_impl(JSContext *cx, CallArgs args)
 JSBool
 regexp_compile(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod<IsRegExp, regexp_compile_impl>(cx, args);
 }
@@ -327,6 +338,7 @@ regexp_compile(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 regexp_construct(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     if (!IsConstructing(args)) {
@@ -351,6 +363,7 @@ regexp_construct(JSContext *cx, unsigned argc, Value *vp)
 JS_ALWAYS_INLINE bool
 regexp_toString_impl(JSContext *cx, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(IsRegExp(args.thisv()));
 
     JSString *str = args.thisv().toObject().as<RegExpObject>().toString(cx);
@@ -364,6 +377,7 @@ regexp_toString_impl(JSContext *cx, CallArgs args)
 JSBool
 regexp_toString(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod<IsRegExp, regexp_toString_impl>(cx, args);
 }
@@ -491,6 +505,7 @@ static const JSPropertySpec regexp_static_props[] = {
 JSObject *
 js_InitRegExpClass(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(obj->isNative());
 
     Rooted<GlobalObject*> global(cx, &obj->as<GlobalObject>());
@@ -529,6 +544,7 @@ js_InitRegExpClass(JSContext *cx, HandleObject obj)
 RegExpRunStatus
 js::ExecuteRegExp(JSContext *cx, HandleObject regexp, HandleString string, MatchConduit &matches)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Step 1 (b) was performed by CallNonGenericMethod. */
     Rooted<RegExpObject*> reobj(cx, &regexp->as<RegExpObject>());
 
@@ -600,6 +616,7 @@ js::ExecuteRegExp(JSContext *cx, HandleObject regexp, HandleString string, Match
 static RegExpRunStatus
 ExecuteRegExp(JSContext *cx, CallArgs args, MatchConduit &matches)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Step 1 (a) was performed by CallNonGenericMethod. */
     RootedObject regexp(cx, &args.thisv().toObject());
 
@@ -615,6 +632,7 @@ ExecuteRegExp(JSContext *cx, CallArgs args, MatchConduit &matches)
 static bool
 regexp_exec_impl(JSContext *cx, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Execute regular expression and gather matches. */
     ScopedMatchPairs matches(&cx->tempLifoAlloc());
     MatchConduit conduit(&matches);
@@ -644,6 +662,7 @@ regexp_exec_impl(JSContext *cx, CallArgs args)
 JSBool
 js::regexp_exec(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod(cx, IsRegExp, regexp_exec_impl, args);
 }
@@ -652,6 +671,7 @@ js::regexp_exec(JSContext *cx, unsigned argc, Value *vp)
 static bool
 regexp_test_impl(JSContext *cx, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     MatchPair match;
     MatchConduit conduit(&match);
     RegExpRunStatus status = ExecuteRegExp(cx, args, conduit);
@@ -663,6 +683,7 @@ regexp_test_impl(JSContext *cx, CallArgs args)
 bool
 js::regexp_test_raw(JSContext *cx, HandleObject regexp, HandleString input, JSBool *result)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     MatchPair match;
     MatchConduit conduit(&match);
     RegExpRunStatus status = ExecuteRegExp(cx, regexp, input, conduit);
@@ -673,6 +694,7 @@ js::regexp_test_raw(JSContext *cx, HandleObject regexp, HandleString input, JSBo
 JSBool
 js::regexp_test(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod(cx, IsRegExp, regexp_test_impl, args);
 }

@@ -1,16 +1,44 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/af.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/af.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/af.xml
- */
 af{
     Countries{
+        001{"Wêreld"}
+        002{"Afrika"}
+        003{"Noord-Amerika"}
+        005{"Suid-Amerika"}
+        009{"Oseanië"}
+        011{"Wes-Afrika"}
+        013{"Sentraal-Amerika"}
+        014{"Oos-Afrika"}
+        015{"Noord-Afrika"}
+        017{"Midde-Afrika"}
+        018{"Suider-Afrika"}
+        019{"Amerikas"}
+        021{"Noordelike Amerika"}
+        029{"Karibies"}
+        030{"Oos-Asië"}
+        034{"Suid-Asië"}
+        035{"Suidoos-Asië"}
+        039{"Suid-Europa"}
+        053{"Australasië"}
+        054{"Melanesië"}
+        057{"Mikronesiese streek"}
+        061{"Polinesië"}
+        142{"Asië"}
+        143{"Sentraal-Asië"}
+        145{"Wes-Asië"}
+        150{"Europa"}
+        151{"Oos-Europa"}
+        154{"Noord-Europa"}
+        155{"Wes-Europa"}
+        419{"Latyns-Amerika"}
+        AC{"Ascensioneiland"}
         AD{"Andorra"}
         AE{"Verenigde Arabiese Emirate"}
         AF{"Afganistan"}
@@ -22,52 +50,61 @@ af{
         AO{"Angola"}
         AQ{"Antarktika"}
         AR{"Argentinië"}
-        AS{"Amerikaans Samoa"}
+        AS{"Amerikaans-Samoa"}
         AT{"Oostenryk"}
         AU{"Australië"}
         AW{"Aruba"}
-        AZ{"Aserbeidjan"}
+        AX{"Ålandeilande"}
+        AZ{"Azerbeidjan"}
         BA{"Bosnië en Herzegowina"}
         BB{"Barbados"}
         BD{"Bangladesj"}
         BE{"België"}
-        BF{"Boerkina Fasso"}
+        BF{"Burkina Faso"}
         BG{"Bulgarye"}
         BH{"Bahrein"}
         BI{"Burundi"}
         BJ{"Benin"}
+        BL{"Sint Barthélemy"}
         BM{"Bermuda"}
         BN{"Broenei"}
         BO{"Bolivië"}
+        BQ{"Karibiese Nederland"}
         BR{"Brasilië"}
         BS{"Bahamas"}
         BT{"Bhoetan"}
+        BV{"Bouvet-eiland"}
         BW{"Botswana"}
-        BY{"Wit-Rusland"}
+        BY{"Belarus"}
         BZ{"Belize"}
         CA{"Kanada"}
+        CC{"Kokos-eilande"}
         CD{"Demokratiese Republiek van die Kongo"}
         CF{"Sentraal-Afrikaanse Republiek"}
-        CG{"Kongo"}
+        CG{"Kongo - Brazzaville"}
         CH{"Switserland"}
         CI{"Ivoorkus"}
         CK{"Cookeilande"}
         CL{"Chili"}
         CM{"Kameroen"}
         CN{"Sjina"}
-        CO{"Kolombië"}
+        CO{"Colombië"}
+        CP{"Clippertoneiland"}
         CR{"Costa Rica"}
-        CS{"Serwië en Montenegro"}
         CU{"Kuba"}
         CV{"Kaap Verde"}
-        CY{"Ciprus"}
+        CW{"Curaçao"}
+        CX{"Kerseiland"}
+        CY{"Siprus"}
         CZ{"Tjeggiese Republiek"}
         DE{"Duitsland"}
+        DG{"Diego Garcia"}
         DJ{"Djiboeti"}
         DK{"Denemarke"}
-        DM{"Dominika"}
+        DM{"Dominica"}
         DO{"Dominikaanse Republiek"}
         DZ{"Algerië"}
+        EA{"Ceuta en Melilla"}
         EC{"Ecuador"}
         EE{"Estland"}
         EG{"Egipte"}
@@ -75,6 +112,7 @@ af{
         ER{"Eritrea"}
         ES{"Spanje"}
         ET{"Ethiopië"}
+        EU{"Europese Unie"}
         FI{"Finland"}
         FJ{"Fidji"}
         FK{"Falklandeilande"}
@@ -82,10 +120,11 @@ af{
         FO{"Faroëreilande"}
         FR{"Frankryk"}
         GA{"Gaboen"}
-        GB{"Groot-Brittanje"}
+        GB{"Verenigde Koninkryk"}
         GD{"Grenada"}
         GE{"Georgië"}
         GF{"Frans-Guyana"}
+        GG{"Guernsey"}
         GH{"Ghana"}
         GI{"Gibraltar"}
         GL{"Groenland"}
@@ -94,24 +133,29 @@ af{
         GP{"Guadeloupe"}
         GQ{"Ekwatoriaal-Guinee"}
         GR{"Griekeland"}
+        GS{"Suid-Georgië en die Suidelike Sandwicheilande"}
         GT{"Guatemala"}
         GU{"Guam"}
         GW{"Guinee-Bissau"}
         GY{"Guyana"}
         HK{"Hongkong"}
+        HM{"Heard- en McDonaldeilande"}
         HN{"Honduras"}
         HR{"Kroasië"}
         HT{"Haïti"}
         HU{"Hongarye"}
+        IC{"Kanariese Eilande"}
         ID{"Indonesië"}
         IE{"Ierland"}
         IL{"Israel"}
+        IM{"Eiland Man"}
         IN{"Indië"}
-        IO{"Britse Indiese Oseaan Gebied"}
+        IO{"Brits-Indiese Oseaangebied"}
         IQ{"Irak"}
         IR{"Iran"}
         IS{"Ysland"}
         IT{"Italië"}
+        JE{"Jersey"}
         JM{"Jamaika"}
         JO{"Jordanië"}
         JP{"Japan"}
@@ -120,15 +164,15 @@ af{
         KH{"Kambodja"}
         KI{"Kiribati"}
         KM{"Comore"}
-        KN{"Saint Kitts en Nevis"}
+        KN{"St. Kitts en Nevis"}
         KP{"Noord-Korea"}
         KR{"Suid-Korea"}
         KW{"Koeweit"}
         KY{"Kaaimanseilande"}
-        KZ{"Kasakstan"}
+        KZ{"Kazakstan"}
         LA{"Laos"}
         LB{"Libanon"}
-        LC{"Sint Lucia"}
+        LC{"St. Lucia"}
         LI{"Liechtenstein"}
         LK{"Sri Lanka"}
         LR{"Liberië"}
@@ -139,16 +183,19 @@ af{
         LY{"Libië"}
         MA{"Marokko"}
         MC{"Monaco"}
-        MD{"Moldova"}
+        MD{"Moldowa"}
+        ME{"Montenegro"}
+        MF{"St. Martin"}
         MG{"Madagaskar"}
-        MH{"Marshall-eilande"}
+        MH{"Marshalleilande"}
         MK{"Macedonië"}
         ML{"Mali"}
-        MM{"Mianmar"}
+        MM{"Mianmar (Birma)"}
         MN{"Mongolië"}
-        MP{"Noordelike Marianaeilande"}
+        MO{"Macau"}
+        MP{"Noord-Mariane-eilande"}
         MQ{"Martinique"}
-        MR{"Mouritanië"}
+        MR{"Mauritanië"}
         MS{"Montserrat"}
         MT{"Malta"}
         MU{"Mauritius"}
@@ -160,55 +207,62 @@ af{
         NA{"Namibië"}
         NC{"Nieu-Kaledonië"}
         NE{"Niger"}
-        NF{"Norfolk-eiland"}
+        NF{"Norfolkeiland"}
         NG{"Nigerië"}
         NI{"Nicaragua"}
         NL{"Nederland"}
         NO{"Noorweë"}
         NP{"Nepal"}
-        NR{"Naoeroe"}
+        NR{"Nauru"}
         NU{"Niue"}
         NZ{"Nieu-Seeland"}
         OM{"Oman"}
         PA{"Panama"}
         PE{"Peru"}
         PF{"Frans-Polinesië"}
-        PG{"Papoea Nieu-Guinee"}
+        PG{"Papoea-Nieu-Guinee"}
         PH{"Filippyne"}
         PK{"Pakistan"}
         PL{"Pole"}
-        PM{"Sint-Pierre en Miquelon"}
-        PN{"Pitcairn"}
+        PM{"St. Pierre en Miquelon"}
+        PN{"Pitcairneilande"}
         PR{"Puerto Rico"}
         PS{"Palestina"}
         PT{"Portugal"}
         PW{"Palau"}
         PY{"Paraguay"}
         QA{"Katar"}
+        QO{"Omliggende Oseanië"}
         RE{"Réunion"}
         RO{"Roemenië"}
+        RS{"Serwië"}
         RU{"Rusland"}
         RW{"Rwanda"}
         SA{"Saoedi-Arabië"}
-        SB{"Solomon Eilande"}
+        SB{"Salomonseilande"}
         SC{"Seychelle"}
         SD{"Soedan"}
         SE{"Swede"}
         SG{"Singapoer"}
         SH{"Sint Helena"}
         SI{"Slowenië"}
+        SJ{"Svalbard en Jan Mayen"}
         SK{"Slowakye"}
         SL{"Sierra Leone"}
         SM{"San Marino"}
         SN{"Senegal"}
         SO{"Somalië"}
         SR{"Suriname"}
-        ST{"Sao Tome en Principe"}
-        SV{"Salvador"}
+        SS{"Suid-Soedan"}
+        ST{"São Tomé en Príncipe"}
+        SV{"El Salvador"}
+        SX{"Sint Maarten"}
         SY{"Sirië"}
         SZ{"Swaziland"}
-        TC{"Turks en Caicos Eilande"}
-        TD{"Tsjaad"}
+        TA{"Tristan da Cunha"}
+        TC{"Turks- en Caicoseilande"}
+        TD{"Tsjad"}
+        TF{"Franse Suidelike Gebiede"}
         TG{"Togo"}
         TH{"Thailand"}
         TJ{"Tadjikistan"}
@@ -222,26 +276,38 @@ af{
         TV{"Tuvalu"}
         TW{"Taiwan"}
         TZ{"Tanzanië"}
-        UA{"Oekraine"}
+        UA{"Oekraïne"}
         UG{"Uganda"}
+        UM{"VS klein omliggende eilande"}
         US{"Verenigde State van Amerika"}
         UY{"Uruguay"}
         UZ{"Oesbekistan"}
-        VA{"Vatikaan"}
-        VC{"Saint Vincent en die Grenadine"}
+        VA{"Vatikaanstad"}
+        VC{"St. Vincent en die Grenadine"}
         VE{"Venezuela"}
         VG{"Britse Maagde-eilande"}
-        VI{"V.S. Maagde-eilande"}
+        VI{"Amerikaanse Maagde-eilande"}
         VN{"Viëtnam"}
         VU{"Vanuatu"}
         WF{"Wallis en Futuna"}
         WS{"Samoa"}
+        XK{"Kosovo"}
         YE{"Jemen"}
         YT{"Mayotte"}
         ZA{"Suid-Afrika"}
         ZM{"Zambië"}
         ZW{"Zimbabwe"}
-        ZZ{"onbekend gebied"}
+        ZZ{"Onbekende gebied"}
     }
-    Version{"2.0.47.68"}
+    Countries%short{
+        GB{"VK"}
+        US{"VSA"}
+    }
+    Countries%variant{
+        CD{"Kongo (DRK)"}
+        CG{"Kongo (Republiek die)"}
+        FK{"Falklandeilande (Malvinas)"}
+        MK{"Macedonië (VJRM)"}
+    }
+    Version{"2.1.19.94"}
 }

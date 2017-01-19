@@ -57,6 +57,8 @@
 #include "vm/StringObject-inl.h"
 #include "vm/String-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -73,6 +75,7 @@ typedef Handle<JSLinearString*> HandleLinearString;
 static JSLinearString *
 ArgToRootedString(JSContext *cx, CallArgs &args, unsigned argno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (argno >= args.length())
         return cx->names().undefined;
 
@@ -240,6 +243,7 @@ Unhex2(const jschar *chars, jschar *result)
 static JSBool
 str_unescape(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     /* Step 1. */
@@ -342,6 +346,7 @@ str_unescape(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 str_uneval(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     JSString *str = ValueToSource(cx, args.get(0));
     if (!str)
@@ -396,6 +401,7 @@ static JSBool
 str_resolve(JSContext *cx, HandleObject obj, HandleId id, unsigned flags,
             MutableHandleObject objp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!JSID_IS_INT(id))
         return true;
 
@@ -439,6 +445,7 @@ Class StringObject::class_ = {
 static JS_ALWAYS_INLINE JSString *
 ThisToStringForStringProto(JSContext *cx, CallReceiver call)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_CHECK_RECURSION(cx, return NULL);
 
     if (call.thisv().isString())
@@ -483,6 +490,7 @@ IsString(const Value &v)
 static JSBool
 str_quote(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     RootedString str(cx, ThisToStringForStringProto(cx, args));
     if (!str)
@@ -497,6 +505,7 @@ str_quote(JSContext *cx, unsigned argc, Value *vp)
 JS_ALWAYS_INLINE bool
 str_toSource_impl(JSContext *cx, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(IsString(args.thisv()));
 
     Rooted<JSString*> str(cx, ToString<CanGC>(cx, args.thisv()));
@@ -530,6 +539,7 @@ str_toSource(JSContext *cx, unsigned argc, Value *vp)
 JS_ALWAYS_INLINE bool
 str_toString_impl(JSContext *cx, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(IsString(args.thisv()));
 
     args.rval().setString(args.thisv().isString()
@@ -541,6 +551,7 @@ str_toString_impl(JSContext *cx, CallArgs args)
 JSBool
 js_str_toString(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod<IsString, str_toString_impl>(cx, args);
 }
@@ -572,6 +583,7 @@ ValueToIntegerRange(JSContext *cx, const Value &v, int32_t *out)
 static JSString *
 DoSubstr(JSContext *cx, JSString *str, size_t begin, size_t len)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * Optimization for one level deep ropes.
      * This is common for the following pattern:
@@ -626,6 +638,7 @@ DoSubstr(JSContext *cx, JSString *str, size_t begin, size_t len)
 static JSBool
 str_substring(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     JSString *str = ThisToStringForStringProto(cx, args);
@@ -685,6 +698,7 @@ str_substring(JSContext *cx, unsigned argc, Value *vp)
 JSString* JS_FASTCALL
 js_toLowerCase(JSContext *cx, JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t n = str->length();
     const jschar *s = str->getChars(cx);
     if (!s)
@@ -722,12 +736,14 @@ ToLowerCaseHelper(JSContext *cx, CallReceiver call)
 static JSBool
 str_toLowerCase(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return ToLowerCaseHelper(cx, CallArgsFromVp(argc, vp));
 }
 
 static JSBool
 str_toLocaleLowerCase(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     /*
@@ -753,6 +769,7 @@ str_toLocaleLowerCase(JSContext *cx, unsigned argc, Value *vp)
 JSString* JS_FASTCALL
 js_toUpperCase(JSContext *cx, JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t n = str->length();
     const jschar *s = str->getChars(cx);
     if (!s)
@@ -789,12 +806,14 @@ ToUpperCaseHelper(JSContext *cx, CallReceiver call)
 static JSBool
 str_toUpperCase(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return ToUpperCaseHelper(cx, CallArgsFromVp(argc, vp));
 }
 
 static JSBool
 str_toLocaleUpperCase(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     /*
@@ -1386,6 +1405,7 @@ str_lastIndexOf(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 str_startsWith(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     // Steps 1, 2, and 3
@@ -1440,6 +1460,7 @@ str_startsWith(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 str_endsWith(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     // Steps 1, 2, and 3
@@ -1498,6 +1519,7 @@ str_endsWith(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 js_TrimString(JSContext *cx, Value *vp, JSBool trimLeft, JSBool trimRight)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallReceiver call = CallReceiverFromVp(vp);
     RootedString str(cx, ThisToStringForStringProto(cx, call));
     if (!str)
@@ -1531,18 +1553,21 @@ js_TrimString(JSContext *cx, Value *vp, JSBool trimLeft, JSBool trimRight)
 static JSBool
 str_trim(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js_TrimString(cx, vp, JS_TRUE, JS_TRUE);
 }
 
 static JSBool
 str_trimLeft(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js_TrimString(cx, vp, JS_TRUE, JS_FALSE);
 }
 
 static JSBool
 str_trimRight(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js_TrimString(cx, vp, JS_FALSE, JS_TRUE);
 }
 
@@ -1746,6 +1771,7 @@ static bool
 DoMatchLocal(JSContext *cx, CallArgs args, RegExpStatics *res, Handle<JSLinearString*> input,
              RegExpShared &re)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t charsLen = input->length();
     const jschar *chars = input->chars();
 
@@ -1774,6 +1800,7 @@ static bool
 DoMatchGlobal(JSContext *cx, CallArgs args, RegExpStatics *res, Handle<JSLinearString*> input,
               RegExpShared &re)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t charsLen = input->length();
     const jschar *chars = input->chars();
 
@@ -1830,6 +1857,7 @@ DoMatchGlobal(JSContext *cx, CallArgs args, RegExpStatics *res, Handle<JSLinearS
 static bool
 BuildFlatMatchArray(JSContext *cx, HandleString textstr, const FlatMatch &fm, CallArgs *args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (fm.match() < 0) {
         args->rval().setNull();
         return true;
@@ -1964,6 +1992,7 @@ static bool
 DoMatchForReplaceLocal(JSContext *cx, RegExpStatics *res, Handle<JSLinearString*> linearStr,
                        RegExpShared &re, ReplaceData &rdata)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t charsLen = linearStr->length();
     size_t i = 0;
     ScopedMatchPairs matches(&cx->tempLifoAlloc());
@@ -1982,6 +2011,7 @@ static bool
 DoMatchForReplaceGlobal(JSContext *cx, RegExpStatics *res, Handle<JSLinearString*> linearStr,
                         RegExpShared &re, ReplaceData &rdata)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t charsLen = linearStr->length();
     ScopedMatchPairs matches(&cx->tempLifoAlloc());
     for (size_t count = 0, i = 0; i <= charsLen; ++count) {
@@ -2010,6 +2040,7 @@ static bool
 InterpretDollar(RegExpStatics *res, const jschar *dp, const jschar *ep,
                 ReplaceData &rdata, JSSubString *out, size_t *skip)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(*dp == '$');
 
     /* If there is only a dollar, bail now */
@@ -2073,6 +2104,7 @@ InterpretDollar(RegExpStatics *res, const jschar *dp, const jschar *ep,
 static bool
 FindReplaceLength(JSContext *cx, RegExpStatics *res, ReplaceData &rdata, size_t *sizep)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (rdata.elembase) {
         /*
          * The base object is used when replace was passed a lambda which looks like
@@ -2199,6 +2231,7 @@ FindReplaceLength(JSContext *cx, RegExpStatics *res, ReplaceData &rdata, size_t 
 static void
 DoReplace(RegExpStatics *res, ReplaceData &rdata)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSLinearString *repstr = rdata.repstr;
     const jschar *cp;
     const jschar *bp = cp = repstr->chars();
@@ -2228,7 +2261,7 @@ DoReplace(RegExpStatics *res, ReplaceData &rdata)
 static bool
 ReplaceRegExp(JSContext *cx, RegExpStatics *res, ReplaceData &rdata)
 {
-
+    TRACK_MEMORY_SCOPE("Javascript");
     const MatchPair &match = res->getMatches()[0];
     JS_ASSERT(!match.isUndefined());
     JS_ASSERT(match.limit >= match.start && match.limit >= 0);
@@ -2264,6 +2297,7 @@ static bool
 BuildFlatReplacement(JSContext *cx, HandleString textstr, HandleString repstr,
                      const FlatMatch &fm, CallArgs *args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RopeBuilder builder(cx);
     size_t match = fm.match();
     size_t matchEnd = match + fm.patternLength();
@@ -2348,6 +2382,7 @@ static inline bool
 BuildDollarReplacement(JSContext *cx, JSString *textstrArg, JSLinearString *repstr,
                        const jschar *firstDollar, const FlatMatch &fm, CallArgs *args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<JSLinearString*> textstr(cx, textstrArg->ensureLinear(cx));
     if (!textstr)
         return false;
@@ -2436,6 +2471,7 @@ static inline JSShortString *
 FlattenSubstrings(JSContext *cx, const jschar *chars,
                   const StringRange *ranges, size_t rangesLen, size_t outputLen)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(JSShortString::lengthFits(outputLen));
 
     JSShortString *str = js_NewGCShortString<CanGC>(cx);
@@ -2458,6 +2494,7 @@ static JSString *
 AppendSubstrings(JSContext *cx, Handle<JSStableString*> stableStr,
                  const StringRange *ranges, size_t rangesLen)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(rangesLen);
 
     /* For single substrings, construct a dependent string. */
@@ -2506,6 +2543,7 @@ AppendSubstrings(JSContext *cx, Handle<JSStableString*> stableStr,
 static bool
 str_replace_regexp_remove(JSContext *cx, CallArgs args, HandleString str, RegExpShared &re)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<JSStableString*> stableStr(cx, str->ensureStable(cx));
     if (!stableStr)
         return false;
@@ -2582,6 +2620,7 @@ str_replace_regexp_remove(JSContext *cx, CallArgs args, HandleString str, RegExp
 static inline bool
 str_replace_regexp(JSContext *cx, CallArgs args, ReplaceData &rdata)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!rdata.g.normalizeRegExp(cx, true, 2, args))
         return false;
 
@@ -2631,6 +2670,7 @@ str_replace_regexp(JSContext *cx, CallArgs args, ReplaceData &rdata)
 static inline bool
 str_replace_flat_lambda(JSContext *cx, CallArgs outerArgs, ReplaceData &rdata, const FlatMatch &fm)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(fm.match() >= 0);
 
     RootedString matchStr(cx, js_NewDependentString(cx, rdata.str, fm.match(), fm.patternLength()));
@@ -2691,6 +2731,7 @@ static const uint32_t ReplaceOptArg = 2;
 static bool
 LambdaIsGetElem(JSContext *cx, JSObject &lambda, MutableHandleObject pobj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!lambda.is<JSFunction>())
         return true;
 
@@ -2748,6 +2789,7 @@ LambdaIsGetElem(JSContext *cx, JSObject &lambda, MutableHandleObject pobj)
 JSBool
 js::str_replace(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     ReplaceData rdata(cx);
@@ -2848,6 +2890,7 @@ static JSObject *
 SplitHelper(JSContext *cx, Handle<JSLinearString*> str, uint32_t limit, const Matcher &splitMatch,
             Handle<TypeObject*> type)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t strLength = str->length();
     SplitMatchResult result;
 
@@ -3043,6 +3086,7 @@ class SplitStringMatcher
 JSBool
 js::str_split(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     /* Steps 1-2. */
@@ -3127,6 +3171,7 @@ js::str_split(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 str_substr(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     RootedString str(cx, ThisToStringForStringProto(cx, args));
     if (!str)
@@ -3178,6 +3223,7 @@ str_substr(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 str_concat(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
     JSString *str = ThisToStringForStringProto(cx, args);
     if (!str)
@@ -3211,6 +3257,7 @@ str_concat(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 str_slice(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     if (args.length() == 1 && args.thisv().isString() && args[0].isInt32()) {
@@ -3285,6 +3332,7 @@ static bool
 tagify(JSContext *cx, const char *begin, HandleLinearString param, const char *end,
        CallReceiver call)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSString *thisstr = ThisToStringForStringProto(cx, call);
     if (!thisstr)
         return false;
@@ -3507,6 +3555,7 @@ static const JSFunctionSpec string_methods[] = {
 JSBool
 js_String(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     RootedString str(cx);
@@ -3533,6 +3582,7 @@ js_String(JSContext *cx, unsigned argc, Value *vp)
 JSBool
 js::str_fromCharCode(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     JS_ASSERT(args.length() <= ARGS_LENGTH_MAX);
@@ -3591,6 +3641,7 @@ StringObject::assignInitialShape(JSContext *cx)
 JSObject *
 js_InitStringClass(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(obj->isNative());
 
     Rooted<GlobalObject*> global(cx, &obj->as<GlobalObject>());
@@ -3632,6 +3683,7 @@ template <AllowGC allowGC>
 JSStableString *
 js_NewString(JSContext *cx, jschar *chars, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return JSStableString::new_<allowGC>(cx, chars, length);
 }
 
@@ -3644,6 +3696,7 @@ js_NewString<NoGC>(JSContext *cx, jschar *chars, size_t length);
 JSLinearString *
 js_NewDependentString(JSContext *cx, JSString *baseArg, size_t start, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (length == 0)
         return cx->runtime()->emptyString;
 
@@ -3666,6 +3719,7 @@ template <AllowGC allowGC>
 JSFlatString *
 js_NewStringCopyN(JSContext *cx, const jschar *s, size_t n)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (JSShortString::lengthFits(n))
         return NewShortString<allowGC>(cx, TwoByteChars(s, n));
 
@@ -3690,6 +3744,7 @@ template <AllowGC allowGC>
 JSFlatString *
 js_NewStringCopyN(JSContext *cx, const char *s, size_t n)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (JSShortString::lengthFits(n))
         return NewShortString<allowGC>(cx, JS::Latin1Chars(s, n));
 
@@ -3712,6 +3767,7 @@ template <AllowGC allowGC>
 JSFlatString *
 js_NewStringCopyZ(JSContext *cx, const jschar *s)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t n = js_strlen(s);
     if (JSShortString::lengthFits(n))
         return NewShortString<allowGC>(cx, TwoByteChars(s, n));
@@ -3749,6 +3805,7 @@ js_NewStringCopyZ<NoGC>(JSContext *cx, const char *s);
 const char *
 js_ValueToPrintable(JSContext *cx, const Value &vArg, JSAutoByteString *bytes, bool asSource)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue v(cx, vArg);
     JSString *str;
     if (asSource)
@@ -3767,6 +3824,7 @@ template <AllowGC allowGC>
 JSString *
 js::ToStringSlow(JSContext *cx, typename MaybeRooted<Value, allowGC>::HandleType arg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* As with ToObjectSlow, callers must verify that |arg| isn't a string. */
     JS_ASSERT(!arg.isString());
 
@@ -3806,6 +3864,7 @@ js::ToStringSlow<NoGC>(JSContext *cx, Value arg);
 JSString *
 js::ValueToSource(JSContext *cx, const Value &v)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_CHECK_RECURSION(cx, return NULL);
     assertSameCompartment(cx, v);
 
@@ -3946,6 +4005,7 @@ js_strchr(const jschar *s, jschar c)
 jschar *
 js_strdup(JSContext *cx, const jschar *s)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t n = js_strlen(s);
     jschar *ret = cx->pod_malloc<jschar>(n + 1);
     if (!ret)
@@ -3969,6 +4029,7 @@ js_strchr_limit(const jschar *s, jschar c, const jschar *limit)
 jschar *
 js::InflateString(JSContext *cx, const char *bytes, size_t *lengthp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t nchars;
     jschar *chars;
     size_t nbytes = *lengthp;
@@ -3995,6 +4056,7 @@ js::InflateString(JSContext *cx, const char *bytes, size_t *lengthp)
 jschar *
 js::InflateUTF8String(JSContext *cx, const char *bytes, size_t *lengthp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t nchars;
     jschar *chars;
     size_t nbytes = *lengthp;
@@ -4025,6 +4087,7 @@ bool
 js::DeflateStringToBuffer(JSContext *maybecx, const jschar *src, size_t srclen,
                           char *dst, size_t *dstlenp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t dstlen = *dstlenp;
     if (srclen > dstlen) {
         for (size_t i = 0; i < dstlen; i++)
@@ -4046,6 +4109,7 @@ bool
 js::InflateStringToBuffer(JSContext *maybecx, const char *src, size_t srclen,
                           jschar *dst, size_t *dstlenp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (dst) {
         size_t dstlen = *dstlenp;
         if (srclen > dstlen) {
@@ -4070,6 +4134,7 @@ js::InflateUTF8StringToBufferReplaceInvalid(JSContext *cx, const char *src,
                                             size_t srclen, jschar *dst,
                                             size_t *dstlenp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     mozilla::Maybe<AutoSuppressGC> suppress;
     if (cx)
         suppress.construct(cx);
@@ -4160,6 +4225,7 @@ bool
 js::InflateUTF8StringToBuffer(JSContext *cx, const char *src, size_t srclen,
                               jschar *dst, size_t *dstlenp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     mozilla::Maybe<AutoSuppressGC> suppress;
     if (cx)
         suppress.construct(cx);

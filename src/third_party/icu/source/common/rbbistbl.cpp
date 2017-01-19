@@ -3,8 +3,8 @@
 //
 /*
 ***************************************************************************
-*   Copyright (C) 2002-2006 International Business Machines Corporation   *
-*   and others. All rights reserved.                                      *
+*   Copyright (C) 2002-2014 International Business Machines Corporation
+*   and others. All rights reserved.
 ***************************************************************************
 */
 
@@ -12,6 +12,7 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unistr.h"
 #include "unicode/uniset.h"
 #include "unicode/uchar.h"
@@ -29,7 +30,7 @@
 //
 U_CDECL_BEGIN
 static void U_CALLCONV RBBISymbolTableEntry_deleter(void *p) {
-    U_NAMESPACE_QUALIFIER RBBISymbolTableEntry *px = (U_NAMESPACE_QUALIFIER RBBISymbolTableEntry *)p;
+    icu::RBBISymbolTableEntry *px = (icu::RBBISymbolTableEntry *)p;
     delete px;
 }
 U_CDECL_END
@@ -230,7 +231,7 @@ void RBBISymbolTable::rbbiSymtablePrint() const {
            "Name               Node Val     String Val\n"
            "----------------------------------------------------------------------\n");
 
-    int32_t pos = -1;
+    int32_t pos = UHASH_FIRST;
     const UHashElement  *e   = NULL;
     for (;;) {
         e = uhash_nextElement(fHashTable,  &pos);

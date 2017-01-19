@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1999-2006, International Business Machines
+*   Copyright (C) 1999-2012, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -19,6 +19,7 @@
 * 
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
@@ -31,6 +32,27 @@
 #include "cpputils.h"
 #include "uassert.h"
 #include "ustr_imp.h"
+
+U_NAMESPACE_BEGIN
+/**
+ * This class isolates our access to private internal methods of
+ * MessageFormat.  It is never instantiated; it exists only for C++
+ * access management.
+ */
+class MessageFormatAdapter {
+public:
+    static const Formattable::Type* getArgTypeList(const MessageFormat& m,
+                                                   int32_t& count);
+    static UBool hasArgTypeConflicts(const MessageFormat& m) {
+        return m.hasArgTypeConflicts;
+    }
+};
+const Formattable::Type*
+MessageFormatAdapter::getArgTypeList(const MessageFormat& m,
+                                     int32_t& count) {
+    return m.getArgTypeList(count);
+}
+U_NAMESPACE_END
 
 U_NAMESPACE_USE
 
@@ -217,25 +239,23 @@ umsg_open(  const UChar     *pattern,
     }
 
     UParseError tErr;
-   
     if(parseError==NULL)
     {
         parseError = &tErr;
     }
-        
-    UMessageFormat* retVal = 0;
 
     int32_t len = (patternLength == -1 ? u_strlen(pattern) : patternLength);
-    
-    UnicodeString patString((patternLength == -1 ? TRUE:FALSE), pattern,len);
+    UnicodeString patString(patternLength == -1, pattern, len);
 
-    retVal = (UMessageFormat*) new MessageFormat(patString,Locale(locale),*parseError,*status);
-    
-    if(retVal == 0) {
+    MessageFormat* retVal = new MessageFormat(patString,Locale(locale),*parseError,*status);
+    if(retVal == NULL) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-        return 0;
+        return NULL;
     }
-    return retVal;
+    if (U_SUCCESS(*status) && MessageFormatAdapter::hasArgTypeConflicts(*retVal)) {
+        *status = U_ARGUMENT_TYPE_MISMATCH;
+    }
+    return (UMessageFormat*)retVal;
 }
 
 U_CAPI void U_EXPORT2
@@ -366,24 +386,6 @@ umsg_format(    const UMessageFormat *fmt,
     return actLen;
 }
 
-U_NAMESPACE_BEGIN
-/**
- * This class isolates our access to private internal methods of
- * MessageFormat.  It is never instantiated; it exists only for C++
- * access management.
- */
-class MessageFormatAdapter {
-public:
-    static const Formattable::Type* getArgTypeList(const MessageFormat& m,
-                                                   int32_t& count);
-};
-const Formattable::Type*
-MessageFormatAdapter::getArgTypeList(const MessageFormat& m,
-                                     int32_t& count) {
-    return m.getArgTypeList(count);
-}
-U_NAMESPACE_END
-
 U_CAPI int32_t U_EXPORT2
 umsg_vformat(   const UMessageFormat *fmt,
                 UChar          *result,
@@ -441,7 +443,7 @@ umsg_vformat(   const UMessageFormat *fmt,
             // For some reason, a temporary is needed
             stringVal = va_arg(ap, UChar*);
             if(stringVal){
-                args[i].setString(stringVal);
+                args[i].setString(UnicodeString(stringVal));
             }else{
                 *status=U_ILLEGAL_ARGUMENT_ERROR;
             }
@@ -456,11 +458,14 @@ umsg_vformat(   const UMessageFormat *fmt,
             break;
 
         case Formattable::kObject:
-            // This will never happen because MessageFormat doesn't
-            // support kObject.  When MessageFormat is changed to
-            // understand MeasureFormats, modify this code to do the
-            // right thing. [alan]
+            // Unused argument number. Read and ignore a pointer argument.
+            va_arg(ap, void*);
+            break;
+
+        default:
+            // Unknown/unsupported argument type.
             U_ASSERT(FALSE);
+            *status=U_ILLEGAL_ARGUMENT_ERROR;
             break;
         }
     }
@@ -523,7 +528,7 @@ umsg_vparse(const UMessageFormat *fmt,
     }
 
     UnicodeString srcString(source,sourceLength);
-    Formattable *args = ((const MessageFormat*)fmt)->parse(source,*count,*status);
+    Formattable *args = ((const MessageFormat*)fmt)->parse(srcString,*count,*status);
     UDate *aDate;
     double *aDouble;
     UChar *aString;
@@ -631,6 +636,7 @@ int32_t umsg_autoQuoteApostrophe(const UChar* pattern,
         *ec = U_ILLEGAL_ARGUMENT_ERROR;
         return -1;
     }
+    U_ASSERT(destCapacity >= 0);
 
     if (patternLength == -1) {
         patternLength = u_strlen(pattern);
@@ -692,6 +698,7 @@ int32_t umsg_autoQuoteApostrophe(const UChar* pattern,
             break;
         }
 
+        U_ASSERT(len >= 0);
         MAppend(c);
     }
 

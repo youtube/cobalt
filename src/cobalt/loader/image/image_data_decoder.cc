@@ -60,7 +60,7 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
 
       // Append new data to data_buffer
       data_buffer_.insert(
-          data_buffer_.begin() + static_cast<int64>(data_buffer_.size()),
+          data_buffer_.end(),
           data + offset, data + offset + fill_buffer_size);
 
       input_bytes = &data_buffer_[0];
@@ -83,7 +83,7 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
         // data_buffer is not empty, so erase the decoded data from it.
         data_buffer_.erase(
             data_buffer_.begin(),
-            data_buffer_.begin() + static_cast<int64>(decoded_size));
+            data_buffer_.begin() + static_cast<ptrdiff_t>(decoded_size));
       }
     }
   }
@@ -102,7 +102,7 @@ bool ImageDataDecoder::FinishWithSuccess() {
   return state_ == kDone;
 }
 
-void ImageDataDecoder::AllocateImageData(const math::Size& size,
+bool ImageDataDecoder::AllocateImageData(const math::Size& size,
                                          bool has_alpha) {
   DCHECK(resource_provider_->AlphaFormatSupported(
       render_tree::kAlphaFormatOpaque));
@@ -111,6 +111,14 @@ void ImageDataDecoder::AllocateImageData(const math::Size& size,
   image_data_ = resource_provider_->AllocateImageData(
       size, pixel_format(), has_alpha ? render_tree::kAlphaFormatPremultiplied
                                       : render_tree::kAlphaFormatOpaque);
+  if (!image_data_) {
+    DLOG(WARNING) << "Failed to allocate image data (" << size.width() << "x"
+                  << size.height() << ").";
+    // We want to know in debug if we have problems allocating image data.
+    // It should never happen.
+    DCHECK(false);
+  }
+  return image_data_;
 }
 
 void ImageDataDecoder::CalculatePixelFormat() {

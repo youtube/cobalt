@@ -1,73 +1,81 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/pt_PT.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/pt_PT.xml
 // *
 // ***************************************************************************
 pt_PT{
     Countries{
-        AC{"Ascensão"}
-        AE{"Emiratos Árabes Unidos"}
+        009{"Oceânia"}
+        015{"Norte de África"}
+        029{"Caraíbas"}
+        154{"Europa do Norte"}
         AI{"Anguila"}
         AM{"Arménia"}
-        AQ{"Antárctica"}
-        AZ{"Azerbeijão"}
+        AX{"Alanda"}
         BD{"Bangladeche"}
-        BF{"Burkina-Faso"}
-        BH{"Bahrein"}
+        BH{"Barém"}
         BJ{"Benim"}
         BS{"Baamas"}
-        BY{"Bielorrússia"}
-        CC{"Ilhas Cocos"}
+        CC{"Ilhas dos Cocos (Keeling)"}
+        CD{"Congo-Kinshasa"}
         CG{"Congo-Brazzaville"}
+        CM{"Camarões"}
+        CW{"Curaçau"}
         CX{"Ilha do Natal"}
         CZ{"República Checa"}
+        DJ{"Jibuti"}
+        DM{"Domínica"}
         EE{"Estónia"}
-        EG{"Egipto"}
-        EH{"Sara Ocidental"}
         FK{"Ilhas Falkland"}
-        FM{"Estados Federados da Micronésia"}
+        FO{"Ilhas Faroé"}
         GL{"Gronelândia"}
-        GW{"Guiné-Bissau"}
-        HK{"Região Administrativa Especial de Hong Kong"}
+        GU{"Guame"}
         IR{"Irão"}
         KE{"Quénia"}
-        KG{"Quirguizistão"}
-        KN{"Saint Kitts e Nevis"}
+        KN{"São Cristóvão e Neves"}
         KY{"Ilhas Caimão"}
-        KZ{"Cazaquistão"}
-        LA{"Laos, República Popular Democrática do"}
+        LI{"Listenstaine"}
+        LK{"Sri Lanca"}
         LV{"Letónia"}
         MC{"Mónaco"}
-        MD{"Moldávia, República da"}
         MG{"Madagáscar"}
         MK{"Macedónia"}
-        MM{"Mianmar"}
-        MO{"Região Administrativa Especial de Macau"}
-        MP{"Ilhas Mariana do Norte"}
-        MU{"Maurícias"}
-        MW{"Malavi"}
+        MS{"Monserrate"}
+        MU{"Maurícia"}
+        MW{"Maláui"}
         NC{"Nova Caledónia"}
         NL{"Países Baixos"}
-        PG{"Papuásia-Nova Guiné"}
         PL{"Polónia"}
-        PS{"Território Palestiniano"}
+        PM{"São Pedro e Miquelão"}
+        PS{"Territórios palestinianos"}
         QO{"Oceânia Insular"}
         RO{"Roménia"}
         SC{"Seicheles"}
         SG{"Singapura"}
         SI{"Eslovénia"}
-        SM{"São Marino"}
+        SM{"São Marinho"}
+        SV{"Salvador"}
         TC{"Ilhas Turcas e Caicos"}
-        TJ{"Tajiquistão"}
+        TK{"Toquelau"}
         TM{"Turquemenistão"}
         TT{"Trindade e Tobago"}
-        VI{"Ilhas Virgin E.U.A."}
+        UM{"Ilhas Menores Afastadas dos EUA"}
+        UZ{"Usbequistão"}
         VN{"Vietname"}
         YE{"Iémen"}
-        ZW{"Zimbabwe"}
+        YT{"Maiote"}
+        ZW{"Zimbabué"}
     }
-    Version{"2.0.50.84"}
+    Countries%short{
+        GB{"GB"}
+    }
+    Countries%variant{
+        CG{"República do Congo"}
+        FK{"Ilhas Malvinas"}
+        MK{"Macedónia (ARJM)"}
+    }
+    Version{"2.1.19.79"}
 }

@@ -103,6 +103,7 @@ MimeType::MimeType(const std::string& content_type) : is_valid_(false) {
   components.erase(components.begin());
 
   // 2. Verify the parameters have valid formats, we want to be strict here.
+  bool has_codecs = false;
   for (Strings::iterator iter = components.begin(); iter != components.end();
        ++iter) {
     std::vector<std::string> name_and_value = SplitAndTrim(*iter, '=');
@@ -120,10 +121,27 @@ MimeType::MimeType(const std::string& content_type) : is_valid_(false) {
       param.value = name_and_value[1];
     }
     param.name = name_and_value[0];
+    if (param.name == "codecs") {
+      // There can only be no more than one codecs parameter and it has to be
+      // the first paramter if it is present.
+      if (!params_.empty() || has_codecs) {
+        return;
+      } else {
+        has_codecs = true;
+      }
+    }
     params_.push_back(param);
   }
 
   is_valid_ = true;
+}
+
+std::vector<std::string> MimeType::GetCodecs() const {
+  int codecs_index = GetParamIndexByName("codecs");
+  if (codecs_index != 0) {
+    return std::vector<std::string>();
+  }
+  return SplitAndTrim(params_[0].value, ',');
 }
 
 int MimeType::GetParamCount() const {

@@ -19,6 +19,9 @@
 #include "vm/Interpreter-inl.h"
 #include "vm/NativeObject-inl.h"
 
+// Unified leak fix:
+#include "builtin/WeakMapObject.h"
+
 using namespace js;
 
 using mozilla::UniquePtr;

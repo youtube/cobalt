@@ -156,7 +156,7 @@ int VirtualFile::Deserialize(const uint8* source, size_t buffer_remaining) {
     DLOG(ERROR) << "Buffer overrun";
     return -1;
   }
-  name_.assign(name, name_length);
+  name_.assign(name, static_cast<size_t>(name_length));
 
   // Read in file contents size.
   uint64 file_size;

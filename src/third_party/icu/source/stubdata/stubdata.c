@@ -41,7 +41,7 @@ U_EXPORT const ICU_Data_Header U_ICUDATA_ENTRY_POINT = {
 #endif
 
             U_CHARSET_FAMILY,
-            sizeof(UChar),   
+            sizeof(UChar),
             0,               /* reserved      */
             {                /* data format identifier */
                0x54, 0x6f, 0x43, 0x50}, /* "ToCP" */

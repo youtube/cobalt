@@ -1,5 +1,5 @@
 ## Makefile.in for ICU - tools/icuinfo
-## Copyright (c) 1999-2010, International Business Machines Corporation and
+## Copyright (c) 1999-2015, International Business Machines Corporation and
 ## others. All Rights Reserved.
 ## Madhu Katragadda
 
@@ -20,25 +20,18 @@ CLEANFILES = *~ $(DEPS) $(PLUGIN_OBJECTS) $(PLUGINFILE) $(PLUGIN)
 ## Target information
 TARGET = icuinfo$(EXEEXT)
 
-ifneq ($(top_builddir),$(top_srcdir))
-CPPFLAGS += -I$(top_builddir)/common 
-endif
 CPPFLAGS += -I$(top_srcdir)/common -I$(srcdir)/../toolutil -I$(top_srcdir)/tools/ctestfw 
 CPPFLAGS+= -I$(top_srcdir)/i18n
 LIBS = $(LIBICUTOOLUTIL) $(LIBICUI18N) $(LIBICUUC) $(DEFAULT_LIBS) $(LIB_M)
 
 OBJECTS = icuinfo.o
-PLUGIN_OBJECTS = testplug.o
+@PLUGINS_TRUE@PLUGIN_OBJECTS = testplug.o
 
 DEPS = $(OBJECTS:.o=.d)
 
 # pass some information
 
-ICUINFO_OPTS=-i ../../data/out/build/$(ICUDATA_PLATFORM_NAME)
-
-CPPFLAGS+=  -DU_PLATFORM=\"@platform@\"  -DU_BUILD=\"@build@\" -DU_HOST=\"@host@\" -DU_CC=\"@CC@\" -DU_CXX=\"@CXX@\"
-# -DENABLE_RELEASE=@ENABLE_RELEASE@ -DENABLE_DEBUG=@ENABLE_DEBUG@ "
-
+ICUINFO_OPTS=-i ../../data/out/build/$(ICUDATA_PLATFORM_NAME) -x $(top_builddir)/config/icuinfo.xml -v -K
 
 ## List of phony targets
 .PHONY : all all-local install install-local clean clean-local		\
@@ -82,17 +75,21 @@ $(TARGET) : $(OBJECTS)
 	$(LINK.cc) $(OUTOPT)$@ $^ $(LIBS) 
 	$(POST_BUILD_STEP)
 
-PLUGIN=$(LIBPREFIX)plugin.$(SO)    
+PLUGIN=$(LIBPREFIX)plugin.$(SO)
 SO_TARGET=$(PLUGIN)
 
 PLUGINDIR=$(shell pwd)
 
 PLUGINFILE=$(PLUGINDIR)/icuplugins$(SO_TARGET_VERSION_MAJOR).txt
 
+CFLAGS+=$(SHAREDLIBCFLAGS)
+
+@PLUGINS_TRUE@HAVE_PLUGINS=yes
+
+ifeq ($(HAVE_PLUGINS),yes)
 $(PLUGINFILE): Makefile
 	echo "$(CURR_FULL_DIR)/$(PLUGIN)	myPlugin	x=4" > $@
 
-CFLAGS+=$(SHAREDLIBCFLAGS)
 
 $(PLUGIN): $(PLUGIN_OBJECTS)
 	$(SHLIB.cc) $(SHAREDLIBCFLAGS) $(LD_SONAME) $(OUTOPT)$@ $^ $(LIBS)
@@ -101,7 +98,10 @@ plugin: $(PLUGIN)
 
 plugin-check: $(PLUGIN) $(PLUGINFILE)
 	$(INVOKE) ICU_PLUGINS="$(CURR_FULL_DIR)" ./$(TARGET) -v -L
-
+else
+plugin plugin-check $(PLUGIN):
+	@echo "Plugins are disabled (use --enable-plugins to enable)"
+endif
 
 ifeq (,$(MAKECMDGOALS))
 -include $(DEPS)

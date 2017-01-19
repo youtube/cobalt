@@ -38,13 +38,25 @@ class ImageDecoder : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
       SuccessCallback;
-  typedef base::Callback<void(const std::string&)> FailureCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ImageDecoder(render_tree::ResourceProvider* resource_provider,
                const SuccessCallback& success_callback,
-               const FailureCallback& failure_callback,
                const ErrorCallback& error_callback);
+
+  // Ensure that the image data decoder is initialized so that
+  // IsHardwareDecoder() can be queried to call DecodeChunk() from an
+  // appropriate thread. Returns whether DecodeChunk() is ready to be called.
+  //
+  // Optionally, DecodeChunk() will initialize the image data decoder as
+  // needed, but care must be taken to call the function from one consistent
+  // thread when using this approach.
+  bool EnsureDecoderIsInitialized(const char* data, size_t size);
+
+  // Returns whether the current image data decoder is a software or hardware
+  // decoder. This is intended to help decide which thread should be used to
+  // call DecodeChunk().
+  bool IsHardwareDecoder() const;
 
   // From Decoder.
   LoadResponseType OnResponseStarted(
@@ -83,12 +95,12 @@ class ImageDecoder : public Decoder {
 
   render_tree::ResourceProvider* resource_provider_;
   const SuccessCallback success_callback_;
-  const FailureCallback failure_callback_;
   const ErrorCallback error_callback_;
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
-  std::string failure_message_;
+  size_t data_consumed_size;
+  std::string error_message_;
   std::string mime_type_;
 };
 

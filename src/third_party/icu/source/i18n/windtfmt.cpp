@@ -1,6 +1,6 @@
 /*
 ********************************************************************************
-*   Copyright (C) 2005-2009, International Business Machines
+*   Copyright (C) 2005-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 ********************************************************************************
 *
@@ -11,7 +11,7 @@
 
 #include "unicode/utypes.h"
 
-#ifdef U_WINDOWS
+#if U_PLATFORM_HAS_WIN32_API
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -94,7 +94,7 @@ UnicodeString* Win32DateFormat::getTimeDateFormat(const Calendar *cal, const Loc
 
 // TODO: Range-check timeStyle, dateStyle
 Win32DateFormat::Win32DateFormat(DateFormat::EStyle timeStyle, DateFormat::EStyle dateStyle, const Locale &locale, UErrorCode &status)
-  : DateFormat(), fDateTimeMsg(NULL), fTimeStyle(timeStyle), fDateStyle(dateStyle), fLocale(&locale), fZoneID()
+  : DateFormat(), fDateTimeMsg(NULL), fTimeStyle(timeStyle), fDateStyle(dateStyle), fLocale(locale), fZoneID()
 {
     if (U_SUCCESS(status)) {
         fLCID = locale.getLCID();
@@ -124,9 +124,10 @@ Win32DateFormat &Win32DateFormat::operator=(const Win32DateFormat &other)
 
 //    delete fCalendar;
 
-    this->fDateTimeMsg = other.fDateTimeMsg;
+    this->fDateTimeMsg = other.fDateTimeMsg == NULL ? NULL : new UnicodeString(*other.fDateTimeMsg);
     this->fTimeStyle   = other.fTimeStyle;
     this->fDateStyle   = other.fDateStyle;
+    this->fLocale      = other.fLocale;
     this->fLCID        = other.fLCID;
 //    this->fCalendar    = other.fCalendar->clone();
     this->fZoneID      = other.fZoneID;
@@ -178,7 +179,7 @@ UnicodeString &Win32DateFormat::format(Calendar &cal, UnicodeString &appendTo, F
         timeDateArray[1].adoptString(date);
 
         if (strcmp(fCalendar->getType(), cal.getType()) != 0) {
-            pattern = getTimeDateFormat(&cal, fLocale, status);
+            pattern = getTimeDateFormat(&cal, &fLocale, status);
         }
 
         MessageFormat::format(*pattern, timeDateArray, 2, appendTo, status);
@@ -203,7 +204,7 @@ void Win32DateFormat::adoptCalendar(Calendar *newCalendar)
 
         if (fDateStyle != DateFormat::kNone && fTimeStyle != DateFormat::kNone) {
             delete fDateTimeMsg;
-            fDateTimeMsg = getTimeDateFormat(newCalendar, fLocale, status);
+            fDateTimeMsg = getTimeDateFormat(newCalendar, &fLocale, status);
         }
     }
 
@@ -317,5 +318,5 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif // #ifdef U_WINDOWS
+#endif // U_PLATFORM_HAS_WIN32_API
 

@@ -45,6 +45,8 @@ class GraphicsContextEGL : public GraphicsContext {
 
   GraphicsSystemEGL* system_egl();
 
+  EGLContext GetContext() { return context_; }
+
   scoped_ptr<TextureEGL> CreateTexture(scoped_ptr<TextureDataEGL> texture_data);
 
   scoped_ptr<TextureEGL> CreateTextureFromRawMemory(
@@ -54,6 +56,8 @@ class GraphicsContextEGL : public GraphicsContext {
 
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE;
+
+  void InitializeDebugContext() OVERRIDE;
 
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
@@ -108,17 +112,11 @@ class GraphicsContextEGL : public GraphicsContext {
 
   void Blit(GLuint texture, int x, int y, int width, int height);
 
-  bool ReadPixelsNeedVerticalFlip() {
-    if (!read_pixels_needs_vertical_flip_) {
-      read_pixels_needs_vertical_flip_ = ComputeReadPixelsNeedVerticalFlip();
-    }
-    return *read_pixels_needs_vertical_flip_;
-  }
-
  private:
   // Performs a test to determine if the pixel data returned by glReadPixels
-  // needs to be vertically flipped or not.  This test is expensive and so
-  // it should be only done once and the results cached.
+  // needs to be vertically flipped or not.  This test is expensive, so it
+  // caches the results the first time it is computed and simply returns the
+  // cached value on subsequent calls.
   bool ComputeReadPixelsNeedVerticalFlip();
 
   // Sets up all structures (like Shaders and vertex buffers) required to

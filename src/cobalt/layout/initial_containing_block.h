@@ -45,8 +45,7 @@ struct InitialContainingBlockCreationResults {
 // This creates the initial containing block after adding background color
 // and image to the initial style, when needed.
 InitialContainingBlockCreationResults CreateInitialContainingBlock(
-    const scoped_refptr<cssom::CSSComputedStyleData>&
-        initial_containing_block_style,
+    const cssom::CSSComputedStyleData& default_initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker);

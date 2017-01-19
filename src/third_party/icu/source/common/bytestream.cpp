@@ -1,14 +1,17 @@
-// Copyright (C) 2009-2010, International Business Machines
+// Copyright (C) 2009-2011, International Business Machines
 // Corporation and others. All Rights Reserved.
 //
 // Copyright 2007 Google Inc. All Rights Reserved.
 // Author: sanjay@google.com (Sanjay Ghemawat)
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/bytestream.h"
 #include "cmemory.h"
 
 U_NAMESPACE_BEGIN
+
+ByteSink::~ByteSink() {}
 
 char* ByteSink::GetAppendBuffer(int32_t min_capacity,
                                 int32_t /*desired_capacity_hint*/,
@@ -28,6 +31,8 @@ CheckedArrayByteSink::CheckedArrayByteSink(char* outbuf, int32_t capacity)
     : outbuf_(outbuf), capacity_(capacity < 0 ? 0 : capacity),
       size_(0), appended_(0), overflowed_(FALSE) {
 }
+
+CheckedArrayByteSink::~CheckedArrayByteSink() {}
 
 CheckedArrayByteSink& CheckedArrayByteSink::Reset() {
   size_ = appended_ = 0;

@@ -1,28 +1,49 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/en_NZ.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/en_NZ.xml
 // *
 // ***************************************************************************
 en_NZ{
-    Version{"2.0.45.82"}
+    %%Parent{"en_001"}
+    Version{"2.1.19.14"}
     zoneStrings{
         "meta:Australia_Central"{
-            cu:int{1}
+            sd{"ACDT"}
+            sg{"ACT"}
+            ss{"ACST"}
         }
         "meta:Australia_CentralWestern"{
-            cu:int{1}
+            sd{"ACWDT"}
+            sg{"ACWT"}
+            ss{"ACWST"}
         }
         "meta:Australia_Eastern"{
-            cu:int{1}
+            sd{"AEDT"}
+            sg{"AET"}
+            ss{"AEST"}
         }
         "meta:Australia_Western"{
-            cu:int{1}
+            sd{"AWDT"}
+            sg{"AWT"}
+            ss{"AWST"}
+        }
+        "meta:Chatham"{
+            sd{"CHADT"}
+            sg{"CHAT"}
+            ss{"CHAST"}
+        }
+        "meta:Lord_Howe"{
+            sd{"LHDT"}
+            sg{"LHT"}
+            ss{"LHST"}
         }
         "meta:New_Zealand"{
-            cu:int{1}
+            sd{"NZDT"}
+            sg{"NZT"}
+            ss{"NZST"}
         }
     }
 }

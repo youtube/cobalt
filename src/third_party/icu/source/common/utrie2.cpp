@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2001-2010, International Business Machines
+*   Copyright (C) 2001-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -26,10 +26,16 @@
 #   include <stdio.h>
 #endif
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
+#include "unicode/utf.h"
+#include "unicode/utf8.h"
+#include "unicode/utf16.h"
 #include "cmemory.h"
 #include "utrie2.h"
 #include "utrie2_impl.h"
+#include "uassert.h"
 
 /* Public UTrie2 API implementation ----------------------------------------- */
 
@@ -79,7 +85,7 @@ utrie2_get32FromLeadSurrogateCodeUnit(const UTrie2 *trie, UChar32 c) {
     }
 }
 
-static U_INLINE int32_t
+static inline int32_t
 u8Index(const UTrie2 *trie, UChar32 c, int32_t i) {
     int32_t idx=
         _UTRIE2_INDEX_FROM_CP(
@@ -395,6 +401,35 @@ utrie2_getVersion(const void *data, int32_t length, UBool anyEndianOk) {
     return 0;
 }
 
+U_CAPI UBool U_EXPORT2
+utrie2_isFrozen(const UTrie2 *trie) {
+    return (UBool)(trie->newTrie==NULL);
+}
+
+U_CAPI int32_t U_EXPORT2
+utrie2_serialize(const UTrie2 *trie,
+                 void *data, int32_t capacity,
+                 UErrorCode *pErrorCode) {
+    /* argument check */
+    if(U_FAILURE(*pErrorCode)) {
+        return 0;
+    }
+
+    if( trie==NULL || trie->memory==NULL || trie->newTrie!=NULL ||
+        capacity<0 || (capacity>0 && (data==NULL || (U_POINTER_MASK_LSB(data, 3)!=0)))
+    ) {
+        *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+
+    if(capacity>=trie->length) {
+        uprv_memcpy(data, trie->memory, trie->length);
+    } else {
+        *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
+    }
+    return trie->length;
+}
+
 U_CAPI int32_t U_EXPORT2
 utrie2_swap(const UDataSwapper *ds,
             const void *inData, int32_t length, void *outData,
@@ -529,6 +564,7 @@ enumEitherTrie(const UTrie2 *trie,
     if(trie->newTrie==NULL) {
         /* frozen trie */
         idx=trie->index;
+        U_ASSERT(idx!=NULL); /* the following code assumes trie->newTrie is not NULL when idx is NULL */
         data32=trie->data32;
 
         index2NullOffset=trie->index2NullOffset;
@@ -537,6 +573,7 @@ enumEitherTrie(const UTrie2 *trie,
         /* unfrozen, mutable trie */
         idx=NULL;
         data32=trie->newTrie->data;
+        U_ASSERT(data32!=NULL); /* the following code assumes idx is not NULL when data32 is NULL */
 
         index2NullOffset=trie->newTrie->index2NullOffset;
         nullBlock=trie->newTrie->dataNullOffset;
@@ -725,14 +762,6 @@ uint16_t ForwardUTrie2StringIterator::next16() {
     uint16_t result;
     UTRIE2_U16_NEXT16(trie, codePointLimit, limit, codePoint, result);
     return result;
-}
-
-UTrie2 *UTrie2Singleton::getInstance(InstantiatorFn *instantiator, const void *context,
-                                     UErrorCode &errorCode) {
-    void *duplicate;
-    UTrie2 *instance=(UTrie2 *)singleton.getInstance(instantiator, context, duplicate, errorCode);
-    utrie2_close((UTrie2 *)duplicate);
-    return instance;
 }
 
 U_NAMESPACE_END

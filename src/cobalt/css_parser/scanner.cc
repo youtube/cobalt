@@ -29,7 +29,7 @@
 #include "cobalt/cssom/media_type_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
-#include "third_party/icu/public/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
 namespace cobalt {
 namespace css_parser {
@@ -2484,6 +2484,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       return false;
 
     case 11:
+      if (IsEqualToCssIdentifier(name.begin, "map-to-mesh")) {
+        *known_function_token = kMapToMeshFunctionToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "nth-of-type")) {
         parsing_mode_ = kNthChildMode;
         *known_function_token = kNthOfTypeFunctionToken;

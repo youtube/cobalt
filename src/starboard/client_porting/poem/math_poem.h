@@ -37,12 +37,12 @@ static SB_C_INLINE float PoemSingleFloor(const float f) {
 
 #if !defined(POEM_NO_EMULATION)
 
+#include <math.h>
 #define fabs(x) SbDoubleAbsolute(x)
 #define floor(x) SbDoubleFloor(x)
 #define floorf(x) PoemSingleFloor(x)
 #define pow(x, y) SbDoubleExponent(x, y)
 
-#include <math.h>
 #define ceil(x) ceil(x)
 #define fmod(x, y) fmod(x, y)
 #define modf(x, y) modf(x, y)

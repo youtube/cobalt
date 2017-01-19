@@ -138,6 +138,7 @@ JSString::equals(const char *s)
 static JS_ALWAYS_INLINE bool
 AllocChars(JSContext *maybecx, size_t length, jschar **chars, size_t *capacity)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * String length doesn't include the null char, so include it here before
      * doubling. Adding the null char after doubling would interact poorly with
@@ -198,6 +199,7 @@ JSRope::flattenInternal(JSContext *maybecx)
      *
      * N.B. This optimization can create chains of dependent strings.
      */
+    TRACK_MEMORY_SCOPE("Javascript");
     const size_t wholeLength = length();
     size_t wholeCapacity;
     jschar *wholeChars;
@@ -309,6 +311,7 @@ JSRope::flattenInternal(JSContext *maybecx)
 JSFlatString *
 JSRope::flatten(JSContext *maybecx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #if JSGC_INCREMENTAL
     if (zone()->needsBarrier())
         return flattenInternal<WithIncrementalBarrier>(maybecx);
@@ -325,6 +328,7 @@ js::ConcatStrings(JSContext *cx,
                   typename MaybeRooted<JSString*, allowGC>::HandleType left,
                   typename MaybeRooted<JSString*, allowGC>::HandleType right)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT_IF(!left->isAtom(), left->zone() == cx->zone());
     JS_ASSERT_IF(!right->isAtom(), right->zone() == cx->zone());
 
@@ -371,6 +375,7 @@ js::ConcatStrings<NoGC>(JSContext *cx, JSString *left, JSString *right);
 JSFlatString *
 JSDependentString::undepend(JSContext *cx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(JSString::isDependent());
 
     /*
@@ -402,6 +407,7 @@ JSDependentString::undepend(JSContext *cx)
 JSStableString *
 JSInlineString::uninline(JSContext *maybecx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(isInline());
     size_t n = length();
     jschar *news = maybecx ? maybecx->pod_malloc<jschar>(n + 1) : js_pod_malloc<jschar>(n + 1);
@@ -500,6 +506,7 @@ const StaticStrings::SmallChar StaticStrings::toSmallChar[] = { R7(0) };
 bool
 StaticStrings::init(JSContext *cx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AutoCompartment ac(cx, cx->runtime()->atomsCompartment);
 
     for (uint32_t i = 0; i < UNIT_STATIC_LIMIT; i++) {

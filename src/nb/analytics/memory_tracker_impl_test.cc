@@ -18,6 +18,7 @@
 #include "nb/memory_scope.h"
 #include "nb/scoped_ptr.h"
 #include "nb/test_thread.h"
+#include "starboard/configuration.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -484,6 +485,72 @@ TEST_F(MemoryTrackerImplTest, MacrosGroupAccounting) {
       EXPECT_EQ_NO_TRACKING(0, allocation_bytes);
     }
   }
+}
+
+// Tests the expectation that the MemoryTrackerDebugCallback works as expected
+// to notify of incoming allocations.
+TEST_F(MemoryTrackerImplTest, MemoryTrackerDebugCallback) {
+  // Memory tracker is not enabled for this build.
+  if (!MemoryTrackerEnabled()) {
+    return;
+  }
+
+  // Impl of the callback. Copies the allocation information so that we can
+  // ensure it produces expected values.
+  class MemoryTrackerDebugCallbackTest : public MemoryTrackerDebugCallback {
+   public:
+    MemoryTrackerDebugCallbackTest() { Reset(); }
+    virtual void OnMemoryAllocation(
+        const void* memory_block,
+        const AllocationRecord& record,
+        const CallStack& callstack) SB_OVERRIDE {
+      last_memory_block_allocated_ = memory_block;
+      last_allocation_record_allocated_ = record;
+    }
+    virtual void OnMemoryDeallocation(
+        const void* memory_block,
+        const AllocationRecord& record,
+        const CallStack& callstack) SB_OVERRIDE {
+      last_memory_block_deallocated_ = memory_block;
+      last_allocation_record_deallocated_ = record;
+    }
+    void Reset() {
+      last_memory_block_allocated_ = NULL;
+      last_memory_block_deallocated_ = NULL;
+      last_allocation_record_allocated_ = AllocationRecord::Empty();
+      last_allocation_record_deallocated_ = AllocationRecord::Empty();
+    }
+    const void* last_memory_block_allocated_;
+    const void* last_memory_block_deallocated_;
+    AllocationRecord last_allocation_record_allocated_;
+    AllocationRecord last_allocation_record_deallocated_;
+  };
+
+  // Needs to be static due to concurrent and lockless nature of object.
+  static MemoryTrackerDebugCallbackTest s_debug_callback;
+  s_debug_callback.Reset();
+
+  memory_tracker()->SetMemoryTrackerDebugCallback(&s_debug_callback);
+  void* memory_block = SbMemoryAllocate(8);
+  EXPECT_EQ_NO_TRACKING(
+      memory_block,
+      s_debug_callback.last_memory_block_allocated_);
+  EXPECT_EQ_NO_TRACKING(
+      8,
+      s_debug_callback.last_allocation_record_allocated_.size);
+  // ... and no memory should have been deallocated.
+  EXPECT_TRUE_NO_TRACKING(s_debug_callback.last_memory_block_deallocated_
+                          == NULL);
+
+  // After this call we check that the callback for deallocation was used.
+  SbMemoryDeallocate(memory_block);
+  EXPECT_EQ_NO_TRACKING(
+      memory_block,
+      s_debug_callback.last_memory_block_deallocated_);
+
+  EXPECT_EQ_NO_TRACKING(
+      s_debug_callback.last_allocation_record_deallocated_.size,
+      8);
 }
 
 // Tests the expectation that the visitor can access the allocations.

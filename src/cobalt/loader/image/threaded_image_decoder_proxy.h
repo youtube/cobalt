@@ -40,14 +40,13 @@ class ThreadedImageDecoderProxy : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
       SuccessCallback;
-  typedef base::Callback<void(const std::string&)> FailureCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ThreadedImageDecoderProxy(render_tree::ResourceProvider* resource_provider,
                             const SuccessCallback& success_callback,
-                            const FailureCallback& failure_callback,
                             const ErrorCallback& error_callback,
-                            MessageLoop* load_message_loop_);
+                            MessageLoop* software_decode_loop_,
+                            MessageLoop* hardware_decode_loop_);
 
   ~ThreadedImageDecoderProxy();
 
@@ -62,11 +61,16 @@ class ThreadedImageDecoderProxy : public Decoder {
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
  private:
+  MessageLoop* GetDecodeLoop() const;
+  bool IsLoadMessageLoopCurrent() const {
+    return MessageLoop::current() == GetDecodeLoop();
+  }
   base::WeakPtrFactory<ThreadedImageDecoderProxy> weak_ptr_factory_;
   base::WeakPtr<ThreadedImageDecoderProxy> weak_this_;
 
   // The message loop that |image_decoder_| should run on.
-  MessageLoop* load_message_loop_;
+  MessageLoop* software_decode_loop_;
+  MessageLoop* hardware_decode_loop_;
 
   // The message loop that the original callbacks passed into us should run
   // on.

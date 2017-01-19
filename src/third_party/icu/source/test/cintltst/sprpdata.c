@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- *   Copyright (C) 2003-2008, International Business Machines
+ *   Copyright (C) 2003-2012, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  *
  *******************************************************************************
@@ -23,6 +23,7 @@
 #include "unicode/putil.h"
 #include "cintltst.h"
 #include "unicode/usprep.h"
+#include "unicode/utf16.h"
 #include "sprpimpl.h"
 #include "uparse.h"
 #include "cmemory.h"
@@ -149,7 +150,7 @@ compareMapping(UStringPrepProfile* data, uint32_t codepoint, uint32_t* mapping,i
     int32_t length=0;
     UBool isIndex = FALSE;
     UStringPrepType retType;
-    int32_t value=0, index=0, delta=0;
+    int32_t value=0, idx=0, delta=0;
     int32_t* indexes = data->indexes;
     UTrie trie = data->sprepTrie;
     const uint16_t* mappingData = data->mappingData;
@@ -168,18 +169,18 @@ compareMapping(UStringPrepProfile* data, uint32_t codepoint, uint32_t* mapping,i
     }
 
     if(isIndex){
-        index = value;
-        if(index >= indexes[_SPREP_ONE_UCHAR_MAPPING_INDEX_START] &&
-                 index < indexes[_SPREP_TWO_UCHARS_MAPPING_INDEX_START]){
+        idx = value;
+        if(idx >= indexes[_SPREP_ONE_UCHAR_MAPPING_INDEX_START] &&
+                 idx < indexes[_SPREP_TWO_UCHARS_MAPPING_INDEX_START]){
             length = 1;
-        }else if(index >= indexes[_SPREP_TWO_UCHARS_MAPPING_INDEX_START] &&
-                 index < indexes[_SPREP_THREE_UCHARS_MAPPING_INDEX_START]){
+        }else if(idx >= indexes[_SPREP_TWO_UCHARS_MAPPING_INDEX_START] &&
+                 idx < indexes[_SPREP_THREE_UCHARS_MAPPING_INDEX_START]){
             length = 2;
-        }else if(index >= indexes[_SPREP_THREE_UCHARS_MAPPING_INDEX_START] &&
-                 index < indexes[_SPREP_FOUR_UCHARS_MAPPING_INDEX_START]){
+        }else if(idx >= indexes[_SPREP_THREE_UCHARS_MAPPING_INDEX_START] &&
+                 idx < indexes[_SPREP_FOUR_UCHARS_MAPPING_INDEX_START]){
             length = 3;
         }else{
-            length = mappingData[index++];
+            length = mappingData[idx++];
         }
     }else{
         delta = value;
@@ -202,15 +203,15 @@ compareMapping(UStringPrepProfile* data, uint32_t codepoint, uint32_t* mapping,i
     if(isIndex){
         for(i =0; i< mapLength; i++){
             if(mapping[i] <= 0xFFFF){
-                if(mappingData[index+i] != (uint16_t)mapping[i]){
-                    log_err("Did not get the expected result. Expected: 0x%04X Got: 0x%04X \n", mapping[i], mappingData[index+i]);
+                if(mappingData[idx+i] != (uint16_t)mapping[i]){
+                    log_err("Did not get the expected result. Expected: 0x%04X Got: 0x%04X \n", mapping[i], mappingData[idx+i]);
                 }
             }else{
-                UChar lead  = UTF16_LEAD(mapping[i]);
-                UChar trail = UTF16_TRAIL(mapping[i]);
-                if(mappingData[index+i] != lead ||
-                    mappingData[index+i+1] != trail){
-                    log_err( "Did not get the expected result. Expected: 0x%04X 0x%04X  Got: 0x%04X 0x%04X\n", lead, trail, mappingData[index+i], mappingData[index+i+1]);
+                UChar lead  = U16_LEAD(mapping[i]);
+                UChar trail = U16_TRAIL(mapping[i]);
+                if(mappingData[idx+i] != lead ||
+                    mappingData[idx+i+1] != trail){
+                    log_err( "Did not get the expected result. Expected: 0x%04X 0x%04X  Got: 0x%04X 0x%04X\n", lead, trail, mappingData[idx+i], mappingData[idx+i+1]);
                 }
             }
         }
@@ -234,7 +235,7 @@ compareFlagsForRange(UStringPrepProfile* data,
     UTrie trie = data->sprepTrie;
 /*
     // supplementary code point
-    UChar __lead16=UTF16_LEAD(0x2323E);
+    UChar __lead16=U16_LEAD(0x2323E);
     int32_t __offset;
 
     // get data for lead surrogate
@@ -285,7 +286,6 @@ doStringPrepTest(const char* binFileName, const char* txtFileName, int32_t optio
     relativepath = ".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING"test"U_FILE_SEP_STRING"testdata"U_FILE_SEP_STRING;
 #endif
 
-    filename = (char*) malloc(strlen(srcdatapath)+strlen(relativepath)+strlen(txtFileName)+10 );
     profile = usprep_open(testdatapath, binFileName, errorCode);
 
     if(*errorCode == U_FILE_ACCESS_ERROR) {
@@ -295,6 +295,7 @@ doStringPrepTest(const char* binFileName, const char* txtFileName, int32_t optio
         log_err("Failed to load %s data file. Error: %s \n", binFileName, u_errorName(*errorCode));
         return;
     }
+    filename = (char*) malloc(strlen(srcdatapath)+strlen(relativepath)+strlen(txtFileName)+10 );
     /* open and load the txt file */
     strcpy(filename,srcdatapath);
     strcat(filename,relativepath);

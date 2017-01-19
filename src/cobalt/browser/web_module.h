@@ -142,6 +142,27 @@ class WebModule {
     // must be less than or equal to 1.0f) until the video ends.  This can
     // help for platforms that are low on image memory while playing a video.
     float image_cache_capacity_multiplier_when_playing_video;
+
+    // Specifies the priority of the web module's thread.  This is the thread
+    // that is responsible for executing JavaScript, managing the DOM, and
+    // performing layouts.  The default value is base::kThreadPriority_Normal.
+    base::ThreadPriority thread_priority;
+
+    // Specifies the priority that the web module's corresponding software
+    // decoder thread will be assigned.  This is the thread responsible for
+    // performing resource decoding, such as image decoding, with a software
+    // codec.  The default value is base::kThreadPriority_Low.
+    base::ThreadPriority software_decoder_thread_priority;
+
+    // Specifies the priority that the web module's hardware decoder thread
+    // will use.  The default value is base::kThreadPriority_High.
+    base::ThreadPriority hardware_decoder_thread_priority;
+
+    // Specifies the priority that the web module's corresponding fetcher
+    // lifetime thread will be assigned.  This is the thread responsible for
+    // fetcher creation and handling callbacks from NetFetcher.
+    // The default value is base::kThreadPriority_High.
+    base::ThreadPriority fetcher_lifetime_thread_priority;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -159,13 +180,6 @@ class WebModule {
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate, const Options& options = Options());
   ~WebModule();
-
-  // Call this to inject a keyboard event into the web module.
-  // Event is directed at a specific element if the element is non-null.
-  // Otherwise, the currently focused element receives the event.
-  // If element is specified, we must be on the WebModule's message loop
-  void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
-                           const dom::KeyboardEvent::Data& event);
 
   // Call this to inject a keyboard event into the web module.
   void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);

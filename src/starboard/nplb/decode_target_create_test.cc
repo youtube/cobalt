@@ -24,6 +24,9 @@
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
 #include "starboard/nplb/blitter_helpers.h"
+#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
 #endif
 
 namespace starboard {
@@ -48,6 +51,13 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
     SbBlitterSurface plane =
         SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
     EXPECT_TRUE(SbBlitterIsSurfaceValid(plane));
+#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+    int width = 0;
+    int height = 0;
+    SbDecodeTargetGetSize(target, &width, &height);
+    EXPECT_EQ(kWidth, width);
+    EXPECT_EQ(kHeight, height);
+#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
   }
   SbDecodeTargetDestroy(target);
   EXPECT_TRUE(SbBlitterDestroySurface(surface));
@@ -155,18 +165,33 @@ class SbDecodeTargetTest : public testing::Test {
 
 TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
   // Generate a texture to put in the SbDecodeTarget.
+  const int kTextureWidth = 256;
+  const int kTextureHeight = 256;
+
   GLuint texture_handle;
   glGenTextures(1, &texture_handle);
   glBindTexture(GL_TEXTURE_2D, texture_handle);
-  glTexImage2D(GL_TEXTURE_2D, 0 /*level*/, GL_RGBA, 256, 256, 0 /*border*/,
-               GL_RGBA, GL_UNSIGNED_BYTE, NULL /*data*/);
+  glTexImage2D(GL_TEXTURE_2D, 0 /*level*/, GL_RGBA, kTextureWidth,
+               kTextureHeight, 0 /*border*/, GL_RGBA, GL_UNSIGNED_BYTE,
+               NULL /*data*/);
   glBindTexture(GL_TEXTURE_2D, 0);
 
-  SbDecodeTarget target = SbDecodeTargetCreate(
-      display_, context_, kSbDecodeTargetFormat1PlaneRGBA, &texture_handle);
+  SbDecodeTarget target =
+      SbDecodeTargetCreate(display_, context_, kSbDecodeTargetFormat1PlaneRGBA,
+#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+                           kTextureWidth, kTextureHeight,
+#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+                           &texture_handle);
   if (SbDecodeTargetIsValid(target)) {
     GLuint plane = SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
     EXPECT_EQ(texture_handle, plane);
+#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+    int width = 0;
+    int height = 0;
+    SbDecodeTargetGetSize(target, &width, &height);
+    EXPECT_EQ(kTextureWidth, width);
+    EXPECT_EQ(kTextureHeight, height);
+#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
     SbDecodeTargetDestroy(target);
   }
   glDeleteTextures(1, &texture_handle);

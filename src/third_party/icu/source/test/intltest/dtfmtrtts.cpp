@@ -1,6 +1,6 @@
 /***********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation
+ * Copyright (c) 1997-2015, International Business Machines Corporation
  * and others. All Rights Reserved.
  ***********************************************************************/
  
@@ -13,6 +13,7 @@
 #include "unicode/gregocal.h"
 #include "dtfmtrtts.h"
 #include "caltest.h"
+#include "cstring.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -27,8 +28,6 @@
 #ifndef INFINITE
 #define INFINITE 0
 #endif
-
-static const UVersionInfo ICU_452 = {4,5,2,0};
 
 // Define this to test just a single locale
 //#define TEST_ONE_LOC  "cs_CZ"
@@ -171,7 +170,7 @@ void DateFormatRoundTripTest::TestDateFormatRoundTrip()
 #if 1
     // installed locales
     for (int i=0; i < locCount; ++i) {
-            test(avail[i]);
+        test(avail[i]);
     }
 #endif
 
@@ -285,6 +284,10 @@ void DateFormatRoundTripTest::test(DateFormat *fmt, const Locale &origLocale, UB
     
     UBool isGregorian = FALSE;
     UErrorCode minStatus = U_ZERO_ERROR;
+    if(fmt->getCalendar() == NULL) {
+      errln((UnicodeString)"DateFormatRoundTripTest::test, DateFormat getCalendar() returns null for " + origLocale.getName());
+      return;
+    } 
     UDate minDate = CalendarTest::minDateOfCalendar(*fmt->getCalendar(), isGregorian, minStatus);
     if(U_FAILURE(minStatus)) {
       errln((UnicodeString)"Failure getting min date for " + origLocale.getName());
@@ -335,7 +338,7 @@ void DateFormatRoundTripTest::test(DateFormat *fmt, const Locale &origLocale, UB
             for(loop = 0; loop < DEPTH; ++loop) {
                 if (loop > 0)  {
                     d[loop] = fmt->parse(s[loop-1], status);
-                    failure(status, "fmt->parse", s[loop-1]+" in locale: " + origLocale.getName());
+                    failure(status, "fmt->parse", s[loop-1]+" in locale: " + origLocale.getName() + " with pattern: " + pat);
                     status = U_ZERO_ERROR; /* any error would have been reported */
                 }
 
@@ -433,14 +436,34 @@ void DateFormatRoundTripTest::test(DateFormat *fmt, const Locale &origLocale, UB
                 else if (hasZoneDisplayName && d[0] < 0) {
                     maxSmatch = 2;
                 }
+                else if (timeOnly && !isGregorian && hasZoneDisplayName && maxSmatch == 1) {
+                    int32_t startRaw, startDst;
+                    fmt->getTimeZone().getOffset(d[1], FALSE, startRaw, startDst, status);
+                    failure(status, "TimeZone::getOffset");
+                    // If the calendar type is not Gregorian and the pattern is time only,
+                    // the calendar implementation may use a date before 1970 as day 0.
+                    // In this case, time zone offset of the default year might be
+                    // different from the one at 1970-01-01 in PST and string match requires
+                    // one more iteration.
+                    if (startRaw + startDst != -28800000) {
+                        maxSmatch = 2;
+                    }
+                }
             }
 
-            if(dmatch > maxDmatch || smatch > maxSmatch) { // Special case for Japanese and Islamic (could have large negative years)
+            /*
+             * Special case for Japanese and Buddhist (could have large negative years)
+             * Also, Hebrew calendar need help handling leap month.
+             */
+            if(dmatch > maxDmatch || smatch > maxSmatch) {
               const char *type = fmt->getCalendar()->getType();
               if(!strcmp(type,"japanese") || (!strcmp(type,"buddhist"))) {
                 maxSmatch = 4;
                 maxDmatch = 4;
-              }
+              } else if(!strcmp(type,"hebrew")) {
+                  maxSmatch = 3;
+                  maxDmatch = 3;
+                }
             }
 
             // Use @v to see verbose results on successful cases

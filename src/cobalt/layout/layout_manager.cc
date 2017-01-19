@@ -29,15 +29,15 @@
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
-#include "third_party/icu/public/common/unicode/brkiter.h"
-#include "third_party/icu/public/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/locid.h"
 
 namespace cobalt {
 namespace layout {
 
 class LayoutManager::Impl : public dom::DocumentObserver {
  public:
-  Impl(const scoped_refptr<dom::Window>& window,
+  Impl(const std::string& name, const scoped_refptr<dom::Window>& window,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
        LayoutTrigger layout_trigger, int dom_max_element_depth,
        float layout_refresh_rate, const std::string& language,
@@ -53,6 +53,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   void Suspend();
   void Resume();
+
+  bool IsNewRenderTreePending() const;
 
  private:
   void StartLayoutTimer();
@@ -72,7 +74,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // is checked at a regular interval (e.g. 60Hz) and if it is set to true,
   // a layout is initiated and it is set back to false.  Events such as
   // DOM mutations will set this flag back to true.
-  bool layout_dirty_;
+  base::CVal<bool> layout_dirty_;
 
   // Construction of |BreakIterator| requires a disk read, so we cache them
   // in the layout manager in order to reuse them with all layouts happening
@@ -97,7 +99,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 };
 
 LayoutManager::Impl::Impl(
-    const scoped_refptr<dom::Window>& window,
+    const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     LayoutTrigger layout_trigger, int dom_max_element_depth,
     float layout_refresh_rate, const std::string& language,
@@ -109,7 +111,9 @@ LayoutManager::Impl::Impl(
                                 window->document()->font_cache())),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
-      layout_dirty_(true),
+      layout_dirty_(StringPrintf("%s.Layout.IsDirty", name.c_str()), true,
+                    "Non-zero when the layout is dirty and a new render tree "
+                    "is pending."),
       layout_timer_(true, true, true),
       dom_max_element_depth_(dom_max_element_depth),
       layout_refresh_rate_(layout_refresh_rate),
@@ -201,6 +205,10 @@ void LayoutManager::Impl::Resume() {
   // dirty since when Suspend() was called we invalidated our previous layout.
   layout_dirty_ = true;
   suspended_ = false;
+}
+
+bool LayoutManager::Impl::IsNewRenderTreePending() const {
+  return layout_dirty_;
 }
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -301,12 +309,12 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 }
 
 LayoutManager::LayoutManager(
-    const scoped_refptr<dom::Window>& window,
+    const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     LayoutTrigger layout_trigger, const int dom_max_element_depth,
     const float layout_refresh_rate, const std::string& language,
     LayoutStatTracker* layout_stat_tracker)
-    : impl_(new Impl(window, on_render_tree_produced, layout_trigger,
+    : impl_(new Impl(name, window, on_render_tree_produced, layout_trigger,
                      dom_max_element_depth, layout_refresh_rate, language,
                      layout_stat_tracker)) {}
 
@@ -314,6 +322,9 @@ LayoutManager::~LayoutManager() {}
 
 void LayoutManager::Suspend() { impl_->Suspend(); }
 void LayoutManager::Resume() { impl_->Resume(); }
+bool LayoutManager::IsNewRenderTreePending() const {
+  return impl_->IsNewRenderTreePending();
+}
 
 }  // namespace layout
 }  // namespace cobalt

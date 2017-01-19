@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (C) 1999-2009, International Business Machines
+*   Copyright (C) 1999-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *
@@ -55,6 +55,9 @@ typedef struct {
     uint32_t options;
     const char *pkg, *name, *locale;
 } UConverterLoadArgs;
+
+#define UCNV_LOAD_ARGS_INITIALIZER \
+    { (int32_t)sizeof(UConverterLoadArgs), 0, FALSE, FALSE, 0, 0, NULL, NULL, NULL }
 
 typedef void (*UConverterLoad) (UConverterSharedData *sharedData,
                                 UConverterLoadArgs *pArgs,
@@ -257,7 +260,7 @@ extern const UConverterSharedData
     _LMBCSData1,_LMBCSData2, _LMBCSData3, _LMBCSData4, _LMBCSData5, _LMBCSData6,
     _LMBCSData8,_LMBCSData11,_LMBCSData16,_LMBCSData17,_LMBCSData18,_LMBCSData19,
     _HZData,_ISCIIData, _SCSUData, _ASCIIData,
-    _UTF7Data, _Bocu1Data, _UTF16Data, _UTF32Data, _CESU8Data, _IMAPData;
+    _UTF7Data, _Bocu1Data, _UTF16Data, _UTF32Data, _CESU8Data, _IMAPData, _CompoundTextData;
 
 U_CDECL_END
 

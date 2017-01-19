@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (C) 1999-2010, International Business Machines
+*   Copyright (C) 1999-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   Date        Name        Description
@@ -23,6 +23,7 @@
 #include "unicode/ustring.h"
 #include "unicode/usetiter.h"
 #include "unicode/uscript.h"
+#include "unicode/utf16.h"
 #include "cpdtrans.h"
 #include "nultrans.h"
 #include "rbt.h"
@@ -182,7 +183,7 @@ TransliteratorTest::runIndexedTest(int32_t index, UBool exec,
         TESTCASE(71,TestAnyX);
         TESTCASE(72,TestSourceTargetSet);
         TESTCASE(73,TestGurmukhiDevanagari);
-        TESTCASE(74,TestRuleWhitespace);
+        TESTCASE(74,TestPatternWhiteSpace);
         TESTCASE(75,TestAllCodepoints);
         TESTCASE(76,TestBoilerplate);
         TESTCASE(77,TestAlternateSyntax);
@@ -197,7 +198,6 @@ TransliteratorTest::runIndexedTest(int32_t index, UBool exec,
     }
 }
 
-static const UVersionInfo ICU_39 = {3,9,4,0};
 /**
  * Make sure every system transliterator can be instantiated.
  * 
@@ -1276,8 +1276,8 @@ void TransliteratorTest::TestNameMap(void) {
 
     // Careful:  CharsToUS will convert "\\N" => "N"; use "\\\\N" for \N
     expect(*uni2name, CharsToUnicodeString("\\u00A0abc\\u4E01\\u00B5\\u0A81\\uFFFD\\u0004\\u0009\\u0081\\uFFFF"),
-           CharsToUnicodeString("\\\\N{NO-BREAK SPACE}abc\\\\N{CJK UNIFIED IDEOGRAPH-4E01}\\\\N{MICRO SIGN}\\\\N{GUJARATI SIGN CANDRABINDU}\\\\N{REPLACEMENT CHARACTER}\\\\N{END OF TRANSMISSION}\\\\N{CHARACTER TABULATION}\\\\N{<control-0081>}\\\\N{<noncharacter-FFFF>}"));
-    expect(*name2uni, UNICODE_STRING_SIMPLE("{\\N { NO-BREAK SPACE}abc\\N{  CJK UNIFIED  IDEOGRAPH-4E01  }\\N{x\\N{MICRO SIGN}\\N{GUJARATI SIGN CANDRABINDU}\\N{REPLACEMENT CHARACTER}\\N{END OF TRANSMISSION}\\N{CHARACTER TABULATION}\\N{<control-0081>}\\N{<noncharacter-FFFF>}\\N{<control-0004>}\\N{"),
+           CharsToUnicodeString("\\\\N{NO-BREAK SPACE}abc\\\\N{CJK UNIFIED IDEOGRAPH-4E01}\\\\N{MICRO SIGN}\\\\N{GUJARATI SIGN CANDRABINDU}\\\\N{REPLACEMENT CHARACTER}\\\\N{<control-0004>}\\\\N{<control-0009>}\\\\N{<control-0081>}\\\\N{<noncharacter-FFFF>}"));
+    expect(*name2uni, UNICODE_STRING_SIMPLE("{\\N { NO-BREAK SPACE}abc\\N{  CJK UNIFIED  IDEOGRAPH-4E01  }\\N{x\\N{MICRO SIGN}\\N{GUJARATI SIGN CANDRABINDU}\\N{REPLACEMENT CHARACTER}\\N{<control-0004>}\\N{<control-0009>}\\N{<control-0081>}\\N{<noncharacter-FFFF>}\\N{<control-0004>}\\N{"),
            CharsToUnicodeString("{\\u00A0abc\\u4E01\\\\N{x\\u00B5\\u0A81\\uFFFD\\u0004\\u0009\\u0081\\uFFFF\\u0004\\\\N{"));
 
     delete uni2name;
@@ -1477,7 +1477,7 @@ void TransliteratorTest::TestNormalizationTransliterator() {
     Transliterator* NFKD = Transliterator::createInstance("NFKD", UTRANS_FORWARD, parseError, status);
     Transliterator* NFKC = Transliterator::createInstance("NFKC", UTRANS_FORWARD, parseError, status);
     if (!NFKD || !NFKC) {
-        errln("FAIL: createInstance failed");
+        dataerrln("FAIL: createInstance failed");
         delete NFKD;
         delete NFKC;
         return;
@@ -3460,7 +3460,7 @@ void TransliteratorTest::TestSurrogateCasing (void) {
     char buffer[20];
     UChar buffer2[20];
     UChar32 dee;
-    UTF_GET_CHAR(DESERET_dee,0, 0, DESERET_dee.length(), dee);
+    U16_GET(DESERET_dee,0, 0, DESERET_dee.length(), dee);
     UnicodeString DEE(u_totitle(dee));
     if (DEE != DESERET_DEE) {
         err("Fails titlecase of surrogates");
@@ -3607,6 +3607,7 @@ void TransliteratorTest::CheckIncrementalAux(const Transliterator* t,
         return;
     }
     UBool gotError = FALSE;
+    (void)gotError;    // Suppress set but not used warning.
 
     // we have a few special cases. Any-Remove (pos.start = 0, but also = limit) and U+XXXXX?X?
 
@@ -3905,7 +3906,7 @@ void TransliteratorTest::TestAny(void) {
     Transliterator* anyLatin =
         Transliterator::createInstance("Any-Latin", UTRANS_FORWARD, parseError, status);
     if (U_FAILURE(status)) {
-        errln("Failure: file %s, line %d, status = %s", __FILE__, __LINE__, u_errorName(status));
+        dataerrln("Failure: file %s, line %d, status = %s", __FILE__, __LINE__, u_errorName(status));
         return;
     }
 
@@ -3964,9 +3965,9 @@ void TransliteratorTest::TestSourceTargetSet() {
 }
 
 /**
- * Test handling of rule whitespace, for both RBT and UnicodeSet.
+ * Test handling of Pattern_White_Space, for both RBT and UnicodeSet.
  */
-void TransliteratorTest::TestRuleWhitespace() {
+void TransliteratorTest::TestPatternWhiteSpace() {
     // Rules
     const char* r = "a > \\u200E b;";
     
@@ -4011,7 +4012,7 @@ void TransliteratorTest::TestAllCodepoints(){
     for(uint32_t i = 0; i<=0x10ffff; i++){
         code =  uscript_getScript(i,&status);
         if(code == USCRIPT_INVALID_CODE){
-            errln("uscript_getScript for codepoint \\U%08X failed.\n", i);
+            dataerrln("uscript_getScript for codepoint \\U%08X failed.", i);
         }
         const char* myId = uscript_getName(code);
         if(!myId) {
@@ -4032,14 +4033,14 @@ void TransliteratorTest::TestAllCodepoints(){
         if(uprv_strcmp(newId,oldId)!=0){
             Transliterator* t = Transliterator::createInstance(newId,UTRANS_FORWARD,pe,status);
             if(t==NULL || U_FAILURE(status)){
-                errln((UnicodeString)"FAIL: Could not create " + id);
+                dataerrln((UnicodeString)"FAIL: Could not create " + id + " - " + u_errorName(status));
             }
             delete t;
         }
         if(uprv_strcmp(newAbbrId,oldAbbrId)!=0){
             Transliterator* t = Transliterator::createInstance(newAbbrId,UTRANS_FORWARD,pe,status);
             if(t==NULL || U_FAILURE(status)){
-                errln((UnicodeString)"FAIL: Could not create " + id);
+                dataerrln((UnicodeString)"FAIL: Could not create " + id + " - " + u_errorName(status));
             }
             delete t;
         }
@@ -4281,7 +4282,6 @@ static const char* BEGIN_END_RULES[] = {
     "::Upper(Lower);"
     "::([XYZ]);"
 };
-static const int32_t BEGIN_END_RULES_length = (int32_t)(sizeof(BEGIN_END_RULES) / sizeof(BEGIN_END_RULES[0]));
 
 /*
 (This entire test is commented out below and will need some heavy revision when we re-add

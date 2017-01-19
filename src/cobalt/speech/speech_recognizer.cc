@@ -14,6 +14,17 @@
  * limitations under the License.
  */
 
+// Note to Cobalt porters: To use the v1 speech-api API, you must provide an API
+// key with v1 speech-api quota. The code is provided here, but not an API key.
+//
+// This is similar to how Chromium handles API keys:
+// https://www.chromium.org/developers/how-tos/api-keys
+//
+// The API key is provided by SbSystemGetProperty:
+// http://cobalt.foo/reference/starboard/modules/system.html#sbsystemgetproperty
+//
+// Talk with your Google representative about how to get speech-api quota.
+
 #include "cobalt/speech/speech_recognizer.h"
 
 #include "base/bind.h"
@@ -21,7 +32,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "cobalt/deprecated/platform_delegate.h"
+#include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
@@ -297,9 +308,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   if (!config.lang.empty()) {
     up_url = AppendQueryParameter(up_url, "lang", config.lang);
   } else {
-    up_url = AppendQueryParameter(
-        up_url, "lang",
-        cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage());
+    up_url = AppendQueryParameter(up_url, "lang", base::GetSystemLanguage());
   }
 
   if (config.max_alternatives) {

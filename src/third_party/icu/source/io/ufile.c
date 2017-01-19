@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1998-2010, International Business Machines
+*   Copyright (C) 1998-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -18,26 +18,27 @@
 ******************************************************************************
 */
 
-/* define for fileno.  */
-#ifndef _XOPEN_SOURCE
-#if __STDC_VERSION__ >= 199901L
-/* It is invalid to compile an XPG3, XPG4, XPG4v2 or XPG5 application using c99 */
-#define _XOPEN_SOURCE 600
-#else
-#define _XOPEN_SOURCE 4
-#endif
+/*
+ * fileno is not declared when building with GCC in strict mode.
+ */
+#if defined(__GNUC__) && defined(__STRICT_ANSI__)
+#undef __STRICT_ANSI__
 #endif
 
 #include "locmap.h"
 #include "unicode/ustdio.h"
+
+#if !UCONFIG_NO_CONVERSION
+
 #include "ufile.h"
 #include "unicode/uloc.h"
 #include "unicode/ures.h"
 #include "unicode/ucnv.h"
+#include "unicode/ustring.h"
 #include "cstring.h"
 #include "cmemory.h"
 
-#if defined(U_WINDOWS) && !defined(fileno)
+#if U_PLATFORM_USES_ONLY_WIN32_API && !defined(fileno)
 /* Windows likes to rename Unix-like functions */
 #define fileno _fileno
 #endif
@@ -62,7 +63,19 @@ finit_owner(FILE         *f,
     uprv_memset(result, 0, sizeof(UFILE));
     result->fFileno = fileno(f);
 
-#ifdef U_WINDOWS
+#if U_PLATFORM_USES_ONLY_WIN32_API && _MSC_VER < 1900
+    /*
+     * Below is a very old workaround (ICU ticket:231).
+     *
+     * Previously, 'FILE*' from inside and outside ICU's DLL
+     * were different, because they pointed into local copies
+     * of the io block. At least by VS 2015 the implementation
+     * is something like:
+     *    stdio = _acrt_iob_func(0)
+     * .. which is a function call, so should return the same pointer
+     * regardless of call site.
+     * As of _MSC_VER 1900 this patch is retired, at 16 years old.
+     */
     if (0 <= result->fFileno && result->fFileno <= 2) {
         /* stdin, stdout and stderr need to be special cased for Windows 98 */
 #if _MSC_VER >= 1400
@@ -147,7 +160,36 @@ u_fopen(const char    *filename,
         fclose(systemFile);
     }
 
-    return result;
+    return result; /* not a file leak */
+}
+
+U_CAPI UFILE* U_EXPORT2
+u_fopen_u(const UChar   *filename,
+        const char    *perm,
+        const char    *locale,
+        const char    *codepage)
+{
+    UFILE     *result;
+    char buffer[256];
+
+    u_austrcpy(buffer, filename);
+
+    result = u_fopen(buffer, perm, locale, codepage);
+#if U_PLATFORM_USES_ONLY_WIN32_API
+    /* Try Windows API _wfopen if the above fails. */
+    if (!result) {
+        FILE *systemFile = _wfopen(filename, (UChar*)perm);
+        if (systemFile) {
+            result = finit_owner(systemFile, locale, codepage, TRUE);
+        }
+        if (!result) {
+            /* Something bad happened.
+               Maybe the converter couldn't be opened. */
+            fclose(systemFile);
+        }
+    }
+#endif
+    return result; /* not a file leak */
 }
 
 U_CAPI UFILE* U_EXPORT2
@@ -308,4 +350,11 @@ u_fgetConverter(UFILE *file)
 {
     return file->fConverter;
 }
+#if !UCONFIG_NO_FORMATTING
+U_CAPI const UNumberFormat* U_EXPORT2 u_fgetNumberFormat(UFILE *file)
+{
+    return u_locbund_getNumberFormat(&file->str.fBundle, UNUM_DECIMAL);
+}
+#endif
 
+#endif

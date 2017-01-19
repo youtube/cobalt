@@ -1,65 +1,128 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ar_MA.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ar_MA.xml
 // *
 // ***************************************************************************
 ar_MA{
     NumberElements{
         default{"latn"}
+        latn{
+            symbols{
+                decimal{","}
+                group{"."}
+            }
+        }
     }
-    Version{"2.0.48.49"}
+    Version{"2.1.19.14"}
     calendar{
         gregorian{
-            DateTimeElements:intvector{
-                7,
-                4,
-            }
             DateTimePatterns{
-                "zzzz h:mm:ss a",
-                "z h:mm:ss a",
-                "h:mm:ss a",
-                "h:mm a",
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
                 "EEEE، d MMMM، y",
                 "d MMMM، y",
-                "yyyy/MM/dd",
-                "yyyy/M/d",
+                "dd‏/MM‏/y",
+                "d‏/M‏/y",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
             }
-            availableFormats{
-                MMdd{"MM/dd"}
-                Md{"M/d"}
-                yM{"yyyy/M"}
-                yyyyMM{"yyyy/MM"}
-            }
-            intervalFormats{
-                MMMd{
-                    d{"d‏-d MMM"}
+            monthNames{
+                format{
+                    abbreviated{
+                        "يناير",
+                        "فبراير",
+                        "مارس",
+                        "أبريل",
+                        "ماي",
+                        "يونيو",
+                        "يوليوز",
+                        "غشت",
+                        "شتنبر",
+                        "أكتوبر",
+                        "نونبر",
+                        "دجنبر",
+                    }
+                    narrow{
+                        "ي",
+                        "ف",
+                        "م",
+                        "أ",
+                        "م",
+                        "ن",
+                        "ل",
+                        "غ",
+                        "ش",
+                        "ك",
+                        "ب",
+                        "د",
+                    }
+                    wide{
+                        "يناير",
+                        "فبراير",
+                        "مارس",
+                        "أبريل",
+                        "ماي",
+                        "يونيو",
+                        "يوليوز",
+                        "غشت",
+                        "شتنبر",
+                        "أكتوبر",
+                        "نونبر",
+                        "دجنبر",
+                    }
                 }
-                d{
-                    d{"d‏-d"}
+                stand-alone{
+                    abbreviated{
+                        "يناير",
+                        "فبراير",
+                        "مارس",
+                        "أبريل",
+                        "ماي",
+                        "يونيو",
+                        "يوليوز",
+                        "غشت",
+                        "شتنبر",
+                        "أكتوبر",
+                        "نونبر",
+                        "دجنبر",
+                    }
+                    narrow{
+                        "ي",
+                        "ف",
+                        "م",
+                        "أ",
+                        "م",
+                        "ن",
+                        "ل",
+                        "غ",
+                        "ش",
+                        "ك",
+                        "ب",
+                        "د",
+                    }
+                    wide{
+                        "يناير",
+                        "فبراير",
+                        "مارس",
+                        "أبريل",
+                        "ماي",
+                        "يونيو",
+                        "يوليوز",
+                        "غشت",
+                        "شتنبر",
+                        "أكتوبر",
+                        "نونبر",
+                        "دجنبر",
+                    }
                 }
-                y{
-                    y{"y‏-y"}
-                }
-                yMMMM{
-                    M{"MM ‏- MM ‏–yyyy"}
-                }
-                yMMMd{
-                    d{"d‏–d MMM، y"}
-                }
-            }
-            weekend:intvector{
-                6,
-                0,
-                7,
-                86400000,
             }
         }
     }

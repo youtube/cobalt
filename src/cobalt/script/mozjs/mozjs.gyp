@@ -42,7 +42,10 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],
-      'defines': [ 'ENGINE_SUPPORTS_INT64', ],
+      'defines': [
+        'MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
+        'ENGINE_SUPPORTS_INT64',
+      ],
       'all_dependent_settings': {
         'defines': [
           # SpiderMonkey bindings implements indexed deleters.
@@ -80,6 +83,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         '<(DEPTH)/third_party/mozjs/test/jscustomallocator_test.cc',
+        'mozjs_trace_logging.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',

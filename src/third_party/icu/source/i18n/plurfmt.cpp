@@ -1,249 +1,203 @@
 /*
 *******************************************************************************
-* Copyright (C) 2009, International Business Machines Corporation and
+* Copyright (C) 2009-2015, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 *
 * File PLURFMT.CPP
-*
-* Modification History:
-*
-*   Date        Name        Description
 *******************************************************************************
 */
 
-
-#include "unicode/utypes.h"
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#include "unicode/decimfmt.h"
+#include "unicode/messagepattern.h"
 #include "unicode/plurfmt.h"
 #include "unicode/plurrule.h"
+#include "unicode/utypes.h"
+#include "cmemory.h"
+#include "messageimpl.h"
+#include "nfrule.h"
 #include "plurrule_impl.h"
+#include "uassert.h"
+#include "uhash.h"
+#include "precision.h"
+#include "visibledigits.h"
 
 #if !UCONFIG_NO_FORMATTING
 
 U_NAMESPACE_BEGIN
 
-U_CDECL_BEGIN
-static void U_CALLCONV
-deleteHashStrings(void *obj) {
-    delete (UnicodeString *)obj;
-}
-U_CDECL_END
+static const UChar OTHER_STRING[] = {
+    0x6F, 0x74, 0x68, 0x65, 0x72, 0  // "other"
+};
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(PluralFormat)
 
-#define MAX_KEYWORD_SIZE 30
-
-PluralFormat::PluralFormat(UErrorCode& status) {
-    init(NULL, Locale::getDefault(), status);
+PluralFormat::PluralFormat(UErrorCode& status)
+        : locale(Locale::getDefault()),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(NULL, UPLURAL_TYPE_CARDINAL, status);
 }
 
-PluralFormat::PluralFormat(const Locale& loc, UErrorCode& status) {
-    init(NULL, loc, status);
+PluralFormat::PluralFormat(const Locale& loc, UErrorCode& status)
+        : locale(loc),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(NULL, UPLURAL_TYPE_CARDINAL, status);
 }
 
-PluralFormat::PluralFormat(const PluralRules& rules, UErrorCode& status) {
-    init(&rules, Locale::getDefault(), status);
+PluralFormat::PluralFormat(const PluralRules& rules, UErrorCode& status)
+        : locale(Locale::getDefault()),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(&rules, UPLURAL_TYPE_COUNT, status);
 }
 
-PluralFormat::PluralFormat(const Locale& loc, const PluralRules& rules, UErrorCode& status) {
-    init(&rules, loc, status);
+PluralFormat::PluralFormat(const Locale& loc,
+                           const PluralRules& rules,
+                           UErrorCode& status)
+        : locale(loc),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(&rules, UPLURAL_TYPE_COUNT, status);
 }
 
-PluralFormat::PluralFormat(const UnicodeString& pat, UErrorCode& status) {
-    init(NULL, Locale::getDefault(), status);
+PluralFormat::PluralFormat(const Locale& loc,
+                           UPluralType type,
+                           UErrorCode& status)
+        : locale(loc),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(NULL, type, status);
+}
+
+PluralFormat::PluralFormat(const UnicodeString& pat,
+                           UErrorCode& status)
+        : locale(Locale::getDefault()),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(NULL, UPLURAL_TYPE_CARDINAL, status);
     applyPattern(pat, status);
 }
 
-PluralFormat::PluralFormat(const Locale& loc, const UnicodeString& pat, UErrorCode& status) {
-    init(NULL, loc, status);
+PluralFormat::PluralFormat(const Locale& loc,
+                           const UnicodeString& pat,
+                           UErrorCode& status)
+        : locale(loc),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(NULL, UPLURAL_TYPE_CARDINAL, status);
     applyPattern(pat, status);
 }
 
-PluralFormat::PluralFormat(const PluralRules& rules, const UnicodeString& pat, UErrorCode& status) {
-    init(&rules, Locale::getDefault(), status);
+PluralFormat::PluralFormat(const PluralRules& rules,
+                           const UnicodeString& pat,
+                           UErrorCode& status)
+        : locale(Locale::getDefault()),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(&rules, UPLURAL_TYPE_COUNT, status);
     applyPattern(pat, status);
 }
 
-PluralFormat::PluralFormat(const Locale& loc, const PluralRules& rules, const UnicodeString& pat, UErrorCode& status) {
-    init(&rules, loc, status);
+PluralFormat::PluralFormat(const Locale& loc,
+                           const PluralRules& rules,
+                           const UnicodeString& pat,
+                           UErrorCode& status)
+        : locale(loc),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(&rules, UPLURAL_TYPE_COUNT, status);
     applyPattern(pat, status);
 }
 
-PluralFormat::PluralFormat(const PluralFormat& other) : Format(other) {
+PluralFormat::PluralFormat(const Locale& loc,
+                           UPluralType type,
+                           const UnicodeString& pat,
+                           UErrorCode& status)
+        : locale(loc),
+          msgPattern(status),
+          numberFormat(NULL),
+          offset(0) {
+    init(NULL, type, status);
+    applyPattern(pat, status);
+}
+
+PluralFormat::PluralFormat(const PluralFormat& other)
+        : Format(other),
+          locale(other.locale),
+          msgPattern(other.msgPattern),
+          numberFormat(NULL),
+          offset(other.offset) {
+    copyObjects(other);
+}
+
+void
+PluralFormat::copyObjects(const PluralFormat& other) {
     UErrorCode status = U_ZERO_ERROR;
-    locale = other.locale;
-    pluralRules = other.pluralRules->clone();
-    pattern = other.pattern;
-    copyHashtable(other.fParsedValuesHash, status);
-    if (U_FAILURE(status)) {
-        delete pluralRules;
-        pluralRules = NULL; 
-        return;
+    if (numberFormat != NULL) {
+        delete numberFormat;
     }
-    numberFormat=NumberFormat::createInstance(locale, status);
-    if (U_FAILURE(status)) {
-        delete pluralRules;
-        pluralRules = NULL; 
-        delete fParsedValuesHash;
-        fParsedValuesHash = NULL;
-        return;
+    if (pluralRulesWrapper.pluralRules != NULL) {
+        delete pluralRulesWrapper.pluralRules;
     }
-    replacedNumberFormat=other.replacedNumberFormat;
+
+    if (other.numberFormat == NULL) {
+        numberFormat = NumberFormat::createInstance(locale, status);
+    } else {
+        numberFormat = (NumberFormat*)other.numberFormat->clone();
+    }
+    if (other.pluralRulesWrapper.pluralRules == NULL) {
+        pluralRulesWrapper.pluralRules = PluralRules::forLocale(locale, status);
+    } else {
+        pluralRulesWrapper.pluralRules = other.pluralRulesWrapper.pluralRules->clone();
+    }
 }
+
 
 PluralFormat::~PluralFormat() {
-    delete pluralRules;   
-    delete fParsedValuesHash;
     delete numberFormat;
 }
 
 void
-PluralFormat::init(const PluralRules* rules, const Locale& curLocale, UErrorCode& status) {
+PluralFormat::init(const PluralRules* rules, UPluralType type, UErrorCode& status) {
     if (U_FAILURE(status)) {
         return;
     }
-    locale = curLocale;
-    if ( rules==NULL) {
-        pluralRules = PluralRules::forLocale(locale, status);
-        if (U_FAILURE(status)) {
+
+    if (rules==NULL) {
+        pluralRulesWrapper.pluralRules = PluralRules::forLocale(locale, type, status);
+    } else {
+        pluralRulesWrapper.pluralRules = rules->clone();
+        if (pluralRulesWrapper.pluralRules == NULL) {
+            status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
     }
-    else {
-        pluralRules = rules->clone();
-    }
-    fParsedValuesHash=NULL;
-    pattern.remove();
-    numberFormat= NumberFormat::createInstance(curLocale, status);
-    if (U_FAILURE(status)) {
-        delete pluralRules;
-        pluralRules = NULL; 
-        return;
-    }
-    replacedNumberFormat=NULL;
+
+    numberFormat= NumberFormat::createInstance(locale, status);
 }
 
 void
 PluralFormat::applyPattern(const UnicodeString& newPattern, UErrorCode& status) {
+    msgPattern.parsePluralStyle(newPattern, NULL, status);
     if (U_FAILURE(status)) {
+        msgPattern.clear();
+        offset = 0;
         return;
     }
-    this->pattern = newPattern;
-    UnicodeString token;
-    int32_t braceCount=0;
-    fmtToken type;
-    UBool spaceIncluded=FALSE;
-    
-    if (fParsedValuesHash==NULL) {
-        fParsedValuesHash = new Hashtable(TRUE, status);
-        if (U_FAILURE(status)) {
-            return;
-        }
-        fParsedValuesHash->setValueDeleter(deleteHashStrings);
-    }
-    
-    UBool getKeyword=TRUE;
-    UnicodeString hashKeyword;
-    UnicodeString *hashPattern;
-    
-    for (int32_t i=0; i<pattern.length(); ++i) {
-        UChar ch=pattern.charAt(i);
-
-        if ( !inRange(ch, type) ) {
-            if (getKeyword) {
-                status = U_ILLEGAL_CHARACTER;
-                return;
-            }
-            else {
-                token += ch;
-                continue;
-            }
-        }
-        switch (type) {
-            case tSpace:
-                if (token.length()==0) {
-                    continue;
-                }
-                if (getKeyword) {
-                    // space after keyword
-                    spaceIncluded = TRUE;
-                }
-                else {
-                    token += ch;
-                }
-                break;
-            case tLeftBrace:
-                if ( getKeyword ) {
-                    if (fParsedValuesHash->get(token)!= NULL) {
-                        status = U_DUPLICATE_KEYWORD;
-                        return; 
-                    }
-                    if (token.length()==0) {
-                        status = U_PATTERN_SYNTAX_ERROR;
-                        return;
-                    }
-                    if (!pluralRules->isKeyword(token)) {
-                        status = U_UNDEFINED_KEYWORD;
-                        return;
-                    }
-                    hashKeyword = token;
-                    getKeyword = FALSE;
-                    token.remove();
-                }
-                else  {
-                    if (braceCount==0) {
-                        status = U_UNEXPECTED_TOKEN;
-                        return;
-                    }
-                    else {
-                        token += ch;
-                    }
-                }
-                braceCount++;
-                spaceIncluded = FALSE;
-                break;
-            case tRightBrace:
-                if ( getKeyword ) {
-                    status = U_UNEXPECTED_TOKEN;
-                    return;
-                }
-                else  {
-                    hashPattern = new UnicodeString(token);
-                    fParsedValuesHash->put(hashKeyword, hashPattern, status);
-                    if (U_FAILURE(status)) {
-                        return;
-                    }
-                    braceCount--;
-                    if ( braceCount==0 ) {
-                        getKeyword=TRUE;
-                        hashKeyword.remove();
-                        hashPattern=NULL;
-                        token.remove();
-                    }
-                    else {
-                        token += ch;
-                    }
-                }
-                spaceIncluded = FALSE;
-                break;
-            case tLetter:
-            case tNumberSign:
-                if (spaceIncluded) {
-                    status = U_PATTERN_SYNTAX_ERROR;
-                    return;
-                }
-            default:
-                token+=ch;
-                break;
-        }
-    }
-    if ( checkSufficientDefinition() ) {
-        return;
-    }
-    else {
-        status = U_DEFAULT_KEYWORD_MISSING;
-        return;
-    }
+    offset = msgPattern.getPluralOffset(0);
 }
 
 UnicodeString&
@@ -253,20 +207,10 @@ PluralFormat::format(const Formattable& obj,
                    UErrorCode& status) const
 {
     if (U_FAILURE(status)) return appendTo;
-    int32_t number;
-    
-    switch (obj.getType())
-    {
-    case Formattable::kDouble:
-        return format((int32_t)obj.getDouble(), appendTo, pos, status);
-        break;
-    case Formattable::kLong:
-        number = (int32_t)obj.getLong();
-        return format(number, appendTo, pos, status);
-        break;
-    case Formattable::kInt64:
-        return format((int32_t)obj.getInt64(), appendTo, pos, status);
-    default:
+
+    if (obj.isNumeric()) {
+        return format(obj, obj.getDouble(), appendTo, pos, status);
+    } else {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return appendTo;
     }
@@ -274,104 +218,122 @@ PluralFormat::format(const Formattable& obj,
 
 UnicodeString
 PluralFormat::format(int32_t number, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return UnicodeString();
-    }
     FieldPosition fpos(0);
     UnicodeString result;
-    
-    return format(number, result, fpos, status);
+    return format(Formattable(number), number, result, fpos, status);
 }
 
 UnicodeString
 PluralFormat::format(double number, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return UnicodeString();
-    }
     FieldPosition fpos(0);
     UnicodeString result;
-    
-    return format(number, result, fpos, status);
+    return format(Formattable(number), number, result, fpos, status);
 }
 
 
 UnicodeString&
 PluralFormat::format(int32_t number,
-                     UnicodeString& appendTo, 
+                     UnicodeString& appendTo,
                      FieldPosition& pos,
                      UErrorCode& status) const {
-    return format((double)number, appendTo, pos, status);
+    return format(Formattable(number), (double)number, appendTo, pos, status);
 }
 
 UnicodeString&
 PluralFormat::format(double number,
-                     UnicodeString& appendTo, 
+                     UnicodeString& appendTo,
                      FieldPosition& pos,
-                     UErrorCode& /*status*/) const {
+                     UErrorCode& status) const {
+    return format(Formattable(number), (double)number, appendTo, pos, status);
+}
 
-    if (fParsedValuesHash==NULL) {
-        if ( replacedNumberFormat== NULL ) {
-            return numberFormat->format(number, appendTo, pos);
+UnicodeString&
+PluralFormat::format(const Formattable& numberObject, double number,
+                     UnicodeString& appendTo,
+                     FieldPosition& pos,
+                     UErrorCode& status) const {
+    if (U_FAILURE(status)) {
+        return appendTo;
+    }
+    if (msgPattern.countParts() == 0) {
+        return numberFormat->format(numberObject, appendTo, pos, status);
+    }
+    // Get the appropriate sub-message.
+    // Select it based on the formatted number-offset.
+    double numberMinusOffset = number - offset;
+    UnicodeString numberString;
+    FieldPosition ignorePos;
+    FixedPrecision fp;
+    VisibleDigitsWithExponent dec;
+    fp.initVisibleDigitsWithExponent(numberMinusOffset, dec, status);
+    if (U_FAILURE(status)) {
+        return appendTo;
+    }
+    if (offset == 0) {
+        DecimalFormat *decFmt = dynamic_cast<DecimalFormat *>(numberFormat);
+        if(decFmt != NULL) {
+            decFmt->initVisibleDigitsWithExponent(
+                    numberObject, dec, status);
+            if (U_FAILURE(status)) {
+                return appendTo;
+            }
+            decFmt->format(dec, numberString, ignorePos, status);
+        } else {
+            numberFormat->format(
+                    numberObject, numberString, ignorePos, status);  // could be BigDecimal etc.
         }
-        else {
-            replacedNumberFormat->format(number, appendTo, pos);
+    } else {
+        DecimalFormat *decFmt = dynamic_cast<DecimalFormat *>(numberFormat);
+        if(decFmt != NULL) {
+            decFmt->initVisibleDigitsWithExponent(
+                    numberMinusOffset, dec, status);
+            if (U_FAILURE(status)) {
+                return appendTo;
+            }
+            decFmt->format(dec, numberString, ignorePos, status);
+        } else {
+            numberFormat->format(
+                    numberMinusOffset, numberString, ignorePos, status);
         }
     }
-    UnicodeString selectedRule = pluralRules->select(number);
-    UnicodeString *selectedPattern = (UnicodeString *)fParsedValuesHash->get(selectedRule);
-    if (selectedPattern==NULL) {
-        selectedPattern = (UnicodeString *)fParsedValuesHash->get(pluralRules->getKeywordOther());
+    int32_t partIndex = findSubMessage(msgPattern, 0, pluralRulesWrapper, &dec, number, status);
+    if (U_FAILURE(status)) { return appendTo; }
+    // Replace syntactic # signs in the top level of this sub-message
+    // (not in nested arguments) with the formatted number-offset.
+    const UnicodeString& pattern = msgPattern.getPatternString();
+    int32_t prevIndex = msgPattern.getPart(partIndex).getLimit();
+    for (;;) {
+        const MessagePattern::Part& part = msgPattern.getPart(++partIndex);
+        const UMessagePatternPartType type = part.getType();
+        int32_t index = part.getIndex();
+        if (type == UMSGPAT_PART_TYPE_MSG_LIMIT) {
+            return appendTo.append(pattern, prevIndex, index - prevIndex);
+        } else if ((type == UMSGPAT_PART_TYPE_REPLACE_NUMBER) ||
+            (type == UMSGPAT_PART_TYPE_SKIP_SYNTAX && MessageImpl::jdkAposMode(msgPattern))) {
+            appendTo.append(pattern, prevIndex, index - prevIndex);
+            if (type == UMSGPAT_PART_TYPE_REPLACE_NUMBER) {
+                appendTo.append(numberString);
+            }
+            prevIndex = part.getLimit();
+        } else if (type == UMSGPAT_PART_TYPE_ARG_START) {
+            appendTo.append(pattern, prevIndex, index - prevIndex);
+            prevIndex = index;
+            partIndex = msgPattern.getLimitPartIndex(partIndex);
+            index = msgPattern.getPart(partIndex).getLimit();
+            MessageImpl::appendReducedApostrophes(pattern, prevIndex, index, appendTo);
+            prevIndex = index;
+        }
     }
-    appendTo = insertFormattedNumber(number, *selectedPattern, appendTo, pos);
-    
-    return appendTo;
 }
 
 UnicodeString&
 PluralFormat::toPattern(UnicodeString& appendTo) {
-    appendTo+= pattern;
+    if (0 == msgPattern.countParts()) {
+        appendTo.setToBogus();
+    } else {
+        appendTo.append(msgPattern.getPatternString());
+    }
     return appendTo;
-}
-
-UBool
-PluralFormat::inRange(UChar ch, fmtToken& type) {
-    if ((ch>=CAP_A) && (ch<=CAP_Z)) {
-        // we assume all characters are in lower case already.
-        return FALSE;
-    }
-    if ((ch>=LOW_A) && (ch<=LOW_Z)) {
-        type = tLetter;
-        return TRUE;
-    }
-    switch (ch) {
-        case LEFTBRACE: 
-            type = tLeftBrace;
-            return TRUE;
-        case SPACE:
-            type = tSpace;
-            return TRUE;
-        case RIGHTBRACE:
-            type = tRightBrace;
-            return TRUE;
-        case NUMBER_SIGN:
-            type = tNumberSign;
-            return TRUE;
-        default :
-            type = none;
-            return FALSE;
-    }
-}
-
-UBool
-PluralFormat::checkSufficientDefinition() {
-    // Check that at least the default rule is defined.
-    if (fParsedValuesHash==NULL)  return FALSE;
-    if (fParsedValuesHash->get(pluralRules->getKeywordOther()) == NULL) {
-        return FALSE;
-    }
-    else {
-        return TRUE;
-    }
 }
 
 void
@@ -379,27 +341,27 @@ PluralFormat::setLocale(const Locale& loc, UErrorCode& status) {
     if (U_FAILURE(status)) {
         return;
     }
-    if (pluralRules!=NULL) {
-        delete pluralRules;
-        pluralRules=NULL;
-    }
-    if (fParsedValuesHash!= NULL) {
-        delete fParsedValuesHash;
-        fParsedValuesHash = NULL;
-    }
-    if (numberFormat!=NULL) {
-        delete numberFormat;
-        numberFormat = NULL;
-        replacedNumberFormat=NULL;
-    }
-    init(NULL, loc, status);
+    locale = loc;
+    msgPattern.clear();
+    delete numberFormat;
+    offset = 0;
+    numberFormat = NULL;
+    pluralRulesWrapper.reset();
+    init(NULL, UPLURAL_TYPE_CARDINAL, status);
 }
 
 void
-PluralFormat::setNumberFormat(const NumberFormat* format, UErrorCode& /*status*/) {
-    // TODO: The copy constructor and assignment op of NumberFormat class are protected.
-    // create a pointer as the workaround.
-    replacedNumberFormat = (NumberFormat *)format;
+PluralFormat::setNumberFormat(const NumberFormat* format, UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return;
+    }
+    NumberFormat* nf = (NumberFormat*)format->clone();
+    if (nf != NULL) {
+        delete numberFormat;
+        numberFormat = nf;
+    } else {
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
 }
 
 Format*
@@ -408,34 +370,14 @@ PluralFormat::clone() const
     return new PluralFormat(*this);
 }
 
+
 PluralFormat&
 PluralFormat::operator=(const PluralFormat& other) {
     if (this != &other) {
-        UErrorCode status = U_ZERO_ERROR;
-        delete pluralRules;   
-        delete fParsedValuesHash;
-        delete numberFormat;
         locale = other.locale;
-        pluralRules = other.pluralRules->clone();
-        pattern = other.pattern;
-        copyHashtable(other.fParsedValuesHash, status);
-        if (U_FAILURE(status)) {
-            delete pluralRules;  
-            pluralRules = NULL;
-            fParsedValuesHash = NULL;
-            numberFormat = NULL;
-            return *this;
-        }
-        numberFormat=NumberFormat::createInstance(locale, status);
-        if (U_FAILURE(status)) {
-            delete pluralRules;   
-            delete fParsedValuesHash; 
-            pluralRules = NULL;
-            fParsedValuesHash = NULL;
-            numberFormat = NULL;
-            return *this;
-        }
-        replacedNumberFormat=other.replacedNumberFormat;
+        msgPattern = other.msgPattern;
+        offset = other.offset;
+        copyObjects(other);
     }
 
     return *this;
@@ -443,13 +385,21 @@ PluralFormat::operator=(const PluralFormat& other) {
 
 UBool
 PluralFormat::operator==(const Format& other) const {
-    // This protected comparison operator should only be called by subclasses
-    // which have confirmed that the other object being compared against is
-    // an instance of a sublcass of PluralFormat.  THIS IS IMPORTANT.
-    // Format::operator== guarantees that this cast is safe
-    PluralFormat* fmt = (PluralFormat*)&other;
-    return ((*pluralRules == *(fmt->pluralRules)) && 
-            (*numberFormat == *(fmt->numberFormat)));
+    if (this == &other) {
+        return TRUE;
+    }
+    if (!Format::operator==(other)) {
+        return FALSE;
+    }
+    const PluralFormat& o = (const PluralFormat&)other;
+    return
+        locale == o.locale &&
+        msgPattern == o.msgPattern &&  // implies same offset
+        (numberFormat == NULL) == (o.numberFormat == NULL) &&
+        (numberFormat == NULL || *numberFormat == *o.numberFormat) &&
+        (pluralRulesWrapper.pluralRules == NULL) == (o.pluralRulesWrapper.pluralRules == NULL) &&
+        (pluralRulesWrapper.pluralRules == NULL ||
+            *pluralRulesWrapper.pluralRules == *o.pluralRulesWrapper.pluralRules);
 }
 
 UBool
@@ -460,72 +410,188 @@ PluralFormat::operator!=(const Format& other) const {
 void
 PluralFormat::parseObject(const UnicodeString& /*source*/,
                         Formattable& /*result*/,
-                        ParsePosition& /*pos*/) const
+                        ParsePosition& pos) const
 {
-    // TODO: not yet supported in icu4j and icu4c
+    // Parsing not supported.
+    pos.setErrorIndex(pos.getIndex());
 }
 
-UnicodeString
-PluralFormat::insertFormattedNumber(double number, 
-                                    UnicodeString& message,
-                                    UnicodeString& appendTo,
-                                    FieldPosition& pos) const {
-    UnicodeString result;
-    int32_t braceStack=0;
-    int32_t startIndex=0;
-    
-    if (message.length()==0) {
-        return result;
+int32_t PluralFormat::findSubMessage(const MessagePattern& pattern, int32_t partIndex,
+                                     const PluralSelector& selector, void *context,
+                                     double number, UErrorCode& ec) {
+    if (U_FAILURE(ec)) {
+        return 0;
     }
-    appendTo = numberFormat->format(number, appendTo, pos);
-    for(int32_t i=0; i<message.length(); ++i) {
-        switch(message.charAt(i)) {
-        case LEFTBRACE:
-            ++braceStack;
+    int32_t count=pattern.countParts();
+    double offset;
+    const MessagePattern::Part* part=&pattern.getPart(partIndex);
+    if (MessagePattern::Part::hasNumericValue(part->getType())) {
+        offset=pattern.getNumericValue(*part);
+        ++partIndex;
+    } else {
+        offset=0;
+    }
+    // The keyword is empty until we need to match against a non-explicit, not-"other" value.
+    // Then we get the keyword from the selector.
+    // (In other words, we never call the selector if we match against an explicit value,
+    // or if the only non-explicit keyword is "other".)
+    UnicodeString keyword;
+    UnicodeString other(FALSE, OTHER_STRING, 5);
+    // When we find a match, we set msgStart>0 and also set this boolean to true
+    // to avoid matching the keyword again (duplicates are allowed)
+    // while we continue to look for an explicit-value match.
+    UBool haveKeywordMatch=FALSE;
+    // msgStart is 0 until we find any appropriate sub-message.
+    // We remember the first "other" sub-message if we have not seen any
+    // appropriate sub-message before.
+    // We remember the first matching-keyword sub-message if we have not seen
+    // one of those before.
+    // (The parser allows [does not check for] duplicate keywords.
+    // We just have to make sure to take the first one.)
+    // We avoid matching the keyword twice by also setting haveKeywordMatch=true
+    // at the first keyword match.
+    // We keep going until we find an explicit-value match or reach the end of the plural style.
+    int32_t msgStart=0;
+    // Iterate over (ARG_SELECTOR [ARG_INT|ARG_DOUBLE] message) tuples
+    // until ARG_LIMIT or end of plural-only pattern.
+    do {
+        part=&pattern.getPart(partIndex++);
+        const UMessagePatternPartType type = part->getType();
+        if(type==UMSGPAT_PART_TYPE_ARG_LIMIT) {
             break;
-        case RIGHTBRACE:
-            --braceStack;
-            break;
-        case NUMBER_SIGN:
-            if (braceStack==0) {
-                result += UnicodeString(message, startIndex, i);
-                result += appendTo;
-                startIndex = i + 1;
+        }
+        U_ASSERT (type==UMSGPAT_PART_TYPE_ARG_SELECTOR);
+        // part is an ARG_SELECTOR followed by an optional explicit value, and then a message
+        if(MessagePattern::Part::hasNumericValue(pattern.getPartType(partIndex))) {
+            // explicit value like "=2"
+            part=&pattern.getPart(partIndex++);
+            if(number==pattern.getNumericValue(*part)) {
+                // matches explicit value
+                return partIndex;
             }
-            break;
+        } else if(!haveKeywordMatch) {
+            // plural keyword like "few" or "other"
+            // Compare "other" first and call the selector if this is not "other".
+            if(pattern.partSubstringMatches(*part, other)) {
+                if(msgStart==0) {
+                    msgStart=partIndex;
+                    if(0 == keyword.compare(other)) {
+                        // This is the first "other" sub-message,
+                        // and the selected keyword is also "other".
+                        // Do not match "other" again.
+                        haveKeywordMatch=TRUE;
+                    }
+                }
+            } else {
+                if(keyword.isEmpty()) {
+                    keyword=selector.select(context, number-offset, ec);
+                    if(msgStart!=0 && (0 == keyword.compare(other))) {
+                        // We have already seen an "other" sub-message.
+                        // Do not match "other" again.
+                        haveKeywordMatch=TRUE;
+                        // Skip keyword matching but do getLimitPartIndex().
+                    }
+                }
+                if(!haveKeywordMatch && pattern.partSubstringMatches(*part, keyword)) {
+                    // keyword matches
+                    msgStart=partIndex;
+                    // Do not match this keyword again.
+                    haveKeywordMatch=TRUE;
+                }
+            }
         }
-    }
-    if ( startIndex < message.length() ) {
-        result += UnicodeString(message, startIndex, message.length()-startIndex);
-    }
-    appendTo = result;
-    return result;
+        partIndex=pattern.getLimitPartIndex(partIndex);
+    } while(++partIndex<count);
+    return msgStart;
 }
 
-void
-PluralFormat::copyHashtable(Hashtable *other, UErrorCode& status) {
-    if (other == NULL || U_FAILURE(status)) {
-        fParsedValuesHash = NULL;
+void PluralFormat::parseType(const UnicodeString& source, const NFRule *rbnfLenientScanner, Formattable& result, FieldPosition& pos) const {
+    // If no pattern was applied, return null.
+    if (msgPattern.countParts() == 0) {
+        pos.setBeginIndex(-1);
+        pos.setEndIndex(-1);
         return;
     }
-    fParsedValuesHash = new Hashtable(TRUE, status);
-    if(U_FAILURE(status)){
-        return;
+    int partIndex = 0;
+    int currMatchIndex;
+    int count=msgPattern.countParts();
+    int startingAt = pos.getBeginIndex();
+    if (startingAt < 0) {
+        startingAt = 0;
     }
-    fParsedValuesHash->setValueDeleter(deleteHashStrings);
-    int32_t pos = -1;
-    const UHashElement* elem = NULL;
-    // walk through the hash table and create a deep clone
-    while((elem = other->nextElement(pos))!= NULL){
-        const UHashTok otherKeyTok = elem->key;
-        UnicodeString* otherKey = (UnicodeString*)otherKeyTok.pointer;
-        const UHashTok otherKeyToVal = elem->value;
-        UnicodeString* otherValue = (UnicodeString*)otherKeyToVal.pointer;
-        fParsedValuesHash->put(*otherKey, new UnicodeString(*otherValue), status);
-        if(U_FAILURE(status)){
-            return;
+
+    // The keyword is null until we need to match against a non-explicit, not-"other" value.
+    // Then we get the keyword from the selector.
+    // (In other words, we never call the selector if we match against an explicit value,
+    // or if the only non-explicit keyword is "other".)
+    UnicodeString keyword;
+    UnicodeString matchedWord;
+    const UnicodeString& pattern = msgPattern.getPatternString();
+    int matchedIndex = -1;
+    // Iterate over (ARG_SELECTOR ARG_START message ARG_LIMIT) tuples
+    // until the end of the plural-only pattern.
+    while (partIndex < count) {
+        const MessagePattern::Part* partSelector = &msgPattern.getPart(partIndex++);
+        if (partSelector->getType() != UMSGPAT_PART_TYPE_ARG_SELECTOR) {
+            // Bad format
+            continue;
+        }
+
+        const MessagePattern::Part* partStart = &msgPattern.getPart(partIndex++);
+        if (partStart->getType() != UMSGPAT_PART_TYPE_MSG_START) {
+            // Bad format
+            continue;
+        }
+
+        const MessagePattern::Part* partLimit = &msgPattern.getPart(partIndex++);
+        if (partLimit->getType() != UMSGPAT_PART_TYPE_MSG_LIMIT) {
+            // Bad format
+            continue;
+        }
+
+        UnicodeString currArg = pattern.tempSubString(partStart->getLimit(), partLimit->getIndex() - partStart->getLimit());
+        if (rbnfLenientScanner != NULL) {
+            // If lenient parsing is turned ON, we've got some time consuming parsing ahead of us.
+            int32_t length = -1;
+            currMatchIndex = rbnfLenientScanner->findTextLenient(source, currArg, startingAt, &length);
+        }
+        else {
+            currMatchIndex = source.indexOf(currArg, startingAt);
+        }
+        if (currMatchIndex >= 0 && currMatchIndex >= matchedIndex && currArg.length() > matchedWord.length()) {
+            matchedIndex = currMatchIndex;
+            matchedWord = currArg;
+            keyword = pattern.tempSubString(partStart->getLimit(), partLimit->getIndex() - partStart->getLimit());
         }
     }
+    if (matchedIndex >= 0) {
+        pos.setBeginIndex(matchedIndex);
+        pos.setEndIndex(matchedIndex + matchedWord.length());
+        result.setString(keyword);
+        return;
+    }
+
+    // Not found!
+    pos.setBeginIndex(-1);
+    pos.setEndIndex(-1);
+}
+
+PluralFormat::PluralSelector::~PluralSelector() {}
+
+PluralFormat::PluralSelectorAdapter::~PluralSelectorAdapter() {
+    delete pluralRules;
+}
+
+UnicodeString PluralFormat::PluralSelectorAdapter::select(void *context, double number,
+                                                          UErrorCode& /*ec*/) const {
+    (void)number;  // unused except in the assertion
+    VisibleDigitsWithExponent *dec=static_cast<VisibleDigitsWithExponent *>(context);
+    return pluralRules->select(*dec);
+}
+
+void PluralFormat::PluralSelectorAdapter::reset() {
+    delete pluralRules;
+    pluralRules = NULL;
 }
 
 

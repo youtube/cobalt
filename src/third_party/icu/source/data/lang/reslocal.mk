@@ -1,6 +1,6 @@
 # *   Copyright (C) 1998-2010, International Business Machines
 # *   Corporation and others.  All Rights Reserved.
-LANG_CLDR_VERSION = 1.9
+LANG_CLDR_VERSION = %version%
 # A list of txt's to build
 # The downstream packager may not need this file at all if their package is not
 # constrained by
@@ -20,7 +20,7 @@ LANG_SYNTHETIC_ALIAS =
 # All aliases (to not be included under 'installed'), but not including root.
 LANG_ALIAS_SOURCE = $(LANG_SYNTHETIC_ALIAS)\
  zh_CN.txt zh_TW.txt zh_HK.txt zh_SG.txt\
- no.txt in.txt iw.txt
+ no.txt in.txt iw.txt tl.txt sh.txt
 
 # Ordinary resources
 LANG_SOURCE =\
@@ -33,10 +33,8 @@ LANG_SOURCE =\
  da.txt\
  de.txt\
  el.txt\
- en.txt\
- es.txt\
- es_AR.txt\
- es_CL.txt\
+ en.txt en_GB.txt\
+ es.txt es_419.txt\
  et.txt\
  fa.txt\
  fi.txt\
@@ -56,6 +54,7 @@ LANG_SOURCE =\
  lv.txt\
  ml.txt\
  mr.txt\
+ ms.txt\
  nb.txt\
  nl.txt\
  pl.txt\
@@ -77,11 +76,16 @@ LANG_SOURCE =\
  zh_Hant.txt zh_Hant_TW.txt zh_Hant_HK.txt\
  af.txt\
  ak.txt\
+ an.txt\
+ ast.txt\
  az.txt\
- bem.txt\
  be.txt\
+ bem.txt\
+ br.txt\
  bs.txt\
+ ckb.txt\
  cy.txt\
+ ee.txt\
  eo.txt\
  eu.txt\
  fo.txt\
@@ -95,13 +99,18 @@ LANG_SOURCE =\
  ka.txt\
  kk.txt\
  km.txt\
+ ku.txt\
+ ky.txt\
  lg.txt\
+ ln.txt\
+ lo.txt\
  mfe.txt\
  mg.txt\
  mk.txt\
- mo.txt\
- ms.txt\
+ mn.txt\
+ mo.txt ro_MD.txt\
  mt.txt\
+ my.txt\
  ne.txt\
  nn.txt\
  nyn.txt\
@@ -110,15 +119,18 @@ LANG_SOURCE =\
  pa.txt\
  ps.txt\
  rm.txt\
+ rn.txt\
  rw.txt\
  si.txt\
  sn.txt\
  so.txt\
  sq.txt\
+ sr_Latn.txt\
+ tg.txt\
  ti.txt\
- tl.txt\
  to.txt\
  ur.txt\
  uz.txt\
+ wa.txt\
  yo.txt\
  zu.txt

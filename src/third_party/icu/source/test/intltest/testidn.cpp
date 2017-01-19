@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2003-2009, International Business Machines
+*   Copyright (C) 2003-2013, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -30,6 +30,7 @@
 #include "cmemory.h"
 #include "cstring.h"
 #include "unicode/udata.h"
+#include "unicode/utf16.h"
 #include "unewdata.h"
 #include "uoptions.h"
 #include "uparse.h"
@@ -117,6 +118,7 @@ testData(TestIDNA& test) {
     
     /* first copy misc directory */
     saveBasename = basename;
+    (void)saveBasename;    // Suppress set but not used warning.
     uprv_strcpy(basename,SPREP_DIR);
     basename = basename + uprv_strlen(SPREP_DIR);
     *basename++=U_FILE_SEP_CHAR;
@@ -381,8 +383,8 @@ compareMapping(uint32_t codepoint, uint32_t* mapping,int32_t mapLength,
                     pTestIDNA->errln("Did not get the expected result. Expected: 0x%04X Got: 0x%04X \n", mapping[i], mappingData[index+i]);
                 }
             }else{
-                UChar lead  = UTF16_LEAD(mapping[i]);
-                UChar trail = UTF16_TRAIL(mapping[i]);
+                UChar lead  = U16_LEAD(mapping[i]);
+                UChar trail = U16_TRAIL(mapping[i]);
                 if(mappingData[index+i] != lead ||
                     mappingData[index+i+1] != trail){
                     pTestIDNA->errln( "Did not get the expected result. Expected: 0x%04X 0x%04X  Got: 0x%04X 0x%04X", lead, trail, mappingData[index+i], mappingData[index+i+1]);
@@ -405,9 +407,9 @@ compareFlagsForRange(uint32_t start, uint32_t end,
     UStringPrepType retType;
     UBool isIndex=FALSE;
     int32_t value=0;
-/*        
+/*
     // supplementary code point 
-    UChar __lead16=UTF16_LEAD(0x2323E);
+    UChar __lead16=U16_LEAD(0x2323E);
     int32_t __offset;
 
     // get data for lead surrogate 

@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
-* Copyright (C) 2009-2010, International Business Machines Corporation and         *
-* others. All Rights Reserved.                                                *
+* Copyright (C) 2009-2011, International Business Machines Corporation and
+* others. All Rights Reserved.
 *******************************************************************************
 */
 
@@ -14,6 +14,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/uobject.h"
 #include "vzone.h"
 #include "unicode/vtzone.h"
@@ -56,7 +57,7 @@ vzone_getTZURL(VZone* zone, UChar* & url, int32_t & urlLength) {
     UBool b = ((VTimeZone*)zone)->VTimeZone::getTZURL(s);
 
     urlLength = s.length();
-    uprv_memcpy(url,s.getBuffer(),urlLength);
+    memcpy(url,s.getBuffer(),urlLength);
     
     return b;
 }
@@ -64,7 +65,7 @@ vzone_getTZURL(VZone* zone, UChar* & url, int32_t & urlLength) {
 U_CAPI void U_EXPORT2
 vzone_setTZURL(VZone* zone, UChar* url, int32_t urlLength) {
     UnicodeString s(urlLength==-1, url, urlLength);
-    return ((VTimeZone*)zone)->VTimeZone::setTZURL(url);
+    ((VTimeZone*)zone)->VTimeZone::setTZURL(s);
 }
 
 U_CAPI UBool U_EXPORT2
@@ -84,7 +85,7 @@ vzone_write(VZone* zone, UChar* & result, int32_t & resultLength, UErrorCode& st
 
     resultLength = s.length();
     result = (UChar*)uprv_malloc(resultLength);
-    uprv_memcpy(result,s.getBuffer(),resultLength);
+    memcpy(result,s.getBuffer(),resultLength);
 
     return;
 }
@@ -96,7 +97,7 @@ vzone_writeFromStart(VZone* zone, UDate start, UChar* & result, int32_t & result
 
     resultLength = s.length();
     result = (UChar*)uprv_malloc(resultLength);
-    uprv_memcpy(result,s.getBuffer(),resultLength);
+    memcpy(result,s.getBuffer(),resultLength);
 
     return;
 }
@@ -108,7 +109,7 @@ vzone_writeSimple(VZone* zone, UDate time, UChar* & result, int32_t & resultLeng
 
     resultLength = s.length();
     result = (UChar*)uprv_malloc(resultLength);
-    uprv_memcpy(result,s.getBuffer(),resultLength);
+    memcpy(result,s.getBuffer(),resultLength);
 
     return;
 }

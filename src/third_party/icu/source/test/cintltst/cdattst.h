@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2009, International Business Machines Corporation and
+ * Copyright (c) 1997-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /********************************************************************************
@@ -49,6 +49,13 @@
      * test subroutine used by the testing functions
      **/
     static UChar* myNumformat(const UNumberFormat* numfor, double d);
+    static int getCurrentYear(void);
+
+    /**
+     * Test DateFormat override number format API
+     */
+     static void TestOverrideNumberFormat(void);
+
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

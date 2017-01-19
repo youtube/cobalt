@@ -1,6 +1,6 @@
 ﻿# ***************************************************************************
 # *
-# *  Copyright (C) 2004-2010, International Business Machines
+# *  Copyright (C) 2004-2015, International Business Machines
 # *  Corporation; Unicode, Inc.; and others.  All Rights Reserved.
 # *
 # ***************************************************************************
@@ -114,7 +114,7 @@
 \uE06D→৭;          # DIGIT SEVEN
 \uE06E→৮;          # DIGIT EIGHT
 \uE06F→৯;          # DIGIT NINE
-\uE070→;                # ABBREVIATION SIGN
+\uE070→;           # ABBREVIATION SIGN
 \uE071→ৰ;          # LETTER RA WITH MIDDLE DIAGONAL
 \uE072→ৱ;          # LETTER RA WITH LOWER DIAGONAL
 \uE073→৲;          # RUPEE MARK

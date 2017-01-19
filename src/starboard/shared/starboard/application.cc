@@ -39,31 +39,24 @@ void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
   }
 }
 
-// Dispatches a Start event to the system event handler.
-void DispatchStart(int argc, char** argv, const char* link) {
-  SbEventStartData start_data;
-  start_data.argument_values = argv;
-  start_data.argument_count = argc;
-  start_data.link = link;
-  Dispatch(kSbEventTypeStart, &start_data, NULL);
-}
+}  // namespace
 
 // The next event ID to use for Schedule().
 volatile SbAtomic32 g_next_event_id = 0;
-
-}  // namespace
 
 Application* Application::g_instance = NULL;
 
 Application::Application()
     : error_level_(0),
       thread_(SbThreadGetCurrent()),
+      argument_count_(0),
+      argument_values_(NULL),
       start_link_(NULL),
       state_(kStateUnstarted) {
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(NULL),
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
           reinterpret_cast<SbAtomicPtr>(this)));
   SB_DCHECK(!old_instance);
 }
@@ -73,7 +66,7 @@ Application::~Application() {
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
           reinterpret_cast<SbAtomicPtr>(this),
-          reinterpret_cast<SbAtomicPtr>(NULL)));
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
   SbMemoryDeallocate(start_link_);
@@ -81,11 +74,14 @@ Application::~Application() {
 
 int Application::Run(int argc, char** argv) {
   Initialize();
-  DispatchStart(argc, argv, start_link_);
-  state_ = kStateStarted;
+  argument_count_ = argc;
+  argument_values_ = argv;
+  if (IsStartImmediate()) {
+    DispatchStart();
+  }
 
   for (;;) {
-    if (!DispatchAndDelete(GetNextEvent())) {
+    if (!DispatchNextEvent()) {
       break;
     }
   }
@@ -148,10 +144,23 @@ void Application::SetStartLink(const char* start_link) {
   }
 }
 
+void Application::DispatchStart() {
+  SB_DCHECK(state_ == kStateUnstarted);
+  SbEventStartData start_data;
+  start_data.argument_values = argument_values_;
+  start_data.argument_count = argument_count_;
+  start_data.link = start_link_;
+  Dispatch(kSbEventTypeStart, &start_data, NULL);
+  state_ = kStateStarted;
+}
+
 bool Application::DispatchAndDelete(Application::Event* event) {
   if (!event) {
     return true;
   }
+
+  // DispatchStart() must be called first
+  SB_DCHECK(state_ != kStateUnstarted);
 
   // Ensure that we go through the the appropriate lifecycle events based on the
   // current state.

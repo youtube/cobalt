@@ -1,6 +1,6 @@
 /*
 *******************************************************************************
-* Copyright (C) 2009-2010, International Business Machines Corporation and
+* Copyright (C) 2009-2015, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 */
@@ -9,6 +9,8 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "fphdlimp.h"
 #include "uvectr32.h"
 
@@ -29,7 +31,7 @@ FieldPositionHandler::shiftLast(int32_t) {
 }
 
 UBool
-FieldPositionHandler::isRecording(void) {
+FieldPositionHandler::isRecording(void) const {
   return FALSE;
 }
 
@@ -60,7 +62,7 @@ FieldPositionOnlyHandler::shiftLast(int32_t delta) {
 }
 
 UBool
-FieldPositionOnlyHandler::isRecording(void) {
+FieldPositionOnlyHandler::isRecording(void) const {
   return pos.getField() != FieldPosition::DONT_CARE;
 }
 
@@ -111,7 +113,7 @@ FieldPositionIteratorHandler::shiftLast(int32_t delta) {
 }
 
 UBool
-FieldPositionIteratorHandler::isRecording(void) {
+FieldPositionIteratorHandler::isRecording(void) const {
   return U_SUCCESS(status);
 }
 

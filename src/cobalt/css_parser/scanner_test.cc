@@ -994,6 +994,15 @@ TEST_F(ScannerTest, ScansScaleFunctionWithoutEndBraceAtEndOfFile) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansMapToMeshFunction) {
+  Scanner scanner("map-to-mesh()", &string_pool_);
+
+  ASSERT_EQ(kMapToMeshFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansMatrix3dFunction) {
   Scanner scanner("matrix3d()", &string_pool_);
 

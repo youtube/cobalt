@@ -1,6 +1,6 @@
 /**
  *******************************************************************************
- * Copyright (C) 2001-2007, International Business Machines Corporation.       *
+ * Copyright (C) 2001-2011, International Business Machines Corporation.       *
  * All Rights Reserved.                                                        *
  *******************************************************************************
  */
@@ -211,6 +211,7 @@ public:
   */
 class U_COMMON_API ICUServiceFactory : public UObject {
  public:
+    virtual ~ICUServiceFactory();
 
     /**
      * <p>Create a service object from the key, if this factory
@@ -367,6 +368,8 @@ public:
  */
 class U_COMMON_API ServiceListener : public EventListener {
 public:
+    virtual ~ServiceListener();
+
     /**
      * <p>This method is called when the service changes. At the time of the
      * call this listener is registered with the service.  It must
@@ -526,11 +529,6 @@ class U_COMMON_API ICUService : public ICUNotifier {
     const UnicodeString name;
 
  private:
-
-    /**
-     * single lock used by this service.
-     */
-    UMTX lock;
 
     /**
      * Timestamp so iterators can be fail-fast.

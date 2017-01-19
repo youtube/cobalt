@@ -1,11 +1,11 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2002-2010, International Business Machines
+*   Copyright (C) 2002-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
-*   file name:  uset.c
+*   file name:  uset.cpp
 *   encoding:   US-ASCII
 *   tab size:   8 (not used)
 *   indentation:4
@@ -18,6 +18,7 @@
 *   instantiating a new USet.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
 #include "unicode/uset.h"
@@ -147,11 +148,6 @@ uset_complementAll(USet* set, const USet* complement) {
 U_CAPI void U_EXPORT2
 uset_clear(USet* set) {
     ((UnicodeSet*) set)->UnicodeSet::clear();
-}
-
-U_CAPI void U_EXPORT2
-uset_closeOver(USet* set, int32_t attributes) {
-    ((UnicodeSet*) set)->UnicodeSet::closeOver(attributes);
 }
 
 U_CAPI void U_EXPORT2
@@ -531,7 +527,7 @@ uset_getSerializedRange(const USerializedSet* set, int32_t rangeIndex,
 // ---
 // #define USET_GROW_DELTA 20
 // 
-// static U_INLINE int32_t
+// static int32_t
 // findChar(const UChar32* array, int32_t length, UChar32 c) {
 //     int32_t i;
 // 

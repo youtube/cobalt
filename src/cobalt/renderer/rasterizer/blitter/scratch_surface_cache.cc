@@ -88,7 +88,7 @@ SbBlitterSurface CachedScratchSurface::GetSurface() {
                common_scratch_surface_.GetSurface())
         ->blitter_surface();
   } else {
-    return NULL;
+    return kSbBlitterInvalidSurface;
   }
 }
 

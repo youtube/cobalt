@@ -16,6 +16,7 @@
 #include "js/TemplateLib.h"
 #include "vm/Shape.h"
 #include "vm/ForkJoin.h"
+#include "nb/memory_scope.h"
 
 namespace js {
 
@@ -472,6 +473,7 @@ template <typename T, AllowGC allowGC>
 inline T *
 TryNewNurseryGCThing(ThreadSafeContext *tcx, size_t thingSize)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* TODO: Integrate PJS with generational GC. */
     JSContext *cx = tcx->asJSContext();
 
@@ -505,6 +507,7 @@ template <typename T, AllowGC allowGC>
 inline T *
 NewGCThing(js::ThreadSafeContext *tcx, AllocKind kind, size_t thingSize, InitialHeap heap)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(thingSize == js::gc::Arena::thingSize(kind));
 
     if (tcx->isJSContext()) {
@@ -558,6 +561,7 @@ template <js::AllowGC allowGC>
 inline JSObject *
 js_NewGCObject(js::ThreadSafeContext *tcx, js::gc::AllocKind kind, js::gc::InitialHeap heap)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(kind >= js::gc::FINALIZE_OBJECT0 && kind <= js::gc::FINALIZE_OBJECT_LAST);
     return js::gc::NewGCThing<JSObject, allowGC>(tcx, kind, js::gc::Arena::thingSize(kind), heap);
 }
@@ -566,6 +570,7 @@ template <js::AllowGC allowGC>
 inline JSString *
 js_NewGCString(js::ThreadSafeContext *tcx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js::gc::NewGCThing<JSString, allowGC>(tcx, js::gc::FINALIZE_STRING,
                                                  sizeof(JSString), js::gc::TenuredHeap);
 }
@@ -574,6 +579,7 @@ template <js::AllowGC allowGC>
 inline JSShortString *
 js_NewGCShortString(js::ThreadSafeContext *tcx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js::gc::NewGCThing<JSShortString, allowGC>(tcx, js::gc::FINALIZE_SHORT_STRING,
                                                       sizeof(JSShortString), js::gc::TenuredHeap);
 }
@@ -581,6 +587,7 @@ js_NewGCShortString(js::ThreadSafeContext *tcx)
 inline JSExternalString *
 js_NewGCExternalString(js::ThreadSafeContext *tcx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js::gc::NewGCThing<JSExternalString, js::CanGC>(tcx, js::gc::FINALIZE_EXTERNAL_STRING,
                                                            sizeof(JSExternalString), js::gc::TenuredHeap);
 }
@@ -588,6 +595,7 @@ js_NewGCExternalString(js::ThreadSafeContext *tcx)
 inline JSScript *
 js_NewGCScript(js::ThreadSafeContext *tcx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js::gc::NewGCThing<JSScript, js::CanGC>(tcx, js::gc::FINALIZE_SCRIPT,
                                                    sizeof(JSScript), js::gc::TenuredHeap);
 }
@@ -595,6 +603,7 @@ js_NewGCScript(js::ThreadSafeContext *tcx)
 inline js::LazyScript *
 js_NewGCLazyScript(js::ThreadSafeContext *tcx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js::gc::NewGCThing<js::LazyScript, js::CanGC>(tcx, js::gc::FINALIZE_LAZY_SCRIPT,
                                                          sizeof(js::LazyScript), js::gc::TenuredHeap);
 }
@@ -602,6 +611,7 @@ js_NewGCLazyScript(js::ThreadSafeContext *tcx)
 inline js::Shape *
 js_NewGCShape(js::ThreadSafeContext *tcx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js::gc::NewGCThing<js::Shape, js::CanGC>(tcx, js::gc::FINALIZE_SHAPE,
                                                     sizeof(js::Shape), js::gc::TenuredHeap);
 }
@@ -610,6 +620,7 @@ template <js::AllowGC allowGC>
 inline js::BaseShape *
 js_NewGCBaseShape(js::ThreadSafeContext *tcx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js::gc::NewGCThing<js::BaseShape, allowGC>(tcx, js::gc::FINALIZE_BASE_SHAPE,
                                                       sizeof(js::BaseShape), js::gc::TenuredHeap);
 }

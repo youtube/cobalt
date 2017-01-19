@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1997-2010, International Business Machines
+*   Copyright (C) 1997-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -14,6 +14,7 @@
 #ifndef CPPUTILS_H
 #define CPPUTILS_H
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/unistr.h"
 #include "cmemory.h"
@@ -69,7 +70,7 @@ uprv_arrayCopy(const UChar *src, int32_t srcStart,
  * @internal
  */
 static inline void
-uprv_arrayCopy(const U_NAMESPACE_QUALIFIER UnicodeString *src, U_NAMESPACE_QUALIFIER UnicodeString *dst, int32_t count)
+uprv_arrayCopy(const icu::UnicodeString *src, icu::UnicodeString *dst, int32_t count)
 { while(count-- > 0) *dst++ = *src++; }
 
 /**
@@ -77,8 +78,8 @@ uprv_arrayCopy(const U_NAMESPACE_QUALIFIER UnicodeString *src, U_NAMESPACE_QUALI
  * @internal
  */
 static inline void
-uprv_arrayCopy(const U_NAMESPACE_QUALIFIER UnicodeString *src, int32_t srcStart,
-        U_NAMESPACE_QUALIFIER UnicodeString *dst, int32_t dstStart, int32_t count)
+uprv_arrayCopy(const icu::UnicodeString *src, int32_t srcStart,
+               icu::UnicodeString *dst, int32_t dstStart, int32_t count)
 { uprv_arrayCopy(src+srcStart, dst+dstStart, count); }
 
 /**
@@ -86,7 +87,7 @@ uprv_arrayCopy(const U_NAMESPACE_QUALIFIER UnicodeString *src, int32_t srcStart,
  * Sets U_ILLEGAL_ARGUMENT_ERROR if the string isBogus() or has an open getBuffer().
  */
 inline void
-uprv_checkCanGetBuffer(const U_NAMESPACE_QUALIFIER UnicodeString &s, UErrorCode &errorCode) {
+uprv_checkCanGetBuffer(const icu::UnicodeString &s, UErrorCode &errorCode) {
     if(U_SUCCESS(errorCode) && s.isBogus()) {
         errorCode=U_ILLEGAL_ARGUMENT_ERROR;
     }

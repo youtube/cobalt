@@ -78,6 +78,12 @@ GraphicsSystemEGL* GraphicsContextEGL::system_egl() {
 }
 
 bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
+  // This computation is expensive, so it is cached the first time that it is
+  // computed. Simply return the value if it is already cached.
+  if (read_pixels_needs_vertical_flip_) {
+    return *read_pixels_needs_vertical_flip_;
+  }
+
   // Create a 1x2 texture with distinct values vertically so that we can test
   // them.  We will blit the texture to an offscreen render target, and then
   // read back the value of the render target's pixels to check if they are
@@ -87,6 +93,8 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   // down.
   const int kDummyTextureWidth = 1;
   const int kDummyTextureHeight = 2;
+
+  ScopedMakeCurrent scoped_make_current(this);
 
   scoped_refptr<RenderTarget> render_target = CreateOffscreenRenderTarget(
       math::Size(kDummyTextureWidth, kDummyTextureHeight));
@@ -100,7 +108,13 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
     GLuint texture;
     GL_CALL(glGenTextures(1, &texture));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, texture));
-    SetupInitialTextureParameters();
+
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
     uint8_t pixels[8];
     pixels[0] = 0;
@@ -145,8 +159,10 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   DCHECK((out_data[0] == 0x00000000 && out_data[1] == 0xFFFFFFFF) ||
          (out_data[0] == 0xFFFFFFFF && out_data[1] == 0x00000000));
 
-  // Finally check if the data we read back was flipped or not.
-  return out_data[1] == 0x00000000;
+  // Finally check if the data we read back was flipped or not and cache the
+  // result.
+  read_pixels_needs_vertical_flip_ = out_data[1] == 0x00000000;
+  return *read_pixels_needs_vertical_flip_;
 }
 
 void GraphicsContextEGL::SetupBlitObjects() {
@@ -278,6 +294,10 @@ scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
   return render_target;
 }
 
+void GraphicsContextEGL::InitializeDebugContext() {
+  ComputeReadPixelsNeedVerticalFlip();
+}
+
 namespace {
 void VerticallyFlipPixels(uint8_t* pixels, int pitch_in_bytes, int height) {
   int half_height = height / 2;
@@ -332,15 +352,11 @@ scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
   GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
 
   // Vertically flip the resulting pixel data before returning so that the 0th
-  // pixel is at the top-left.  While this is not a fast procedure, this
-  // entire function is only intended to be used in debug/test code.
-  if (!read_pixels_needs_vertical_flip_) {
-    // Lazily compute whether we need to vertically flip our read back pixels
-    // or not.
-    read_pixels_needs_vertical_flip_ = ComputeReadPixelsNeedVerticalFlip();
-  }
-
-  if (*read_pixels_needs_vertical_flip_) {
+  // pixel is at the top-left.  While computing this is not a fast procedure,
+  // this entire function is only intended to be used in debug/test code. This
+  // is lazily computed and cached during the first call, so that subsequent
+  // calls can simply return the result.
+  if (ComputeReadPixelsNeedVerticalFlip()) {
     // Some platforms, like the Mesa Gallium EGL implementation on Linux, seem
     // to return already flipped pixels.  So in that case, we flip them again
     // before returning here.
@@ -390,7 +406,14 @@ void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
 void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::SwapBuffers()");
 
-  EGL_CALL(eglSwapBuffers(display_, surface->GetSurface()));
+  eglSwapBuffers(display_, surface->GetSurface());
+  EGLint swap_err = eglGetError();
+  if (swap_err != EGL_SUCCESS) {
+    LOG(WARNING) << "Marking surface bad after swap error "
+                 << std::hex << swap_err;
+    surface->set_surface_bad();
+    return;
+  }
 
   surface->increment_swap_count();
   if (surface->IsWindowRenderTarget() && surface->swap_count() <= 2) {

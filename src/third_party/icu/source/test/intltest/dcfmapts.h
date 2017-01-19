@@ -1,6 +1,6 @@
 /********************************************************************
- * COPYRIGHT: 
- * Copyright (c) 1997-2009, International Business Machines Corporation and
+ * COPYRIGHT:
+ * Copyright (c) 1997-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -17,7 +17,7 @@
 
 
 class IntlTestDecimalFormatAPI: public IntlTest {
-    void runIndexedTest( int32_t index, UBool exec, const char* &name, char* par = NULL );  
+    void runIndexedTest( int32_t index, UBool exec, const char* &name, char* par = NULL );
 
 public:
     /**
@@ -27,9 +27,14 @@ public:
     void testRounding(/*char *par*/);
     void testRoundingInc(/*char *par*/);
     void TestCurrencyPluralInfo();
+    void TestScale();
+    void TestFixedDecimal();
+    void TestBadFastpath();
+    void TestRequiredDecimalPoint();
 private:
     /*Helper functions */
     void verify(const UnicodeString& message, const UnicodeString& got, double expected);
+    void verifyString(const UnicodeString& message, const UnicodeString& got, UnicodeString& expected);
 };
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

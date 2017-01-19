@@ -1,6 +1,6 @@
 //*******************************************************************************
 //
-//   Copyright (C) 2003-2010, International Business Machines
+//   Copyright (C) 2003-2015, International Business Machines
 //   Corporation and others.  All Rights Reserved.
 //
 //   file name:  conversion.txt
@@ -108,9 +108,9 @@ conversion:table(nofallback) {
         }
         {
           "gb18030",
-          :bin{ 618130fc318130fc8181303c3e813cfc817a },
-          "a\u05ed\\x810\u9f07\\x810<>\\x81<\u9f07z",
-          :intvector{ 0,1,5,5,5,5,6,7,9,9,9,9,10,11,12,13,13,13,13,14,15,17 },
+          :bin{ 618130fc318130fc8181303c3e813cfc817afe90a8bc },
+          "a\u05ed\\x810\u9f07\\x810<>\\x81<\u9f07z\ue854\u1e3f",
+          :intvector{ 0,1,5,5,5,5,6,7,9,9,9,9,10,11,12,13,13,13,13,14,15,17,18,20 },
           :int{1}, :int{0}, "", "&C", :bin{""}
         }
         {
@@ -695,6 +695,15 @@ conversion:table(nofallback) {
           :int{1}, :int{0}, "", "?", :bin{""}
         }
 
+        // test mapping to sequence of multiple Unicode characters which includes nonBMP (ticket #9235)
+        {
+          "*test3",
+          :bin{ 05070001020e050501020c06 },
+          "\x05\U00101234\U00050005\u00c4\u00c4\U00101234\x05\x06",
+          :intvector{ 0, 1, 1, 1, 1, 7, 7, 7, 7, 7, 11 },
+          :int{1}, :int{0}, "", "?", :bin{""}
+        }
+
         // normal conversions
         {
           "UTF-16LE",
@@ -813,6 +822,13 @@ conversion:table(nofallback) {
           :bin{ 8130D2398130D3308136A5318136A532 },
           "\u0450\u0452\u200F\u2011",
           :intvector{ 0, 4, 8, 12 },
+          :int{1}, :int{0}, "", "?", :bin{""}
+        }
+        {
+          "x11-compound-text",
+          :bin{ 1b242944b5ac1b2d41a5e31b2d43d5f51b2d4dd01b2d41411b2d43bc1b2d42ff1b2d54df1b2d44c0b31b2d46b41b2d47b01b2d48e01b2d4ca1 },
+          "\u54A1\u00A5\u00E3\u0120\u0121\u011E\u0041\u0135\u02D9\u0E3F\u0100\u0157\u0384\u0660\u05D0\u0401",
+          :intvector{ },
           :int{1}, :int{0}, "", "?", :bin{""}
         }
         // Improve coverage of ISCII
@@ -966,6 +982,20 @@ conversion:table(nofallback) {
           :intvector{},
           :int{0}, :int{0}, "illegal", ".", :bin{ 0e }
         }
+        {
+          "UTF-7",
+          :bin{ 2b414b4d2d492b414b4d4170412d },
+          "\u00a3I\u00a3\u00a4",
+          :intvector{ 1,5,7,9 },
+          :int{0}, :int{0}, "", ".", :bin{""}
+        }
+        {
+          "x11-compound-text",
+          :bin{ 1e6ddc9b26bc10801bbcad50a040fc },
+          "\u001e\u006d\u00dc\u009b\u0026\u00bc\u0010\u0080\ufffd\u00bc\u00ad\u0050\u00a0\u0040\u00fc",
+          :intvector{ },
+          :int{1}, :int{0}, "", "?", :bin{""}
+        }
       }
     }
 
@@ -974,6 +1004,20 @@ conversion:table(nofallback) {
     fromUnicode {
       Headers { "charset", "unicode", "bytes", "offsets", "flush", "fallbacks", "errorCode", "callback", "invalidUChars" }
       Cases {
+        // Test ticket 9602: Add "good one-way" mapping type (|4).
+        // Such mappings are used regardless of the fallback flag.
+        {
+          "+*test3", "##\uFE0E#\uFE0F",
+          :bin{ 010204010204010204 }, :intvector{ 0,0,0,1,1,1,3,3,3 },
+          :int{1}, :int{0},  // no fallbacks
+          "", "?", ""
+        }
+        {
+          "+*test3", "##\uFE0E#\uFE0F",
+          :bin{ 010204010204010204 }, :intvector{ 0,0,0,1,1,1,3,3,3 },
+          :int{1}, :int{1},  // with fallbacks
+          "", "?", ""
+        }
         // Test ticket 6789: implement Java-compatible Unicode, UnicodeBig and UnicodeLittle converters
         // For details about these encodings see convrtrs.txt.
         // Standard UTF-16BE
@@ -1218,8 +1262,8 @@ conversion:table(nofallback) {
         {
           "ISO-2022-JP-2",
           "?@A\u00e4\u03b1\u203EB",
-          :bin{       3f40411B2E411B4E641B2E461B4E611B284A7E421B2842 },
-          :intvector{ 0,1,2,3,3,3,3,3,3,4,4,4,4,4,4,5,5,5,5,6,6,6,6 },
+          :bin{       3f40411B2E411B4E641b244226411b284a7e421b2842 },
+          :intvector{ 0,1,2,3,3,3,3,3,3,4,4,4,4,4,5,5,5,5,6,6,6,6 },
           :int{1}, :int{1}, "", "?", ""
         }
 
@@ -1320,6 +1364,13 @@ conversion:table(nofallback) {
           "\uFF81\uFF82\u30EC\u30ED\u30EE\u30EF\uFF93\uFF94\uFF95\uFF96\uFF97\uFF98",
           :bin{       C1C21b2442256c256d256e256F1b284AD3D4D5D6D7D81b2842 },
           :intvector{ 0,1,2,2,2,2,2,3,3,4,4,5,5,6,6,6,6,7,8,9,10,11,11,11,11 },
+          :int{1}, :int{1}, "", "?", ""
+        }
+        {
+          "JIS8",
+          "\u2019Aaa10\u4ED5\u5165\u5148\u30B3",
+          :bin{      1b244221471b284241616131301b24423b45467e406825331b2842 },
+          :intvector{ 0,0,0,0,0,1,1,1,1,2,3,4,5,6,6,6,6,6,7,7,8,8,9,9,9,9,9 },
           :int{1}, :int{1}, "", "?", ""
         }
 
@@ -1651,6 +1702,13 @@ conversion:table(nofallback) {
           :intvector{ 0, 1, 1, 1, 1, 3, 3, 4, 5, 5, 5, 6, 7, 7, 7, 8, 9, 9, 9 },
           :int{1}, :int{0}, "", "?", ""
         }
+        {
+          "x11-compound-text",
+          "\u54A1\u00A5\u00E3\u0120\u0121\u011E\u0041\u0135\u02D9\u0E3F\u0100\u0157\u0384\u0660\u05D0\u0401",
+          :bin{ 1b242944b5ac1b2d41a5e31b2d43d5f51b2d4dd01b2d41411b2d43bc1b2d42ff1b2d54df1b2d44c0b31b2d46b41b2d47b01b2d48e01b2d4ca1 },
+          :intvector{ },
+          :int{1}, :int{0}, "", "?", ""
+        }
         // Test Gurmukhi (Bindi Tippi and Consonant clusters)
         {
           "iscii-gur",
@@ -1729,8 +1787,8 @@ conversion:table(nofallback) {
         { "UTF-8", "a\ud800b", :bin{ 61efbfbd62 }, :intvector{ 0, 1, 1, 1, 2 }, :int{1}, :int{0}, "", "", "" }
 
         // Code coverage for the EUC variants.
-        { "EUC-JP", "\u0061\u4edd\u5bec\ud801\udc01\ud801\u0061\u00a2", :bin{ 61a1b88ff4ae618ee0 }, :intvector{ 0, 1, 1, 2, 2, 2, 6, 7, 7 }, :int{1}, :int{0}, "", "0", "" }
-        { "EUC-JP", "\u0061\u4edd\u5bec\ud801\udc01\ud801\u0061\u00a2", :bin{ 61a1b88ff4aef4fef4fe618ee0 }, :intvector{ 0, 1, 1, 2, 2, 2, 3, 3, 5, 5, 6, 7, 7 }, :int{1}, :int{0}, "", "", "" }
+        { "IBM-eucJP", "\u0061\u4edd\u5bec\ud801\udc01\ud801\u0061\u00a2", :bin{ 61a1b88ff4ae618ee0 }, :intvector{ 0, 1, 1, 2, 2, 2, 6, 7, 7 }, :int{1}, :int{0}, "", "0", "" }
+        { "IBM-eucJP", "\u0061\u4edd\u5bec\ud801\udc01\ud801\u0061\u00a2", :bin{ 61a1b88ff4aef4fef4fe618ee0 }, :intvector{ 0, 1, 1, 2, 2, 2, 3, 3, 5, 5, 6, 7, 7 }, :int{1}, :int{0}, "", "", "" }
         { "EUC-TW", "\u0061\u2295\u5BF2\ud801\udc01\ud801\u0061\u8706\u008a", :bin{ 61a2d38ea2dce561e6ca8a }, :intvector{ 0, 1, 1, 2, 2, 2, 2, 6, 7, 7, 8 }, :int{1}, :int{0}, "", "0", "" }
         { "EUC-TW", "\u0061\u2295\u5BF2\ud801\udc01\ud801\u0061\u8706\u008a", :bin{ 61a2d38ea2dce5fdfefdfe61e6ca8a }, :intvector{ 0, 1, 1, 2, 2, 2, 2, 3, 3, 5, 5, 6, 7, 7, 8 }, :int{1}, :int{0}, "", "", "" }
         
@@ -1757,6 +1815,35 @@ conversion:table(nofallback) {
           :intvector{},
           :int{1}, :int{0}, "", "0", ""
         }
+        {
+          "gb18030",
+          "\U00020087\ue790\ue78f\u1e3f",
+          :bin{ 95329031a6dca6dba8bc },
+          :intvector{ 0,0,0,0,2,2,3,3,4,4 },
+          :int{1}, :int{0}, "", "0", ""
+        }
+        {
+          "UTF-7",
+          "\u00a3I\u00a3\u00a4",
+          :bin{ 2b414b4d2d492b414b4d4170412d },
+          :intvector{ 0,0,0,0,0,1,2,2,2,3,3,3,3,3 },
+          :int{1}, :int{0}, "", "0", ""
+        }
+        // Bug #9601 direct-from-UTF-8 m:n Unicode:charset conversion.
+        {
+          "*test1bmp",
+          "uv",
+          :bin{       08 },
+          :intvector{ 0 },
+          :int{1}, :int{0}, "", "?", ""
+        }
+        {
+          "*test2",
+          "\U00101234\U00050005",
+          :bin{       0700010e05 },
+          :intvector{ 0,0,0,0,0 },
+          :int{1}, :int{0}, "", "?", ""
+        }
       }
     }
 
@@ -1767,6 +1854,20 @@ conversion:table(nofallback) {
       // which - numeric UConverterUnicodeSet value
       Headers { "charset", "map", "mapnot", "which" }
       Cases {
+        // Test ticket 9602: Add "good one-way" mapping type (|4).
+        // Excluded from roundtrip set, included in the set with fallbacks.
+        {
+          "+*test3",
+          "[{#\uFE0F}]",
+          "[#{#\uFE0E}]",
+          :int{0}
+        }
+        {
+          "+*test3",
+          "[#{#\uFE0E}{#\uFE0F}]",
+          "[]",
+          :int{1}
+        }
         // Unicode charsets that do not map surrogate code points
         {
           "UTF-8",

@@ -45,6 +45,7 @@
   },
 
   'includes': [
+    '../shared/compiler_flags.gypi',
     '../shared/gyp_configuration.gypi',
   ],
 }

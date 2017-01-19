@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/tzm.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/tzm.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/tzm.xml
- */
 tzm{
     Countries{
         AD{"Anḍurra"}
@@ -56,7 +53,6 @@ tzm{
         CN{"Ṣṣin"}
         CO{"Kulumbya"}
         CR{"Kusṭa Rika"}
-        CS{"Ṣiṛbya d Muntinigru"}
         CU{"kuba"}
         CV{"Tigzirin n Iɣf Uzegzaw"}
         CY{"Qubrus"}
@@ -238,5 +234,5 @@ tzm{
         ZM{"Zambya"}
         ZW{"Zimbabwi"}
     }
-    Version{"2.0.46.85"}
+    Version{"2.1.19.14"}
 }

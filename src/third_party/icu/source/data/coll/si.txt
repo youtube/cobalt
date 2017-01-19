@@ -1,24 +1,31 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/collation/si.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/collation/si.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/collation/si.xml
- */
 si{
-    Version{"2.0.50.23"}
+    Version{"2.1.19.14"}
     collations{
         dictionary{
-            Sequence{" [normalization on ]&ඖ<ං<ඃ&ජ්ඤ<<ඥ"}
-            Version{"1.9"}
+            Sequence{
+                "[normalization on]"
+                "[reorder Sinh Deva Beng Guru Gujr Orya Taml Telu Knda Mlym]"
+                "&ඖ<ං<ඃ"
+                "&ජ්ඤ<<ඥ"
+            }
+            Version{"28"}
         }
         standard{
-            Sequence{" [normalization on ]&ඖ<ං<ඃ&ඥ<ඤ"}
-            Version{"1.9"}
+            Sequence{
+                "[normalization on]"
+                "[reorder Sinh Deva Beng Guru Gujr Orya Taml Telu Knda Mlym]"
+                "&ඖ<ං<ඃ"
+                "&ඥ<ඤ"
+            }
+            Version{"28"}
         }
     }
 }

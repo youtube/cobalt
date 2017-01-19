@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1999-2010, International Business Machines
+*   Copyright (C) 1999-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -17,18 +17,32 @@
 *	
 *   This file contains utility functions for ICU tools like genccode.
 */
+#include "unicode/platform.h"
+#if U_PLATFORM == U_PF_MINGW
+// *cough* - for struct stat
+#ifdef __STRICT_ANSI__
+#undef __STRICT_ANSI__
+#endif
+#endif
 
 #include <stdio.h>
 #include <sys/stat.h>
 #include "unicode/utypes.h"
 
-#ifdef U_WINDOWS
+#ifndef U_TOOLUTIL_IMPLEMENTATION
+#error U_TOOLUTIL_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see http://userguide.icu-project.org/howtouseicu
+#endif
+
+#if U_PLATFORM_USES_ONLY_WIN32_API
 #   define VC_EXTRALEAN
 #   define WIN32_LEAN_AND_MEAN
 #   define NOUSER
 #   define NOSERVICE
 #   define NOIME
 #   define NOMCX
+#   if U_PLATFORM == U_PF_MINGW
+#     define __NO_MINGW_LFS /* gets around missing 'off64_t' */
+#   endif
 #   include <windows.h>
 #   include <direct.h>
 #else
@@ -37,7 +51,7 @@
 #endif
 
 /* In MinGW environment, io.h needs to be included for _mkdir() */
-#ifdef __MINGW32__
+#if U_PLATFORM == U_PF_MINGW
 #include <io.h>
 #endif
 
@@ -86,7 +100,7 @@ U_CAPI int32_t U_EXPORT2 getCurrentYear() {
 
 U_CAPI const char * U_EXPORT2
 getLongPathname(const char *pathname) {
-#ifdef U_WINDOWS
+#if U_PLATFORM_USES_ONLY_WIN32_API
     /* anticipate problems with "short" pathnames */
     static WIN32_FIND_DATAA info;
     HANDLE file=FindFirstFileA(pathname, &info);
@@ -121,9 +135,9 @@ findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) 
   }
 #endif
   if(!basename) {
-    /* no basename - return '.'. */
-    resultPtr = ".";
-    resultLen = 1;
+    /* no basename - return ''. */
+    resultPtr = "";
+    resultLen = 0;
   } else {
     resultPtr = path;
     resultLen = basename - path;
@@ -147,7 +161,10 @@ findBasename(const char *filename) {
     const char *basename=uprv_strrchr(filename, U_FILE_SEP_CHAR);
 
 #if U_FILE_ALT_SEP_CHAR!=U_FILE_SEP_CHAR
-    if(basename==NULL) {
+#if !(U_PLATFORM == U_PF_CYGWIN && U_PLATFORM_USES_ONLY_WIN32_API)
+    if(basename==NULL)
+#endif
+    {
         /* Use lenient matching on Windows, which can accept either \ or /
            This is useful for environments like Win32+CygWin which have both.
         */
@@ -166,26 +183,38 @@ U_CAPI void U_EXPORT2
 uprv_mkdir(const char *pathname, UErrorCode *status) {
 
     int retVal = 0;
-#if defined(U_WINDOWS) || defined(__MINGW32__)
+#if U_PLATFORM_USES_ONLY_WIN32_API
     retVal = _mkdir(pathname);
 #else
     retVal = mkdir(pathname, S_IRWXU | (S_IROTH | S_IXOTH) | (S_IROTH | S_IXOTH));
 #endif
     if (retVal && errno != EEXIST) {
-#if defined(U_CYGWIN)
-		/*if using Cygwin and the mkdir says it failed...check if the directory already exists..*/
-		/* if it does...don't give the error, if it does not...give the error - Brian Rower - 6/25/08 */
-		struct stat st;
-		
-		if(stat(pathname,&st) != 0)
-		{
-			*status = U_FILE_ACCESS_ERROR;
-		}
+#if U_PF_MINGW <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
+        /*if using Cygwin and the mkdir says it failed...check if the directory already exists..*/
+        /* if it does...don't give the error, if it does not...give the error - Brian Rower - 6/25/08 */
+        struct stat st;
+
+        if(stat(pathname,&st) != 0)
+        {
+            *status = U_FILE_ACCESS_ERROR;
+        }
 #else
         *status = U_FILE_ACCESS_ERROR;
 #endif
     }
 }
+
+#if !UCONFIG_NO_FILE_IO
+U_CAPI UBool U_EXPORT2
+uprv_fileExists(const char *file) {
+  struct stat stat_buf;
+  if (stat(file, &stat_buf) == 0) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+#endif
 
 /*U_CAPI UDate U_EXPORT2
 uprv_getModificationDate(const char *pathname, UErrorCode *status)

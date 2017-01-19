@@ -1,13 +1,13 @@
 /********************************************************************
- * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * COPYRIGHT:
+ * Copyright (c) 1997-2012, International Business Machines Corporation and
  * others. All Rights Reserved.
- * Copyright (C) 2010 , Yahoo! Inc. 
+ * Copyright (C) 2010 , Yahoo! Inc.
  ********************************************************************/
 
 #include <stdio.h>
 #include <string.h>
-#include "unicode/utypeinfo.h"  // for 'typeid' to work
+#include "utypeinfo.h"  // for 'typeid' to work
 
 #include "uobjtest.h"
 #include "cmemory.h" // UAlignedMemory
@@ -249,6 +249,8 @@ UObject *UObjectTest::testClassNoClassID(UObject *obj, const char *className, co
 #include "reldtfmt.h"
 
 // External Things
+#include "unicode/appendable.h"
+#include "unicode/alphaindex.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/caniter.h"
@@ -290,6 +292,7 @@ UObject *UObjectTest::testClassNoClassID(UObject *obj, const char *className, co
 #include "unicode/timezone.h"
 #include "unicode/translit.h"
 #include "unicode/uchriter.h"
+#include "unicode/uloc.h"
 #include "unicode/unifilt.h"
 #include "unicode/unifunct.h"
 #include "unicode/uniset.h"
@@ -311,11 +314,18 @@ public:
 };
 #endif
 
+// Appendable is abstract; we define a subclass to verify that there is no "poor man's RTTI".
+class DummyAppendable : public Appendable {
+public:
+    virtual UBool appendCodeUnit(UChar /*c*/) { return TRUE; }
+};
+
 void UObjectTest::testIDs()
 {
     ids_count = 0;
     UErrorCode status = U_ZERO_ERROR;
-    static const UChar SMALL_STR[] = {0x51, 0x51, 0x51, 0}; // "QQQ"
+
+    TESTCLASSID_NONE_CTOR(UObject, ());
 
 #if !UCONFIG_NO_TRANSLITERATION || !UCONFIG_NO_FORMATTING
     UParseError parseError;
@@ -357,6 +367,8 @@ void UObjectTest::testIDs()
     TESTCLASSID_CTOR(DecimalFormatSymbols, (status));
     TESTCLASSID_DEFAULT(FieldPosition);
     TESTCLASSID_DEFAULT(Formattable);
+
+    static const UChar SMALL_STR[] = {0x51, 0x51, 0x51, 0}; // "QQQ"
     TESTCLASSID_CTOR(CurrencyAmount, (1.0, SMALL_STR, status));
     TESTCLASSID_CTOR(CurrencyUnit, (SMALL_STR, status));
     TESTCLASSID_NONE_FACTORY(LocaleDisplayNames, LocaleDisplayNames::createInstance("de"));
@@ -370,9 +382,11 @@ void UObjectTest::testIDs()
     TESTCLASSID_FACTORY(IndianCalendar, Calendar::createInstance(Locale("@calendar=indian"), status));
     TESTCLASSID_FACTORY(ChineseCalendar, Calendar::createInstance(Locale("@calendar=chinese"), status));
     TESTCLASSID_FACTORY(TaiwanCalendar, Calendar::createInstance(Locale("@calendar=roc"), status));
-#ifdef U_WINDOWS
+#if U_PLATFORM_HAS_WIN32_API
     TESTCLASSID_FACTORY(Win32DateFormat, DateFormat::createDateInstance(DateFormat::kFull, Locale("@compat=host")));
+#if U_PLATFORM_USES_ONLY_WIN32_API
     TESTCLASSID_FACTORY(Win32NumberFormat, NumberFormat::createInstance(Locale("@compat=host"), status));
+#endif
 #endif
 #endif
 
@@ -445,7 +459,8 @@ void UObjectTest::testIDs()
     TESTCLASSID_FACTORY(OlsonTimeZone, TimeZone::createTimeZone(UnicodeString("America/Los_Angeles")));
     TESTCLASSID_FACTORY_HIDDEN(KeywordEnumeration, TimeZone::createEnumeration());
 #endif
-    
+
+    TESTCLASSID_NONE_DEFAULT(DummyAppendable);
     TESTCLASSID_DEFAULT(UnicodeString);
     TESTCLASSID_CTOR(UnicodeSet, (0, 1));
     TESTCLASSID_ABSTRACT(UnicodeFilter);
@@ -468,6 +483,10 @@ void UObjectTest::testIDs()
 //#if UOBJTEST_TEST_INTERNALS
 //    TESTCLASSID_CTOR(LocaleKeyFactory, (42));
 //#endif
+#endif
+
+#if !UCONFIG_NO_COLLATION && !UCONFIG_NO_NORMALIZATION
+    TESTCLASSID_NONE_CTOR(AlphabeticIndex, (Locale::getEnglish(), status));
 #endif
 
 #if UOBJTEST_DUMP_IDS
@@ -562,6 +581,7 @@ void UObjectTest::TestMFCCompatibility() {
 }
 
 void UObjectTest::TestCompilerRTTI() {
+#if !UCONFIG_NO_FORMATTING
     UErrorCode errorCode = U_ZERO_ERROR;
     NumberFormat *nf = NumberFormat::createInstance("de", errorCode);
     if (U_FAILURE(errorCode)) {
@@ -579,6 +599,7 @@ void UObjectTest::TestCompilerRTTI() {
         errln("typeid(NumberFormat) failed");
     }
     delete nf;
+#endif
 }
 
 /* --------------- */

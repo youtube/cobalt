@@ -57,6 +57,8 @@
 #include <unicode/uloc.h>
 #endif
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 
@@ -293,6 +295,7 @@ js::CloneFunctionAtCallsite(JSContext *cx, HandleFunction fun, HandleScript scri
 JSContext *
 js::NewContext(JSRuntime *rt, size_t stackChunkSize)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_AbortIfWrongThread(rt);
 
     JSContext *cx = js_new<JSContext>(rt);

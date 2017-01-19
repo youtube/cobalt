@@ -1,7 +1,7 @@
 //
 //  regexcmp.h
 //
-//  Copyright (C) 2002-2010, International Business Machines Corporation and others.
+//  Copyright (C) 2002-2015, International Business Machines Corporation and others.
 //  All Rights Reserved.
 //
 //  This file contains declarations for the class RegexCompile
@@ -22,6 +22,7 @@
 #include "unicode/parseerr.h"
 #include "uhash.h"
 #include "uvector.h"
+#include "uvectr32.h"
 
 
 
@@ -37,7 +38,7 @@ struct  RegexTableEl;
 class   RegexPattern;
 
 
-class RegexCompile : public UMemory {
+class U_I18N_API RegexCompile : public UMemory {
 public:
 
     enum {
@@ -100,11 +101,16 @@ private:
                                int32_t LoopOp);
     UBool       compileInlineInterval();             // Generate inline code for a {min,max} quantifier
     void        literalChar(UChar32 c);              // Compile a literal char
-    void        fixLiterals(UBool split=FALSE);      // Fix literal strings.
+    void        fixLiterals(UBool split=FALSE);      // Generate code for pending literal characters.
     void        insertOp(int32_t where);             // Open up a slot for a new op in the
                                                      //   generated code at the specified location.
-    void        emitONE_CHAR(UChar32 c);             // Emit a ONE_CHAR op into the compiled code,
-                                                     //   taking case mode into account.
+    void        appendOp(int32_t op);                // Append a new op to the compiled pattern.
+    void        appendOp(int32_t type, int32_t val); // Build & append a new op to the compiled pattern.
+    int32_t     buildOp(int32_t type, int32_t val);  // Construct a new pcode instruction.
+    int32_t     allocateData(int32_t size);          // Allocate space in the matcher data area.
+                                                     //   Return index of the newly allocated data.
+    int32_t     allocateStackData(int32_t size);     // Allocate space in the match back-track stack frame.
+                                                     //   Return offset index in the frame.
     int32_t     minMatchLength(int32_t start,
                                int32_t end);
     int32_t     maxMatchLength(int32_t start,
@@ -116,6 +122,10 @@ private:
     void        setPushOp(int32_t op);
     UChar32     scanNamedChar();
     UnicodeSet *createSetForProperty(const UnicodeString &propName, UBool negated);
+
+public:   // Public for testing only.
+    static void U_EXPORT2 findCaseInsensitiveStarters(UChar32 c, UnicodeSet *starterChars);
+private:
 
 
     UErrorCode                    *fStatus;
@@ -162,10 +172,11 @@ private:
                                                      //   until last flag is scanned.
     UBool                         fSetModeFlag;      // true for (?ismx, false for (?-ismx
 
-
-    int32_t                       fStringOpStart;    // While a literal string is being scanned
-                                                     //   holds the start index within RegexPattern.
-                                                     //   fLiteralText where the string is being stored.
+    UnicodeString                 fLiteralChars;     // Literal chars or strings from the pattern are accumulated here.
+                                                     //   Once completed, meaning that some non-literal pattern
+                                                     //   construct is encountered, the appropriate opcodes
+                                                     //   to match the literal will be generated, and this
+                                                     //   string will be cleared.
 
     int64_t                       fPatternLength;    // Length of the input pattern string.
     
@@ -183,7 +194,9 @@ private:
     int32_t                       fMatchOpenParen;   // The position in the compiled pattern
                                                      //   of the slot reserved for a state save
                                                      //   at the start of the most recently processed
-                                                     //   parenthesized block.
+                                                     //   parenthesized block. Updated when processing
+                                                     //   a close to the location for the corresponding open.
+
     int32_t                       fMatchCloseParen;  // The position in the pattern of the first
                                                      //   location after the most recently processed
                                                      //   parenthesized block.
@@ -207,6 +220,9 @@ private:
     UChar32                       fLastSetLiteral;   // The last single code point added to a set.
                                                      //   needed when "-y" is scanned, and we need
                                                      //   to turn "x-y" into a range.
+
+    UnicodeString                *fCaptureName;      // Named Capture, the group name is built up
+                                                     //   in this string while being scanned.
 };
 
 // Constant values to be pushed onto fSetOpStack while scanning & evalueating [set expressions]

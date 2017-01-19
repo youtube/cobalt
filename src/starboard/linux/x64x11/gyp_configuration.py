@@ -18,8 +18,9 @@ import os
 import sys
 
 # Import the shared Linux platform configuration.
-sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__),
-                                              os.pardir, 'shared')))
+sys.path.append(
+    os.path.realpath(
+        os.path.join(os.path.dirname(__file__), os.pardir, 'shared')))
 import gyp_configuration
 
 

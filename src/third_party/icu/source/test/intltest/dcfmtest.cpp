@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT:
- * Copyright (c) 2002-2010, International Business Machines Corporation and
+ * Copyright (c) 2002-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -28,6 +28,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#if !defined(_MSC_VER)
+namespace std { class type_info; } // WORKAROUND: http://llvm.org/bugs/show_bug.cgi?id=13364
+#endif
 
 #include <string>
 #include <iostream>
@@ -112,7 +116,7 @@ InvariantStringPiece::InvariantStringPiece(const UnicodeString &s) {
     }
     // Buffer size is len+1 so that s.extract() will nul-terminate the string.
     s.extract(0, len, buf.getAlias(), len+1, US_INV);
-    this->set(buf, len);
+    this->set(buf.getAlias(), len);
 }
 
 
@@ -138,7 +142,7 @@ UnicodeStringPiece::UnicodeStringPiece(const UnicodeString &s) {
         capacity = requiredCapacity;
         s.extract(0, len, buf.getAlias(), capacity);
     }
-    this->set(buf, requiredCapacity - 1);
+    this->set(buf.getAlias(), requiredCapacity - 1);
 }
 
 
@@ -213,9 +217,9 @@ void DecimalFormatTest::DataDrivenTests() {
     RegexMatcher    formatLineMat(UnicodeString(
             "(?i)\\s*format\\s+"
             "(\\S+)\\s+"                 // Capture group 1: pattern
-            "(ceiling|floor|down|up|halfeven|halfdown|halfup|default)\\s+"  // Capture group 2: Rounding Mode
+            "(ceiling|floor|down|up|halfeven|halfdown|halfup|default|unnecessary)\\s+"  // Capture group 2: Rounding Mode
             "\"([^\"]*)\"\\s+"           // Capture group 3: input
-            "\"([^\"]*)\""           // Capture group 4: expected output
+            "\"([^\"]*)\""               // Capture group 4: expected output
             "\\s*(?:#.*)?"),             // Trailing comment
          0, status);
 
@@ -234,7 +238,7 @@ void DecimalFormatTest::DataDrivenTests() {
     while (lineMat.find()) {
         lineNum++;
         if (U_FAILURE(status)) {
-            errln("File dcfmtest.txt, line %d: ICU Error \"%s\"", lineNum, u_errorName(status));
+            dataerrln("File dcfmtest.txt, line %d: ICU Error \"%s\"", lineNum, u_errorName(status));
         }
 
         status = U_ZERO_ERROR;
@@ -280,6 +284,15 @@ void DecimalFormatTest::DataDrivenTests() {
                            formatLineMat.group(2, status),    // rounding mode
                            formatLineMat.group(3, status),    // input decimal number
                            formatLineMat.group(4, status),    // expected formatted result
+                           kFormattable,
+                           status);
+
+            execFormatTest(lineNum,
+                           formatLineMat.group(1, status),    // Pattern
+                           formatLineMat.group(2, status),    // rounding mode
+                           formatLineMat.group(3, status),    // input decimal number
+                           formatLineMat.group(4, status),    // expected formatted result
+                           kStringPiece,
                            status);
             continue;
         }
@@ -312,7 +325,7 @@ void DecimalFormatTest::execParseTest(int32_t lineNum,
     DecimalFormat format(pattern, symbols, status);
     Formattable   result;
     if (U_FAILURE(status)) {
-        errln("file dcfmtest.txt, line %d: %s error creating the formatter.",
+        dataerrln("file dcfmtest.txt, line %d: %s error creating the formatter.",
             lineNum, u_errorName(status));
         return;
     }
@@ -368,6 +381,7 @@ void DecimalFormatTest::execFormatTest(int32_t lineNum,
                            const UnicodeString &round,       // rounding mode
                            const UnicodeString &input,       // input decimal number
                            const UnicodeString &expected,    // expected formatted result
+                           EFormatInputType inType,          // input number type
                            UErrorCode &status) {
     if (U_FAILURE(status)) {
         return;
@@ -377,7 +391,7 @@ void DecimalFormatTest::execFormatTest(int32_t lineNum,
     // printf("Pattern = %s\n", UnicodeStringPiece(pattern).data());
     DecimalFormat fmtr(pattern, symbols, status);
     if (U_FAILURE(status)) {
-        errln("file dcfmtest.txt, line %d: %s error creating the formatter.",
+        dataerrln("file dcfmtest.txt, line %d: %s error creating the formatter.",
             lineNum, u_errorName(status));
         return;
     }
@@ -397,30 +411,49 @@ void DecimalFormatTest::execFormatTest(int32_t lineNum,
         fmtr.setRoundingMode(DecimalFormat::kRoundHalfUp);
     } else if (round=="default") {
         // don't set any value.
+    } else if (round=="unnecessary") {
+        fmtr.setRoundingMode(DecimalFormat::kRoundUnnecessary);
     } else {
         fmtr.setRoundingMode(DecimalFormat::kRoundFloor);
         errln("file dcfmtest.txt, line %d: Bad rounding mode \"%s\"",
                 lineNum, UnicodeStringPiece(round).data());
     }
-    
+
+    const char *typeStr = "Unknown";
     UnicodeString result;
     UnicodeStringPiece spInput(input);
-    //fmtr.format(spInput, result, NULL, status);
 
-    Formattable fmtbl;
-    fmtbl.setDecimalNumber(spInput, status);
-    //NumberFormat &nfmtr = fmtr;
-    fmtr.format(fmtbl, result, NULL, status);
+    switch (inType) {
+    case kFormattable:
+        {
+            typeStr = "Formattable";
+            Formattable fmtbl;
+            fmtbl.setDecimalNumber(spInput, status);
+            fmtr.format(fmtbl, result, NULL, status);
+        }
+        break;
+    case kStringPiece:
+        typeStr = "StringPiece";
+        fmtr.format(spInput, result, NULL, status);
+        break;
+    }
+
+    if ((status == U_FORMAT_INEXACT_ERROR) && (result == "") && (expected == "Inexact")) {
+        // Test succeeded.
+        status = U_ZERO_ERROR;
+        return;
+    }
 
     if (U_FAILURE(status)) {
-        errln("file dcfmtest.txt, line %d: format() returned %s.",
-            lineNum, u_errorName(status));
+        errln("[%s] file dcfmtest.txt, line %d: format() returned %s.",
+            typeStr, lineNum, u_errorName(status));
+        status = U_ZERO_ERROR;
         return;
     }
     
     if (result != expected) {
-        errln("file dcfmtest.txt, line %d: expected \"%s\", got \"%s\"",
-            lineNum, UnicodeStringPiece(expected).data(), UnicodeStringPiece(result).data());
+        errln("[%s] file dcfmtest.txt, line %d: expected \"%s\", got \"%s\"",
+            typeStr, lineNum, UnicodeStringPiece(expected).data(), UnicodeStringPiece(result).data());
     }
 }
 

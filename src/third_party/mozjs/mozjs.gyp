@@ -44,7 +44,7 @@
       'js/src',
       'js/src/assembler',
       'mfbt/double-conversion',
-      '<(DEPTH)/third_party/icu/public/common',
+      '<(DEPTH)/third_party/icu/source/common',
       '<(generated_include_directory)',
     ],
     'conditions': [
@@ -208,6 +208,7 @@
       ],
       'dependencies': [
         'build_include_directory',
+        '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',

@@ -1,6 +1,6 @@
 /************************************************************************
  * COPYRIGHT:
- * Copyright (c) 1997-2010, International Business Machines Corporation
+ * Copyright (c) 1997-2015, International Business Machines Corporation
  * and others. All Rights Reserved.
  ************************************************************************/
 
@@ -14,6 +14,19 @@
 #include "unicode/numfmt.h"
 #include "unicode/decimfmt.h"
 #include "caltztst.h"
+
+/**
+ * Expected field positions from field position iterator. Tests should
+ * stack allocate an array of these making sure that the last element is
+ * {0, -1, 0} (The sentinel element indicating end of iterator). Then test
+ * should call verifyFieldPositionIterator() passing both this array of
+ * expected results and the field position iterator from the format method.
+ */
+struct NumberFormatTest_Attributes {
+    int32_t id;
+    int32_t spos;
+    int32_t epos;
+};
 
 /**
  * Performs various in-depth test on NumberFormat
@@ -130,6 +143,8 @@ class NumberFormatTest: public CalendarTimeZoneTest {
     /* Port of ICU4J rounding test. */
     void TestRounding(void);
 
+    void TestRoundingPattern(void);
+
     void TestNonpositiveMultiplier(void);
 
     void TestNumberingSystems();
@@ -145,12 +160,64 @@ class NumberFormatTest: public CalendarTimeZoneTest {
     void TestFormatAttributes();
     void TestFieldPositionIterator();
 
+    void TestLenientParse();
+
     void TestDecimal();
     void TestCurrencyFractionDigits();
 
     void TestExponentParse();
+    void TestExplicitParents();
+    void TestAvailableNumberingSystems();
+    void Test9087();
+    void TestFormatFastpaths();
+
+    void TestFormattableSize();
+
+    void TestUFormattable();
+
+    void TestEnumSet();
+
+    void TestSignificantDigits();
+    void TestShowZero();
+
+    void TestCompatibleCurrencies();
+    void TestBug9936();
+    void TestParseNegativeWithFaLocale();
+    void TestParseNegativeWithAlternateMinusSign();
+
+    void TestCustomCurrencySignAndSeparator();
+
+    void TestParseSignsAndMarks();
+    void Test10419RoundingWith0FractionDigits();
+    void Test10468ApplyPattern();
+    void TestRoundingScientific10542();
+    void TestZeroScientific10547();
+    void TestAccountingCurrency();
+    void TestEquality();
+
+    void TestCurrencyUsage();
+    void TestNumberFormatTestTuple();
+    void TestDataDriven();
+
+    void TestDoubleLimit11439();
+    void TestFastPathConsistent11524();
+    void TestGetAffixes();
+    void TestToPatternScientific11648();
+    void TestBenchmark();
+    void TestCtorApplyPatternDifference();
+    void TestFractionalDigitsForCurrency();
+    void TestFormatCurrencyPlural();
+    void Test11868();
+    void Test10727_RoundingZero();
+    void Test11376_getAndSetPositivePrefix();
+    void Test11475_signRecognition();
+    void Test11640_getAffixes();
+    void Test11649_toPatternWithMultiCurrency();
 
  private:
+    UBool testFormattableAsUFormattable(const char *file, int line, Formattable &f);
+
+    void expectParseCurrency(const NumberFormat &fmt, const UChar* currency, double amount, const char *text);
 
     static UBool equalValue(const Formattable& a, const Formattable& b);
 
@@ -189,11 +256,21 @@ class NumberFormatTest: public CalendarTimeZoneTest {
     }
 
     void expect(NumberFormat* fmt, const Formattable& n,
-                const UnicodeString& exp, UErrorCode);
+                const UnicodeString& exp, UBool rt, UErrorCode errorCode);
+
+    void expect(NumberFormat* fmt, const Formattable& n,
+                const char *exp, UBool rt, UErrorCode errorCode) {
+        expect(fmt, n, UnicodeString(exp, ""), rt, errorCode);
+    }
+
+    void expect(NumberFormat* fmt, const Formattable& n,
+                const UnicodeString& exp, UErrorCode errorCode) {
+        expect(fmt, n, exp, TRUE, errorCode);
+    }
 
     void expect(NumberFormat* fmt, const Formattable& n,
                 const char *exp, UErrorCode errorCode) {
-        expect(fmt, n, UnicodeString(exp, ""), errorCode);
+        expect(fmt, n, UnicodeString(exp, ""), TRUE, errorCode);
     }
 
     void expectCurrency(NumberFormat& nf, const Locale& locale,
@@ -246,6 +323,20 @@ class NumberFormatTest: public CalendarTimeZoneTest {
     void checkRounding(DecimalFormat* df, double base, int iterations, double increment);
 
     double checkRound(DecimalFormat* df, double iValue, double lastParsed);
+
+    void verifyRounding(
+        DecimalFormat& format,
+        const double *values,
+        const char * const *expected,
+        const DecimalFormat::ERoundingMode *roundingModes,
+        const char * const *descriptions,
+        int32_t valueSize,
+        int32_t roundingModeSize);
+
+    void verifyFieldPositionIterator(
+            NumberFormatTest_Attributes *expected,
+            FieldPositionIterator &iter);
+
 };
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

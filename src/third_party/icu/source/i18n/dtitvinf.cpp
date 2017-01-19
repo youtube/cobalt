@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (C) 2008-2010, International Business Machines Corporation and
+* Copyright (C) 2008-2015, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 *
@@ -221,10 +221,9 @@ DateIntervalInfo::initializeData(const Locale& locale, UErrorCode& err)
   }
   const char *locName = locale.getName();
   char parentLocale[ULOC_FULLNAME_CAPACITY];
-  int32_t locNameLen;
   uprv_strcpy(parentLocale, locName);
   UErrorCode status = U_ZERO_ERROR;
-  Hashtable skeletonSet(FALSE, status);
+  Hashtable skeletonKeyPairs(FALSE, status);
   if ( U_FAILURE(status) ) {
       return;
   }
@@ -247,6 +246,9 @@ DateIntervalInfo::initializeData(const Locale& locale, UErrorCode& err)
   do {
     UResourceBundle *rb, *calBundle, *calTypeBundle, *itvDtPtnResource;
     rb = ures_open(NULL, parentLocale, &status);
+    if ( U_FAILURE(status) ) {
+        break;
+    }
     calBundle = ures_getByKey(rb, gCalendarTag, NULL, &status); 
     calTypeBundle = ures_getByKey(calBundle, calendarTypeToUse, NULL, &status);
     itvDtPtnResource = ures_getByKeyWithFallback(calTypeBundle, 
@@ -267,46 +269,43 @@ DateIntervalInfo::initializeData(const Locale& locale, UErrorCode& err)
         int32_t size = ures_getSize(itvDtPtnResource);
         int32_t index;
         for ( index = 0; index < size; ++index ) {
-            UResourceBundle* oneRes = ures_getByIndex(itvDtPtnResource, index, 
-                                                     NULL, &status);
+            LocalUResourceBundlePointer oneRes(ures_getByIndex(itvDtPtnResource, index, 
+                                                     NULL, &status));
             if ( U_SUCCESS(status) ) {
-                const char* skeleton = ures_getKey(oneRes);
-                if ( skeleton == NULL || 
-                     skeletonSet.geti(UnicodeString(skeleton)) == 1 ) {
-                    ures_close(oneRes);
+                const char* skeleton = ures_getKey(oneRes.getAlias());
+                if (skeleton == NULL) {
                     continue;
                 }
-                skeletonSet.puti(UnicodeString(skeleton), 1, status);
+                UnicodeString skeletonUniStr(skeleton, -1, US_INV);
                 if ( uprv_strcmp(skeleton, gFallbackPatternTag) == 0 ) {
-                    ures_close(oneRes);
                     continue;  // fallback
                 }
-    
-                UResourceBundle* intervalPatterns = ures_getByKey(
-                                     itvDtPtnResource, skeleton, NULL, &status);
-    
+
+                LocalUResourceBundlePointer intervalPatterns(ures_getByKey(
+                                     itvDtPtnResource, skeleton, NULL, &status));
+
                 if ( U_FAILURE(status) ) {
-                    ures_close(intervalPatterns);
-                    ures_close(oneRes);
                     break;
                 }
                 if ( intervalPatterns == NULL ) {
-                    ures_close(intervalPatterns);
-                    ures_close(oneRes);
                     continue;
                 }
-    
-                const UChar* pattern;
+
                 const char* key;
-                int32_t ptLength;
-                int32_t ptnNum = ures_getSize(intervalPatterns);
+                int32_t ptnNum = ures_getSize(intervalPatterns.getAlias());
                 int32_t ptnIndex;
                 for ( ptnIndex = 0; ptnIndex < ptnNum; ++ptnIndex ) {
-                    pattern = ures_getNextString(intervalPatterns, &ptLength, &key,
-                                                 &status);
+                    UnicodeString pattern =
+                        ures_getNextUnicodeString(intervalPatterns.getAlias(), &key, &status);
                     if ( U_FAILURE(status) ) {
                         break;
                     }
+                    UnicodeString keyUniStr(key, -1, US_INV);
+                    UnicodeString skeletonKeyPair(skeletonUniStr + keyUniStr);
+                    if ( skeletonKeyPairs.geti(skeletonKeyPair) == 1 ) {
+                        continue;
+                    }
+                    skeletonKeyPairs.puti(skeletonKeyPair, 1, status);
         
                     UCalendarDateFields calendarField = UCAL_FIELD_COUNT;
                     if ( !uprv_strcmp(key, "y") ) {
@@ -323,22 +322,44 @@ DateIntervalInfo::initializeData(const Locale& locale, UErrorCode& err)
                         calendarField = UCAL_MINUTE;
                     }
                     if ( calendarField != UCAL_FIELD_COUNT ) {
-                        setIntervalPatternInternally(skeleton, calendarField, pattern,status);
+                        setIntervalPatternInternally(skeletonUniStr, calendarField, pattern,status);
                     }
                 }
-                ures_close(intervalPatterns);
             }
-            ures_close(oneRes);
         }
     }
     ures_close(itvDtPtnResource);
     ures_close(calTypeBundle);
     ures_close(calBundle);
-    ures_close(rb);
+
     status = U_ZERO_ERROR;
-    locNameLen = uloc_getParent(parentLocale, parentLocale,
-                                ULOC_FULLNAME_CAPACITY,&status);
-  } while ( locNameLen > 0 );
+    // Find the name of the appropriate parent locale (from %%Parent if present, else
+    // uloc_getParent on the actual locale name)
+    // (It would be nice to have a ures function that did this...)
+    int32_t locNameLen;
+    const UChar * parentUName = ures_getStringByKey(rb, "%%Parent", &locNameLen, &status);
+    if (U_SUCCESS(status) && status != U_USING_FALLBACK_WARNING && locNameLen < ULOC_FULLNAME_CAPACITY) {
+        u_UCharsToChars(parentUName, parentLocale, locNameLen + 1);
+    } else {
+        status = U_ZERO_ERROR;
+        // Get the actual name of the current locale being used
+        const char *curLocaleName=ures_getLocaleByType(rb, ULOC_ACTUAL_LOCALE, &status);
+        if ( U_FAILURE(status) ) {
+            curLocaleName = parentLocale;
+            status = U_ZERO_ERROR;
+        }
+        uloc_getParent(curLocaleName, parentLocale, ULOC_FULLNAME_CAPACITY, &status);
+        if (U_FAILURE(err) || err == U_STRING_NOT_TERMINATED_WARNING) {
+            parentLocale[0] = 0; // just fallback to root, will cause us to stop
+            status = U_ZERO_ERROR;
+        }
+    }
+    // Now we can close the current locale bundle
+    ures_close(rb);
+    // If the new current locale is root, then stop
+    // (unlike for DateTimePatternGenerator, DateIntervalFormat does not go all the way up
+    // to root to find additional data for non-root locales)
+  } while ( parentLocale[0] != 0 && uprv_strcmp(parentLocale,"root")!=0 );
 }
 
 
@@ -445,14 +466,8 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
     const UnicodeString* inputSkeleton = &skeleton; 
     UnicodeString copySkeleton;
     if ( skeleton.indexOf(CHAR_Z) != -1 ) {
-        UChar zstr[2];
-        UChar vstr[2]; 
-        zstr[0]=CHAR_Z;
-        vstr[0]=CHAR_V;
-        zstr[1]=0;
-        vstr[1]=0;
         copySkeleton = skeleton;
-        copySkeleton.findAndReplace(zstr, vstr);
+        copySkeleton.findAndReplace(UnicodeString(CHAR_Z), UnicodeString(CHAR_V));
         inputSkeleton = &copySkeleton;
         replaceZWithV = true;
     }
@@ -468,7 +483,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
     bestMatchDistanceInfo = 0;
     int8_t fieldLength = sizeof(skeletonFieldWidth)/sizeof(skeletonFieldWidth[0]);
 
-    int32_t pos = -1;
+    int32_t pos = UHASH_FIRST;
     const UHashElement* elem = NULL;
     while ( (elem = fIntervalPatterns->nextElement(pos)) != NULL ) {
         const UHashTok keyTok = elem->key;
@@ -559,6 +574,9 @@ DateIntervalInfo::calendarFieldToIntervalIndex(UCalendarDateFields field,
       case UCAL_MINUTE:
         index = kIPI_MINUTE;
         break;
+      case UCAL_SECOND:
+        index = kIPI_SECOND;
+        break;
       default:
         status = U_ILLEGAL_ARGUMENT_ERROR;
     }
@@ -573,10 +591,9 @@ DateIntervalInfo::deleteHash(Hashtable* hTable)
     if ( hTable == NULL ) {
         return;
     }
-    int32_t pos = -1;
+    int32_t pos = UHASH_FIRST;
     const UHashElement* element = NULL;
     while ( (element = hTable->nextElement(pos)) != NULL ) {
-        const UHashTok keyTok = element->key;
         const UHashTok valueTok = element->value;
         const UnicodeString* value = (UnicodeString*)valueTok.pointer;
         delete[] value;
@@ -621,6 +638,10 @@ DateIntervalInfo::initHash(UErrorCode& status) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
+    if ( U_FAILURE(status) ) {
+        delete hTable; 
+        return NULL;
+    }
     hTable->setValueComparator(dtitvinfHashTableValueComparator);
     return hTable;
 }
@@ -633,7 +654,7 @@ DateIntervalInfo::copyHash(const Hashtable* source,
     if ( U_FAILURE(status) ) {
         return;
     }
-    int32_t pos = -1;
+    int32_t pos = UHASH_FIRST;
     const UHashElement* element = NULL;
     if ( source ) {
         while ( (element = source->nextElement(pos)) != NULL ) {

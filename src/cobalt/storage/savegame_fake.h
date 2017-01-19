@@ -38,7 +38,7 @@ class SavegameFake : public Savegame {
     }
   }
 
-  bool PlatformRead(ByteVector* bytes) OVERRIDE;
+  bool PlatformRead(ByteVector* bytes, size_t max_to_read) OVERRIDE;
   bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
   bool PlatformDelete() OVERRIDE;
   static scoped_ptr<Savegame> Create(const Options& options);

@@ -38,11 +38,13 @@ class VideoRenderer : private VideoDecoder::Host {
   explicit VideoRenderer(scoped_ptr<VideoDecoder> decoder);
 
   bool is_valid() const { return true; }
+  int GetDroppedFrames() const { return dropped_frames_; }
 
   void WriteSample(const InputBuffer& input_buffer);
   void WriteEndOfStream();
 
   void Seek(SbMediaTime seek_to_pts);
+  void Update();
 
   scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time);
 
@@ -56,12 +58,12 @@ class VideoRenderer : private VideoDecoder::Host {
 
   // Preroll considered finished after either kPrerollFrames is cached or EOS
   // is reached.
-  static const size_t kPrerollFrames = 1;
+  static const size_t kPrerollFrames = 8;
   // Set a soft limit for the max video frames we can cache so we can:
   // 1. Avoid using too much memory.
   // 2. Have the frame cache full to simulate the state that the renderer can
   //    no longer accept more data.
-  static const size_t kMaxCachedFrames = 8;
+  static const size_t kMaxCachedFrames = 12;
 
   // VideoDecoder::Host method.
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
@@ -76,13 +78,14 @@ class VideoRenderer : private VideoDecoder::Host {
 
   // During seeking, all frames inside |frames_| will be cleared but the app
   // should still display the last frame it is rendering.  This frame will be
-  // kept inside |seeking_frame_|.  It is an empty/black frame before the video
-  // is started.
-  scoped_refptr<VideoFrame> seeking_frame_;
+  // kept inside |last_displayed_frame_|.  It is an empty/black frame before the
+  // video is started.
+  scoped_refptr<VideoFrame> last_displayed_frame_;
 
   SbMediaTime seeking_to_pts_;
   bool end_of_stream_written_;
   bool need_more_input_;
+  int dropped_frames_;
 
   scoped_ptr<VideoDecoder> decoder_;
 };

@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "base/containers/linked_hash_map.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -34,6 +35,13 @@
 #include "third_party/skia/include/gpu/GrTexture.h"
 #include "third_party/skia/include/gpu/SkGrPixelRef.h"
 #include "third_party/skia/src/gpu/SkGpuDevice.h"
+
+namespace {
+  // Some clients call Submit() multiple times with up to 2 different render
+  // targets each frame, so the max must be at least 2 to avoid constantly
+  // generating new surfaces.
+  static const size_t kMaxSkSurfaceCount = 2;
+}
 
 namespace cobalt {
 namespace renderer {
@@ -54,6 +62,11 @@ class HardwareRasterizer::Impl {
   render_tree::ResourceProvider* GetResourceProvider();
 
  private:
+  // Note: We cannot store a SkAutoTUnref<SkSurface> in the map because it is
+  // not copyable; so we must manually manage our references when adding /
+  // removing SkSurfaces from it.
+  typedef base::linked_hash_map<
+    backend::RenderTarget*, SkSurface*> SkSurfaceMap;
   class CachedScratchSurfaceHolder
       : public RenderTreeNodeVisitor::ScratchSurface {
    public:
@@ -81,7 +94,7 @@ class HardwareRasterizer::Impl {
 
   SkAutoTUnref<GrContext> gr_context_;
 
-  SkAutoTUnref<SkSurface> sk_output_surface_;
+  SkSurfaceMap sk_output_surface_map_;
 
   base::optional<ScratchSurfaceCache> scratch_surface_cache_;
 
@@ -185,7 +198,10 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
 HardwareRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
-  sk_output_surface_.reset(NULL);
+  for (SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
+    iter != sk_output_surface_map_.end(); iter++) {
+    iter->second->unref();
+  }
   surface_cache_ = base::nullopt;
   surface_cache_delegate_ = base::nullopt;
   scratch_surface_cache_ = base::nullopt;
@@ -203,6 +219,12 @@ void HardwareRasterizer::Impl::Submit(
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
           render_target.get());
 
+  // Skip rendering if we lost the surface. This can happen just before suspend
+  // on Android, so now we're just waiting for the suspend to clean up.
+  if (render_target_egl->is_surface_bad()) {
+    return;
+  }
+
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
 
@@ -217,7 +239,19 @@ void HardwareRasterizer::Impl::Submit(
     surface_cache_->Frame();
   }
 
-  if (!sk_output_surface_) {
+  SkSurface* sk_output_surface;
+  SkSurfaceMap::iterator iter = sk_output_surface_map_.find(render_target);
+  if (iter == sk_output_surface_map_.end()) {
+    // Remove the least recently used SkSurface from the map if we exceed the
+    // max allowed saved surfaces.
+    if (sk_output_surface_map_.size() > kMaxSkSurfaceCount) {
+      SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
+      DLOG(WARNING) << "Erasing the SkSurface for RenderTarget " << iter->first
+        << " this should not happen often or else it means the surface map is"
+        << " probably thrashing.";
+      iter->second->unref();
+      sk_output_surface_map_.erase(iter);
+    }
     // Setup a Skia render target that wraps the passed in Cobalt render target.
     SkAutoTUnref<GrRenderTarget> skia_render_target(
         gr_context_->wrapBackendRenderTarget(
@@ -226,11 +260,18 @@ void HardwareRasterizer::Impl::Submit(
 
     // Create an SkSurface from the render target so that we can acquire a
     // SkCanvas object from it in Submit().
-    sk_output_surface_.reset(CreateSkiaRenderTargetSurface(skia_render_target));
+    sk_output_surface = CreateSkiaRenderTargetSurface(skia_render_target);
+    sk_output_surface_map_[render_target] = sk_output_surface;
+  } else {
+    sk_output_surface = sk_output_surface_map_[render_target];
+    // Mark this RenderTarget/SkCanvas pair as the most recently used by
+    // popping it and re-adding it.
+    sk_output_surface_map_.erase(iter);
+    sk_output_surface_map_[render_target] = sk_output_surface;
   }
 
   // Get a SkCanvas that outputs to our hardware render target.
-  SkCanvas* canvas = sk_output_surface_->getCanvas();
+  SkCanvas* canvas = sk_output_surface->getCanvas();
   canvas->save();
 
   if (options.flags & Rasterizer::kSubmitFlags_Clear) {

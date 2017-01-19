@@ -1,24 +1,30 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/xml/brkitr/root.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/segments/root.xml ../../xml/brkitr/root.xml
 // *
 // ***************************************************************************
 root{
-    Version{"1.1"}
+    Version{"2.1.20.0"}
     boundaries{
         grapheme:process(dependency){"char.brk"}
-        line:process(dependency){"line.brk"}
+        line:process(dependency){"line_normal.brk"}
+        line_loose:process(dependency){"line_normal.brk"}
+        line_normal:process(dependency){"line_normal.brk"}
+        line_strict:process(dependency){"line.brk"}
         sentence:process(dependency){"sent.brk"}
         title:process(dependency){"title.brk"}
         word:process(dependency){"word.brk"}
     }
     dictionaries{
-        Thai:process(dependency){"thaidict.ctd"}
-        Hani:process(dependency){"cjdict.ctd"}
-        Hira:process(dependency){"cjdict.ctd"}
-        Kata:process(dependency){"cjdict.ctd"}
+        Hani:process(dependency){"cjdict.dict"}
+        Hira:process(dependency){"cjdict.dict"}
+        Kana:process(dependency){"cjdict.dict"}
+        Khmr:process(dependency){"khmerdict.dict"}
+        Laoo:process(dependency){"laodict.dict"}
+        Mymr:process(dependency){"burmesedict.dict"}
+        Thai:process(dependency){"thaidict.dict"}
     }
 }

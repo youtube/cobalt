@@ -1,6 +1,6 @@
 /*  
 **********************************************************************
-*   Copyright (C) 2002-2009, International Business Machines
+*   Copyright (C) 2002-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   file name:  ucnv_u7.c
@@ -16,11 +16,12 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_CONVERSION
+#if !UCONFIG_NO_CONVERSION && !UCONFIG_ONLY_HTML_CONVERSION
 
 #include "unicode/ucnv.h"
 #include "ucnv_bld.h"
 #include "ucnv_cnv.h"
+#include "uassert.h"
 
 /* UTF-7 -------------------------------------------------------------------- */
 
@@ -308,12 +309,51 @@ unicodeMode:
             if(target<targetLimit) {
                 bytes[byteIndex++]=b=*source++;
                 ++nextSourceIndex;
-                if(b>=126) {
-                    /* illegal - test other illegal US-ASCII values by base64Value==-3 */
+                base64Value = -3; /* initialize as illegal */
+                if(b>=126 || (base64Value=fromBase64[b])==-3 || base64Value==-1) {
+                    /* either
+                     * base64Value==-1 for any legal character except base64 and minus sign, or
+                     * base64Value==-3 for illegal characters:
+                     * 1. In either case, leave Unicode mode.
+                     * 2.1. If we ended with an incomplete UChar or none after the +, then
+                     *      generate an error for the preceding erroneous sequence and deal with
+                     *      the current (possibly illegal) character next time through.
+                     * 2.2. Else the current char comes after a complete UChar, which was already
+                     *      pushed to the output buf, so:
+                     * 2.2.1. If the current char is legal, just save it for processing next time.
+                     *        It may be for example, a plus which we need to deal with in direct mode.
+                     * 2.2.2. Else if the current char is illegal, we might as well deal with it here.
+                     */
                     inDirectMode=TRUE;
-                    *pErrorCode=U_ILLEGAL_CHAR_FOUND;
-                    break;
-                } else if((base64Value=fromBase64[b])>=0) {
+                    if(base64Counter==-1) {
+                        /* illegal: + immediately followed by something other than base64 or minus sign */
+                        /* include the plus sign in the reported sequence, but not the subsequent char */
+                        --source;
+                        bytes[0]=PLUS;
+                        byteIndex=1;
+                        *pErrorCode=U_ILLEGAL_CHAR_FOUND;
+                        break;
+                    } else if(bits!=0) {
+                        /* bits are illegally left over, a UChar is incomplete */
+                        /* don't include current char (legal or illegal) in error seq */
+                        --source;
+                        --byteIndex;
+                        *pErrorCode=U_ILLEGAL_CHAR_FOUND;
+                        break;
+                    } else {
+                        /* previous UChar was complete */
+                        if(base64Value==-3) {
+                            /* current character is illegal, deal with it here */
+                            *pErrorCode=U_ILLEGAL_CHAR_FOUND;
+                            break;
+                        } else {
+                            /* un-read the current character in case it is a plus sign */
+                            --source;
+                            sourceIndex=nextSourceIndex-1;
+                            goto directMode;
+                        }
+                    }
+                } else if(base64Value>=0) {
                     /* collect base64 bytes into UChars */
                     switch(base64Counter) {
                     case -1: /* -1 is immediately after the + */
@@ -364,7 +404,7 @@ unicodeMode:
                         /* will never occur */
                         break;
                     }
-                } else if(base64Value==-2) {
+                } else /*base64Value==-2*/ {
                     /* minus sign terminates the base64 sequence */
                     inDirectMode=TRUE;
                     if(base64Counter==-1) {
@@ -383,33 +423,6 @@ unicodeMode:
                     }
                     sourceIndex=nextSourceIndex;
                     goto directMode;
-                } else if(base64Value==-1) /* for any legal character except base64 and minus sign */ {
-                    /* leave the Unicode Mode */
-                    inDirectMode=TRUE;
-                    if(base64Counter==-1) {
-                        /* illegal: + immediately followed by something other than base64 or minus sign */
-                        /* include the plus sign in the reported sequence */
-                        --sourceIndex;
-                        bytes[0]=PLUS;
-                        bytes[1]=b;
-                        byteIndex=2;
-                        *pErrorCode=U_ILLEGAL_CHAR_FOUND;
-                        break;
-                    } else if(bits==0) {
-                        /* un-read the character in case it is a plus sign */
-                        --source;
-                        sourceIndex=nextSourceIndex-1;
-                        goto directMode;
-                    } else {
-                        /* bits are illegally left over, a UChar is incomplete */
-                        *pErrorCode=U_ILLEGAL_CHAR_FOUND;
-                        break;
-                    }
-                } else /* base64Value==-3 for illegal characters */ {
-                    /* illegal */
-                    inDirectMode=TRUE;
-                    *pErrorCode=U_ILLEGAL_CHAR_FOUND;
-                    break;
                 }
             } else {
                 /* target is full */
@@ -474,6 +487,7 @@ _UTF7FromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         inDirectMode=(UBool)((status>>24)&1);
         base64Counter=(int8_t)(status>>16);
         bits=(uint8_t)status;
+        U_ASSERT(bits<=sizeof(toBase64)/sizeof(toBase64[0]));
     }
 
     /* UTF-7 always encodes UTF-16 code units, therefore we need only a simple sourceIndex */
@@ -676,14 +690,26 @@ unicodeMode:
 
     if(pArgs->flush && source>=sourceLimit) {
         /* flush remaining bits to the target */
-        if(!inDirectMode && base64Counter!=0) {
+        if(!inDirectMode) {
+            if (base64Counter!=0) {
+                if(target<targetLimit) {
+                    *target++=toBase64[bits];
+                    if(offsets!=NULL) {
+                        *offsets++=sourceIndex-1;
+                    }
+                } else {
+                    cnv->charErrorBuffer[cnv->charErrorBufferLength++]=toBase64[bits];
+                    *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
+                }
+            }
+            /* Add final MINUS to terminate unicodeMode */
             if(target<targetLimit) {
-                *target++=toBase64[bits];
+                *target++=MINUS;
                 if(offsets!=NULL) {
                     *offsets++=sourceIndex-1;
                 }
             } else {
-                cnv->charErrorBuffer[cnv->charErrorBufferLength++]=toBase64[bits];
+                cnv->charErrorBuffer[cnv->charErrorBufferLength++]=MINUS;
                 *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
             }
         }
@@ -749,11 +775,8 @@ static const UConverterStaticData _UTF7StaticData={
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
 };
 
-const UConverterSharedData _UTF7Data={
-    sizeof(UConverterSharedData), ~((uint32_t)0),
-    NULL, NULL, &_UTF7StaticData, FALSE, &_UTF7Impl,
-    0
-};
+const UConverterSharedData _UTF7Data=
+        UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(&_UTF7StaticData, &_UTF7Impl);
 
 /* IMAP mailbox name encoding ----------------------------------------------- */
 
@@ -1449,10 +1472,7 @@ static const UConverterStaticData _IMAPStaticData={
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
 };
 
-const UConverterSharedData _IMAPData={
-    sizeof(UConverterSharedData), ~((uint32_t)0),
-    NULL, NULL, &_IMAPStaticData, FALSE, &_IMAPImpl,
-    0
-};
+const UConverterSharedData _IMAPData=
+        UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(&_IMAPStaticData, &_IMAPImpl);
 
 #endif

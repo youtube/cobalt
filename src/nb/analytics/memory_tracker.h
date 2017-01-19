@@ -20,19 +20,16 @@
 #include <vector>
 #include "starboard/configuration.h"
 #include "starboard/types.h"
-#include "nb/scoped_ptr.h"
+
+struct NbMemoryScopeInfo;
 
 namespace nb {
-
 namespace analytics {
 
 class MemoryTracker;
-class MemoryTrackerPrintThread;
-class MemoryTrackerPrintCSVThread;
-class MemoryTrackerCompressedTimeSeriesThread;
+class MemoryTrackerDebugCallback;
 class AllocationVisitor;
 class AllocationGroup;
-class AllocationRecord;
 
 struct MemoryStats {
   MemoryStats() : total_cpu_memory(0), used_cpu_memory(0),
@@ -44,6 +41,23 @@ struct MemoryStats {
 };
 
 MemoryStats GetProcessMemoryStats();
+
+typedef std::vector<AllocationGroup*> AllocationGroupPtrVec;
+typedef std::vector<const NbMemoryScopeInfo*> CallStack;
+
+// Contains an allocation record for a pointer including it's size and what
+// AllocationGroup it was constructed under.
+class AllocationRecord {
+ public:
+  AllocationRecord() : size(0), allocation_group(NULL) {}
+  AllocationRecord(size_t sz, AllocationGroup* group)
+      : size(sz), allocation_group(group) {}
+
+  static AllocationRecord Empty() { return AllocationRecord(); }
+  bool IsEmpty() const { return !size && !allocation_group; }
+  size_t size;
+  AllocationGroup* allocation_group;
+};
 
 // Creates a MemoryTracker instance that implements the
 //  MemoryTracker. Once the instance is created it can begin tracking
@@ -118,6 +132,13 @@ class MemoryTracker {
   // supplied AllocRecord is written.
   virtual bool GetMemoryTracking(const void* memory,
                                  AllocationRecord* record) const = 0;
+  // Attaches a debug callback which fires on every new allocation that becomes
+  // visible. The intended use case is to allow the developer to inspect
+  // allocations that meet certain criteria. For example all allocations that
+  // are of a certain size range and are allocated under a particular memory
+  // scope.
+  virtual void SetMemoryTrackerDebugCallback(
+      MemoryTrackerDebugCallback* cb) = 0;
 
  protected:
   virtual ~MemoryTracker() {}
@@ -134,38 +155,23 @@ class AllocationVisitor {
   virtual ~AllocationVisitor() {}
 };
 
-// Contains an allocation record for a pointer including it's size and what
-// AllocationGroup it was constructed under.
-class AllocationRecord {
+// See also MemoryTracker::SetMemoryTrackerDebugCallback(...)
+// The intended use case is to allow the developer to inspect
+// allocations that meet certain criteria. For example all allocations that
+// are of a certain size range and are allocated under a particular memory
+// scope.
+class MemoryTrackerDebugCallback {
  public:
-  AllocationRecord() : size(0), allocation_group(NULL) {}
-  AllocationRecord(size_t sz, AllocationGroup* group)
-      : size(sz), allocation_group(group) {}
+  virtual ~MemoryTrackerDebugCallback() {}
 
-  static AllocationRecord Empty() { return AllocationRecord(); }
-  bool IsEmpty() const { return !size && !allocation_group; }
-  size_t size;
-  AllocationGroup* allocation_group;
+  virtual void OnMemoryAllocation(const void* memory_block,
+                                  const AllocationRecord& record,
+                                  const CallStack& callstack) = 0;
+
+  virtual void OnMemoryDeallocation(const void* memory_block,
+                                    const AllocationRecord& record,
+                                    const CallStack& callstack) = 0;
 };
-
-// Creates a SimpleThread that will output the state of the memory
-// periodically. Start()/Cancel()/Join() are called AUTOMATICALLY with
-// this object. Start() is on the returned thread before it is returned.
-// Join() is automatically called on destruction.
-scoped_ptr<MemoryTrackerPrintThread>
-    CreateDebugPrintThread(MemoryTracker* memory_tracker);
-
-// Creates a SimpleThread that will output the state of the memory
-// periodically. Start()/Cancel()/Join() are called AUTOMATICALLY with
-// this object. Start() is on the returned thread before it is returned.
-// Join() is automatically called on destruction.
-scoped_ptr<MemoryTrackerPrintCSVThread>
-    CreateDebugPrintCSVThread(MemoryTracker* memory_tracker,
-                              int sample_interval_ms,
-                              int total_sampling_time_ms);
-
-scoped_ptr<MemoryTrackerCompressedTimeSeriesThread>
-    CreateCompressedHistogramThread(MemoryTracker* memory_tracker);
 
 }  // namespace analytics
 }  // namespace nb

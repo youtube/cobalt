@@ -16,6 +16,8 @@
 
 #include "cobalt/webdriver/protocol/log_entry.h"
 
+#include "base/logging.h"
+
 namespace cobalt {
 namespace webdriver {
 namespace protocol {
@@ -30,6 +32,9 @@ std::string LevelToString(LogEntry::LogLevel level) {
       return "WARNING";
     case LogEntry::kSevere:
       return "SEVERE";
+    default:
+      NOTREACHED();
+      return "DEBUG";
   }
 }
 }  // namespace

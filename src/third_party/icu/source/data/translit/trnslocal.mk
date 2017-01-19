@@ -1,1 +1,1 @@
-TRANSLIT_SOURCE=
+TRANSLIT_SOURCE=css3transform.txt

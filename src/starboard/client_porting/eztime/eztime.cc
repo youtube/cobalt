@@ -160,7 +160,8 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
   UCalendar* calendar = ucal_open(GetTimeZoneId(timezone), -1,
                                   uloc_getDefault(), UCAL_DEFAULT, &status);
   if (!calendar) {
-    return {0, 0};
+    EzTimeValue zero_time = {};
+    return zero_time;
   }
 
   ucal_setMillis(calendar, 0, &status);  // Clear the calendar.
@@ -179,7 +180,8 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
     return EzTimeValueFromSbTime(UDateToSbTime(udate));
   }
 
-  return {0, 0};
+  EzTimeValue zero_time = {};
+  return zero_time;
 }
 
 int EzTimeValueGetNow(EzTimeValue* out_tp, void* tzp) {

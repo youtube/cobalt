@@ -58,6 +58,26 @@ TEST(CValTest, RegisterAndUnregisterCVal) {
   EXPECT_EQ(size, 0);
 }
 
+TEST(CValTest, RegisterAndPrintBoolTrue) {
+  const std::string cval_name = "Bool value";
+  const bool cval_value = true;
+  base::CVal<bool> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "1");
+}
+
+TEST(CValTest, RegisterAndPrintBoolFalse) {
+  const std::string cval_name = "Bool value";
+  const bool cval_value = false;
+  base::CVal<bool> cval(cval_name, cval_value, "Description.");
+  base::CValManager* cvm = base::CValManager::GetInstance();
+  base::optional<std::string> result = cvm->GetValueAsPrettyString(cval_name);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(*result, "0");
+}
+
 TEST(CValTest, RegisterAndPrintU32) {
   const std::string cval_name = "32-bit unsigned int";
   const uint32_t cval_value = std::numeric_limits<uint32_t>::max();

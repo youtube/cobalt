@@ -1,6 +1,6 @@
 /*
 ******************************************************************************
-*   Copyright (C) 1997-2010, International Business Machines
+*   Copyright (C) 1997-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 ******************************************************************************
 *   Date        Name        Description
@@ -14,6 +14,9 @@
 #define UHASH_H
 
 #include "unicode/utypes.h"
+#include "cmemory.h"
+#include "uelement.h"
+#include "unicode/localpointer.h"
 
 /**
  * UHashtable stores key-value pairs and does moderately fast lookup
@@ -55,10 +58,13 @@
  * hashcode.  During iteration an element may be deleted by calling
  * uhash_removeElement(); iteration may safely continue thereafter.
  * The uhash_remove() function may also be safely called in
- * mid-iteration.  However, if uhash_put() is called during iteration
- * then the iteration will be out of sync.  Under no circumstances
- * should the UHashElement returned by uhash_nextElement be modified
- * directly.
+ * mid-iteration.  If uhash_put() is called during iteration,
+ * the iteration is still guaranteed to terminate reasonably, but
+ * there is no guarantee that every element will be returned or that
+ * some won't be returned more than once.
+ *
+ * Under no circumstances should the UHashElement returned by
+ * uhash_nextElement be modified directly.
  *
  * By default, the hashtable grows when necessary, but never shrinks,
  * even if all items are removed.  For most applications this is
@@ -76,20 +82,11 @@
 U_CDECL_BEGIN
 
 /**
- * A key or value within the hashtable.  It may be either a 32-bit
- * integral value or an opaque void* pointer.  The void* pointer may
- * be smaller than 32 bits (e.g. 24 bits) or may be larger (e.g. 64
- * bits).  The hashing and comparison functions take a pointer to a
+ * A key or value within a UHashtable.
+ * The hashing and comparison functions take a pointer to a
  * UHashTok, but the deleter receives the void* pointer within it.
- *
- * Because a UHashTok is the size of a native pointer or a 32-bit
- * integer, we pass it around by value.
  */
-union UHashTok {
-    void*   pointer;
-    int32_t integer;
-};
-typedef union UHashTok UHashTok;
+typedef UElement UHashTok;
 
 /**
  * This is a single hash element.
@@ -110,29 +107,16 @@ typedef struct UHashElement UHashElement;
 typedef int32_t U_CALLCONV UHashFunction(const UHashTok key);
 
 /**
- * A key comparison function.
- * @param key1 A key stored in a hashtable
- * @param key2 A key stored in a hashtable
- * @return TRUE if the two keys are equal.
+ * A key equality (boolean) comparison function.
  */
-typedef UBool U_CALLCONV UKeyComparator(const UHashTok key1,
-                                        const UHashTok key2);
+typedef UElementsAreEqual UKeyComparator;
+
 /**
- * A key comparison function.
- * @param val1 A key stored in a hashtable
- * @param val2 A key stored in a hashtable
- * @return TRUE if the two keys are equal.
+ * A value equality (boolean) comparison function.
  */
-typedef UBool U_CALLCONV UValueComparator(const UHashTok val1,
-                                          const UHashTok val2);
-/**
- * A function called by <TT>uhash_remove</TT>,
- * <TT>uhash_close</TT>, or <TT>uhash_put</TT> to delete
- * an existing key or value.
- * @param obj A key or value stored in a hashtable
- * @see uhash_deleteUObject
- */
-typedef void U_CALLCONV UObjectDeleter(void* obj);
+typedef UElementsAreEqual UValueComparator;
+
+/* see cmemory.h for UObjectDeleter and uprv_deleteUObject() */
 
 /**
  * This specifies whether or not, and how, the hastable resizes itself.
@@ -505,6 +489,13 @@ U_CAPI const UHashElement* U_EXPORT2
 uhash_find(const UHashtable *hash, const void* key);
 
 /**
+ * \def UHASH_FIRST
+ * Constant for use with uhash_nextElement
+ * @see uhash_nextElement
+ */
+#define UHASH_FIRST (-1)
+
+/**
  * Iterate through the elements of a UHashtable.  The caller must not
  * modify the returned object.  However, uhash_removeElement() may be
  * called during iteration to remove an element from the table.
@@ -512,7 +503,7 @@ uhash_find(const UHashtable *hash, const void* key);
  * called during iteration the iteration will then be out of sync and
  * should be restarted.
  * @param hash The target UHashtable.
- * @param pos This should be set to -1 initially, and left untouched
+ * @param pos This should be set to UHASH_FIRST initially, and left untouched
  * thereafter.
  * @return a hash element, or NULL if no further key-value pairs
  * exist in the table.
@@ -579,10 +570,6 @@ uhash_hashUChars(const UHashTok key);
 U_CAPI int32_t U_EXPORT2 
 uhash_hashChars(const UHashTok key);
 
-/* Used by UnicodeString to compute its hashcode - Not public API. */
-U_CAPI int32_t U_EXPORT2 
-uhash_hashUCharsN(const UChar *key, int32_t length);
-
 /**
  * Generate a case-insensitive hash code for a null-terminated char*
  * string.  If the string is not null-terminated do not use this
@@ -633,7 +620,7 @@ uhash_compareIChars(const UHashTok key1, const UHashTok key2);
  * @return A hash code for the key.
  */
 U_CAPI int32_t U_EXPORT2 
-uhash_hashUnicodeString(const UHashTok key);
+uhash_hashUnicodeString(const UElement key);
 
 /**
  * Hash function for UnicodeString* keys (case insensitive).
@@ -642,33 +629,7 @@ uhash_hashUnicodeString(const UHashTok key);
  * @return A hash code for the key.
  */
 U_CAPI int32_t U_EXPORT2 
-uhash_hashCaselessUnicodeString(const UHashTok key);
-
-/**
- * Comparator function for UnicodeString* keys.
- * @param key1 The string for comparison
- * @param key2 The string for comparison
- * @return true if key1 and key2 are equal, return false otherwise.
- */
-U_CAPI UBool U_EXPORT2 
-uhash_compareUnicodeString(const UHashTok key1, const UHashTok key2);
-
-/**
- * Comparator function for UnicodeString* keys (case insensitive).
- * Make sure to use together with uhash_hashCaselessUnicodeString.
- * @param key1 The string for comparison
- * @param key2 The string for comparison
- * @return true if key1 and key2 are equal, return false otherwise.
- */
-U_CAPI UBool U_EXPORT2 
-uhash_compareCaselessUnicodeString(const UHashTok key1, const UHashTok key2);
-
-/**
- * Deleter function for UnicodeString* keys or values.
- * @param obj The object to be deleted
- */
-U_CAPI void U_EXPORT2 
-uhash_deleteUnicodeString(void *obj);
+uhash_hashCaselessUnicodeString(const UElement key);
 
 /********************************************************************
  * int32_t Support Functions
@@ -702,20 +663,7 @@ uhash_compareLong(const UHashTok key1, const UHashTok key2);
 U_CAPI void U_EXPORT2 
 uhash_deleteHashtable(void *obj);
 
-/**
- * Deleter for UObject instances.
- * @param obj The object to be deleted
- */
-U_CAPI void U_EXPORT2 
-uhash_deleteUObject(void *obj);
-
-/**
- * Deleter for any key or value allocated using uprv_malloc.  Calls
- * uprv_free.
- * @param obj The object to be deleted
- */
-U_CAPI void U_EXPORT2 
-uhash_freeBlock(void *obj);
+/* Use uprv_free() itself as a deleter for any key or value allocated using uprv_malloc. */
 
 /**
  * Checks if the given hash tables are equal or not.
@@ -725,5 +673,25 @@ uhash_freeBlock(void *obj);
  */
 U_CAPI UBool U_EXPORT2 
 uhash_equals(const UHashtable* hash1, const UHashtable* hash2);
+
+
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+/**
+ * \class LocalUResourceBundlePointer
+ * "Smart pointer" class, closes a UResourceBundle via ures_close().
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @stable ICU 4.4
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUHashtablePointer, UHashtable, uhash_close);
+
+U_NAMESPACE_END
+
+#endif
 
 #endif

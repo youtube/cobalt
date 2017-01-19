@@ -1,6 +1,6 @@
 /********************************************************************
- * COPYRIGHT: 
- * Copyright (c) 2002-2010, International Business Machines Corporation and
+ * COPYRIGHT:
+ * Copyright (c) 2002-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -15,7 +15,10 @@
 #if !UCONFIG_NO_COLLATION
 
 #include "ucaconf.h"
+#include "unicode/sortkey.h"
+#include "unicode/tblcoll.h"
 #include "unicode/ustring.h"
+#include "cmemory.h"
 #include "cstring.h"
 #include "uparse.h"
 
@@ -24,9 +27,9 @@ rbUCA(NULL),
 testFile(NULL),
 status(U_ZERO_ERROR)
 {
-    UCA = ucol_open("root", &status);
+    UCA = (RuleBasedCollator *)Collator::createInstance(Locale::getRoot(), status);
     if(U_FAILURE(status)) {
-        errln("ERROR - UCAConformanceTest: Unable to open UCA collator!");
+        dataerrln("Error - UCAConformanceTest: Unable to open UCA collator! - %s", u_errorName(status));
     }
 
     const char *srcDir = IntlTest::getSourceTestData(status);
@@ -36,71 +39,69 @@ status(U_ZERO_ERROR)
     }
     uprv_strcpy(testDataPath, srcDir);
     uprv_strcat(testDataPath, "CollationTest_");
+
+    UVersionInfo uniVersion;
+    static const UVersionInfo v62 = { 6, 2, 0, 0 };
+    u_getUnicodeVersion(uniVersion);
+    isAtLeastUCA62 = uprv_memcmp(uniVersion, v62, 4) >= 0;
 }
 
 UCAConformanceTest::~UCAConformanceTest()
 {
-    ucol_close(UCA);
-    if(rbUCA) {
-        ucol_close(rbUCA);
-    }
-    if(testFile) {
+    delete UCA;
+    delete rbUCA;
+    if (testFile) {
         fclose(testFile);
     }
 }
 
 void UCAConformanceTest::runIndexedTest( int32_t index, UBool exec, const char* &name, char* /*par */)
 {
-    if (exec) logln("TestSuite UCAConformanceTest: ");
-    if(U_SUCCESS(status)) {
-      switch (index) {
-          case 0: name = "TestTableNonIgnorable"; if (exec)   TestTableNonIgnorable(/* par */); break;
-          case 1: name = "TestTableShifted";      if (exec)   TestTableShifted(/* par */);      break;
-          case 2: name = "TestRulesNonIgnorable"; if (exec)   TestRulesNonIgnorable(/* par */); break;
-          case 3: name = "TestRulesShifted";      if (exec)   TestRulesShifted(/* par */);      break;
-          default: name = ""; break;
-      }
-    } else {
-      name = "";
+    if(exec) {
+        logln("TestSuite UCAConformanceTest: ");
     }
+    TESTCASE_AUTO_BEGIN;
+    TESTCASE_AUTO(TestTableNonIgnorable);
+    TESTCASE_AUTO(TestTableShifted);
+    TESTCASE_AUTO(TestRulesNonIgnorable);
+    TESTCASE_AUTO(TestRulesShifted);
+    TESTCASE_AUTO_END;
 }
 
 void UCAConformanceTest::initRbUCA() 
 {
     if(!rbUCA) {
-        UParseError parseError;
-        UChar      *ucarules;
-        // preflight rules
-        int32_t size = ucol_getRulesEx(UCA, UCOL_FULL_RULES, NULL, 0);
-        ucarules = (UChar *)malloc(size * sizeof(UChar));
-
-        size = ucol_getRulesEx(UCA, UCOL_FULL_RULES, ucarules, size);
-        rbUCA = ucol_openRules(ucarules, size, UCOL_DEFAULT, UCOL_TERTIARY, 
-            &parseError, &status);
-        free(ucarules);
-        if (U_FAILURE(status)) {
-            errln("Failure creating UCA rule-based collator: %s", u_errorName(status));
+        if (UCA) {
+            UnicodeString ucarules;
+            UCA->getRules(UCOL_FULL_RULES, ucarules);
+            rbUCA = new RuleBasedCollator(ucarules, status);
+            if (U_FAILURE(status)) {
+                dataerrln("Failure creating UCA rule-based collator: %s", u_errorName(status));
+                return;
+            }
+        } else {
+            dataerrln("Failure creating UCA rule-based collator: %s", u_errorName(status));
             return;
         }
     }
 }
 
-void UCAConformanceTest::setCollNonIgnorable(UCollator *coll) 
+void UCAConformanceTest::setCollNonIgnorable(Collator *coll) 
 {
-  ucol_setAttribute(coll, UCOL_NORMALIZATION_MODE, UCOL_ON, &status);
-  ucol_setAttribute(coll, UCOL_CASE_FIRST, UCOL_OFF, &status);
-  ucol_setAttribute(coll, UCOL_CASE_LEVEL, UCOL_OFF, &status);
-  ucol_setAttribute(coll, UCOL_STRENGTH, UCOL_TERTIARY, &status);
-  ucol_setAttribute(coll, UCOL_ALTERNATE_HANDLING, UCOL_NON_IGNORABLE, &status);
+    coll->setAttribute(UCOL_NORMALIZATION_MODE, UCOL_ON, status);
+    coll->setAttribute(UCOL_CASE_FIRST, UCOL_OFF, status);
+    coll->setAttribute(UCOL_CASE_LEVEL, UCOL_OFF, status);
+    coll->setAttribute(UCOL_STRENGTH, isAtLeastUCA62 ? UCOL_IDENTICAL : UCOL_TERTIARY, status);
+    coll->setAttribute(UCOL_ALTERNATE_HANDLING, UCOL_NON_IGNORABLE, status);
 }
 
-void UCAConformanceTest::setCollShifted(UCollator *coll) 
+void UCAConformanceTest::setCollShifted(Collator *coll) 
 {
-    ucol_setAttribute(coll, UCOL_NORMALIZATION_MODE, UCOL_ON, &status);
-    ucol_setAttribute(coll, UCOL_CASE_FIRST, UCOL_OFF, &status);
-    ucol_setAttribute(coll, UCOL_CASE_LEVEL, UCOL_OFF, &status);
-    ucol_setAttribute(coll, UCOL_STRENGTH, UCOL_QUATERNARY, &status);
-    ucol_setAttribute(coll, UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, &status);
+    coll->setAttribute(UCOL_NORMALIZATION_MODE, UCOL_ON, status);
+    coll->setAttribute(UCOL_CASE_FIRST, UCOL_OFF, status);
+    coll->setAttribute(UCOL_CASE_LEVEL, UCOL_OFF, status);
+    coll->setAttribute(UCOL_STRENGTH, isAtLeastUCA62 ? UCOL_IDENTICAL : UCOL_QUATERNARY, status);
+    coll->setAttribute(UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, status);
 }
 
 void UCAConformanceTest::openTestFile(const char *type)
@@ -143,17 +144,45 @@ void UCAConformanceTest::openTestFile(const char *type)
                     "INFO: Working with the stub file.\n"
                     "If you need the full conformance test, please\n"
                     "download the appropriate data files from:\n"
-                    "http://source.icu-project.org/repos/icu/tools/trunk/unicodetools/com/ibm/text/data/");
+                    "http://unicode.org/cldr/trac/browser/trunk/common/uca");
             }
         }
     }
 }
 
-void UCAConformanceTest::testConformance(UCollator *coll) 
+static const uint32_t IS_SHIFTED = 1;
+static const uint32_t FROM_RULES = 2;
+
+static UBool
+skipLineBecauseOfBug(const UChar *s, int32_t length, uint32_t flags) {
+    // Add temporary exceptions here if there are ICU bugs, until we can fix them.
+    // For examples see the ICU 52 version of this file.
+    (void)s;
+    (void)length;
+    (void)flags;
+    return FALSE;
+}
+
+static UCollationResult
+normalizeResult(int32_t result) {
+    return result<0 ? UCOL_LESS : result==0 ? UCOL_EQUAL : UCOL_GREATER;
+}
+
+void UCAConformanceTest::testConformance(const Collator *coll) 
 {
     if(testFile == 0) {
         return;
     }
+    uint32_t skipFlags = 0;
+    if(coll->getAttribute(UCOL_ALTERNATE_HANDLING, status) == UCOL_SHIFTED) {
+        skipFlags |= IS_SHIFTED;
+    }
+    if(coll == rbUCA) {
+        skipFlags |= FROM_RULES;
+    }
+
+    logln("-prop:ucaconfnosortkeys=1 turns off getSortKey() in UCAConformanceTest");
+    UBool withSortKeys = getProperty("ucaconfnosortkeys") == NULL;
 
     int32_t line = 0;
 
@@ -166,73 +195,78 @@ void UCAConformanceTest::testConformance(UCollator *coll)
     uint8_t sk1[1024], sk2[1024];
     uint8_t *oldSk = NULL, *newSk = sk1;
 
-    int32_t resLen = 0, oldLen = 0;
-    int32_t buflen = 0, oldBlen = 0;
+    int32_t oldLen = 0;
+    int32_t oldBlen = 0;
     uint32_t first = 0;
-    uint32_t offset = 0;
-    UnicodeString oldS, newS;
-
 
     while (fgets(lineB, 1024, testFile) != NULL) {
         // remove trailing whitespace
         u_rtrim(lineB);
-        offset = 0;
 
         line++;
-        if(*lineB == 0 || strlen(lineB) < 3 || lineB[0] == '#') {
+        if(*lineB == 0 || lineB[0] == '#') {
             continue;
         }
-        offset = u_parseString(lineB, buffer, 1024, &first, &status);
+        int32_t buflen = u_parseString(lineB, buffer, 1024, &first, &status);
         if(U_FAILURE(status)) {
             errln("Error parsing line %ld (%s): %s\n",
                   (long)line, u_errorName(status), lineB);
             status = U_ZERO_ERROR;
         }
-        buflen = offset;
-        buffer[offset++] = 0;
+        buffer[buflen] = 0;
 
-        resLen = ucol_getSortKey(coll, buffer, buflen, newSk, 1024);
+        if(skipLineBecauseOfBug(buffer, buflen, skipFlags)) {
+            logln("Skipping line %i because of a known bug", line);
+            continue;
+        }
 
-        int32_t res = 0, cmpres = 0, cmpres2 = 0;
+        int32_t resLen = withSortKeys ? coll->getSortKey(buffer, buflen, newSk, 1024) : 0;
 
         if(oldSk != NULL) {
-            res = strcmp((char *)oldSk, (char *)newSk);
-            cmpres = ucol_strcoll(coll, oldB, oldBlen, buffer, buflen);
-            cmpres2 = ucol_strcoll(coll, buffer, buflen, oldB, oldBlen);
+            UBool ok=TRUE;
+            int32_t skres = withSortKeys ? strcmp((char *)oldSk, (char *)newSk) : 0;
+            int32_t cmpres = coll->compare(oldB, oldBlen, buffer, buflen, status);
+            int32_t cmpres2 = coll->compare(buffer, buflen, oldB, oldBlen, status);
 
             if(cmpres != -cmpres2) {
-                errln("Compare result not symmetrical on line %i", line);
+                errln("Compare result not symmetrical on line %i: "
+                      "previous vs. current (%d) / current vs. previous (%d)",
+                      line, cmpres, cmpres2);
+                ok = FALSE;
             }
 
-            if(((res&0x80000000) != (cmpres&0x80000000)) || (res == 0 && cmpres != 0) || (res != 0 && cmpres == 0)) {
-                errln("Difference between ucol_strcoll and sortkey compare on line %i", line);
-                errln("  Previous data line %s", oldLineB);
-                errln("  Current data line  %s", lineB);
+            // TODO: Compare with normalization turned off if the input passes the FCD test.
+
+            if(withSortKeys && cmpres != normalizeResult(skres)) {
+                errln("Difference between coll->compare (%d) and sortkey compare (%d) on line %i",
+                      cmpres, skres, line);
+                ok = FALSE;
             }
 
+            int32_t res = cmpres;
+            if(res == 0 && !isAtLeastUCA62) {
+                // Up to UCA 6.1, the collation test files use a custom tie-breaker,
+                // comparing the raw input strings.
+                res = u_strcmpCodePointOrder(oldB, buffer);
+                // Starting with UCA 6.2, the collation test files use the standard UCA tie-breaker,
+                // comparing the NFD versions of the input strings,
+                // which we do via setting strength=identical.
+            }
             if(res > 0) {
                 errln("Line %i is not greater or equal than previous line", line);
+                ok = FALSE;
+            }
+
+            if(!ok) {
                 errln("  Previous data line %s", oldLineB);
                 errln("  Current data line  %s", lineB);
-                prettify(CollationKey(oldSk, oldLen), oldS);
-                prettify(CollationKey(newSk, resLen), newS);
-                errln("  Previous key: "+oldS);
-                errln("  Current key:  "+newS);
-            } else if(res == 0) { /* equal */
-                res = u_strcmpCodePointOrder(oldB, buffer);
-                if (res == 0) {
-                    errln("Probable error in test file on line %i (comparing identical strings)", line);
-                    errln("  Data line %s", lineB);
+                if(withSortKeys) {
+                    UnicodeString oldS, newS;
+                    prettify(CollationKey(oldSk, oldLen), oldS);
+                    prettify(CollationKey(newSk, resLen), newS);
+                    errln("  Previous key: "+oldS);
+                    errln("  Current key:  "+newS);
                 }
-                /*
-                 * UCA 6.0 test files can have lines that compare == if they are
-                 * different strings but canonically equivalent.
-                else if (res > 0) {
-                    errln("Sortkeys are identical, but code point compare gives >0 on line %i", line);
-                    errln("  Previous data line %s", oldLineB);
-                    errln("  Current data line  %s", lineB);
-                }
-                 */
             }
         }
 
@@ -255,18 +289,27 @@ void UCAConformanceTest::testConformance(UCollator *coll)
 }
 
 void UCAConformanceTest::TestTableNonIgnorable(/* par */) {
+    if (U_FAILURE(status)) {
+        dataerrln("Error running UCA Conformance Test: %s", u_errorName(status));
+        return;
+    }
     setCollNonIgnorable(UCA);
     openTestFile("NON_IGNORABLE");
     testConformance(UCA);
 }
 
 void UCAConformanceTest::TestTableShifted(/* par */) {
+    if (U_FAILURE(status)) {
+        dataerrln("Error running UCA Conformance Test: %s", u_errorName(status));
+        return;
+    }
     setCollShifted(UCA);
     openTestFile("SHIFTED");
     testConformance(UCA);
 }
 
 void UCAConformanceTest::TestRulesNonIgnorable(/* par */) {
+    if(logKnownIssue("cldrbug:6745", "UCARules.txt has problems")) { return; }
     initRbUCA();
 
     if(U_SUCCESS(status)) {

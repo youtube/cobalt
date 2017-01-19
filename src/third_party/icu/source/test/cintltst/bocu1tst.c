@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2002-2010, International Business Machines
+*   Copyright (C) 2002-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -31,10 +31,9 @@
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "unicode/ucnv.h"
+#include "unicode/utf16.h"
 #include "cmemory.h"
 #include "cintltst.h"
-
-#define LENGTHOF(array) (sizeof(array)/sizeof((array)[0]))
 
 /* icuhtml/design/conversion/bocu1/bocu1.h ---------------------------------- */
 
@@ -250,7 +249,7 @@ decodeBocu1(Bocu1Rx *pRx, uint8_t b);
  * @param c current code point, 0..0x10ffff
  * @return "previous code point" state value
  */
-static U_INLINE int32_t
+static int32_t
 bocu1Prev(int32_t c) {
     /* compute new prev */
     if(0x3040<=c && c<=0x309f) {
@@ -715,7 +714,7 @@ writeString(const UChar *s, int32_t length, uint8_t *p) {
     p0=p;
     i=0;
     while(i<length) {
-        UTF_NEXT_CHAR(s, i, length, c);
+        U16_NEXT(s, i, length, c);
         p+=writePacked(encodeBocu1(&prev, c), p);
     }
     return (int32_t)(p-p0);
@@ -743,13 +742,13 @@ readString(const uint8_t *p, int32_t length, UChar *s) {
             return -1;
         }
         if(c>=0) {
-            UTF_APPEND_CHAR_UNSAFE(s, sLength, c);
+            U16_APPEND_UNSAFE(s, sLength, c);
         }
     }
     return sLength;
 }
 
-static U_INLINE char
+static char
 hexDigit(uint8_t digit) {
     return digit<=9 ? (char)('0'+digit) : (char)('a'-10+digit);
 }
@@ -895,35 +894,35 @@ roundtripBOCU1(UConverter *bocu1, int32_t number, const UChar *text, int32_t len
     bocu1ICULength=ucnv_fromUChars(bocu1, bocu1ICU, DEFAULT_BUFFER_SIZE, text, length, &errorCode);
     if(U_FAILURE(errorCode)) {
         log_err("ucnv_fromUChars(BOCU-1, text(%d)[%d]) failed: %s\n", number, length, u_errorName(errorCode));
-        return;
+        goto cleanup; 
     }
 
     if(bocu1RefLength!=bocu1ICULength || 0!=uprv_memcmp(bocu1Ref, bocu1ICU, bocu1RefLength)) {
         log_err("Unicode(%d)[%d] -> BOCU-1: reference[%d]!=ICU[%d]\n", number, length, bocu1RefLength, bocu1ICULength);
-        return;
+        goto cleanup;
     }
 
     /* BOCU-1 -> Unicode */
     roundtripRefLength=readString((uint8_t *)bocu1Ref, bocu1RefLength, roundtripRef);
     if(roundtripRefLength<0) {
-        free(roundtripICU);
-        return; /* readString() found an error and reported it */
+        goto cleanup; /* readString() found an error and reported it */
     }
 
     roundtripICULength=ucnv_toUChars(bocu1, roundtripICU, DEFAULT_BUFFER_SIZE, bocu1ICU, bocu1ICULength, &errorCode);
     if(U_FAILURE(errorCode)) {
         log_err("ucnv_toUChars(BOCU-1, text(%d)[%d]) failed: %s\n", number, length, u_errorName(errorCode));
-        return;
+        goto cleanup;
     }
 
     if(length!=roundtripRefLength || 0!=u_memcmp(text, roundtripRef, length)) {
         log_err("BOCU-1 -> Unicode: original(%d)[%d]!=reference[%d]\n", number, length, roundtripRefLength);
-        return;
+        goto cleanup;
     }
     if(roundtripRefLength!=roundtripICULength || 0!=u_memcmp(roundtripRef, roundtripICU, roundtripRefLength)) {
         log_err("BOCU-1 -> Unicode: reference(%d)[%d]!=ICU[%d]\n", number, roundtripRefLength, roundtripICULength);
-        return;
+        goto cleanup;
     }
+cleanup:
     free(roundtripRef);
     free(roundtripICU);
     free(bocu1Ref);
@@ -950,21 +949,21 @@ static const struct {
     const UChar *s;
     int32_t length;
 } strings[]={
-    { feff,         LENGTHOF(feff) },
-    { ascii,        LENGTHOF(ascii) },
-    { crlf,         LENGTHOF(crlf) },
-    { nul,          LENGTHOF(nul) },
-    { latin,        LENGTHOF(latin) },
-    { devanagari,   LENGTHOF(devanagari) },
-    { hiragana,     LENGTHOF(hiragana) },
-    { unihan,       LENGTHOF(unihan) },
-    { hangul,       LENGTHOF(hangul) },
-    { surrogates,   LENGTHOF(surrogates) },
-    { plane1,       LENGTHOF(plane1) },
-    { plane2,       LENGTHOF(plane2) },
-    { plane15,      LENGTHOF(plane15) },
-    { plane16,      LENGTHOF(plane16) },
-    { c0,           LENGTHOF(c0) }
+    { feff,         UPRV_LENGTHOF(feff) },
+    { ascii,        UPRV_LENGTHOF(ascii) },
+    { crlf,         UPRV_LENGTHOF(crlf) },
+    { nul,          UPRV_LENGTHOF(nul) },
+    { latin,        UPRV_LENGTHOF(latin) },
+    { devanagari,   UPRV_LENGTHOF(devanagari) },
+    { hiragana,     UPRV_LENGTHOF(hiragana) },
+    { unihan,       UPRV_LENGTHOF(unihan) },
+    { hangul,       UPRV_LENGTHOF(hangul) },
+    { surrogates,   UPRV_LENGTHOF(surrogates) },
+    { plane1,       UPRV_LENGTHOF(plane1) },
+    { plane2,       UPRV_LENGTHOF(plane2) },
+    { plane15,      UPRV_LENGTHOF(plane15) },
+    { plane16,      UPRV_LENGTHOF(plane16) },
+    { c0,           UPRV_LENGTHOF(c0) }
 };
 
 /*
@@ -984,7 +983,7 @@ TestBOCU1(void) {
     errorCode=U_ZERO_ERROR;
     bocu1=ucnv_open("BOCU-1", &errorCode);
     if(U_FAILURE(errorCode)) {
-        log_err("error: unable to open BOCU-1 converter: %s\n", u_errorName(errorCode));
+        log_data_err("error: unable to open BOCU-1 converter: %s\n", u_errorName(errorCode));
         return;
     }
 
@@ -992,7 +991,7 @@ TestBOCU1(void) {
 
     /* text 1: each of strings[] once */
     length=0;
-    for(i=0; i<LENGTHOF(strings); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(strings); ++i) {
         u_memcpy(text+length, strings[i].s, strings[i].length);
         length+=strings[i].length;
     }
@@ -1000,7 +999,7 @@ TestBOCU1(void) {
 
     /* text 2: each of strings[] twice */
     length=0;
-    for(i=0; i<LENGTHOF(strings); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(strings); ++i) {
         u_memcpy(text+length, strings[i].s, strings[i].length);
         length+=strings[i].length;
         u_memcpy(text+length, strings[i].s, strings[i].length);
@@ -1011,8 +1010,8 @@ TestBOCU1(void) {
     /* text 3: each of strings[] many times (set step vs. |strings| so that all strings are used) */
     length=0;
     for(i=1; length<5000; i+=7) {
-        if(i>=LENGTHOF(strings)) {
-            i-=LENGTHOF(strings);
+        if(i>=UPRV_LENGTHOF(strings)) {
+            i-=UPRV_LENGTHOF(strings);
         }
         u_memcpy(text+length, strings[i].s, strings[i].length);
         length+=strings[i].length;

@@ -105,7 +105,7 @@
       # Scanner exposes UChar32 in a header.
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(DEPTH)/third_party/icu/public/common',
+          '<(DEPTH)/third_party/icu/source/common',
         ],
       },
       'dependencies': [
