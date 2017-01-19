@@ -13,6 +13,8 @@
 # limitations under the License.
 """Starboard Android shared platform configuration for gyp_cobalt."""
 
+from __future__ import print_function
+
 import os
 
 import config.starboard
@@ -29,9 +31,11 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
     self.android_abi = android_abi
     self.ndk_tools = sdk_utils.GetToolsPath(android_abi)
-    sdk_utils.CheckNdkVersion(android_abi)
+    sdk_utils.InstallSdkIfNeeded(android_abi)
 
     self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
+    self.ndk_path = sdk_utils.GetNdkPath()
+    print('Using Android NDK at {}'.format(self.ndk_path))
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -44,7 +48,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     variables = super(PlatformConfig, self).GetVariables(
         configuration, use_clang=1)
     variables.update({
-        'NDK_HOME': sdk_utils.NDK_PATH,
+        'NDK_HOME': self.ndk_path,
         'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'ANDROID_ABI': self.android_abi,
         'enable_remote_debugging': 0,
