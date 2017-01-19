@@ -65,7 +65,7 @@ class MemoryTrackerImpl : public MemoryTracker {
       return true;
     global_hooks_installed_ = true;
     bool ok = SbMemorySetReporter(GetMemoryReporter());
-    ok |= NbSetMemoryScopeReporter(GetMemoryScopeReporter());
+    ok &= NbSetMemoryScopeReporter(GetMemoryScopeReporter());
     return ok;
   }
   void RemoveGlobalTrackingHooks() SB_OVERRIDE {
