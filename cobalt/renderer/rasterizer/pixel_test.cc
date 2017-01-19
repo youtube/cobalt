@@ -2044,6 +2044,15 @@ TEST_F(PixelTest, EllipticalThickBorder) {
       TranslateMatrix(30.0f, 30.0f)));
 }
 
+TEST_F(PixelTest, SquishedEllipticalThickBorder) {
+  // This test makes sure that we can properly render ellipses that are created
+  // by squishing circles using a scaling MatrixTransformNode node.
+  TestTree(new MatrixTransformNode(
+      CreateEllipticalBorderRect(ScaleSize(output_surface_size(), 0.5f, 0.5f),
+                                 15.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)),
+      ScaleMatrix(1.0f, 0.8f) * TranslateMatrix(30.0f, 30.0f)));
+}
+
 TEST_F(PixelTest, RoundedCornersSubPixelBorder) {
   // Renderers may take a different rendering path for drawing hairline paths.
   // This test checks that we cover for that.
