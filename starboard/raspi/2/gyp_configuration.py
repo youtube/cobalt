@@ -11,8 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-{
-  'includes': [
-    '../shared/starboard_platform.gypi',
-  ],
-}
+"""Starboard Raspberry Pi 2 platform configuration for gyp_cobalt."""
+
+import logging
+import os
+import sys
+
+_SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(_SCRIPT_DIR, '..'))
+
+# pylint: disable=g-import-not-at-top
+from shared.gyp_configuration import RaspiPlatformConfig
+
+
+def CreatePlatformConfig():
+  try:
+    return RaspiPlatformConfig('raspi-2')
+  except RuntimeError as e:
+    logging.critical(e)
+    return None
