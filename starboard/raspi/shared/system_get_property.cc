@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
 
 #include "starboard/system.h"
 
+#include <sys/utsname.h>
 #include "starboard/log.h"
 #include "starboard/string.h"
 
 namespace {
 
 const char* kFriendlyName = "Raspberry Pi";
-const char* kPlatformName = "Raspian Linux armv7l";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -53,8 +53,27 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyFriendlyName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);
 
-    case kSbSystemPropertyPlatformName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
+    case kSbSystemPropertyPlatformName: {
+      // Example output: "Raspian Linux armv7l".
+      utsname name;
+
+      if (uname(&name) == -1)
+        return false;
+
+      if (SbStringCopy(out_value, "Raspian ", value_length) >= value_length)
+        return false;
+
+      if (SbStringConcat(out_value, name.sysname, value_length) >= value_length)
+        return false;
+
+      if (SbStringConcat(out_value, " ", value_length) >= value_length)
+        return false;
+
+      if (SbStringConcat(out_value, name.machine, value_length) >= value_length)
+        return false;
+
+      return true;
+    }
 
     case kSbSystemPropertyPlatformUuid:
       SB_NOTIMPLEMENTED();

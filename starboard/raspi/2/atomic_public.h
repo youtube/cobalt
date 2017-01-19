@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_RASPI_1_THREAD_TYPES_PUBLIC_H_
-#define STARBOARD_RASPI_1_THREAD_TYPES_PUBLIC_H_
+#ifndef STARBOARD_RASPI_2_ATOMIC_PUBLIC_H_
+#define STARBOARD_RASPI_2_ATOMIC_PUBLIC_H_
 
-#include "starboard/raspi/shared/thread_types_public.h"
+#include "starboard/raspi/shared/atomic_public.h"
 
-#endif  // STARBOARD_RASPI_1_THREAD_TYPES_PUBLIC_H_
+#endif  // STARBOARD_RASPI_2_ATOMIC_PUBLIC_H_
