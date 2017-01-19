@@ -548,16 +548,16 @@ void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
+  // Notify the stat tracker that a render tree has been produced. This signals
+  // the end of previous event tracking, and triggers flushing of periodic
+  // counts.
+  web_module_stat_tracker_->OnRenderTreeProduced();
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_->OnRenderTreeProduced(layout_results);
 #else  // ENABLE_DEBUG_CONSOLE
   render_tree_produced_callback_.Run(layout_results);
 #endif  // ENABLE_DEBUG_CONSOLE
-
-  // Notify the stat tracker that a render tree has been produced. This signals
-  // the end of previous event tracking, and triggers flushing of periodic
-  // counts.
-  web_module_stat_tracker_->OnRenderTreeProduced();
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
