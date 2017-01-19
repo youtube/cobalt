@@ -17,7 +17,7 @@ import os
 
 import config.starboard
 import gyp_utils
-import ndk_utils
+import sdk_utils
 
 
 class PlatformConfig(config.starboard.PlatformConfigStarboard):
@@ -28,8 +28,8 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
 
     self.android_abi = android_abi
-    self.ndk_tools = ndk_utils.GetToolsPath(android_abi)
-    ndk_utils.CheckNdkVersion(android_abi)
+    self.ndk_tools = sdk_utils.GetToolsPath(android_abi)
+    sdk_utils.CheckNdkVersion(android_abi)
 
     self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
 
@@ -44,7 +44,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     variables = super(PlatformConfig, self).GetVariables(
         configuration, use_clang=1)
     variables.update({
-        'NDK_HOME': ndk_utils.NDK_PATH,
+        'NDK_HOME': sdk_utils.NDK_PATH,
         'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'ANDROID_ABI': self.android_abi,
         'enable_remote_debugging': 0,
@@ -57,6 +57,6 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     return generator_variables
 
   def GetEnvironmentVariables(self):
-    env_variables = ndk_utils.GetEnvironmentVariables(self.android_abi)
+    env_variables = sdk_utils.GetEnvironmentVariables(self.android_abi)
     env_variables.update(self.host_compiler_environment)
     return env_variables
