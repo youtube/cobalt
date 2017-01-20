@@ -15,7 +15,7 @@
 
 import os
 
-PROJECT_DIR_RELATIVE_TO_SOLUTION = 'qtcreator_projects'
+PROJECT_DIR_RELATIVE_TO_OUTPUT_DIR = 'qtcreator_projects'
 
 
 def RebaseRelativePaths(file_set, original_base, new_base):
@@ -142,10 +142,12 @@ def GenProject(project_def, proj_dir):
            <value type="QString">TARGET=%(project_target)s</value>
           </valuelist>
          </valuemap>
-      """ % {'project_number': project_number,
-             'project_name': project_name,
-             'project_target': project_target,
-             'out_dir': project_def['out_dir'],})
+      """ % {
+          'project_number': project_number,
+          'project_name': project_name,
+          'project_target': project_target,
+          'out_dir': project_def['out_dir'],
+      })
       project_number += 1
 
     f.write("""
@@ -207,21 +209,18 @@ def GenerateProjects(definition):
   """
 
   repo_dir = os.path.abspath(definition['repo_dir'])
-  sessions_dir = os.path.abspath(definition['sessions_dir'])
   projects_dir = os.path.abspath(definition['projects_dir'])
 
   if not os.path.exists(repo_dir):
     raise RuntimeError('Repo directory not found: {}'.format(repo_dir))
-  if not os.path.exists(sessions_dir):
-    os.makedirs(sessions_dir)
 
   # Generate project files
   for proj in definition['projects']:
     GenProject(proj, projects_dir)
 
 
-def GetProjectsDirectory(sessions_dir):
-  return os.path.join(sessions_dir, PROJECT_DIR_RELATIVE_TO_SOLUTION)
+def GetProjectsDirectory(output_dir):
+  return os.path.join(output_dir, PROJECT_DIR_RELATIVE_TO_OUTPUT_DIR)
 
 
 def GetValue(dictionary, path, default=None):
@@ -266,8 +265,6 @@ def GenerateQTCreatorFiles(target_dicts, params):
   current_config = generator_flags['config']
   repo_dir = params['options'].toplevel_dir
 
-  sessions_dir = os.path.join(os.environ['HOME'], '.config', 'QtProject',
-                              'qtcreator')
   session_name_prefix = generator_flags['qtcreator_session_name_prefix']
   project_list = set()
   sources = set()
@@ -320,7 +317,6 @@ def GenerateQTCreatorFiles(target_dicts, params):
       'projects_dir': projects_dir,
       'repo_dir': repo_dir,
       'projects': projects,
-      'sessions_dir': sessions_dir,
   }
 
   GenerateProjects(definition)
@@ -329,14 +325,12 @@ def GenerateQTCreatorFiles(target_dicts, params):
 #
 # GYP generator external functions
 #
-def PerformBuild(data, configurations,
-                 params):  # pylint: disable=unused-argument
+def PerformBuild(data, configurations, params):  # pylint: disable=unused-argument
   # Not used by this generator
   pass
 
 
-def GenerateOutput(target_list, target_dicts, data,
-                   params):  # pylint: disable=unused-argument
+def GenerateOutput(target_list, target_dicts, data, params):  # pylint: disable=unused-argument
   """Generates QT Creator project files for Linux.
 
   A BuildConfiguration will be generated for each executable target that
