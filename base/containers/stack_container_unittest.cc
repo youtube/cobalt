@@ -114,14 +114,6 @@ class AlignedData {
 #define EXPECT_ALIGNED(ptr, align) \
     EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & (align - 1))
 
-#if !defined(OS_ANDROID) && !defined(__clang__) || (__clang_major__ > 3) || \
-    ((__clang_major__ == 3) && (__clang_minor__ > 3))
-// It seems that android and clang 3.3 and older don't respect greater than 16
-// byte alignment for non-POD data on the stack, even though
-// ALIGNOF(aligned256) == 256.
-#define CAN_ALIGN_OVER_16_BYTES 1
-#endif
-
 TEST(StackContainer, BufferAlignment) {
   StackVector<wchar_t, 16> text;
   text->push_back(L'A');
@@ -135,11 +127,11 @@ TEST(StackContainer, BufferAlignment) {
   aligned16->push_back(AlignedData<16>());
   EXPECT_ALIGNED(&aligned16[0], 16);
 
-#if defined(CAN_ALIGN_OVER_16_BYTES)
+#if !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
   StackVector<AlignedData<256>, 1> aligned256;
   aligned256->push_back(AlignedData<256>());
   EXPECT_ALIGNED(&aligned256[0], 256);
-#endif
+#endif  // !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
 }
 
 template class StackVector<int, 2>;
