@@ -18,8 +18,10 @@
 #include <jni.h>
 
 #include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/jni_env_ext.h"
 
 using starboard::android::shared::ApplicationAndroid;
+using starboard::android::shared::JniEnvExt;
 
 struct SbSystemPlatformErrorPrivate {
   SbSystemPlatformErrorPrivate(SbSystemPlatformErrorType type,
@@ -43,34 +45,6 @@ enum {
   kJniErrorTypeUserAgeRestricted = 2
 };
 
-jobject JniRaisePlatformError(ANativeActivity* activity,
-                              jint jni_error_type, jlong jni_data) {
-  JNIEnv* env;
-  activity->vm->AttachCurrentThread(&env, 0);
-
-  jobject activity_obj = activity->clazz;
-  jclass activity_class = env->GetObjectClass(activity_obj);
-  jmethodID method = env->GetMethodID(activity_class,
-      "raisePlatformError", "(IJ)Lfoo/cobalt/PlatformError;");
-  jobject error_obj = env->NewGlobalRef(
-      env->CallObjectMethod(activity_obj, method, jni_error_type, jni_data));
-
-  activity->vm->DetachCurrentThread();
-
-  return error_obj;
-}
-
-void JniClearPlatformError(ANativeActivity* activity, jobject error_obj) {
-  JNIEnv* env;
-  activity->vm->AttachCurrentThread(&env, 0);
-
-  jclass error_class = env->GetObjectClass(error_obj);
-  jmethodID method = env->GetMethodID(error_class, "clear", "()V");
-  env->CallObjectMethod(error_obj, method);
-
-  activity->vm->DetachCurrentThread();
-}
-
 }  // namespace
 
 SbSystemPlatformError SbSystemRaisePlatformError(
@@ -92,17 +66,21 @@ SbSystemPlatformError SbSystemRaisePlatformError(
       jni_error_type = kJniErrorTypeUnknown;
   }
 
-  ANativeActivity* activity = ApplicationAndroid::Get()->GetActivity();
   SbSystemPlatformError error_handle =
       new SbSystemPlatformErrorPrivate(type, callback, user_data);
-  error_handle->error_obj = JniRaisePlatformError(
-      activity, jni_error_type, reinterpret_cast<jlong>(error_handle));
+
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject error_obj = env->CallActivityObjectMethod(
+      "raisePlatformError", "(IJ)Lfoo/cobalt/PlatformError;", jni_error_type,
+      reinterpret_cast<jlong>(error_handle));
+  error_handle->error_obj = env->NewGlobalRef(error_obj);
+
   return error_handle;
 }
 
 void SbSystemClearPlatformError(SbSystemPlatformError handle) {
-  JniClearPlatformError(ApplicationAndroid::Get()->GetActivity(),
-                        handle->error_obj);
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallObjectMethod(handle->error_obj, "clear", "()V");
 }
 
 extern "C" SB_EXPORT_PLATFORM void Java_foo_cobalt_PlatformError_onCleared(

@@ -18,6 +18,7 @@
 #include <jni.h>
 #include <string>
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
@@ -35,12 +36,10 @@ AAssetManager* g_asset_manager;
 
 // Makes a JNI call to File.getAbsolutePath() and returns a newly allocated
 // buffer with the result.
-const char* GetAbsolutePath(JNIEnv* env, jobject file_obj) {
+const char* GetAbsolutePath(JniEnvExt* env, jobject file_obj) {
   SB_DCHECK(file_obj);
-  jclass file_class = env->GetObjectClass(file_obj);
-  jmethodID method = env->GetMethodID(file_class,
-      "getAbsolutePath", "()Ljava/lang/String;");
-  jstring abs_path = (jstring) (env->CallObjectMethod(file_obj, method));
+  jstring abs_path = (jstring)env->CallObjectMethod(file_obj, "getAbsolutePath",
+                                                    "()Ljava/lang/String;");
   const char* utf_chars = env->GetStringUTFChars(abs_path, 0);
   const char* result = SbStringDuplicate(utf_chars);
   env->ReleaseStringUTFChars(abs_path, utf_chars);
@@ -62,27 +61,18 @@ void SbFileAndroidInitialize(ANativeActivity* activity) {
   SB_DCHECK(g_asset_manager == NULL);
   g_asset_manager = activity->assetManager;
 
-  JNIEnv* env;
-  activity->vm->AttachCurrentThread(&env, 0);
-
-  jobject activity_obj = activity->clazz;
-  jclass activity_class = env->GetObjectClass(activity_obj);
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject file_obj;
 
   SB_DCHECK(g_app_files_dir == NULL);
-  jmethodID method = env->GetMethodID(activity_class,
-      "getFilesDir", "()Ljava/io/File;");
-  jobject file_obj = env->CallObjectMethod(activity_obj, method);
+  file_obj = env->CallActivityObjectMethod("getFilesDir", "()Ljava/io/File;");
   g_app_files_dir = GetAbsolutePath(env, file_obj);
   SB_LOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK(g_app_cache_dir == NULL);
-  method = env->GetMethodID(activity_class,
-      "getCacheDir", "()Ljava/io/File;");
-  file_obj = env->CallObjectMethod(activity_obj, method);
+  file_obj = env->CallActivityObjectMethod("getCacheDir", "()Ljava/io/File;");
   g_app_cache_dir = GetAbsolutePath(env, file_obj);
   SB_LOG(INFO) << "Cache dir: " << g_app_cache_dir;
-
-  activity->vm->DetachCurrentThread();
 }
 
 void SbFileAndroidTeardown() {
