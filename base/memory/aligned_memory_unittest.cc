@@ -40,10 +40,7 @@ TEST(AlignedMemoryTest, StackAlignment) {
   EXPECT_ALIGNED(raw8.void_data(), 8);
   EXPECT_ALIGNED(raw16.void_data(), 16);
 
-// The linker in Clang versions 3.3 and older doesn't align at more than
-// 16 byte increments.
-#if !defined(__clang__) || (__clang_major__ > 3) || \
-    ((__clang_major__ == 3) && (__clang_minor__ > 3))
+#if !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
   AlignedMemory<8, 256> raw256;
   EXPECT_EQ(256u, ALIGNOF(raw256));
   EXPECT_ALIGNED(raw256.void_data(), 256);
@@ -54,7 +51,7 @@ TEST(AlignedMemoryTest, StackAlignment) {
   EXPECT_EQ(4096u, ALIGNOF(raw4096));
   EXPECT_ALIGNED(raw4096.void_data(), 4096);
 #endif  // !defined(ARCH_CPU_ARM_FAMILY))
-#endif
+#endif  // !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
 }
 
 TEST(AlignedMemoryTest, DynamicAllocation) {
