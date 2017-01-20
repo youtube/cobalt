@@ -41,7 +41,6 @@ class ApplicationAndroid
 
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
-  ANativeActivity* GetActivity();
 
  protected:
   // --- Application overrides ---

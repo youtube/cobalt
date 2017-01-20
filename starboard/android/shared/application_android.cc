@@ -22,6 +22,7 @@
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_event.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
@@ -77,10 +78,6 @@ void ApplicationAndroid::Initialize() {
 
 void ApplicationAndroid::Teardown() {
   SbFileAndroidTeardown();
-}
-
-ANativeActivity* ApplicationAndroid::GetActivity() {
-  return android_state_->activity;
 }
 
 SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
@@ -211,16 +208,10 @@ bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
 static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
   out_args->push_back(SbStringDuplicate("starboard"));
 
-  JNIEnv* env;
-  state->activity->vm->AttachCurrentThread(&env, 0);
+  JniEnvExt* env = JniEnvExt::Get();
 
-  jobject activity_obj = state->activity->clazz;
-  jclass activity_class = env->GetObjectClass(activity_obj);
-  jmethodID method =
-      env->GetMethodID(activity_class, "getArgs", "()[Ljava/lang/String;");
-  jobjectArray args_array =
-      (jobjectArray)env->CallObjectMethod(activity_obj, method);
-
+  jobjectArray args_array = (jobjectArray)env->CallActivityObjectMethod(
+      "getArgs", "()[Ljava/lang/String;");
   jint argc = env->GetArrayLength(args_array);
 
   for (jint i = 0; i < argc; i++) {
@@ -238,6 +229,8 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
  * loop in ApplicationAndroid.
  */
 extern "C" void android_main(struct android_app* state) {
+  JniEnvExt::Initialize(state->activity);
+
   std::vector<char*> args;
   GetArgs(state, &args);
 
