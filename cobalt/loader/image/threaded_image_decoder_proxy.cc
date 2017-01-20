@@ -84,7 +84,8 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
 // loop, where it will be deleted after any pending tasks involving it are
 // done.
 ThreadedImageDecoderProxy::~ThreadedImageDecoderProxy() {
-  GetDecodeLoop()->DeleteSoon(FROM_HERE, image_decoder_.release());
+  MessageLoop* decode_loop = GetDecodeLoop();
+  decode_loop->DeleteSoon(FROM_HERE, image_decoder_.release());
 }
 
 LoadResponseType ThreadedImageDecoderProxy::OnResponseStarted(
