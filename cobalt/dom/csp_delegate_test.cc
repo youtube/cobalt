@@ -154,7 +154,8 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
             kCspEnforcementDisable, scoped_ptr<CspViolationReporter>(), GURL(),
             std::string(), base::Closure());
 
-    EXPECT_EQ(scoped_ptr<CspDelegate>(), delegate.get());
+    scoped_ptr<CspDelegate> empty_delegate;
+    EXPECT_EQ(empty_delegate, delegate.get());
   }
   EXPECT_THAT(output, HasSubstr("FATAL"));
 }
