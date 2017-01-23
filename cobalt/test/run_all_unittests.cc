@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/at_exit.h"
 #include "base/path_service.h"
 #include "base/test/test_suite.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -21,6 +22,7 @@
 
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
+  base::AtExitManager at_exit;
   base::TestSuite test_suite(argc, argv);
   PathService::RegisterProvider(&cobalt::PathProvider,
                                 cobalt::paths::PATH_COBALT_START,
