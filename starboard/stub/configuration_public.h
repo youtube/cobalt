@@ -97,6 +97,11 @@
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
+// Some platforms will not align variables on the stack with an alignment
+// greater than 16 bytes. Platforms where this is the case should define the
+// following quirk.
+#undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
