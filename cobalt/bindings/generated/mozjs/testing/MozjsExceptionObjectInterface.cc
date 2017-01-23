@@ -42,6 +42,7 @@
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
+#include "cobalt/script/sequence.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsexn.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"

@@ -20,11 +20,13 @@
 // Details of union type implementation. See union_type.h
 
 #include <limits>
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/type_id.h"
+#include "cobalt/script/sequence.h"
 
 namespace cobalt {
 namespace script {
@@ -36,9 +38,10 @@ struct UnionTypeDefaultTraits {
   typedef T& ReturnType;
   typedef const T& ConstReturnType;
   static base::TypeId GetTypeID() { return base::GetTypeId<T>(); }
+  static const bool is_boolean_type = false;
   static const bool is_interface_type = false;
   static const bool is_numeric_type = false;
-  static const bool is_boolean_type = false;
+  static const bool is_sequence_type = false;
   static const bool is_string_type = false;
 };
 
@@ -79,6 +82,14 @@ struct UnionTypeTraits<bool> : UnionTypeDefaultTraits<bool> {
   typedef bool ReturnType;
   typedef bool ConstReturnType;
   static const bool is_boolean_type = true;
+};
+
+template <typename T>
+struct UnionTypeTraits<Sequence<T> > : UnionTypeDefaultTraits<Sequence<T> > {
+  typedef const Sequence<T>& ArgType;
+  typedef Sequence<T> ReturnType;
+  typedef const Sequence<T>& ConstReturnType;
+  static const bool is_sequence_type = true;
 };
 
 // Explicitly blacklist nullable types. None of the union members should be
