@@ -63,6 +63,7 @@
 #include "MozjsObjectTypeBindingsInterface.h"
 #include "MozjsOperationsTestInterface.h"
 #include "MozjsPutForwardsInterface.h"
+#include "MozjsSequenceUser.h"
 #include "MozjsSingleOperationInterface.h"
 #include "MozjsStaticPropertiesInterface.h"
 #include "MozjsStringifierAnonymousOperationInterface.h"
@@ -108,6 +109,7 @@
 #include "cobalt/bindings/testing/object_type_bindings_interface.h"
 #include "cobalt/bindings/testing/operations_test_interface.h"
 #include "cobalt/bindings/testing/put_forwards_interface.h"
+#include "cobalt/bindings/testing/sequence_user.h"
 #include "cobalt/bindings/testing/single_operation_interface.h"
 #include "cobalt/bindings/testing/static_properties_interface.h"
 #include "cobalt/bindings/testing/stringifier_anonymous_operation_interface.h"
@@ -132,6 +134,7 @@
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
+#include "cobalt/script/sequence.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsfriendapi.h"
 
@@ -209,6 +212,7 @@ using cobalt::bindings::testing::MozjsNumericTypesTestInterface;
 using cobalt::bindings::testing::MozjsObjectTypeBindingsInterface;
 using cobalt::bindings::testing::MozjsOperationsTestInterface;
 using cobalt::bindings::testing::MozjsPutForwardsInterface;
+using cobalt::bindings::testing::MozjsSequenceUser;
 using cobalt::bindings::testing::MozjsSingleOperationInterface;
 using cobalt::bindings::testing::MozjsStaticPropertiesInterface;
 using cobalt::bindings::testing::MozjsStringifierAnonymousOperationInterface;
@@ -228,6 +232,7 @@ using cobalt::bindings::testing::NumericTypesTestInterface;
 using cobalt::bindings::testing::ObjectTypeBindingsInterface;
 using cobalt::bindings::testing::OperationsTestInterface;
 using cobalt::bindings::testing::PutForwardsInterface;
+using cobalt::bindings::testing::SequenceUser;
 using cobalt::bindings::testing::SingleOperationInterface;
 using cobalt::bindings::testing::StaticPropertiesInterface;
 using cobalt::bindings::testing::StringifierAnonymousOperationInterface;
@@ -938,6 +943,10 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
       PutForwardsInterface::PutForwardsInterfaceWrappableType(),
       base::Bind(MozjsPutForwardsInterface::CreateProxy),
       base::Bind(MozjsPutForwardsInterface::PrototypeClass));
+  wrapper_factory->RegisterWrappableType(
+      SequenceUser::SequenceUserWrappableType(),
+      base::Bind(MozjsSequenceUser::CreateProxy),
+      base::Bind(MozjsSequenceUser::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       StaticPropertiesInterface::StaticPropertiesInterfaceWrappableType(),
       base::Bind(MozjsStaticPropertiesInterface::CreateProxy),

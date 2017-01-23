@@ -65,6 +65,7 @@
 #include "JSCObjectTypeBindingsInterface.h"
 #include "JSCOperationsTestInterface.h"
 #include "JSCPutForwardsInterface.h"
+#include "JSCSequenceUser.h"
 #include "JSCSingleOperationInterface.h"
 #include "JSCStaticPropertiesInterface.h"
 #include "JSCStringifierAnonymousOperationInterface.h"
@@ -110,6 +111,7 @@
 #include "cobalt/bindings/testing/object_type_bindings_interface.h"
 #include "cobalt/bindings/testing/operations_test_interface.h"
 #include "cobalt/bindings/testing/put_forwards_interface.h"
+#include "cobalt/bindings/testing/sequence_user.h"
 #include "cobalt/bindings/testing/single_operation_interface.h"
 #include "cobalt/bindings/testing/static_properties_interface.h"
 #include "cobalt/bindings/testing/stringifier_anonymous_operation_interface.h"
@@ -214,6 +216,7 @@ using cobalt::bindings::testing::JSCNumericTypesTestInterface;
 using cobalt::bindings::testing::JSCObjectTypeBindingsInterface;
 using cobalt::bindings::testing::JSCOperationsTestInterface;
 using cobalt::bindings::testing::JSCPutForwardsInterface;
+using cobalt::bindings::testing::JSCSequenceUser;
 using cobalt::bindings::testing::JSCSingleOperationInterface;
 using cobalt::bindings::testing::JSCStaticPropertiesInterface;
 using cobalt::bindings::testing::JSCStringifierAnonymousOperationInterface;
@@ -233,6 +236,7 @@ using cobalt::bindings::testing::NumericTypesTestInterface;
 using cobalt::bindings::testing::ObjectTypeBindingsInterface;
 using cobalt::bindings::testing::OperationsTestInterface;
 using cobalt::bindings::testing::PutForwardsInterface;
+using cobalt::bindings::testing::SequenceUser;
 using cobalt::bindings::testing::SingleOperationInterface;
 using cobalt::bindings::testing::StaticPropertiesInterface;
 using cobalt::bindings::testing::StringifierAnonymousOperationInterface;
@@ -841,6 +845,10 @@ script::javascriptcore::JSCGlobalObject* JSCWindow::Create(
       PutForwardsInterface::PutForwardsInterfaceWrappableType(),
       JSCPutForwardsInterface::s_classinfo(),
       JSCPutForwardsInterface::GetCreateWrapperFunction());
+  wrapper_factory->RegisterWrappableType(
+      SequenceUser::SequenceUserWrappableType(),
+      JSCSequenceUser::s_classinfo(),
+      JSCSequenceUser::GetCreateWrapperFunction());
   wrapper_factory->RegisterWrappableType(
       StaticPropertiesInterface::StaticPropertiesInterfaceWrappableType(),
       JSCStaticPropertiesInterface::s_classinfo(),
