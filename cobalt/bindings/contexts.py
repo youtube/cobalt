@@ -18,6 +18,7 @@ Extract the relevant information from the IdlParser objects and store them in
 dicts that will be used by Jinja in JS bindings generation.
 """
 
+from bindings.scripts.idl_types import IdlSequenceType
 from bindings.scripts.v8_attributes import is_constructor_attribute
 from bindings.scripts.v8_interface import method_overloads_by_name
 from name_conversion import capitalize_function_name
@@ -47,6 +48,17 @@ def idl_primitive_type_to_cobalt(idl_type):
   }
   assert idl_type.is_primitive_type, 'Expected primitive type.'
   return type_map[idl_type.base_type]
+
+
+def idl_sequence_type_to_cobalt(idl_type):
+  """Map IDL sequence type to C++ sequence type implementation."""
+  assert is_sequence_type(idl_type), 'Expected sequence type.'
+  element_idl_type = idl_type.element_type
+  assert not is_object_type(element_idl_type), 'Object type not supported.'
+  assert (not element_idl_type.is_callback_function and
+          not idl_type.is_callback_interface), 'Callback types not supported.'
+  element_cobalt_type = idl_type_to_cobalt_type(element_idl_type)
+  return 'script::Sequence< %s >' % element_cobalt_type
 
 
 def idl_union_type_to_cobalt(idl_type):
@@ -109,6 +121,10 @@ def is_object_type(idl_type):
   return str(idl_type) == 'object'
 
 
+def is_sequence_type(idl_type):
+  return isinstance(idl_type, IdlSequenceType)
+
+
 def idl_type_to_cobalt_type(idl_type):
   """Map IDL type to C++ type."""
   cobalt_type = None
@@ -122,6 +138,8 @@ def idl_type_to_cobalt_type(idl_type):
     cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
   elif idl_type.is_union_type:
     cobalt_type = idl_union_type_to_cobalt(idl_type)
+  elif is_sequence_type(idl_type):
+    cobalt_type = idl_sequence_type_to_cobalt(idl_type)
   elif idl_type.name == 'void':
     cobalt_type = 'void'
   elif is_object_type(idl_type):

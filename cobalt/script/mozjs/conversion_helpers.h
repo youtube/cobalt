@@ -21,6 +21,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/enable_if.h"
@@ -32,8 +33,12 @@
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/union_type_conversion_forward.h"
+#include "cobalt/script/mozjs/util/algorithm_helpers.h"
+#include "cobalt/script/sequence.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsarray.h"
+#include "third_party/mozjs/js/src/jscntxt.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
 #include "third_party/mozjs/js/src/jsstr.h"
 
@@ -503,6 +508,112 @@ inline void FromJSValue(
   DCHECK(implementing_object);
   *out_callback_interface = MozjsCallbackInterfaceHolder<T>(
       implementing_object, context, global_environment->wrapper_factory());
+}
+
+template <typename T>
+void ToJSValue(JSContext* context, const script::Sequence<T>& sequence,
+               JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  // 1. Let n be the length of S.
+  typedef typename script::Sequence<T>::size_type size_type;
+  size_type count = sequence.size();
+
+  // 2. Let A be a new Array object created as if by the expression [].
+  JS::RootedObject array(context, NewDenseEmptyArray(context));
+
+  // 3. Initialize i to be 0.
+  // 4. While i < n:
+  for (size_type index = 0; index < count; ++index) {
+    // 4.1. Let V be the value in S at index i.
+    // 4.2. Let E be the result of converting V to an ECMAScript value.
+    JS::RootedValue element(context);
+    ToJSValue(context, sequence.at(index), &element);
+
+    std::string property =
+        base::StringPrintf("%" PRIu64, static_cast<uint64_t>(index));
+
+    // 4.3. Let P be the result of calling ToString(i).
+    // 4.4. Call CreateDataProperty(A, P, E).
+    JS_SetProperty(context, array, property.c_str(), element.address());
+
+    // 4.5. Set i to i + 1.
+  }
+
+  // 5. Return A.
+  out_value.set(OBJECT_TO_JSVAL(array));
+}
+
+template <typename T>
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 script::Sequence<T>* out_sequence) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  DCHECK_EQ(0, conversion_flags);
+  DCHECK(out_sequence);
+
+  // JS -> IDL type conversion procedure described here:
+  // https://heycam.github.io/webidl/#es-sequence
+
+  // 1. If Type(V) is not Object, throw a TypeError.
+  JS::RootedObject iterable(context);
+  if (!value.isObject() ||
+      !JS_ValueToObject(context, value, iterable.address())) {
+    exception_state->SetSimpleException(kNotObjectType);
+    return;
+  }
+
+  // 2. Let method be the result of GetMethod(V, @@iterator).
+  // 3. ReturnIfAbrupt(method).
+  // 4. If method is undefined, throw a TypeError.
+  // 5. Return the result of creating a sequence from V and method.
+  // https://heycam.github.io/webidl/#create-sequence-from-iterable
+  // 5.1. Let iter be GetIterator(iterable, method).
+  JS::RootedObject iter(context);
+  if (!util::GetIterator(context, iterable, &iter)) {
+    exception_state->SetSimpleException(kNotIterableType);
+    return;
+  }
+
+  // 5.2. ReturnIfAbrupt(iter).
+  // 5.3. Initialize i to be 0.
+  // 5.4. Repeat
+  while (true) {
+    // 5.4.1. Let next be IteratorStep(iter).
+    // 5.4.2. ReturnIfAbrupt(next).
+    // 5.4.3. If next is false, then return an IDL sequence value of type
+    //        sequence<T> of length i, where the value of the element at index j
+    //        is Sj.
+    JS::RootedObject next(context);
+    if (!util::IteratorStep(context, iter, &next)) {
+      break;
+    }
+
+    // 5.4.4. Let nextItem be IteratorValue(next).
+    // 5.4.5. ReturnIfAbrupt(nextItem).
+    JS::RootedValue next_item(context);
+    if (!util::IteratorValue(context, next, &next_item)) {
+      exception_state->SetSimpleException(kDoesNotImplementInterface);
+      util::IteratorClose(context, iter);
+      return;
+    }
+
+    // 5.4.6. Initialize Si to the result of converting nextItem to an IDL value
+    //        of type T.
+    T idl_next_item;
+    FromJSValue(context, next_item, conversion_flags, exception_state,
+                &idl_next_item);
+    if (context->isExceptionPending()) {
+      // Exception converting element into to sequence element type.
+      util::IteratorClose(context, iter);
+      return;
+    }
+    out_sequence->push_back(idl_next_item);
+
+    // 5.4.7. Set i to i + 1.
+  }
+
+  util::IteratorClose(context, iter);
+  return;
 }
 
 }  // namespace mozjs
