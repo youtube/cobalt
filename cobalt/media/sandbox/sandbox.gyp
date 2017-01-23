@@ -99,6 +99,22 @@
     },
   ],
   'conditions': [
+    ['OS=="starboard" and sb_media_platform == "starboard"', {
+      'targets': [
+        {
+          'target_name': 'media2_sandbox',
+          'type': '<(final_executable_type)',
+          'sources': [
+            'media2_sandbox.cc',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/base/base.gyp:base',
+            '<(DEPTH)/cobalt/math/math.gyp:math',
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        },
+      ],
+    }],
     ['OS == "starboard" and has_zzuf == "True"', {
       'targets': [
         # This target will build a sandbox application that allows for fuzzing
