@@ -68,6 +68,8 @@
       '-Wno-inline',
       # Disable warning: 'typedef locally defined but not used'.
       '-Wno-unused-local-typedefs',
+      # Disable warning: 'narrowing conversion'
+      '-Wno-narrowing',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
