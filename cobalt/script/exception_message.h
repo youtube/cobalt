@@ -48,6 +48,7 @@ enum MessageType {
   kNotInt64Type,
   kNotUint64Type,
   kNotNumberType,
+  kNotIterableType,
   kDoesNotImplementInterface,
   kConvertToStringFailed,
   kNotFinite,
