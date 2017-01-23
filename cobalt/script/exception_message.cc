@@ -30,6 +30,7 @@ ExceptionMessage kMessages[kNumMessageTypes] = {
     {kNotInt64Type, kTypeError, "Value is not int64."},
     {kNotUint64Type, kTypeError, "Value is not uint64."},
     {kNotNumberType, kTypeError, "Value is not a number."},
+    {kNotIterableType, kTypeError, "Value is not iterable."},
     {kDoesNotImplementInterface, kTypeError,
      "Value does not implement the interface type."},
     {kConvertToStringFailed, kTypeError,
