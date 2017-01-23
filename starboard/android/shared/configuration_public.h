@@ -104,6 +104,10 @@
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
+// Indicates that there is no support for alignment at greater than 16 bytes for
+// items on the stack.
+#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
+
 // --- Graphics Configuration ------------------------------------------------
 
 // Indicates whether or not the given platform supports rendering of NV12
