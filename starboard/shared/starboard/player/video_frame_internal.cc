@@ -229,6 +229,14 @@ scoped_refptr<VideoFrame> VideoFrame::CreateYV12Frame(int width,
   return frame;
 }
 
+// static
+scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame(SbMediaTime pts) {
+  VideoFrame* frame = new VideoFrame;
+  frame->format_ = kYV12;
+  frame->pts_ = pts;
+  return frame;
+}
+
 void VideoFrame::InitializeToInvalidFrame() {
   format_ = kInvalid;
   width_ = 0;

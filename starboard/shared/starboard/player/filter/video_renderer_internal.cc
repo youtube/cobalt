@@ -87,6 +87,8 @@ scoped_refptr<VideoFrame> VideoRenderer::GetCurrentFrame(
     SbMediaTime media_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
+  decoder_->SetCurrentTime(media_time);
+
   if (frames_.empty()) {
     return last_displayed_frame_;
   }
@@ -100,7 +102,6 @@ scoped_refptr<VideoFrame> VideoRenderer::GetCurrentFrame(
   }
 
   last_displayed_frame_ = frames_.front();
-
   return last_displayed_frame_;
 }
 
