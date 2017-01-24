@@ -33,6 +33,7 @@ namespace base {
     MacroOpWithNameOnly(blur)                                 \
     MacroOpWithNameOnly(canplay)                              \
     MacroOpWithNameOnly(canplaythrough)                       \
+    MacroOpWithNameOnly(close)                                \
     MacroOpWithNameOnly(durationchange)                       \
     MacroOpWithNameOnly(emptied)                              \
     MacroOpWithNameOnly(ended)                                \
@@ -50,9 +51,11 @@ namespace base {
     MacroOpWithNameOnly(loadedmetadata)                       \
     MacroOpWithNameOnly(loadend)                              \
     MacroOpWithNameOnly(loadstart)                            \
+    MacroOpWithNameOnly(message)                              \
     MacroOpWithNameOnly(needkey)                              \
     MacroOpWithNameOnly(nomatch)                              \
     MacroOpWithNameOnly(off)                                  \
+    MacroOpWithNameOnly(open)                                 \
     MacroOpWithNameOnly(pause)                                \
     MacroOpWithNameOnly(play)                                 \
     MacroOpWithNameOnly(playing)                              \

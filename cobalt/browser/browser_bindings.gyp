@@ -183,6 +183,8 @@
         '../webdriver/ScriptExecutorParams.idl',
         '../webdriver/ScriptExecutorResult.idl',
 
+        '../websocket/WebSocket.idl',
+
         '../xhr/XMLHttpRequest.idl',
         '../xhr/XMLHttpRequestEventTarget.idl',
         '../xhr/XMLHttpRequestUpload.idl',
