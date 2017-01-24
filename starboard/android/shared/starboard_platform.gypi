@@ -41,6 +41,7 @@
       'sources': [
         'application_android.cc',
         'atomic_public.h',
+        'audio_decoder.cc',
         'configuration_public.h',
         'file_can_open.cc',
         'file_close.cc',
@@ -239,7 +240,6 @@
         '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/stub_audio_decoder.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/stub_video_decoder.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/video_decoder_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.cc',
