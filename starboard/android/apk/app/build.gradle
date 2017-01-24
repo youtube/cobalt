@@ -45,6 +45,8 @@ android {
 
     defaultConfig {
         applicationId "foo.cobalt.coat"
+	// Note: Please also change these values in
+	// starboard/android.shared/platform_deploy.gypi
         minSdkVersion 21
         targetSdkVersion 22  // TODO: Targeting Lollipop avoids runtime permissions for now
         versionCode 1
