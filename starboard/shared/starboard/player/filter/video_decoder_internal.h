@@ -66,6 +66,12 @@ class VideoDecoder {
   // decoder can do some process inside it when necessary.
   virtual void Update() {}
 
+  // In certain cases, a decoder may benefit from knowing the current time of
+  // the audio decoder that it is following.  This optional function provides
+  // the renderer that owns the decoder an opportunity to provide this
+  // information to the decoder.
+  virtual void SetCurrentTime(SbMediaTime current_time) {}
+
   // Individual implementation has to implement this function to create a video
   // decoder.
   static VideoDecoder* Create(SbMediaVideoCodec video_codec);

@@ -31,7 +31,7 @@ namespace player {
 // A video frame produced by a video decoder.
 class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
  public:
-  typedef void (*FreeNativeTextureFunc)(void* context, void* textue);
+  typedef void (*FreeNativeTextureFunc)(void* context, void* texture);
 
   enum Format {
     kInvalid,  // A VideoFrame in this format can be used to indicate EOS.
@@ -85,6 +85,7 @@ class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
                                                    const uint8_t* y,
                                                    const uint8_t* u,
                                                    const uint8_t* v);
+  static scoped_refptr<VideoFrame> CreateEmptyFrame(SbMediaTime pts);
 
  private:
   void InitializeToInvalidFrame();
