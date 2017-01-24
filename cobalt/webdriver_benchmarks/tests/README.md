@@ -22,8 +22,7 @@ To make a new test:
  2. If this file contains internal names or details, consider adding it
     to the "EXCLUDE.FILES" list.
 
- 3. Use the `record_result*` methods in the `tv_testcase.TvTestCase` base
-    class where appropriate.
+ 3. Use the `record_test_result*` methods in `tv_testcase_util` where appropriate.
 
  4. Results must be added to the build results database schema. See
     the internal "README-Updating-Result-Schema.md" file
