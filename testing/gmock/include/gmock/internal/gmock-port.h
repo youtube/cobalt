@@ -59,6 +59,13 @@
 # error "At least Visual C++ 2003 (7.1) is required to compile Google Mock."
 #endif
 
+// Portability wrapper for std::move.
+#if GTEST_LANG_CXX11
+# define GTEST_MOVE_(x) ::std::move(x)  // NOLINT
+#else
+# define GTEST_MOVE_(x) x
+#endif
+
 // Macro for referencing flags.  This is public as we want the user to
 // use this syntax to reference Google Mock flags.
 #define GMOCK_FLAG(name) FLAGS_gmock_##name
