@@ -26,6 +26,7 @@
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/string.h"
 
 namespace {
@@ -66,17 +67,19 @@ namespace shared {
 typedef ::starboard::shared::starboard::Application::Event Event;
 
 ApplicationAndroid::ApplicationAndroid(struct android_app* state)
-  : android_state_(state), window_(kSbWindowInvalid) { }
+    : android_state_(state), window_(kSbWindowInvalid) {}
 
-ApplicationAndroid::~ApplicationAndroid() { }
+ApplicationAndroid::~ApplicationAndroid() {}
 
 void ApplicationAndroid::Initialize() {
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
   SbFileAndroidInitialize(android_state_->activity);
+  SbAudioSinkPrivate::Initialize();
 }
 
 void ApplicationAndroid::Teardown() {
+  SbAudioSinkPrivate::TearDown();
   SbFileAndroidTeardown();
 }
 

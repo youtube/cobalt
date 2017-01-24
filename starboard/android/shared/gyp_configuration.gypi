@@ -82,6 +82,7 @@
     'platform_libraries': [
       '-lEGL',
       '-lGLESv2',
+      '-lOpenSLES',
       '-landroid',
       '-llog',
       '-lmediandk',
