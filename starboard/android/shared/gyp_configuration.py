@@ -35,6 +35,8 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
     self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
     self.ndk_path = sdk_utils.GetNdkPath()
+    self.javac_classpath = sdk_utils.GetJavacClasspath()
+    self.android_build_tools_path = sdk_utils.GetBuildToolsPath()
     print('Using Android NDK at {}'.format(self.ndk_path))
 
   def GetBuildFormat(self):
@@ -52,6 +54,8 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'ANDROID_ABI': self.android_abi,
         'enable_remote_debugging': 0,
+        'javac_classpath': self.javac_classpath,
+        'android_build_tools_path': self.android_build_tools_path
     })
     return variables
 
