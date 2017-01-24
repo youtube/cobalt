@@ -84,6 +84,7 @@
       '-lGLESv2',
       '-landroid',
       '-llog',
+      '-lmediandk',
     ],
     'conditions': [
       ['clang==1', {
