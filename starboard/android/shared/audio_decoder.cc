@@ -14,8 +14,6 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 
-#include <algorithm>
-
 #include "starboard/audio_sink.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -26,8 +24,8 @@ namespace shared {
 
 namespace {
 
-const int64_t kSecondInMicroseconds = 1000 * 1000;
-const int64_t kInputTimeout = kSecondInMicroseconds;
+const int64_t kSecondInMicroseconds = 1 * 1000 * 1000;
+const int64_t kDequeueTimeout = kSecondInMicroseconds;
 const char kMimeTypeAac[] = "audio/mp4a-latm";
 const char kCodecSpecificDataKey[] = "csd-0";
 
@@ -64,7 +62,6 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   // See "Synchronous Processing using Buffers" at
   // https://developer.android.com/reference/android/media/MediaCodec.html for
   // details regarding logic of this function.
-
   SB_CHECK(output);
   SB_CHECK(media_codec_);
 
@@ -76,9 +73,8 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   const uint8_t* data = input_buffer.data();
   size_t input_size = input_buffer.size();
 
-  ssize_t index = AMediaCodec_dequeueInputBuffer(media_codec_, kInputTimeout);
+  ssize_t index = AMediaCodec_dequeueInputBuffer(media_codec_, kDequeueTimeout);
   if (index < 0) {
-    // TODO: Handle case |index == AMEDIACODEC_INFO_TRY_AGAIN_LATER|.
     SB_LOG(ERROR) << "|AMediaCodec_dequeueInputBuffer| failed with status: "
                   << index;
     return;
@@ -88,13 +84,15 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   uint8_t* mc_input_buffer =
       AMediaCodec_getInputBuffer(media_codec_, index, &buffer_size);
   SB_DCHECK(mc_input_buffer);
-  size_t write_size = std::min(input_size, buffer_size);
-  SB_DCHECK(input_size <= write_size);
-  SbMemoryCopy(mc_input_buffer, data, write_size);
+  if (input_size > buffer_size) {
+    SB_LOG(ERROR) << "Media codec input buffer too small to write to.";
+    return;
+  }
+  SbMemoryCopy(mc_input_buffer, data, input_size);
 
   int64_t pts_us = ConvertToMicroseconds(input_buffer.pts());
   media_status_t status = AMediaCodec_queueInputBuffer(media_codec_, index, 0,
-                                                       write_size, pts_us, 0);
+                                                       input_size, pts_us, 0);
   if (status != AMEDIA_OK) {
     SB_LOG(ERROR) << "|AMediaCodec_queueInputBuffer| failed with status: "
                   << status;
@@ -103,16 +101,22 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
 
   AMediaCodecBufferInfo info;
   ssize_t out_index =
-      AMediaCodec_dequeueOutputBuffer(media_codec_, &info, kInputTimeout);
+      AMediaCodec_dequeueOutputBuffer(media_codec_, &info, kDequeueTimeout);
   if (out_index < 0) {
-    SB_LOG(ERROR) << "|AMediaCodec_dequeueOutputBuffer| failed with status: "
-                  << out_index << ", at pts: " << input_buffer.pts();
+    SB_LOG(INFO) << "|AMediaCodec_dequeueOutputBuffer| failed with status: "
+                 << out_index << ", at pts: " << input_buffer.pts();
     return;
   }
-  buffer_size = 0;
+
+  buffer_size = -1;
   uint8_t* output_buffer =
       AMediaCodec_getOutputBuffer(media_codec_, out_index, &buffer_size);
-  SB_DCHECK(buffer_size == info.size);
+  // |size| is the capacity of the entire allocated buffer, not the amount
+  // filled with relevant decoded data. We must use |info.size| for the
+  // actual size filled by the decoder. See:
+  // https://android.googlesource.com/platform/frameworks/av/+/47734c/media/ndk/NdkMediaCodec.cpp#288
+  SB_DCHECK(info.size <= buffer_size);
+
   if (output_buffer && buffer_size > 0) {
     output->assign(output_buffer + info.offset,
                    output_buffer + info.offset + info.size);
@@ -134,6 +138,10 @@ void AudioDecoder::WriteEndOfStream() {
 
 void AudioDecoder::Reset() {
   stream_ended_ = false;
+  media_status_t status = AMediaCodec_flush(media_codec_);
+  if (status != AMEDIA_OK) {
+    SB_LOG(ERROR) << "|AMediaCodec_flush| failed with status: " << status;
+  }
 }
 
 void AudioDecoder::InitializeCodec() {
@@ -143,6 +151,7 @@ void AudioDecoder::InitializeCodec() {
     SB_LOG(ERROR) << "Failed to create MediaCodec for mime_type: " << mime_type;
     return;
   }
+
   media_format_ = AMediaFormat_new();
   AMediaFormat_setString(media_format_, AMEDIAFORMAT_KEY_MIME, mime_type);
   AMediaFormat_setInt32(media_format_, AMEDIAFORMAT_KEY_CHANNEL_COUNT,
