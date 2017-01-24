@@ -67,6 +67,7 @@
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:*',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:*',
         '<(DEPTH)/cobalt/webdriver/webdriver_test.gyp:*',
+        '<(DEPTH)/cobalt/websocket/websocket.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
         '<(DEPTH)/crypto/crypto.gyp:crypto_unittests',
         '<(DEPTH)/sql/sql.gyp:sql_unittests',
