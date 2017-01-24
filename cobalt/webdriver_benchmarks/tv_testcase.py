@@ -4,9 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import json
 import logging
-import math
 import os
 import sys
 import time
@@ -25,92 +23,31 @@ except ImportError:
 # This directory is a package
 sys.path.insert(0, os.path.abspath("."))
 # pylint: disable=C6204,C6203
-import partial_layout_benchmark
+import c_val_names
+import container_util
 import tv
+import tv_testcase_runner
+import tv_testcase_util
 
 # selenium imports
 # pylint: disable=C0103
-WebDriverWait = partial_layout_benchmark.ImportSeleniumModule(
+WebDriverWait = tv_testcase_util.import_selenium_module(
     submodule="webdriver.support.ui").WebDriverWait
 
-ElementNotVisibleException = (partial_layout_benchmark.ImportSeleniumModule(
-    submodule="common.exceptions").ElementNotVisibleException)
+ElementNotVisibleException = tv_testcase_util.import_selenium_module(
+    submodule="common.exceptions").ElementNotVisibleException
 
 BASE_URL = "https://www.youtube.com/"
 TV_APP_PATH = "/tv"
 BASE_PARAMS = {"env_forcedOffAllExperiments": True}
 PAGE_LOAD_WAIT_SECONDS = 30
-LAYOUT_TIMEOUT_SECONDS = 5
+PROCESSING_TIMEOUT_SECONDS = 15
+MEDIA_TIMEOUT_SECONDS = 30
 # Today, Cobalt's WebDriver has a race that
 # can leave the former page's DOM visible after a navigate.
 # As a workaround, sleep for a bit
 # b/33275371
 COBALT_POST_NAVIGATE_SLEEP_SECONDS = 5
-
-
-def _percentile(results, percentile):
-  """Returns the percentile of an array.
-
-  This method interpolates between two numbers if the percentile lands between
-  two data points.
-
-  Args:
-      results: Sortable results array.
-      percentile: A number ranging from 0-100.
-  Returns:
-      Appropriate value.
-  Raises:
-    RuntimeError: Raised on invalid args.
-  """
-  if not results:
-    return None
-  if percentile > 100 or percentile < 0:
-    raise RuntimeError("percentile must be 0-100")
-  sorted_results = sorted(results)
-
-  if percentile == 100:
-    return sorted_results[-1]
-  fractional, index = math.modf((len(sorted_results) - 1) * (percentile * 0.01))
-  index = int(index)
-
-  if len(sorted_results) == index + 1:
-    return sorted_results[index]
-
-  return sorted_results[index] * (1 - fractional
-                                 ) + sorted_results[index + 1] * fractional
-
-
-def _merge_dict(merge_into, merge_from):
-  """Merges the second dict into the first dict.
-
-  Merge into differs from update in that it will not override values.  If the
-  values already exist, the resulting value will be a list with a union of
-  existing and new items.
-
-  Args:
-    merge_into: An output dict to merge values into.
-    merge_from: An input dict to iterate over and insert values from.
-
-  Returns:
-    None
-  """
-  if not merge_from:
-    return
-  for k, v in merge_from.items():
-    try:
-      existing_value = merge_into[k]
-    except KeyError:
-      merge_into[k] = v
-      continue
-
-    if not isinstance(v, list):
-      v = [v]
-    if isinstance(existing_value, list):
-      existing_value.extend(v)
-    else:
-      new_value = [existing_value]
-      new_value.extend(v)
-      merge_into[k] = new_value
 
 
 class TvTestCase(unittest.TestCase):
@@ -120,8 +57,11 @@ class TvTestCase(unittest.TestCase):
   with an internal class with the same name.
   """
 
-  class LayoutTimeoutException(BaseException):
-    """Exception thrown when layout did not complete in time."""
+  class ProcessingTimeoutException(BaseException):
+    """Exception thrown when processing did not complete in time."""
+
+  class MediaTimeoutException(BaseException):
+    """Exception thrown when media did not complete in time."""
 
   @classmethod
   def setUpClass(cls):
@@ -132,7 +72,7 @@ class TvTestCase(unittest.TestCase):
     print("Done " + cls.__name__)
 
   def get_webdriver(self):
-    return partial_layout_benchmark.GetWebDriver()
+    return tv_testcase_runner.GetWebDriver()
 
   def get_cval(self, cval_name):
     """Returns value of a cval.
@@ -177,7 +117,7 @@ class TvTestCase(unittest.TestCase):
     query_dict = BASE_PARAMS.copy()
     if query_params:
       query_dict.update(urlparse.parse_qsl(parsed_url[4]))
-      _merge_dict(query_dict, query_params)
+      container_util.merge_dict(query_dict, query_params)
     parsed_url[4] = urlencode(query_dict, doseq=True)
     final_url = urlparse.urlunparse(parsed_url)
     self.get_webdriver().get(final_url)
@@ -290,64 +230,71 @@ class TvTestCase(unittest.TestCase):
           raise
         time.sleep(1)
 
-  def wait_for_layout_complete(self):
-    """Waits for Cobalt to complete pending layouts."""
-    start_time = time.time()
-    while self.get_int_cval("Event.MainWebModule.IsProcessing"):
-
-      if time.time() - start_time > LAYOUT_TIMEOUT_SECONDS:
-        raise TvTestCase.LayoutTimeoutException()
-
-      time.sleep(0.1)
-
-  def get_keyup_layout_duration_us(self):
-    return self.get_int_cval("Event.Duration.MainWebModule.KeyUp")
-
-  def wait_for_layout_complete_after_focused_shelf(self):
+  def wait_for_processing_complete_after_focused_shelf(self):
     """Waits for Cobalt to focus on a shelf and complete pending layouts."""
     self.poll_until_found(tv.FOCUSED_SHELF)
     self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
-    self.wait_for_layout_complete()
+    self.wait_for_processing_complete()
 
-  def record_result(self, name, result):
-    """Records an individual scalar result of a benchmark.
+  def wait_for_processing_complete(self, check_animations=True):
+    """Waits for Cobalt to complete processing.
 
-    Args:
-      name: name of test case
-      result: Test result. Must be JSON encodable scalar.
-    """
-    value_to_record = result
-
-    string_value_to_record = json.JSONEncoder().encode(value_to_record)
-    print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
-
-  def record_result_median(self, name, results):
-    """Records the median of an array of results.
+    This method requires two consecutive iterations through its loop where
+    Cobalt is not processing before treating processing as complete. This
+    protects against a brief window between two different processing sections
+    being mistaken as completed processing.
 
     Args:
-      name: name of test case
-      results: Test results array. Must be array of JSON encodable scalar.
-    """
-    value_to_record = _percentile(results, 50)
+      check_animations: Whether or not animations should be checked when
+                        determining if processing is complete.
 
-    string_value_to_record = json.JSONEncoder().encode(value_to_record)
-    print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
-
-  def record_result_percentile(self, name, results, percentile):
-    """Records the percentile of an array of results.
-
-    Args:
-      name: The (string) name of test case.
-      results: Test results array. Must be array of JSON encodable scalars.
-      percentile: A number ranging from 0-100.
     Raises:
-      RuntimeError: Raised on invalid args.
+      ProcessingTimeoutException: Processing is not complete within the
+      required time.
     """
-    value_to_record = _percentile(results, percentile)
-    string_value_to_record = json.JSONEncoder().encode(value_to_record)
-    print("tv_testcase RESULT: {} {}".format(name, string_value_to_record))
+    start_time = time.time()
+    count = 0
+    while count < 2:
+      if self.is_processing(check_animations):
+        count = 0
+      else:
+        count += 1
+
+      if time.time() - start_time > PROCESSING_TIMEOUT_SECONDS:
+        raise TvTestCase.ProcessingTimeoutException()
+
+      time.sleep(0.1)
+
+  def is_processing(self, check_animations):
+    """Checks to see if Cobalt is currently processing."""
+    return (
+        self.get_int_cval(c_val_names.count_dom_active_dispatch_events()) or
+        self.get_int_cval(c_val_names.layout_is_dirty()) or
+        (check_animations and
+         self.get_int_cval(c_val_names.renderer_has_active_animations())) or
+        self.get_int_cval(c_val_names.count_image_cache_loading_resources()) or
+        self.get_int_cval(c_val_names.count_image_cache_pending_callbacks()) or
+        self.get_int_cval(
+            c_val_names.count_remote_typeface_cache_loading_resources()) or
+        self.get_int_cval(
+            c_val_names.count_remote_typeface_cache_pending_callbacks()))
+
+  def wait_for_media_element_playing(self):
+    """Waits for a video to begin playing.
+
+    Raises:
+      MediaTimeoutException: The video does not start playing within the
+      required time.
+    """
+    start_time = time.time()
+    while self.get_int_cval(c_val_names.event_duration_dom_video_start_delay(
+    )) == 0:
+      if time.time() - start_time > MEDIA_TIMEOUT_SECONDS:
+        raise TvTestCase.MediaTimeoutException()
+
+      time.sleep(0.1)
 
 
 def main():
   logging.basicConfig(level=logging.DEBUG)
-  partial_layout_benchmark.main()
+  tv_testcase_runner.main()
