@@ -18,6 +18,7 @@ import os
 import sys
 
 import config.starboard
+import gyp_utils
 
 
 def CreatePlatformConfig():
@@ -59,19 +60,15 @@ class _PlatformConfig(config.starboard.PlatformConfigStarboard):
     return variables
 
   def GetEnvironmentVariables(self):
+    env_variables = gyp_utils.GetHostCompilerEnvironment()
     raspi_home = self._GetRasPiHome()
 
     toolchain = os.path.realpath(os.path.join(
         raspi_home,
         'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
     toolchain_bin_dir = os.path.join(toolchain, 'bin')
-    env_variables = {
+    env_variables.update({
         'CC': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-g++'),
-        'CC_host': 'clang',
-        'CXX_host': 'clang++',
-        'LD_host': 'clang++',
-        'ARFLAGS_host': 'rcs',
-        'ARTHINFLAGS_host': 'rcsT',
-    }
+    })
     return env_variables
