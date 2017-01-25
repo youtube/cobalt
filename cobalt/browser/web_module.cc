@@ -23,6 +23,8 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/accessibility/focus_observer.h"
+#include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
@@ -276,6 +278,9 @@ class WebModule::Impl {
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
+  // Utters the text contents of the focused element.
+  scoped_ptr<accessibility::FocusObserver> focus_observer_;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
@@ -310,6 +315,7 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
   }
 
   void OnMutation() OVERRIDE{};
+  void OnFocusChanged() OVERRIDE{};
 
  private:
   ClosureVector loaded_callbacks_;
@@ -461,6 +467,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
+  scoped_ptr<accessibility::TTSEngine> tts_engine(
+      new accessibility::TTSLogger());
+  focus_observer_.reset(new accessibility::FocusObserver(window_->document(),
+                                                         tts_engine.Pass()));
+
   is_running_ = true;
 }
 
@@ -484,6 +495,7 @@ WebModule::Impl::~Impl() {
   remote_typeface_cache_->DisableCallbacks();
   image_cache_->DisableCallbacks();
 
+  focus_observer_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();

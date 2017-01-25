@@ -386,6 +386,7 @@ void Document::SetActiveElement(Element* active_element) {
   } else {
     active_element_.reset();
   }
+  FOR_EACH_OBSERVER(DocumentObserver, observers_, OnFocusChanged());
 }
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }

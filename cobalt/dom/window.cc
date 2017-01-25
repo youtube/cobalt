@@ -53,6 +53,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
     window_->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
   }
   void OnMutation() OVERRIDE {}
+  void OnFocusChanged() OVERRIDE {}
 
  private:
   Window* window_;
