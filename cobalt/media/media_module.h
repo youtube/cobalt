@@ -74,6 +74,12 @@ class MediaModule : public CanPlayTypeHandler,
     return false;
   }
 
+  // The following functions will be called inside Suspend() and Resume()
+  // from the main thread.  Sub-classes can override these functions for
+  // platform specific tasks.
+  virtual void OnSuspend() {}
+  virtual void OnResume() {}
+
   void Suspend();
   void Resume();
 
