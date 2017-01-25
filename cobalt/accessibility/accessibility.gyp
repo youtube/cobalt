@@ -19,56 +19,16 @@
       'sources': [
         'internal/text_alternative_helper.cc',
         'internal/text_alternative_helper.h',
+        'focus_observer.cc',
+        'focus_observer.h',
         'text_alternative.cc',
         'text_alternative.h',
+        'tts_engine.h',
+        'tts_logger.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
       ],
-    },
-    {
-      'target_name': 'accessibility_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'text_alternative_tests.cc',
-        'internal/text_alternative_helper_test.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-        'accessibility',
-        'accessibility_test_data',
-      ],
-    },
-    {
-      'target_name': 'accessibility_test_data',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'accessibility_test_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/accessibility/testdata/',
-            ],
-            'output_dir': 'cobalt/accessibility_test',
-          },
-          'includes': ['../build/copy_test_data.gypi'],
-        }
-      ],
-    },
-    {
-      'target_name': 'accessibility_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'accessibility_test',
-      ],
-      'variables': {
-        'executable_name': 'accessibility_test',
-      },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ]
 }

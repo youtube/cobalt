@@ -91,6 +91,7 @@ class DocumentLoader : public dom::DocumentObserver {
   // dom::DocumentObserver functions
   void OnLoad() OVERRIDE { nested_loop_.Quit(); }
   void OnMutation() OVERRIDE {}
+  void OnFocusChanged() OVERRIDE {}
 
   script::FakeScriptRunner script_runner_;
   loader::FetcherFactory fetcher_factory_;
