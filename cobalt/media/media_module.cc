@@ -48,9 +48,11 @@ void MediaModule::Suspend() {
   RunClosureOnMessageLoopAndWait(
       message_loop_,
       base::Bind(&MediaModule::SuspendTask, base::Unretained(this)));
+  OnSuspend();
 }
 
 void MediaModule::Resume() {
+  OnResume();
   RunClosureOnMessageLoopAndWait(
       message_loop_,
       base::Bind(&MediaModule::ResumeTask, base::Unretained(this)));
