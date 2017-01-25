@@ -45,6 +45,11 @@ class MEDIA_EXPORT ShellMediaPlatform {
 
   static ShellMediaPlatform* Instance();
 
+  // The following functions will be called when the application enters or
+  // leaves suspending status.
+  virtual void Suspend() {}
+  virtual void Resume() {}
+
   // Media stack buffer allocate/free functions currently only used by
   // ShellBufferFactory.
   virtual void* AllocateBuffer(size_t size) = 0;
