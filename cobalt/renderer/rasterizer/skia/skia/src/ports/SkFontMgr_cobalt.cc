@@ -39,15 +39,81 @@
 
 namespace {
 
+#ifndef SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT
+#define SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT (10 * 1024 * 1024)
+#endif
+
 const int32_t kPeriodicProcessingTimerDelayMs = 5000;
 const int32_t kReleaseInactiveSystemTypefaceOpenStreamsDelayMs = 300000;
 const int32_t kPeriodicFontCachePurgeDelayMs = 900000;
+
+// base::CVal tracking specific to fonts.
+// NOTE: These are put in their own Singleton, because Skia's lazy instance
+// implementation does not guarantee that only one SkFontMgr_Cobalt will be
+// created at a time (see skia/src/core/SkLazyPtr.h), and we cannot have
+// multiple copies of the same CVal.
+class SkFontMgrCVals {
+ public:
+  static SkFontMgrCVals* GetInstance() {
+    return Singleton<SkFontMgrCVals,
+                     DefaultSingletonTraits<SkFontMgrCVals> >::get();
+  }
+
+  const base::CVal<base::cval::SizeInBytes, base::CValPublic>&
+  system_typeface_open_stream_cache_limit_in_bytes() {
+    return system_typeface_open_stream_cache_limit_in_bytes_;
+  }
+
+  base::CVal<base::cval::SizeInBytes, base::CValPublic>&
+  system_typeface_open_stream_cache_size_in_bytes() {
+    return system_typeface_open_stream_cache_size_in_bytes_;
+  }
+
+  void IncrementFontFilesLoadedCount() { ++font_files_loaded_count_; }
+
+ private:
+  SkFontMgrCVals()
+      : system_typeface_open_stream_cache_limit_in_bytes_(
+            "Memory.Font.SystemTypeface.Capacity",
+            SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT,
+            "The capacity, in bytes, of the system fonts. Exceeding this "
+            "results in *inactive* fonts being released."),
+        system_typeface_open_stream_cache_size_in_bytes_(
+            "Memory.Font.SystemTypeface.Size", 0,
+            "Total number of bytes currently used by the cache."),
+        font_files_loaded_count_(
+            "Count.Font.FilesLoaded", 0,
+            "Total number of font file loads that have occurred.") {}
+
+  const base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      system_typeface_open_stream_cache_limit_in_bytes_;
+  mutable base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      system_typeface_open_stream_cache_size_in_bytes_;
+
+  base::CVal<int> font_files_loaded_count_;
+
+  friend struct DefaultSingletonTraits<SkFontMgrCVals>;
+  DISALLOW_COPY_AND_ASSIGN(SkFontMgrCVals);
+};
+
+// The timer used to trigger periodic processing of open streams, which
+// handles moving open streams from the active to the inactive list and
+// releasing inactive open streams. Create it as a lazy instance to ensure it
+// gets cleaned up correctly at exit, even though the SkFontMgr_Cobalt may be
+// created multiple times and the surviving instance isn't deleted until after
+// the thread has been stopped.
+base::LazyInstance<scoped_ptr<base::PollerWithThread> >
+    process_system_typefaces_with_open_streams_poller =
+        LAZY_INSTANCE_INITIALIZER;
+
+base::LazyInstance<base::Lock> poller_lock = LAZY_INSTANCE_INITIALIZER;
 
 // NOTE: It is the responsibility of the caller to call Unref() on the SkData.
 SkData* NewDataFromFile(const SkString& file_path) {
   TRACE_EVENT1("cobalt::renderer", "SkFontMgr_cobalt::NewDataFromFile()",
                "file_path", TRACE_STR_COPY(file_path.c_str()));
   LOG(INFO) << "Loading font file: " << file_path.c_str();
+  SkFontMgrCVals::GetInstance()->IncrementFontFilesLoadedCount();
 
   SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
   if (file_stream == NULL) {
@@ -544,67 +610,6 @@ void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
 //
 //  SkFontMgr_Cobalt
 //
-
-#ifndef SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT
-#define SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT (10 * 1024 * 1024)
-#endif
-
-namespace {
-// Tracking of the cache limit and current cache size. These are stored as
-// base::CVal, so that we can easily monitor the system font memory usage.
-// We have to put the CVals used by SkFontMgr_Cobalt into their own Singleton,
-// because Skia's lazy instance implementation does not guarantee that only one
-// SkFontMgr_Cobalt will be created at a time (see skia/src/core/SkLazyPtr.h),
-// and we cannot have multiple copies of the same CVal.
-class SkFontMgrCVals {
- public:
-  static SkFontMgrCVals* GetInstance() {
-    return Singleton<SkFontMgrCVals,
-                     DefaultSingletonTraits<SkFontMgrCVals> >::get();
-  }
-
-  const base::CVal<base::cval::SizeInBytes, base::CValPublic>&
-  system_typeface_open_stream_cache_limit_in_bytes() {
-    return system_typeface_open_stream_cache_limit_in_bytes_;
-  }
-
-  base::CVal<base::cval::SizeInBytes, base::CValPublic>&
-  system_typeface_open_stream_cache_size_in_bytes() {
-    return system_typeface_open_stream_cache_size_in_bytes_;
-  }
-
- private:
-  SkFontMgrCVals()
-      : system_typeface_open_stream_cache_limit_in_bytes_(
-            "Memory.SystemTypeface.Capacity",
-            SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT,
-            "The capacity, in bytes, of the system fonts. Exceeding this "
-            "results in *inactive* fonts being released."),
-        system_typeface_open_stream_cache_size_in_bytes_(
-            "Memory.SystemTypeface.Size", 0,
-            "Total number of bytes currently used by the cache.") {}
-
-  const base::CVal<base::cval::SizeInBytes, base::CValPublic>
-      system_typeface_open_stream_cache_limit_in_bytes_;
-  mutable base::CVal<base::cval::SizeInBytes, base::CValPublic>
-      system_typeface_open_stream_cache_size_in_bytes_;
-
-  friend struct DefaultSingletonTraits<SkFontMgrCVals>;
-  DISALLOW_COPY_AND_ASSIGN(SkFontMgrCVals);
-};
-
-// The timer used to trigger periodic processing of open streams, which
-// handles moving open streams from the active to the inactive list and
-// releasing inactive open streams. Create it as a lazy instance to ensure it
-// gets cleaned up correctly at exit, even though the SkFontMgr_Cobalt may be
-// created multiple times and the surviving instance isn't deleted until after
-// the thread has been stopped.
-base::LazyInstance<scoped_ptr<base::PollerWithThread> >
-    process_system_typefaces_with_open_streams_poller =
-        LAZY_INSTANCE_INITIALIZER;
-
-base::LazyInstance<base::Lock> poller_lock = LAZY_INSTANCE_INITIALIZER;
-}  // namespace
 
 SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* directory, const SkTArray<SkString, true>& default_fonts)
