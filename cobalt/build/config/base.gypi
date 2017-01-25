@@ -163,7 +163,7 @@
     # Determines the capacity of the image cache which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
     # ideally) these images are cached within GPU memory.
-    'image_cache_size_in_bytes%': 64 * 1024 * 1024,
+    'image_cache_size_in_bytes%': 32 * 1024 * 1024,
 
     # Determines the capacity of the remote typefaces cache which manages all
     # typefaces downloaded from a web page.
@@ -173,7 +173,7 @@
     # Determines the capacity of the software surface cache, which is used to
     # cache all surfaces that are rendered via a software rasterizer to avoid
     # re-rendering them.
-    'software_surface_cache_size_in_bytes%': 10 * 1024 * 1024,
+    'software_surface_cache_size_in_bytes%': 8 * 1024 * 1024,
 
     # Modifying this value to be non-1.0f will result in the image cache
     # capacity being cleared and then temporarily reduced for the duration that
