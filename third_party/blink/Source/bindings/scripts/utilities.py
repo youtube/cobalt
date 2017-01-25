@@ -28,6 +28,7 @@ KNOWN_COMPONENTS = frozenset(
         'testing',
         'web_animations',
         'webdriver',
+        'websocket',
         'xhr',
     ])
 
