@@ -721,6 +721,17 @@ void BrowserModule::Suspend() {
   // render tree resources either.
   render_tree_combiner_.Reset();
 
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  // Note that the following function call will leak the GPU memory allocated.
+  // This is because after renderer_module_.Suspend() is called it is no longer
+  // safe to release the GPU memory allocated.
+  // The following code can call reset() to release the allocated memory but
+  // the memory may still be used by XHR and ArrayBuffer.  As this feature is
+  // only used on platform without Resume() support, it is safer to leak the
+  // memory then to release it.
+  dom::ArrayBuffer::Allocator* allocator = array_buffer_allocator_.release();
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+
   media_module_->Suspend();
 
   // Place the renderer module into a suspended state where it releases all its
@@ -738,6 +749,12 @@ void BrowserModule::Resume() {
   renderer_module_.Resume();
 
   media_module_->Resume();
+
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  // Resume() is not supported on platforms that allocates ArrayBuffer on GPU
+  // memory.
+  NOTREACHED();
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
 
   // Note that at this point, it is probable that this resource provider is
   // different than the one that was managed in the associated call to
