@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/application_android.h"
 
+#include <android/native_activity.h>
 #include <android_native_app_glue.h>
 #include <time.h>
 
@@ -67,7 +68,9 @@ namespace shared {
 typedef ::starboard::shared::starboard::Application::Event Event;
 
 ApplicationAndroid::ApplicationAndroid(struct android_app* state)
-    : android_state_(state), window_(kSbWindowInvalid) {}
+    : android_state_(state),
+      window_(kSbWindowInvalid),
+      exit_on_destroy_(false) {}
 
 ApplicationAndroid::~ApplicationAndroid() {}
 
@@ -170,10 +173,19 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
       }
       break;
     case APP_CMD_DESTROY:
-      // The window is already gone before we get destroyed, so this must be in
-      // this switch. In practice we don't ever get destroyed, and the process
-      // is just killed instead.
-      DispatchAndDelete(new Event(kSbEventTypeStop, NULL, NULL));
+      // Calling exit() on Android is not party-line thinking.
+      // However, if exit_on_destroy_ has been set, we're running
+      // some sort of automated test that's completed. Terminating
+      // the process is the only correct option.
+      //
+      // Note that we do not send kSbEventTypeStop if exit_on_destroy_
+      // is not set. "Destroy" here means "activity destroy" not
+      // "process destroy". Android can start a new activity in this
+      // process again, and Starboard cannot exit it's stop state.
+      if (exit_on_destroy_) {
+        DispatchAndDelete(new Event(kSbEventTypeStop, NULL, NULL));
+        exit(0);
+      }
       break;
   }
 
@@ -206,6 +218,14 @@ bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
   }
   DispatchAndDelete(event);
   return true;
+}
+
+ANativeActivity* ApplicationAndroid::GetActivity() {
+  return android_state_->activity;
+}
+
+void ApplicationAndroid::SetExitOnActivityDestroy() {
+  exit_on_destroy_ = true;
 }
 
 static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {

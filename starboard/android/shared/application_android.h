@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
+#include <android/native_activity.h>
 #include <android_native_app_glue.h>
 
 #include "starboard/configuration.h"
@@ -41,6 +42,8 @@ class ApplicationAndroid
 
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
+  ANativeActivity* GetActivity();
+  void SetExitOnActivityDestroy();
 
  protected:
   // --- Application overrides ---
@@ -68,6 +71,8 @@ class ApplicationAndroid
 
   // The single open window, if any.
   SbWindow window_;
+
+  bool exit_on_destroy_;
 };
 
 }  // namespace shared
