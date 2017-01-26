@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/stringprintf.h"
 #include "cobalt/accessibility/focus_observer.h"
+#include "cobalt/accessibility/starboard_tts_engine.h"
 #include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
@@ -467,11 +468,24 @@ WebModule::Impl::Impl(const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
-  scoped_ptr<accessibility::TTSEngine> tts_engine(
-      new accessibility::TTSLogger());
-  focus_observer_.reset(new accessibility::FocusObserver(window_->document(),
-                                                         tts_engine.Pass()));
-
+  scoped_ptr<accessibility::TTSEngine> tts_engine;
+#if SB_HAS(SPEECH_SYNTHESIS)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
+    tts_engine.reset(new accessibility::StarboardTTSEngine());
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (!tts_engine) {
+    tts_engine.reset(new accessibility::TTSLogger());
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+  if (tts_engine) {
+    focus_observer_.reset(new accessibility::FocusObserver(window_->document(),
+                                                           tts_engine.Pass()));
+  }
   is_running_ = true;
 }
 

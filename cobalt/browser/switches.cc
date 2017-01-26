@@ -98,6 +98,10 @@ extern const char kVideoContainerSizeOverride[] =
 // Decode video data using ShellRawVideoDecoderStub.
 extern const char kVideoDecoderStub[] = "video_decoder_stub";
 
+// Enable text-to-speech functionality, for platforms that implement the speech
+// synthesis API.
+const char kUseTTS[] = "use_tts";
+
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";
 
