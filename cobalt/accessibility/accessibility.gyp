@@ -21,6 +21,8 @@
         'internal/text_alternative_helper.h',
         'focus_observer.cc',
         'focus_observer.h',
+        'starboard_tts_engine.cc',
+        'starboard_tts_engine.h',
         'text_alternative.cc',
         'text_alternative.h',
         'tts_engine.h',
