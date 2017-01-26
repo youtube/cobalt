@@ -109,12 +109,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
               default_security_policy, csp_enforcement_mode,
               csp_policy_changed_callback, csp_insecure_allowed_token,
               dom_max_element_depth)))),
-      document_loader_(new loader::Loader(
-          base::Bind(&loader::FetcherFactory::CreateFetcher,
-                     base::Unretained(fetcher_factory), url),
-          dom_parser->ParseDocumentAsync(
-              document_, base::SourceLocation(url.spec(), 1, 1)),
-          error_callback)),
+      document_loader_(NULL),
       history_(new History()),
       navigator_(new Navigator(user_agent, language)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -138,6 +133,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
   test_runner_ = new TestRunner();
 #endif  // ENABLE_TEST_RUNNER
   document_->AddObserver(relay_on_load_event_.get());
+
   if (system_window_) {
     SbWindow sb_window = system_window_->GetSbWindow();
     SbWindowSize size;
@@ -149,6 +145,25 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
   } else {
       device_pixel_ratio_ = 1.0f;
   }
+
+  // Document load start is deferred from this constructor so that we can be
+  // guaranteed that this Window object is fully constructed before document
+  // loading begins.
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&Window::StartDocumentLoad, this, fetcher_factory,
+                            url, dom_parser, error_callback));
+}
+
+void Window::StartDocumentLoad(
+    loader::FetcherFactory* fetcher_factory, const GURL& url,
+    Parser* dom_parser,
+    const base::Callback<void(const std::string&)>& error_callback) {
+  document_loader_.reset(
+      new loader::Loader(base::Bind(&loader::FetcherFactory::CreateFetcher,
+                                    base::Unretained(fetcher_factory), url),
+                         dom_parser->ParseDocumentAsync(
+                             document_, base::SourceLocation(url.spec(), 1, 1)),
+                         error_callback));
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }

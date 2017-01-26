@@ -24,20 +24,31 @@ namespace rasterizer {
 namespace skia {
 
 VertexBufferObject::VertexBufferObject(
-    const scoped_refptr<render_tree::Mesh>& mesh)
-    : mesh_(mesh) {
-  DCHECK(mesh);
-  const std::vector<render_tree::Mesh::Vertex>& vertices = mesh_->vertices();
+    scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+    GLenum draw_mode)
+    : vertex_count_(vertices->size()), draw_mode_(draw_mode) {
+  scoped_array<float> buffer(new float[5 * vertex_count_]);
+
+  for (size_t i = 0; i < vertices->size(); i++) {
+    buffer[5 * i] = vertices->at(i).x;
+    buffer[5 * i + 1] = vertices->at(i).y;
+    buffer[5 * i + 2] = vertices->at(i).z;
+    buffer[5 * i + 3] = vertices->at(i).u;
+    buffer[5 * i + 4] = vertices->at(i).v;
+  }
+
   // Setup position and texture coordinate vertex buffer.
   GL_CALL(glGenBuffers(1, &mesh_vertex_buffer_));
   DLOG(INFO) << "Created VBO with buffer id " << mesh_vertex_buffer_;
   GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, mesh_vertex_buffer_));
-  GL_CALL(glBufferData(GL_ARRAY_BUFFER,
-                       vertices.size() * sizeof(vertices.front()),
-                       &(vertices.front()), GL_STATIC_DRAW));
+  GL_CALL(glBufferData(GL_ARRAY_BUFFER, vertex_count_ * 5 * sizeof(float),
+                       buffer.get(), GL_STATIC_DRAW));
+
+  // Vertex list data object is deleted at this point.
 }
 
 VertexBufferObject::~VertexBufferObject() {
+  DLOG(INFO) << "Deleted VBO with buffer id " << mesh_vertex_buffer_;
   GL_CALL(glDeleteBuffers(1, &mesh_vertex_buffer_));
 }
 

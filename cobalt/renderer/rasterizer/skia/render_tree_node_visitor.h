@@ -63,6 +63,11 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                               RenderTreeNodeVisitorDrawState* draw_state)>
       RenderImageFallbackFunction;
 
+  typedef base::Callback<void(const render_tree::ImageNode* image_node,
+                              const render_tree::MapToMeshFilter& mesh_filter,
+                              RenderTreeNodeVisitorDrawState* draw_state)>
+      RenderImageWithMeshFallbackFunction;
+
   enum Type {
     kType_Normal,
     kType_SubVisitor,
@@ -76,7 +81,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // |render_image_fallback_function| is specified, it will be invoked whenever
   // standard Skia processing of the image is not possible, which usually is
   // when the image is backed by a SbDecodeTarget that requires special
-  // consideration.  |render_equirectangular_image_function| must be specified
+  // consideration.  |render_image_with_mesh| must be specified
   // in order to support the map-to-mesh filter since Skia is unable to draw
   // 3D meshes natively.
   RenderTreeNodeVisitor(
@@ -84,7 +89,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       const CreateScratchSurfaceFunction* create_scratch_surface_function,
       const base::Closure& reset_skia_context_function,
       const RenderImageFallbackFunction& render_image_fallback_function,
-      const RenderImageFallbackFunction& render_equirectangular_image_function,
+      const RenderImageWithMeshFallbackFunction& render_image_with_mesh,
       SurfaceCacheDelegate* surface_cache_delegate,
       common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
@@ -121,7 +126,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   base::Closure reset_skia_context_function_;
 
   RenderImageFallbackFunction render_image_fallback_function_;
-  RenderImageFallbackFunction render_equirectangular_image_function_;
+  RenderImageWithMeshFallbackFunction render_image_with_mesh_function_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };

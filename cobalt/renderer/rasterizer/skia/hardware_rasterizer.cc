@@ -18,7 +18,6 @@
 
 #include "base/containers/linked_hash_map.h"
 #include "base/debug/trace_event.h"
-#include "cobalt/render_tree/mesh.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -27,7 +26,7 @@
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
-#include "cobalt/renderer/rasterizer/skia/create_spherical_mesh.h"
+#include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
@@ -41,8 +40,6 @@
 #include "third_party/skia/include/gpu/GrTexture.h"
 #include "third_party/skia/include/gpu/SkGrPixelRef.h"
 #include "third_party/skia/src/gpu/SkGpuDevice.h"
-
-using cobalt::render_tree::Mesh;
 
 namespace {
   // Some clients call Submit() multiple times with up to 2 different render
@@ -105,8 +102,9 @@ class HardwareRasterizer::Impl {
 
   void RenderTextureEGL(const render_tree::ImageNode* image_node,
                         RenderTreeNodeVisitorDrawState* draw_state);
-  void RenderTextureEquirectangularEGL(
+  void RenderTextureWithMeshFilterEGL(
       const render_tree::ImageNode* image_node,
+      const render_tree::MapToMeshFilter& mesh_filter,
       RenderTreeNodeVisitorDrawState* draw_state);
 
   base::ThreadChecker thread_checker_;
@@ -126,9 +124,6 @@ class HardwareRasterizer::Impl {
   base::optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
 
   FrameRateThrottler frame_rate_throttler_;
-
-  scoped_ptr<VertexBufferObject> equirectangular_vbo_;
-  scoped_refptr<Mesh> equirectangular_mesh_;
 };
 
 namespace {
@@ -257,8 +252,9 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   gr_context_->resetContext();
 }
 
-void HardwareRasterizer::Impl::RenderTextureEquirectangularEGL(
+void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
     const render_tree::ImageNode* image_node,
+    const render_tree::MapToMeshFilter& mesh_filter,
     RenderTreeNodeVisitorDrawState* draw_state) {
   if (!image_node->data().source) {
     return;
@@ -300,12 +296,14 @@ void HardwareRasterizer::Impl::RenderTextureEquirectangularEGL(
     content_region = *image->GetContentRegion();
   }
 
+  const VertexBufferObject* left_vbo =
+      base::polymorphic_downcast<HardwareMesh*>(mesh_filter.mono_mesh().get())
+          ->GetVBO();
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderVBO(equirectangular_vbo_->GetHandle(),
-                                     equirectangular_mesh_->vertices().size(),
-                                     equirectangular_mesh_->draw_mode(),
-                                     texture, content_region,
-                                     draw_state->transform_3d);
+  textured_mesh_renderer_->RenderVBO(left_vbo->GetHandle(),
+                                     left_vbo->GetVertexCount(),
+                                     left_vbo->GetDrawMode(), texture,
+                                     content_region, draw_state->transform_3d);
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();
@@ -353,9 +351,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   resource_provider_.reset(
       new HardwareResourceProvider(graphics_context_, gr_context_));
 
-  equirectangular_mesh_ = CreateSphericalMesh();
-  equirectangular_vbo_.reset(new VertexBufferObject(equirectangular_mesh_));
-
   graphics_context_->ReleaseCurrentContext();
 
   int max_surface_size = std::max(gr_context_->getMaxRenderTargetSize(),
@@ -375,8 +370,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 HardwareRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
   textured_mesh_renderer_ = base::nullopt;
-
-  equirectangular_vbo_.reset();
 
   for (SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
     iter != sk_output_surface_map_.end(); iter++) {
@@ -482,7 +475,7 @@ void HardwareRasterizer::Impl::Submit(
                    base::Unretained(this)),
         base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
                    base::Unretained(this)),
-        base::Bind(&HardwareRasterizer::Impl::RenderTextureEquirectangularEGL,
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL,
                    base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
@@ -520,7 +513,7 @@ void HardwareRasterizer::Impl::SubmitOffscreen(
                    base::Unretained(this)),
         base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
                    base::Unretained(this)),
-        base::Bind(&HardwareRasterizer::Impl::RenderTextureEquirectangularEGL,
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL,
                    base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
