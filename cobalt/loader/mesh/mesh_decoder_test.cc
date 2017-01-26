@@ -19,6 +19,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/loader/mesh/mesh_projection.h"
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -33,13 +34,13 @@ namespace {
 const char kTestMeshbox[] = "projection.box";
 
 struct MockMeshDecoderCallback {
-  void SuccessCallback(const scoped_refptr<render_tree::Mesh>& value) {
-    mesh = value;
+  void SuccessCallback(const scoped_refptr<MeshProjection>& value) {
+    mesh_projection = value;
   }
 
   MOCK_METHOD1(ErrorCallback, void(const std::string& message));
 
-  scoped_refptr<render_tree::Mesh> mesh;
+  scoped_refptr<MeshProjection> mesh_projection;
 };
 
 class MockMeshDecoder : public Decoder {
@@ -53,7 +54,7 @@ class MockMeshDecoder : public Decoder {
   bool Suspend() OVERRIDE;
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
-  scoped_refptr<render_tree::Mesh> Mesh();
+  scoped_refptr<MeshProjection> GetMeshProjection();
 
   void ExpectCallWithError(const std::string& message);
 
@@ -84,8 +85,8 @@ void MockMeshDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
   mesh_decoder_->Resume(resource_provider);
 }
 
-scoped_refptr<render_tree::Mesh> MockMeshDecoder::Mesh() {
-  return mesh_decoder_callback_.mesh;
+scoped_refptr<MeshProjection> MockMeshDecoder::GetMeshProjection() {
+  return mesh_decoder_callback_.mesh_projection;
 }
 
 void MockMeshDecoder::ExpectCallWithError(const std::string& message) {
@@ -108,7 +109,7 @@ std::vector<uint8> GetMeshData(const FilePath& file_path) {
   bool success = file_util::GetFileSize(file_path, &size);
 
   CHECK(success) << "Could not get file size.";
-  CHECK_GT(size, 0);
+  CHECK_GT(size, 0L);
 
   mesh_data.resize(static_cast<size_t>(size));
 
@@ -116,8 +117,8 @@ std::vector<uint8> GetMeshData(const FilePath& file_path) {
       file_util::ReadFile(file_path, reinterpret_cast<char*>(&mesh_data[0]),
                           static_cast<int>(size));
 
-  CHECK_EQ(num_of_bytes, mesh_data.size()) << "Could not read '"
-                                           << file_path.value() << "'.";
+  CHECK_EQ(static_cast<size_t>(num_of_bytes), mesh_data.size())
+      << "Could not read '" << file_path.value() << "'.";
   return mesh_data;
 }
 
@@ -132,34 +133,35 @@ TEST(MeshDecoderTest, DecodeMesh) {
                            mesh_data.size());
   mesh_decoder.Finish();
 
-  EXPECT_TRUE(mesh_decoder.Mesh());
+  EXPECT_TRUE(mesh_decoder.GetMeshProjection());
 
-  scoped_refptr<render_tree::Mesh> mesh(mesh_decoder.Mesh());
+  scoped_refptr<render_tree::MeshStub> mesh(
+      make_scoped_refptr(base::polymorphic_downcast<render_tree::MeshStub*>(
+          mesh_decoder.GetMeshProjection()->GetMesh(0).get())));
 
-  EXPECT_EQ(render_tree::Mesh::kDrawModeTriangleStrip, mesh->draw_mode());
-  EXPECT_EQ(13054, mesh->vertices().size());
+  EXPECT_EQ(13054UL, mesh->GetVertices().size());
 
-  render_tree::Mesh::Vertex v0 = mesh->vertices()[0];
-  render_tree::Mesh::Vertex v577 = mesh->vertices()[577];
-  render_tree::Mesh::Vertex v13053 = mesh->vertices()[13053];
+  render_tree::Mesh::Vertex v0 = mesh->GetVertices()[0];
+  render_tree::Mesh::Vertex v577 = mesh->GetVertices()[577];
+  render_tree::Mesh::Vertex v13053 = mesh->GetVertices()[13053];
 
-  EXPECT_NEAR(v0.position_coord[0], -1.0f, 0.0001);
-  EXPECT_NEAR(v0.position_coord[1], -1.0f, 0.0001);
-  EXPECT_NEAR(v0.position_coord[2], 1.0f, 0.0001);
-  EXPECT_NEAR(v0.texture_coord[0], 0.497917f, 0.0001);
-  EXPECT_NEAR(v0.texture_coord[1], 0.00185186f, 0.0001);
+  EXPECT_NEAR(v0.x, -1.0f, 0.0001);
+  EXPECT_NEAR(v0.y, -1.0f, 0.0001);
+  EXPECT_NEAR(v0.z, 1.0f, 0.0001);
+  EXPECT_NEAR(v0.u, 0.497917f, 0.0001);
+  EXPECT_NEAR(v0.v, 0.00185186f, 0.0001);
 
-  EXPECT_NEAR(v577.position_coord[0], -1.0f, 0.0001);
-  EXPECT_NEAR(v577.position_coord[1], 0.0f, 0.0001);
-  EXPECT_NEAR(v577.position_coord[2], 0.4375f, 0.0001);
-  EXPECT_NEAR(v577.texture_coord[0], 0.25, 0.0001);
-  EXPECT_NEAR(v577.texture_coord[1], 0.0807092f, 0.0001);
+  EXPECT_NEAR(v577.x, -1.0f, 0.0001);
+  EXPECT_NEAR(v577.y, 0.0f, 0.0001);
+  EXPECT_NEAR(v577.z, 0.4375f, 0.0001);
+  EXPECT_NEAR(v577.u, 0.25, 0.0001);
+  EXPECT_NEAR(v577.v, 0.0807092f, 0.0001);
 
-  EXPECT_NEAR(v13053.position_coord[0], 1.0f, 0.0001);
-  EXPECT_NEAR(v13053.position_coord[1], -1.0f, 0.0001);
-  EXPECT_NEAR(v13053.position_coord[2], -1.0f, 0.0001);
-  EXPECT_NEAR(v13053.texture_coord[0], 0.997917f, 0.0001);
-  EXPECT_NEAR(v13053.texture_coord[1], 0.00185186f, 0.0001);
+  EXPECT_NEAR(v13053.x, 1.0f, 0.0001);
+  EXPECT_NEAR(v13053.y, -1.0f, 0.0001);
+  EXPECT_NEAR(v13053.z, -1.0f, 0.0001);
+  EXPECT_NEAR(v13053.u, 0.997917f, 0.0001);
+  EXPECT_NEAR(v13053.v, 0.00185186f, 0.0001);
 }
 
 // Test that we can decode a mesh received in multiple chunks.
@@ -175,7 +177,7 @@ TEST(MeshDecoderTest, DecodeMeshWithMultipleChunks) {
                            mesh_data.size() - 200);
   mesh_decoder.Finish();
 
-  EXPECT_TRUE(mesh_decoder.Mesh());
+  EXPECT_TRUE(mesh_decoder.GetMeshProjection());
 }
 
 // Test that decoder signals error on empty buffer.
@@ -188,7 +190,7 @@ TEST(MeshDecoderTest, DoNotDecodeEmptyProjectionBoxBuffer) {
   mesh_decoder.DecodeChunk(reinterpret_cast<char*>(&empty_mesh_data[0]), 0);
   mesh_decoder.Finish();
 
-  EXPECT_FALSE(mesh_decoder.Mesh());
+  EXPECT_FALSE(mesh_decoder.GetMeshProjection());
 }
 
 // Test that an invalid projection box triggers error.
@@ -202,7 +204,7 @@ TEST(MeshDecoderTest, DoNotDecodeInvalidProjectionBox) {
   mesh_decoder.DecodeChunk(reinterpret_cast<char*>(&buffer[0]), buffer.size());
   mesh_decoder.Finish();
 
-  EXPECT_FALSE(mesh_decoder.Mesh());
+  EXPECT_FALSE(mesh_decoder.GetMeshProjection());
 }
 
 // Test that a projection box with invalid (empty) meshes triggers error.
@@ -213,11 +215,6 @@ TEST(MeshDecoderTest, DoNotDecodeProjectionBoxWithInvalidMeshes) {
 
   std::vector<uint8> buffer;
   size_t mshp_box_size_offset = buffer.size();
-  buffer.insert(buffer.end(), 4, 0);          // Mshp Box size (set below).
-  buffer.push_back(static_cast<uint8>('y'));  // Box type.
-  buffer.push_back(static_cast<uint8>('t'));
-  buffer.push_back(static_cast<uint8>('m'));
-  buffer.push_back(static_cast<uint8>('p'));
   buffer.insert(buffer.end(), 4, 0);          // Fullbox version, flags.
   buffer.insert(buffer.end(), 4, 0);          // CRC (ignored).
   buffer.push_back(static_cast<uint8>('r'));  // Compression type.

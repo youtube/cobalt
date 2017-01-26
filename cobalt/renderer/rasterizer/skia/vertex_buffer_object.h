@@ -16,7 +16,9 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_VERTEX_BUFFER_OBJECT_H_
 
 #include <GLES2/gl2.h>
+#include <vector>
 
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/mesh.h"
 
 namespace cobalt {
@@ -25,27 +27,29 @@ namespace rasterizer {
 namespace skia {
 
 // A class for generating a Vertex Buffer Object stored on the GPU for an
-// arbitrary mesh. On creation, this will allocate a buffer on the GPU for the
-// provided Mesh instance and on destruction it will cleanup that memory.
+// arbitrary vertex list.
 class VertexBufferObject {
  public:
-  // Creates a VertexBufferObject for the provided mesh; this does not take
-  // ownership over the mesh and should be destroyed when the mesh is destroyed.
-  // Note this must be created after the GraphicsContext is set.
-  explicit VertexBufferObject(const scoped_refptr<render_tree::Mesh>& mesh);
+  // Creates a VertexBufferObject for the provided vertex list. The vertex list
+  // object is destroyed from main memory, and a buffer will be allocated on
+  // the GPU with its data.
+  explicit VertexBufferObject(
+      scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+      GLenum draw_mode);
+  // Cleans up the GPU memory that holds the vertices.
   virtual ~VertexBufferObject();
 
   void Bind() const;
 
-  const scoped_refptr<render_tree::Mesh> GetMesh() const { return mesh_; }
-
-  size_t GetNumVertices() const { return mesh_->vertices().size(); }
-
+  size_t GetVertexCount() const { return vertex_count_; }
+  GLenum GetDrawMode() const { return draw_mode_; }
   GLuint GetHandle() const { return mesh_vertex_buffer_; }
 
  private:
-  scoped_refptr<render_tree::Mesh> mesh_;
+  size_t vertex_count_;
+  GLenum draw_mode_;
   GLuint mesh_vertex_buffer_;
+
   DISALLOW_COPY_AND_ASSIGN(VertexBufferObject);
 };
 
