@@ -18,6 +18,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 #define STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 
+#include <vector>
+
 #include "starboard/atomic.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
@@ -43,6 +45,9 @@ class Application {
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.
   typedef SbEventDataDestructor EventHandledCallback;
+
+  // Signature for a function that will be called at the beginning of Teardown.
+  typedef void(*TeardownCallback)(void);
 
   // Enumeration of states that the application can be in.
   enum State {
@@ -209,6 +214,13 @@ class Application {
                    int height);
 #endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
 
+  // Registers a |callback| function that will be called when |Teardown| is
+  // called.
+  void RegisterTeardownCallback(TeardownCallback callback) {
+    ScopedLock lock(callbacks_lock_);
+    teardown_callbacks_.push_back(callback);
+  }
+
  protected:
   // Initializes any systems that need initialization before application
   // start. Subclasses may override this method to run initialization code that
@@ -279,7 +291,6 @@ class Application {
   // Returns the current application state.
   State state() const { return state_; }
 
- protected:
   // Returns true if the Start event should be sent in |Run| before entering the
   // event loop. Derived classes that return false must call |DispatchStart|.
   virtual bool IsStartImmediate() { return true; }
@@ -294,6 +305,8 @@ class Application {
   bool DispatchAndDelete(Application::Event* event);
 
  private:
+  void CallTeardownCallbacks();
+
   // The single application instance.
   static Application* g_instance;
 
@@ -315,6 +328,12 @@ class Application {
   // The current state that the application is in based on what events it has
   // actually processed. Should only be accessed on the main thread.
   State state_;
+
+  // Protect the teardown_callbacks_ vector.
+  Mutex callbacks_lock_;
+
+  // Callbacks that must be called when Teardown is called.
+  std::vector<TeardownCallback> teardown_callbacks_;
 };
 
 }  // namespace starboard
