@@ -19,11 +19,11 @@
       'type': 'static_library',
 
       'sources': [
-        'create_spherical_mesh.cc',
-        'create_spherical_mesh.h',
         'gl_format_conversions.cc',
         'hardware_image.cc',
         'hardware_image.h',
+        'hardware_mesh.cc',
+        'hardware_mesh.h',
         'hardware_rasterizer.cc',
         'hardware_rasterizer.h',
         'hardware_resource_provider.cc',

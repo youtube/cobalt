@@ -21,6 +21,7 @@
       'sources': [
         'software_image.cc',
         'software_image.h',
+        'software_mesh.h',
         'software_rasterizer.cc',
         'software_rasterizer.h',
         'software_resource_provider.cc',

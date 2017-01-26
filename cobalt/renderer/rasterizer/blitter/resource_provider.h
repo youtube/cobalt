@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_BLITTER_RESOURCE_PROVIDER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/font.h"
@@ -96,6 +97,10 @@ class ResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
       const std::string& utf8_string,
       const scoped_refptr<render_tree::Font>& font) OVERRIDE;
+
+  scoped_refptr<render_tree::Mesh> CreateMesh(
+      scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+      render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
 
  private:
   SbBlitterDevice device_;

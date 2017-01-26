@@ -473,8 +473,8 @@ scoped_refptr<loader::image::Image> UsedStyleProvider::ResolveURLToImage(
   return image_cache_->CreateCachedResource(url)->TryGetResource();
 }
 
-scoped_refptr<render_tree::Mesh> UsedStyleProvider::ResolveURLToMesh(
-    const GURL& url) {
+scoped_refptr<loader::mesh::MeshProjection>
+UsedStyleProvider::ResolveURLToMeshProjection(const GURL& url) {
   DCHECK(mesh_cache_);
   return mesh_cache_->CreateCachedResource(url)->TryGetResource();
 }

@@ -30,10 +30,10 @@
 #include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/loader/mesh/mesh_projection.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/rounded_corners.h"
@@ -73,8 +73,8 @@ class UsedStyleProvider {
       const scoped_refptr<cssom::PropertyValue>& font_weight_refptr);
 
   scoped_refptr<loader::image::Image> ResolveURLToImage(const GURL& url);
-  scoped_refptr<render_tree::Mesh> ResolveURLToMesh(const GURL& url);
-
+  scoped_refptr<loader::mesh::MeshProjection> ResolveURLToMeshProjection(
+      const GURL& url);
   bool has_image_cache(const loader::image::ImageCache* image_cache) const {
     return image_cache == image_cache_;
   }

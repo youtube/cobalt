@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/typeface.h"
 #if defined(STARBOARD)
 #include "starboard/decode_target.h"
@@ -199,6 +200,12 @@ class ResourceProvider {
                              const std::string& language, bool is_rtl,
                              render_tree::FontProvider* font_provider,
                              render_tree::FontVector* maybe_used_fonts) = 0;
+
+  // Cconsumes a list of vertices and returns
+  // a Mesh instance.
+  virtual scoped_refptr<Mesh> CreateMesh(
+      scoped_ptr<std::vector<Mesh::Vertex> > vertices,
+      Mesh::DrawMode draw_mode) = 0;
 };
 
 }  // namespace render_tree
