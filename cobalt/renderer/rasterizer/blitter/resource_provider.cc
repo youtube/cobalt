@@ -194,6 +194,13 @@ scoped_refptr<GlyphBuffer> ResourceProvider::CreateGlyphBuffer(
   return skia_resource_provider_->CreateGlyphBuffer(utf8_string, font);
 }
 
+scoped_refptr<render_tree::Mesh> ResourceProvider::CreateMesh(
+    scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+    render_tree::Mesh::DrawMode draw_mode) {
+  NOTIMPLEMENTED();
+  return scoped_refptr<render_tree::Mesh>(NULL);
+}
+
 }  // namespace blitter
 }  // namespace rasterizer
 }  // namespace renderer

@@ -21,6 +21,7 @@
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
+#include "cobalt/renderer/rasterizer/skia/software_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
@@ -210,6 +211,12 @@ float SoftwareResourceProvider::GetTextWidth(
     render_tree::FontVector* maybe_used_fonts) {
   return text_shaper_.GetTextWidth(text_buffer, text_length, language, is_rtl,
                                    font_provider, maybe_used_fonts);
+}
+
+scoped_refptr<render_tree::Mesh> SoftwareResourceProvider::CreateMesh(
+    scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+    render_tree::Mesh::DrawMode draw_mode) {
+  return new SoftwareMesh(vertices.Pass(), draw_mode);
 }
 
 }  // namespace skia

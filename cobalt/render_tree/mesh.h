@@ -20,6 +20,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_vector.h"
 #include "base/optional.h"
 #include "starboard/types.h"
 #include "third_party/glm/glm/vec2.hpp"
@@ -28,73 +29,38 @@
 namespace cobalt {
 namespace render_tree {
 
-// Represents a mesh to which render_trees can be mapped for 3D projection
-// by being applied a filter.
+// Represents a mesh (3D position + texture vertex list) to which render trees
+// can be mapped for 3D projection by being applied a filter.
 class Mesh : public base::RefCountedThreadSafe<Mesh> {
  public:
   // Vertices interleave position (x, y, z) and texture (u, v) coordinates.
   struct Vertex {
-    glm::vec3 position_coord;
-    glm::vec2 texture_coord;
-  };
-  COMPILE_ASSERT(sizeof(Vertex) == sizeof(float) * 5,
-                 vertex_struct_size_exceeds_5_floats);
+    float x;
+    float y;
+    float z;
+    float u;
+    float v;
 
-  // Defines a subset of the legal values for the draw mode parameter passed
-  // into glDrawArrays() and glDrawElements(). These correspond to GL_TRIANGLES,
-  // GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN. Users of this class can assert their
-  // values correspond exactly to the GL constants in order to convert via
-  // integer casting.
+    Vertex() : x(0.0f), y(0.0f), z(0.0f), u(0.0f), v(0.0f) {}
+    Vertex(float x, float y, float z, float u, float v)
+        : x(x), y(y), z(z), u(u), v(v) {}
+  };
+
+  // Defines how the mesh faces are constructed from the ordered list of
+  // vertices.
   enum DrawMode {
-    kDrawModeTriangles = 4,
-    kDrawModeTriangleStrip = 5,
-    kDrawModeTriangleFan = 6
+    kDrawModeTriangles,
+    kDrawModeTriangleStrip,
+    kDrawModeTriangleFan
   };
 
-  Mesh(const std::vector<Vertex>& vertices, const DrawMode mode,
-       base::optional<uint32> crc = base::nullopt)
-      : vertices_(vertices), draw_mode_(CheckDrawMode(mode)), crc_(crc) {}
-
-  const std::vector<Vertex>& vertices() const { return vertices_; }
-
-  DrawMode draw_mode() const { return draw_mode_; }
-
-  const base::optional<uint32>& crc() const { return crc_; }
-
-  uint32 GetEstimatedSizeInBytes() const {
-    return static_cast<uint32>(vertices().size() * sizeof(Vertex) +
-                               sizeof(DrawMode));
-  }
-
-  bool HasSameCrcAs(scoped_refptr<Mesh> other_mesh) const {
-    return other_mesh && other_mesh->crc() == crc_;
-  }
+  virtual uint32 GetEstimatedSizeInBytes() const = 0;
 
  protected:
   virtual ~Mesh() {}
 
   // Allow the reference counting system access to our destructor.
   friend class base::RefCountedThreadSafe<Mesh>;
-
- private:
-  static DrawMode CheckDrawMode(DrawMode mode) {
-    switch (mode) {
-      case kDrawModeTriangles:
-      case kDrawModeTriangleStrip:
-      case kDrawModeTriangleFan:
-        return mode;
-      default:
-        NOTREACHED() << "Unsupported render_tree::Mesh DrawMode detected, "
-                        "defaulting to kDrawModeTriangleStrip";
-        return kDrawModeTriangleStrip;
-    }
-  }
-
-  const std::vector<Vertex> vertices_;
-  const DrawMode draw_mode_;
-  // Cyclic Redundancy Check code of the mesh projection box that contains this
-  // mesh.
-  const base::optional<uint32> crc_;
 };
 
 }  // namespace render_tree
