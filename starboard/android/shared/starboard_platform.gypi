@@ -85,6 +85,7 @@
         'thread_get_name.cc',
         'time_zone_get_dst_name.cc',
         'time_zone_get_name.cc',
+        'video_window.cc',
         'window_create.cc',
         'window_destroy.cc',
         'window_get_platform_handle.cc',
