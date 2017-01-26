@@ -18,8 +18,8 @@
 #include <string>
 
 #include "cobalt/loader/loader_factory.h"
+#include "cobalt/loader/mesh/mesh_projection.h"
 #include "cobalt/loader/resource_cache.h"
-#include "cobalt/render_tree/mesh.h"
 
 namespace cobalt {
 namespace loader {
@@ -28,7 +28,7 @@ namespace mesh {
 // |MeshResourceCacheType| provides the types and implements the functions
 // required by |ResourceCache<MeshResourceCacheType>|
 struct MeshResourceCacheType {
-  typedef render_tree::Mesh ResourceType;
+  typedef MeshProjection ResourceType;
 
   static uint32 GetEstimatedSizeInBytes(
       const scoped_refptr<ResourceType>& resource) {

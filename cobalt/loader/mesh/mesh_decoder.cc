@@ -18,8 +18,7 @@
 #include "base/memory/scoped_vector.h"
 #include "cobalt/loader/mesh/mesh_decoder.h"
 #include "cobalt/loader/mesh/projection_codec/projection_decoder.h"
-#include "third_party/glm/glm/vec2.hpp"
-#include "third_party/glm/glm/vec3.hpp"
+#include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
 namespace loader {
@@ -30,20 +29,25 @@ namespace {
 // Builds meshes from calls by the projection decoder.
 class MeshDecoderSink : public projection_codec::ProjectionDecoder::Sink {
  public:
-  typedef std::vector<scoped_refptr<render_tree::Mesh> > MeshCollection;
-  typedef ScopedVector<MeshCollection> MeshCollectionList;
-
-  // Decode a complete box that includes the header.
-  static bool Decode(const uint8* data, size_t data_size,
-                     MeshCollectionList* dest_mesh_collection_list);
+  typedef MeshProjection::MeshCollection MeshCollection;
+  typedef MeshProjection::MeshCollectionList MeshCollectionList;
 
   // Decodes the contents of a projection box. (i.e. everything after the
   // full box header.)
-  static bool DecodeBoxContents(uint8_t version, uint32_t flags,
-                                const uint8* data, size_t data_size,
-                                MeshCollectionList* dest_mesh_collection_list);
+  static bool DecodeBoxContents(
+      render_tree::ResourceProvider* resource_provider, uint8_t version,
+      uint32_t flags, const uint8* data, size_t data_size,
+      MeshCollectionList* dest_mesh_collection_list, uint32* crc);
 
-  explicit MeshDecoderSink(MeshCollectionList* dest_mesh_collection_list);
+  // Decodes the contents of a projection box. (i.e. everything after the
+  // full box header.)
+  static scoped_refptr<MeshProjection> DecodeMeshProjectionFromBoxContents(
+      render_tree::ResourceProvider* resource_provider, uint8_t version,
+      uint32_t flags, const uint8* data, size_t data_size);
+
+  explicit MeshDecoderSink(render_tree::ResourceProvider* resource_provider,
+                           MeshCollectionList* dest_mesh_collection_list,
+                           uint32* crc);
 
   ~MeshDecoderSink() OVERRIDE;
 
@@ -61,58 +65,68 @@ class MeshDecoderSink : public projection_codec::ProjectionDecoder::Sink {
 
   void EndMeshCollection() OVERRIDE;
 
-  static scoped_refptr<render_tree::Mesh> ExtractSingleMesh(
-      const MeshCollectionList& list);
-
  private:
-  MeshCollectionList* mesh_collection_list_;  // not owned
+  render_tree::ResourceProvider* resource_provider_;
 
-  std::vector<float> coordinates_;
-  std::vector<render_tree::Mesh::Vertex> vertices_;
+  // Components of a mesh projection (possibly several mesh collections).
+  MeshCollectionList* mesh_collection_list_;
+  uint32* crc_;
+
+  // Components of a mesh collection.
   scoped_ptr<MeshCollection> mesh_collection_;
-  std::vector<render_tree::Mesh::Vertex> mesh_vertices_;
+  std::vector<float> collection_coordinates_;
+  std::vector<projection_codec::IndexedVert> collection_vertices_;
+
+  // Components of a mesh.
+  scoped_ptr<std::vector<render_tree::Mesh::Vertex> > mesh_vertices_;
   render_tree::Mesh::DrawMode mesh_draw_mode_;
-  uint32 crc_;
+  uint8 mesh_texture_id_;
 
   DISALLOW_COPY_AND_ASSIGN(MeshDecoderSink);
 };
 
-MeshDecoderSink::MeshDecoderSink(MeshCollectionList* dest_mesh_collection_list)
-    : mesh_collection_list_(dest_mesh_collection_list) {}
+MeshDecoderSink::MeshDecoderSink(
+    render_tree::ResourceProvider* resource_provider,
+    MeshCollectionList* dest_mesh_collection_list, uint32* crc)
+    : resource_provider_(resource_provider),
+      mesh_collection_list_(dest_mesh_collection_list),
+      crc_(crc) {
+  DCHECK(resource_provider);
+  DCHECK(dest_mesh_collection_list);
+  DCHECK(crc);
+}
 
 MeshDecoderSink::~MeshDecoderSink() {}
 
 bool MeshDecoderSink::IsCached(uint32 crc) {
-  crc_ = crc;
+  *crc_ = crc;
   return false;
 }
 
 void MeshDecoderSink::BeginMeshCollection() {
   CHECK(!mesh_collection_);
-
-  coordinates_.clear();
-  vertices_.clear();
+  CHECK(collection_coordinates_.empty());
+  CHECK(collection_vertices_.empty());
 
   mesh_collection_.reset(new MeshCollection);
 }
 
 void MeshDecoderSink::AddCoordinate(float value) {
-  coordinates_.push_back(value);
+  collection_coordinates_.push_back(value);
 }
 
-void MeshDecoderSink::AddVertex(const projection_codec::IndexedVert& v) {
-  render_tree::Mesh::Vertex vertex;
-  vertex.position_coord =
-      glm::vec3(coordinates_[v.x], coordinates_[v.y], coordinates_[v.z]);
-  vertex.texture_coord = glm::vec2(coordinates_[v.u], coordinates_[v.v]);
-  vertices_.push_back(vertex);
+void MeshDecoderSink::AddVertex(const projection_codec::IndexedVert& vertex) {
+  collection_vertices_.push_back(vertex);
 }
 
-void MeshDecoderSink::BeginMeshInstance() { CHECK(mesh_vertices_.empty()); }
+void MeshDecoderSink::BeginMeshInstance() {
+  CHECK(!mesh_vertices_);
+  mesh_vertices_.reset(new std::vector<render_tree::Mesh::Vertex>);
+}
 
 void MeshDecoderSink::SetTextureId(uint8 texture_id) {
-  // No texture id other than the default video texture supported.
-  DCHECK(!texture_id);
+  DCHECK_EQ(texture_id, 0);
+  mesh_texture_id_ = texture_id;
 }
 
 void MeshDecoderSink::SetMeshGeometryType(
@@ -133,47 +147,48 @@ void MeshDecoderSink::SetMeshGeometryType(
   }
 }
 
-void MeshDecoderSink::AddVertexIndex(size_t v_index) {
-  mesh_vertices_.push_back(vertices_[v_index]);
+void MeshDecoderSink::AddVertexIndex(size_t index) {
+  const projection_codec::IndexedVert& vertex = collection_vertices_[index];
+  mesh_vertices_->push_back(render_tree::Mesh::Vertex(
+      collection_coordinates_[vertex.x], collection_coordinates_[vertex.y],
+      collection_coordinates_[vertex.z], collection_coordinates_[vertex.u],
+      collection_coordinates_[vertex.v]));
 }
 
 void MeshDecoderSink::EndMeshInstance() {
-  mesh_collection_->push_back(scoped_refptr<render_tree::Mesh>(
-      new render_tree::Mesh(mesh_vertices_, mesh_draw_mode_, crc_)));
+  mesh_collection_->push_back(
+      resource_provider_->CreateMesh(mesh_vertices_.Pass(), mesh_draw_mode_));
 }
 
 void MeshDecoderSink::EndMeshCollection() {
   mesh_collection_list_->push_back(mesh_collection_.release());
-  coordinates_.clear();
-  vertices_.clear();
-}
-
-bool MeshDecoderSink::Decode(const uint8* data, size_t data_size,
-                             MeshCollectionList* dest_mesh_collection_list) {
-  MeshDecoderSink sink(dest_mesh_collection_list);
-  return projection_codec::ProjectionDecoder::DecodeToSink(data, data_size,
-                                                           &sink);
+  collection_vertices_.clear();
+  collection_coordinates_.clear();
 }
 
 bool MeshDecoderSink::DecodeBoxContents(
-    uint8_t version, uint32_t flags, const uint8* data, size_t data_size,
-    MeshCollectionList* dest_mesh_collection_list) {
-  MeshDecoderSink sink(dest_mesh_collection_list);
+    render_tree::ResourceProvider* resource_provider, uint8_t version,
+    uint32_t flags, const uint8* data, size_t data_size,
+    MeshCollectionList* dest_mesh_collection_list, uint32* crc) {
+  MeshDecoderSink sink(resource_provider, dest_mesh_collection_list, crc);
   return projection_codec::ProjectionDecoder::DecodeBoxContentsToSink(
       version, flags, data, data_size, &sink);
 }
 
-scoped_refptr<render_tree::Mesh> MeshDecoderSink::ExtractSingleMesh(
-    const MeshCollectionList& list) {
-  if (list.size() == 1) {
-    const MeshCollection& collection = *list[0];
+scoped_refptr<MeshProjection>
+MeshDecoderSink::DecodeMeshProjectionFromBoxContents(
+    render_tree::ResourceProvider* resource_provider, uint8_t version,
+    uint32_t flags, const uint8* data, size_t data_size) {
+  MeshDecoderSink::MeshCollectionList mesh_collection_list;
+  uint32 crc = -1;
 
-    if (collection.size() == 1) {
-      return collection[0];
-    }
+  if (!DecodeBoxContents(resource_provider, version, flags, data, data_size,
+                         &mesh_collection_list, &crc)) {
+    return NULL;
   }
 
-  return NULL;
+  return scoped_refptr<MeshProjection>(
+      new MeshProjection(mesh_collection_list.Pass(), crc));
 }
 
 }  // namespace
@@ -221,27 +236,16 @@ void MeshDecoder::Finish() {
     return;
   }
 
-  std::string error_string;
-  MeshDecoderSink::MeshCollectionList mesh_collection_list;
-
-  if (MeshDecoderSink::DecodeBoxContents(
-          0, 0, &raw_data_->at(4),  // Skip version and flags.
-          raw_data_->size(), &mesh_collection_list)) {
-    scoped_refptr<render_tree::Mesh> mesh =
-        MeshDecoderSink::ExtractSingleMesh(mesh_collection_list);
-
-    if (mesh) {
-      success_callback_.Run(mesh);
-      return;
-    } else {
-      error_callback_.Run(
-          "MeshDecoder found unexpected number of meshes in "
-          "projection box.");
-    }
+  // Skip version and flags (first 4 bytes of the box).
+  scoped_refptr<MeshProjection> mesh_projection =
+      MeshDecoderSink::DecodeMeshProjectionFromBoxContents(
+          resource_provider_, 0, 0, &raw_data_->at(4), raw_data_->size() - 4);
+  if (mesh_projection) {
+    success_callback_.Run(mesh_projection);
+  } else {
+    // Error must hace occured in MeshDecoderSink::Decode.
+    error_callback_.Run("MeshDecoder passed an invalid mesh projection box.");
   }
-
-  // Error must hace occured in MeshDecoderSink::Decode.
-  error_callback_.Run("MeshDecoder passed an invalid mesh projection box.");
 }
 
 bool MeshDecoder::Suspend() {

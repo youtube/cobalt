@@ -26,6 +26,7 @@
 #include "cobalt/layout/letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/layout/white_space_processing.h"
+#include "cobalt/loader/mesh/mesh_projection.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/brush.h"
@@ -35,6 +36,7 @@
 #include "cobalt/render_tree/map_to_mesh_filter.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
 namespace layout {
@@ -58,6 +60,9 @@ const float kFallbackIntrinsicRatio = 2.0f;
 // Becomes a used value of "width" if it cannot be determined by any other
 // means, as per https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
 const float kFallbackWidth = 300.0f;
+
+const char* kEquirectangularMeshURL =
+    "h5vcc-embedded://equirectangular_40_40.msh";
 
 // Convert the parsed keyword value for a stereo mode into a stereo mode enum
 // value.
@@ -565,29 +570,36 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
   render_tree::StereoMode stereo_mode =
       ReadStereoMode(stereo_mode_keyword_value);
 
-  // Setup the MapToMeshFilter differently depending on whether or not the mesh
-  // is specified via a URL versus the "equirectangular" keyword.
-  scoped_refptr<render_tree::Node> filter_node;
+  // Fetch either the embedded equirectangular mesh or a custom one depending
+  // on the spec.
+  GURL url;
   if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
     // Custom mesh URLs.
     cssom::URLValue* url_value =
         base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
-    GURL url(url_value->value());
-    scoped_refptr<render_tree::Mesh> mesh(
-        used_style_provider()->ResolveURLToMesh(url));
-
-    DCHECK(mesh) << "Could not load mesh specified by map-to-mesh filter.";
-
-    filter_node =
-        new FilterNode(MapToMeshFilter(stereo_mode, mesh), animate_node);
+    url = GURL(url_value->value());
   } else if (spec.mesh_type() == cssom::MapToMeshFunction::kEquirectangular) {
-    // Default equirectangular mesh.
-    filter_node = new FilterNode(MapToMeshFilter(stereo_mode), animate_node);
-  } else {
-    NOTREACHED() << "Invalid mesh specification type. Expected"
-                    "'equirectangular' keyword or list of URLs.";
-    filter_node = animate_node;
+    url = GURL(kEquirectangularMeshURL);
   }
+
+  DCHECK(url.is_valid())
+      << "Mesh specification invalid in map-to-mesh filter: must be either a"
+         " valid URL or 'equirectangular'";
+
+  scoped_refptr<loader::mesh::MeshProjection> mesh_projection(
+      used_style_provider()->ResolveURLToMeshProjection(url));
+
+  DCHECK(mesh_projection)
+      << "Could not load mesh specified by map-to-mesh filter.";
+
+  scoped_refptr<render_tree::Mesh> left_eye_mesh = mesh_projection->GetMesh(
+      loader::mesh::MeshProjection::kLeftEyeOrMonoCollection);
+  scoped_refptr<render_tree::Mesh> right_eye_mesh = mesh_projection->GetMesh(
+      loader::mesh::MeshProjection::kRightEyeCollection);
+
+  scoped_refptr<render_tree::Node> filter_node = new FilterNode(
+      MapToMeshFilter(stereo_mode, left_eye_mesh, right_eye_mesh),
+      animate_node);
 
   // Attach a 3D camera to the map-to-mesh node.
   border_node_builder->AddChild(
