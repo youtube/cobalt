@@ -103,6 +103,7 @@
         'file_seek_test.cc',
         'file_truncate_test.cc',
         'file_write_test.cc',
+        'flat_map_test.cc',
         'include_all.c',
         'include_all_too.c',
         'log_flush_test.cc',
