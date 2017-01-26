@@ -260,6 +260,10 @@ class Window : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
+  void StartDocumentLoad(
+      loader::FetcherFactory* fetcher_factory, const GURL& url,
+      Parser* dom_parser,
+      const base::Callback<void(const std::string&)>& error_callback);
   class RelayLoadEvent;
 
   ~Window() OVERRIDE;

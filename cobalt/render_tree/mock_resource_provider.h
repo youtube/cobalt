@@ -16,6 +16,7 @@
 #define COBALT_RENDER_TREE_MOCK_RESOURCE_PROVIDER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -71,6 +72,10 @@ class MockResourceProvider : public ResourceProvider {
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts));
+
+  MOCK_METHOD2(CreateMeshMock,
+               render_tree::Mesh*(std::vector<render_tree::Mesh::Vertex>*,
+                                  render_tree::Mesh::DrawMode));
 
   scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
                                           PixelFormat pixel_format,
@@ -139,6 +144,11 @@ class MockResourceProvider : public ResourceProvider {
       const scoped_refptr<render_tree::Font>& font) {
     return scoped_refptr<render_tree::GlyphBuffer>(
         CreateGlyphBufferMock(utf8_string, font.get()));
+  }
+  virtual scoped_refptr<Mesh> CreateMesh(
+      scoped_ptr<std::vector<Mesh::Vertex> > vertices,
+      Mesh::DrawMode draw_mode) {
+    return make_scoped_refptr(CreateMeshMock(vertices.get(), draw_mode));
   }
 };
 

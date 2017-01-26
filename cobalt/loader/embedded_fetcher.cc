@@ -43,11 +43,8 @@ EmbeddedFetcher::EmbeddedFetcher(const GURL& url,
       url_(url),
       security_callback_(security_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
-  // Post the data access as a separate task so that whatever is going to
-  // handle the data gets a chance to get ready for it.
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(&EmbeddedFetcher::Fetch,
-                            weak_ptr_factory_.GetWeakPtr(), options));
+  // Embedded assets are available in-memory and can be loaded synchronously.
+  Fetch(options);
 }
 
 EmbeddedFetcher::~EmbeddedFetcher() {}

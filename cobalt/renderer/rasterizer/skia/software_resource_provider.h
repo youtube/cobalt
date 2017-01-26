@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RESOURCE_PROVIDER_H_
 
 #include <string>
+#include <vector>
 
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/text_shaper.h"
@@ -100,6 +101,10 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts) OVERRIDE;
+
+  scoped_refptr<render_tree::Mesh> CreateMesh(
+      scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+      render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
 
  private:
   TextShaper text_shaper_;
