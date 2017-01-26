@@ -79,7 +79,6 @@ FilePath AppendIndexFile(const FilePath& directory) {
     return result;
   }
   DLOG(ERROR) << "No index file found at: " << directory.value();
-  NOTREACHED();
   return directory;
 }
 
