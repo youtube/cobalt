@@ -64,6 +64,7 @@
         'mesh/mesh_cache.h',
         'mesh/mesh_decoder.cc',
         'mesh/mesh_decoder.h',
+        'mesh/mesh_projection.h',
         'mesh/projection_codec/constants.h',
         'mesh/projection_codec/indexed_vert.cc',
         'mesh/projection_codec/indexed_vert.h',
@@ -174,6 +175,7 @@
         'input_directory': 'embedded_resources',
       },
       'sources': [
+        '<(input_directory)/equirectangular_40_40.msh',
         '<(input_directory)/splash_screen.css',
         '<(input_directory)/splash_screen.html',
         '<(input_directory)/splash_screen.js',

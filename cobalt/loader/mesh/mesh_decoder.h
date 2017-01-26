@@ -20,7 +20,7 @@
 
 #include "base/callback.h"
 #include "cobalt/loader/decoder.h"
-#include "cobalt/render_tree/mesh.h"
+#include "cobalt/loader/mesh/mesh_projection.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -31,7 +31,7 @@ namespace mesh {
 // https://github.com/google/spatial-media/blob/master/docs/spherical-video-v2-rfc.md#mesh-projection-box-mshp
 class MeshDecoder : public Decoder {
  public:
-  typedef base::Callback<void(const scoped_refptr<render_tree::Mesh>&)>
+  typedef base::Callback<void(const scoped_refptr<MeshProjection>&)>
       SuccessCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 

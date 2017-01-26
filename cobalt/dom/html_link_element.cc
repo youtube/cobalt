@@ -132,8 +132,8 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   // complete.
   document->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
 
-  DCHECK(loader_);
-  loader_.reset();
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 }
 
 void HTMLLinkElement::OnLoadingError(const std::string& error) {
@@ -156,6 +156,12 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
   // complete.
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
 
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
+}
+
+void HTMLLinkElement::ReleaseLoader() {
+  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(loader_);
   loader_.reset();
 }

@@ -16,6 +16,7 @@
 #define COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
@@ -23,6 +24,7 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -155,6 +157,27 @@ class RawImageMemoryStub : public RawImageMemory {
   ScopedMemory memory_;
 };
 
+class MeshStub : public render_tree::Mesh {
+ public:
+  MeshStub(scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+           render_tree::Mesh::DrawMode draw_mode)
+      : vertices_(vertices.Pass()), draw_mode_(draw_mode) {}
+
+  uint32 GetEstimatedSizeInBytes() const OVERRIDE {
+    return static_cast<uint32>(vertices_->size() * 5 * sizeof(float) +
+                               sizeof(DrawMode));
+  }
+
+  render_tree::Mesh::DrawMode GetDrawMode() const { return draw_mode_; }
+  const std::vector<render_tree::Mesh::Vertex>& GetVertices() const {
+    return *vertices_.get();
+  }
+
+ private:
+  const scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
+  const render_tree::Mesh::DrawMode draw_mode_;
+};
+
 // Return the stub versions defined above for each resource.
 class ResourceProviderStub : public ResourceProvider {
  public:
@@ -285,6 +308,13 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(font);
     return make_scoped_refptr(new GlyphBuffer(
         math::RectF(0, 0, static_cast<float>(utf8_string.size()), 1)));
+  }
+
+  // Create a mesh which can map replaced boxes to 3D shapes.
+  scoped_refptr<render_tree::Mesh> CreateMesh(
+      scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+      render_tree::Mesh::DrawMode draw_mode) OVERRIDE {
+    return new MeshStub(vertices.Pass(), draw_mode);
   }
 };
 
