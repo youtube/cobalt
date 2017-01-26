@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <style name="AppTheme" parent="@style/android:Theme.Material.NoActionBar">
+  <style name="CobaltTheme" parent="@style/android:Theme.Material.NoActionBar">
+    <!-- Color of the transition animation when launching the app. -->
     <item name="android:colorPrimary">@color/cobalt_blue</item>
-    <item name="android:windowOverscan">true</item>
+
+    <!-- Color shown after the transition before the window is attached. -->
+    <item name="android:windowBackground">@color/cobalt_blue</item>
+
+    <!-- Transparent background required to punch-out to the video surface. -->
+    <item name="android:background">@android:color/transparent</item>
   </style>
 </resources>
