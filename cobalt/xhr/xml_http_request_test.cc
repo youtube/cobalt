@@ -94,8 +94,12 @@ class FakeSettings : public dom::DOMSettings {
  public:
   FakeSettings()
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                         NULL) {}
-  GURL base_url() const OVERRIDE { return GURL("http://example.com"); }
+                         NULL),
+        example_("http://example.com") {}
+  const GURL& base_url() const OVERRIDE { return example_; }
+
+ private:
+  GURL example_;
 };
 
 class MockCspDelegate : public dom::CspDelegateInsecure {
