@@ -292,6 +292,16 @@ static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
   return result;
 }
 
+// Returns true if the first |count| bytes of |buffer| are set to zero.
+static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
+  if (count == 0) {
+    return true;
+  }
+  const char* char_buffer = (const char*)(buffer);
+  return char_buffer[0] == 0 &&
+         SbMemoryCompare(char_buffer, char_buffer + 1, count - 1) == 0;
+}
+
 /////////////////////////////////////////////////////////////////
 // Deprecated. Do not use.
 /////////////////////////////////////////////////////////////////
