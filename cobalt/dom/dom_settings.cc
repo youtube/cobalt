@@ -51,7 +51,7 @@ DOMSettings::DOMSettings(
 
 DOMSettings::~DOMSettings() {}
 
-GURL DOMSettings::base_url() const {
+const GURL& DOMSettings::base_url() const {
   return window()->document()->url_as_gurl();
 }
 

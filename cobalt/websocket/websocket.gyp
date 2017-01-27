@@ -27,6 +27,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
     },
 
