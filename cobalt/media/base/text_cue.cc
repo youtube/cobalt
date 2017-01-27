@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/text_cue.h"
+#include "cobalt/media/base/text_cue.h"
 
 namespace media {
 

@@ -7,8 +7,8 @@
 // seeking to the desired start point and calling GetNextBuffer(). Buffers are
 // returned in sequential presentation order.
 
-#ifndef MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
-#define MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
+#ifndef COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
+#define COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 
 #include <stddef.h>
 
@@ -20,13 +20,13 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
-#include "media2/base/ranges.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/video_decoder_config.h"
 
 namespace media {
 
@@ -511,4 +511,4 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
+#endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_

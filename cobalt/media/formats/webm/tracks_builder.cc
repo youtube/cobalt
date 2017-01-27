@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/tracks_builder.h"
+#include "cobalt/media/formats/webm/tracks_builder.h"
 
 #include "base/logging.h"
-#include "media2/formats/webm/webm_constants.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
 
 namespace media {
 

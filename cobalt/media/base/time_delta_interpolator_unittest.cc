@@ -4,7 +4,7 @@
 
 #include "base/logging.h"
 #include "base/test/simple_test_tick_clock.h"
-#include "media2/base/time_delta_interpolator.h"
+#include "cobalt/media/base/time_delta_interpolator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

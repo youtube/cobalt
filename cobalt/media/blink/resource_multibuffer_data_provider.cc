@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/resource_multibuffer_data_provider.h"
+#include "cobalt/media/blink/resource_multibuffer_data_provider.h"
 
 #include <stddef.h>
+
+#include <algorithm>
 #include <utility>
 
 #include "base/bind.h"
@@ -16,10 +18,10 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "media2/blink/active_loader.h"
-#include "media2/blink/cache_util.h"
-#include "media2/blink/media_blink_export.h"
-#include "media2/blink/url_index.h"
+#include "cobalt/media/blink/active_loader.h"
+#include "cobalt/media/blink/cache_util.h"
+#include "cobalt/media/blink/media_blink_export.h"
+#include "cobalt/media/blink/url_index.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_request_headers.h"
 #include "third_party/WebKit/public/platform/WebURLError.h"

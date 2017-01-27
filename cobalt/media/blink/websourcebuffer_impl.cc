@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/websourcebuffer_impl.h"
+#include "cobalt/media/blink/websourcebuffer_impl.h"
 
 #include <stdint.h>
 
 #include <cmath>
 #include <limits>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/filters/chunk_demuxer.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayer.h"
 #include "third_party/WebKit/public/platform/WebSourceBufferClient.h"
 

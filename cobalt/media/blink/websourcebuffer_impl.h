@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_
-#define MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_
+#define COBALT_MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_
 
 #include <stddef.h>
 
@@ -64,4 +64,4 @@ class WebSourceBufferImpl : public blink::WebSourceBuffer {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_

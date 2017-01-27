@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/h265_parser.h"
+#include "cobalt/media/filters/h265_parser.h"
 
 #include <stddef.h>
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "base/stl_util.h"
-#include "media2/base/decrypt_config.h"
+#include "cobalt/media/base/decrypt_config.h"
 
 namespace media {
 

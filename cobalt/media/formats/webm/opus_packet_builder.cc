@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "base/logging.h"
-#include "media2/formats/webm/opus_packet_builder.h"
-#include "media2/formats/webm/webm_cluster_parser.h"
+#include "cobalt/media/formats/webm/opus_packet_builder.h"
+#include "cobalt/media/formats/webm/webm_cluster_parser.h"
 
 namespace media {
 

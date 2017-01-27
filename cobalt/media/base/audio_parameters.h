@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_PARAMETERS_H_
-#define MEDIA_BASE_AUDIO_PARAMETERS_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_PARAMETERS_H_
+#define COBALT_MEDIA_BASE_AUDIO_PARAMETERS_H_
 
 #include <stdint.h>
+
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/time.h"
 #include "build/build_config.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/audio_latency.h"
-#include "media2/base/audio_point.h"
-#include "media2/base/channel_layout.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/audio_latency.h"
+#include "cobalt/media/base/audio_point.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -229,4 +231,4 @@ inline bool operator<(const AudioParameters& a, const AudioParameters& b) {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_PARAMETERS_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_PARAMETERS_H_

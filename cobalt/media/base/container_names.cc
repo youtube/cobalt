@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/container_names.h"
+#include "cobalt/media/base/container_names.h"
 
 #include <stddef.h>
 
@@ -12,7 +12,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
-#include "media2/base/bit_reader.h"
+#include "cobalt/media/base/bit_reader.h"
 
 namespace media {
 

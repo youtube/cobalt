@@ -2,17 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/webm_stream_parser.h"
+#include "cobalt/media/formats/webm/webm_stream_parser.h"
+
+#include <string>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/demuxer.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/base/stream_parser.h"
-#include "media2/base/test_data_util.h"
-#include "media2/base/text_track_config.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/test_data_util.h"
+#include "cobalt/media/base/text_track_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::SaveArg;

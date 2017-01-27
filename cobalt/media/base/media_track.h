@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MEDIA_TRACK_H_
-#define MEDIA_BASE_MEDIA_TRACK_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_TRACK_H_
+#define COBALT_MEDIA_BASE_MEDIA_TRACK_H_
 
 #include <string>
 
-#include "media2/base/media_export.h"
-#include "media2/base/stream_parser.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/stream_parser.h"
 
 namespace media {
 
@@ -65,4 +65,4 @@ MEDIA_EXPORT const char* TrackTypeToStr(MediaTrack::Type type);
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_TRACK_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_TRACK_H_

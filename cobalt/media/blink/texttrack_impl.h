@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_TEXTTRACK_IMPL_H_
-#define MEDIA_BLINK_TEXTTRACK_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_TEXTTRACK_IMPL_H_
+#define COBALT_MEDIA_BLINK_TEXTTRACK_IMPL_H_
 
 #include <memory>
 #include <string>
 
 #include "base/basictypes.h"
-#include "media2/base/text_track.h"
+#include "cobalt/media/base/text_track.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -58,4 +58,4 @@ class TextTrackImpl : public TextTrack {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_TEXTTRACK_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_TEXTTRACK_IMPL_H_

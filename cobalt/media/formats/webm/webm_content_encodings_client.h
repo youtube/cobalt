@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
-#define MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
+#ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
+#define COBALT_MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
 
 #include <stdint.h>
 
@@ -12,10 +12,10 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
-#include "media2/formats/webm/webm_content_encodings.h"
-#include "media2/formats/webm/webm_parser.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/formats/webm/webm_content_encodings.h"
+#include "cobalt/media/formats/webm/webm_parser.h"
 
 namespace media {
 
@@ -49,4 +49,4 @@ class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
+#endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_

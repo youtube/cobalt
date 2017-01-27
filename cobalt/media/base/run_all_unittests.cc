@@ -8,14 +8,14 @@
 #include "base/test/test_discardable_memory_allocator.h"
 #include "base/test/test_suite.h"
 #include "build/build_config.h"
-#include "media2/base/fake_media_resources.h"
-#include "media2/base/media.h"
-#include "media2/base/media_switches.h"
+#include "cobalt/media/base/fake_media_resources.h"
+#include "cobalt/media/base/media.h"
+#include "cobalt/media/base/media_switches.h"
 
 #if defined(OS_ANDROID)
 #include "base/android/jni_android.h"
-#include "media2/base/android/media_codec_util.h"
-#include "media2/base/android/media_jni_registrar.h"
+#include "cobalt/media/base/android/media_codec_util.h"
+#include "cobalt/media/base/android/media_jni_registrar.h"
 #include "ui/gl/android/gl_jni_registrar.h"
 #endif
 

@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/text_ranges.h"
+#include "cobalt/media/base/text_ranges.h"
+
+#include <algorithm>
+#include <utility>
 
 #include "base/logging.h"
 

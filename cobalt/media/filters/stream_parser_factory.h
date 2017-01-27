@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_
-#define MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_
+#ifndef COBALT_MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_
+#define COBALT_MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_
 
 #include <string>
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
 
 namespace media {
 
@@ -37,4 +37,4 @@ class MEDIA_EXPORT StreamParserFactory {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_
+#endif  // COBALT_MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_

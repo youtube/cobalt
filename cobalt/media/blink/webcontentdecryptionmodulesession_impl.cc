@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "webcontentdecryptionmodulesession_impl.h"
+#include "cobalt/media/blink/webcontentdecryptionmodulesession_impl.h"
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
@@ -10,16 +10,16 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "media2/base/cdm_key_information.h"
-#include "media2/base/cdm_promise.h"
-#include "media2/base/key_system_names.h"
-#include "media2/base/key_systems.h"
-#include "media2/base/limits.h"
-#include "media2/base/media_keys.h"
-#include "media2/blink/cdm_result_promise.h"
-#include "media2/blink/cdm_session_adapter.h"
-#include "media2/blink/webmediaplayer_util.h"
-#include "media2/cdm/json_web_key.h"
+#include "cobalt/media/base/cdm_key_information.h"
+#include "cobalt/media/base/cdm_promise.h"
+#include "cobalt/media/base/key_system_names.h"
+#include "cobalt/media/base/key_systems.h"
+#include "cobalt/media/base/limits.h"
+#include "cobalt/media/base/media_keys.h"
+#include "cobalt/media/blink/cdm_result_promise.h"
+#include "cobalt/media/blink/cdm_session_adapter.h"
+#include "cobalt/media/blink/webmediaplayer_util.h"
+#include "cobalt/media/cdm/json_web_key.h"
 #include "third_party/WebKit/public/platform/WebData.h"
 #include "third_party/WebKit/public/platform/WebEncryptedMediaKeyInformation.h"
 #include "third_party/WebKit/public/platform/WebString.h"
@@ -27,7 +27,7 @@
 #include "third_party/WebKit/public/platform/WebVector.h"
 
 #if defined(USE_PROPRIETARY_CODECS)
-#include "media2/cdm/cenc_utils.h"
+#include "cobalt/media/cdm/cenc_utils.h"
 #endif
 
 namespace media {

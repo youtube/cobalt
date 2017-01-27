@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/text_renderer.h"
+#include "cobalt/media/base/text_renderer.h"
 
 #include <stddef.h>
 
+#include <string>
 #include <utility>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "base/single_thread_task_runner.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/demuxer.h"
-#include "media2/base/text_cue.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/text_cue.h"
 
 namespace media {
 

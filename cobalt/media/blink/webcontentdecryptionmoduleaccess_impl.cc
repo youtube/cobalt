@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webcontentdecryptionmoduleaccess_impl.h"
+#include "cobalt/media/blink/webcontentdecryptionmoduleaccess_impl.h"
 
 #include <memory>
 #include <utility>
@@ -11,7 +11,7 @@
 #include "base/location.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "media2/blink/webencryptedmediaclient_impl.h"
+#include "cobalt/media/blink/webencryptedmediaclient_impl.h"
 
 namespace media {
 

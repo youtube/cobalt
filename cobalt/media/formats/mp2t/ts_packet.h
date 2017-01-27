@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP2T_TS_PACKET_H_
-#define MEDIA_FORMATS_MP2T_TS_PACKET_H_
+#ifndef COBALT_MEDIA_FORMATS_MP2T_TS_PACKET_H_
+#define COBALT_MEDIA_FORMATS_MP2T_TS_PACKET_H_
 
 #include <stdint.h>
 
@@ -71,4 +71,4 @@ class TsPacket {
 }  // namespace mp2t
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP2T_TS_PACKET_H_
+#endif  // COBALT_MEDIA_FORMATS_MP2T_TS_PACKET_H_

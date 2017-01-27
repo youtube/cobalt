@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/vp9_uncompressed_header_parser.h"
+#include "cobalt/media/filters/vp9_uncompressed_header_parser.h"
 
 #include "base/logging.h"
 

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/source_buffer_state.h"
+#include "cobalt/media/filters/source_buffer_state.h"
 
 #include <vector>
 
 #include "base/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/gmock_callback_support.h"
-#include "media2/base/media_util.h"
-#include "media2/base/mock_filters.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/base/test_helpers.h"
-#include "media2/filters/frame_processor.h"
+#include "cobalt/media/base/gmock_callback_support.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/mock_filters.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/filters/frame_processor.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

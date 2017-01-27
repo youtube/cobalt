@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_FAKE_DEMUXER_STREAM_H_
-#define MEDIA_BASE_FAKE_DEMUXER_STREAM_H_
+#ifndef COBALT_MEDIA_BASE_FAKE_DEMUXER_STREAM_H_
+#define COBALT_MEDIA_BASE_FAKE_DEMUXER_STREAM_H_
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/demuxer_stream_provider.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/demuxer_stream_provider.h"
+#include "cobalt/media/base/video_decoder_config.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -128,4 +128,4 @@ class FakeDemuxerStreamProvider : public DemuxerStreamProvider {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_FAKE_DEMUXER_STREAM_H_
+#endif  // COBALT_MEDIA_BASE_FAKE_DEMUXER_STREAM_H_

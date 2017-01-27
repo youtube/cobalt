@@ -6,7 +6,7 @@
 // as defined in RFC 6386.
 
 #include "base/logging.h"
-#include "media2/filters/vp8_parser.h"
+#include "cobalt/media/filters/vp8_parser.h"
 
 namespace media {
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_VIDEO_FRAME_COMPOSITOR_H_
-#define MEDIA_BLINK_VIDEO_FRAME_COMPOSITOR_H_
+#ifndef COBALT_MEDIA_BLINK_VIDEO_FRAME_COMPOSITOR_H_
+#define COBALT_MEDIA_BLINK_VIDEO_FRAME_COMPOSITOR_H_
 
 #include <utility>
 
@@ -15,8 +15,8 @@
 #include "base/tick_clock.h"
 #include "base/timer/timer.h"
 #include "cc/layers/video_frame_provider.h"
-#include "media2/base/video_renderer_sink.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/base/video_renderer_sink.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -165,4 +165,4 @@ class MEDIA_BLINK_EXPORT VideoFrameCompositor
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_VIDEO_FRAME_COMPOSITOR_H_
+#endif  // COBALT_MEDIA_BLINK_VIDEO_FRAME_COMPOSITOR_H_

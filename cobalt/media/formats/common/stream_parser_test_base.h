@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_COMMON_STREAM_PARSER_TEST_BASE_H_
-#define MEDIA_FORMATS_COMMON_STREAM_PARSER_TEST_BASE_H_
+#ifndef COBALT_MEDIA_FORMATS_COMMON_STREAM_PARSER_TEST_BASE_H_
+#define COBALT_MEDIA_FORMATS_COMMON_STREAM_PARSER_TEST_BASE_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/stream_parser.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/video_decoder_config.h"
 
 namespace media {
 
@@ -75,4 +77,4 @@ class StreamParserTestBase {
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_COMMON_STREAM_PARSER_TEST_BASE_H_
+#endif  // COBALT_MEDIA_FORMATS_COMMON_STREAM_PARSER_TEST_BASE_H_

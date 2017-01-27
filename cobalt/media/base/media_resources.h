@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MEDIA_RESOURCES_H_
-#define MEDIA_BASE_MEDIA_RESOURCES_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_RESOURCES_H_
+#define COBALT_MEDIA_BASE_MEDIA_RESOURCES_H_
 
 #include <string>
 
 #include "base/string16.h"
 #include "build/build_config.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -50,4 +50,4 @@ base::string16 GetLocalizedStringUTF16(MessageId message_id);
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_RESOURCES_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_RESOURCES_H_

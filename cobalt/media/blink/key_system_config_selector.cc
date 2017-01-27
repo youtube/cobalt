@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/key_system_config_selector.h"
+#include "cobalt/media/blink/key_system_config_selector.h"
 
 #include <stddef.h>
 #include <utility>
@@ -11,12 +11,12 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "cobalt/media/base/cdm_config.h"
+#include "cobalt/media/base/key_systems.h"
+#include "cobalt/media/base/media_permission.h"
+#include "cobalt/media/base/mime_util.h"
+#include "cobalt/media/blink/webmediaplayer_util.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/cdm_config.h"
-#include "media2/base/key_systems.h"
-#include "media2/base/media_permission.h"
-#include "media2/base/mime_util.h"
-#include "media2/blink/webmediaplayer_util.h"
 #include "third_party/WebKit/public/platform/URLConversion.h"
 #include "third_party/WebKit/public/platform/WebMediaKeySystemConfiguration.h"
 #include "third_party/WebKit/public/platform/WebSecurityOrigin.h"

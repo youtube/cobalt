@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_RANGES_H_
-#define MEDIA_BASE_RANGES_H_
+#ifndef COBALT_MEDIA_BASE_RANGES_H_
+#define COBALT_MEDIA_BASE_RANGES_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>
 #include <ostream>
+#include <utility>
 #include <vector>
 
 #include "base/logging.h"
 #include "base/time.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -161,4 +162,4 @@ Ranges<T> Ranges<T>::IntersectionWith(const Ranges<T>& other) const {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_RANGES_H_
+#endif  // COBALT_MEDIA_BASE_RANGES_H_

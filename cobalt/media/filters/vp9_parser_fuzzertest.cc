@@ -6,8 +6,8 @@
 #include <stdint.h>
 
 #include "base/numerics/safe_conversions.h"
-#include "media2/filters/ivf_parser.h"
-#include "media2/filters/vp9_parser.h"
+#include "cobalt/media/filters/ivf_parser.h"
+#include "cobalt/media/filters/vp9_parser.h"
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

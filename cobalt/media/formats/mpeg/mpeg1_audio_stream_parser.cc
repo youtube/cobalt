@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/mpeg/mpeg1_audio_stream_parser.h"
+#include "cobalt/media/formats/mpeg/mpeg1_audio_stream_parser.h"
 
-#include "media2/base/media_log.h"
+#include "cobalt/media/base/media_log.h"
 
 namespace media {
 

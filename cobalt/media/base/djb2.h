@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_DJB2_H_
-#define MEDIA_BASE_DJB2_H_
+#ifndef COBALT_MEDIA_BASE_DJB2_H_
+#define COBALT_MEDIA_BASE_DJB2_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 // DJB2 is a hash algorithm with excellent distribution and speed
 // on many different sets.
@@ -39,5 +39,4 @@ static const uint32_t kDJB2HashSeed = 5381u;
 // the data. You can call this any number of times during the computation.
 MEDIA_EXPORT uint32_t DJB2Hash(const void* buf, size_t len, uint32_t seed);
 
-#endif  // MEDIA_BASE_DJB2_H_
-
+#endif  // COBALT_MEDIA_BASE_DJB2_H_

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/decrypting_video_decoder.h"
+#include "cobalt/media/filters/decrypting_video_decoder.h"
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
@@ -11,11 +11,11 @@
 #include "base/single_thread_task_runner.h"
 #include "base/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/cdm_context.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/media_log.h"
-#include "media2/base/video_frame.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/cdm_context.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/video_frame.h"
 
 namespace media {
 

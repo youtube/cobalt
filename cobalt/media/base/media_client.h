@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MEDIA_CLIENT_H_
-#define MEDIA_BASE_MEDIA_CLIENT_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_CLIENT_H_
+#define COBALT_MEDIA_BASE_MEDIA_CLIENT_H_
 
 #include <string>
 #include <vector>
 
+#include "cobalt/media/base/key_system_properties.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/video_codecs.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/key_system_properties.h"
-#include "media2/base/media_export.h"
-#include "media2/base/video_codecs.h"
 
 namespace media {
 
@@ -75,4 +75,4 @@ class MEDIA_EXPORT MediaClient {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_CLIENT_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_CLIENT_H_

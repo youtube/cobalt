@@ -4,12 +4,12 @@
 
 // A set of utility functions to perform WSOLA.
 
-#ifndef MEDIA_FILTERS_WSOLA_INTERNALS_H_
-#define MEDIA_FILTERS_WSOLA_INTERNALS_H_
+#ifndef COBALT_MEDIA_FILTERS_WSOLA_INTERNALS_H_
+#define COBALT_MEDIA_FILTERS_WSOLA_INTERNALS_H_
 
 #include <utility>
 
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -84,4 +84,4 @@ MEDIA_EXPORT void GetSymmetricHanningWindow(int window_length, float* window);
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_WSOLA_INTERNALS_H_
+#endif  // COBALT_MEDIA_FILTERS_WSOLA_INTERNALS_H_

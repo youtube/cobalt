@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_
-#define MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_
+#ifndef COBALT_MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_
+#define COBALT_MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_
 
 #include <stdint.h>
 
@@ -80,4 +80,4 @@ class TestResponseGenerator {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_
+#endif  // COBALT_MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_MULTIBUFFER_H_
-#define MEDIA_BLINK_MULTIBUFFER_H_
+#ifndef COBALT_MEDIA_BLINK_MULTIBUFFER_H_
+#define COBALT_MEDIA_BLINK_MULTIBUFFER_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -21,10 +22,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "media2/base/data_buffer.h"
-#include "media2/blink/interval_map.h"
-#include "media2/blink/lru.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/base/data_buffer.h"
+#include "cobalt/media/blink/interval_map.h"
+#include "cobalt/media/blink/lru.h"
+#include "cobalt/media/blink/media_blink_export.h"
 
 namespace media {
 
@@ -354,4 +355,4 @@ class MEDIA_BLINK_EXPORT MultiBuffer {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_MULTIBUFFER_H_
+#endif  // COBALT_MEDIA_BLINK_MULTIBUFFER_H_

@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/mp4/avc.h"
+#include "cobalt/media/formats/mp4/avc.h"
 
 #include <algorithm>
 #include <utility>
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/decrypt_config.h"
-#include "media2/filters/h264_parser.h"
-#include "media2/formats/mp4/box_definitions.h"
-#include "media2/formats/mp4/box_reader.h"
+#include "cobalt/media/base/decrypt_config.h"
+#include "cobalt/media/filters/h264_parser.h"
+#include "cobalt/media/formats/mp4/box_definitions.h"
+#include "cobalt/media/formats/mp4/box_reader.h"
 
 namespace media {
 namespace mp4 {

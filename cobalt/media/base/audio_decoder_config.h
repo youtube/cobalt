@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
-#define MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
+#define COBALT_MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
 
 #include <stdint.h>
 
@@ -12,11 +12,11 @@
 
 #include "base/basictypes.h"
 #include "base/time.h"
-#include "media2/base/audio_codecs.h"
-#include "media2/base/channel_layout.h"
-#include "media2/base/encryption_scheme.h"
-#include "media2/base/media_export.h"
-#include "media2/base/sample_format.h"
+#include "cobalt/media/base/audio_codecs.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/encryption_scheme.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/sample_format.h"
 
 namespace media {
 
@@ -111,4 +111,4 @@ class MEDIA_EXPORT AudioDecoderConfig {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_DECODER_CONFIG_H_

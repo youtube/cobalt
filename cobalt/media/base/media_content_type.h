@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MEDIA_CONTENT_TYPE_H_
-#define MEDIA_BASE_MEDIA_CONTENT_TYPE_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_CONTENT_TYPE_H_
+#define COBALT_MEDIA_BASE_MEDIA_CONTENT_TYPE_H_
 
 #include "base/time.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -33,4 +33,4 @@ DurationToMediaContentType(base::TimeDelta duration);
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_CONTENT_TYPE_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_CONTENT_TYPE_H_

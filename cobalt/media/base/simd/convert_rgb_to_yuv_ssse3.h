@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_
-#define MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_
+#ifndef COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_
+#define COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -40,4 +40,4 @@ void ConvertARGBToYUVRow_SSSE3(const uint8_t* argb,
 }
 #endif
 
-#endif  // MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_
+#endif  // COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_

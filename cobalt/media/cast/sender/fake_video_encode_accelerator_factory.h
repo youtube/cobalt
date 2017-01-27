@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
-#define MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
+#ifndef COBALT_MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
+#define COBALT_MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
 
 #include <stddef.h>
 
@@ -91,4 +91,4 @@ class FakeVideoEncodeAcceleratorFactory {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
+#endif  // COBALT_MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_

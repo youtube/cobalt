@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/resource_multibuffer_data_provider.h"
+#include "cobalt/media/blink/resource_multibuffer_data_provider.h"
 
 #include <stdint.h>
 #include <algorithm>
@@ -15,10 +15,10 @@
 #include "base/message_loop.h"
 #include "base/run_loop.h"
 #include "base/stringprintf.h"
-#include "media2/base/media_log.h"
-#include "media2/base/seekable_buffer.h"
-#include "media2/blink/mock_weburlloader.h"
-#include "media2/blink/url_index.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/seekable_buffer.h"
+#include "cobalt/media/blink/mock_weburlloader.h"
+#include "cobalt/media/blink/url_index.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"

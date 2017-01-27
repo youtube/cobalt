@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP2T_TS_SECTION_PES_H_
-#define MEDIA_FORMATS_MP2T_TS_SECTION_PES_H_
+#ifndef COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PES_H_
+#define COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PES_H_
 
 #include <stdint.h>
 
@@ -63,4 +63,4 @@ class TsSectionPes : public TsSection {
 }  // namespace mp2t
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP2T_TS_SECTION_PES_H_
+#endif  // COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PES_H_

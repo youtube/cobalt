@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/text_renderer.h"
+#include "cobalt/media/base/text_renderer.h"
 
 #include <stddef.h>
+
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -15,13 +17,13 @@
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
 #include "base/run_loop.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/fake_text_track_stream.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/video_decoder_config.h"
-#include "media2/filters/webvtt_util.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/fake_text_track_stream.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/filters/webvtt_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

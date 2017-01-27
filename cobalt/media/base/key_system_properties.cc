@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/key_system_properties.h"
+#include "cobalt/media/base/key_system_properties.h"
 
 #include "base/logging.h"
 

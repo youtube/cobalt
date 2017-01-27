@@ -6,7 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/audio_parameters.h"
+#include "cobalt/media/base/audio_parameters.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

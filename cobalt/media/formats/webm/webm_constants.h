@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_
-#define MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_
+#ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_
+#define COBALT_MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_
 
 #include <stdint.h>
 
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -255,4 +255,4 @@ MEDIA_EXPORT extern const char kWebMCodecMetadata[];
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_
+#endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_

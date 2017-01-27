@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/stl_util.h"
-#include "media2/base/cdm_key_information.h"
+#include "cobalt/media/base/cdm_key_information.h"
 
 namespace media {
 

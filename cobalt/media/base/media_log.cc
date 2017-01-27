@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/media_log.h"
+#include "cobalt/media/base/media_log.h"
 
 #include <utility>
 
@@ -298,4 +298,4 @@ LogHelper::~LogHelper() {
   media_log_->AddLogEvent(level_, stream_.str());
 }
 
-}  //namespace media
+}  // namespace media

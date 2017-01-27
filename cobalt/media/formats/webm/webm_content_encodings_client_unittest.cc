@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/webm_content_encodings_client.h"
+#include "cobalt/media/formats/webm/webm_content_encodings_client.h"
 
 #include <stdint.h>
 
@@ -10,9 +10,9 @@
 
 #include "base/bind.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/formats/webm/webm_constants.h"
-#include "media2/formats/webm/webm_parser.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
+#include "cobalt/media/formats/webm/webm_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

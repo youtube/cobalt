@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_PIPELINE_STATUS_H_
-#define MEDIA_BASE_PIPELINE_STATUS_H_
+#ifndef COBALT_MEDIA_BASE_PIPELINE_STATUS_H_
+#define COBALT_MEDIA_BASE_PIPELINE_STATUS_H_
 
 #include <stdint.h>
 
@@ -75,4 +75,4 @@ typedef base::Callback<void(const PipelineStatistics&)> StatisticsCB;
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_PIPELINE_STATUS_H_
+#endif  // COBALT_MEDIA_BASE_PIPELINE_STATUS_H_

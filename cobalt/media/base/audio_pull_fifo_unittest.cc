@@ -8,8 +8,8 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/stringprintf.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/audio_pull_fifo.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/audio_pull_fifo.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

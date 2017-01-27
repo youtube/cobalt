@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/media_file_checker.h"
+#include "cobalt/media/base/media_file_checker.h"
 
 #include <stddef.h>
 #include <stdint.h>
+
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <utility>
 
 #include "base/bind.h"
 #include "base/time.h"
-#include "media2/ffmpeg/ffmpeg_common.h"
-#include "media2/filters/blocking_url_protocol.h"
-#include "media2/filters/ffmpeg_glue.h"
-#include "media2/filters/file_data_source.h"
+#include "cobalt/media/ffmpeg/ffmpeg_common.h"
+#include "cobalt/media/filters/blocking_url_protocol.h"
+#include "cobalt/media/filters/ffmpeg_glue.h"
+#include "cobalt/media/filters/file_data_source.h"
 
 namespace media {
 
