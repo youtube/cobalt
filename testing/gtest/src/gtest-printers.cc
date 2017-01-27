@@ -43,9 +43,11 @@
 // defines Foo.
 
 #include "gtest/gtest-printers.h"
+#if !defined(STARBOARD)
 #include <ctype.h>
 #include <stdio.h>
 #include <cwchar>
+#endif  // !defined(STARBOARD)
 #include <ostream>  // NOLINT
 #include <string>
 #include "gtest/internal/gtest-port.h"
@@ -322,7 +324,7 @@ void PrintTo(const char* s, ostream* os) {
     *os << "NULL";
   } else {
     *os << ImplicitCast_<const void*>(s) << " pointing to ";
-    PrintCharsAsStringTo(s, strlen(s), os);
+    PrintCharsAsStringTo(s, internal::posix::StrLen(s), os);
   }
 }
 

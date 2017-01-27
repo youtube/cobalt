@@ -35,6 +35,7 @@
 #include "gtest/internal/custom/gtest.h"
 #include "gtest/gtest-spi.h"
 
+#if !GTEST_OS_STARBOARD
 #include <ctype.h>
 #include <math.h>
 #include <stdarg.h>
@@ -43,6 +44,10 @@
 #include <time.h>
 #include <wchar.h>
 #include <wctype.h>
+#else
+#include <math.h>
+#include <stdarg.h>
+#endif
 
 #include <algorithm>
 #include <iomanip>
@@ -804,7 +809,9 @@ std::string UnitTestImpl::CurrentOsStackTraceExceptTop(int skip_count) {
 
 // Returns the current time in milliseconds.
 TimeInMillis GetTimeInMillis() {
-#if GTEST_OS_WINDOWS_MOBILE || defined(__BORLANDC__)
+#if GTEST_OS_STARBOARD
+  return SbTimeGetNow() / kSbTimeMillisecond;
+#elif GTEST_OS_WINDOWS_MOBILE || defined(__BORLANDC__)
   // Difference between 1970-01-01 and 1601-01-01 in milliseconds.
   // http://analogous.blogspot.com/2005/04/epoch.html
   const TimeInMillis kJavaEpochToWinFileTimeDelta =
@@ -2571,7 +2578,7 @@ void ReportInvalidTestCaseType(const char* test_case_name,
       << "probably rename one of the classes to put the tests into different\n"
       << "test cases.";
 
-  fprintf(stderr, "%s %s",
+  internal::posix::PrintF("%s %s",
           FormatFileLocation(code_location.file.c_str(),
                              code_location.line).c_str(),
           errors.GetString().c_str());
@@ -2860,8 +2867,8 @@ static std::string PrintTestPartResultToString(
 static void PrintTestPartResult(const TestPartResult& test_part_result) {
   const std::string& result =
       PrintTestPartResultToString(test_part_result);
-  printf("%s\n", result.c_str());
-  fflush(stdout);
+  internal::posix::PrintF("%s\n", result.c_str());
+  internal::posix::Flush();
   // If the test program runs in Visual Studio or a debugger, the
   // following statements add the test part result message to the Output
   // window such that the user can double-click on it to jump to the
@@ -2917,7 +2924,7 @@ bool ShouldUseColor(bool stdout_is_tty) {
   const char* const gtest_color = GTEST_FLAG(color).c_str();
 
   if (String::CaseInsensitiveCStringEquals(gtest_color, "auto")) {
-#if GTEST_OS_WINDOWS
+#if GTEST_OS_WINDOWS || GTEST_OS_STARBOARD
     // On Windows the TERM variable is usually not set, but the
     // console there does support colors.
     return stdout_is_tty;
@@ -2959,14 +2966,18 @@ void ColoredPrintf(GTestColor color, const char* fmt, ...) {
     GTEST_OS_IOS || GTEST_OS_WINDOWS_PHONE || GTEST_OS_WINDOWS_RT
   const bool use_color = AlwaysFalse();
 #else
+#if GTEST_OS_STARBOARD
+  static const bool in_color_mode = ShouldUseColor(posix::IsATTY(0) != 0);
+#else
   static const bool in_color_mode =
       ShouldUseColor(posix::IsATTY(posix::FileNo(stdout)) != 0);
+#endif
   const bool use_color = in_color_mode && (color != COLOR_DEFAULT);
 #endif  // GTEST_OS_WINDOWS_MOBILE || GTEST_OS_SYMBIAN || GTEST_OS_ZOS
   // The '!= 0' comparison is necessary to satisfy MSVC 7.1.
 
   if (!use_color) {
-    vprintf(fmt, args);
+    posix::VPrintF(fmt, args);
     va_end(args);
     return;
   }
@@ -2983,18 +2994,18 @@ void ColoredPrintf(GTestColor color, const char* fmt, ...) {
   // We need to flush the stream buffers into the console before each
   // SetConsoleTextAttribute call lest it affect the text that is already
   // printed but has not yet reached the console.
-  fflush(stdout);
+  posix::Flush();
   SetConsoleTextAttribute(stdout_handle,
                           GetColorAttribute(color) | FOREGROUND_INTENSITY);
-  vprintf(fmt, args);
+  posix::VPrintF(fmt, args);
 
-  fflush(stdout);
+  posix::Flush();
   // Restores the text color.
   SetConsoleTextAttribute(stdout_handle, old_color_attrs);
 #else
-  printf("\033[0;3%sm", GetAnsiColorCode(color));
-  vprintf(fmt, args);
-  printf("\033[m");  // Resets the terminal to default.
+  posix::PrintF("\033[0;3%sm", GetAnsiColorCode(color));
+  posix::VPrintF(fmt, args);
+  posix::PrintF("\033[m");  // Resets the terminal to default.
 #endif  // GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MOBILE
   va_end(args);
 }
@@ -3009,14 +3020,14 @@ void PrintFullTestCommentIfPresent(const TestInfo& test_info) {
   const char* const value_param = test_info.value_param();
 
   if (type_param != NULL || value_param != NULL) {
-    printf(", where ");
+    posix::PrintF(", where ");
     if (type_param != NULL) {
-      printf("%s = %s", kTypeParamLabel, type_param);
+      posix::PrintF("%s = %s", kTypeParamLabel, type_param);
       if (value_param != NULL)
-        printf(" and ");
+        posix::PrintF(" and ");
     }
     if (value_param != NULL) {
-      printf("%s = %s", kValueParamLabel, value_param);
+      posix::PrintF("%s = %s", kValueParamLabel, value_param);
     }
   }
 }
@@ -3028,7 +3039,7 @@ class PrettyUnitTestResultPrinter : public TestEventListener {
  public:
   PrettyUnitTestResultPrinter() {}
   static void PrintTestName(const char * test_case, const char * test) {
-    printf("%s.%s", test_case, test);
+    posix::PrintF("%s.%s", test_case, test);
   }
 
   // The following methods override what's in the TestEventListener class.
@@ -3054,7 +3065,8 @@ class PrettyUnitTestResultPrinter : public TestEventListener {
 void PrettyUnitTestResultPrinter::OnTestIterationStart(
     const UnitTest& unit_test, int iteration) {
   if (GTEST_FLAG(repeat) != 1)
-    printf("\nRepeating all tests (iteration %d) . . .\n\n", iteration + 1);
+    internal::posix::PrintF("\nRepeating all tests (iteration %d) . . .\n\n",
+                            iteration + 1);
 
   const char* const filter = GTEST_FLAG(filter).c_str();
 
@@ -3080,37 +3092,37 @@ void PrettyUnitTestResultPrinter::OnTestIterationStart(
   }
 
   ColoredPrintf(COLOR_GREEN,  "[==========] ");
-  printf("Running %s from %s.\n",
-         FormatTestCount(unit_test.test_to_run_count()).c_str(),
-         FormatTestCaseCount(unit_test.test_case_to_run_count()).c_str());
-  fflush(stdout);
+  posix::PrintF("Running %s from %s.\n",
+                FormatTestCount(unit_test.test_to_run_count()).c_str(),
+                FormatTestCaseCount(unit_test.test_case_to_run_count()).c_str());
+  posix::Flush();
 }
 
 void PrettyUnitTestResultPrinter::OnEnvironmentsSetUpStart(
     const UnitTest& /*unit_test*/) {
   ColoredPrintf(COLOR_GREEN,  "[----------] ");
-  printf("Global test environment set-up.\n");
-  fflush(stdout);
+  posix::PrintF("Global test environment set-up.\n");
+  posix::Flush();
 }
 
 void PrettyUnitTestResultPrinter::OnTestCaseStart(const TestCase& test_case) {
   const std::string counts =
       FormatCountableNoun(test_case.test_to_run_count(), "test", "tests");
   ColoredPrintf(COLOR_GREEN, "[----------] ");
-  printf("%s from %s", counts.c_str(), test_case.name());
+  posix::PrintF("%s from %s", counts.c_str(), test_case.name());
   if (test_case.type_param() == NULL) {
-    printf("\n");
+    posix::PrintF("\n");
   } else {
-    printf(", where %s = %s\n", kTypeParamLabel, test_case.type_param());
+    posix::PrintF(", where %s = %s\n", kTypeParamLabel, test_case.type_param());
   }
-  fflush(stdout);
+  posix::Flush();
 }
 
 void PrettyUnitTestResultPrinter::OnTestStart(const TestInfo& test_info) {
   ColoredPrintf(COLOR_GREEN,  "[ RUN      ] ");
   PrintTestName(test_info.test_case_name(), test_info.name());
-  printf("\n");
-  fflush(stdout);
+  posix::PrintF("\n");
+  posix::Flush();
 }
 
 // Called after an assertion failure.
@@ -3122,7 +3134,7 @@ void PrettyUnitTestResultPrinter::OnTestPartResult(
 
   // Print failure message from the assertion (e.g. expected this and got that).
   PrintTestPartResult(result);
-  fflush(stdout);
+  posix::Flush();
 }
 
 void PrettyUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
@@ -3136,12 +3148,12 @@ void PrettyUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
     PrintFullTestCommentIfPresent(test_info);
 
   if (GTEST_FLAG(print_time)) {
-    printf(" (%s ms)\n", internal::StreamableToString(
-           test_info.result()->elapsed_time()).c_str());
+    posix::PrintF(" (%s ms)\n", internal::StreamableToString(
+        test_info.result()->elapsed_time()).c_str());
   } else {
-    printf("\n");
+    posix::PrintF("\n");
   }
-  fflush(stdout);
+  posix::Flush();
 }
 
 void PrettyUnitTestResultPrinter::OnTestCaseEnd(const TestCase& test_case) {
@@ -3150,17 +3162,17 @@ void PrettyUnitTestResultPrinter::OnTestCaseEnd(const TestCase& test_case) {
   const std::string counts =
       FormatCountableNoun(test_case.test_to_run_count(), "test", "tests");
   ColoredPrintf(COLOR_GREEN, "[----------] ");
-  printf("%s from %s (%s ms total)\n\n",
-         counts.c_str(), test_case.name(),
-         internal::StreamableToString(test_case.elapsed_time()).c_str());
-  fflush(stdout);
+  posix::PrintF("%s from %s (%s ms total)\n\n",
+                counts.c_str(), test_case.name(),
+                internal::StreamableToString(test_case.elapsed_time()).c_str());
+  posix::Flush();
 }
 
 void PrettyUnitTestResultPrinter::OnEnvironmentsTearDownStart(
     const UnitTest& /*unit_test*/) {
   ColoredPrintf(COLOR_GREEN,  "[----------] ");
-  printf("Global test environment tear-down\n");
-  fflush(stdout);
+  posix::PrintF("Global test environment tear-down\n");
+  posix::Flush();
 }
 
 // Internal helper for printing the list of failed tests.
@@ -3181,9 +3193,9 @@ void PrettyUnitTestResultPrinter::PrintFailedTests(const UnitTest& unit_test) {
         continue;
       }
       ColoredPrintf(COLOR_RED, "[  FAILED  ] ");
-      printf("%s.%s", test_case.name(), test_info.name());
+      posix::PrintF("%s.%s", test_case.name(), test_info.name());
       PrintFullTestCommentIfPresent(test_info);
-      printf("\n");
+      posix::PrintF("\n");
     }
   }
 }
@@ -3191,31 +3203,35 @@ void PrettyUnitTestResultPrinter::PrintFailedTests(const UnitTest& unit_test) {
 void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                      int /*iteration*/) {
   ColoredPrintf(COLOR_GREEN,  "[==========] ");
-  printf("%s from %s ran.",
-         FormatTestCount(unit_test.test_to_run_count()).c_str(),
-         FormatTestCaseCount(unit_test.test_case_to_run_count()).c_str());
+  posix::PrintF(
+      "%s from %s ran.",
+      FormatTestCount(unit_test.test_to_run_count()).c_str(),
+      FormatTestCaseCount(unit_test.test_case_to_run_count()).c_str());
   if (GTEST_FLAG(print_time)) {
-    printf(" (%s ms total)",
-           internal::StreamableToString(unit_test.elapsed_time()).c_str());
+    posix::PrintF(
+        " (%s ms total)",
+        internal::StreamableToString(unit_test.elapsed_time()).c_str());
   }
-  printf("\n");
+  posix::PrintF("\n");
   ColoredPrintf(COLOR_GREEN,  "[  PASSED  ] ");
-  printf("%s.\n", FormatTestCount(unit_test.successful_test_count()).c_str());
+  posix::PrintF("%s.\n",
+                FormatTestCount(unit_test.successful_test_count()).c_str());
 
   int num_failures = unit_test.failed_test_count();
   if (!unit_test.Passed()) {
     const int failed_test_count = unit_test.failed_test_count();
     ColoredPrintf(COLOR_RED,  "[  FAILED  ] ");
-    printf("%s, listed below:\n", FormatTestCount(failed_test_count).c_str());
+    posix::PrintF("%s, listed below:\n",
+                  FormatTestCount(failed_test_count).c_str());
     PrintFailedTests(unit_test);
-    printf("\n%2d FAILED %s\n", num_failures,
-                        num_failures == 1 ? "TEST" : "TESTS");
+    posix::PrintF("\n%2d FAILED %s\n", num_failures,
+                  num_failures == 1 ? "TEST" : "TESTS");
   }
 
   int num_disabled = unit_test.reportable_disabled_test_count();
   if (num_disabled && !GTEST_FLAG(also_run_disabled_tests)) {
     if (!num_failures) {
-      printf("\n");  // Add a spacer if no FAILURE banner is displayed.
+      posix::PrintF("\n");  // Add a spacer if no FAILURE banner is displayed.
     }
     ColoredPrintf(COLOR_YELLOW,
                   "  YOU HAVE %d DISABLED %s\n\n",
@@ -3223,7 +3239,7 @@ void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                   num_disabled == 1 ? "TEST" : "TESTS");
   }
   // Ensure that Google Test output is printed before, e.g., heapchecker output.
-  fflush(stdout);
+  posix::Flush();
 }
 
 // End PrettyUnitTestResultPrinter
@@ -3343,6 +3359,7 @@ void TestEventRepeater::OnTestIterationEnd(const UnitTest& unit_test,
 
 // End TestEventRepeater
 
+#if !GTEST_OS_STARBOARD
 // This class generates an XML output file.
 class XmlUnitTestResultPrinter : public EmptyTestEventListener {
  public:
@@ -3434,7 +3451,7 @@ void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   FilePath output_dir(output_file.RemoveFileName());
 
   if (output_dir.CreateDirectoriesRecursively()) {
-    xmlout = posix::FOpen(output_file_.c_str(), "w");
+    xmlout = fopen(output_file_.c_str(), "w");
   }
   if (xmlout == NULL) {
     // TODO(wan): report the reason of the failure.
@@ -3748,6 +3765,7 @@ std::string XmlUnitTestResultPrinter::TestPropertiesAsXmlAttributes(
 }
 
 // End XmlUnitTestResultPrinter
+#endif  // !GTEST_OS_STARBOARD
 
 #if GTEST_CAN_STREAM_RESULTS_
 
@@ -3860,18 +3878,22 @@ class ScopedPrematureExitFile {
       : premature_exit_filepath_(premature_exit_filepath) {
     // If a path to the premature-exit file is specified...
     if (premature_exit_filepath != NULL && *premature_exit_filepath != '\0') {
+#if !GTEST_OS_STARBOARD
       // create the file with a single "0" character in it.  I/O
       // errors are ignored as there's nothing better we can do and we
       // don't want to fail the test because of this.
       FILE* pfile = posix::FOpen(premature_exit_filepath, "w");
       fwrite("0", 1, 1, pfile);
       fclose(pfile);
+#endif
     }
   }
 
   ~ScopedPrematureExitFile() {
     if (premature_exit_filepath_ != NULL && *premature_exit_filepath_ != '\0') {
+#if !GTEST_OS_STARBOARD
       remove(premature_exit_filepath_);
+#endif
     }
   }
 
@@ -4397,13 +4419,16 @@ void UnitTestImpl::SuppressTestEventsIfInSubprocess() {
 // UnitTestOptions. Must not be called before InitGoogleTest.
 void UnitTestImpl::ConfigureXmlOutput() {
   const std::string& output_format = UnitTestOptions::GetOutputFormat();
+#if !GTEST_OS_STARBOARD
   if (output_format == "xml") {
     listeners()->SetDefaultXmlGenerator(new XmlUnitTestResultPrinter(
         UnitTestOptions::GetAbsolutePathToOutputFile().c_str()));
-  } else if (output_format != "") {
-    printf("WARNING: unrecognized output format \"%s\" ignored.\n",
-           output_format.c_str());
-    fflush(stdout);
+  } else
+#endif  // !GTEST_OS_STARBOARD
+      if (output_format != "") {
+    internal::posix::PrintF("WARNING: unrecognized output format \"%s\" "
+                            "ignored.\n", output_format.c_str());
+    internal::posix::Flush();
   }
 }
 
@@ -4420,7 +4445,7 @@ void UnitTestImpl::ConfigureStreamingOutput() {
     } else {
       printf("WARNING: unrecognized streaming target \"%s\" ignored.\n",
              target.c_str());
-      fflush(stdout);
+      internal::posix::Flush();
     }
   }
 }
@@ -4549,9 +4574,10 @@ static void TearDownEnvironment(Environment* env) { env->TearDown(); }
 bool UnitTestImpl::RunAllTests() {
   // Makes sure InitGoogleTest() was called.
   if (!GTestIsInitialized()) {
-    printf("%s",
-           "\nThis test program did NOT call ::testing::InitGoogleTest "
-           "before calling RUN_ALL_TESTS().  Please fix it.\n");
+    internal::posix::PrintF(
+        "%s",
+        "\nThis test program did NOT call ::testing::InitGoogleTest "
+        "before calling RUN_ALL_TESTS().  Please fix it.\n");
     return false;
   }
 
@@ -4689,6 +4715,7 @@ bool UnitTestImpl::RunAllTests() {
 // function will write over it. If the variable is present, but the file cannot
 // be created, prints an error and exits.
 void WriteToShardStatusFileIfNeeded() {
+#if !GTEST_OS_STARBOARD
   const char* const test_shard_file = posix::GetEnv(kTestShardStatusFile);
   if (test_shard_file != NULL) {
     FILE* const file = posix::FOpen(test_shard_file, "w");
@@ -4697,11 +4724,12 @@ void WriteToShardStatusFileIfNeeded() {
                     "Could not write to the test shard status file \"%s\" "
                     "specified by the %s environment variable.\n",
                     test_shard_file, kTestShardStatusFile);
-      fflush(stdout);
+      internal::posix::Flush();
       exit(EXIT_FAILURE);
     }
     fclose(file);
   }
+#endif  // !GTEST_OS_STARBOARD
 }
 
 // Checks whether sharding is enabled by examining the relevant
@@ -4713,6 +4741,9 @@ void WriteToShardStatusFileIfNeeded() {
 bool ShouldShard(const char* total_shards_env,
                  const char* shard_index_env,
                  bool in_subprocess_for_death_test) {
+#if GTEST_OS_STARBOARD
+  return false;
+#else  // GTEST_OS_STARBOARD
   if (in_subprocess_for_death_test) {
     return false;
   }
@@ -4728,7 +4759,7 @@ bool ShouldShard(const char* total_shards_env,
       << kTestShardIndex << " = " << shard_index
       << ", but have left " << kTestTotalShards << " unset.\n";
     ColoredPrintf(COLOR_RED, msg.GetString().c_str());
-    fflush(stdout);
+    internal::posix::Flush();
     exit(EXIT_FAILURE);
   } else if (total_shards != -1 && shard_index == -1) {
     const Message msg = Message()
@@ -4736,7 +4767,7 @@ bool ShouldShard(const char* total_shards_env,
       << kTestTotalShards << " = " << total_shards
       << ", but have left " << kTestShardIndex << " unset.\n";
     ColoredPrintf(COLOR_RED, msg.GetString().c_str());
-    fflush(stdout);
+    internal::posix::Flush();
     exit(EXIT_FAILURE);
   } else if (shard_index < 0 || shard_index >= total_shards) {
     const Message msg = Message()
@@ -4745,11 +4776,12 @@ bool ShouldShard(const char* total_shards_env,
       << ", but you have " << kTestShardIndex << "=" << shard_index
       << ", " << kTestTotalShards << "=" << total_shards << ".\n";
     ColoredPrintf(COLOR_RED, msg.GetString().c_str());
-    fflush(stdout);
+    internal::posix::Flush();
     exit(EXIT_FAILURE);
   }
 
   return total_shards > 1;
+#endif  // GTEST_OS_STARBOARD
 }
 
 // Parses the environment variable var as an Int32. If it is unset,
@@ -4845,14 +4877,14 @@ static void PrintOnOneLine(const char* str, int max_length) {
   if (str != NULL) {
     for (int i = 0; *str != '\0'; ++str) {
       if (i >= max_length) {
-        printf("...");
+        internal::posix::PrintF("...");
         break;
       }
       if (*str == '\n') {
-        printf("\\n");
+        internal::posix::PrintF("\\n");
         i += 2;
       } else {
-        printf("%c", *str);
+        internal::posix::PrintF("%c", *str);
         ++i;
       }
     }
@@ -4874,27 +4906,27 @@ void UnitTestImpl::ListTestsMatchingFilter() {
       if (test_info->matches_filter_) {
         if (!printed_test_case_name) {
           printed_test_case_name = true;
-          printf("%s.", test_case->name());
+          internal::posix::PrintF("%s.", test_case->name());
           if (test_case->type_param() != NULL) {
-            printf("  # %s = ", kTypeParamLabel);
+            internal::posix::PrintF("  # %s = ", kTypeParamLabel);
             // We print the type parameter on a single line to make
             // the output easy to parse by a program.
             PrintOnOneLine(test_case->type_param(), kMaxParamLength);
           }
-          printf("\n");
+          internal::posix::PrintF("\n");
         }
-        printf("  %s", test_info->name());
+        internal::posix::PrintF("  %s", test_info->name());
         if (test_info->value_param() != NULL) {
-          printf("  # %s = ", kValueParamLabel);
+          internal::posix::PrintF("  # %s = ", kValueParamLabel);
           // We print the value parameter on a single line to make the
           // output easy to parse by a program.
           PrintOnOneLine(test_info->value_param(), kMaxParamLength);
         }
-        printf("\n");
+        internal::posix::PrintF("\n");
       }
     }
   }
-  fflush(stdout);
+  internal::posix::Flush();
 }
 
 // Sets the OS stack trace getter.
