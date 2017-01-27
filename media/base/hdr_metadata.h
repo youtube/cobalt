@@ -12,19 +12,18 @@ namespace media {
 
 // SMPTE ST 2086 mastering metadata.
 struct MEDIA_EXPORT MasteringMetadata {
-  float primary_r_chromaticity_x = 0;
-  float primary_r_chromaticity_y = 0;
-  float primary_g_chromaticity_x = 0;
-  float primary_g_chromaticity_y = 0;
-  float primary_b_chromaticity_x = 0;
-  float primary_b_chromaticity_y = 0;
-  float white_point_chromaticity_x = 0;
-  float white_point_chromaticity_y = 0;
-  float luminance_max = 0;
-  float luminance_min = 0;
+  float primary_r_chromaticity_x;
+  float primary_r_chromaticity_y;
+  float primary_g_chromaticity_x;
+  float primary_g_chromaticity_y;
+  float primary_b_chromaticity_x;
+  float primary_b_chromaticity_y;
+  float white_point_chromaticity_x;
+  float white_point_chromaticity_y;
+  float luminance_max;
+  float luminance_min;
 
   MasteringMetadata();
-  MasteringMetadata(const MasteringMetadata& rhs);
 
   bool operator==(const MasteringMetadata& rhs) const {
     return ((primary_r_chromaticity_x == rhs.primary_r_chromaticity_x) &&
@@ -43,11 +42,10 @@ struct MEDIA_EXPORT MasteringMetadata {
 // HDR metadata common for HDR10 and WebM/VP9-based HDR formats.
 struct MEDIA_EXPORT HDRMetadata {
   MasteringMetadata mastering_metadata;
-  unsigned max_cll = 0;
-  unsigned max_fall = 0;
+  unsigned int max_cll;
+  unsigned int max_fall;
 
   HDRMetadata();
-  HDRMetadata(const HDRMetadata& rhs);
 
   bool operator==(const HDRMetadata& rhs) const {
     return ((max_cll == rhs.max_cll) && (max_fall == rhs.max_fall) &&
