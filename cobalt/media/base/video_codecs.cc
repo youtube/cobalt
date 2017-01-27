@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/video_codecs.h"
+#include "cobalt/media/base/video_codecs.h"
+
+#include <vector>
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"

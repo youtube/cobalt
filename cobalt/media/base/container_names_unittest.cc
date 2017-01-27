@@ -5,8 +5,8 @@
 #include <stdint.h>
 
 #include "base/files/file_util.h"
-#include "media2/base/container_names.h"
-#include "media2/base/test_data_util.h"
+#include "cobalt/media/base/container_names.h"
+#include "cobalt/media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

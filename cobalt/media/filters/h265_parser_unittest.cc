@@ -4,8 +4,8 @@
 
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
-#include "media2/base/test_data_util.h"
-#include "media2/filters/h265_parser.h"
+#include "cobalt/media/base/test_data_util.h"
+#include "cobalt/media/filters/h265_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

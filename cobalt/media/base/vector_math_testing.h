@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_VECTOR_MATH_TESTING_H_
-#define MEDIA_BASE_VECTOR_MATH_TESTING_H_
+#ifndef COBALT_MEDIA_BASE_VECTOR_MATH_TESTING_H_
+#define COBALT_MEDIA_BASE_VECTOR_MATH_TESTING_H_
 
 #include <utility>
 
 #include "build/build_config.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 namespace vector_math {
@@ -40,4 +40,4 @@ MEDIA_EXPORT std::pair<float, float> EWMAAndMaxPower_NEON(
 }  // namespace vector_math
 }  // namespace media
 
-#endif  // MEDIA_BASE_VECTOR_MATH_TESTING_H_
+#endif  // COBALT_MEDIA_BASE_VECTOR_MATH_TESTING_H_

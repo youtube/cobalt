@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_FAKE_SINGLE_THREAD_TASK_RUNNER_H_
-#define MEDIA_BASE_FAKE_SINGLE_THREAD_TASK_RUNNER_H_
+#ifndef COBALT_MEDIA_BASE_FAKE_SINGLE_THREAD_TASK_RUNNER_H_
+#define COBALT_MEDIA_BASE_FAKE_SINGLE_THREAD_TASK_RUNNER_H_
 
 #include <map>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
@@ -58,4 +59,4 @@ class FakeSingleThreadTaskRunner : public base::SingleThreadTaskRunner {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_FAKE_SINGLE_THREAD_TASK_RUNNER_H_
+#endif  // COBALT_MEDIA_BASE_FAKE_SINGLE_THREAD_TASK_RUNNER_H_

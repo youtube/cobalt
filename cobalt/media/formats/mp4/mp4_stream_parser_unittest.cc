@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/mp4/mp4_stream_parser.h"
+#include "cobalt/media/formats/mp4/mp4_stream_parser.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -16,19 +16,19 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/media_track.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/base/stream_parser.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/base/test_data_util.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/video_decoder_config.h"
-#include "media2/formats/mp4/es_descriptor.h"
-#include "media2/formats/mp4/fourccs.h"
-#include "media2/media_features.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/media_track.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/test_data_util.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/formats/mp4/es_descriptor.h"
+#include "cobalt/media/formats/mp4/fourccs.h"
+#include "cobalt/media/media_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

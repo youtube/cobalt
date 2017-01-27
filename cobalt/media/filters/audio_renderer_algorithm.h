@@ -18,8 +18,8 @@
 //
 // Audio at very low or very high playback rates are muted to preserve quality.
 
-#ifndef MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
-#define MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
+#ifndef COBALT_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
+#define COBALT_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
 
 #include <stdint.h>
 
@@ -27,9 +27,9 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "media2/base/audio_buffer.h"
-#include "media2/base/audio_buffer_queue.h"
-#include "media2/base/audio_parameters.h"
+#include "cobalt/media/base/audio_buffer.h"
+#include "cobalt/media/base/audio_buffer_queue.h"
+#include "cobalt/media/base/audio_parameters.h"
 
 namespace media {
 
@@ -216,4 +216,4 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
+#endif  // COBALT_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_

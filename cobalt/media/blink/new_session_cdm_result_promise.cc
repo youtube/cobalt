@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/new_session_cdm_result_promise.h"
+#include "cobalt/media/blink/new_session_cdm_result_promise.h"
 
 #include "base/logging.h"
-#include "media2/blink/cdm_result_promise_helper.h"
+#include "cobalt/media/blink/cdm_result_promise_helper.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
 namespace media {

@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_
-#define MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_
+#ifndef COBALT_MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_
+#define COBALT_MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_
 
 #include <stdint.h>
+
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "media2/base/cdm_context.h"
-#include "media2/base/decryptor.h"
-#include "media2/base/video_decoder.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/cdm_context.h"
+#include "cobalt/media/base/decryptor.h"
+#include "cobalt/media/base/video_decoder.h"
+#include "cobalt/media/base/video_decoder_config.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -119,4 +121,4 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_
+#endif  // COBALT_MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_

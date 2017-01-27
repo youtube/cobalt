@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/mock_media_log.h"
+#include "cobalt/media/base/mock_media_log.h"
 
 namespace media {
 

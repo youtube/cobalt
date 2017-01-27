@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBMEDIAPLAYER_DELEGATE_H_
-#define MEDIA_BLINK_WEBMEDIAPLAYER_DELEGATE_H_
+#ifndef COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_DELEGATE_H_
+#define COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_DELEGATE_H_
 
 namespace blink {
 class WebMediaPlayer;
@@ -83,4 +83,4 @@ class WebMediaPlayerDelegate {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBMEDIAPLAYER_DELEGATE_H_
+#endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_DELEGATE_H_

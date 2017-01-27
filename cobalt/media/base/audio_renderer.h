@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_RENDERER_H_
-#define MEDIA_BASE_AUDIO_RENDERER_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_RENDERER_H_
+#define COBALT_MEDIA_BASE_AUDIO_RENDERER_H_
 
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/time.h"
-#include "media2/base/buffering_state.h"
-#include "media2/base/media_export.h"
-#include "media2/base/pipeline_status.h"
+#include "cobalt/media/base/buffering_state.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/pipeline_status.h"
 
 namespace media {
 
@@ -60,4 +60,4 @@ class MEDIA_EXPORT AudioRenderer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_RENDERER_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_RENDERER_H_

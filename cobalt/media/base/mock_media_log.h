@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MOCK_MEDIA_LOG_H_
-#define MEDIA_BASE_MOCK_MEDIA_LOG_H_
+#ifndef COBALT_MEDIA_BASE_MOCK_MEDIA_LOG_H_
+#define COBALT_MEDIA_BASE_MOCK_MEDIA_LOG_H_
 
 #include <memory>
 #include <string>
 
 #include "base/basictypes.h"
-#include "media2/base/media_log.h"
+#include "cobalt/media/base/media_log.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 // Helper macros to reduce boilerplate when verifying media log entries.
@@ -44,4 +44,4 @@ class MockMediaLog : public MediaLog {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MOCK_MEDIA_LOG_H_
+#endif  // COBALT_MEDIA_BASE_MOCK_MEDIA_LOG_H_

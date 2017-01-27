@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MPEG_ADTS_CONSTANTS_H_
-#define MEDIA_FORMATS_MPEG_ADTS_CONSTANTS_H_
+#ifndef COBALT_MEDIA_FORMATS_MPEG_ADTS_CONSTANTS_H_
+#define COBALT_MEDIA_FORMATS_MPEG_ADTS_CONSTANTS_H_
 
 #include <stddef.h>
 
-#include "media2/base/channel_layout.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -25,4 +25,4 @@ MEDIA_EXPORT extern const size_t kADTSChannelLayoutTableSize;
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MPEG_ADTS_CONSTANTS_H_
+#endif  // COBALT_MEDIA_FORMATS_MPEG_ADTS_CONSTANTS_H_

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/mime_util_internal.h"
+#include "cobalt/media/base/mime_util_internal.h"
 
 #include "base/command_line.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "build/build_config.h"
-#include "media2/base/media.h"
-#include "media2/base/video_codecs.h"
+#include "cobalt/media/base/media.h"
+#include "cobalt/media/base/video_codecs.h"
 
 #if defined(OS_ANDROID)
 #include "base/android/build_info.h"
-#include "media2/base/android/media_codec_util.h"
+#include "cobalt/media/base/android/media_codec_util.h"
 #endif
 
 namespace media {

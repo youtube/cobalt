@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_YUV_CONVERT_H_
-#define MEDIA_BASE_YUV_CONVERT_H_
+#ifndef COBALT_MEDIA_BASE_YUV_CONVERT_H_
+#define COBALT_MEDIA_BASE_YUV_CONVERT_H_
 
 #include <stdint.h>
 
 #include "build/build_config.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 // Visual Studio 2010 does not support MMX intrinsics on x64.
 // Some win64 yuv_convert code paths use SSE+MMX yasm, so without rewriting
@@ -149,4 +149,4 @@ MEDIA_EXPORT void EmptyRegisterState();
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_YUV_CONVERT_H_
+#endif  // COBALT_MEDIA_BASE_YUV_CONVERT_H_

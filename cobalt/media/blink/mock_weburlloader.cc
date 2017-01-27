@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/mock_weburlloader.h"
+#include "cobalt/media/blink/mock_weburlloader.h"
 
 #include "third_party/WebKit/public/platform/WebData.h"
 #include "third_party/WebKit/public/platform/WebURLError.h"

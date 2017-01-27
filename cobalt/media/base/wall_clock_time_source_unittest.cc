@@ -6,7 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/test/simple_test_tick_clock.h"
-#include "media2/base/wall_clock_time_source.h"
+#include "cobalt/media/base/wall_clock_time_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

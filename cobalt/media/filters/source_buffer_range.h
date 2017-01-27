@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_SOURCE_BUFFER_RANGE_H_
-#define MEDIA_FILTERS_SOURCE_BUFFER_RANGE_H_
+#ifndef COBALT_MEDIA_FILTERS_SOURCE_BUFFER_RANGE_H_
+#define COBALT_MEDIA_FILTERS_SOURCE_BUFFER_RANGE_H_
 
 #include <stddef.h>
 
@@ -12,7 +12,7 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "media2/base/stream_parser_buffer.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
 
 namespace media {
 
@@ -322,4 +322,4 @@ class SourceBufferRange {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SOURCE_BUFFER_RANGE_H_
+#endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_RANGE_H_

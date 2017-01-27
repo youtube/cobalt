@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/test_data_util.h"
+#include "cobalt/media/base/test_data_util.h"
 
 #include <stdint.h>
 
@@ -10,7 +10,7 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
-#include "media2/base/decoder_buffer.h"
+#include "cobalt/media/base/decoder_buffer.h"
 
 namespace media {
 

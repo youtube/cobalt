@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_TEST_UTILITY_VIDEO_UTILITY_H_
-#define MEDIA_CAST_TEST_UTILITY_VIDEO_UTILITY_H_
+#ifndef COBALT_MEDIA_CAST_TEST_UTILITY_VIDEO_UTILITY_H_
+#define COBALT_MEDIA_CAST_TEST_UTILITY_VIDEO_UTILITY_H_
 
 // Utility functions for video testing.
 
@@ -36,4 +36,4 @@ bool PopulateVideoFrameFromFile(VideoFrame* frame, FILE* video_file);
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_TEST_UTILITY_VIDEO_UTILITY_H_
+#endif  // COBALT_MEDIA_CAST_TEST_UTILITY_VIDEO_UTILITY_H_

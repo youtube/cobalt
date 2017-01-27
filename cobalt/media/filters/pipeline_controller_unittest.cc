@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/pipeline_controller.h"
+#include "cobalt/media/filters/pipeline_controller.h"
 
 #include <memory>
 
@@ -14,8 +14,8 @@
 #include "base/message_loop.h"
 #include "base/run_loop.h"
 #include "base/time.h"
-#include "media2/base/mock_filters.h"
-#include "media2/base/pipeline.h"
+#include "cobalt/media/base/mock_filters.h"
+#include "cobalt/media/base/pipeline.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

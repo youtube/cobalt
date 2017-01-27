@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_FRAME_PROCESSOR_H_
-#define MEDIA_FILTERS_FRAME_PROCESSOR_H_
+#ifndef COBALT_MEDIA_FILTERS_FRAME_PROCESSOR_H_
+#define COBALT_MEDIA_FILTERS_FRAME_PROCESSOR_H_
 
 #include <map>
 
@@ -12,10 +12,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
-#include "media2/base/stream_parser.h"
-#include "media2/filters/chunk_demuxer.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
 
 namespace media {
 
@@ -182,4 +182,4 @@ class MEDIA_EXPORT FrameProcessor {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_FRAME_PROCESSOR_H_
+#endif  // COBALT_MEDIA_FILTERS_FRAME_PROCESSOR_H_

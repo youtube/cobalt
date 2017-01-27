@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_BUFFER_H_
-#define MEDIA_BASE_AUDIO_BUFFER_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_BUFFER_H_
+#define COBALT_MEDIA_BASE_AUDIO_BUFFER_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,9 +15,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
-#include "media2/base/channel_layout.h"
-#include "media2/base/media_export.h"
-#include "media2/base/sample_format.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/sample_format.h"
 
 namespace mojo {
 template <typename T, typename U>
@@ -182,4 +182,4 @@ class MEDIA_EXPORT AudioBuffer
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_BUFFER_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_BUFFER_H_

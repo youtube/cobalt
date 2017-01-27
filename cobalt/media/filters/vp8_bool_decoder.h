@@ -40,8 +40,8 @@
 // project. (http://www.webmproject.org/code)
 // It is used to decode bits from a vp8 stream.
 
-#ifndef MEDIA_FILTERS_VP8_BOOL_DECODER_H_
-#define MEDIA_FILTERS_VP8_BOOL_DECODER_H_
+#ifndef COBALT_MEDIA_FILTERS_VP8_BOOL_DECODER_H_
+#define COBALT_MEDIA_FILTERS_VP8_BOOL_DECODER_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -49,7 +49,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -132,4 +132,4 @@ class MEDIA_EXPORT Vp8BoolDecoder {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_VP8_BOOL_DECODER_H_
+#endif  // COBALT_MEDIA_FILTERS_VP8_BOOL_DECODER_H_

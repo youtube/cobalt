@@ -7,8 +7,8 @@
 #include <list>
 
 #include "base/logging.h"
-#include "media2/base/test_random.h"
-#include "media2/blink/lru.h"
+#include "cobalt/media/base/test_random.h"
+#include "cobalt/media/blink/lru.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Range of integer used in tests below.

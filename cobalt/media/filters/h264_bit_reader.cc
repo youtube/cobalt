@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/logging.h"
-#include "media2/filters/h264_bit_reader.h"
+#include "cobalt/media/filters/h264_bit_reader.h"
 
 namespace media {
 

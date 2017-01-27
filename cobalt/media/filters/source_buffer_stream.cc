@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/source_buffer_stream.h"
+#include "cobalt/media/filters/source_buffer_stream.h"
 
 #include <algorithm>
 #include <map>
@@ -11,9 +11,9 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/filters/source_buffer_platform.h"
-#include "media2/filters/source_buffer_range.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/filters/source_buffer_platform.h"
+#include "cobalt/media/filters/source_buffer_range.h"
 
 namespace media {
 

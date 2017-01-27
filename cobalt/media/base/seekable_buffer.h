@@ -30,8 +30,8 @@
 // This class is not inherently thread-safe. Concurrent access must be
 // externally serialized.
 
-#ifndef MEDIA_BASE_SEEKABLE_BUFFER_H_
-#define MEDIA_BASE_SEEKABLE_BUFFER_H_
+#ifndef COBALT_MEDIA_BASE_SEEKABLE_BUFFER_H_
+#define COBALT_MEDIA_BASE_SEEKABLE_BUFFER_H_
 
 #include <stdint.h>
 
@@ -40,7 +40,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -186,4 +186,4 @@ class MEDIA_EXPORT SeekableBuffer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_SEEKABLE_BUFFER_H_
+#endif  // COBALT_MEDIA_BASE_SEEKABLE_BUFFER_H_

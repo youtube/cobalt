@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_
-#define MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_
+#ifndef COBALT_MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_
+#define COBALT_MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_
 
 #include <stdint.h>
 
@@ -16,11 +16,11 @@
 #include "base/memory/linked_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/media/base/data_source.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/blink/media_blink_export.h"
+#include "cobalt/media/blink/url_index.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/data_source.h"
-#include "media2/base/ranges.h"
-#include "media2/blink/media_blink_export.h"
-#include "media2/blink/url_index.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -269,4 +269,4 @@ class MEDIA_BLINK_EXPORT MultibufferDataSource : public DataSource {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_
+#endif  // COBALT_MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_

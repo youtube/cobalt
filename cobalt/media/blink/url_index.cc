@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <set>
-#include <utility>
 
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time.h"
-#include "media2/blink/resource_multibuffer_data_provider.h"
-#include "media2/blink/url_index.h"
+#include "cobalt/media/blink/resource_multibuffer_data_provider.h"
+#include "cobalt/media/blink/url_index.h"
 
 namespace media {
 

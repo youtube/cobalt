@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
-#include "media2/blink/buffered_data_source_host_impl.h"
+#include "cobalt/media/blink/buffered_data_source_host_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

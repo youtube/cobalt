@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/webm_stream_parser.h"
+#include "cobalt/media/formats/webm/webm_stream_parser.h"
 
-#include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/media_track.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/formats/webm/webm_cluster_parser.h"
-#include "media2/formats/webm/webm_constants.h"
-#include "media2/formats/webm/webm_content_encodings.h"
-#include "media2/formats/webm/webm_info_parser.h"
-#include "media2/formats/webm/webm_tracks_parser.h"
+#include "cobalt/media/base/media_track.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/webm/webm_cluster_parser.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
+#include "cobalt/media/formats/webm/webm_content_encodings.h"
+#include "cobalt/media/formats/webm/webm_info_parser.h"
+#include "cobalt/media/formats/webm/webm_tracks_parser.h"
 
 namespace media {
 

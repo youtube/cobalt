@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MIME_UTIL_INTERNAL_H_
-#define MEDIA_BASE_MIME_UTIL_INTERNAL_H_
+#ifndef COBALT_MEDIA_BASE_MIME_UTIL_INTERNAL_H_
+#define COBALT_MEDIA_BASE_MIME_UTIL_INTERNAL_H_
 
 #include <map>
 #include <string>
@@ -11,9 +11,9 @@
 
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
-#include "media2/base/media_export.h"
-#include "media2/base/mime_util.h"
-#include "media2/base/video_codecs.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/mime_util.h"
+#include "cobalt/media/base/video_codecs.h"
 
 namespace media {
 namespace internal {
@@ -182,4 +182,4 @@ class MEDIA_EXPORT MimeUtil {
 }  // namespace internal
 }  // namespace media
 
-#endif  // MEDIA_BASE_MIME_UTIL_INTERNAL_H_
+#endif  // COBALT_MEDIA_BASE_MIME_UTIL_INTERNAL_H_

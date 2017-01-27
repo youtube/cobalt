@@ -4,8 +4,8 @@
 //
 // This file contains an implementation of an H265 Annex-B video stream parser.
 
-#ifndef MEDIA_FILTERS_H265_PARSER_H_
-#define MEDIA_FILTERS_H265_PARSER_H_
+#ifndef COBALT_MEDIA_FILTERS_H265_PARSER_H_
+#define COBALT_MEDIA_FILTERS_H265_PARSER_H_
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -14,10 +14,10 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "media2/base/media_export.h"
-#include "media2/base/ranges.h"
-#include "media2/filters/h264_bit_reader.h"
-#include "media2/filters/h264_parser.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/filters/h264_bit_reader.h"
+#include "cobalt/media/filters/h264_parser.h"
 
 namespace media {
 
@@ -149,4 +149,4 @@ class MEDIA_EXPORT H265Parser {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_H265_PARSER_H_
+#endif  // COBALT_MEDIA_FILTERS_H265_PARSER_H_

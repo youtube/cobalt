@@ -4,7 +4,7 @@
 
 #include "base/logging.h"
 #include "base/sys_byteorder.h"
-#include "media2/filters/ivf_parser.h"
+#include "cobalt/media/filters/ivf_parser.h"
 
 namespace media {
 

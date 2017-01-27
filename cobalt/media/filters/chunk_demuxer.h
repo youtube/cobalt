@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_CHUNK_DEMUXER_H_
-#define MEDIA_FILTERS_CHUNK_DEMUXER_H_
+#ifndef COBALT_MEDIA_FILTERS_CHUNK_DEMUXER_H_
+#define COBALT_MEDIA_FILTERS_CHUNK_DEMUXER_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -19,14 +19,14 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "base/synchronization/lock.h"
-#include "media2/base/byte_queue.h"
-#include "media2/base/demuxer.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/ranges.h"
-#include "media2/base/stream_parser.h"
-#include "media2/filters/source_buffer_state.h"
-#include "media2/filters/source_buffer_stream.h"
+#include "cobalt/media/base/byte_queue.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/filters/source_buffer_state.h"
+#include "cobalt/media/filters/source_buffer_stream.h"
 
 namespace media {
 
@@ -461,4 +461,4 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_CHUNK_DEMUXER_H_
+#endif  // COBALT_MEDIA_FILTERS_CHUNK_DEMUXER_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_TEST_UTILITY_AUDIO_UTILITY_H_
-#define MEDIA_CAST_TEST_UTILITY_AUDIO_UTILITY_H_
+#ifndef COBALT_MEDIA_CAST_TEST_UTILITY_AUDIO_UTILITY_H_
+#define COBALT_MEDIA_CAST_TEST_UTILITY_AUDIO_UTILITY_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -85,4 +85,4 @@ bool DecodeTimestamp(const float* samples, size_t length, uint16_t* timestamp);
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_TEST_UTILITY_AUDIO_UTILITY_H_
+#endif  // COBALT_MEDIA_CAST_TEST_UTILITY_AUDIO_UTILITY_H_

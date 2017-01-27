@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_SAMPLE_TYPES_H_
-#define MEDIA_BASE_AUDIO_SAMPLE_TYPES_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_SAMPLE_TYPES_H_
+#define COBALT_MEDIA_BASE_AUDIO_SAMPLE_TYPES_H_
 
 #include <cstdint>
 #include <limits>
@@ -206,4 +206,4 @@ using SignedInt32SampleTypeTraits = FixedSampleTypeTraits<int32_t>;
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_SAMPLE_TYPES_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_SAMPLE_TYPES_H_

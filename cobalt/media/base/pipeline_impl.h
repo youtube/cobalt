@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_PIPELINE_IMPL_H_
-#define MEDIA_BASE_PIPELINE_IMPL_H_
+#ifndef COBALT_MEDIA_BASE_PIPELINE_IMPL_H_
+#define COBALT_MEDIA_BASE_PIPELINE_IMPL_H_
+
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
-#include "media2/base/media_export.h"
-#include "media2/base/pipeline.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/pipeline.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -181,4 +183,4 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_PIPELINE_IMPL_H_
+#endif  // COBALT_MEDIA_BASE_PIPELINE_IMPL_H_

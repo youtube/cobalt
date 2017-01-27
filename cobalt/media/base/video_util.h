@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_VIDEO_UTIL_H_
-#define MEDIA_BASE_VIDEO_UTIL_H_
+#ifndef COBALT_MEDIA_BASE_VIDEO_UTIL_H_
+#define COBALT_MEDIA_BASE_VIDEO_UTIL_H_
 
 #include <stdint.h>
 
 #include "base/memory/ref_counted.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -118,4 +118,4 @@ MEDIA_EXPORT bool I420CopyWithPadding(const VideoFrame& src_frame,
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_VIDEO_UTIL_H_
+#endif  // COBALT_MEDIA_BASE_VIDEO_UTIL_H_

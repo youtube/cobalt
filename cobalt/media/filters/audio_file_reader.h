@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_AUDIO_FILE_READER_H_
-#define MEDIA_FILTERS_AUDIO_FILE_READER_H_
+#ifndef COBALT_MEDIA_FILTERS_AUDIO_FILE_READER_H_
+#define COBALT_MEDIA_FILTERS_AUDIO_FILE_READER_H_
 
 #include <memory>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_codecs.h"
-#include "media2/base/media_export.h"
-#include "media2/filters/ffmpeg_glue.h"
+#include "cobalt/media/base/audio_codecs.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/filters/ffmpeg_glue.h"
 
 struct AVCodecContext;
 struct AVPacket;
@@ -99,4 +99,4 @@ class MEDIA_EXPORT AudioFileReader {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_AUDIO_FILE_READER_H_
+#endif  // COBALT_MEDIA_FILTERS_AUDIO_FILE_READER_H_

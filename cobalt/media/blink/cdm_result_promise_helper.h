@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_CDM_RESULT_PROMISE_HELPER_H_
-#define MEDIA_BLINK_CDM_RESULT_PROMISE_HELPER_H_
+#ifndef COBALT_MEDIA_BLINK_CDM_RESULT_PROMISE_HELPER_H_
+#define COBALT_MEDIA_BLINK_CDM_RESULT_PROMISE_HELPER_H_
 
 #include <string>
 
-#include "media2/base/media_keys.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/base/media_keys.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 
 namespace media {
@@ -39,4 +39,4 @@ MEDIA_BLINK_EXPORT void ReportCdmResultUMA(const std::string& uma_name,
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_CDM_RESULT_PROMISE_HELPER_H_
+#endif  // COBALT_MEDIA_BLINK_CDM_RESULT_PROMISE_HELPER_H_
