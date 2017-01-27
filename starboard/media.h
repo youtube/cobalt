@@ -131,6 +131,225 @@ typedef enum SbMediaAudioFrameStorageType {
   kSbMediaAudioFrameStorageTypePlanar,
 } SbMediaAudioFrameStorageType;
 
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+// SMPTE 2086 mastering data
+//   http://ieeexplore.ieee.org/document/7291707/
+// This standard specifies the metadata items to specify the color
+// volume (the color primaries, white point, and luminance range) of
+// the display that was used in mastering video content. The metadata
+// is specified as a set of values independent of any specific digital
+// representation.
+// Also see the WebM container guidelines:
+//   https://www.webmproject.org/docs/container/
+typedef struct SbMediaMasteringMetadata {
+  // Red X chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float primary_r_chromaticity_x;
+
+  // Red Y chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float primary_r_chromaticity_y;
+
+  // Green X chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float primary_g_chromaticity_x;
+
+  // Green Y chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float primary_g_chromaticity_y;
+
+  // Blue X chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float primary_b_chromaticity_x;
+
+  // Blue Y chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float primary_b_chromaticity_y;
+
+  // White X chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float white_point_chromaticity_x;
+
+  // White Y chromaticity coordinate as defined by CIE 1931. In range [0, 1].
+  float white_point_chromaticity_y;
+
+  // Maximum luminance. Shall be represented in candelas per square
+  // meter (cd/m^2). In range [0, 9999.99].
+  float luminance_max;
+
+  // Minimum luminance. Shall be represented in candelas per square
+  // meter (cd/m^2). In range [0, 9999.99].
+  float luminance_min;
+} SbMediaMasteringMetadata;
+
+typedef enum SbMediaPrimaryId {
+  // The first 0-255 values should match the H264 specification (see Table E-3
+  // Colour Primaries in https://www.itu.int/rec/T-REC-H.264/en).
+  kSbMediaPrimaryIdReserved0 = 0,
+  kSbMediaPrimaryIdBt709 = 1,
+  kSbMediaPrimaryIdUnspecified = 2,
+  kSbMediaPrimaryIdReserved = 3,
+  kSbMediaPrimaryIdBt470M = 4,
+  kSbMediaPrimaryIdBt470Bg = 5,
+  kSbMediaPrimaryIdSmpte170M = 6,
+  kSbMediaPrimaryIdSmpte240M = 7,
+  kSbMediaPrimaryIdFilm = 8,
+  kSbMediaPrimaryIdBt2020 = 9,
+  kSbMediaPrimaryIdSmpteSt4281 = 10,
+  kSbMediaPrimaryIdSmpteSt4312 = 11,
+  kSbMediaPrimaryIdSmpteSt4321 = 12,
+
+  kSbMediaPrimaryIdLastStandardValue = kSbMediaPrimaryIdSmpteSt4321,
+
+  // Chrome-specific values start at 1000.
+  kSbMediaPrimaryIdUnknown = 1000,
+  kSbMediaPrimaryIdXyzD50,
+  kSbMediaPrimaryIdCustom,
+  kSbMediaPrimaryIdLast = kSbMediaPrimaryIdCustom
+} SbMediaPrimaryId;
+
+typedef enum SbMediaTransferId {
+  // The first 0-255 values should match the H264 specification (see Table E-4
+  // Transfer Characteristics in https://www.itu.int/rec/T-REC-H.264/en).
+  kSbMediaTransferIdReserved0 = 0,
+  kSbMediaTransferIdBt709 = 1,
+  kSbMediaTransferIdUnspecified = 2,
+  kSbMediaTransferIdReserved = 3,
+  kSbMediaTransferIdGamma22 = 4,
+  kSbMediaTransferIdGamma28 = 5,
+  kSbMediaTransferIdSmpte170M = 6,
+  kSbMediaTransferIdSmpte240M = 7,
+  kSbMediaTransferIdLinear = 8,
+  kSbMediaTransferIdLog = 9,
+  kSbMediaTransferIdLogSqrt = 10,
+  kSbMediaTransferIdIec6196624 = 11,
+  kSbMediaTransferIdBt1361Ecg = 12,
+  kSbMediaTransferIdIec6196621 = 13,
+  kSbMediaTransferId10BitBt2020 = 14,
+  kSbMediaTransferId12BitBt2020 = 15,
+  kSbMediaTransferIdSmpteSt2084 = 16,
+  kSbMediaTransferIdSmpteSt4281 = 17,
+  kSbMediaTransferIdAribStdB67 = 18,  // AKA hybrid-log gamma, HLG.
+
+  kSbMediaTransferIdLastStandardValue = kSbMediaTransferIdSmpteSt4281,
+
+  // Chrome-specific values start at 1000.
+  kSbMediaTransferIdUnknown = 1000,
+  kSbMediaTransferIdGamma24,
+
+  // This is an ad-hoc transfer function that decodes SMPTE 2084 content
+  // into a 0-1 range more or less suitable for viewing on a non-hdr
+  // display.
+  kSbMediaTransferIdSmpteSt2084NonHdr,
+
+  // TODO: Need to store an approximation of the gamma function(s).
+  kSbMediaTransferIdCustom,
+  kSbMediaTransferIdLast = kSbMediaTransferIdCustom,
+} SbMediaTransferId;
+
+typedef enum SbMediaMatrixId {
+  // The first 0-255 values should match the H264 specification (see Table E-5
+  // Matrix Coefficients in https://www.itu.int/rec/T-REC-H.264/en).
+  kSbMediaMatrixIdRgb = 0,
+  kSbMediaMatrixIdBt709 = 1,
+  kSbMediaMatrixIdUnspecified = 2,
+  kSbMediaMatrixIdReserved = 3,
+  kSbMediaMatrixIdFcc = 4,
+  kSbMediaMatrixIdBt470Bg = 5,
+  kSbMediaMatrixIdSmpte170M = 6,
+  kSbMediaMatrixIdSmpte240M = 7,
+  kSbMediaMatrixIdYCgCo = 8,
+  kSbMediaMatrixIdBt2020NonconstantLuminance = 9,
+  kSbMediaMatrixIdBt2020ConstantLuminance = 10,
+  kSbMediaMatrixIdYDzDx = 11,
+
+  kSbMediaMatrixIdLastStandardValue = kSbMediaMatrixIdYDzDx,
+
+  // Chrome-specific values start at 1000
+  kSbMediaMatrixIdUnknown = 1000,
+  kSbMediaMatrixIdLast = kSbMediaMatrixIdUnknown,
+} SbMediaMatrixId;
+
+// This corresponds to the WebM Range enum which is part of WebM color data
+// (see http://www.webmproject.org/docs/container/#Range).
+// H.264 only uses a bool, which corresponds to the LIMITED/FULL values.
+// Chrome-specific values start at 1000.
+typedef enum SbMediaRangeId {
+  // Range is not explicitly specified / unknown.
+  kSbMediaRangeIdUnspecified = 0,
+
+  // Limited Rec. 709 color range with RGB values ranging from 16 to 235.
+  kSbMediaRangeIdLimited = 1,
+
+  // Full RGB color range with RGB valees from 0 to 255.
+  kSbMediaRangeIdFull = 2,
+
+  // Range is defined by TransferId/MatrixId.
+  kSbMediaRangeIdDerived = 3,
+
+  kSbMediaRangeIdLast = kSbMediaRangeIdDerived
+} SbMediaRangeId;
+
+// HDR (High Dynamic Range) Metadata common for HDR10 and
+// WebM/VP9-based HDR formats, together with the ColorSpace. HDR
+// reproduces a greater dynamic range of luminosity than is possible
+// with standard digital imaging. See the Consumer Electronics
+// Association press release:
+// https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx
+typedef struct SbMediaHdrMetadataColorSpace {
+  // [HDR Metadata field] SMPTE 2086 mastering data.
+  SbMediaMasteringMetadata mastering_metadata;
+
+  // [HDR Metadata field] Maximum brightness of a single pixel (Maximum
+  // Content Light Level) in candelas per square meter (cd/m^2).
+  unsigned int max_cll;
+
+  // [HDR Metadata field] Maximum brightness of a single full frame
+  // (Maximum Frame-Average Light Level) in candelas per square meter
+  // (cd/m^2).
+  unsigned int max_fall;
+
+  // [Color Space field] The colour primaries of the video. For
+  // clarity, the value and meanings for Primaries are adopted from
+  // Table 2 of ISO/IEC 23001-8:2013/DCOR1. (0: Reserved, 1: ITU-R
+  // BT.709, 2: Unspecified, 3: Reserved, 4: ITU-R BT.470M, 5: ITU-R
+  // BT.470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: FILM, 9: ITU-R
+  // BT.2020, 10: SMPTE ST 428-1, 22: JEDEC P22 phosphors)
+  SbMediaPrimaryId primaries;
+
+  // [Color Space field] The transfer characteristics of the
+  // video. For clarity, the value and meanings for
+  // TransferCharacteristics 1-15 are adopted from Table 3 of ISO/IEC
+  // 23001-8:2013/DCOR1. TransferCharacteristics 16-18 are proposed
+  // values. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified, 3:
+  // Reserved, 4: Gamma 2.2 curve, 5: Gamma 2.8 curve, 6: SMPTE 170M,
+  // 7: SMPTE 240M, 8: Linear, 9: Log, 10: Log Sqrt, 11: IEC
+  // 61966-2-4, 12: ITU-R BT.1361 Extended Colour Gamut, 13: IEC
+  // 61966-2-1, 14: ITU-R BT.2020 10 bit, 15: ITU-R BT.2020 12 bit,
+  // 16: SMPTE ST 2084, 17: SMPTE ST 428-1 18: ARIB STD-B67 (HLG))
+  SbMediaTransferId transfer;
+
+  // [Color Space field] The Matrix Coefficients of the video used to
+  // derive luma and chroma values from reg, green, and blue color
+  // primaries. For clarity, the value and meanings for
+  // MatrixCoefficients are adopted from Table 4 of ISO/IEC
+  // 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3:
+  // Reserved, 4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8:
+  // YCOCG, 9: BT2020 Non-constant Luminance, 10: BT2020 Constant
+  // Luminance)
+  SbMediaMatrixId matrix;
+
+  // [Color Space field] The Matrix Coefficients of the video used to
+  // derive luma and chroma values from reg, green, and blue color
+  // primaries. For clarity, the value and meanings for
+  // MatrixCoefficients are adopted from Table 4 of ISO/IEC
+  // 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3:
+  // Reserved, 4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8:
+  // YCOCG, 9: BT2020 Non-constant Luminance, 10: BT2020 Constant
+  // Luminance)
+  SbMediaRangeId range;
+
+  // [Color Space field] Only used if primaries ==
+  // kSbMediaPrimaryIdCustom.  This a row-major ordered 3 x 4
+  // submatrix of the 4 x 4 transform matrix.  The 4th row is
+  // completed as (0, 0, 0, 1).
+  float custom_primary_matrix[12];
+} SbMediaHdrMetadataColorSpace;
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+
 // The set of information required by the decoder or player for each video
 // sample.
 typedef struct SbMediaVideoSampleInfo {
@@ -147,6 +366,16 @@ typedef struct SbMediaVideoSampleInfo {
   // Sequence Parameter Set (SPS) NAL Unit. Frame dimensions must only change on
   // key frames, but may change on any key frame.
   int frame_height;
+
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  // HDR metadata common for HDR10 and WeB/VP9-based HDR formats as
+  // well as the Color Space: MatrixCoefficients, Range,
+  // TansferCharacteristics, and Primaries described here:
+  // https://matroska.org/technical/specs/index.html
+  // This will only be specified on frames where the HDR metadata and color
+  // space might have changed (e.g. keyframes).
+  SbMediaHdrMetadataColorSpace* hdr_metadata_color_space;
+#endif
 } SbMediaVideoSampleInfo;
 
 // A structure describing the audio configuration parameters of a single audio
