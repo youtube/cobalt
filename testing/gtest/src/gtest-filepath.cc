@@ -33,7 +33,9 @@
 #include "gtest/internal/gtest-filepath.h"
 #include "gtest/internal/gtest-port.h"
 
+#if !GTEST_OS_STARBOARD
 #include <stdlib.h>
+#endif
 
 #if GTEST_OS_WINDOWS_MOBILE
 # include <windows.h>
@@ -97,7 +99,7 @@ static bool IsPathSeparator(char c) {
 
 // Returns the current working directory, or "" if unsuccessful.
 FilePath FilePath::GetCurrentDir() {
-#if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_WINDOWS_PHONE || GTEST_OS_WINDOWS_RT
+#if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_WINDOWS_PHONE || GTEST_OS_WINDOWS_RT || GTEST_OS_STARBOARD
   // Windows CE doesn't have a current directory, so we just return
   // something reasonable.
   return FilePath(kCurrentDirectoryString);
@@ -134,9 +136,11 @@ FilePath FilePath::RemoveExtension(const char* extension) const {
 // the FilePath. On Windows, for example, both '/' and '\' are valid path
 // separators. Returns NULL if no path separator was found.
 const char* FilePath::FindLastPathSeparator() const {
-  const char* const last_sep = strrchr(c_str(), kPathSeparator);
+  const char* const last_sep =
+      internal::posix::StrRChr(c_str(), kPathSeparator);
 #if GTEST_HAS_ALT_PATH_SEP_
-  const char* const last_alt_sep = strrchr(c_str(), kAlternatePathSeparator);
+  const char* const last_alt_sep =
+      internal::posix::StrRChr(c_str(), kAlternatePathSeparator);
   // Comparing two pointers of which only one is NULL is undefined.
   if (last_alt_sep != NULL &&
       (last_sep == NULL || last_alt_sep > last_sep)) {
@@ -331,7 +335,7 @@ bool FilePath::CreateFolder() const {
 #elif GTEST_OS_WINDOWS
   int result = _mkdir(pathname_.c_str());
 #else
-  int result = mkdir(pathname_.c_str(), 0777);
+  int result = posix::MkDir(pathname_.c_str(), 0777);
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
   if (result == -1) {
@@ -361,7 +365,7 @@ void FilePath::Normalize() {
   const char* src = pathname_.c_str();
   char* const dest = new char[pathname_.length() + 1];
   char* dest_ptr = dest;
-  memset(dest_ptr, 0, pathname_.length() + 1);
+  internal::posix::MemSet(dest_ptr, 0, pathname_.length() + 1);
 
   while (*src != '\0') {
     *dest_ptr = *src;
