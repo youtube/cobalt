@@ -114,7 +114,7 @@ class DOMSettings : public script::EnvironmentSettings {
   Blob::Registry* blob_registry() const { return blob_registry_; }
 
   // An absolute URL used to resolve relative URLs.
-  virtual GURL base_url() const;
+  virtual const GURL& base_url() const;
 
  private:
   const int max_dom_element_depth_;
